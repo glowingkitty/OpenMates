@@ -119,6 +119,13 @@ contracts:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.public-example-chats:
+    version: 1
+    status: approved
+    path: features/public-example-chats
+    fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
+    required_surfaces:
+    - gui.web
   feature.workflows:
     version: 1
     status: approved
@@ -1156,6 +1163,48 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+  public-example-chats.catalog.discoverable:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: behavior
+    fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
+    required_surfaces:
+    - gui.web
+  public-example-chats.navigation.static-public-link:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: behavior
+    fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
+    required_surfaces:
+    - gui.web
+  public-example-chats.transcript.safe-rendering:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: privacy
+    fingerprint: e39475dbab54b733ca2a62aaeb52048fb5fd088992c9a1f951616da722424bdd
+    required_surfaces:
+    - gui.web
+  public-example-chats.history.explicit-forgotten-reveal:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: behavior
+    fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
+    required_surfaces:
+    - gui.web
+  public-example-chats.seo.crawlable:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: behavior
+    fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
+    required_surfaces:
+    - gui.web
+  public-example-chats.surface.semantic-parity:
+    contract: feature.public-example-chats@1
+    contract_id: feature.public-example-chats
+    type: parity
+    fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
+    required_surfaces:
     - gui.web
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1

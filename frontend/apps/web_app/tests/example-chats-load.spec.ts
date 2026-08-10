@@ -31,6 +31,10 @@ const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
 	'[Interactive Question - Invalid JSON]',
 	'vault_wrapped_aes_key',
 	'vault:v1:',
+	'audio_base64',
+	'aes_key',
+	'aes_nonce',
+	's3_base_url',
 	'dev-openmates-chatfiles',
 	'chatfiles/',
 	's3_key:',
@@ -128,6 +132,7 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 
@@ -188,6 +193,7 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
 		page
 	}: {
@@ -269,6 +275,7 @@ test.describe('Example chats loading for new users', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
 		page
 	}: {
@@ -299,6 +306,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('guest example chat exposes share and chat settings with a static public link', async ({
 		page
 	}: {
@@ -362,6 +370,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu.getByTestId('share-generate-link')).toHaveCount(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering
 	test('memory example cards update the reloadable chat hash on wide viewports', async ({
 		page
 	}: {
@@ -391,6 +400,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 	test('reported memory examples render current text content without interactive-question errors', async ({
 		page
 	}: {
@@ -422,6 +432,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('privacy-first local AI example hides compressed history behind forgotten messages', async ({
 		page
 	}: {
@@ -477,14 +488,15 @@ test.describe('Example chats loading for new users', () => {
 		await expect(firstPrompt).toHaveCount(0);
 
 		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
-		await page.getByTestId('show-forgotten-messages').click();
+		const forgottenMessagesToggle = page.getByTestId('show-forgotten-messages');
+		await forgottenMessagesToggle.click();
 
 		await expect.poll(async () => page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count(), {
 			message: 'Show forgotten messages should reveal the compressed static example history',
 			timeout: 10000
 		}).toBeGreaterThan(visibleMessageCount);
 		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('hide-forgotten-messages-at-boundary')).toBeVisible({ timeout: 10000 });
+		await expect(forgottenMessagesToggle).toContainText('Hide old forgotten messages', { timeout: 10000 });
 
 		await firstPrompt.getByTestId('remember-forgotten-message').click();
 		const messageEditor = page.getByTestId('message-editor');
@@ -504,6 +516,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(compressionSummary).toHaveCount(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('nutrition example renders Edamam recipe search embed card', async ({
 		page
 	}: {
@@ -563,6 +576,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).toContainText('8.7g');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
 		page
 	}: {
@@ -667,6 +681,7 @@ test.describe('Example chats loading for new users', () => {
 		expect(transportTypes).not.toContain('long_distance_train');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('sidebar example chats show newest first and append older results after show more', async ({
 		page
 	}: {
@@ -707,6 +722,7 @@ test.describe('Example chats loading for new users', () => {
 		).toBe(expandedIds.length);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable
 	test('example chat SSR pages are accessible', async ({ request }: { request: any }) => {
 		test.setTimeout(30000);
 
@@ -721,6 +737,7 @@ test.describe('Example chats loading for new users', () => {
 		expect(html).toContain('<h1>');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable,public-example-chats.transcript.safe-rendering
 	test('every example chat SSR page has complete crawlable SEO HTML', async ({
 		request
 	}: {
@@ -814,6 +831,7 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable
 	test('production sitemap includes every example chat with lastmod', async ({
 		request
 	}: {

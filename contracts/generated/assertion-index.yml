@@ -4268,6 +4268,262 @@ assertions:
     tests: []
     surfaces: {}
     current_direct_proof: false
+  public-example-chats.catalog.discoverable:
+    contract: feature.public-example-chats@1
+    fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
+    direct_tests:
+    - &id432
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 136
+      name: example chats appear in for-everyone intro chat
+      surface: gui.web
+    - &id433
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 197
+      name: guest show-all examples uses expanded resume cards and global search covers
+        every example
+      surface: gui.web
+    - &id434
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 685
+      name: sidebar example chats show newest first and append older results after
+        show more
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id432
+    - *id433
+    - *id434
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id432
+        - *id433
+        - *id434
+        supporting_tests: []
+    current_direct_proof: false
+  public-example-chats.navigation.static-public-link:
+    contract: feature.public-example-chats@1
+    fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
+    direct_tests:
+    - &id435
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 310
+      name: guest example chat exposes share and chat settings with a static public
+        link
+      surface: gui.web
+    - &id436
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 374
+      name: memory example cards update the reloadable chat hash on wide viewports
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id435
+    - *id436
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id435
+        - *id436
+        supporting_tests: []
+    current_direct_proof: false
+  public-example-chats.transcript.safe-rendering:
+    contract: feature.public-example-chats@1
+    fingerprint: e39475dbab54b733ca2a62aaeb52048fb5fd088992c9a1f951616da722424bdd
+    direct_tests:
+    - &id437
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 279
+      name: deep research example renders static sub-chat cards without a forced focus
+        mention
+      surface: gui.web
+    - &id438
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 310
+      name: guest example chat exposes share and chat settings with a static public
+        link
+      surface: gui.web
+    - &id439
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 374
+      name: memory example cards update the reloadable chat hash on wide viewports
+      surface: gui.web
+    - &id440
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 404
+      name: reported memory examples render current text content without interactive-question
+        errors
+      surface: gui.web
+    - &id441
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 436
+      name: privacy-first local AI example hides compressed history behind forgotten
+        messages
+      surface: gui.web
+    - &id442
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 520
+      name: nutrition example renders Edamam recipe search embed card
+      surface: gui.web
+    - &id443
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 580
+      name: Deutschlandticket travel example keeps preview metadata readable and shows
+        map route lines
+      surface: gui.web
+    - &id444
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 741
+      name: every example chat SSR page has complete crawlable SEO HTML
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id437
+    - *id438
+    - *id439
+    - *id440
+    - *id441
+    - *id442
+    - *id443
+    - *id444
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id437
+        - *id438
+        - *id439
+        - *id440
+        - *id441
+        - *id442
+        - *id443
+        - *id444
+        supporting_tests: []
+    current_direct_proof: false
+  public-example-chats.history.explicit-forgotten-reveal:
+    contract: feature.public-example-chats@1
+    fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
+    direct_tests:
+    - &id445
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 436
+      name: privacy-first local AI example hides compressed history behind forgotten
+        messages
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id445
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id445
+        supporting_tests: []
+    current_direct_proof: false
+  public-example-chats.seo.crawlable:
+    contract: feature.public-example-chats@1
+    fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
+    direct_tests:
+    - &id446
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 726
+      name: example chat SSR pages are accessible
+      surface: gui.web
+    - &id447
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 741
+      name: every example chat SSR page has complete crawlable SEO HTML
+      surface: gui.web
+    - &id448
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 835
+      name: production sitemap includes every example chat with lastmod
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id446
+    - *id447
+    - *id448
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id446
+        - *id447
+        - *id448
+        supporting_tests: []
+    current_direct_proof: false
+  public-example-chats.surface.semantic-parity:
+    contract: feature.public-example-chats@1
+    fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
+    direct_tests:
+    - &id449
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 136
+      name: example chats appear in for-everyone intro chat
+      surface: gui.web
+    - &id450
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 197
+      name: guest show-all examples uses expanded resume cards and global search covers
+        every example
+      surface: gui.web
+    - &id451
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 279
+      name: deep research example renders static sub-chat cards without a forced focus
+        mention
+      surface: gui.web
+    - &id452
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 310
+      name: guest example chat exposes share and chat settings with a static public
+        link
+      surface: gui.web
+    - &id453
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 436
+      name: privacy-first local AI example hides compressed history behind forgotten
+        messages
+      surface: gui.web
+    - &id454
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 520
+      name: nutrition example renders Edamam recipe search embed card
+      surface: gui.web
+    - &id455
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 580
+      name: Deutschlandticket travel example keeps preview metadata readable and shows
+        map route lines
+      surface: gui.web
+    - &id456
+      path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      line: 685
+      name: sidebar example chats show newest first and append older results after
+        show more
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id449
+    - *id450
+    - *id451
+    - *id452
+    - *id453
+    - *id454
+    - *id455
+    - *id456
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id449
+        - *id450
+        - *id451
+        - *id452
+        - *id453
+        - *id454
+        - *id455
+        - *id456
+        supporting_tests: []
+    current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
@@ -4296,18 +4552,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id432
+    - &id457
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id432
+    - *id457
     surfaces:
       gui.web:
         direct_tests:
-        - *id432
+        - *id457
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:
