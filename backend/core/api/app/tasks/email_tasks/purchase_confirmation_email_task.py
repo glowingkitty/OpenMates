@@ -35,6 +35,9 @@ event_logger.addFilter(sensitive_filter)
 BILLING_ADMIN_ERROR_TEMPLATE = "billing-processing-error"
 BILLING_ADMIN_ERROR_MESSAGE_LIMIT = 2000
 BILLING_ADMIN_FIELD_LIMIT = 300
+INVOICE_RECORD_CREATE_ERROR_MESSAGE = "Failed to create Directus invoice record"
+INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS = 60
+INVOICE_RECORD_CREATE_MAX_RETRIES = 3
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
@@ -42,6 +45,14 @@ _API_SECRET_RE = re.compile(
     r"(?i)\b(api[_-]?key|token|secret|password)\s*[:=]\s*[^,\s;]+"
 )
 _STRIPE_SECRET_RE = re.compile(r"\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9_]+\b")
+
+
+class InvoiceRecordCreationError(RuntimeError):
+    """Raised when the paid order was processed but its Directus document row was not created."""
+
+
+def _is_retryable_invoice_record_creation_error(error: BaseException) -> bool:
+    return isinstance(error, InvoiceRecordCreationError) or str(error) == INVOICE_RECORD_CREATE_ERROR_MESSAGE
 
 
 def _coerce_invoice_datetime(value: Any) -> Optional[datetime]:
@@ -248,9 +259,17 @@ def process_invoice_and_send_email(
         return result
     except Exception as e:
         logger.error(f"Failed to run invoice processing task for Order ID: {order_id}, User ID: {user_id}: {str(e)}", exc_info=True)
-        # Consider retrying the task based on the exception type
-        # self.retry(exc=e, countdown=60) # Example retry after 60 seconds
-        return False
+        if _is_retryable_invoice_record_creation_error(e):
+            logger.warning(
+                "Retrying invoice processing for order %s after Directus invoice row creation failed",
+                order_id,
+            )
+            raise self.retry(
+                exc=e,
+                countdown=INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS,
+                max_retries=INVOICE_RECORD_CREATE_MAX_RETRIES,
+            )
+        raise
 
 async def _async_process_invoice_and_send_email(
     task: BaseServiceTask,  # Use the custom task class type hint
@@ -780,7 +799,7 @@ async def _async_process_invoice_and_send_email(
         if not create_success:
             logger.error(f"Failed to create invoice record in Directus for invoice {invoice_number}. Response: {created_item}")
             # Consider cleanup? Maybe delete S3 object? For now, just raise.
-            raise Exception("Failed to create Directus invoice record")
+            raise InvoiceRecordCreationError(INVOICE_RECORD_CREATE_ERROR_MESSAGE)
         logger.info(f"Created Directus invoice record for invoice {invoice_number}")
         
         # Extract invoice UUID from created item for deep link

@@ -49,6 +49,11 @@ class FailingInvoiceTask(FakeTask):
         raise RuntimeError("payment lookup failed for buyer@example.com")
 
 
+class ScheduledRetry(Exception):
+    pass
+
+
+# contract-test: supporting surface=rest_api assertions=billing.documents.visible-downloadable
 def test_invoice_datetime_prefers_explicit_backfill_payment_date():
     resolved = billing_task._resolve_invoice_datetime(
         explicit_invoice_date="2026-06-04T16:30:00Z",
@@ -58,6 +63,7 @@ def test_invoice_datetime_prefers_explicit_backfill_payment_date():
     assert resolved.isoformat() == "2026-06-04T16:30:00+00:00"
 
 
+# contract-test: supporting surface=rest_api assertions=billing.documents.visible-downloadable
 def test_invoice_datetime_uses_provider_payment_created_before_now():
     resolved = billing_task._resolve_invoice_datetime(
         explicit_invoice_date=None,
@@ -67,6 +73,7 @@ def test_invoice_datetime_uses_provider_payment_created_before_now():
     assert resolved.date().isoformat() == "2026-07-04"
 
 
+# contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_billing_admin_notification_sanitizes_context(monkeypatch):
     monkeypatch.setenv("ADMIN_NOTIFY_EMAIL", "admin@example.com")
@@ -103,6 +110,7 @@ async def test_billing_admin_notification_sanitizes_context(monkeypatch):
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in context["error_message"]
 
 
+# contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_billing_admin_notification_is_best_effort(monkeypatch):
     monkeypatch.setenv("ADMIN_NOTIFY_EMAIL", "admin@example.com")
@@ -123,6 +131,7 @@ async def test_billing_admin_notification_is_best_effort(monkeypatch):
     assert sent is False
 
 
+# contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_invoice_processing_preserves_original_error_when_admin_alert_fails(monkeypatch):
     calls = []
@@ -152,3 +161,38 @@ async def test_invoice_processing_preserves_original_error_when_admin_alert_fail
 
     assert calls[0]["stage"] == "invoice_processing"
     assert task.cleaned_up is True
+
+
+# contract-test: supporting surface=rest_api assertions=billing.documents.visible-downloadable
+def test_invoice_processing_task_retries_invoice_record_creation_failure(monkeypatch):
+    retry_calls = []
+
+    async def fail_invoice_record_creation(*args, **kwargs):
+        raise RuntimeError("Failed to create Directus invoice record")
+
+    def fake_retry(**kwargs):
+        retry_calls.append(kwargs)
+        raise ScheduledRetry()
+
+    monkeypatch.setattr(billing_task, "_async_process_invoice_and_send_email", fail_invoice_record_creation)
+    monkeypatch.setattr(billing_task.process_invoice_and_send_email, "retry", fake_retry)
+
+    with pytest.raises(ScheduledRetry):
+        billing_task.process_invoice_and_send_email.run(
+            order_id="ord_123",
+            user_id="user-123",
+            credits_purchased=1000,
+            sender_addressline1="",
+            sender_addressline2="",
+            sender_addressline3="",
+            sender_country="",
+            sender_email="support@example.com",
+            sender_vat="",
+            provider="stripe_managed",
+            provider_order_id="pi_123",
+        )
+
+    assert len(retry_calls) == 1
+    assert retry_calls[0]["countdown"] > 0
+    assert retry_calls[0]["max_retries"] > 0
+    assert "Directus invoice record" in str(retry_calls[0]["exc"])
