@@ -575,6 +575,7 @@ async function mobileActionableSlideState(page: any): Promise<{
 }
 
 test.describe('Landing page onboarding refresh', () => {
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.intro-active-apps-only,landing-onboarding.coordinated-story-progress
 	test('expanded intro fits all target device viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(180000);
 
@@ -641,6 +642,7 @@ test.describe('Landing page onboarding refresh', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.intro-active-apps-only,landing-onboarding.coordinated-story-progress
 	test('expanded intro app rails keep moving with a slower primary row', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -656,6 +658,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(Math.abs(metrics.primaryDeltaX), 'primary rail should move slower than secondary').toBeLessThan(Math.abs(metrics.secondaryDeltaX));
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.intro-active-apps-only,landing-onboarding.coordinated-story-progress
 	test('expanded intro top app rail stays continuous when the highlighted app switches', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -673,6 +676,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(Math.abs(metrics.primaryDeltaX), 'top rail should not accelerate past the bottom rail during the app switch').toBeLessThanOrEqual(Math.abs(metrics.secondaryDeltaX));
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-sequence,landing-onboarding.manual-navigation
 	test('expanded intro overlays active chat content and reverses when returning to slide one', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -727,6 +731,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).welcomeContentOpacity, { timeout: 2000 }).toBeLessThanOrEqual(0.05);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.manual-navigation
 	test('touch guest prompt and example cards stay fixed when intro advances to slide two', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 768, height: 1024 });
@@ -759,6 +764,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expectStableGuestExploreLayout(collapsing, regular);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1920, height: 1080 });
@@ -784,6 +790,7 @@ test.describe('Landing page onboarding refresh', () => {
 		);
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
 	test('actionable slide plays one localized pointer-driven sequence and advances once', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -929,6 +936,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('landing-actionable-user-message')).toHaveCount(0);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories
 	test('collapsed guest inspirations scale proportionally and keep the heading above the animation', async ({ page }: { page: any }) => {
 		test.setTimeout(180000);
 		const viewports = [
@@ -992,6 +1000,7 @@ test.describe('Landing page onboarding refresh', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
 	test('mobile actionable slide compacts copy above the animation', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -1182,6 +1191,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-sequence
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -1338,6 +1348,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.guest-sequence,landing-onboarding.manual-navigation,landing-onboarding.signup-cta
 	test('final signup CTA opens the shared signup interface without a signup hash', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -1443,6 +1454,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('guest example chat follow-up input matches the adjacent new-chat CTA height', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });

@@ -234,6 +234,7 @@
 		C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */; };
 		C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */; };
 		C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */; };
+		C0FFEE000000000000056004 /* LandingOnboardingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */; };
 		C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */; };
 		C0FFEE000000000000005004 /* RealAccountUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */; };
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
@@ -1004,6 +1005,7 @@
 		A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacShellParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNavigationParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingOnboardingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowRealAccountUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountUITestSupport.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
@@ -1757,6 +1759,7 @@
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
 				C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */,
 				C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */,
+				C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */,
 				C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */,
 				C0FFEE000000000000001002 /* Info.plist */,
 			);
@@ -3112,6 +3115,7 @@
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
 				C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */,
 				C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */,
+				C0FFEE000000000000056004 /* LandingOnboardingParityUITests.swift in Sources */,
 				C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

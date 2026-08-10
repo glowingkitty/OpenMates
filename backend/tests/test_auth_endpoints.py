@@ -20,6 +20,8 @@
 #   cd /home/superdev/projects/OpenMates/backend
 #   python -m pytest tests/test_auth_endpoints.py -v
 
+# contract-test-file: tooling
+
 import pytest
 import base64
 import sys
@@ -354,6 +356,7 @@ class TestHashUsernameImport:
     """
 
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.signup.access-gates
     def test_hash_username_is_module_level_function(self):
         """hash_username should be importable directly, not as a class method."""
         from core.api.app.services.directus.user.user_lookup import hash_username
@@ -364,6 +367,7 @@ class TestHashUsernameImport:
         )
 
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.signup.access-gates
     def test_hash_username_returns_string(self):
         """hash_username should accept a username string and return a hash string."""
         from core.api.app.services.directus.user.user_lookup import hash_username
@@ -372,6 +376,7 @@ class TestHashUsernameImport:
         assert len(result) > 0
 
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.signup.access-gates
     def test_hash_username_is_deterministic(self):
         """Same input should always produce the same hash."""
         from core.api.app.services.directus.user.user_lookup import hash_username
@@ -380,6 +385,7 @@ class TestHashUsernameImport:
         assert result1 == result2
 
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.signup.access-gates
     def test_hash_username_different_inputs_different_hashes(self):
         """Different usernames should produce different hashes."""
         from core.api.app.services.directus.user.user_lookup import hash_username
@@ -388,6 +394,7 @@ class TestHashUsernameImport:
         assert result1 != result2
 
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.signup.access-gates
     def test_hash_username_imported_in_auth_files(self):
         """Verify auth files import hash_username correctly (not as a method).
 
@@ -447,6 +454,7 @@ class TestAuthClientVerification:
         return request
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary
     async def test_valid_web_origin_accepted_for_login_and_lookup(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -457,6 +465,7 @@ class TestAuthClientVerification:
             assert await verify_auth_client(request) is True
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary
     async def test_invalid_web_origin_rejected(self):
         from fastapi import HTTPException
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
@@ -469,6 +478,7 @@ class TestAuthClientVerification:
         assert exc_info.value.status_code == 403
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary
     async def test_missing_origin_without_native_headers_rejected(self):
         from fastapi import HTTPException
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
@@ -481,6 +491,7 @@ class TestAuthClientVerification:
         assert exc_info.value.status_code == 403
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary
     async def test_missing_origin_with_native_ios_headers_accepted(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -492,6 +503,7 @@ class TestAuthClientVerification:
         assert await verify_auth_client(request) is True
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary
     async def test_cli_pair_login_origin_still_accepted(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -503,6 +515,7 @@ class TestAuthClientVerification:
 
         assert await verify_auth_client(request) is True
 
+    # contract-test: supporting surface=rest_api assertions=auth.surface.first-party-boundary
     def test_ios_login_routes_use_auth_client_verifier(self, doc_assert):
         doc_assert("auth-login-routes-use-client-verifier")
         import ast
@@ -543,6 +556,7 @@ class TestAuthClientVerification:
 
             assert found_paths == expected_paths
 
+    # contract-test: direct surface=rest_api assertions=auth.passkey.origin-prf-bound
     def test_passkey_assertion_rejects_wrong_account_credential(self):
         repo_root = Path(__file__).parent.parent.parent
         source = (repo_root / "backend/core/api/app/routes/auth_routes/auth_passkey.py").read_text()
@@ -556,6 +570,7 @@ class TestLookupUserCacheWarmup:
     """Regression coverage for login lookup latency under Directus pressure."""
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.lookup.anti-enumeration
     async def test_lookup_returns_salt_before_profile_cache_warmup(self):
         from backend.core.api.app.routes.auth_routes.auth_login import (
             _cache_lookup_user_profile,
@@ -598,6 +613,7 @@ class TestLookupUserCacheWarmup:
         assert background_tasks.tasks[0].func is _cache_lookup_user_profile
 
     @pytest.mark.anyio
+    # contract-test: direct surface=rest_api assertions=auth.lookup.anti-enumeration
     async def test_lookup_returns_503_for_directus_lookup_error(self):
         from backend.core.api.app.routes.auth_routes.auth_login import lookup_user
         from backend.core.api.app.schemas.auth import UserLookupRequest
@@ -628,6 +644,7 @@ class TestLookupUserCacheWarmup:
         assert background_tasks.tasks == []
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=auth.lookup.anti-enumeration
     async def test_lookup_cache_helper_writes_complete_profile(self):
         from backend.core.api.app.routes.auth_routes.auth_login import _cache_lookup_user_profile
 
@@ -665,6 +682,7 @@ class TestLookupUserCacheWarmup:
 
 class TestSignupGiftCardFreeTestingEligibility:
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing
     async def test_pending_signup_gift_card_requires_existing_redeemable_card(self):
         from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
 
@@ -675,6 +693,7 @@ class TestSignupGiftCardFreeTestingEligibility:
         directus_service.get_gift_card_by_code.assert_awaited_once_with("AB23-CDEF-4567")
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing
     async def test_pending_signup_gift_card_ignores_empty_invalid_or_unknown_codes(self):
         from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
 
@@ -687,6 +706,7 @@ class TestSignupGiftCardFreeTestingEligibility:
         directus_service.get_gift_card_by_code.assert_awaited_once_with("AB23-CDEF-4567")
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing
     async def test_pending_signup_gift_card_validation_errors_fail_closed(self):
         from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
 
@@ -703,6 +723,7 @@ class TestLoginRequestValidation:
     are used (e.g., userEmailSalt vs hashed_email). Commit: 498d5c0
     """
 
+    # contract-test: direct surface=rest_api assertions=auth.keys.client-wrapped,auth.login.method-convergence
     def test_login_request_requires_hashed_email(self, doc_assert):
         """LoginRequest should require hashed_email field."""
         doc_assert("auth-login-request-requires-lookup-fields")
@@ -710,6 +731,7 @@ class TestLoginRequestValidation:
         with pytest.raises(Exception):
             LoginRequest(lookup_hash="test-hash")  # Missing hashed_email
 
+    # contract-test: direct surface=rest_api assertions=auth.keys.client-wrapped,auth.login.method-convergence
     def test_login_request_requires_lookup_hash(self, doc_assert):
         """LoginRequest should require lookup_hash field."""
         doc_assert("auth-login-request-requires-lookup-fields")
@@ -717,6 +739,7 @@ class TestLoginRequestValidation:
         with pytest.raises(Exception):
             LoginRequest(hashed_email="test-email")  # Missing lookup_hash
 
+    # contract-test: direct surface=rest_api assertions=auth.keys.client-wrapped,auth.login.method-convergence
     def test_login_request_accepts_valid_input(self):
         """LoginRequest should accept valid hashed_email + lookup_hash."""
         from core.api.app.schemas.auth import LoginRequest
@@ -728,6 +751,7 @@ class TestLoginRequestValidation:
         assert req.lookup_hash == "base64-lookup-hash"
         assert req.stay_logged_in is False  # Default
 
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     def test_login_request_stay_logged_in_default_false(self, doc_assert):
         """stay_logged_in should default to False, not be omitted.
 
@@ -742,6 +766,7 @@ class TestLoginRequestValidation:
         )
         assert req.stay_logged_in is False
 
+    # contract-test: direct surface=rest_api assertions=auth.login.method-convergence
     def test_login_request_accepts_all_login_methods(self, doc_assert):
         """LoginRequest should accept all valid login_method values."""
         doc_assert("auth-login-accepts-supported-methods")
@@ -764,6 +789,7 @@ class TestLoginResponseShape:
     or where user data is missing expected fields.
     """
 
+    # contract-test: supporting surface=rest_api assertions=auth.login.method-convergence
     def test_login_response_success_shape(self):
         """Successful login response should have user data."""
         from core.api.app.schemas.auth import LoginResponse
@@ -780,6 +806,7 @@ class TestLoginResponseShape:
         assert resp.success is True
         assert resp.user is not None
 
+    # contract-test: supporting surface=rest_api assertions=auth.login.method-convergence
     def test_login_response_failure_shape(self):
         """Failed login response should have success=False and message."""
         from core.api.app.schemas.auth import LoginResponse
@@ -790,6 +817,7 @@ class TestLoginResponseShape:
         assert resp.success is False
         assert resp.user is None
 
+    # contract-test: supporting surface=rest_api assertions=auth.login.method-convergence
     def test_login_response_tfa_required(self):
         """2FA-required response should have tfa_required=True."""
         from core.api.app.schemas.auth import LoginResponse
@@ -809,6 +837,7 @@ class TestDirectusCookieNormalization:
     same ``auth_refresh_token`` cookie and ws_token/session-cache path.
     """
 
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     def test_directus_refresh_token_cookie_is_normalized(self):
         from core.api.app.utils.directus_cookies import (
             extract_directus_refresh_token,
@@ -820,6 +849,7 @@ class TestDirectusCookieNormalization:
         assert extract_directus_refresh_token(cookies) == "directus-refresh"
         assert normalize_directus_cookie("directus_refresh_token") == "auth_refresh_token"
 
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     def test_plain_refresh_token_cookie_is_normalized(self):
         from core.api.app.utils.directus_cookies import (
             extract_directus_refresh_token,
@@ -831,6 +861,7 @@ class TestDirectusCookieNormalization:
         assert extract_directus_refresh_token(cookies) == "plain-refresh"
         assert normalize_directus_cookie("refresh_token") == "auth_refresh_token"
 
+    # contract-test: supporting surface=rest_api assertions=auth.session.lifecycle
     def test_other_directus_cookies_keep_existing_auth_prefix_behavior(self):
         from core.api.app.utils.directus_cookies import normalize_directus_cookie
 
@@ -850,6 +881,7 @@ class TestCacheMissFallback:
 
     @pytest.mark.anyio
     @pytest.mark.integration
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     async def test_verify_authenticated_user_falls_back_on_cache_miss(
         self, mock_cache_service, mock_directus_service, doc_assert
     ):
@@ -895,6 +927,7 @@ class TestCacheMissFallback:
 
     @pytest.mark.anyio
     @pytest.mark.integration
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     async def test_verify_authenticated_user_preserves_stay_logged_in_on_rotated_fallback(self):
         """Cache-miss fallback must not downgrade stay_logged_in sessions to 24h."""
         from core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
@@ -959,6 +992,7 @@ class TestCacheMissFallback:
 
     @pytest.mark.anyio
     @pytest.mark.integration
+    # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
     async def test_get_current_user_sets_rotated_cookie_on_cache_miss_fallback(self):
         """get_current_user fallback rotates Directus tokens and must update the browser cookie."""
         from core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -1015,6 +1049,7 @@ class TestCacheMissFallback:
 
     @pytest.mark.anyio
     @pytest.mark.integration
+    # contract-test: supporting surface=rest_api assertions=auth.session.lifecycle
     async def test_verify_authenticated_user_fails_without_cookie(
         self, mock_cache_service, mock_directus_service
     ):
@@ -1041,12 +1076,14 @@ class TestCacheMissFallback:
 class TestEmailCodeRequestValidation:
     """Test RequestEmailCodeRequest schema validation."""
 
+    # contract-test: direct surface=rest_api assertions=auth.signup.access-gates
     def test_requires_email_and_hashed_email(self):
         """Should require both email and hashed_email."""
         from core.api.app.schemas.auth import RequestEmailCodeRequest
         with pytest.raises(Exception):
             RequestEmailCodeRequest(email="test@example.com")  # Missing hashed_email
 
+    # contract-test: direct surface=rest_api assertions=auth.signup.access-gates
     def test_accepts_valid_request(self):
         """Should accept a valid email code request."""
         from core.api.app.schemas.auth import RequestEmailCodeRequest
@@ -1063,12 +1100,14 @@ class TestEmailCodeRequestValidation:
 class TestCheckUsernameValidation:
     """Test username validation schemas."""
 
+    # contract-test: direct surface=rest_api assertions=auth.signup.access-gates
     def test_check_username_request_shape(self):
         """CheckUsernameRequest should accept a username string."""
         from core.api.app.schemas.auth import CheckUsernameRequest
         req = CheckUsernameRequest(username="testuser")
         assert req.username == "testuser"
 
+    # contract-test: direct surface=rest_api assertions=auth.signup.access-gates
     def test_check_username_response_shape(self):
         """CheckUsernameResponse should have available flag."""
         from core.api.app.schemas.auth import CheckUsernameResponse

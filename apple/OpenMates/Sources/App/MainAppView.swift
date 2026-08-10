@@ -4680,6 +4680,7 @@ private struct DailyInspirationCarouselProgressBar: View {
 // Svelte:  frontend/packages/ui/src/components/ActiveChat.svelte (showWelcome state)
 //          frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 //          frontend/packages/ui/src/components/NewChatSuggestions.svelte
+//          frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
 // CSS:     ActiveChat.svelte <style> — .welcome-text, .new-chat-cta-button,
 //          .daily-inspiration-area, .center-content, .message-input-action-row
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
@@ -4832,6 +4833,34 @@ enum WelcomeScreenState {
     }
 }
 
+private enum GuestLandingStoryKind: Equatable {
+    case intro
+    case actionable
+    case privacy
+    case mates
+    case platform
+    case signup
+}
+
+private struct GuestLandingStory: Identifiable, Equatable {
+    let id: String
+    let kind: GuestLandingStoryKind
+    let phrase: String
+    let title: String
+    let assistantResponse: String
+    let icon: String
+    let featureTitle: String
+    let featureDescription: String
+    let suggestions: [String]
+}
+
+private struct LandingIntroRequest: Identifiable, Equatable {
+    let appId: String
+    let label: String
+
+    var id: String { appId }
+}
+
 private enum WelcomeComposerOverlay: Equatable {
     case location
     case sketch
@@ -4868,6 +4897,9 @@ struct NewChatWelcomeView: View {
     @State private var inspirationIndex = 0
     @State private var inspirationProgressRestartToken = 0
     @State private var viewedInspirationIds = Set<String>()
+    @State private var landingStoryIndex = 0
+    @State private var landingProgressRestartToken = 0
+    @State private var landingIntroRequestIndex = 0
     @State private var isComposerActivated = false
     @State private var isComposerExpanded = false
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
@@ -4903,10 +4935,106 @@ struct NewChatWelcomeView: View {
     }
 
     private static let inspirationAutoRotationInterval: TimeInterval = 20
+    private static let landingAutoRotationInterval: TimeInterval = 20
+    private static let landingIntroRequestRotationInterval: TimeInterval = 2.1
+    private static let landingIntroRequests = [
+        LandingIntroRequest(appId: "health", label: "Find doctor appointments"),
+        LandingIntroRequest(appId: "events", label: "Find events"),
+        LandingIntroRequest(appId: "code", label: "Build a web app"),
+        LandingIntroRequest(appId: "news", label: "Explain the news")
+    ]
+    private static let guestLandingStories = [
+        GuestLandingStory(
+            id: "openmates-intro",
+            kind: .intro,
+            phrase: "Simply ask your AI team mates.",
+            title: "OpenMates for Everyone",
+            assistantResponse: "Ask naturally and OpenMates routes the work to specialized mates and apps inside one chat workspace.",
+            icon: "sparkles",
+            featureTitle: "Meet OpenMates",
+            featureDescription: "Ask naturally and let specialized mates and apps help from one workspace.",
+            suggestions: [
+                "Show me how OpenMates protects privacy",
+                "What can app skills do?",
+                "How is this different from one chatbot?"
+            ]
+        ),
+        GuestLandingStory(
+            id: "openmates-actionable-events",
+            kind: .actionable,
+            phrase: "Actionable. Not just a wall of text.",
+            title: "Find language-learning events",
+            assistantResponse: "OpenMates can turn a simple request into useful results, previews, and details instead of only writing a long answer.",
+            icon: "calendar-search",
+            featureTitle: "Actionable results",
+            featureDescription: "Search for real-world options and inspect useful details from one chat.",
+            suggestions: [
+                "Find language-learning events in Berlin",
+                "Show beginner-friendly events this week",
+                "Compare event options near me"
+            ]
+        ),
+        GuestLandingStory(
+            id: "openmates-privacy-safety",
+            kind: .privacy,
+            phrase: "Privacy & safety by design.",
+            title: "Stay in control of personal data",
+            assistantResponse: "OpenMates is built around encrypted chats, local-first controls, and explicit choices before sensitive context is shared.",
+            icon: "shield-check",
+            featureTitle: "Privacy & safety",
+            featureDescription: "Encrypted chats and clear controls help you decide what is shared, when, and why.",
+            suggestions: [
+                "How does OpenMates protect private chats?",
+                "Show privacy controls",
+                "Explain local memories"
+            ]
+        ),
+        GuestLandingStory(
+            id: "openmates-mates-focus",
+            kind: .mates,
+            phrase: "No deep tech knowledge needed.",
+            title: "Work with the right mate",
+            assistantResponse: "OpenMates can keep a chat focused on learning, planning, building, researching, or another job instead of treating every request the same way.",
+            icon: "users",
+            featureTitle: "Mates & focus modes",
+            featureDescription: "Use specialized guidance for different jobs without leaving the chat workspace.",
+            suggestions: ["Show focus modes", "Which mate should help me?", "Plan a project step by step"]
+        ),
+        GuestLandingStory(
+            id: "openmates-provider-cross-platform",
+            kind: .platform,
+            phrase: "Built for people & the best possible experience.",
+            title: "Bring OpenMates across your tools",
+            assistantResponse: "OpenMates is designed around portable chats, multiple AI providers, and clients beyond one browser tab.",
+            icon: "network",
+            featureTitle: "Independent workspace",
+            featureDescription: "Avoid locking your work into one model provider or one app surface.",
+            suggestions: ["Compare AI providers", "Show the CLI", "How portable are my chats?"]
+        ),
+        GuestLandingStory(
+            id: "openmates-signup-cta",
+            kind: .signup,
+            phrase: "Start using OpenMates",
+            title: "Signup",
+            assistantResponse: "Create your OpenMates account to start using a private, pay-per-use AI workspace.",
+            icon: "check",
+            featureTitle: "Signup",
+            featureDescription: "No ads, no subscription, privacy focus, and pay per use.",
+            suggestions: ["No ads", "No subscription", "Privacy focus", "Pay per use"]
+        )
+    ]
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
         guard !inspirations.isEmpty else { return nil }
         return inspirations[min(inspirationIndex, inspirations.count - 1)]
+    }
+
+    private var activeLandingStory: GuestLandingStory {
+        Self.guestLandingStories[min(landingStoryIndex, Self.guestLandingStories.count - 1)]
+    }
+
+    private var activeLandingIntroRequest: LandingIntroRequest {
+        Self.landingIntroRequests[min(landingIntroRequestIndex, Self.landingIntroRequests.count - 1)]
     }
 
     private var displayName: String {
@@ -5026,7 +5154,11 @@ struct NewChatWelcomeView: View {
                     }
 
                 VStack(spacing: 0) {
-                    if let activeInspiration, !isComposerActive {
+                    if !isAuthenticated, !isComposerActive {
+                        guestLandingCarousel(containerSize: proxy.size)
+                            .padding(.top, 0)
+                            .transition(.opacity)
+                    } else if let activeInspiration, !isComposerActive {
                         inspirationCarousel(activeInspiration, containerSize: proxy.size)
                             .padding(.top, 0)
                             .transition(.opacity)
@@ -5791,11 +5923,11 @@ struct NewChatWelcomeView: View {
                 )
 
                 HStack {
-                    carouselArrow(label: AppStrings.previousInspiration, height: bannerHeight) {
+                    carouselArrow(label: AppStrings.previousInspiration, identifier: "daily-inspiration-previous", height: bannerHeight) {
                         showPreviousInspiration()
                     }
                     Spacer()
-                    carouselArrow(label: AppStrings.nextInspiration, height: bannerHeight) {
+                    carouselArrow(label: AppStrings.nextInspiration, identifier: "daily-inspiration-next", height: bannerHeight) {
                         showNextInspiration()
                     }
                     .scaleEffect(x: -1, y: 1)
@@ -5810,6 +5942,82 @@ struct NewChatWelcomeView: View {
                 sendViewedEvent(for: current)
             }
         }
+    }
+
+    private func guestLandingCarousel(containerSize: CGSize) -> some View {
+        let story = activeLandingStory
+        let bannerHeight = Self.guestLandingBannerHeight(for: containerSize, story: story)
+        return ZStack(alignment: .bottom) {
+            GuestLandingStoryCard(
+                story: story,
+                introRequest: story.kind == .intro ? activeLandingIntroRequest : nil,
+                introRequests: Self.landingIntroRequests,
+                height: bannerHeight,
+                onSignup: onOpenAuth
+            )
+            .frame(maxWidth: .infinity)
+
+            if story.kind != .signup {
+                DailyInspirationCarouselProgressBar(
+                    restartToken: landingProgressRestartToken,
+                    duration: Self.landingAutoRotationInterval,
+                    onComplete: showNextLandingStory
+                )
+            }
+
+            HStack {
+                if landingStoryIndex > 0 {
+                    carouselArrow(label: AppStrings.previousInspiration, identifier: "daily-inspiration-previous", height: bannerHeight) {
+                        showPreviousLandingStory()
+                    }
+                }
+                Spacer()
+                if landingStoryIndex < Self.guestLandingStories.count - 1 {
+                    carouselArrow(label: AppStrings.nextInspiration, identifier: "daily-inspiration-next", height: bannerHeight) {
+                        showNextLandingStory()
+                    }
+                    .scaleEffect(x: -1, y: 1)
+                }
+            }
+            .padding(.horizontal, .spacing2)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("daily-inspiration-banner")
+        .task(id: story.id) {
+            guard story.kind == .intro else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.landingIntroRequestRotationInterval))
+                guard !Task.isCancelled else { return }
+                landingIntroRequestIndex = (landingIntroRequestIndex + 1) % Self.landingIntroRequests.count
+            }
+        }
+    }
+
+    private static func guestLandingBannerHeight(for size: CGSize, story: GuestLandingStory) -> CGFloat {
+        if story.kind == .intro {
+            return size.width <= 730 ? min(max(380, size.height - 210), 620) : min(max(420, size.height * 0.68), 650)
+        }
+        if size.width <= 730 { return 260 }
+        return max(290, min(360, size.height * 0.42))
+    }
+
+    private func showPreviousLandingStory() {
+        guard landingStoryIndex > 0 else { return }
+        landingStoryIndex -= 1
+        landingIntroRequestIndex = 0
+        restartLandingProgress()
+    }
+
+    private func showNextLandingStory() {
+        guard landingStoryIndex < Self.guestLandingStories.count - 1 else { return }
+        landingStoryIndex += 1
+        landingIntroRequestIndex = 0
+        restartLandingProgress()
+    }
+
+    private func restartLandingProgress() {
+        landingProgressRestartToken += 1
     }
 
     private static func inspirationBannerHeight(for size: CGSize, isSettingsOpen: Bool) -> CGFloat {
@@ -5838,7 +6046,7 @@ struct NewChatWelcomeView: View {
         return min(max(webLikeCenter, 330), max(330, size.height - composerReserve - 150))
     }
 
-    private func carouselArrow(label: String, height: CGFloat, action: @escaping () -> Void) -> some View {
+    private func carouselArrow(label: String, identifier: String, height: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Icon("back", size: 22)
                 .foregroundStyle(.white.opacity(0.85))
@@ -5848,6 +6056,7 @@ struct NewChatWelcomeView: View {
         .buttonStyle(.plain)
         .help(Text(label))
         .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     private func sendViewedEvent(for inspiration: DailyInspirationBanner.DailyInspiration) {
@@ -6097,6 +6306,290 @@ struct NewChatWelcomeView: View {
         detectedPIIMatches = PIIDetector.detect(in: text, options: piiPrivacySettingsStore.detectionOptions())
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
+    }
+}
+
+private struct GuestLandingStoryCard: View {
+    let story: GuestLandingStory
+    let introRequest: LandingIntroRequest?
+    let introRequests: [LandingIntroRequest]
+    let height: CGFloat
+    let onSignup: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isCompact: Bool { height <= 300 }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            ZStack(alignment: .topLeading) {
+                AnimatedCategoryBackground(category: "openmates_official", iconName: story.icon, time: time)
+
+                VStack(alignment: .leading, spacing: isCompact ? .spacing3 : .spacing5) {
+                    landingMetric
+                    featureHeader
+
+                    Group {
+                        switch story.kind {
+                        case .intro:
+                            introContent
+                        case .actionable:
+                            actionableContent
+                        case .privacy, .mates, .platform:
+                            productStoryContent
+                        case .signup:
+                            signupContent
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+                .padding(.horizontal, isCompact ? 38 : 44)
+                .padding(.top, isCompact ? 14 : 18)
+                .padding(.bottom, isCompact ? 18 : 22)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .zIndex(2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("daily-inspiration-card")
+    }
+
+    private var landingMetric: some View {
+        Text("landing-story-id=\(story.id)")
+            .font(.system(size: 1))
+            .foregroundStyle(Color.clear)
+            .accessibilityIdentifier("landing-story-id")
+            .accessibilityLabel("landing-story-id=\(story.id)")
+    }
+
+    private var featureHeader: some View {
+        HStack(spacing: .spacing3) {
+            LucideNativeIcon(story.icon, size: 16)
+                .foregroundStyle(.white.opacity(0.9))
+            Text(story.featureTitle)
+                .font(.custom("Lexend Deca", size: 12).weight(.bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .textCase(.uppercase)
+                .tracking(0.8)
+        }
+    }
+
+    private var introContent: some View {
+        VStack(spacing: isCompact ? .spacing5 : .spacing7) {
+            AppIconView(appId: "openmates", size: isCompact ? 58 : 72)
+                .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 2))
+                .accessibilityIdentifier("guest-intro-ai-icon")
+
+            Text("Simply ask your\nAI team mates")
+                .font(.custom("Lexend Deca", size: isCompact ? 34 : 44).weight(.semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.82)
+                .accessibilityIdentifier("landing-intro-headline")
+
+            if let introRequest {
+                Text(introRequest.label)
+                    .font(.custom("Lexend Deca", size: isCompact ? 18 : 22).weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.vertical, .spacing4)
+                    .background(.black.opacity(0.22))
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    .overlay(RoundedRectangle(cornerRadius: .radiusFull).stroke(.white.opacity(0.26), lineWidth: 1))
+                    .accessibilityIdentifier("landing-intro-request")
+            }
+
+            introRails
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("landing-intro-expanded")
+    }
+
+    private var introRails: some View {
+        VStack(spacing: .spacing3) {
+            ForEach(0..<2, id: \.self) { row in
+                HStack(spacing: isCompact ? .spacing5 : .spacing8) {
+                    ForEach(introRequests) { request in
+                        let highlighted = request.appId == introRequest?.appId
+                        AppIconView(appId: request.appId, size: highlighted ? (isCompact ? 62 : 76) : (isCompact ? 44 : 54))
+                            .overlay(Circle().stroke(.white.opacity(highlighted ? 0.82 : 0.18), lineWidth: highlighted ? 3 : 1))
+                            .shadow(color: .black.opacity(highlighted ? 0.28 : 0.14), radius: highlighted ? 12 : 6, x: 0, y: 5)
+                            .accessibilityIdentifier("landing-intro-app-icon-\(request.appId)")
+                            .accessibilityLabel("app-id=\(request.appId); highlighted=\(highlighted ? "true" : "false"); row=\(row)")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("landing-intro-app-rail")
+            }
+        }
+    }
+
+    private var actionableContent: some View {
+        HStack(alignment: .center, spacing: isCompact ? .spacing4 : .spacing8) {
+            storyCopy
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                chatBubble("Find language-learning events in Berlin", isUser: true)
+                chatBubble("I found beginner-friendly events with dates, locations, and source links.", isUser: false)
+
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    HStack(spacing: .spacing2) {
+                        LucideNativeIcon("calendar-search", size: 16)
+                        Text("Language Exchange Berlin")
+                            .font(.custom("Lexend Deca", size: 14).weight(.bold))
+                    }
+                    Text("Tonight · Mitte · beginner friendly")
+                        .font(.custom("Lexend Deca", size: 12).weight(.medium))
+                    Button("View event") {}
+                        .font(.custom("Lexend Deca", size: 12).weight(.semibold))
+                        .foregroundStyle(.white)
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("landing-actionable-event-cta")
+                }
+                .foregroundStyle(.white)
+                .padding(.spacing4)
+                .background(.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(.white.opacity(0.22), lineWidth: 1))
+            }
+            .frame(maxWidth: isCompact ? 170 : 300)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("landing-actionable-demo")
+        }
+    }
+
+    private var productStoryContent: some View {
+        HStack(alignment: .center, spacing: isCompact ? .spacing4 : .spacing8) {
+            storyCopy
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                ForEach(productStoryItems, id: \.self) { item in
+                    HStack(spacing: .spacing3) {
+                        LucideNativeIcon(productStoryIcon, size: 15)
+                            .foregroundStyle(.white.opacity(0.9))
+                        Text(item)
+                            .font(.custom("Lexend Deca", size: 12).weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.white.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                }
+            }
+            .frame(maxWidth: isCompact ? 170 : 300)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("landing-product-story-\(story.id)")
+        }
+    }
+
+    private var signupContent: some View {
+        HStack(alignment: .center, spacing: isCompact ? .spacing4 : .spacing8) {
+            storyCopy
+
+            VStack(alignment: .center, spacing: .spacing4) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: isCompact ? 88 : 118), spacing: .spacing3)], spacing: .spacing3) {
+                    ForEach(story.suggestions, id: \.self) { benefit in
+                        Text(benefit)
+                            .font(.custom("Lexend Deca", size: 12).weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .padding(.horizontal, .spacing3)
+                            .padding(.vertical, .spacing3)
+                            .frame(maxWidth: .infinity)
+                            .background(.white.opacity(0.16))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    }
+                }
+                .accessibilityIdentifier("landing-signup-benefits")
+
+                Button(action: onSignup) {
+                    Text("Sign up")
+                }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .accessibilityIdentifier("landing-signup-cta")
+            }
+            .frame(maxWidth: isCompact ? 180 : 320)
+        }
+    }
+
+    private var storyCopy: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(story.phrase)
+                .font(.custom("Lexend Deca", size: isCompact ? 20 : 28).weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
+                .accessibilityIdentifier("landing-story-heading")
+
+            Text(story.assistantResponse)
+                .font(.custom("Lexend Deca", size: isCompact ? 13 : 15).weight(.semibold))
+                .foregroundStyle(.white.opacity(0.86))
+                .lineLimit(isCompact ? 4 : 5)
+                .minimumScaleFactor(0.82)
+
+            suggestionChips
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var suggestionChips: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            ForEach(story.suggestions.prefix(isCompact ? 2 : 3), id: \.self) { suggestion in
+                Text(suggestion)
+                    .font(.custom("Lexend Deca", size: 11).weight(.medium))
+                    .foregroundStyle(.white.opacity(0.86))
+                    .lineLimit(1)
+                    .padding(.horizontal, .spacing3)
+                    .padding(.vertical, .spacing2)
+                    .background(.black.opacity(0.18))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+
+    private func chatBubble(_ text: String, isUser: Bool) -> some View {
+        Text(text)
+            .font(.custom("Lexend Deca", size: 12).weight(.semibold))
+            .foregroundStyle(.white)
+            .lineLimit(3)
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .background(isUser ? Color.buttonPrimary.opacity(0.86) : .white.opacity(0.16))
+            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+    }
+
+    private var productStoryItems: [String] {
+        switch story.kind {
+        case .privacy:
+            ["Encrypted chats", "Local-first controls", "Explicit sharing choices"]
+        case .mates:
+            ["Learning mate", "Planning mate", "Research and build focus modes"]
+        case .platform:
+            ["Portable chats", "Multiple AI providers", "Web, CLI, and Apple clients"]
+        default:
+            []
+        }
+    }
+
+    private var productStoryIcon: String {
+        switch story.kind {
+        case .privacy: "shield-check"
+        case .mates: "users"
+        case .platform: "network"
+        default: story.icon
+        }
     }
 }
 

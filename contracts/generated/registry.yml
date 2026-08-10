@@ -53,6 +53,16 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.auth:
+    version: 1
+    status: draft
+    path: features/auth
+    fingerprint: 295d7758d0b1436cbc36229b3e0c6a7d0bb456d4ee1246145ed98ab232e72499
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   feature.billing:
     version: 1
     status: approved
@@ -90,6 +100,14 @@ contracts:
     required_surfaces:
     - rest_api
     - gui.web
+  feature.landing-onboarding:
+    version: 1
+    status: draft
+    path: features/landing-onboarding
+    fingerprint: 798351539bb2e4043cbd31689b4f0c14f9008456cbe19610ba8b6d79a506d320
+    required_surfaces:
+    - gui.web
+    - gui.apple
   feature.workflows:
     version: 1
     status: approved
@@ -632,6 +650,106 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  auth.signup.current-flow:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: behavior
+    fingerprint: d5de6f21f7025413e14600b09f5b544c94f870b7dc236cd310ebed4bd60fbc1b
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.signup.access-gates:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: 84c160efafc5ea35a6fa151b3fae8d05437039a4c2d25abe97cee02dbd25dc39
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.keys.client-wrapped:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: privacy
+    fingerprint: 43acc5e56ee097a58a0e30a9f3dd761f37ef60b07308249f1947d79fc40a86db
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.lookup.anti-enumeration:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: 26d8c477c0816e3d0cdaf355d05b40618eaa0248790e2d65c788e5c20abc83d6
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.login.method-convergence:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: behavior
+    fingerprint: 0a5e31d80479ea002e878f5ee0ccce473996a8913e1b58377c7d08ea9c4ee571
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.passkey.origin-prf-bound:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: 35286f45c31ea95f9d2290b9c57f35db20175923330e37d24baea31c520632f9
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.pair-login.single-use-zk:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: 8451ab873d0921e928efbaafa64564177474bfbfca28d95de8a3574da357d65a
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.session.lifecycle:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: behavior
+    fingerprint: 85214a5e874645e2ddf2d5ae010358d6b6d8b89a3c6a9a201c85c9d537a6219c
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.session.risk-reauth:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: f4cac35b2e51116f86835a181a801e3208a302f437e85d2f4ad04e78f2464423
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.surface.first-party-boundary:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: security
+    fingerprint: 37d789111cac5aad1cabe25cd1f0ee13fe085426774625a01743043560b02498
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   billing.access.authenticated-first-party:
     contract: feature.billing@1
     contract_id: feature.billing
@@ -880,6 +998,78 @@ assertions:
     required_surfaces:
     - rest_api
     - gui.web
+  landing-onboarding.uses-real-chat-shell:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: 06bafc8fcbb78ccee5b56457b2270b04324d481c446b8cd72342eac7c62cebde
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.guest-sequence:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: e8abbd972487ecc8a3f27199181f11e4857d69a7a75fa116b2031bfcc21de296
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.intro-active-apps-only:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 71094aebac8ad350e1979f8ca3949205cdfef63f4a40918449886af74434ea3f
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.coordinated-story-progress:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: 7d1cc1618622afee9d7f101b28e0b916f2a070448ead22501d6507fef4520bf5
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.manual-navigation:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: 5101206cd8c42d9b9dccbb184be4ff733205f542b216b57552e34e8fc5cc329f
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.actionable-demo-faithful:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: f1bf3e074a516016c2560aef6b86d8b11d36685db4fc98b0f2e998527978ba12
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.privacy-mates-platform-stories:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: ef34d2a016aca3abda1d76393821820c4e797cb8e3216ab8332b73661f2980a1
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.signup-cta:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: 097cc2e003abfad4b137aed426b0e1077aa55c4a0392245a3eb9721de9dfe263
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  landing-onboarding.apple-web-parity:
+    contract: feature.landing-onboarding@1
+    contract_id: feature.landing-onboarding
+    type: parity
+    fingerprint: 1b1753b9559c6537454180d1f28debee24f25d0972ebaab203ad90bb2445ebf0
+    required_surfaces:
+    - gui.web
+    - gui.apple
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     contract_id: feature.workflows
