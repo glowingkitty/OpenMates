@@ -14329,7 +14329,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: var(--z-index-dropdown);
+        z-index: var(--z-index-popover);
     }
     
     /* Side panel mode: Flex child taking remaining space - styled as separate card */
