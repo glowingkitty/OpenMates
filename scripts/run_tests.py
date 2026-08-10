@@ -134,6 +134,7 @@ BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "app-ai-worker",
     "workflow-worker",
     "task-worker",
+    "reminder-worker",
     "app-images-worker",
     "app-videos-worker",
 )

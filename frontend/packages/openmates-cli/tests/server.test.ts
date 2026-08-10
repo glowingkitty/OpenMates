@@ -808,7 +808,7 @@ describe("role-based server planning", () => {
     assert.match(baseBlock, /vault-setup-data:\/vault-data/, "worker base must mount Vault token data");
     assert.match(baseBlock, /\.\.\/\.\.\/config:\/app_config/, "worker base must mount provider config");
 
-    for (const service of ["task-worker", "task-scheduler"]) {
+    for (const service of ["task-worker", "reminder-worker", "task-scheduler"]) {
       const block = serviceBlock(service);
       assert.match(block, /<<: \*openmates-worker-base/, `${service} must inherit worker base`);
     }

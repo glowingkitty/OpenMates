@@ -1026,7 +1026,7 @@ app.conf.task_routes = task_routes
 
 # Health check runs every 5 minutes (for providers without health endpoints)
 # Providers with health endpoints can be checked more frequently (1 minute) in the future
-# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to their intended workers.
 # ===========================================================================
 # TASK ROUTING VALIDATION HELPER
 # ===========================================================================

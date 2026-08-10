@@ -290,7 +290,7 @@ services:
       service: task-worker
     container_name: core-worker
     environment:
-      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,push"
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
       CELERY_METRICS_PORT: "9109"
@@ -303,8 +303,32 @@ services:
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --queues=persistence,health_check,server_stats,demo,e2e_tests,push \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+
+  reminder-worker:
+    extends:
+      service: task-worker
+    container_name: reminder-worker
+    environment:
+      CELERY_QUEUES: "reminder"
+      CELERY_AUTOSCALE_MAX: "${REMINDER_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9111"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=reminder \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1"

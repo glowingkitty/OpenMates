@@ -5,6 +5,8 @@ attestation aligned without contacting GitHub, Vercel, or Docker. Runtime
 verification remains a separate advisory release-gate step.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -231,7 +233,9 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
     assert prepare.CORE_SERVICES == (
         "api",
         "task-worker",
+        "user-init-worker",
         "core-worker",
+        "reminder-worker",
         "task-scheduler",
         "app-ai-worker",
     )

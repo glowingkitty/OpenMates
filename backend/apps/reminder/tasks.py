@@ -664,8 +664,8 @@ async def _dispatch_reminder_ai_request(
     }
 
     # OPE-342: dispatch via in-process SkillRegistry (no HTTP to app-ai container,
-    # which no longer exists). The reminder task runs inside task-worker, which
-    # builds its own registry in init_worker_process().
+    # which no longer exists). The reminder worker builds its own registry in
+    # init_worker_process().
     from backend.core.api.app.services.skill_registry import get_global_registry
 
     response_data = await get_global_registry().dispatch_skill("ai", "ask", ask_request)
