@@ -39,10 +39,7 @@ final class ChatNavigationParityUITests: XCTestCase {
         sidebarToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         try assertSidebarRowsInOrder(["Header navigation draft", "Newer Chat", "Current Chat", "Older Chat"], in: app)
-        let closeSidebarButton = app.buttons
-            .matching(identifier: "chat-history-panel")
-            .matching(NSPredicate(format: "label == %@", "Close"))
-            .firstMatch
+        let closeSidebarButton = app.buttons["chat-history-panel-close"]
         XCTAssertTrue(closeSidebarButton.waitForExistence(timeout: 5))
         closeSidebarButton.tap()
         XCTAssertFalse(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 2))

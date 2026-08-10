@@ -1802,6 +1802,7 @@ struct MainAppView: View {
                     .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("chat-history-panel-close")
             .help(Text(AppStrings.close))
             .accessibilityLabel(AppStrings.close)
         }
