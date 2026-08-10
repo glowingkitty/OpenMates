@@ -549,7 +549,7 @@ function routingDecisionForTest({ session = {} } = {}) {
       message: actionable(
         ROUTING_GUARD_MARKER,
         `repository session worktree is already merged${session.worktree.merged_commit ? ` at ${String(session.worktree.merged_commit).slice(0, 9)}` : ""}`,
-        "start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence; safe reads, searches, status, doctor, summary, context, worktree ensure, and worktree repair remain available.",
+        "start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence; safe reads, searches, status, doctor, summary, context, worktree ensure, worktree repair, and end --force remain available.",
       ),
     };
   }
@@ -814,6 +814,7 @@ function isRecoveryBash(command) {
   if (isProdSshRecoveryCommand(command)) return true;
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
+    || /python3\s+scripts\/sessions\.py\s+end\b[^;&|\n]*\s--force\b/.test(command)
     || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }

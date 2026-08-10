@@ -42,6 +42,7 @@ def test_routing_failure_allows_session_recovery_commands() -> None:
           'python3 scripts/sessions.py start --mode testing --task "recover"',
           'python3 scripts/sessions.py spawn-chat --help',
           'python3 scripts/sessions.py worktree repair --opencode-session ses_parent',
+          'python3 scripts/sessions.py end --session 178c --force',
         ]) {
           assert.equal(
             routingFailureForTest({ tool: 'bash', sessionID: 'ses_parent', command }).decision,
@@ -49,5 +50,22 @@ def test_routing_failure_allows_session_recovery_commands() -> None:
             command,
           );
         }
+        """
+    )
+
+
+def test_merged_worktree_recovery_message_names_force_end() -> None:
+    run_hook_assertion(
+        """
+        import { strict as assert } from 'node:assert';
+        import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
+
+        const { routingDecisionForTest } = OpenMatesHooks.test;
+        const result = routingDecisionForTest({
+          session: { worktree: { status: 'merged', merged_commit: 'b2b533062cc16' } },
+        });
+
+        assert.equal(result.decision, 'merged_worktree');
+        assert.match(result.message, /end --force/);
         """
     )
