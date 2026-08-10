@@ -74,7 +74,7 @@ import { OutputRedactor } from "./outputRedactor.js";
 import { processFilesAsync, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -5604,6 +5604,30 @@ type AppSkillInputShape = {
   required: string[];
 };
 
+export type ImagesAiDetectionClassification =
+  | "likely_ai_generated"
+  | "possibly_ai_generated"
+  | "likely_not_ai_generated"
+  | "unavailable";
+
+export interface ImagesAiDetectionSummary {
+  file: string;
+  filename: string;
+  content_type: string;
+  embed_id: string;
+  deduplicated: boolean;
+  stored: true;
+  status: string;
+  provider: string | null;
+  ai_generated: number | null;
+  classification: ImagesAiDetectionClassification;
+  label: string;
+  error: string | null;
+}
+
+const IMAGES_AI_DETECTION_LIKELY_THRESHOLD = 0.7;
+const IMAGES_AI_DETECTION_POSSIBLE_THRESHOLD = 0.4;
+
 const GENERATED_APP_SKILL_COMMANDS = APP_SKILL_METADATA as readonly GeneratedAppSkillCommand[];
 
 const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
@@ -5684,6 +5708,50 @@ function findGeneratedAppSkillCommand(
   return GENERATED_APP_SKILL_COMMANDS.find(
     (command) => command.app_id === appId && command.skill_id === skillId,
   );
+}
+
+export function classifyImagesAiDetection(score: number | null | undefined): ImagesAiDetectionClassification {
+  if (typeof score !== "number" || !Number.isFinite(score)) return "unavailable";
+  if (score > IMAGES_AI_DETECTION_LIKELY_THRESHOLD) return "likely_ai_generated";
+  if (score > IMAGES_AI_DETECTION_POSSIBLE_THRESHOLD) return "possibly_ai_generated";
+  return "likely_not_ai_generated";
+}
+
+export function formatImagesAiDetectionLabel(classification: ImagesAiDetectionClassification): string {
+  switch (classification) {
+    case "likely_ai_generated":
+      return "Likely AI-generated";
+    case "possibly_ai_generated":
+      return "Possibly AI-generated";
+    case "likely_not_ai_generated":
+      return "Likely not AI-generated";
+    case "unavailable":
+      return "Detection unavailable";
+  }
+}
+
+export function buildImagesAiDetectionSummary(
+  uploadResult: UploadFileResponse,
+  filePath: string,
+): ImagesAiDetectionSummary {
+  const detection = uploadResult.ai_detection;
+  const status = detection?.status ?? (detection ? "success" : "unavailable");
+  const score = status === "success" ? detection?.ai_generated : null;
+  const classification = classifyImagesAiDetection(score);
+  return {
+    file: filePath,
+    filename: uploadResult.filename || basename(filePath),
+    content_type: uploadResult.content_type,
+    embed_id: uploadResult.embed_id,
+    deduplicated: uploadResult.deduplicated,
+    stored: true,
+    status,
+    provider: detection?.provider ?? null,
+    ai_generated: typeof score === "number" && Number.isFinite(score) ? score : null,
+    classification,
+    label: formatImagesAiDetectionLabel(classification),
+    error: detection?.error ?? null,
+  };
 }
 
 function appSkillInputShape(command: GeneratedAppSkillCommand): AppSkillInputShape {
@@ -6038,6 +6106,11 @@ async function handleApps(
     return;
   }
 
+  if (flags.help === true && subcommand === "images" && (rest[0] === "detect-ai" || rest[0] === "detect_ai")) {
+    printImagesDetectAiHelp();
+    return;
+  }
+
   // `apps <app> --help` → show app info. Skill help uses the explicit
   // metadata command `apps skill-info <app> <skill>`, not a generic runner.
   if (
@@ -6222,6 +6295,11 @@ async function handleApps(
     return;
   }
 
+  if (subcommand === "images" && (rest[0] === "detect-ai" || rest[0] === "detect_ai")) {
+    await handleImagesDetectAi(client, rest.slice(1), flags);
+    return;
+  }
+
   if (subcommand === "code" && rest[0] === "run") {
     await handleCodeRun(client, flags, apiKey);
     return;
@@ -6278,6 +6356,92 @@ async function handleApps(
   console.error(`Unknown apps subcommand '${subcommand}'.\n`);
   printAppsHelp();
   process.exit(1);
+}
+
+async function handleImagesDetectAi(
+  client: OpenMatesClient,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (flags.help === true) {
+    printImagesDetectAiHelp();
+    return;
+  }
+
+  const fileFlag = stringFlag(flags, "file");
+  const file = fileFlag ?? positionals[0];
+  if (!file) {
+    console.error(
+      "Missing image file.\n\n" +
+        "Usage:\n" +
+        "  openmates apps images detect-ai --file ./image.png [--json]\n",
+    );
+    process.exit(1);
+  }
+
+  if ((fileFlag && positionals.length > 0) || (!fileFlag && positionals.length > 1)) {
+    const unexpected = fileFlag ? positionals : positionals.slice(1);
+    console.error(
+      `Unexpected argument(s): ${unexpected.join(" ")}\n\n` +
+        "Run: openmates apps images detect-ai --help",
+    );
+    process.exit(1);
+  }
+
+  let resolvedFile: string;
+  try {
+    resolvedFile = realpathSync(file);
+  } catch {
+    console.error(`\x1b[31m✗ Image file not found:\x1b[0m ${file}`);
+    process.exit(1);
+  }
+
+  try {
+    const uploadResult = await uploadFile(resolvedFile, client.getSession());
+    const summary = buildImagesAiDetectionSummary(uploadResult, resolvedFile);
+    if (flags.json === true) {
+      printJson({
+        success: summary.status === "success",
+        ...summary,
+        ai_detection: uploadResult.ai_detection,
+      });
+      return;
+    }
+
+    header("Images › Detect AI");
+    kv("File", summary.file);
+    kv("Provider", summary.provider ?? "n/a");
+    kv("Detection status", summary.status);
+    kv(
+      "AI-generated probability",
+      summary.ai_generated === null ? "unavailable" : `${(summary.ai_generated * 100).toFixed(1)}%`,
+    );
+    kv("Classification", summary.label);
+    kv("Stored upload embed", summary.embed_id);
+    if (summary.error) kv("Detection error", summary.error);
+    console.log("\n\x1b[2mThis command uses the authenticated upload pipeline, which stores the image and returns Sightengine metadata.\x1b[0m");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ Images AI detection failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function printImagesDetectAiHelp(): void {
+  console.log(`Images AI detection command:
+  openmates apps images detect-ai --file <image> [--json]
+  openmates apps images detect-ai <image> [--json]
+
+Options:
+  --file <path>       Local PNG, JPEG, WEBP, or other upload-supported image file.
+  --json              Print raw detection metadata and classification as JSON.
+
+Authentication:
+  Requires a logged-in CLI session because it reuses the authenticated upload pipeline.
+
+Examples:
+  openmates apps images detect-ai --file ./image.png
+  openmates apps images detect-ai ./image.webp --json`);
 }
 
 const MODELS3D_SEARCH_SORTS = new Set(["best_match", "popular", "downloads", "newest"]);
@@ -12630,6 +12794,7 @@ function printAppsHelp(): void {
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
+  openmates apps images detect-ai --file ./image.png [--json]
   openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--json]
   openmates apps design export-icon lucide:home --output home.svg [--color '#111827']
   openmates apps travel booking-link --token "<token>" [--context '<json>']
@@ -12650,6 +12815,7 @@ Examples:
   openmates apps code get_docs --library React --question "How do I use useState?" --json
   openmates apps examples travel search_connections
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
+  openmates apps images detect-ai --file ./image.png --json
   openmates apps models3d search --query benchy --count 2 --providers Printables --json
   openmates apps design search_icons --query home --count 12 --json
   openmates apps design export-icon lucide:home --format png --size 64 --output home.png

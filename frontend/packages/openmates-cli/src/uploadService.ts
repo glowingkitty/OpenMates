@@ -31,6 +31,8 @@ export interface FileVariantMetadata {
 export interface AIDetectionMetadata {
   ai_generated: number;
   provider: string;
+  status?: "success" | "failed" | string;
+  error?: string | null;
 }
 
 export interface UploadFileResponse {

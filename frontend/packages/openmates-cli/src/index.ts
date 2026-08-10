@@ -18,6 +18,13 @@ export {
   reconcileAuthoritativeChats,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
+export {
+  buildImagesAiDetectionSummary,
+  classifyImagesAiDetection,
+  formatImagesAiDetectionLabel,
+  type ImagesAiDetectionClassification,
+  type ImagesAiDetectionSummary,
+} from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
 export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";

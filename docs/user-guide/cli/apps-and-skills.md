@@ -40,6 +40,17 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-apps-docs-cover-code-run-commands
     verified: '2026-06-11'
+  - id: cli-apps-images-detect-ai-command
+    type: unit
+    claim: The Images AI detection CLI command uploads a local image through the authenticated upload pipeline and summarizes Sightengine metadata.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/uploadService.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/imagesDetectAi.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && node --test tests/imagesDetectAi.test.ts
+      assertion: cli-apps-images-detect-ai-command
+    verified: '2026-08-10'
 ---
 
 # Apps & Skills
@@ -92,9 +103,21 @@ Generic `openmates apps <app-id> <skill-id>` execution is not supported. Use app
 openmates tasks create --title "Draft launch checklist"
 openmates tasks list
 openmates workflows list
+openmates apps images detect-ai --file ./image.png
 ```
 
 Use `openmates <command> --help` for each typed command's accepted flags and examples.
+
+### Images AI Detection
+
+The Images app has a dedicated command for checking whether a local image is likely AI-generated. It reuses the authenticated upload pipeline, so the image is uploaded, scanned by Sightengine, stored like a normal upload, and returned with detection metadata.
+
+```
+openmates apps images detect-ai --file ./image.png
+openmates apps images detect-ai ./image.webp --json
+```
+
+The JSON output includes `ai_generated` as a `0.0` to `1.0` probability, the `sightengine` provider metadata, and a stable `classification` value.
 
 ### Travel Booking Links
 
