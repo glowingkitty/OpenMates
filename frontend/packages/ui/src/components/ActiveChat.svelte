@@ -4197,6 +4197,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return true;
     }
 
+    function chatHasVisibleStoredSurface(chat: Chat): boolean {
+        const hasCurrentMessagesForChat = currentMessages.some((message) => message.chat_id === chat.chat_id);
+        return Number(chat.messages_v ?? 0) > 0 ||
+            (chat.messages?.length ?? 0) > 0 ||
+            hasCurrentMessagesForChat ||
+            Boolean(
+                chat.title ||
+                chat.encrypted_title ||
+                chat.chat_summary ||
+                chat.encrypted_chat_summary ||
+                chat.icon ||
+                chat.encrypted_icon ||
+                chat.category ||
+                chat.encrypted_category ||
+                (chat.title_v ?? 0) > 0 ||
+                chat.ideabucket_triggered_at
+            );
+    }
+
     async function remountChatHeaderAfterFullscreenClose() {
         await tick();
         chatHeaderRenderKey += 1;
@@ -4214,17 +4233,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const storedChat = decryptedChat
                 ? { ...decryptedChat, ...(rawChat ?? {}) }
                 : rawChat;
-            if (!storedChat) return;
+            if (!currentChat || currentChat.chat_id !== chatId) return;
+            if (!storedChat) {
+                if (wasDraftOnly) {
+                    console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} no longer exists locally. Resetting to new chat.`);
+                    await handleNewChatClick();
+                }
+                return;
+            }
 
-            currentChat = { ...currentChat, ...storedChat };
+            const refreshedChat = { ...currentChat, ...storedChat };
+            currentChat = refreshedChat;
 
-            if (await applyPersistedDraftHeader(currentChat, reason)) {
+            if (await applyPersistedDraftHeader(refreshedChat, reason)) {
                 console.info(`[ActiveChat] ${reason}: Refreshed persisted draft header for ${chatId}`);
                 return;
             }
 
-            if (wasDraftOnly && !isPersistedDraftOnlyChat(currentChat)) {
+            if (wasDraftOnly && !isPersistedDraftOnlyChat(refreshedChat)) {
                 resetChatHeaderState();
+                if (!chatHasVisibleStoredSurface(refreshedChat)) {
+                    console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} has no draft, messages, or metadata. Resetting to new chat.`);
+                    await handleNewChatClick();
+                    return;
+                }
             }
 
             if (storedChat.is_incognito) {
