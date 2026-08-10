@@ -1598,7 +1598,18 @@ export class GroupRenderer implements EmbedRenderer {
       target.dataset.embedAppId = indicatorAppId;
     }
     target.dataset.embedType = "app-skill-use";
-    const status = (decodedContent?.status ||
+    const decodedStatus =
+      decodedContent?.status === "processing" ||
+      decodedContent?.status === "finished" ||
+      decodedContent?.status === "error" ||
+      decodedContent?.status === "cancelled"
+        ? decodedContent.status
+        : null;
+    const hasFinishedDecodedContent =
+      decodedStatus === "finished" ||
+      (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
+      Boolean(decodedContent?.embed_ids);
+    const status = ((hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       item.status ||
       "processing") as "processing" | "finished" | "error";
@@ -1668,6 +1679,7 @@ export class GroupRenderer implements EmbedRenderer {
         skill_id: skillId,
         query,
         provider,
+        status,
         embed_ids: childEmbedIds,
       };
     const handleFullscreen = () => {

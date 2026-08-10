@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import { GroupRenderer } from '../GroupRenderer';
 
@@ -112,6 +113,67 @@ describe('GroupRenderer', () => {
       content.querySelector('.embed-unified-container[data-embed-type="app-skill-use"]'),
     ).toBeNull();
     expect(content.textContent).not.toContain('Skill: code | image_to_html');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+  it('mounts decoded web search parents as finished when cached group status is stale processing', async () => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({
+      embed_id: 'web-parent',
+      type: 'app_skill_use',
+      status: 'processing',
+      content: 'web-parent-content',
+      embed_ids: ['child-1', 'child-2'],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({
+      app_id: 'web',
+      skill_id: 'search',
+      query: 'Berlin AI events',
+      provider: 'Brave Search',
+      embed_ids: 'child-1|child-2',
+    });
+
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.appendChild(content);
+
+    await renderer.render({
+      attrs: {
+        id: 'app-skill-group',
+        type: 'app-skill-use-group',
+        status: 'finished',
+        contentRef: '',
+        groupedItems: [
+          {
+            id: 'web-parent',
+            type: 'app-skill-use',
+            status: 'processing',
+            contentRef: 'embed:web-parent',
+            app_id: 'web',
+            skill_id: 'search',
+          },
+        ],
+        groupCount: 1,
+      },
+      container,
+      content,
+    });
+
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(
+      WebSearchEmbedPreview,
+      expect.objectContaining({
+        props: expect.objectContaining({
+          id: 'web-parent',
+          query: 'Berlin AI events',
+          provider: 'Brave Search',
+          status: 'finished',
+          resultCount: 2,
+          childEmbedIds: ['child-1', 'child-2'],
+        }),
+      }),
+    );
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity

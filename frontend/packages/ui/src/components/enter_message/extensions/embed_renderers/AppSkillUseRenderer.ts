@@ -463,6 +463,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     if (!decodedContent.results && embedData?.results) {
       decodedContent.results = embedData.results;
     }
+    // Propagate the normalized status into skill-specific renderers. Some stored
+    // parent rows keep a stale top-level "processing" status even when decoded
+    // content already proves the embed finished.
+    decodedContent.status = status;
 
     console.debug("[AppSkillUseRenderer] Rendering embed:", {
       appId,
