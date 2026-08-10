@@ -6,6 +6,8 @@ Security: monkeypatches requests; no API keys or plan payloads leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_plans.py
 """
 
+# contract-test-file: tooling
+
 from openmates import OpenMates
 from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
 
@@ -202,6 +204,8 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         if url.endswith("/v1/user-plans?active_only=False"):
             return FakeResponse({"plans": [plan]})
+        if url.endswith("/v1/projects/project-1"):
+            return FakeResponse({"project": {"project_id": "project-1", "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}})
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{"project_id": "project-1", "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}]})
         raise AssertionError(f"Unexpected GET {url}")

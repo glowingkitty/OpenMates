@@ -52,6 +52,18 @@ jobs:
         with:
           python-version: '3.12'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install Node workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI for Python SDK live smoke
+        run: pnpm --filter openmates build
+
       - name: Install package test dependencies
         run: python -m pip install --upgrade pip pytest build cryptography requests
 
