@@ -184,13 +184,18 @@ final class AnonymousFreeUsageService: ObservableObject {
         return key
     }
 
-    func loadAnonymousChats(into chatStore: ChatStore) async {
+    func loadAnonymousChats(
+        into chatStore: ChatStore,
+        shouldLoad: () -> Bool = { true }
+    ) async {
         let ids = anonymousChatIds
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty, shouldLoad() else { return }
         for chatId in ids {
             _ = try? await ensureAnonymousChatKey(chatId: chatId)
         }
+        guard shouldLoad() else { return }
         let chats = OfflineStore.shared.loadChats().filter { ids.contains($0.id) }
+        guard shouldLoad() else { return }
         chatStore.performWithoutPersistence {
             chatStore.upsertChats(chats)
             for chat in chats {

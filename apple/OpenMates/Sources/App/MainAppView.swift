@@ -970,7 +970,9 @@ struct MainAppView: View {
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
-        Task { await anonymousFreeUsage.loadAnonymousChats(into: chatStore) }
+        Task { @MainActor in
+            await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
+        }
     }
 
     private func applyLaunchCommandIfNeeded() {
