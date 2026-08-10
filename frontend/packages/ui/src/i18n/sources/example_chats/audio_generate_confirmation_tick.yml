@@ -1,0 +1,439 @@
+title:
+  context: "Title of example chat: Generate a Confirmation Tick Sound"
+  en: "Generate a Confirmation Tick Sound"
+  de: Einen Bestätigungs-Tick-Sound generieren
+  zh: 生成确认勾选音效
+  es: Generar un sonido de confirmación
+  fr: Générer un son de coche de confirmation
+  pt: Gerar um Som de Tique de Confirmação
+  ru: Создать звук подтверждения
+  ja: 確認チェック音の生成
+  ko: 확인 체크 효과음 생성하기
+  it: Genera un suono di conferma (tick)
+  tr: Onay Tıkı Sesi Oluştur
+  vi: Tạo âm thanh tích xác nhận
+  id: Buat Suara Centang Konfirmasi
+  pl: Wygeneruj dźwięk potwierdzenia
+  nl: Genereer een bevestigingsgeluid
+  ar: إنشاء صوت علامة تأكيد
+  hi: कन्फर्मेशन टिक साउंड जनरेट करें
+  th: สร้างเสียงติ๊กยืนยัน
+  cs: Vygenerovat zvuk potvrzovacího zaškrtnutí
+  sv: Generera ett bekräftelse-tick-ljud
+  he: יצירת צליל אישור (Tick)
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Generate a Confirmation Tick Sound"
+  en: "Create a short success-notification sound effect with the Audio Generate app skill."
+  de: Erstelle einen kurzen Erfolgs-Benachrichtigungston mit dem Audio Generate App-Skill.
+  zh: 使用 Audio Generate 应用技能创建一个短促的成功通知音效。
+  es: Crea un efecto de sonido corto para notificaciones de éxito con la función Audio Generate.
+  fr: Crée un court effet sonore de notification de succès avec la compétence Audio Generate.
+  pt: Cria um pequeno efeito sonoro de notificação de sucesso com a skill da app Audio Generate.
+  ru: Создай короткий звуковой эффект уведомления об успехе с помощью навыка Audio Generate.
+  ja: Audio Generateアプリのスキルを使用して、短い成功通知の効果音を作成します。
+  ko: 오디오 생성 앱 스킬을 사용하여 짧은 성공 알림 효과음을 만듭니다.
+  it: "Crea un breve effetto sonoro di notifica di successo con la skill dell'app Audio Generate."
+  tr: Audio Generate uygulama yeteneği ile kısa bir başarı bildirimi ses efekti oluştur.
+  vi: Tạo hiệu ứng âm thanh thông báo thành công ngắn gọn bằng kỹ năng ứng dụng Audio Generate.
+  id: Buat efek suara notifikasi keberhasilan yang singkat dengan skill aplikasi Audio Generate.
+  pl: Stwórz krótki efekt dźwiękowy powiadomienia o sukcesie za pomocą umiejętności Audio Generate.
+  nl: Maak een kort succesmeldingsgeluid met de Audio Generate app-skill.
+  ar: أنشئ تأثيرًا صوتيًا قصيرًا لإشعار النجاح باستخدام مهارة تطبيق إنشاء الصوت.
+  hi: Audio Generate ऐप स्किल के साथ एक छोटा सफलता-नोटिफिकेशन साउंड इफेक्ट बनाएं।
+  th: สร้างเอฟเฟกต์เสียงแจ้งเตือนความสำเร็จสั้นๆ ด้วยทักษะแอป Audio Generate
+  cs: Vytvoř krátký zvukový efekt pro oznámení o úspěchu pomocí dovednosti Audio Generate.
+  sv: Skapa en kort ljudeffekt för framgångsavisering med Audio Generate-appen.
+  he: יצירת אפקט קולי קצר של התראת הצלחה באמצעות מיומנות האפליקציה Audio Generate.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Generate a Confirmation Tick Sound. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:audio:generate Create a crisp, friendly confirmation tick sound effect for a completed OpenMates task. Keep it short, clean, and suitable for a success notification."
+  de: "@skill:audio:generate Erstelle einen klaren, freundlichen Bestätigungs-Tick-Soundeffekt für eine abgeschlossene OpenMates-Aufgabe. Halte ihn kurz, sauber und passend für eine Erfolgsmeldung."
+  zh: "@skill:audio:generate 为已完成的 OpenMates 任务创建一个清脆、友好的确认勾选音效。保持短促、干净，并适用于成功通知。"
+  es: "@skill:audio:generate Crea un efecto de sonido de confirmación nítido y agradable para una tarea completada en OpenMates. Que sea corto, limpio y adecuado para una notificación de éxito."
+  fr: "@skill:audio:generate Crée un effet sonore de coche de confirmation net et amical pour une tâche OpenMates terminée. Fais en sorte qu'il soit court, propre et adapté à une notification de succès."
+  pt: "@skill:audio:generate Cria um efeito sonoro de tique de confirmação nítido e amigável para uma tarefa concluída no OpenMates. Mantém-no curto, limpo e adequado para uma notificação de sucesso."
+  ru: "@skill:audio:generate Создай четкий, приятный звук подтверждения для выполненной задачи в OpenMates. Сделай его коротким, чистым и подходящим для уведомления об успехе."
+  ja: "@skill:audio:generate OpenMatesのタスク完了用の、歯切れが良く親しみやすい確認チェック音を作成してください。短くクリーンで、成功通知に適したものにしてください。"
+  ko: "@skill:audio:generate 완료된 OpenMates 작업을 위한 선명하고 친근한 확인 체크 효과음을 만들어 줘. 짧고 깔끔하며 성공 알림에 적합하게 해 줘."
+  it: "@skill:audio:generate Crea un effetto sonoro di conferma (tick) nitido e amichevole per un'attività OpenMates completata. Mantienilo breve, pulito e adatto a una notifica di successo."
+  tr: "@skill:audio:generate Tamamlanan bir OpenMates görevi için net, samimi bir onay tıkı ses efekti oluştur. Kısa, temiz ve bir başarı bildirimi için uygun olsun."
+  vi: "@skill:audio:generate Tạo một hiệu ứng âm thanh tích xác nhận sắc nét, thân thiện cho một tác vụ OpenMates đã hoàn thành. Hãy giữ cho nó ngắn gọn, sạch sẽ và phù hợp cho một thông báo thành công."
+  id: "@skill:audio:generate Buat efek suara centang konfirmasi yang jernih dan ramah untuk tugas OpenMates yang sudah selesai. Buat tetap singkat, bersih, dan cocok untuk notifikasi keberhasilan."
+  pl: "@skill:audio:generate Stwórz wyraźny, przyjazny dźwięk potwierdzenia (tyknięcie) dla ukończonego zadania OpenMates. Niech będzie krótki, czysty i odpowiedni dla powiadomienia o sukcesie."
+  nl: "@skill:audio:generate Maak een helder, vriendelijk bevestigingsgeluid voor een voltooide OpenMates-taak. Houd het kort, zuiver en geschikt voor een succesmelding."
+  ar: "@skill:audio:generate أنشئ تأثيرًا صوتيًا لعلامة تأكيد واضح وودود لمهمة OpenMates مكتملة. اجعله قصيرًا ونقيًا ومناسبًا لإشعار النجاح."
+  hi: "@skill:audio:generate पूरे किए गए OpenMates टास्क के लिए एक स्पष्ट, सुखद कन्फर्मेशन टिक साउंड इफेक्ट बनाएं। इसे छोटा, साफ और सफलता के नोटिफिकेशन के लिए उपयुक्त रखें।"
+  th: "@skill:audio:generate สร้างเอฟเฟกต์เสียงติ๊กยืนยันที่คมชัดและเป็นมิตรสำหรับงาน OpenMates ที่เสร็จสมบูรณ์ ขอแบบสั้น สะอาด และเหมาะสำหรับการแจ้งเตือนความสำเร็จ"
+  cs: "@skill:audio:generate Vytvoř jasný, přátelský zvukový efekt potvrzovacího zaškrtnutí pro dokončený úkol v OpenMates. Udělej ho krátký, čistý a vhodný pro oznámení o úspěchu."
+  sv: "@skill:audio:generate Skapa en krispig, vänlig bekräftelse-tick-ljudeffekt för en slutförd OpenMates-uppgift. Håll den kort, ren och lämplig för en framgångsavisering."
+  he: "@skill:audio:generate צור אפקט קולי של צליל אישור (tick) חד וידידותי עבור משימת OpenMates שהושלמה. שמור עליו קצר, נקי ומתאים להתראת הצלחה."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Generate a Confirmation Tick Sound. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+
+    I have generated a crisp and friendly confirmation tick sound effect for your OpenMates task completion.
+
+    Task Confirmation Sound
+
+    Would you like me to help you configure this audio notification for a specific task workflow, or explore other UI sound effects?
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Ich habe einen klaren und freundlichen Bestätigungs-Tick-Soundeffekt für deinen OpenMates-Aufgabenabschluss erstellt.
+    
+    Aufgaben-Bestätigungston
+    
+    Möchtest du, dass ich dir helfe, diese Audio-Benachrichtigung für einen bestimmten Aufgaben-Workflow zu konfigurieren, oder möchtest du andere UI-Soundeffekte erkunden?
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    我已为你的 OpenMates 任务完成生成了一个清脆且友好的确认勾选音效。
+    
+    任务确认音效
+    
+    你是否需要我帮你为特定的任务工作流配置此音频通知，或者探索其他 UI 音效？
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    He generado un efecto de sonido de confirmación nítido y agradable para la finalización de tus tareas en OpenMates.
+    
+    Sonido de confirmación de tarea
+    
+    ¿Te gustaría que te ayudara a configurar esta notificación de audio para un flujo de trabajo de tareas específico o prefieres explorar otros efectos de sonido para la interfaz?
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    J'ai généré un effet sonore de coche de confirmation net et amical pour la validation de ta tâche OpenMates.
+    
+    Son de confirmation de tâche
+    
+    Souhaites-tu que je t'aide à configurer cette notification audio pour un flux de travail spécifique, ou explorer d'autres effets sonores d'interface ?
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Gerei um efeito sonoro de tique de confirmação nítido e amigável para a conclusão da tua tarefa no OpenMates.
+    
+    Som de Confirmação de Tarefa
+    
+    Gostarias que te ajudasse a configurar esta notificação de áudio para um fluxo de trabalho de tarefa específico ou que explorasse outros efeitos sonoros de UI?
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Я создал четкий и приятный звук подтверждения для завершения задачи в OpenMates.
+    
+    Звук подтверждения задачи
+    
+    Хочешь, я помогу тебе настроить это аудиоуведомление для конкретного рабочего процесса или изучить другие звуковые эффекты интерфейса?
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    OpenMatesのタスク完了用に、歯切れが良く親しみやすい確認チェック音を生成しました。
+    
+    タスク確認音
+    
+    このオーディオ通知を特定のタスクワークフローに設定するお手伝いが必要ですか？それとも、他のUI効果音を試してみますか？
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    OpenMates 작업 완료를 위한 선명하고 친근한 확인 체크 효과음을 생성했습니다.
+    
+    작업 확인 소리
+    
+    이 오디오 알림을 특정 작업 워크플로에 설정하는 것을 도와드릴까요, 아니면 다른 UI 효과음을 살펴볼까요?
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Ho generato un effetto sonoro di conferma (tick) nitido e amichevole per il completamento della tua attività OpenMates.
+    
+    Suono di conferma attività
+    
+    Vuoi che ti aiuti a configurare questa notifica audio per un flusso di lavoro specifico o preferisci esplorare altri effetti sonori per l'interfaccia utente?
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    OpenMates görev tamamlaman için net ve samimi bir onay tıkı ses efekti oluşturdum.
+    
+    Görev Onay Sesi
+    
+    Bu sesli bildirimi belirli bir görev iş akışı için yapılandırmana yardımcı olmamı mı istersin, yoksa diğer kullanıcı arayüzü ses efektlerini mi keşfetmek istersin?
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Tôi đã tạo một hiệu ứng âm thanh tích xác nhận sắc nét và thân thiện cho việc hoàn thành tác vụ OpenMates của bạn.
+    
+    Âm thanh xác nhận tác vụ
+    
+    Bạn có muốn tôi giúp bạn cấu hình thông báo âm thanh này cho một quy trình tác vụ cụ thể, hay khám phá các hiệu ứng âm thanh UI khác không?
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Saya telah membuat efek suara centang konfirmasi yang jernih dan ramah untuk penyelesaian tugas OpenMates kamu.
+    
+    Suara Konfirmasi Tugas
+    
+    Apakah kamu ingin saya membantu mengonfigurasi notifikasi audio ini untuk alur kerja tugas tertentu, atau menjelajahi efek suara UI lainnya?
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Wygenerowałem wyraźny i przyjazny dźwięk potwierdzenia dla ukończenia zadania w OpenMates.
+    
+    Dźwięk potwierdzenia zadania
+    
+    Czy chcesz, abym pomógł Ci skonfigurować to powiadomienie dźwiękowe dla konkretnego przepływu zadań, czy wolisz odkryć inne efekty dźwiękowe interfejsu?
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Ik heb een helder en vriendelijk bevestigingsgeluid gegenereerd voor het voltooien van je OpenMates-taak.
+    
+    Bevestigingsgeluid taak
+    
+    Wil je dat ik je help deze audiomelding te configureren voor een specifieke taakworkflow, of wil je andere UI-geluidseffecten verkennen?
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    لقد أنشأتُ تأثيرًا صوتيًا لعلامة تأكيد واضحًا وودودًا لإكمال مهمة OpenMates الخاصة بك.
+    
+    صوت تأكيد المهمة
+    
+    هل تود أن أساعدك في تهيئة هذا الإشعار الصوتي لسير عمل مهمة محددة، أم ترغب في استكشاف تأثيرات صوتية أخرى لواجهة المستخدم؟
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    मैंने आपके OpenMates टास्क के पूरा होने के लिए एक स्पष्ट और सुखद कन्फर्मेशन टिक साउंड इफेक्ट जनरेट किया है।
+    
+    टास्क कन्फर्मेशन साउंड
+    
+    क्या आप चाहेंगे कि मैं इस ऑडियो नोटिफिकेशन को किसी विशिष्ट टास्क वर्कफ़्लो के लिए कॉन्फ़िगर करने में आपकी मदद करूँ, या अन्य UI साउंड इफेक्ट्स को एक्सप्लोर करूँ?
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    ฉันได้สร้างเอฟเฟกต์เสียงติ๊กยืนยันที่คมชัดและเป็นมิตรสำหรับการทำงาน OpenMates ของคุณเสร็จสมบูรณ์แล้ว
+    
+    เสียงยืนยันงาน
+    
+    คุณต้องการให้ฉันช่วยกำหนดค่าการแจ้งเตือนด้วยเสียงนี้สำหรับเวิร์กโฟลว์งานเฉพาะอย่าง หรือสำรวจเอฟเฟกต์เสียง UI อื่นๆ ไหม?
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Vygeneroval jsem jasný a přátelský zvukový efekt potvrzovacího zaškrtnutí pro tvé dokončení úkolu v OpenMates.
+    
+    Zvuk potvrzení úkolu
+    
+    Chceš, abych ti pomohl nakonfigurovat toto zvukové oznámení pro konkrétní pracovní postup úkolu, nebo chceš prozkoumat další zvukové efekty uživatelského rozhraní?
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    Jag har genererat en krispig och vänlig bekräftelse-tick-ljudeffekt för slutförande av din OpenMates-uppgift.
+    
+    Bekräftelseljud för uppgift
+    
+    Vill du att jag hjälper dig att konfigurera denna ljudavisering för ett specifikt uppgiftsarbetsflöde, eller utforska andra UI-ljudeffekter?
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"c2a44760-1aff-403c-b163-c49b4186db53","app_id":"audio","skill_id":"generate"}
+    ```
+    
+    יצרתי אפקט קולי של צליל אישור חד וידידותי עבור השלמת משימת ה-OpenMates שלך.
+    
+    צליל אישור משימה
+    
+    האם תרצה שאעזור לך להגדיר את התראת השמע הזו עבור תזרים עבודה של משימה ספציפית, או שנחקור אפקטים קוליים אחרים לממשק המשתמש?
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Play the generated confirmation sound"
+  de: Spiele den erzeugten Bestätigungston ab
+  zh: 播放生成的确认音效
+  es: Reproducir el sonido de confirmación generado
+  fr: Lire le son de confirmation généré
+  pt: Reproduzir o som de confirmação gerado
+  ru: Воспроизвести созданный звук подтверждения
+  ja: 生成された確認音を再生する
+  ko: 생성된 확인 소리 재생하기
+  it: Riproduci il suono di conferma generato
+  tr: Oluşturulan onay sesini çal
+  vi: Phát âm thanh xác nhận đã tạo
+  id: Putar suara konfirmasi yang dihasilkan
+  pl: Odtwórz wygenerowany dźwięk potwierdzenia
+  nl: Speel het gegenereerde bevestigingsgeluid af
+  ar: تشغيل صوت التأكيد الذي تم إنشاؤه
+  hi: जनरेट की गई कन्फर्मेशन साउंड चलाएं
+  th: เล่นเสียงยืนยันที่สร้างขึ้น
+  cs: Přehrát vygenerovaný zvuk potvrzení
+  sv: Spela upp det genererade bekräftelseljudet
+  he: השמעת צליל האישור שנוצר
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to assign sounds to tasks"
+  de: Erkläre, wie man Aufgaben Töne zuweist
+  zh: 说明如何为任务分配音效
+  es: Explicar cómo asignar sonidos a las tareas
+  fr: Expliquer comment assigner des sons aux tâches
+  pt: Explicar como atribuir sons a tarefas
+  ru: Объяснить, как назначать звуки задачам
+  ja: タスクに音を割り当てる方法を説明して
+  ko: 작업에 소리를 할당하는 방법 설명하기
+  it: Spiega come assegnare suoni alle attività
+  tr: Görevlere seslerin nasıl atanacağını açıkla
+  vi: Giải thích cách gán âm thanh cho tác vụ
+  id: Jelaskan cara menetapkan suara ke tugas
+  pl: Wyjaśnij, jak przypisać dźwięki do zadań
+  nl: Leg uit hoe je geluiden aan taken toewijst
+  ar: شرح كيفية تخصيص الأصوات للمهام
+  hi: टास्क में साउंड असाइन करने का तरीका बताएं
+  th: อธิบายวิธีกำหนดเสียงให้กับงาน
+  cs: Vysvětlit, jak přiřadit zvuky k úkolům
+  sv: Förklara hur man tilldelar ljud till uppgifter
+  he: הסבר איך להקצות צלילים למשימות
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Preview other UI sound effects"
+  de: Vorschau anderer UI-Soundeffekte
+  zh: 预览其他 UI 音效
+  es: Previsualizar otros efectos de sonido de la interfaz
+  fr: "Aperçu d'autres effets sonores d'interface"
+  pt: Pré-visualizar outros efeitos sonoros de UI
+  ru: Прослушать другие звуковые эффекты интерфейса
+  ja: 他のUI効果音をプレビューする
+  ko: 다른 UI 효과음 미리 듣기
+  it: Anteprima di altri effetti sonori UI
+  tr: Diğer kullanıcı arayüzü ses efektlerini önizle
+  vi: Xem trước các hiệu ứng âm thanh UI khác
+  id: Pratinjau efek suara UI lainnya
+  pl: Przejrzyj inne efekty dźwiękowe interfejsu
+  nl: Bekijk andere UI-geluidseffecten
+  ar: معاينة تأثيرات صوتية أخرى لواجهة المستخدم
+  hi: अन्य UI साउंड इफेक्ट्स का प्रीव्यू देखें
+  th: ดูตัวอย่างเอฟเฟกต์เสียง UI อื่นๆ
+  cs: Náhled dalších zvukových efektů UI
+  sv: Förhandsgranska andra UI-ljudeffekter
+  he: תצוגה מקדימה של אפקטים קוליים אחרים לממשק המשתמש
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List common UI sound design principles"
+  de: Liste gängige Prinzipien für UI-Sounddesign auf
+  zh: 列出常见的 UI 音效设计原则
+  es: Listar principios comunes de diseño de sonido para interfaces de usuario
+  fr: "Lister les principes courants du design sonore d'interface"
+  pt: Listar princípios comuns de design de som para UI
+  ru: Перечислить основные принципы звукового дизайна интерфейсов
+  ja: 一般的なUIサウンドデザインの原則をリストアップして
+  ko: 일반적인 UI 사운드 디자인 원칙 나열하기
+  it: Elenca i principi comuni del sound design per UI
+  tr: Yaygın kullanıcı arayüzü ses tasarımı ilkelerini listele
+  vi: Liệt kê các nguyên tắc thiết kế âm thanh UI phổ biến
+  id: Daftar prinsip desain suara UI yang umum
+  pl: Wymień powszechne zasady projektowania dźwięku UI
+  nl: Lijst met algemene principes voor UI-geluidsontwerp
+  ar: سرد مبادئ تصميم أصوات واجهة المستخدم الشائعة
+  hi: सामान्य UI साउंड डिज़ाइन सिद्धांतों की सूची बनाएं
+  th: รายการหลักการออกแบบเสียง UI ทั่วไป
+  cs: Seznam běžných principů zvukového designu UI
+  sv: Lista vanliga principer för UI-ljuddesign
+  he: רשימת עקרונות נפוצים לעיצוב סאונד לממשק משתמש
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for cheerful notification tones"
+  de: Suche nach fröhlichen Benachrichtigungstönen
+  zh: 搜索欢快的通知音调
+  es: Buscar tonos de notificación alegres
+  fr: Rechercher des tonalités de notification joyeuses
+  pt: Procurar tons de notificação alegres
+  ru: Найти радостные сигналы уведомлений
+  ja: 明るい通知音を検索する
+  ko: 쾌활한 알림음 검색하기
+  it: Cerca toni di notifica allegri
+  tr: Neşeli bildirim tonları ara
+  vi: Tìm kiếm các âm báo thông báo vui vẻ
+  id: Cari nada notifikasi yang ceria
+  pl: Wyszukaj radosne dźwięki powiadomień
+  nl: Zoek naar vrolijke meldingstonen
+  ar: البحث عن نغمات إشعارات مبهجة
+  hi: हर्षित नोटिफिकेशन टोन खोजें
+  th: ค้นหาเสียงแจ้งเตือนที่สดใส
+  cs: Hledat veselé tóny oznámení
+  sv: Sök efter glada aviseringstoner
+  he: חיפוש צלילי התראה עליזים
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare short vs long notification sounds"
+  de: Vergleiche kurze vs. lange Benachrichtigungstöne
+  zh: 比较短促与冗长的通知音效
+  es: Comparar sonidos de notificación cortos frente a largos
+  fr: Comparer les sons de notification courts et longs
+  pt: Comparar sons de notificação curtos vs. longos
+  ru: Сравнить короткие и длинные звуки уведомлений
+  ja: 短い通知音と長い通知音を比較する
+  ko: 짧은 알림음과 긴 알림음 비교하기
+  it: Confronta suoni di notifica brevi e lunghi
+  tr: Kısa ve uzun bildirim seslerini karşılaştır
+  vi: So sánh âm thanh thông báo ngắn và dài
+  id: Bandingkan suara notifikasi pendek vs panjang
+  pl: Porównaj krótkie i długie dźwięki powiadomień
+  nl: Vergelijk korte versus lange meldingsgeluiden
+  ar: مقارنة أصوات الإشعارات القصيرة مقابل الطويلة
+  hi: छोटी बनाम लंबी नोटिफिकेशन साउंड की तुलना करें
+  th: เปรียบเทียบเสียงแจ้งเตือนแบบสั้นและแบบยาว
+  cs: Porovnat krátké a dlouhé zvuky oznámení
+  sv: Jämför korta kontra långa aviseringsljud
+  he: השוואה בין צלילי התראה קצרים לארוכים
+  verified_by_human: []
+

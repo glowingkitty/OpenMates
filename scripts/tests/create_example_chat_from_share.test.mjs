@@ -214,6 +214,24 @@ summary:
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
 });
 
+test('strips private generated audio columns from app-skill result tables', () => {
+  const sanitized = sanitizeEmbedContent(`app_id: audio
+skill_id: speak
+results[1]{id,status,text_preview,generation_type,provider,model,mime_type,duration_seconds,byte_length,audio_base64,files,s3_base_url,aes_key,aes_nonce,vault_wrapped_aes_key,credits_charged,error}:
+  1,finished,"Hello, OpenMates",speech,ElevenLabs,eleven_flash_v2_5,audio/mpeg,1.2,1234,BASE64,{private},https://private.example,plain-key,nonce,wrapped,2,
+status: finished`);
+
+  assert.doesNotMatch(sanitized, /audio_base64|files|s3_base_url|aes_key|aes_nonce|vault_wrapped_aes_key/);
+  assert.match(
+    sanitized,
+    /^results\[1\]\{id,status,text_preview,generation_type,provider,model,mime_type,duration_seconds,byte_length,credits_charged,error\}:$/m,
+  );
+  assert.match(
+    sanitized,
+    /^  1,finished,"Hello, OpenMates",speech,ElevenLabs,eleven_flash_v2_5,audio\/mpeg,1.2,1234,2,$/m,
+  );
+});
+
 test('strips transient task persistence fields from static task embeds', () => {
   const sanitized = sanitizeEmbedContent(`type: task
 parent_app_skill_type: app_skill_use

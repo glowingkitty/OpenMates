@@ -40,6 +40,14 @@ const DATA_REGISTRY_PATH = path.join(
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
 const EMBEDS_MAP_VIEW_LANGUAGE = 'embeds_map_view';
 const CODE_IMAGE_TO_HTML_APP_SKILL = 'code.image_to_html';
+const PRIVATE_TOON_TABLE_COLUMNS = new Set([
+  'audio_base64',
+  'files',
+  's3_base_url',
+  'aes_key',
+  'aes_nonce',
+  'vault_wrapped_aes_key',
+]);
 
 const LANGUAGES = [
   'en',
@@ -477,13 +485,36 @@ function normalizeRainRadarEmbedContent(content) {
 export function sanitizeEmbedContent(content) {
   const source = normalizeRainRadarEmbedContent(content) || String(content || '');
   const isTaskSnapshot = /^type:\s*task\s*$/m.test(source) || /^parent_app_skill_type:\s*app_skill_use\s*$/m.test(source);
-  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys|latest_screenshot_url|latest_screenshot_mime_type):\s*/;
+  const privateFieldPattern = /^(vault_key_id|user_id|audio_base64|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys|latest_screenshot_url|latest_screenshot_mime_type):\s*/;
   const taskTransientFieldPattern = /^(task_id|short_id|task_update_job_id|pending_client_persistence):\s*/;
   const blockFieldPattern = /^(files|screenshots|latest_screenshot):\s*/;
   const publicLines = [];
   let skippingPrivateBlock = false;
+  let tablePrivateColumnIndexes = null;
 
   for (const line of source.split('\n')) {
+    const tableHeader = line.match(/^(\s*[^\s].*?\[\d+\]\{)([^}]*)\}:\s*$/);
+    if (tableHeader) {
+      const columns = tableHeader[2].split(',').map((column) => column.trim());
+      const publicColumns = columns.filter((column) => !PRIVATE_TOON_TABLE_COLUMNS.has(column));
+      tablePrivateColumnIndexes = columns
+        .map((column, index) => (PRIVATE_TOON_TABLE_COLUMNS.has(column) ? index : -1))
+        .filter((index) => index !== -1);
+      publicLines.push(`${tableHeader[1]}${publicColumns.join(',')}}:`);
+      continue;
+    }
+
+    if (tablePrivateColumnIndexes && /^\s+/.test(line) && line.trim()) {
+      const { indent, values } = splitToonTableRow(line);
+      publicLines.push(
+        `${indent}${values.filter((_, index) => !tablePrivateColumnIndexes.includes(index)).join(',')}`,
+      );
+      continue;
+    }
+    if (tablePrivateColumnIndexes && /^\S/.test(line)) {
+      tablePrivateColumnIndexes = null;
+    }
+
     if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line))) {
       skippingPrivateBlock = false;
       continue;
@@ -503,6 +534,33 @@ export function sanitizeEmbedContent(content) {
   }
 
   return publicLines.join('\n');
+}
+
+function splitToonTableRow(line) {
+  const indentMatch = line.match(/^\s*/);
+  const indent = indentMatch ? indentMatch[0] : '';
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  const body = line.slice(indent.length);
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    current += char;
+    if (char === '"') {
+      const next = body[index + 1];
+      if (inQuotes && next === '"') {
+        current += next;
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.slice(0, -1));
+      current = '';
+    }
+  }
+  values.push(current);
+  return { indent, values };
 }
 
 function parseToonScalar(content, key) {
