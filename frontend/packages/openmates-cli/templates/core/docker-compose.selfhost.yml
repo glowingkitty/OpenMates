@@ -113,7 +113,8 @@ services:
       test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
       timeout: 8s
-      start_period: 60s
+      # cms-setup creates the indexes validated by this health script; cold CI runners can take several minutes.
+      start_period: 10m
       retries: 12
 
   cms-database:

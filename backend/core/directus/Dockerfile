@@ -208,4 +208,4 @@ HEALTH_SCRIPT
 
 USER node
 CMD ["/usr/local/bin/openmates-directus-start"]
-HEALTHCHECK --interval=10s --timeout=8s --start-period=60s --retries=12 CMD ["/usr/local/bin/openmates-directus-health"]
+HEALTHCHECK --interval=10s --timeout=8s --start-period=10m --retries=12 CMD ["/usr/local/bin/openmates-directus-health"]

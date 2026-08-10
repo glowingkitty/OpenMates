@@ -262,6 +262,8 @@ jobs:
       - name: Show self-hosted status and logs
         if: always()
         run: |
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server status --path "$SOURCE_INSTALL_PATH" || true
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server logs --path "$SOURCE_INSTALL_PATH" --tail 200 || true
           node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server status --path "$IMAGE_INSTALL_PATH" || true
           node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server logs --path "$IMAGE_INSTALL_PATH" --tail 200 || true
 
@@ -283,4 +285,6 @@ jobs:
 
       - name: Uninstall self-hosted edition
         if: always()
-        run: node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server uninstall --path "$IMAGE_INSTALL_PATH" --yes || true
+        run: |
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server uninstall --path "$SOURCE_INSTALL_PATH" --yes || true
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server uninstall --path "$IMAGE_INSTALL_PATH" --yes || true
