@@ -96,6 +96,21 @@ def create_opencode_fixture(path: Path) -> None:
                     }
                 ),
             ),
+            (
+                "part_root_file",
+                "msg_root_user",
+                ROOT_SESSION,
+                1_786_000_000_200,
+                1_786_000_000_200,
+                json.dumps(
+                    {
+                        "type": "file",
+                        "filename": "hello.txt",
+                        "mime": "text/plain",
+                        "url": "data:text/plain;base64,aGVsbG8=",
+                    }
+                ),
+            ),
         ],
     )
     connection.commit()
@@ -137,6 +152,8 @@ def test_read_opencode_chat_includes_children_and_issue_signals(tmp_path: Path, 
     assert view["issue_signals"][0]["kind"] == "tool_error"
     assert view["issue_signals"][0]["tool"] == "bash"
     assert "missing worktree mapping" in view["issue_signals"][0]["text"]
+    assert view["attachments"][0]["part_id"] == "part_root_file"
+    assert view["attachments"][0]["extractable"] is True
 
 
 def test_search_opencode_chat_filters_to_matching_messages(tmp_path: Path, monkeypatch) -> None:
@@ -150,6 +167,34 @@ def test_search_opencode_chat_filters_to_matching_messages(tmp_path: Path, monke
     assert view["message_count"] == 1
     assert view["messages"][0]["session_id"] == CHILD_SESSION
     assert view["messages"][0]["parts"][0]["matched"] is True
+
+
+def test_opencode_chat_attachments_extract_data_url(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+    out_dir = tmp_path / "attachments"
+
+    result = sessions.extract_opencode_chat_attachments(ROOT_SESSION, out_dir=out_dir, db_path=database)
+
+    assert result["attachment_count"] == 1
+    assert result["saved"][0]["part_id"] == "part_root_file"
+    saved_path = Path(result["saved"][0]["path"])
+    assert saved_path.is_file()
+    assert saved_path.read_text(encoding="utf-8") == "hello"
+
+
+def test_format_opencode_chat_shows_attachment_extract_hint(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+
+    view = sessions.read_opencode_chat(ROOT_SESSION, db_path=database)
+    text = sessions._format_opencode_chat_text(view)
+
+    assert "Attachments:" in text
+    assert f"chat attachments {ROOT_SESSION}" in text
+    assert "part_root_file" in text
 
 
 def test_chat_alias_dispatches_to_opencode_chat_reader(monkeypatch, capsys) -> None:

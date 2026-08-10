@@ -25,6 +25,7 @@ Usage:
     # OpenCode transcript debugging
     python3 scripts/sessions.py opencode-chat read https://code.dev.openmates.org/<project>/session/ses_...
     python3 scripts/sessions.py opencode-chat search ses_... "worktree"
+    python3 scripts/sessions.py chat attachments ses_... --out /tmp/opencode/chat-files
     python3 scripts/sessions.py chat read ses_...  # alias for opencode-chat
 
     # On-demand doc loading
@@ -54,6 +55,7 @@ import fnmatch
 import glob as glob_mod
 import hashlib
 import json
+import mimetypes
 import os
 import re
 import secrets
@@ -219,6 +221,8 @@ OPENCODE_CHAT_DEFAULT_MAX_ISSUES = 60
 OPENCODE_CHAT_TOOL_OUTPUT_PREVIEW_CHARS = 600
 OPENCODE_CHAT_TEXT_CHILD_SESSION_LIMIT = 25
 OPENCODE_CHAT_REPOSITORY_FILE_LIMIT = 50
+OPENCODE_CHAT_ATTACHMENT_TYPES = {"file", "image", "attachment"}
+OPENCODE_CHAT_ATTACHMENT_LIMIT = 100
 
 # ---------------------------------------------------------------------------
 # Tag system — maps task tags to relevant instruction docs
@@ -725,10 +729,12 @@ def _opencode_part_projection(
             projected["output_preview"] = output_text
         return projected
     if part_type in {"file", "image", "attachment"}:
+        url = str(data.get("url") or "")
         return {
             "type": part_type,
             "filename": data.get("filename") or data.get("name"),
             "mime": data.get("mime") or data.get("mimeType"),
+            "extractable": url.startswith("data:"),
             "content_omitted": True,
         }
     return {
@@ -1065,6 +1071,12 @@ def read_opencode_chat(
             "include_tool_output": include_tool_output,
             "sessions": sessions,
             "repository_sessions": _matching_repository_sessions(session_id),
+            "attachments": list_opencode_chat_attachments(
+                session_id,
+                include_children=include_children,
+                db_path=db_path,
+            )["attachments"],
+            "attachment_extract_command": _opencode_attachment_extract_command(session_id),
             "message_count": len(messages),
             "part_count": part_count,
             "issue_signals": issue_signals,
@@ -1078,6 +1090,205 @@ def read_opencode_chat(
 def search_opencode_chat(reference: str, query: str, **kwargs: Any) -> dict[str, Any]:
     """Search a bounded local OpenCode transcript from a session ID or web URL."""
     return read_opencode_chat(reference, query=query, **kwargs)
+
+
+def _safe_attachment_filename(value: str, fallback: str, mime: str = "") -> str:
+    raw = (value or fallback).strip() or fallback
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", raw).strip(".-") or fallback
+    if "." not in Path(safe).name and mime:
+        extension = mimetypes.guess_extension(mime.split(";", 1)[0].strip()) or ""
+        if extension:
+            safe += extension
+    return safe[:120]
+
+
+def _parse_data_url(value: str) -> tuple[str, bytes]:
+    match = re.match(r"^data:(?P<mime>[^;,]+)?(?P<params>(?:;[^,]*)?),(?P<body>.*)$", value, re.DOTALL)
+    if not match:
+        raise ValueError("attachment is not a data URL")
+    mime = match.group("mime") or "application/octet-stream"
+    params = match.group("params") or ""
+    body = match.group("body") or ""
+    if ";base64" in params:
+        return mime, base64.b64decode(body, validate=True)
+    return mime, urllib.parse.unquote_to_bytes(body)
+
+
+def _data_url_metadata(value: str) -> tuple[str, int | None]:
+    match = re.match(r"^data:(?P<mime>[^;,]+)?(?P<params>(?:;[^,]*)?),(?P<body>.*)$", value, re.DOTALL)
+    if not match:
+        raise ValueError("attachment is not a data URL")
+    mime = match.group("mime") or "application/octet-stream"
+    params = match.group("params") or ""
+    body = match.group("body") or ""
+    if ";base64" in params:
+        stripped = re.sub(r"\s+", "", body)
+        padding = len(stripped) - len(stripped.rstrip("="))
+        return mime, max(0, (len(stripped) * 3) // 4 - padding)
+    return mime, None
+
+
+def _opencode_attachment_default_out_dir(session_id: str) -> Path:
+    safe_session = re.sub(r"[^A-Za-z0-9_-]+", "-", session_id).strip("-") or "session"
+    return Path("/tmp/opencode") / f"opencode-attachments-{safe_session}"
+
+
+def _opencode_attachment_extract_command(session_id: str, out_dir: Path | None = None) -> str:
+    target = out_dir or _opencode_attachment_default_out_dir(session_id)
+    return f"python3 scripts/sessions.py chat attachments {session_id} --out {target}"
+
+
+def list_opencode_chat_attachments(
+    reference: str,
+    *,
+    include_children: bool = True,
+    part_ids: set[str] | None = None,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """Return metadata for file/image parts retained in a local OpenCode chat."""
+    parsed = parse_opencode_chat_reference(reference)
+    session_id = str(parsed["session_id"])
+    connection = _opencode_readonly_connection(db_path)
+    try:
+        session_rows = _load_opencode_session_rows(connection, session_id, include_children=include_children)
+        session_ids = [str(row["id"]) for row in session_rows]
+        placeholders = ",".join("?" for _ in session_ids)
+        rows = connection.execute(
+            f"""
+            SELECT
+                part.id AS part_id,
+                part.message_id AS message_id,
+                message.session_id AS session_id,
+                part.time_created AS time_created,
+                part.data AS data
+            FROM part
+            JOIN message ON message.id = part.message_id
+            WHERE message.session_id IN ({placeholders})
+            ORDER BY message.time_created ASC, part.time_created ASC, part.id ASC
+            """,
+            tuple(session_ids),
+        ).fetchall()
+        attachments: list[dict[str, Any]] = []
+        for row in rows:
+            part_id = str(row["part_id"])
+            if part_ids and part_id not in part_ids:
+                continue
+            data = _decode_opencode_json(row["data"])
+            if not isinstance(data, dict):
+                continue
+            part_type = str(data.get("type") or "")
+            if part_type not in OPENCODE_CHAT_ATTACHMENT_TYPES:
+                continue
+            url = str(data.get("url") or "")
+            mime = str(data.get("mime") or data.get("mimeType") or "")
+            filename = str(data.get("filename") or data.get("name") or "")
+            source = "data-url" if url.startswith("data:") else "url" if url else "unknown"
+            byte_count = None
+            if url.startswith("data:"):
+                try:
+                    parsed_mime, byte_count = _data_url_metadata(url)
+                    mime = mime or parsed_mime
+                except ValueError:
+                    source = "invalid-data-url"
+            attachments.append(
+                {
+                    "part_id": part_id,
+                    "message_id": str(row["message_id"]),
+                    "session_id": str(row["session_id"]),
+                    "time_created": _opencode_timestamp_iso(row["time_created"]),
+                    "type": part_type,
+                    "filename": filename or None,
+                    "mime": mime or None,
+                    "source": source,
+                    "extractable": source == "data-url",
+                    "byte_count": byte_count,
+                }
+            )
+            if len(attachments) >= OPENCODE_CHAT_ATTACHMENT_LIMIT:
+                break
+        return {
+            "status": "ok",
+            "reference": reference,
+            "session_id": session_id,
+            "database": str((db_path or OPENCODE_DB_PATH).expanduser()),
+            "include_children": include_children,
+            "attachment_count": len(attachments),
+            "extract_command": _opencode_attachment_extract_command(session_id),
+            "attachments": attachments,
+            "truncated": len(attachments) >= OPENCODE_CHAT_ATTACHMENT_LIMIT,
+        }
+    finally:
+        connection.close()
+
+
+def extract_opencode_chat_attachments(
+    reference: str,
+    *,
+    out_dir: Path | None = None,
+    include_children: bool = True,
+    part_ids: set[str] | None = None,
+    db_path: Path | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Decode OpenCode data-URL attachments into ordinary local files."""
+    listing = list_opencode_chat_attachments(
+        reference,
+        include_children=include_children,
+        part_ids=part_ids,
+        db_path=db_path,
+    )
+    parsed = parse_opencode_chat_reference(reference)
+    session_id = str(parsed["session_id"])
+    target_dir = out_dir or _opencode_attachment_default_out_dir(session_id)
+    saved: list[dict[str, Any]] = []
+    if dry_run:
+        return {**listing, "out_dir": str(target_dir), "saved": saved}
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    connection = _opencode_readonly_connection(db_path)
+    try:
+        for index, item in enumerate(listing["attachments"], start=1):
+            if not item.get("extractable"):
+                continue
+            row = connection.execute("SELECT data FROM part WHERE id = ?", (item["part_id"],)).fetchone()
+            if row is None:
+                continue
+            data = _decode_opencode_json(row["data"])
+            if not isinstance(data, dict):
+                continue
+            mime, payload = _parse_data_url(str(data.get("url") or ""))
+            base_name = _safe_attachment_filename(str(item.get("filename") or ""), f"attachment-{index:03d}", mime)
+            stem = Path(base_name).stem or f"attachment-{index:03d}"
+            suffix = Path(base_name).suffix or (mimetypes.guess_extension(mime) or "")
+            file_name = f"{index:03d}-{stem}-{str(item['part_id'])[-8:]}{suffix}"
+            path = target_dir / file_name
+            path.write_bytes(payload)
+            saved_item = {**item, "path": str(path), "byte_count": len(payload), "mime": item.get("mime") or mime}
+            saved.append(saved_item)
+    finally:
+        connection.close()
+    return {**listing, "out_dir": str(target_dir), "saved": saved}
+
+
+def _opencode_attachment_hint_lines(opencode_session_id: str) -> list[str]:
+    try:
+        listing = list_opencode_chat_attachments(opencode_session_id, include_children=False)
+    except (FileNotFoundError, LookupError, ValueError, sqlite3.Error):
+        return []
+    attachments = listing.get("attachments") or []
+    extractable = [item for item in attachments if item.get("extractable")]
+    if not extractable:
+        return []
+    lines = [
+        f"This OpenCode chat contains {len(extractable)} extractable uploaded file(s).",
+        f"Extract: {_opencode_attachment_extract_command(opencode_session_id)}",
+    ]
+    for item in extractable[:5]:
+        size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
+        lines.append(f"  - {item.get('part_id')}: {item.get('filename') or '(unnamed)'} ({item.get('mime') or 'unknown'}{size})")
+    if len(extractable) > 5:
+        lines.append(f"  ... +{len(extractable) - 5} more")
+    return lines
 
 
 def _load_sessions() -> dict:
@@ -6018,6 +6229,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     sections: list[str] = []
 
     # ── HEALTH (bug handled specially below with Vercel; feature, testing normal) ─
+    if opencode_session_id:
+        attachment_lines = _opencode_attachment_hint_lines(opencode_session_id)
+        if attachment_lines:
+            sections.append(_box_section("OPENCODE ATTACHMENTS", attachment_lines))
+
     if mode in ("feature", "testing"):
         health_line = _prefetch_health_check_compact()
         sections.append(_box_section("HEALTH", [health_line]))
@@ -10860,6 +11076,19 @@ def _format_opencode_chat_text(view: dict[str, Any]) -> str:
                 f"[{item.get('mode') or 'unknown'}; worktree={worktree.get('status') or 'unknown'}; files={file_count}]"
             )
 
+    attachments = [item for item in (view.get("attachments") or []) if item.get("extractable")]
+    if attachments:
+        lines.extend(["", "Attachments:"])
+        lines.append(f"  Extract: {view.get('attachment_extract_command')}")
+        for item in attachments[:10]:
+            size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
+            lines.append(
+                f"  - {item.get('part_id')}: {item.get('filename') or '(unnamed)'} "
+                f"({item.get('mime') or 'unknown'}{size})"
+            )
+        if len(attachments) > 10:
+            lines.append(f"  ... +{len(attachments) - 10} more")
+
     issues = view.get("issue_signals") or []
     lines.extend(["", "Issue signals:"])
     if issues:
@@ -10935,6 +11164,45 @@ def _format_opencode_chat_text(view: dict[str, Any]) -> str:
 
 def cmd_opencode_chat(args: argparse.Namespace) -> None:
     """Read or search a local OpenCode chat transcript by session ID or web URL."""
+    if getattr(args, "opencode_chat_action", "") == "attachments":
+        try:
+            result = extract_opencode_chat_attachments(
+                args.reference,
+                out_dir=getattr(args, "out", None),
+                include_children=not getattr(args, "no_children", False),
+                part_ids=set(getattr(args, "part_id", None) or []) or None,
+                db_path=getattr(args, "db", None),
+                dry_run=getattr(args, "list", False),
+            )
+        except (FileNotFoundError, LookupError, ValueError, sqlite3.Error, binascii.Error) as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            sys.exit(1)
+        if getattr(args, "json", False):
+            print(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
+            return
+        print("== OPENCODE ATTACHMENTS ==")
+        print(f"Session: {result.get('session_id')}")
+        print(f"Database: {result.get('database')}")
+        print(f"Output: {result.get('out_dir')}")
+        attachments = result.get("attachments") or []
+        saved = result.get("saved") or []
+        if not attachments:
+            print("No retained OpenCode file/image attachments found.")
+            return
+        if getattr(args, "list", False):
+            for item in attachments:
+                marker = "extractable" if item.get("extractable") else item.get("source") or "unknown"
+                size = f", {item['byte_count']} bytes" if item.get("byte_count") is not None else ""
+                print(f"- {item.get('part_id')}: {item.get('filename') or '(unnamed)'} ({item.get('mime') or 'unknown'}{size}; {marker})")
+            print(f"Extract: {_opencode_attachment_extract_command(str(result.get('session_id')))}")
+            return
+        if not saved:
+            print("No extractable data-URL attachments were saved.")
+            return
+        for item in saved:
+            print(f"- {item.get('part_id')}: {item.get('path')}")
+        return
+
     query = getattr(args, "query", None)
     if isinstance(query, list):
         query = " ".join(query)
@@ -11730,6 +11998,14 @@ def main() -> None:
     p_opencode_chat_search = p_opencode_chat_sub.add_parser("search", help="Search inside a bounded chat transcript")
     add_opencode_chat_args(p_opencode_chat_search)
     p_opencode_chat_search.add_argument("query", nargs="+", help="Search text")
+    p_opencode_chat_attachments = p_opencode_chat_sub.add_parser("attachments", help="Extract retained uploaded files/images from a chat")
+    p_opencode_chat_attachments.add_argument("reference", help="OpenCode session ID or code.dev.openmates.org chat URL")
+    p_opencode_chat_attachments.add_argument("--out", type=Path, help="Directory to write extracted files; defaults to /tmp/opencode/opencode-attachments-<session>")
+    p_opencode_chat_attachments.add_argument("--list", action="store_true", help="List attachments without writing files")
+    p_opencode_chat_attachments.add_argument("--json", action="store_true", help="Emit structured JSON")
+    p_opencode_chat_attachments.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
+    p_opencode_chat_attachments.add_argument("--part-id", action="append", help="Extract only this OpenCode part ID; repeat for multiple IDs")
+    p_opencode_chat_attachments.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
     p_chat = sub.add_parser(
         "chat",
@@ -11742,6 +12018,14 @@ def main() -> None:
     p_chat_search = p_chat_sub.add_parser("search", help="Search inside a bounded OpenCode chat transcript")
     add_opencode_chat_args(p_chat_search)
     p_chat_search.add_argument("query", nargs="+", help="Search text")
+    p_chat_attachments = p_chat_sub.add_parser("attachments", help="Extract retained uploaded files/images from a chat")
+    p_chat_attachments.add_argument("reference", help="OpenCode session ID or code.dev.openmates.org chat URL")
+    p_chat_attachments.add_argument("--out", type=Path, help="Directory to write extracted files; defaults to /tmp/opencode/opencode-attachments-<session>")
+    p_chat_attachments.add_argument("--list", action="store_true", help="List attachments without writing files")
+    p_chat_attachments.add_argument("--json", action="store_true", help="Emit structured JSON")
+    p_chat_attachments.add_argument("--no-children", action="store_true", help="Do not include child/subagent sessions")
+    p_chat_attachments.add_argument("--part-id", action="append", help="Extract only this OpenCode part ID; repeat for multiple IDs")
+    p_chat_attachments.add_argument("--db", type=Path, help="Override OpenCode SQLite database path")
 
     p_presence = sub.add_parser("presence", help="Manage ephemeral OpenCode presence and task intent")
     p_presence_sub = p_presence.add_subparsers(dest="presence_action", required=True)

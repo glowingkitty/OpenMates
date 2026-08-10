@@ -19,6 +19,14 @@ For hook, worktree, or child-chat debugging, read or search existing OpenCode
 chats with `python3 scripts/sessions.py chat read <ses_or_url>` and
 `python3 scripts/sessions.py chat search <ses_or_url> "query"`.
 
+When the user attaches files or images to an OpenCode chat, they are retained in
+the local OpenCode SQLite database as chat file parts. `sessions.py start`
+prints an `OPENCODE ATTACHMENTS` box when the current chat has extractable
+uploads. Extract them with
+`python3 scripts/sessions.py chat attachments <ses_or_url> --out /tmp/opencode/<task>-attachments`
+before substituting a regenerated screenshot or asking the user to resend the
+file.
+
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are
@@ -49,6 +57,13 @@ When checking deployed-code readiness from a session worktree that lacks
 `frontend/apps/web_app/.vercel/project.json`, prefer the same `scripts/tests.py`
 `--gate-deploy --expected-commit <sha>` path instead of retrying Vercel helper
 commands that require local Vercel metadata.
+For browser inspection or visual-smoke screenshots from a dependency-light
+session worktree, use
+`python3 scripts/playwright_visual_smoke.py --url <url> --session <id>` or the
+existing Node wrapper; it falls back to the Python helper when local
+`node_modules` are absent. Do not run `python3 -m playwright install chromium`
+unless the helper reports that no global browser executable is available and the
+user has approved the large browser download.
 
 Final responses should be evidence-based and concise. Name changed files, exact
 verification commands, failed checks, skipped checks, and any uncertainty. For
@@ -93,6 +108,8 @@ For each observed preventable process problem, check the relevant existing hooks
 - `python3 scripts/tests.py run --spec <name>.spec.ts --detach`
 - `python3 scripts/sessions.py chat read <ses_or_code_dev_url>`
 - `python3 scripts/sessions.py chat search <ses_or_code_dev_url> "worktree"`
+- `python3 scripts/sessions.py chat attachments <ses_or_code_dev_url> --out /tmp/opencode/<task>-attachments`
+- `python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/<route> --session <id>`
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`
 - `python3 scripts/sessions.py deploy --session <id> --title "..." --message "..."`

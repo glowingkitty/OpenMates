@@ -3,8 +3,8 @@
 // Captures laptop and mobile screenshots without spending Firecrawl credits.
 // Automated checks catch hard failures; screenshot review is still required for a pass.
 // Use scripts/tests.py for acceptance tests and sessions.py visual-smoke for evidence.
+// Dependency-light worktrees fall back to scripts/playwright_visual_smoke.py.
 
-import { chromium } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -31,6 +31,24 @@ const ERROR_PATTERNS = [
 
 let activeBrowser = null;
 let shuttingDown = false;
+
+async function loadChromiumOrDelegate(repoRoot) {
+  try {
+    const module = await import('@playwright/test');
+    return module.chromium;
+  } catch (error) {
+    const message = error?.message || String(error);
+    if (error?.code !== 'ERR_MODULE_NOT_FOUND' && !message.includes("Cannot find package '@playwright/test'")) {
+      throw error;
+    }
+    const helper = path.join(repoRoot, 'scripts/playwright_visual_smoke.py');
+    const delegated = spawnSync('python3', [helper, ...process.argv.slice(2)], {
+      cwd: repoRoot,
+      stdio: 'inherit',
+    });
+    process.exit(delegated.status ?? 1);
+  }
+}
 
 function usage() {
   console.log(`Usage: node frontend/apps/web_app/scripts/visual-smoke.mjs --url <url> [--url <url>] [--session <id>] [--out <dir>] [--wait-ms <ms>] [--keep-runs <count>] [--assert-visible <selector>] [--reviewed-summary <summary>]`);
@@ -317,6 +335,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(scriptDir, '../../../..');
+  const chromium = await loadChromiumOrDelegate(repoRoot);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const visualSmokeRoot = path.resolve(repoRoot, 'test-results/visual-smoke');
   const usingDefaultOut = !args.out;
