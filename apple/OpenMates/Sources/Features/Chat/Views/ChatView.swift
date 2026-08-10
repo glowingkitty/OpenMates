@@ -504,7 +504,7 @@ struct ChatView: View {
     private func handleChatTask() async {
         draftSaveTask?.cancel()
         await invalidateDeferredComposerSends()
-        composerSession.clear()
+        resetComposerForChatLoad()
         await ApplePrivacySettingsService.shared.load()
         isPIIRevealed = false
         viewModel.configure(wsManager: wsManager, chatStore: chatStore)
@@ -528,6 +528,14 @@ struct ChatView: View {
             chatTitle: viewModel.chat?.displayTitle
         )
         PushNotificationManager.shared.clearBadge()
+    }
+
+    private func resetComposerForChatLoad() {
+        guard !composerSession.canonicalMarkdown.isEmpty || !composerSession.controller.document.nodes.isEmpty else {
+            return
+        }
+        suppressNextDraftSave = true
+        composerSession.clear()
     }
 
     private func handleChatLifecycleDisappear() {
