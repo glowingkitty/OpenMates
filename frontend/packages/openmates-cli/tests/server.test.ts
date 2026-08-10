@@ -76,6 +76,7 @@ import {
   planRuntimeMonitoringServices,
   planRuntimeVerification,
   resolveRuntimeDeploymentMode,
+  shouldAutoInstallRuntimeMonitoringServices,
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
@@ -1008,6 +1009,12 @@ describe("post-update runtime health", () => {
     assert.match(plan.timer, /Persistent=true/);
     assert.match(plan.unit, /server monitoring run --role core/);
     assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+
+  it("requires an explicit environment opt-out to skip automatic runtime monitor service installation", () => {
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({}), true);
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({ OPENMATES_SKIP_RUNTIME_MONITORING: "0" }), true);
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({ OPENMATES_SKIP_RUNTIME_MONITORING: "1" }), false);
   });
 
   it("alerts on the second transient failure, deduplicates, then recovers", () => {

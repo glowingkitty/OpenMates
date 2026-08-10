@@ -49,6 +49,7 @@ import {
   redactEnvValue,
   resolveServiceSelection,
   resolveRuntimeDeploymentMode,
+  shouldAutoInstallRuntimeMonitoringServices,
   shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
@@ -1773,7 +1774,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       ...cliUrls,
     });
     try {
-      installRuntimeMonitoringServices(installPath, role);
+      autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1867,7 +1868,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     ...cliUrls,
   });
   try {
-    installRuntimeMonitoringServices(installPath, role);
+    autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -2044,6 +2045,15 @@ function installRuntimeMonitoringServices(installPath: string, role: ServerRole)
   for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
+function autoInstallRuntimeMonitoringServices(installPath: string, role: ServerRole): "installed" | "skipped" {
+  if (!shouldAutoInstallRuntimeMonitoringServices(process.env)) {
+    console.error("Skipping runtime monitoring service installation because OPENMATES_SKIP_RUNTIME_MONITORING=1.");
+    return "skipped";
+  }
+  installRuntimeMonitoringServices(installPath, role);
+  return "installed";
+}
+
 async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
   if (rest[0] === "status") {
     const installPath = resolveServerPath(flags);
@@ -2217,7 +2227,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
         let monitoringProvision = "installed";
         try {
-          installRuntimeMonitoringServices(installPath, role);
+          monitoringProvision = autoInstallRuntimeMonitoringServices(installPath, role);
         } catch {
           monitoringProvision = "failed";
         }
@@ -2244,7 +2254,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
     try {
-      installRuntimeMonitoringServices(installPath, role);
+      autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       const restoreCommand = safetyPlan.backupName
         ? `openmates server restore --role ${role} --file ${join(roleBackupDir(installPath, role), safetyPlan.backupName)}`
@@ -2352,7 +2362,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
       let monitoringProvision = "installed";
       try {
-        installRuntimeMonitoringServices(installPath, role);
+        monitoringProvision = autoInstallRuntimeMonitoringServices(installPath, role);
       } catch {
         monitoringProvision = "failed";
       }
@@ -2375,7 +2385,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   }
 
   try {
-    installRuntimeMonitoringServices(installPath, role);
+    autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
     throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);

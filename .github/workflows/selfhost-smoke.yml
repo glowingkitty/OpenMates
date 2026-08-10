@@ -101,6 +101,8 @@ jobs:
 
       - name: Source-mode timing baseline
         # docAssert('openmates server install --source-path starts self-host smoke stack')
+        env:
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
         run: |
           CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
           mkdir -p "$GITHUB_WORKSPACE/test-results"
@@ -170,6 +172,7 @@ jobs:
         env:
           OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}/frontend/packages/openmates-cli/templates
           OPENMATES_SKIP_IMAGE_PULL: "1"
+          OPENMATES_SKIP_RUNTIME_MONITORING: "1"
         run: |
           CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
           start_all=$(date +%s)

@@ -840,3 +840,7 @@ export function planRuntimeMonitoringServices(
     ].join("\n"),
   };
 }
+
+export function shouldAutoInstallRuntimeMonitoringServices(env: Record<string, string | undefined>): boolean {
+  return env.OPENMATES_SKIP_RUNTIME_MONITORING !== "1";
+}
