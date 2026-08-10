@@ -31,7 +31,7 @@ class SafeguardVerdict:
 
     decision: str = "block"  # allow | block | escalate
     category: str = ""  # e.g. S3_sexual_other, ALLOW_GENERAL
-    severity: str = "severe"  # critical | adversarial | severe | moderate
+    severity: str = "severe"  # critical | adversarial | severe | moderate | low
     reasoning: str = ""
     discrepancies: str = ""
     raw_text: str = ""
@@ -169,7 +169,7 @@ class GroqSafeguardClient:
                             },
                             "severity": {
                                 "type": "string",
-                                "enum": ["critical", "adversarial", "severe", "moderate"],
+                                "enum": ["critical", "adversarial", "severe", "moderate", "low"],
                             },
                             "reasoning": {
                                 "type": "string",
@@ -403,7 +403,7 @@ class GroqSafeguardClient:
                         "properties": {
                             "decision": {"type": "string", "enum": ["allow", "block", "escalate"]},
                             "category": {"type": "string"},
-                            "severity": {"type": "string", "enum": ["critical", "adversarial", "severe", "moderate"]},
+                            "severity": {"type": "string", "enum": ["critical", "adversarial", "severe", "moderate", "low"]},
                             "reasoning": {"type": "string"},
                             "discrepancies": {"type": "string"},
                         },
@@ -518,7 +518,7 @@ def _parse_verdict(text: str) -> SafeguardVerdict:
         decision = "block"
 
     severity = str(data.get("severity", "severe")).lower()
-    if severity not in ("critical", "adversarial", "severe", "moderate"):
+    if severity not in ("critical", "adversarial", "severe", "moderate", "low"):
         severity = "severe"
 
     return SafeguardVerdict(

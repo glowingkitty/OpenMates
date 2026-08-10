@@ -116,7 +116,7 @@ async def test_audio_speech_safeguard_retries_groq_output_parse_failure(
                                     function=SimpleNamespace(
                                         arguments=(
                                             '{"decision":"allow","category":"ALLOW_GENERAL",'
-                                            '"severity":"moderate","reasoning":"Ordinary text-to-speech",'
+                                            '"severity":"low","reasoning":"Ordinary text-to-speech",'
                                             '"discrepancies":""}'
                                         )
                                     )
@@ -139,5 +139,10 @@ async def test_audio_speech_safeguard_retries_groq_output_parse_failure(
 
     assert result.approved is True
     assert result.category == "ALLOW_GENERAL"
+    assert result.severity == "low"
     assert len(captured_calls) == 2
     assert captured_calls[0]["tool_choice"] == captured_calls[1]["tool_choice"]
+    severity_enum = captured_calls[0]["tools"][0]["function"]["parameters"]["properties"]["severity"][
+        "enum"
+    ]
+    assert "low" in severity_enum
