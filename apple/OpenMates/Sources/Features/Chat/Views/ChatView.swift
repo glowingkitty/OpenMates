@@ -563,8 +563,7 @@ struct ChatView: View {
         if let bannerState { return bannerState }
         if let chat = viewModel.chat,
            isDraftOnlyChat(chat) {
-            let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return .draftOnly(preview: preview?.isEmpty == false ? preview! : chat.displayTitle)
+            return .draftOnly(preview: draftOnlyPreview(for: chat))
         }
         guard let chat = viewModel.chat,
               let title = chat.title,
@@ -599,6 +598,11 @@ struct ChatView: View {
         return title.isEmpty && (chat.messagesV ?? 0) == 0 && (chat.draftV ?? 0) > 0
     }
 
+    private func draftOnlyPreview(for chat: Chat) -> String {
+        let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return preview?.isEmpty == false ? preview! : chat.displayTitle
+    }
+
     private var followUpSuggestionIcon: String? {
         publicChatIconName(for: chatId) ?? viewModel.chat?.icon
     }
@@ -607,7 +611,11 @@ struct ChatView: View {
 
     private var chatTopBar: some View {
         HStack(spacing: .spacing3) {
-            ChatHeaderView(chat: viewModel.chat, isLoading: viewModel.isLoading)
+            ChatHeaderView(
+                chat: viewModel.chat,
+                titleOverride: viewModel.chat.flatMap { isDraftOnlyChat($0) ? draftOnlyPreview(for: $0) : nil },
+                isLoading: viewModel.isLoading
+            )
 
             Spacer()
 
