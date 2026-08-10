@@ -37,7 +37,7 @@ export interface ServerConfig {
   deploymentMode?: "self_host" | "official_cloud";
   /** Absolute OpenMatesCloud overlay checkout path for official-cloud installs. */
   openMatesCloudOverlayPath?: string;
-  /** OpenMates image tag used by image-mode installs, e.g. v0.15.0. */
+  /** OpenMates image tag used by image-mode installs, e.g. v0.16.0. */
   imageTag?: string;
   /** Image channel alias used by image-mode installs, e.g. dev or main. */
   imageChannel?: "dev" | "main";
