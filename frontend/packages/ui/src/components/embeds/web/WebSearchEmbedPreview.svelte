@@ -425,7 +425,7 @@
               {$text('embeds.search_no_results')}
             </span>
           {:else if resultState === 'missing_preview_metadata' && knownParentResultCount > 0}
-            <span class="remaining-count">
+            <span class="remaining-count" data-testid="search-preview-remaining-count">
               {$text('embeds.more_results').replace('{count}', String(knownParentResultCount))}
             </span>
           {:else if resultState === 'missing_preview_metadata'}
@@ -456,7 +456,7 @@
             
             <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
             {#if remainingCount > 0}
-              <span class="remaining-count">
+              <span class="remaining-count" data-testid="search-preview-remaining-count">
                 {$text('embeds.more_results').replace('{count}', String(remainingCount))}
               </span>
             {/if}
