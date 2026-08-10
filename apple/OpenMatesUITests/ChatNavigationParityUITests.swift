@@ -35,9 +35,12 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertFalse(order.contains("ui-test-empty-shell-chat"), "Empty new-chat shells must not be navigable.")
         XCTAssertEqual(try stringMetric("selected-chat-id", in: metrics.label), "ui-test-current-chat")
 
-        app.buttons["sidebar-toggle"].tap()
+        let sidebarToggle = app.buttons["sidebar-toggle"]
+        sidebarToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         try assertSidebarRowsInOrder(["Header navigation draft", "Newer Chat", "Current Chat", "Older Chat"], in: app)
+        sidebarToggle.tap()
+        XCTAssertFalse(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 2))
 
         let nextButton = app.buttons["chat-header-next"]
         let previousButton = app.buttons["chat-header-previous"]
