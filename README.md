@@ -4,16 +4,16 @@
 
 OpenMates is an open-source, provider-independent AI assistant platform with built-in apps, rich results inside chat, client-side encrypted storage, automatic model selection, a terminal CLI, JavaScript and Python SDKs, and self-hosting support.
 
-[Open the web app](https://openmates.org) | [Watch the product intro](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video) | [Documentation](https://openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
+[Open the web app](https://openmates.org) | [Documentation](https://openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
 
-[![Play the OpenMates product intro](https://openmates.org/newsletter-assets/intro-thumbnail-EN.jpg)](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video)
+[![OpenMates daily inspiration screenshot](./docs/images/readme-daily-inspiration.png)](https://openmates.org)
 
 > [!NOTE]
 > OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.15**.
 
 ## See it in action
 
-The image above is a still from the [OpenMates product intro](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video). Select it to play the video in OpenMates.
+The image above shows a daily inspiration starter in the OpenMates web app. Select it to open OpenMates.
 
 Public example chats open without an account. Each is a complete, interactive conversation with the finished result, not a static mockup.
 
