@@ -388,6 +388,39 @@ describe("draftSave", () => {
     });
 
     // contract-test: supporting surface=gui.web assertions=drafts.navigation.includes-draft-only,drafts.draft-only.lifecycle
+    it("defers explicit empty flush until the active context switch finishes", async () => {
+      const contextSwitchFlushDelayMs = 550;
+      vi.useFakeTimers();
+      try {
+        const editor = createEditor(true);
+        mocks.getEditorInstance.mockReturnValue(editor);
+        mocks.resetDraftState({
+          currentChatId: "auth-draft-chat",
+          isSwitchingContext: true,
+          currentUserDraftVersion: 3,
+          lastSavedContentMarkdown: "Known restored draft",
+        });
+
+        const result = flushSaveDraft(editor as never, "auth-draft-chat");
+
+        expect(result).toBeUndefined();
+        expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+
+        mocks.resetDraftState({
+          currentChatId: "auth-draft-chat",
+          isSwitchingContext: false,
+          currentUserDraftVersion: 3,
+          lastSavedContentMarkdown: "Known restored draft",
+        });
+        await vi.advanceTimersByTimeAsync(contextSwitchFlushDelayMs);
+
+        expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("auth-draft-chat");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.navigation.includes-draft-only,drafts.draft-only.lifecycle
     it("does not reset a newer draft context after stale chat cleanup finishes", async () => {
       const editor = createEditor(true);
       mocks.getEditorInstance.mockReturnValue(editor);

@@ -21,6 +21,13 @@ import { modelsMetadata } from "../../data/modelsMetadata"; // For model name lo
 import { matesMetadata } from "../../data/matesMetadata"; // For mate name lookup
 import { appSkillsStore } from "../../stores/appSkillsStore"; // For skill/focus/memory name lookup
 
+// Slightly longer than draftCore's context-switch guard so explicit empty flushes
+// from the dismiss button can become authoritative after chat restoration settles.
+const DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS = 550;
+const DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS = 2;
+
+let deferredEmptyDraftFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Convert a name to hyphenated format for mention display.
  * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
@@ -402,6 +409,10 @@ function generateDraftPreview(
 export async function clearCurrentDraft() {
   draftLifecycleRevision += 1;
   resaveNeeded = false;
+  if (deferredEmptyDraftFlushTimer) {
+    clearTimeout(deferredEmptyDraftFlushTimer);
+    deferredEmptyDraftFlushTimer = null;
+  }
   saveDraftDebounced.cancel();
   // Export this function
   const editor = getEditorInstance(); // Keep reference to editor for the finally block
@@ -1469,6 +1480,42 @@ export function triggerSaveDraft(
   saveDraftDebounced(chatIdFromMessageInput, editor);
 }
 
+function scheduleDeferredEmptyDraftFlush(
+  editor: Editor,
+  targetChatId: string | undefined,
+  attemptsLeft: number,
+): void {
+  if (deferredEmptyDraftFlushTimer) {
+    clearTimeout(deferredEmptyDraftFlushTimer);
+  }
+
+  deferredEmptyDraftFlushTimer = setTimeout(() => {
+    deferredEmptyDraftFlushTimer = null;
+
+    const currentState = get(draftEditorUIState);
+    const liveEditor = getEditorInstance();
+    if (
+      !liveEditor ||
+      liveEditor !== editor ||
+      editor.isDestroyed ||
+      !editor.isEmpty
+    ) return;
+    if (currentState.currentChatId !== (targetChatId ?? null)) return;
+
+    if (currentState.isSwitchingContext) {
+      if (attemptsLeft > 0) {
+        scheduleDeferredEmptyDraftFlush(editor, targetChatId, attemptsLeft - 1);
+      }
+      return;
+    }
+
+    saveDraftDebounced(targetChatId, editor);
+    void Promise.resolve(saveDraftDebounced.flush()).catch((error) => {
+      console.error("[DraftService] Deferred empty draft flush failed:", error);
+    });
+  }, DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS);
+}
+
 /**
  * Immediately flushes any pending debounced save/clear operations.
  * Called on blur, visibilitychange, beforeunload.
@@ -1480,6 +1527,16 @@ export function flushSaveDraft(
   const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
+  const currentState = get(draftEditorUIState);
+  if (currentState.isSwitchingContext && editor.isEmpty) {
+    const targetChatId = chatIdFromMessageInput ?? currentState.currentChatId ?? undefined;
+    scheduleDeferredEmptyDraftFlush(
+      editor,
+      targetChatId,
+      DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS,
+    );
+    return;
+  }
   saveDraftDebounced(chatIdFromMessageInput, editor);
   return saveDraftDebounced.flush();
 }
