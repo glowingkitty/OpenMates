@@ -4338,6 +4338,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    async function resetActiveDraftOnlyChatAfterDraftDeleted(chatId: string, reason: string): Promise<boolean> {
+        if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
+        await tick();
+        if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
+        if (hasLiveDraftComposerContent(chatId)) return false;
+
+        try {
+            const messages = await chatDB.getMessagesForChat(chatId);
+            if (messages.length > 0) return false;
+        } catch (error) {
+            console.warn(`[ActiveChat] ${reason}: Could not verify messages before clearing draft-only chat ${chatId}`, error);
+            return false;
+        }
+
+        if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
+        if (hasLiveDraftComposerContent(chatId)) return false;
+
+        console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} was cleared. Resetting to new chat.`);
+        await handleNewChatClick();
+        return true;
+    }
+
     // ─── Credits restoration detection ─────────────────────────────────────────
     //
     // When a chat is in the credits-error state (isNewChatCreditsError=true) and the
@@ -10920,10 +10942,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // CRITICAL: Sync liveInputText with editor content after draft saves
         // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
         // The textchange event might not fire after draft saves, so we listen for draft save events
-        const handleDraftSaveSync = (event: Event) => {
-            const detail = (event as CustomEvent<{ chat_id?: string }>).detail;
+        const handleDraftSaveSync = async (event: Event) => {
+            const detail = (event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>).detail;
             const changedChatId = detail?.chat_id;
             if (changedChatId && changedChatId === currentChat?.chat_id) {
+                if (detail?.draftDeleted && await resetActiveDraftOnlyChatAfterDraftDeleted(changedChatId, 'draft save or sync')) {
+                    return;
+                }
                 void refreshActiveChatHeaderFromStoredChat(changedChatId, 'draft save or sync');
             }
 
