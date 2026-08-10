@@ -11,7 +11,11 @@ contract_refs:
   - id: feature.app-skill.audio-speak
     version: 1
     role: inherited
-    fingerprint: afe608391f25375d3a6b9c0e0d81ffc541a9ebc6ac3e7da5debc32cefaa596de
+    fingerprint: 79f9c10952bd41af416e724c8d9f33780767a363505013a9466bb3a8d6389781
+  - id: feature.public-example-chats
+    version: 1
+    role: inherited
+    fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
 
 contract_impact:
   classification: new_contract
@@ -148,7 +152,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 519869e8f
+  subject_commit: d23d3b608
 
 approvals:
   product_contract:
@@ -203,14 +207,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-09T23:36:02Z"
     evidence: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+  - id: ATTEMPT-5
+    task_id: TASK-7
+    approach: Deploy sanitized audio example chats, run deployed audio/example Playwright specs, backfill the public example-chat contract, and review deployed laptop/mobile screenshots for both audio example routes.
+    outcome: succeeded
+    recorded_at: "2026-08-10T22:31:29Z"
+    evidence: test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/summary.json
 
 handoff:
   current_task_id: TASK-7
-  next_action: Complete remaining cross-client verification gates that are not covered by the live REST/Discord sample evidence.
+  next_action: Complete any remaining user-confirmation and Apple parity gates after the deployed web/example evidence.
   command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml
   expected_outcome: Spec verification reports only genuinely pending gates such as user confirmation or Apple parity.
   blocker: null
-  last_verified_commit: 3f0d2ad
+  last_verified_commit: d23d3b608
 
 scenarios:
   - id: S-1
@@ -600,7 +610,52 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {}
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec skill-audio-generate-speak.spec.ts --gate-deploy --expected-commit 4f912b39b
+        run_id: gha-playwright-31416749219
+        timestamp: "2026-08-10T18:01:09Z"
+        subject_commit: 4f912b39b
+        target: app.dev.openmates.org
+        summary: Deployed web audio skill spec passed for audio.generate and audio.speak generated-audio app-skill embeds, playable preview/fullscreen states, and no visible binary, key, provider secret, or raw safeguard diagnostics.
+
+  - id: T-PW-AUDIO-EXAMPLE-CHATS
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats-load.spec.ts
+    command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-6, AC-7]
+    assertions:
+      - Public audio.generate and audio.speak example chats are reachable through the static example catalog and crawlable public routes.
+      - Rendered public example HTML and chat surfaces omit generated-audio binary data, encryption keys, wrapped keys, private storage markers, and unresolved i18n keys.
+    contract_assertions:
+      - audio-generate.output.binary-excluded-from-inference
+      - audio-speak.output.binary-excluded-from-inference
+      - public-example-chats.transcript.safe-rendering
+      - public-example-chats.seo.crawlable
+    red_phase:
+      required: false
+      expected: existing_spec_exposed_stale_selector_before_audio_example_contract_backfill
+      evidence:
+        status: failed_before_fix
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 4f912b39b
+        run_id: gha-playwright-31416594454
+        timestamp: "2026-08-10T18:02:28Z"
+        subject_commit: 4f912b39b
+        target: app.dev.openmates.org
+        summary: Deployed example-chat regression reached the public example assertions but failed on a stale forgotten-message toggle selector unrelated to the audio examples.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 81a07512e
+        run_id: gha-playwright-31437889308
+        timestamp: "2026-08-10T22:23:57Z"
+        subject_commit: 81a07512e
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_3qFd54UZ5QP9FNUTRPmKBeGTn2H6 READY for 81a07512e
+        summary: Deployed public example-chat regression passed after the selector fix and public-example contract backfill; the run covered every example SSR page, public-safety markers including generated-audio binary/key fields, catalog discovery, and compressed-history reveal behavior.
 
 verifications:
   - id: V-REST-CLI-SDK-DEV
@@ -650,8 +705,25 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-6]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: >-
+        python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/#chat-id=example-audio-generate-confirmation-tick --url https://app.dev.openmates.org/#chat-id=example-audio-speak-welcome-message --session 116b --wait-ms 2500 --reviewed-summary "Reviewed laptop and mobile screenshots for both audio example hash routes. Defects: none. Accepted differences: none."
+      run_id: test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/summary.json
+      timestamp: "2026-08-10T22:31:29Z"
+      subject_commit: d23d3b608
+      target: app.dev.openmates.org
+      urls:
+        - https://app.dev.openmates.org/#chat-id=example-audio-generate-confirmation-tick
+        - https://app.dev.openmates.org/#chat-id=example-audio-speak-welcome-message
+      screenshots:
+        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-generate-confirmation-tick-laptop.png
+        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-generate-confirmation-tick-mobile.png
+        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-laptop.png
+        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-mobile.png
+      summary: >-
+        Reviewed laptop and mobile screenshots for both audio example hash routes. Defects: none. Accepted differences: none.
 
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
@@ -931,7 +1003,7 @@ tasks:
 
   - id: TASK-7
     title: Deploy and complete cross-client verification
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-5, S-6]
