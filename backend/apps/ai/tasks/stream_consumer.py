@@ -39,7 +39,10 @@ from backend.apps.ai.utils.embed_display_text import (
     escape_markdown_link_label as _escape_markdown_link_label,
     is_bad_embed_display_text as _is_bad_embed_display_text,
 )
-from backend.apps.ai.utils.app_skill_json_cleanup import canonicalize_app_skill_json_blocks
+from backend.apps.ai.utils.app_skill_json_cleanup import (
+    canonicalize_app_skill_json_blocks,
+    strip_failed_app_skill_json_blocks,
+)
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
 )
@@ -8567,19 +8570,13 @@ async def _consume_main_processing_stream(
     # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
     # We strip them here before the content is persisted.
     if failed_embed_ids and aggregated_response:
-        import re
-        stripped_count = 0
-        for failed_id in failed_embed_ids:
-            # Match the exact JSON code block pattern for this embed_id:
-            # ```json\n{...embed_id...}\n```
-            # Use a pattern that matches the entire code block containing this embed_id
-            pattern = r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"' + re.escape(failed_id) + r'"[^}]*\}\s*\n\s*```\s*\n*'
-            new_response = re.sub(pattern, '', aggregated_response)
-            if new_response != aggregated_response:
-                stripped_count += 1
-                aggregated_response = new_response
-        
+        stripped_response, stripped_count = strip_failed_app_skill_json_blocks(
+            aggregated_response,
+            failed_embed_ids,
+            log_prefix,
+        )
         if stripped_count > 0:
+            aggregated_response = stripped_response
             # Update final_response_chunks to reflect the cleanup
             final_response_chunks = [aggregated_response]
             logger.info(

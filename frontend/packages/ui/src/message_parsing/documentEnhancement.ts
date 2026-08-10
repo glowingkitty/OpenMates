@@ -6,7 +6,19 @@ import { EmbedNodeAttributes } from "./types";
 // Special marker to indicate a duplicate embed reference that should be removed from the document
 const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
 const PROTOCOL_EMBED_MARKER = Symbol("PROTOCOL_EMBED");
-const PROTOCOL_JSON_TYPE_PATTERN = /"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)"/;
+const PROTOCOL_JSON_QUOTE = String.raw`["\u201c\u201d]`;
+const PROTOCOL_JSON_NOT_QUOTE = String.raw`[^"\u201c\u201d]*`;
+const PROTOCOL_JSON_TYPE_PATTERN = new RegExp(
+  `${PROTOCOL_JSON_QUOTE}type${PROTOCOL_JSON_QUOTE}` +
+    String.raw`\s*:\s*` +
+    `${PROTOCOL_JSON_QUOTE}(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)${PROTOCOL_JSON_QUOTE}`,
+);
+const PROTOCOL_JSON_EMBED_ID_PATTERN = new RegExp(
+  `${PROTOCOL_JSON_QUOTE}embed_id${PROTOCOL_JSON_QUOTE}` +
+    String.raw`\s*:\s*` +
+    `${PROTOCOL_JSON_QUOTE}([a-f0-9-]+)${PROTOCOL_JSON_QUOTE}`,
+  "i",
+);
 const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -841,7 +853,7 @@ function removeRenderedJsonEmbedReferences(
 
   while ((fencedMatch = fencedJsonRegex.exec(text)) !== null) {
     const fencedBlock = fencedMatch[0];
-    const embedIdMatch = fencedBlock.match(/"embed_id"\s*:\s*"([a-f0-9-]+)"/i);
+    const embedIdMatch = fencedBlock.match(PROTOCOL_JSON_EMBED_ID_PATTERN);
     if (embedIdMatch && renderedEmbedIds.has(embedIdMatch[1])) {
       fencedMatches.push({
         fullMatch: fencedBlock,
@@ -874,8 +886,18 @@ function removeRenderedJsonEmbedReferences(
   // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
   // This regex matches JSON-like strings with type and embed_id fields
   // We use a non-greedy match to handle multiple references in the same text
-  const jsonEmbedRefRegex =
-    /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
+  const jsonEmbedRefRegex = new RegExp(
+    String.raw`\{[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}type${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*:[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}${PROTOCOL_JSON_NOT_QUOTE}${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*,[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}embed_id${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*:[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}([a-f0-9-]+)${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*(?:,[\s]*[^}]*)?\}`,
+    "gi",
+  );
 
   let result = jsonText;
   let match;
