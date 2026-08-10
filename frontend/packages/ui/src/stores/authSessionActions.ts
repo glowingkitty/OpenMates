@@ -672,6 +672,10 @@ export async function checkAuth(
             data.user.has_accepted_refund_policy ?? false,
           has_free_testing_credits_grant:
             data.user.has_free_testing_credits_grant ?? false,
+          email_notifications_enabled:
+            data.user.email_notifications_enabled ?? false,
+          email_notification_preferences:
+            data.user.email_notification_preferences ?? undefined,
           default_ai_model_simple:
             data.user.default_ai_model_simple ?? null,
           default_ai_model_complex:

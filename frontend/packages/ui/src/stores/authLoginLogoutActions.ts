@@ -410,6 +410,10 @@ export async function login(
                 data.user.push_notification_preferences ?? undefined,
               push_notification_banner_shown:
                 data.user.push_notification_banner_shown ?? false,
+              email_notifications_enabled:
+                data.user.email_notifications_enabled ?? false,
+              email_notification_preferences:
+                data.user.email_notification_preferences ?? undefined,
               default_ai_model_simple:
                 data.user.default_ai_model_simple ?? null,
               default_ai_model_complex:

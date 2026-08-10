@@ -49,6 +49,7 @@
   let contextMenuVisible = $state(false);
   let downloading = $state(false);
   let prefersTouchCta = $state(false);
+  let latestLoadId = 0;
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -65,17 +66,30 @@
 
   async function load(forceRefresh = false): Promise<void> {
     if (!parentChatId) return;
+    const loadId = ++latestLoadId;
     isLoading = true;
     try {
       if (forceRefresh) clearSubChatsForParentCache(parentChatId);
-      subChats = await loadSubChatPreviews(parentChatId, {
+      const previews = await loadSubChatPreviews(parentChatId, {
         subChatIds,
         forceRefresh,
       });
+      if (loadId !== latestLoadId) return;
+
+      const previousById = new Map(subChats.map((subChat) => [subChat.chat_id, subChat]));
+      subChats = previews.map((preview) => {
+        const previous = previousById.get(preview.chat_id);
+        if (!previous?.previewSummary || preview.previewSummary) return preview;
+        return { ...preview, previewSummary: previous.previewSummary };
+      });
     } catch (error) {
-      console.error('[SubChatBatchPreview] Failed to load sub-chat previews:', error);
+      if (loadId === latestLoadId) {
+        console.error('[SubChatBatchPreview] Failed to load sub-chat previews:', error);
+      }
     } finally {
-      isLoading = false;
+      if (loadId === latestLoadId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -178,6 +192,7 @@
   });
 
   onDestroy(() => {
+    latestLoadId++;
     contextMenuVisible = false;
   });
 </script>

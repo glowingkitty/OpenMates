@@ -186,6 +186,16 @@ function generateMatchId(type: PIIType, startIndex: number): string {
   return `pii-${type}-${startIndex}`;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getBarePlaceholderVariant(placeholder: string): string | null {
+  if (!placeholder.startsWith("[") || !placeholder.endsWith("]")) return null;
+  const barePlaceholder = placeholder.slice(1, -1);
+  return barePlaceholder ? barePlaceholder : null;
+}
+
 /**
  * PII detection patterns ordered by specificity (more specific patterns first)
  * to prevent overlapping matches
@@ -1075,6 +1085,14 @@ export function restorePIIInText(
   for (const mapping of mappings) {
     // Replace all occurrences of the placeholder with the original value (plain text)
     result = result.split(mapping.placeholder).join(mapping.original);
+    const barePlaceholder = getBarePlaceholderVariant(mapping.placeholder);
+    if (barePlaceholder) {
+      const bareTokenPattern = new RegExp(
+        `(^|[^A-Za-z0-9_\\[])${escapeRegExp(barePlaceholder)}(?![A-Za-z0-9_\\]])`,
+        "g",
+      );
+      result = result.replace(bareTokenPattern, (_match, prefix) => `${prefix}${mapping.original}`);
+    }
   }
 
   return result;
