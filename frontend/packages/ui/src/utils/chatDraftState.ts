@@ -7,15 +7,17 @@
 
 import type { Chat } from "../types/chat";
 
-export function isPersistedDraftOnlyChat(
+export function isDraftOnlyChatSurface(
   chat: Chat | null | undefined,
+  hasLiveDraftContent = false,
 ): chat is Chat {
   if (!chat || chat.is_hidden_candidate || chat.is_incognito || chat.is_anonymous) {
     return false;
   }
 
   const hasDraft = Boolean(
-    chat.encrypted_draft_md ||
+    hasLiveDraftContent ||
+      chat.encrypted_draft_md ||
       chat.encrypted_draft_preview ||
       (chat.draft_v ?? 0) > 0,
   );
@@ -34,4 +36,10 @@ export function isPersistedDraftOnlyChat(
   );
 
   return hasDraft && !hasMessages && !hasGeneratedMetadata && !chat.ideabucket_triggered_at;
+}
+
+export function isPersistedDraftOnlyChat(
+  chat: Chat | null | undefined,
+): chat is Chat {
+  return isDraftOnlyChatSurface(chat);
 }

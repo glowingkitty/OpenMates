@@ -93,7 +93,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isPersistedDraftOnlyChat } from '../utils/chatDraftState';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from '../utils/chatDraftState';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
@@ -5297,7 +5297,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-     let isActiveDraftOnlyChat = $derived(isPersistedDraftOnlyChat(currentChat));
+     let isActiveDraftOnlyChat = $derived(
+        isDraftOnlyChatSurface(
+            currentChat,
+            currentChat?.chat_id ? hasLiveDraftComposerContent(currentChat.chat_id) : false,
+        ),
+     );
 
      $effect(() => {
         if (showWelcome && isActiveDraftOnlyChat) {
