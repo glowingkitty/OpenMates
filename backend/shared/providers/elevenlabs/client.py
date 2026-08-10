@@ -25,6 +25,46 @@ DEFAULT_SOUND_EFFECT_MODEL = "eleven_text_to_sound_v2"
 DEFAULT_TTS_MODEL = "eleven_flash_v2_5"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 DEFAULT_TIMEOUT_SECONDS = 60.0
+BITS_PER_BYTE = 8
+KILOBITS_PER_SECOND = 1000
+ID3V2_HEADER_BYTES = 10
+ID3V1_TAG_BYTES = 128
+
+
+def _mp3_payload_size(audio_bytes: bytes) -> int:
+    payload = audio_bytes or b""
+    start = 0
+    end = len(payload)
+    if payload.startswith(b"ID3") and len(payload) >= ID3V2_HEADER_BYTES:
+        size_bytes = payload[6:10]
+        tag_size = (
+            ((size_bytes[0] & 0x7F) << 21)
+            | ((size_bytes[1] & 0x7F) << 14)
+            | ((size_bytes[2] & 0x7F) << 7)
+            | (size_bytes[3] & 0x7F)
+        )
+        start = min(ID3V2_HEADER_BYTES + tag_size, end)
+    if end - start >= ID3V1_TAG_BYTES and payload[end - ID3V1_TAG_BYTES : end - ID3V1_TAG_BYTES + 3] == b"TAG":
+        end -= ID3V1_TAG_BYTES
+    return max(0, end - start)
+
+
+def _estimate_mp3_duration_seconds(audio_bytes: bytes, output_format: str) -> Optional[float]:
+    """Estimate generated MP3 duration from ElevenLabs' fixed bitrate output format."""
+
+    parts = output_format.split("_")
+    if len(parts) != 3 or parts[0] != "mp3":
+        return None
+    try:
+        bitrate_bps = int(parts[2]) * KILOBITS_PER_SECOND
+    except ValueError:
+        return None
+    if bitrate_bps <= 0:
+        return None
+    payload_size = _mp3_payload_size(audio_bytes)
+    if payload_size <= 0:
+        return None
+    return round((payload_size * BITS_PER_BYTE) / bitrate_bps, 3)
 
 
 class ElevenLabsClient:
@@ -151,7 +191,7 @@ class ElevenLabsClient:
             audio_bytes=audio_bytes,
             mime_type=mime_type or "audio/mpeg",
             model=model,
-            duration_seconds=None,
+            duration_seconds=_estimate_mp3_duration_seconds(audio_bytes, output_format),
         )
 
     async def get_subscription(self) -> dict[str, Any]:

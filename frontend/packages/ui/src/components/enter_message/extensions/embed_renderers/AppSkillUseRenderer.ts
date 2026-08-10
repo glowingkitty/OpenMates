@@ -4052,7 +4052,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
-   * Render generated SFX and read-aloud embeds with the audio player preview.
+   * Render generated SFX and speech embeds with the audio player preview.
    */
   private renderAudioGenerateComponent(
     attrs: EmbedNodeAttributes,

@@ -43,7 +43,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "audio",
     "skill_method_py": "generate",
     "description_key": "app_skills.audio.generate.description",
-    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.",
+    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.",
     "schema": {
       "type": "object",
       "properties": {
@@ -3850,7 +3850,7 @@ export class AudioAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.
+   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
    * Description key: app_skills.audio.generate.description
    * Skill: audio/generate
    */

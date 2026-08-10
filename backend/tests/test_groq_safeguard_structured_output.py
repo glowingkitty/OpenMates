@@ -116,7 +116,7 @@ async def test_audio_speech_safeguard_retries_groq_output_parse_failure(
                                     function=SimpleNamespace(
                                         arguments=(
                                             '{"decision":"allow","category":"ALLOW_GENERAL",'
-                                            '"severity":"moderate","reasoning":"Ordinary read-aloud",'
+                                            '"severity":"moderate","reasoning":"Ordinary text-to-speech",'
                                             '"discrepancies":""}'
                                         )
                                     )

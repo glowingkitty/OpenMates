@@ -1,6 +1,6 @@
 # backend/apps/audio/skills/speak_skill.py
 #
-# audio.speak app skill for explicit text-to-speech/read-aloud requests.
+# audio.speak app skill for explicit text-to-speech generation requests.
 # The skill accepts only OpenMates voice presets, runs deterministic checks and
 # the GPT OSS safeguard before ElevenLabs, and returns direct playable audio only
 # after the safeguard explicitly approves the text.
@@ -27,9 +27,11 @@ DEFAULT_MODEL = "eleven_flash_v2_5"
 PREMIUM_MODEL = "eleven_multilingual_v2"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 SPEECH_MODEL_PRICING = {
-    DEFAULT_MODEL: {"per_unit": {"credits": 0.01, "unit_name": "character"}},
-    PREMIUM_MODEL: {"per_unit": {"credits": 0.02, "unit_name": "character"}},
+    DEFAULT_MODEL: {"per_minute": {"credits": 50, "unit_name": "speech_minute"}},
+    PREMIUM_MODEL: {"per_minute": {"credits": 100, "unit_name": "speech_minute"}},
 }
+SECONDS_PER_MINUTE = 60
+ELEVENLABS_APPROX_CHARS_PER_MINUTE = 1000
 VOICE_PRESET_TO_ELEVENLABS_ID = {
     "warm_neutral": "21m00Tcm4TlvDq8ikWAM",
     "bright_neutral": "EXAVITQu4vr4xnSDxMaL",
@@ -38,10 +40,14 @@ VOICE_PRESET_TO_ELEVENLABS_ID = {
 IGNORE_FIELDS_FOR_INFERENCE = ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"]
 
 
-def _calculate_speech_credits(*, model: str, characters: int) -> int:
+def _estimate_speech_duration_seconds(text: str) -> float:
+    return max(0.1, (len(text) / ELEVENLABS_APPROX_CHARS_PER_MINUTE) * SECONDS_PER_MINUTE)
+
+
+def _calculate_speech_credits(*, model: str, duration_seconds: float) -> int:
     return calculate_total_credits(
         pricing_config=SPEECH_MODEL_PRICING[model],
-        units_processed=characters,
+        duration_minutes=duration_seconds / SECONDS_PER_MINUTE,
     )
 
 
@@ -229,7 +235,13 @@ class SpeakSkill(BaseSkill):
                     output_format=item.output_format,
                     speed=item.speed,
                 )
-                credits = _calculate_speech_credits(model=item.model, characters=len(item.text))
+                duration_seconds = generated.duration_seconds
+                if duration_seconds is None:
+                    duration_seconds = _estimate_speech_duration_seconds(item.text)
+                    logger.warning(
+                        "audio.speak could not derive provider audio duration; using ElevenLabs pricing-page estimate"
+                    )
+                credits = _calculate_speech_credits(model=item.model, duration_seconds=duration_seconds)
                 results.append(
                     AudioSpeakResult(
                         id=item_id,
@@ -240,7 +252,7 @@ class SpeakSkill(BaseSkill):
                         style=item.style,
                         model=generated.model,
                         mime_type=generated.mime_type or "audio/mpeg",
-                        duration_seconds=generated.duration_seconds,
+                        duration_seconds=duration_seconds,
                         byte_length=generated.byte_length,
                         audio_base64=base64.b64encode(generated.audio_bytes).decode("ascii"),
                         credits_charged=credits,

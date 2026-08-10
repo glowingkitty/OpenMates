@@ -2,7 +2,7 @@ schema_version: 1
 contract: feature.app-skill.audio-speak@1
 
 valid_inputs:
-  - id: short-read-aloud
+  - id: short-generate-speech
     input:
       requests:
         - text: Welcome back. Your message has been sent.

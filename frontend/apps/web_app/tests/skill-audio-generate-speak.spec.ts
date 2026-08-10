@@ -75,7 +75,7 @@ test.describe.serial('App: Audio / Skills: generate + speak', () => {
 			const speakChatId = await createAudioChat(
 				apiUrl,
 				'speak',
-				'Use audio.speak with provider elevenlabs to read aloud exactly this short sentence: OpenMates audio playback is working.'
+				'Use audio.speak with provider elevenlabs to generate speech for exactly this short sentence: OpenMates audio playback is working.'
 			);
 			createdChatIds.push(speakChatId);
 			logCheckpoint('Created CLI chat for audio.speak.', { chatId: speakChatId });

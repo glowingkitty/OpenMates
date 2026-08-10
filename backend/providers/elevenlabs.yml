@@ -38,7 +38,7 @@ models:
       output_per_minute:
         price: 0.12
         currency: USD
-        source: "ElevenLabs sound effects pricing, verified 2026-08-09."
+        source: "ElevenLabs API pricing: Sound Effects $0.12/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
     features:
       min_duration_seconds: 0.5
       max_duration_seconds: 30
@@ -59,14 +59,12 @@ models:
         model_id: "eleven_flash_v2_5"
         region: "US"
     pricing:
-      per_unit:
-        credits: 0.01
-        unit_name: character
+      per_minute: 50
     costs:
-      input_per_character:
-        price: 0.01
-        currency: OpenMates credits
-        source: "OpenMates character pricing for ElevenLabs Flash v2.5 TTS, with calculate_total_credits enforcing a one-credit successful-output floor."
+      output_per_minute:
+        price: 0.05
+        currency: USD
+        source: "ElevenLabs API pricing: Flash/Turbo TTS $0.05 per 1K characters and approximately $0.05/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
     features:
       max_input_characters: 2000
 
@@ -86,13 +84,11 @@ models:
         model_id: "eleven_multilingual_v2"
         region: "US"
     pricing:
-      per_unit:
-        credits: 0.02
-        unit_name: character
+      per_minute: 100
     costs:
-      input_per_character:
-        price: 0.02
-        currency: OpenMates credits
-        source: "OpenMates premium character pricing for ElevenLabs Multilingual v2 TTS, with calculate_total_credits enforcing a one-credit successful-output floor."
+      output_per_minute:
+        price: 0.10
+        currency: USD
+        source: "ElevenLabs API pricing: Multilingual v2/v3 TTS $0.10 per 1K characters and approximately $0.10/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
     features:
       max_input_characters: 2000

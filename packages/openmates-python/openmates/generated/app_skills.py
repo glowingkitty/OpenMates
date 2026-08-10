@@ -31,7 +31,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Generate short, non-speech sound effects from text prompts, such as UI '
                  'confirmation ticks, gentle alerts, transitions, and product sounds. Do not use '
                  'this for spoken words, narration, vocals, voice cloning, scams, public figures, '
-                 'or deceptive media; use audio.speak for explicit read-aloud speech.',
+                 'or deceptive media; use audio.speak for explicit speech generation.',
   'description_key': 'app_skills.audio.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of short sound-effect '
                                                         'generation request objects.',
@@ -5635,7 +5635,7 @@ class AudioAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit read-aloud speech.
+        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
 
         Description key: app_skills.audio.generate.description
         Skill: audio/generate

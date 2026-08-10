@@ -14,7 +14,7 @@ inherits:
 
 scope:
   includes:
-    - Explicit user-invoked text-to-speech/read-aloud generation
+    - Explicit user-invoked text-to-speech generation
     - OpenMates voice preset, accent, and style fields mapped internally to provider voice IDs
     - Low-cost default and premium high-quality ElevenLabs text-to-speech model selection
     - Direct synchronous responses only when live provider latency remains suitable
@@ -215,7 +215,7 @@ assertions:
     depends_on: [models.AudioSpeakResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.billing.success-only
     type: invariant
-    must: Credits are charged only for successful generated speech, using documented character or duration pricing with at least a one-credit successful-output floor and idempotent billing.
+    must: Credits are charged only for successful generated speech, using documented duration pricing derived from generated audio duration with at least a one-credit successful-output floor and idempotent billing.
     depends_on: [models.AudioSpeakResult.credits_charged, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.provider-error.visible
     type: failure

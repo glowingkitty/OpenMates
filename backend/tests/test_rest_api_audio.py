@@ -65,8 +65,14 @@ def _load_audio_app():
 def test_audio_app_metadata_exposes_generate_and_speak_contracts():
     app_yml = yaml.safe_load((AUDIO_APP_DIR / "app.yml").read_text(encoding="utf-8"))
     skills = {skill["id"]: skill for skill in app_yml["skills"]}
+    provider_yml = yaml.safe_load((AUDIO_APP_DIR.parents[1] / "providers" / "elevenlabs.yml").read_text(encoding="utf-8"))
+    provider_models = {model["id"]: model for model in provider_yml["models"]}
 
     assert {"generate", "speak"}.issubset(skills)
+    assert skills["speak"]["pricing"] == {"per_minute": 50}
+    assert provider_yml["logo_svg"] == "logos/elevenlabs.svg"
+    assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_minute": 50}
+    assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_minute": 100}
     for skill_id in ("generate", "speak"):
         skill = skills[skill_id]
         assert skill["api_config"] == {"expose_get": True, "expose_post": True}
@@ -272,7 +278,8 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
     assert first["generation_type"] == "speech"
     assert first["voice"] == "warm_neutral"
     assert first["audio_base64"]
-    assert first["credits_charged"] == 2
+    assert first["duration_seconds"] == 2.1
+    assert first["credits_charged"] == 1
     assert "voice-mp3" not in str(result)
 
 
@@ -327,8 +334,15 @@ async def test_audio_speak_accepts_premium_model_and_charges_model_rate(monkeypa
     first = result["results"][0]
     assert first["status"] == "finished"
     assert first["model"] == "eleven_multilingual_v2"
-    assert first["credits_charged"] == 3
+    assert first["credits_charged"] == 4
     assert first["audio_base64"]
+
+
+# contract-test: direct surface=rest_api assertions=audio-speak.billing.success-only
+def test_elevenlabs_tts_duration_is_estimated_from_mp3_output_format():
+    from backend.shared.providers.elevenlabs.client import _estimate_mp3_duration_seconds
+
+    assert _estimate_mp3_duration_seconds(b"0" * 32_000, "mp3_44100_128") == 2.0
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.output.binary-excluded-from-inference,audio-speak.provider-error.visible

@@ -175,32 +175,32 @@ generate.how_to_use.3:
   verified_by_human: [en]
 
 speak:
-  context: Skill name for explicit text-to-speech/read-aloud generation
-  en: Read Aloud
-  de: Read Aloud
-  zh: Read Aloud
-  es: Read Aloud
-  fr: Read Aloud
-  pt: Read Aloud
-  ru: Read Aloud
-  ja: Read Aloud
-  ko: Read Aloud
-  it: Read Aloud
-  tr: Read Aloud
-  vi: Read Aloud
-  id: Read Aloud
-  pl: Read Aloud
-  nl: Read Aloud
-  ar: Read Aloud
-  hi: Read Aloud
-  th: Read Aloud
-  cs: Read Aloud
-  sv: Read Aloud
-  he: Read Aloud
+  context: Skill name for explicit text-to-speech generation
+  en: Generate speech
+  de: Generate speech
+  zh: Generate speech
+  es: Generate speech
+  fr: Generate speech
+  pt: Generate speech
+  ru: Generate speech
+  ja: Generate speech
+  ko: Generate speech
+  it: Generate speech
+  tr: Generate speech
+  vi: Generate speech
+  id: Generate speech
+  pl: Generate speech
+  nl: Generate speech
+  ar: Generate speech
+  hi: Generate speech
+  th: Generate speech
+  cs: Generate speech
+  sv: Generate speech
+  he: Generate speech
   verified_by_human: [en]
 
 speak.description:
-  context: Skill description for explicit text-to-speech/read-aloud generation
+  context: Skill description for explicit text-to-speech generation
   en: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
   de: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
   zh: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
@@ -225,32 +225,32 @@ speak.description:
   verified_by_human: [en]
 
 speak.how_to_use.1:
-  context: Example prompt for the audio Read Aloud skill - welcome sentence
-  en: "Read aloud: Welcome back. I found the best next step for you."
-  de: "Read aloud: Welcome back. I found the best next step for you."
-  zh: "Read aloud: Welcome back. I found the best next step for you."
-  es: "Read aloud: Welcome back. I found the best next step for you."
-  fr: "Read aloud: Welcome back. I found the best next step for you."
-  pt: "Read aloud: Welcome back. I found the best next step for you."
-  ru: "Read aloud: Welcome back. I found the best next step for you."
-  ja: "Read aloud: Welcome back. I found the best next step for you."
-  ko: "Read aloud: Welcome back. I found the best next step for you."
-  it: "Read aloud: Welcome back. I found the best next step for you."
-  tr: "Read aloud: Welcome back. I found the best next step for you."
-  vi: "Read aloud: Welcome back. I found the best next step for you."
-  id: "Read aloud: Welcome back. I found the best next step for you."
-  pl: "Read aloud: Welcome back. I found the best next step for you."
-  nl: "Read aloud: Welcome back. I found the best next step for you."
-  ar: "Read aloud: Welcome back. I found the best next step for you."
-  hi: "Read aloud: Welcome back. I found the best next step for you."
-  th: "Read aloud: Welcome back. I found the best next step for you."
-  cs: "Read aloud: Welcome back. I found the best next step for you."
-  sv: "Read aloud: Welcome back. I found the best next step for you."
-  he: "Read aloud: Welcome back. I found the best next step for you."
+  context: Example prompt for the audio Generate speech skill - welcome sentence
+  en: "Generate speech: Welcome back. I found the best next step for you."
+  de: "Generate speech: Welcome back. I found the best next step for you."
+  zh: "Generate speech: Welcome back. I found the best next step for you."
+  es: "Generate speech: Welcome back. I found the best next step for you."
+  fr: "Generate speech: Welcome back. I found the best next step for you."
+  pt: "Generate speech: Welcome back. I found the best next step for you."
+  ru: "Generate speech: Welcome back. I found the best next step for you."
+  ja: "Generate speech: Welcome back. I found the best next step for you."
+  ko: "Generate speech: Welcome back. I found the best next step for you."
+  it: "Generate speech: Welcome back. I found the best next step for you."
+  tr: "Generate speech: Welcome back. I found the best next step for you."
+  vi: "Generate speech: Welcome back. I found the best next step for you."
+  id: "Generate speech: Welcome back. I found the best next step for you."
+  pl: "Generate speech: Welcome back. I found the best next step for you."
+  nl: "Generate speech: Welcome back. I found the best next step for you."
+  ar: "Generate speech: Welcome back. I found the best next step for you."
+  hi: "Generate speech: Welcome back. I found the best next step for you."
+  th: "Generate speech: Welcome back. I found the best next step for you."
+  cs: "Generate speech: Welcome back. I found the best next step for you."
+  sv: "Generate speech: Welcome back. I found the best next step for you."
+  he: "Generate speech: Welcome back. I found the best next step for you."
   verified_by_human: [en]
 
 speak.how_to_use.2:
-  context: Example prompt for the audio Read Aloud skill - reminder text
+  context: Example prompt for the audio Generate speech skill - reminder text
   en: "Create a calm spoken reminder for this short note"
   de: "Create a calm spoken reminder for this short note"
   zh: "Create a calm spoken reminder for this short note"
@@ -275,7 +275,7 @@ speak.how_to_use.2:
   verified_by_human: [en]
 
 speak.how_to_use.3:
-  context: Example prompt for the audio Read Aloud skill - safe narration
+  context: Example prompt for the audio Generate speech skill - safe narration
   en: "Make this product tip a brief friendly voice clip"
   de: "Make this product tip a brief friendly voice clip"
   zh: "Make this product tip a brief friendly voice clip"

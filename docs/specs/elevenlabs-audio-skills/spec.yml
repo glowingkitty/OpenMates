@@ -51,7 +51,7 @@ documentation_impact:
     reason: App metadata and SDK app-skill generated references must include audio.generate and audio.speak.
   user_docs:
     status: update_required
-    reason: Audio generation/read-aloud docs and privacy provider disclosure need ElevenLabs coverage.
+    reason: Audio generation/TTS docs and privacy provider disclosure need ElevenLabs coverage.
     documents:
       - shared/docs/privacy_policy.yml
       - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
@@ -71,7 +71,7 @@ goal: >
 scope:
   in:
     - "audio.generate generates short non-speech OpenMates sound effects from text prompts using provider: elevenlabs."
-    - "audio.speak generates explicit user-invoked speech/read-aloud samples using provider: elevenlabs and OpenMates voice presets only."
+    - "audio.speak generates explicit user-invoked speech samples using provider: elevenlabs and OpenMates voice presets only."
     - audio.speak runs deterministic rules and the Groq-hosted openai/gpt-oss-safeguard-20b model with an optimized audio-speech safety prompt before any ElevenLabs call.
     - Rejected audio.speak requests call no speech provider and charge no generation credits.
     - Generated audio returns playable MP3-compatible direct output or encrypted generated-audio embed metadata without exposing audio bytes or encryption material to LLM inference.
@@ -132,7 +132,7 @@ clarification:
     - question: Should the feature be a generic ElevenLabs helper or real app skills?
       answer: Implement real OpenMates app skills with REST API, CLI, SDKs, and embeds.
     - question: Should SFX and TTS be one skill or separate skills?
-      answer: Use separate audio.generate for short non-speech SFX and audio.speak for explicit TTS/read-aloud.
+      answer: Use separate audio.generate for short non-speech SFX and audio.speak for explicit TTS.
     - question: Should provider be implicit when only ElevenLabs exists?
       answer: No. Provider must be an explicit input enum/list parameter for every provider-backed app skill.
     - question: Should audio.speak expose raw ElevenLabs voice IDs?
@@ -420,7 +420,10 @@ assumptions:
     text: Official ElevenLabs TTS pricing can be mapped to an OpenMates credit rule before billing ships.
     category: billing
     required_before: completion
-    status: unchecked
+    status: confirmed
+    evidence:
+      - source: https://elevenlabs.io/pricing/api
+        summary: ElevenLabs API pricing lists Flash/Turbo Text to Speech at $0.05 per 1K characters and approximately $0.05/minute, Multilingual v2/v3 at $0.10 per 1K characters and approximately $0.10/minute, and Sound Effects at $0.12/minute. OpenMates maps these to duration-based billing as Flash 50 credits/minute, Multilingual v2 100 credits/minute, and Sound Effects 2 credits/second, with the shared one-credit successful-output floor.
   - id: A-4
     text: Discord webhook configuration is available to scripts/discord_webhook.py for posting generated samples.
     category: publication
@@ -446,7 +449,7 @@ contracts:
       access_model: first-party client surface only plus approved developer API-key SDK access
       auth: authenticated session or approved API key/device
       rate_limits: existing app-skill route limiter plus provider/budget limits
-      credit_budget_limits: user credit headroom before safeguard/provider call; charge only successful outputs
+      credit_budget_limits: user credit headroom before safeguard/provider call; charge only successful outputs using generated-audio duration pricing
       encryption_boundary: accepts plaintext TTS text for safeguard and provider generation; returns audio bytes only in direct response or encrypted generated-asset metadata
       request: AudioSpeakRequest from feature.app-skill.audio-speak@1
       response: AudioSpeakResponse from feature.app-skill.audio-speak@1

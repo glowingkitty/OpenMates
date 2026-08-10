@@ -491,7 +491,7 @@ provider_groups:
         location: US
         used_for:
           - short non-speech sound-effect generation via the audio.generate skill
-          - explicit user-invoked text-to-speech/read-aloud via the audio.speak skill
+          - explicit user-invoked text-to-speech via the audio.speak skill
         data_shared:
           - Sound-effect generation prompts and generation settings
           - Requested speech text, voice preset, accent, style, speed, and output settings when audio.speak passes the required safeguard

@@ -174,7 +174,7 @@ skills:
       Generate short, non-speech sound effects from text prompts, such as UI
       confirmation ticks, gentle alerts, transitions, and product sounds. Do not
       use this for spoken words, narration, vocals, voice cloning, scams, public
-      figures, or deceptive media; use audio.speak for explicit read-aloud speech.
+      figures, or deceptive media; use audio.speak for explicit speech generation.
     class_path: backend.apps.audio.skills.generate_skill.GenerateSkill
     providers:
       - name: ElevenLabs
@@ -253,9 +253,7 @@ skills:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_flash_v2_5
     pricing:
-      per_unit:
-        credits: 0.01
-        unit_name: character
+      per_minute: 50
     tool_schema:
       type: object
       properties:

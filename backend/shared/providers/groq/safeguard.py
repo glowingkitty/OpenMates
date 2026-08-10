@@ -371,7 +371,7 @@ class GroqSafeguardClient:
             return AudioSpeechSafeguardResult(error="no_api_key")
 
         policy = (
-            "Approve short, ordinary read-aloud, accessibility, product, tutorial, and assistant-response speech. "
+            "Approve short, ordinary text-to-speech, accessibility, product, tutorial, and assistant-response speech. "
             "Reject speech that asks for credentials, seed phrases, payment transfers, fraud, scams, phishing, "
             "coercion, fake authority instructions, impersonation, voice cloning, public-figure or private-person "
             "imitation, deceptive synthetic audio, threats, or evasion of verification. "

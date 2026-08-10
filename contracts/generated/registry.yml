@@ -33,7 +33,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-speak
-    fingerprint: f07414b3683aabb309c3966a7df03be85e12c012de66ac8429f5f8192fc3a74d
+    fingerprint: 79f9c10952bd41af416e724c8d9f33780767a363505013a9466bb3a8d6389781
     required_surfaces:
     - rest_api
     - cli
@@ -384,7 +384,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 771e5f83fef506d86c59528579062eb7a505f1e3ee56d46b1ebaf56c8654c774
+    fingerprint: 0e41bc7e5590fce44a98106dbb106dbe529b031ee60b906094a75b99473c9079
     required_surfaces:
     - rest_api
     - cli
@@ -396,7 +396,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: f567a042d33723819d051d0b4ed2f0474513314fb19d0009ab39daa58ec9f00a
+    fingerprint: b7ea80d92e9916f01282ca26456c3a462bcdb951eb6c4ff81262649dbe57d8b6
     required_surfaces:
     - rest_api
     - cli
@@ -492,7 +492,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 3be520c7e770a976e9fb9056f669be90b3231ee4336c419dd77a1415f7452fd7
+    fingerprint: 253dca861fa95acbb6f33788ca87cf37e70b5f8c954b8bf4bb7ff6c5ea651865
     required_surfaces:
     - rest_api
     - cli
@@ -528,7 +528,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: parity
-    fingerprint: f754fd3a2a8fd0329d3c8cd2152f95bb80d07b5855a782cde044efb2ac747159
+    fingerprint: ebd6047a5e5b4047d425c7c42105673829ff7fa5e7ab42ba996c450b795791ab
     required_surfaces:
     - rest_api
     - cli
