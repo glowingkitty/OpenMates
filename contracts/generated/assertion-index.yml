@@ -4220,6 +4220,54 @@ assertions:
         - *id431
         supporting_tests: []
     current_direct_proof: false
+  projects.access.explicit-context:
+    contract: feature.projects@1
+    fingerprint: 15e50e02417c5c3fc66496f7a38c6c690510dcfdb5bd592b44ad326df1da8b0f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.lifecycle.encrypted-crud:
+    contract: feature.projects@1
+    fingerprint: 1b0847d3e97b7d28431a8f4c3517ddb521e117e59597d06d0d5f20fa2d8e2adb
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.keys.client-wrapped:
+    contract: feature.projects@1
+    fingerprint: f9dd6762c20b5394eeaca1dd940598da4b4b45da775d2c6a8fa2cecf14036f55
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.links.openmates-only-encrypted:
+    contract: feature.projects@1
+    fingerprint: 1ee21a6a449ccbad9e01878d391de1cf1db48fda7244d7d49b41b8f97bfb8606
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.uploads.project-wrapped:
+    contract: feature.projects@1
+    fingerprint: c0bf8a9877d568d66551cc2e423f3ed510c1dd00801f800a734e788f7d6f9439
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.surface.semantic-parity:
+    contract: feature.projects@1
+    fingerprint: 6945e35f093fa801853a4b533106d77b2ce6a7c5208efe1cad429ae8d99338f0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
