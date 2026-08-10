@@ -118,9 +118,15 @@ def get_inter_chunk_timeout_seconds(*, is_reasoning: bool = False) -> float:
     return REASONING_INTER_CHUNK_TIMEOUT_SECONDS if is_reasoning else INTER_CHUNK_TIMEOUT_SECONDS
 
 
-# Timeout for non-streaming preprocessing requests (10 seconds)
-# Preprocessing requests should complete quickly; if they take longer, the provider is likely having issues
-PREPROCESSING_TIMEOUT_SECONDS = 10.0
+# Timeout for non-streaming preprocessing requests.
+# A live DeepSeek fallback completed just over the old 10s limit, causing healthy
+# fallback attempts to be cancelled before they could rescue a failed primary.
+# Override via env: AI_PREPROCESSING_TIMEOUT_SECONDS
+DEFAULT_PREPROCESSING_TIMEOUT_SECONDS = 25.0
+PREPROCESSING_TIMEOUT_SECONDS = _get_env_float(
+    "AI_PREPROCESSING_TIMEOUT_SECONDS",
+    DEFAULT_PREPROCESSING_TIMEOUT_SECONDS,
+)
 
 T = TypeVar('T')
 

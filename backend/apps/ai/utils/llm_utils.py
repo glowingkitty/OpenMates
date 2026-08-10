@@ -1175,7 +1175,7 @@ async def call_preprocessing_llm(
             if provider_client:
                 # Call the provider client dynamically - all have same signature
                 # Pass sanitized tool definition to ensure provider-agnostic behavior
-                # Wrap with timeout (5 seconds for preprocessing requests - should complete quickly)
+                # Wrap with a bounded preprocessing timeout so overloaded providers fall through to fallback.
                 try:
                     response = await asyncio.wait_for(
                         provider_client(
@@ -1187,7 +1187,7 @@ async def call_preprocessing_llm(
                             tool_choice="required", 
                             stream=False
                         ),
-                        timeout=PREPROCESSING_TIMEOUT_SECONDS  # Use 10 second timeout for preprocessing
+                        timeout=PREPROCESSING_TIMEOUT_SECONDS
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
