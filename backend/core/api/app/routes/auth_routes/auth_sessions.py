@@ -96,6 +96,7 @@ async def _broadcast_force_logout(
     reason: str = "session_revoked",
     revoked_session_id: Optional[str] = None,
     exclude_connection_hash: Optional[str] = None,
+    target_connection_hash: Optional[str] = None,
 ):
     """
     Publish a force_logout event via Redis so the WebSocket listener
@@ -105,20 +106,28 @@ async def _broadcast_force_logout(
     The websockets.py listener reads this and passes it as exclude_device_hash
     to broadcast_to_user_specific_event so the revoking device never receives
     the force_logout event and does not log itself out.
+
+    target_connection_hash: the connection_hash of one specific session that
+    must receive force_logout. Single-session revocation must target the
+    revoked session instead of broadcasting to every other connection.
     """
+    event_data = {
+        "event_for_client": "force_logout",
+        "user_id_uuid": user_id,
+        # exclude_connection_hash is a server-internal routing hint; it is NOT
+        # forwarded to the client (stripped in the websockets.py listener).
+        "exclude_connection_hash": exclude_connection_hash,
+        "payload": {
+            "reason": reason,
+            "revoked_session_id": revoked_session_id,
+        },
+    }
+    if target_connection_hash:
+        event_data["target_device_fingerprint_hash"] = target_connection_hash
+
     await cache_service.publish_event(
         channel=f"user_updates::{user_id}",
-        event_data={
-            "event_for_client": "force_logout",
-            "user_id_uuid": user_id,
-            # exclude_connection_hash is a server-internal routing hint; it is NOT
-            # forwarded to the client (stripped in the websockets.py listener).
-            "exclude_connection_hash": exclude_connection_hash,
-            "payload": {
-                "reason": reason,
-                "revoked_session_id": revoked_session_id,
-            },
-        },
+        event_data=event_data,
     )
 
 
@@ -270,6 +279,9 @@ async def revoke_session(
 
     target_meta = tokens_map.get(target_hash, {})
     target_device_hash = target_meta.get("device_hash") if isinstance(target_meta, dict) else None
+    target_connection_hash: Optional[str] = (
+        target_meta.get("connection_hash") if isinstance(target_meta, dict) else None
+    )
     if target_device_hash:
         try:
             await invalidate_recovery_leases_for_device(
@@ -292,21 +304,23 @@ async def revoke_session(
     else:
         await cache_service.delete(user_tokens_key)
 
-    # 3. Broadcast force_logout so WebSocket pushes it to the target device.
-    #    Pass the revoking session's connection_hash so the listener in
-    #    websockets.py skips that WebSocket — the revoking device must NOT
-    #    receive force_logout and must NOT log itself out.
-    current_meta = tokens_map.get(current_hash, {}) if current_hash else {}
-    current_connection_hash: Optional[str] = (
-        current_meta.get("connection_hash") if isinstance(current_meta, dict) else None
-    )
-    await _broadcast_force_logout(
-        cache_service,
-        user_id,
-        "session_revoked",
-        session_id,
-        exclude_connection_hash=current_connection_hash,
-    )
+    # 3. Broadcast force_logout only to the revoked connection. Falling back to
+    #    user-wide broadcast would log out unrelated sessions when old metadata
+    #    lacks a targetable connection hash.
+    if target_connection_hash:
+        await _broadcast_force_logout(
+            cache_service,
+            user_id,
+            "session_revoked",
+            session_id,
+            target_connection_hash=target_connection_hash,
+        )
+    else:
+        logger.warning(
+            "Skipped targeted force_logout for revoked session %s of user %s: missing connection_hash",
+            session_id,
+            user_id[:6],
+        )
 
     # 4. Compliance log
     compliance_service.log_auth_event_safe(
