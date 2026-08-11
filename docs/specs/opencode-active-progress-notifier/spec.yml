@@ -14,9 +14,9 @@ scope:
     - Summarize only fresh top-level chats: currently active, waiting for user input, and completed in the last 30 minutes.
     - Exclude stale waiting/completed chats, stale working records, and notifier-owned analysis sessions.
     - Use Gemini 3.5 Flash-Lite for LLM summary generation; do not use Mistral for the normal notifier path.
-    - Post one Discord message containing a readable icon-aided top summary and grouped sections for active, waiting, and recently completed chats.
-    - Include completed/current/next task lists for every active chat, preferring exact OpenCode `todowrite` data when available and model-generated task lists otherwise.
-    - Include an estimated Gemini API cost per run and per day using a 15-minute cadence over up to 12 active hours.
+    - Post one Discord message containing a readable icon-aided top summary and grouped sections for active, waiting, and recently completed chats, without visible model or cost details.
+    - Include full completed/current/next task lists for every active chat when Discord payload limits permit, preferring exact OpenCode `todowrite` data when available and model-generated task lists otherwise.
+    - Compute estimated Gemini API cost per run and per day for structured local diagnostics, not for the visible Discord response.
     - Default the recurring cadence to 15 minutes and provide a `--once`/`--dry-run` test path.
     - Persist local notification state only to suppress duplicates and record last summaries.
   out:
@@ -78,17 +78,17 @@ clarification:
     - question: What cadence should the first implementation use?
       answer: Start with every 10 minutes, then revise to every 15 minutes with up to 12 active hours per day for cost estimates.
     - question: What format should be validated before cron installation?
-      answer: Make the summary easier to scan with a short text summary at the top, balanced icons, clearer spacing, per-chat task lists showing completed/current/next work, grouped active/waiting/completed sections, and a pricing estimate per run and per day.
+      answer: Make the summary easier to scan with a short text summary at the top, balanced icons, clearer spacing, per-chat task lists showing completed/current/next work, grouped active/waiting/completed sections, no visible model/cost details, and no intentional ellipsis shortening for normal summaries/tasks.
   vision_summary: >
     The notifier is an external active-chat observer. It only posts when active
     chats exist, uses Gemini 3.5 Flash-Lite for summaries, and produces a single
     maintainer-oriented Discord digest with a balanced icon top summary, grouped
-    active/waiting/recently-completed sections, per-chat links, summaries, task
-    status lists, and per-run/per-day cost estimate.
+    active/waiting/recently-completed sections, per-chat links, summaries, and
+    full visible task status lists when the payload fits Discord limits.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+  subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
 
 approvals:
   product_contract:
@@ -126,6 +126,11 @@ decisions:
     decision: Group the Discord embed into currently active, waiting for user input, and completed in the last 30 minutes.
     reason: The user explicitly rejected stale waiting chats such as the old Fiverr research chat and requested these three buckets.
     decided_at: "2026-08-11T16:35:00Z"
+  - id: D-6
+    status: active
+    decision: Do not show the summarizer model or cost estimate in the visible Discord response, and do not intentionally shorten normal summary or task text with ellipses.
+    reason: The user validated the grouped format except for visible ellipses, hidden tasks, and unnecessary model/cost metadata.
+    decided_at: "2026-08-11T17:10:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -221,19 +226,27 @@ attempts:
     command: python3 scripts/opencode_progress_notifier.py --once --force --max-chats 10 --json
     run_id: local-20260811T163533Z-gemini-sectioned-send
     summary: Posted validation message 1536775132402425857 using gemini-3.5-flash-lite with metered usage of 17.5k input and 1.4k output tokens, costing about $0.0086/run and $0.41/day at 48 runs. The payload showed 4 active, 0 waiting, 2 completed within 30 minutes, and excluded the stale Fiverr waiting chat.
+  - id: ATTEMPT-13
+    task_id: TASK-1
+    approach: Remove visible model/cost metadata, stop intentional ellipsis shortening in normal summaries/tasks, and render all extracted task lines instead of collapsing with `... +N more`.
+    outcome: succeeded
+    recorded_at: "2026-08-11T17:10:41Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260811T1710Z-pytest
+    summary: Ten notifier tests passed, including regression coverage for no visible model/cost line, full long summary tail, all pending task lines, no `... +N more` task collapse, and no visible ellipsis in the normal payload.
 
 handoff:
   current_task_id: TASK-1
-  next_action: Wait for maintainer validation of Discord message 1536775132402425857, then optionally install the managed 15-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron`.
+  next_action: Deploy the final format fix, then optionally install the managed 15-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron` if the maintainer wants the recurring job active.
   command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
-  expected_outcome: Gemini 3.5 Flash-Lite prints the icon-aided top summary, active/waiting/completed sections, per-chat task lists, and estimated per-run/per-day cost without Discord posting.
+  expected_outcome: Gemini 3.5 Flash-Lite prints the icon-aided top summary, active/waiting/completed sections, full visible per-chat task lists, and no visible model/cost line without Discord posting.
   blocker:
     task_id: TASK-1
-    requires_user_input: true
-    reason: The cron should not be installed until the maintainer validates the revised Discord message format.
-    question: Please validate Discord message 1536775132402425857 or request another format adjustment.
-    next_action: Install the cron only after the revised format is approved.
-  last_verified_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
+    requires_user_input: false
+    reason: The maintainer requested the final visible format fixes and indicated the task is otherwise complete.
+    question: none
+    next_action: Install cron only if explicitly requested after the final deployed fix.
+  last_verified_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
 
 scenarios:
   - id: S-1
@@ -245,8 +258,8 @@ scenarios:
     then:
       - Gemini 3.5 Flash-Lite receives bounded selected-chat evidence.
       - Discord receives one readable message with a balanced icon summary and grouped active/waiting/recently-completed sections.
-      - Every chat section includes the title, OpenCode link, current summary, and a completed/current/next task list.
-      - The top summary includes estimated model API cost per run and per day.
+      - Every chat section includes the title, OpenCode link, current summary, and a completed/current/next task list without intentional summary ellipses or collapsed task counts when the payload fits Discord limits.
+      - The top summary omits the summarizer model name and estimated model API cost.
 
   - id: S-2
     title: No active chats stay silent
@@ -282,7 +295,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, and includes each selected chat title, OpenCode link, summary, and completed/current/next task list in the digest.
+    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, and includes each selected chat title, OpenCode link, summary, and completed/current/next task list in the digest without intentional summary ellipses or collapsed task counts when the payload fits Discord limits.
     required: true
     status: satisfied
     coverage_status: covered
@@ -318,7 +331,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-5
     scenario: S-4
-    text: Prompt evidence and Discord payloads remain bounded and omit raw reasoning, attachments, secrets, and full transcript dumps while still including readable per-run and per-day cost estimates.
+    text: Prompt evidence and Discord payloads remain bounded and omit raw reasoning, attachments, secrets, full transcript dumps, and visible model/cost details.
     required: true
     status: satisfied
     coverage_status: covered
@@ -341,7 +354,7 @@ tests:
       - Active selection merges children, filters stale waiting/working records, and includes recently completed chats.
       - No-active run skips the summary model and Discord.
       - Default summary calls use `gemini-3.5-flash-lite`.
-      - Discord payload contains a readable icon-aided summary, per-run/per-day cost estimate, grouped active/waiting/completed sections, and per-chat sections with OpenCode links and task lists.
+      - Discord payload contains a readable icon-aided summary, grouped active/waiting/completed sections, per-chat sections with OpenCode links and task lists, no visible model/cost line, no normal summary ellipses, and no collapsed task counts.
       - Cadence state suppresses unchanged duplicate digests.
       - Evidence projection bounds raw text and omits attachment content.
     red_phase:
@@ -360,10 +373,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-        run_id: local-20260811T1635Z-pytest
-        subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
-        timestamp: "2026-08-11T16:35:00Z"
-        summary: Ten notifier tests passed, including Gemini 3.5 Flash-Lite default model, 30-minute stale waiting/working filtering, recently completed chat inclusion, balanced emoji formatting, 48-runs/day cost estimate, exact todowrite task extraction, generated task fallback, privacy redaction, duplicate suppression, and Discord bounds.
+        run_id: local-20260811T1710Z-pytest
+        subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
+        timestamp: "2026-08-11T17:10:41Z"
+        summary: Ten notifier tests passed, including Gemini 3.5 Flash-Lite default model, 30-minute stale waiting/working filtering, recently completed chat inclusion, balanced emoji formatting, hidden visible model/cost metadata, full long summary tails, all pending task lines, exact todowrite task extraction, generated task fallback, privacy redaction, duplicate suppression, and Discord bounds.
 
 verifications:
   - id: V-DRY-RUN
@@ -378,11 +391,11 @@ verifications:
     status: passed
     evidence:
       status: passed
-      command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
-      run_id: local-20260811T163501Z-gemini-sectioned-dry-run
-      subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
-      timestamp: "2026-08-11T16:35:01Z"
-      summary: Gemini 3.5 Flash-Lite produced the requested active/waiting/recently-completed digest for 6 selected OpenCode chats without Discord posting, with Discord mentions disabled, balanced emoji usage, stale waiting chats excluded, and a metered cost estimate of about $0.0081/run and $0.39/day at 48 runs.
+      command: python3 -c '<bounded verifier invoking scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json>'
+      run_id: local-20260811T1716Z-final-format-dry-run
+      subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
+      timestamp: "2026-08-11T17:16:19Z"
+      summary: Live dry-run selected 7 chats and produced 2 Discord embeds without posting. The verifier found no visible cost line, summarizer model name, `... +N more` task collapse, unicode summary ellipsis, or Discord truncation marker in the visible payload.
 
 implementation_plan:
   spec_path: docs/specs/opencode-active-progress-notifier/spec.yml

@@ -62,6 +62,7 @@ GEMINI_SYSTEM_PROMPT = (
     "When task_items are absent, infer a short task list with completed, current, and next steps. "
     "Use the top-level notifier_config for the current notifier model and cadence; do not repeat older transcript claims as current config. "
     "For the progress-notifier chat, never describe Mistral or 10-minute cadence as current when notifier_config says otherwise. "
+    "Do not mention the notifier summarizer model, token usage, pricing, per-run cost, or per-day cost in visible digest fields. "
     "Highlight important decisions, places the maintainer should watch, product/code issues, and agent workflow issues. "
     "Do not quote raw secrets, webhook URLs, API keys, reasoning traces, attachment content, or long tool outputs."
 )
@@ -109,6 +110,25 @@ SECRET_PATTERNS = [
         re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^\s'\"]{8,}"),
         r"\1=<REDACTED>",
     ),
+]
+VISIBLE_METADATA_PATTERNS = [
+    (
+        re.compile(
+            r"\s+(?:using|with|via|on)\s+(?:the\s+)?(?:`?gemini-3\.5-flash-lite`?|Gemini 3\.5 Flash(?: Lite|-Lite)?|`?mistral-small-latest`?|Mistral Small)(?:\s+(?:summaries|summary|model|path))?",
+            re.IGNORECASE,
+        ),
+        "",
+    ),
+    (
+        re.compile(
+            r"\s+(?:and|or)\s+(?:`?gemini-3\.5-flash-lite`?|Gemini 3\.5 Flash(?: Lite|-Lite)?|`?mistral-small-latest`?|Mistral Small)\s+(for|as)\s+",
+            re.IGNORECASE,
+        ),
+        r" \1 ",
+    ),
+    (re.compile(r"`?(?:gemini-3\.5-flash-lite|mistral-small-latest)`?", re.IGNORECASE), ""),
+    (re.compile(r"\b(?:Gemini 3\.5 Flash(?: Lite|-Lite)?|Mistral Small)\b", re.IGNORECASE), ""),
+    (re.compile(r"~?\$\d+(?:\.\d+)?(?:/(?:run|day|M))?", re.IGNORECASE), ""),
 ]
 
 
@@ -160,11 +180,13 @@ def _bounded_text(value: Any, max_chars: int = MAX_TEXT_CHARS) -> str:
     return text[: max_chars - 14].rstrip() + "...[truncated]"
 
 
-def _display_text(value: Any, max_chars: int) -> str:
+def _visible_text(value: Any) -> str:
     text = redact_text(" ".join(str(value or "").split()))
-    if len(text) <= max_chars:
-        return text
-    return text[: max_chars - 1].rstrip() + "…"
+    for pattern, replacement in VISIBLE_METADATA_PATTERNS:
+        text = pattern.sub(replacement, text)
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip(" -·,;")
 
 
 def redact_text(value: str) -> str:
@@ -776,18 +798,21 @@ def normalize_digest(raw: dict[str, Any], active_chats: list[dict[str, Any]]) ->
                 "title": _bounded_text(chat.get("title") or session_id, 160),
                 "url": str(chat.get("url") or opencode_chat_url(session_id)),
                 "status_label": _bounded_text(chat.get("status_label") or "active", 80),
-                "summary": _display_text(summarized.get("summary") or _fallback_chat_summary(chat), 160),
+                "summary": _visible_text(summarized.get("summary") or _fallback_chat_summary(chat)),
                 "tasks": exact_tasks or _task_items_from_digest(summarized.get("tasks")),
                 "important_decisions": _string_list(summarized.get("important_decisions"), max_items=4, max_chars=220),
                 "watch_points": _string_list(summarized.get("watch_points"), max_items=4, max_chars=220),
             }
         )
-    overall = _display_text(digest.get("overall_summary") or f"{len(chats)} OpenCode chat(s) are currently active.", 170)
+    overall = _visible_text(digest.get("overall_summary") or f"{len(chats)} OpenCode chat(s) are currently active.")
+    summary_bullets = [_visible_text(item) for item in _string_list(digest.get("summary_bullets"), max_items=3, max_chars=500)]
+    important_decisions = [_visible_text(item) for item in _string_list(digest.get("important_decisions"), max_items=3, max_chars=500)]
+    watch_points = [_visible_text(item) for item in _string_list(digest.get("watch_points"), max_items=3, max_chars=500)]
     return {
         "overall_summary": overall,
-        "summary_bullets": [_display_text(item, 130) for item in _string_list(digest.get("summary_bullets"), max_items=3, max_chars=160)],
-        "important_decisions": [_display_text(item, 140) for item in _string_list(digest.get("important_decisions"), max_items=3, max_chars=170)],
-        "watch_points": [_display_text(item, 140) for item in _string_list(digest.get("watch_points"), max_items=3, max_chars=170)],
+        "summary_bullets": [item for item in summary_bullets if item],
+        "important_decisions": [item for item in important_decisions if item],
+        "watch_points": [item for item in watch_points if item],
         "chats": chats,
     }
 
@@ -857,29 +882,6 @@ def estimate_summary_cost(
     }
 
 
-def _format_usd(value: float) -> str:
-    if value < 0.01:
-        return f"${value:.4f}"
-    return f"${value:.2f}"
-
-
-def _format_cost_estimate(cost: dict[str, Any] | None) -> str:
-    if not cost:
-        return "unavailable"
-    input_tokens = int(cost.get("input_tokens_estimate") or 0)
-    output_tokens = int(cost.get("output_tokens_estimate") or 0)
-    estimated_usd = float(cost.get("estimated_usd") or 0)
-    daily_runs = int(cost.get("daily_runs") or 0)
-    daily_estimated_usd = float(cost.get("daily_estimated_usd") or 0)
-    daily_active_hours = float(cost.get("daily_active_hours") or 0)
-    source = "metered" if cost.get("token_source") in {"usage", "usageMetadata"} else "est."
-    return (
-        f"~{_format_usd(estimated_usd)}/run · ~{_format_usd(daily_estimated_usd)}/day "
-        f"({daily_runs} runs over {daily_active_hours:g}h; {source}: {input_tokens / 1000:.1f}k in, {output_tokens / 1000:.1f}k out; "
-        f"${float(cost.get('input_usd_per_million_tokens') or 0):.2f}/M in, ${float(cost.get('output_usd_per_million_tokens') or 0):.2f}/M out)"
-    )
-
-
 def _fit_discord_content(content: str) -> str:
     if len(content) <= MAX_DISCORD_CONTENT_CHARS:
         return content
@@ -937,9 +939,9 @@ def _display_status_label(status: str) -> str:
     }.get(status, status)
 
 
-def _render_task_lines(tasks: list[dict[str, str]], *, max_items: int) -> list[str]:
-    if not tasks or max_items <= 0:
-        return ["Next: not identified"]
+def _render_task_lines(tasks: list[dict[str, str]]) -> list[str]:
+    if not tasks:
+        return ["⏭️ Next: not identified"]
     grouped = {
         "in_progress": [task for task in tasks if _normalize_task_status(task.get("status")) == "in_progress"],
         "pending": [task for task in tasks if _normalize_task_status(task.get("status")) == "pending"],
@@ -948,37 +950,32 @@ def _render_task_lines(tasks: list[dict[str, str]], *, max_items: int) -> list[s
     }
     lines = []
     slots = (
-        ("in_progress", "🔵 Now", 1),
-        ("pending", "⏭️ Next", 1),
-        ("completed", "✅ Done", 2),
-        ("cancelled", "🚫 Canceled", 1),
+        ("in_progress", "🔵 Now"),
+        ("pending", "⏭️ Next"),
+        ("completed", "✅ Done"),
+        ("cancelled", "🚫 Canceled"),
     )
-    for status, label, per_status_limit in slots:
-        for task in grouped[status][:per_status_limit]:
-            lines.append(f"{label}: {_display_text(task.get('content') or '', 110)}")
-            if len(lines) >= max_items:
-                return lines
-    ordered = grouped["in_progress"] + grouped["pending"] + grouped["completed"] + grouped["cancelled"]
-    if len(ordered) > max_items:
-        lines.append(f"... +{len(ordered) - max_items} more")
+    for status, label in slots:
+        for task in grouped[status]:
+            lines.append(f"{label}: {_visible_text(task.get('content') or '')}")
     return lines
 
 
-def _chat_block(index: int, chat: dict[str, Any], *, summary_limit: int, task_limit: int, include_details: bool, compact_label: bool) -> str:
+def _chat_block(index: int, chat: dict[str, Any], *, include_summary: bool, include_tasks: bool, include_details: bool, compact_label: bool) -> str:
     label_source = chat.get("session_id") if compact_label else (chat.get("title") or chat.get("session_id") or "Untitled chat")
     title = _discord_link_label(label_source)
     url = str(chat.get("url") or "")
     status = _display_status_label(_bounded_text(chat.get("status_label") or "active", 80))
     lines = [f"**{index}. [{title}]({url})**", f"Status: `{status}`"]
-    if summary_limit > 0:
-        lines.extend(["", f"Summary: {_display_text(chat.get('summary') or 'No summary returned.', summary_limit)}"])
-    if task_limit > 0:
+    if include_summary:
+        lines.extend(["", f"Summary: {_visible_text(chat.get('summary') or 'No summary returned.')}"])
+    if include_tasks:
         lines.extend(["", "Tasks:"])
-        lines.extend(_render_task_lines(chat.get("tasks") or [], max_items=task_limit))
+        lines.extend(_render_task_lines(chat.get("tasks") or []))
     if include_details and chat.get("important_decisions"):
-        lines.extend(["", "Decision: " + _display_text("; ".join(chat["important_decisions"]), 140)])
+        lines.extend(["", "Decision: " + _visible_text("; ".join(chat["important_decisions"]))])
     if include_details and chat.get("watch_points"):
-        lines.append("Watch: " + _display_text("; ".join(chat["watch_points"]), 140))
+        lines.append("Watch: " + _visible_text("; ".join(chat["watch_points"])))
     return "\n".join(lines)
 
 
@@ -994,7 +991,7 @@ def _chunk_chat_blocks(blocks: list[str]) -> list[str]:
             continue
         if current:
             chunks.append(current)
-        current = continued_header + "\n" + _fit_discord_embed_description(block)
+        current = continued_header + "\n" + block
     if current:
         chunks.append(current)
     return chunks
@@ -1038,9 +1035,13 @@ def _fit_embed_descriptions_total(chunks: list[str]) -> list[str]:
 
 
 def _render_active_chat_descriptions(chats: list[dict[str, Any]]) -> list[str]:
-    for summary_limit, task_limit in ((160, 5), (120, 4), (80, 3), (50, 2), (0, 2), (0, 1), (0, 0)):
-        include_details = summary_limit >= 160 and len(chats) <= 3
-        compact_label = summary_limit == 0 and task_limit <= 1
+    render_modes = (
+        {"include_summary": True, "include_tasks": True, "include_details": len(chats) <= 3, "compact_label": False},
+        {"include_summary": True, "include_tasks": True, "include_details": False, "compact_label": False},
+        {"include_summary": False, "include_tasks": True, "include_details": False, "compact_label": False},
+        {"include_summary": False, "include_tasks": False, "include_details": False, "compact_label": True},
+    )
+    for mode in render_modes:
         blocks: list[str] = []
         index = 1
         for key, title, empty_text in CHAT_STATUS_GROUPS:
@@ -1050,7 +1051,7 @@ def _render_active_chat_descriptions(chats: list[dict[str, Any]]) -> list[str]:
                 blocks.append(empty_text)
                 continue
             for chat in section_chats:
-                blocks.append(_chat_block(index, chat, summary_limit=summary_limit, task_limit=task_limit, include_details=include_details, compact_label=compact_label))
+                blocks.append(_chat_block(index, chat, **mode))
                 index += 1
         chunks = _chunk_chat_blocks(blocks)
         if _embed_descriptions_fit(chunks):
@@ -1074,25 +1075,23 @@ def build_discord_payload(
             f"🟢 {counts.get('active', 0)} active · "
             f"🟡 {counts.get('waiting_for_user', 0)} waiting · "
             f"✅ {counts.get('completed_recently', 0)} completed ≤30m · "
-            f"🤖 `{model}` · 🕒 `{_now_iso(now)}`"
+            f"🕒 `{_now_iso(now)}`"
         ),
-        "",
-        f"💸 Cost: {_format_cost_estimate(cost_estimate)}",
         "",
         "**📌 Summary**",
         str(digest.get("overall_summary") or "No overall summary returned."),
     ]
     summary_bullets = digest.get("summary_bullets") or []
     for item in summary_bullets[:3]:
-        lines.append(f"• {_display_text(item, 130)}")
+        lines.append(f"• {_visible_text(item)}")
     decisions = digest.get("important_decisions") or []
     watch_points = digest.get("watch_points") or []
     if decisions:
         lines.extend(["", "**🧭 Decisions**"])
-        lines.extend(f"• {_display_text(item, 140)}" for item in decisions[:3])
+        lines.extend(f"• {_visible_text(item)}" for item in decisions[:3])
     if watch_points:
         lines.extend(["", "**⚠️ Watch**"])
-        lines.extend(f"• {_display_text(item, 140)}" for item in watch_points[:3])
+        lines.extend(f"• {_visible_text(item)}" for item in watch_points[:3])
     embeds = [
         {
             "title": ACTIVE_CHATS_EMBED_TITLE if index == 0 else ACTIVE_CHATS_CONTINUED_EMBED_TITLE,

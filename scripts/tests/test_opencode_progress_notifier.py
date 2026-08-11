@@ -20,6 +20,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER_PATH = ROOT / "scripts" / "opencode_progress_notifier.py"
+LONG_TASK = "Document every visible notifier task in Discord without replacing the final words with an ellipsis marker or hiding additional pending work"
+LONG_SUMMARY_TAIL = "including this final clause about cron approval and validation."
 
 
 def load_module(name: str = "opencode_progress_notifier_test"):
@@ -105,6 +107,7 @@ def fake_chat_view(session_id: str) -> dict:
                                 {"content": "Create executable spec", "status": "completed", "priority": "high"},
                                 {"content": "Implement notifier format", "status": "in_progress", "priority": "high"},
                                 {"content": "Send validation Discord message", "status": "pending", "priority": "high"},
+                                {"content": LONG_TASK, "status": "pending", "priority": "medium"},
                             ]
                         },
                     },
@@ -119,14 +122,14 @@ def fake_chat_view(session_id: str) -> dict:
 def fake_digest(active_chats: list[dict]) -> dict:
     return {
         "overall_summary": "Two chats are active; one made an architecture decision and one needs input.",
-        "summary_bullets": ["Architecture decision made", "One chat needs input"],
-        "important_decisions": ["Use an external inspector rather than self-reporting chats."],
+        "summary_bullets": ["Architecture decision made using Gemini 3.5 Flash Lite", "One chat needs input"],
+        "important_decisions": ["Adopted 15-minute cadence and Gemini 3.5 Flash Lite for notifier summaries."],
         "watch_points": ["GitHub auth returned 401."],
         "_usage_metadata": {"promptTokenCount": 2000, "candidatesTokenCount": 500, "totalTokenCount": 2500},
         "chats": [
             {
                 "session_id": chat["session_id"],
-                "summary": f"{chat['title']} is {chat['status_label']}",
+                "summary": f"{chat['title']} is {chat['status_label']} with Gemini 3.5 Flash Lite summaries, complete detail about formatter cleanup, task rendering, Discord validation, and {LONG_SUMMARY_TAIL}",
                 "tasks": {
                     "completed": ["Generated completed task"],
                     "current": ["Generated current task"],
@@ -216,17 +219,23 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
     combined = payload["content"] + "\n" + "\n".join(embed["description"] for embed in payload["embeds"])
     assert "**🧭 OpenCode Progress**" in combined
     assert "**📌 Summary**" in combined
-    assert "💸 Cost:" in combined
-    assert "~$0.0019/run" in combined
-    assert "~$0.09/day" in combined
+    assert "💸 Cost:" not in combined
+    assert "~$" not in payload["content"]
+    assert notifier.DEFAULT_MODEL not in payload["content"]
+    assert "Gemini 3.5" not in combined
+    assert "gemini-3.5" not in combined
     assert "🟢 1 active · 🟡 1 waiting · ✅ 1 completed ≤30m" in combined
     assert "**🟢 Currently Active Chats**" in combined
     assert "**🟡 Waiting For User Input**" in combined
     assert "**✅ Completed In Last 30 Min**" in combined
     assert "Tasks:" in combined
+    assert LONG_SUMMARY_TAIL in combined
     assert "✅ Done: Create executable spec" in combined
     assert "🔵 Now: Implement notifier format" in combined
     assert "⏭️ Next: Send validation Discord message" in combined
+    assert f"⏭️ Next: {LONG_TASK}" in combined
+    assert "... +" not in combined
+    assert "…" not in combined
     assert "Generated current task" not in combined
     assert "Old Fiverr research" not in combined
     assert "Build notifier" in combined
