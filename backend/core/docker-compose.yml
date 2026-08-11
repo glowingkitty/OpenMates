@@ -606,6 +606,7 @@ services:
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
     networks:
       - openmates
     depends_on:
