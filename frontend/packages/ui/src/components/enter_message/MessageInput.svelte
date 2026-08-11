@@ -708,6 +708,7 @@
         embedId: string;
         text: string;
         dismissOnTextEdit: boolean;
+        dismissBaselineText: string | null;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
@@ -724,11 +725,12 @@
     }
 
     function setAutoConvertedPasteCandidate(embedId: string, text: string) {
-        autoConvertedPasteCandidate = { embedId, text, dismissOnTextEdit: false };
+        autoConvertedPasteCandidate = { embedId, text, dismissOnTextEdit: false, dismissBaselineText: null };
         tick().then(waitForNextFrame).then(() => {
             if (autoConvertedPasteCandidate?.embedId === embedId) {
                 autoConvertedPasteCandidate = {
                     ...autoConvertedPasteCandidate,
+                    dismissBaselineText: editor && !editor.isDestroyed ? editor.getText() : null,
                     dismissOnTextEdit: true,
                 };
             }
@@ -2983,7 +2985,11 @@
         if (
             textActuallyChanged &&
             autoConvertedPasteCandidate &&
-            autoConvertedPasteCandidate.dismissOnTextEdit
+            autoConvertedPasteCandidate.dismissOnTextEdit &&
+            (
+                autoConvertedPasteCandidate.dismissBaselineText === null ||
+                currentText !== autoConvertedPasteCandidate.dismissBaselineText
+            )
         ) {
             autoConvertedPasteCandidate = null;
         }
