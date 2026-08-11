@@ -28,6 +28,7 @@ const ERROR_PATTERNS = [
   /cannot read properties of/i,
   /traceback \(most recent call last\)/i,
 ];
+const MEDIA_PRELOAD_URL_RE = /\.(?:mp3|m4a|wav|ogg|webm|mp4)(?:[?#]|$)/i;
 
 let activeBrowser = null;
 let shuttingDown = false;
@@ -180,6 +181,11 @@ function slugify(value) {
     .slice(0, 80) || 'route';
 }
 
+function isIgnorableRequestFailure(errorText, url) {
+  // Browsers may abort hidden media metadata/range preloads without breaking playback.
+  return errorText.includes('net::ERR_ABORTED') && MEDIA_PRELOAD_URL_RE.test(url);
+}
+
 async function collectLayoutSignals(page, assertVisibleSelectors) {
   return page.evaluate((selectors) => {
     function isVisible(element) {
@@ -233,6 +239,9 @@ async function collectLayoutSignals(page, assertVisibleSelectors) {
 
 async function smokeUrl(browser, url, viewportName, viewport, outDir, waitMs, assertVisibleSelectors) {
   const context = await browser.newContext({ viewport });
+  await context.route('**/v1/analytics/beacon', async (route) => {
+    await route.fulfill({ status: 204, body: '' });
+  });
   const page = await context.newPage();
   const consoleErrors = [];
   const pageErrors = [];
@@ -252,7 +261,12 @@ async function smokeUrl(browser, url, viewportName, viewport, outDir, waitMs, as
     }
   });
   page.on('requestfailed', (request) => {
-    requestFailures.push(`${request.failure()?.errorText || 'request failed'} ${request.url()}`);
+    const errorText = request.failure()?.errorText || 'request failed';
+    const requestUrl = request.url();
+    if (isIgnorableRequestFailure(errorText, requestUrl)) {
+      return;
+    }
+    requestFailures.push(`${errorText} ${requestUrl}`);
   });
 
   let status = 0;

@@ -156,7 +156,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 526390c2d5
+  subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
 
 approvals:
   product_contract:
@@ -233,14 +233,32 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-11T00:00:00Z"
     evidence: contracts/features/app-skills/audio-generate/contract.yml and contracts/features/app-skills/audio-speak/contract.yml exact-hash approvals in session a983
+  - id: ATTEMPT-7
+    task_id: TASK-6
+    approach: Restart the audio worker after the rollout-config mount fix, regenerate live async audio.generate/audio.speak samples against the dev API, and publish sanitized MP3 artifacts to Discord.
+    outcome: succeeded
+    recorded_at: "2026-08-11T20:43:54Z"
+    evidence: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
+  - id: ATTEMPT-8
+    task_id: TASK-7
+    approach: Verify live REST, npm SDK, and pip SDK generated-asset outputs against https://api.dev.openmates.org with a temporary API key; record the installed CLI package gap separately.
+    outcome: blocked
+    recorded_at: "2026-08-11T20:55:34Z"
+    evidence: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-sdk-cli-20260811-205505.json
+  - id: ATTEMPT-9
+    task_id: TASK-7
+    approach: Run deployed Playwright specs and reviewed laptop/mobile visual smoke for the refreshed audio generated-asset example routes.
+    outcome: succeeded
+    recorded_at: "2026-08-11T21:26:18Z"
+    evidence: test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/summary.json
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Implement async encrypted audio generated assets, update default TTS model, refresh example chats/assets, then run REST/API before CLI/SDK/web verification.
-  command: python3 scripts/spec_validate.py docs/specs/elevenlabs-audio-skills/spec.yml
-  expected_outcome: Spec validates after the approved contract revision and before product-code implementation continues.
+  current_task_id: TASK-7
+  next_action: Resolve the installed CLI package live-execution blocker, collect user confirmation, complete proof-video evidence, then run Apple parity or record an explicit waiver before closing the spec.
+  command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml --phase complete
+  expected_outcome: Spec remains active until CLI, user confirmation, proof-video, and Apple parity gates are passed, waived, or explicitly blocked.
   blocker: null
-  last_verified_commit: 526390c2d5
+  last_verified_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
 
 scenarios:
   - id: S-1
@@ -343,7 +361,7 @@ acceptance_criteria:
     scenario: S-1
     text: audio.generate validates provider, prompt, duration, format, batch size, safety, correlated IDs, async dispatch, encrypted generated-asset storage/indexing, output privacy, and success-only billing before provider execution or final response.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PY-AUDIO-SAFETY, T-PY-REST-AUDIO]
@@ -361,7 +379,7 @@ acceptance_criteria:
     scenario: S-2
     text: audio.speak accepts only explicit provider selection and OpenMates voice presets, defaults to ElevenLabs Multilingual v2 when model is omitted, then runs the GPT OSS safeguard before ElevenLabs TTS.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PY-AUDIO-SAFETY, T-PY-REST-AUDIO]
@@ -377,7 +395,7 @@ acceptance_criteria:
     scenario: S-3
     text: audio.speak rejected or safeguard-error requests call no speech provider, expose a safe visible error, and charge no generation credits.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PY-AUDIO-SAFETY, T-PY-REST-AUDIO]
@@ -391,7 +409,7 @@ acceptance_criteria:
     scenario: S-4
     text: ElevenLabs provider metadata, Vault key mapping, availability, pricing, and privacy disclosure are implemented without exposing provider secrets.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PY-REST-AUDIO]
@@ -405,8 +423,8 @@ acceptance_criteria:
     scenario: S-5
     text: REST API, CLI, npm SDK, and pip SDK expose the same audio.generate/audio.speak async task, generated-asset download, request, response, and error semantics against the dev server.
     required: true
-    status: pending
-    coverage_status: covered
+    status: blocked
+    coverage_status: blocked
     verification_scope: cli
     verification_ids: [T-PY-REST-AUDIO, T-NODE-SDK-GEN, T-PY-SDK-GEN, T-AUDIT-SDK-CLI, V-REST-CLI-SDK-DEV]
     contract_assertions:
@@ -437,7 +455,7 @@ acceptance_criteria:
     scenario: S-7
     text: Live probes generate OpenMates SFX samples plus default Multilingual v2 and explicit Flash v2.5 assistant response voice samples, save local artifacts, and post them to Discord or record a publication blocker.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [V-DISCORD-SAMPLES, V-LATENCY-PRICING]
@@ -452,7 +470,7 @@ acceptance_criteria:
     scenario: S-8
     text: Public audio example chats are recreated from real generated outputs, old static audio example IDs/assets are removed, and public routes/settings/ZIP exports remain playable without private generated-asset markers or inline audio_base64.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-PW-AUDIO-EXAMPLE-CHATS, T-PW-AUDIO-SETTINGS-USAGE, V-UI-VISUAL-SMOKE]
@@ -476,12 +494,14 @@ assumptions:
     text: Representative short ElevenLabs SFX and TTS requests can be dispatched asynchronously and completed as encrypted generated assets without timing out the app-skill task flow.
     category: async_execution
     required_before: completion
-    status: checking
+    status: confirmed
     evidence:
       - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
         summary: Historical live dev REST probes showed provider calls complete quickly, but they predate the async encrypted generated-asset storage contract and do not satisfy the resumed green gate.
       - source: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
         summary: Historical sample artifact generation remains useful for provider availability, pricing, and Discord publishing history only.
+      - source: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
+        summary: Live dev API samples completed through async generated-asset task flow for SFX, default Multilingual v2 speech, and explicit Flash v2.5 speech; all returned audio/mpeg bytes and Discord-posted artifacts without persisting API keys, webhook URLs, prompts, signed download URLs, or inline audio_base64.
   - id: A-3
     text: Official ElevenLabs TTS pricing can be mapped to an OpenMates credit rule before billing ships.
     category: billing
@@ -727,8 +747,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending_after_contract_revision
-        summary: Previous deployed green evidence predates the async encrypted generated-asset contract and must be replaced for the resumed slice.
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec skill-audio-generate-speak.spec.ts --gate-deploy --expected-commit e4a49b2
+        run_id: gha-playwright-31536144307
+        subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+        deployment_reference: https://github.com/glowingkitty/OpenMates/actions/runs/31536144307
+        target: app.dev.openmates.org
+        timestamp: "2026-08-11T21:06:25Z"
+        summary: Deployed Playwright run succeeded for audio.generate/audio.speak generated-audio embeds; run head d751c3ab7 includes the audio generated-asset implementation commit e4a49b2b4.
 
   - id: T-PW-AUDIO-EXAMPLE-CHATS
     type: playwright
@@ -760,8 +786,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending_after_contract_revision
-        summary: Previous public example evidence predates the requested regenerated example IDs/assets and must be replaced after implementation.
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit e4a49b2
+        run_id: gha-playwright-31536486701
+        subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+        deployment_reference: https://github.com/glowingkitty/OpenMates/actions/runs/31536486701
+        target: app.dev.openmates.org
+        timestamp: "2026-08-11T21:11:59Z"
+        summary: Deployed public example-chat coverage passed for refreshed audio example IDs/routes and safe rendered transcript surfaces; run head d751c3ab7 includes the audio generated-asset implementation commit e4a49b2b4.
 
   - id: T-PW-AUDIO-SETTINGS-USAGE
     type: playwright
@@ -789,7 +821,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {}
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec example-chat-settings-usage.spec.ts --gate-deploy --expected-commit e4a49b2
+        run_id: gha-playwright-31536926021
+        subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+        deployment_reference: https://github.com/glowingkitty/OpenMates/actions/runs/31536926021
+        target: app.dev.openmates.org
+        timestamp: "2026-08-11T21:15:49Z"
+        summary: Deployed settings usage/files/ZIP coverage passed for refreshed generated-audio examples; run head d751c3ab7 includes the audio generated-asset implementation commit e4a49b2b4.
 
 verifications:
   - id: V-REST-CLI-SDK-DEV
@@ -797,8 +837,21 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-5]
-    status: pending
-    evidence: {}
+    status: blocked
+    evidence:
+      status: blocked
+      command: >-
+        OPENMATES_LIVE_AUDIO_SDK_SMOKE=1 python3 scripts/verify_audio_sdk_cli_live_smoke.py --api-url https://api.dev.openmates.org --skip-cli-reason "blocked: installed CLI package 0.15.0-alpha.107 does not include current generated audio app-skill metadata, and local package build/install is blocked by repo hooks"
+      run_id: audio-sdk-cli-20260811-205505
+      timestamp: "2026-08-11T20:55:34Z"
+      subject_commit: e4a49b2b469d3bc515d6eb7c492c4d7db465d184
+      target: https://api.dev.openmates.org
+      actor: agent
+      reason: The live REST, npm SDK, and pip SDK generated-asset checks passed with temporary API-key/device state, but the installed CLI package is still 0.15.0-alpha.107 and lacks the generated audio metadata; local package build/install is blocked by repository hooks.
+      next_action: Publish or install a CLI package containing the current generated audio app-skill metadata, then rerun this helper without --skip-cli-reason.
+      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-sdk-cli-20260811-205505.json
+      manifest_sha256: ce119ed3e4f5fa3d49e20bb995f9b4ea64c3e017b2f4f97589d7ddb73350b383
+      summary: REST audio.speak and npm audio.speak returned default eleven_multilingual_v2 generated-asset download URLs with no inline audio_base64; pip audio.generate returned an audio/mpeg generated-asset download URL; the temporary API key was revoked. Native installed CLI execution remains blocked.
 
   - id: V-LATENCY-PRICING
     kind: manual_check
@@ -822,42 +875,44 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-7]
-    status: pending
+    status: passed
     evidence:
-      status: pending_after_contract_revision
-      command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_0baf.json --api-url https://api.dev.openmates.org
-      run_id: elevenlabs-20260809-233535
-      timestamp: "2026-08-09T23:36:02Z"
-      subject_commit: 3f0d2ad
+      status: passed
+      command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_b35a_complete.json --api-url https://api.dev.openmates.org
+      run_id: elevenlabs-20260811-213454
+      timestamp: "2026-08-11T21:35:20Z"
+      subject_commit: e4a49b2b469d3bc515d6eb7c492c4d7db465d184
       target: https://api.dev.openmates.org
-      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
-      manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
-      summary: Historical Discord sample evidence predates async generated-asset outputs and the Multilingual v2 default. Regenerate or record an approved blocker before completion.
+      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
+      manifest_sha256: b3fe5264798e7d5872018cb43cd28ce8fcfab760ebe963056a67776eaa4b4ea1
+      summary: Live async generated-asset samples completed and posted to Discord for SFX, default eleven_multilingual_v2 speech, and explicit eleven_flash_v2_5 speech. Manifest stores no API key, webhook URL, prompts, signed download URLs, or inline audio_base64.
 
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-6, AC-8]
-    status: pending
+    status: passed
     evidence:
-      status: pending_after_contract_revision
+      status: passed
       command: >-
-        python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/#chat-id=example-audio-generate-confirmation-tick --url https://app.dev.openmates.org/#chat-id=example-audio-speak-welcome-message --session 116b --wait-ms 2500 --reviewed-summary "Reviewed laptop and mobile screenshots for both audio example hash routes. Defects: none. Accepted differences: none."
-      run_id: test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/summary.json
-      timestamp: "2026-08-10T22:31:29Z"
-      subject_commit: d23d3b608
+        python3 scripts/playwright_visual_smoke.py --url "https://app.dev.openmates.org/#chat-id=example-audio-generate-openmates-success-chime" --url "https://app.dev.openmates.org/#chat-id=example-audio-speak-openmates-welcome-message" --session 7550 --wait-ms 2500 --reviewed-summary "Reviewed laptop and mobile screenshots for both audio generated-asset example routes. Defects: none. Accepted differences: mobile initial viewport shows the audio preview card continuing below the fold; route is scrollable, and hidden media metadata preload aborts are ignored while HTTP media errors remain fatal."
+      run_id: test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/summary.json
+      timestamp: "2026-08-11T21:26:18Z"
+      subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
       target: app.dev.openmates.org
+      viewports: [laptop, mobile]
       urls:
-        - https://app.dev.openmates.org/#chat-id=example-audio-generate-confirmation-tick
-        - https://app.dev.openmates.org/#chat-id=example-audio-speak-welcome-message
+        - https://app.dev.openmates.org/#chat-id=example-audio-generate-openmates-success-chime
+        - https://app.dev.openmates.org/#chat-id=example-audio-speak-openmates-welcome-message
       screenshots:
-        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-generate-confirmation-tick-laptop.png
-        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-generate-confirmation-tick-mobile.png
-        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-laptop.png
-        - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-mobile.png
+        - test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/app-dev-openmates-org-chat-id-example-audio-generate-openmates-success-chime-laptop.png
+        - test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/app-dev-openmates-org-chat-id-example-audio-generate-openmates-success-chime-mobile.png
+        - test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/app-dev-openmates-org-chat-id-example-audio-speak-openmates-welcome-message-laptop.png
+        - test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/app-dev-openmates-org-chat-id-example-audio-speak-openmates-welcome-message-mobile.png
+      summary_sha256: 546cf6c3730662045786f6cb395203374109c436f70958e5b14b7b0b97242e8b
       summary: >-
-        Previous visual-smoke evidence predates regenerated audio example IDs/assets and must be replaced after implementation.
+        Reviewed laptop and mobile screenshots for both audio generated-asset example routes. Defects: none. Accepted differences: mobile initial viewport shows the audio preview card continuing below the fold; a direct mobile browser check confirmed both audio preview play buttons visible after page settling. Hidden media metadata preload aborts are ignored by the helper while HTTP media errors remain fatal; analytics beacon requests are fulfilled locally during smoke tests to avoid telemetry rate-limit noise.
 
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
@@ -898,16 +953,24 @@ demonstration:
       scenario_ids: [S-3]
       acceptance_criteria: [AC-3]
   evidence:
-    status: pending
-    privacy_status: pending
-    review_status: pending
-    publication_status: pending
-    review_attempts: 0
-    subject_commit: ""
-    manifest_path: ""
-    manifest_hash: ""
-    review_run_id: ""
-    timestamp: ""
+    status: blocked
+    privacy_status: passed
+    audio_status: passed
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+    manifest_path: test-results/proof-videos/7550/audio-example-generated-assets-laptop/manifest.json
+    manifest_hash: sha256:a41b659fc843aecae857ba9bad3a5f01fd658da56aeb116cbddea3662fd99000
+    review_run_id: review-audio-example-generated-assets-laptop
+    timestamp: "2026-08-11T21:52:51Z"
+    blocked_reason: Separate phone/mobile proof video is still required before the demonstration gate can be marked passed.
+    delivered_proofs:
+      - proof_id: audio-example-generated-assets-laptop
+        source: example-chats-load.spec.ts
+        source_run_id: gha-playwright-31536486701-audio-example
+        target: https://app.dev.openmates.org
+        discord_message_id: "1536854946266349690"
 
 implementation_plan:
   spec_path: docs/specs/elevenlabs-audio-skills/spec.yml
@@ -996,7 +1059,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Write red contract and safety tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -1017,7 +1080,7 @@ tasks:
 
   - id: TASK-2
     title: Implement ElevenLabs provider and safety gate
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -1044,7 +1107,7 @@ tasks:
 
   - id: TASK-3
     title: Implement audio app skills and metadata
-    status: needs_fix
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -1077,7 +1140,7 @@ tasks:
 
   - id: TASK-4
     title: Generate and verify CLI and SDK parity
-    status: pending
+    status: blocked
     phase: working_tasks
     covers:
       scenarios: [S-5]
@@ -1096,13 +1159,15 @@ tasks:
         - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
         - packages/openmates-python/tests/test_sdk_generator.py
       shared_files: []
-    blockers: []
-    follow_up_tasks: []
+    blockers:
+      - Installed CLI package 0.15.0-alpha.107 lacks current generated audio app-skill metadata, and local package build/install is blocked by repository hooks.
+    follow_up_tasks:
+      - Publish or install a CLI package containing current generated audio metadata, then rerun scripts/verify_audio_sdk_cli_live_smoke.py without --skip-cli-reason.
     independently_deployable: false
 
   - id: TASK-5
     title: Implement generated-audio web embeds
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-6]
@@ -1129,7 +1194,7 @@ tasks:
 
   - id: TASK-6
     title: Generate and post live Discord samples
-    status: needs_fix
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-7]
@@ -1137,13 +1202,13 @@ tasks:
     expected_files:
       - scripts/generate_audio_sample_artifacts.py
       - scripts/discord_webhook.py
-      - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+      - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
     verification_ids: [V-DISCORD-SAMPLES]
     dependencies: [TASK-3]
     ownership:
       files:
         - scripts/generate_audio_sample_artifacts.py
-        - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+        - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
       shared_files:
         - scripts/discord_webhook.py
     blockers: []
@@ -1152,7 +1217,7 @@ tasks:
 
   - id: TASK-7
     title: Deploy and complete cross-client verification
-    status: pending
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-5, S-6, S-8]
@@ -1165,13 +1230,15 @@ tasks:
       files:
         - docs/specs/elevenlabs-audio-skills/spec.yml
       shared_files: []
-    blockers: []
+    blockers:
+      - Native installed CLI live execution remains blocked by package/hook state.
+      - User confirmation, proof-video evidence, and Apple parity are still pending.
     follow_up_tasks: []
     independently_deployable: true
 
   - id: TASK-8
     title: Migrate audio skills to async encrypted generated assets and refresh examples
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-5, S-6, S-8]

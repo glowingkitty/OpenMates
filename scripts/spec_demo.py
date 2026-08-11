@@ -532,7 +532,12 @@ def playwright_source_privacy_payload(source: dict[str, Any]) -> str:
     """Exclude the typed CI run identifier from heuristic PII detection."""
     payload = json.dumps(source, sort_keys=True)
     run_id = str(source.get("run_id", "")).strip()
-    return payload.replace(run_id, "[RUN_ID]") if run_id else payload
+    if not run_id:
+        return payload
+    tokens = {run_id, *re.findall(r"\d{8,}", run_id)}
+    for token in tokens:
+        payload = payload.replace(token, "[RUN_ID]")
+    return payload
 
 
 def build_artifact_manifest(*, raw: Path, derived: Path, subject_commit: str) -> dict[str, Any]:

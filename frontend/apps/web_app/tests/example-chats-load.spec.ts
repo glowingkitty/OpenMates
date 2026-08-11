@@ -699,6 +699,42 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=audio-speak.output.playable-audio,public-example-chats.transcript.safe-rendering
+	test('generated audio speech example renders mobile playback controls', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[1];
+		expect(exampleCase.skillId, 'audio.speak example case should exist').toBe('speak');
+
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+
+		const preview = page
+			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="speak"][data-status="finished"]')
+			.first();
+		await expect(preview, 'mobile audio.speak example should render a finished generated-audio preview').toBeVisible({
+			timeout: 15000
+		});
+		await preview.scrollIntoViewIfNeeded();
+		await expect(preview.getByTestId('audio-speak-preview-play-button')).toBeVisible({ timeout: 15000 });
+		const previewAudio = preview.getByTestId('audio-speak-audio');
+		await expect(previewAudio).toBeAttached({ timeout: 15000 });
+		await expectAudioCanPlay(previewAudio, 'mobile audio.speak preview audio');
+
+		const fullscreenOverlay = await openFullscreen(page, preview);
+		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
+		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-speak-fullscreen-audio');
+		await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
+		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.speak fullscreen audio');
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
 		page

@@ -285,9 +285,10 @@ def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyP
 def test_playwright_privacy_scan_does_not_treat_ci_run_id_as_phone_number() -> None:
     module = load_module()
     source = {
-        "run_id": "31231661641",
+        "run_id": "gha-playwright-31231661641",
         "subject_commit": "6150eb0",
         "target": "https://app.dev.openmates.org",
+        "deployment_reference": "https://github.com/glowingkitty/OpenMates/actions/runs/31231661641",
         "artifact_path": "/tmp/playwright-31231661641/video.webm",
     }
 
