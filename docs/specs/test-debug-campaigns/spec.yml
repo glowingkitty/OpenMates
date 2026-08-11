@@ -1,7 +1,7 @@
 schema_version: 2
 id: test-debug-campaigns
 title: Durable Test Debug Campaigns
-status: verified
+status: implementing
 
 goal: >
   Make failed-test debugging a durable, acceptance-driven workflow in which
@@ -22,12 +22,18 @@ scope:
     - Keep campaigns active and blocked when required human or external input prevents green verification.
     - Complete a campaign when every selected and discovered child group is individually green.
     - Integrate interactive skills, deterministic triage, and the sequential auto-fix controller with the same records.
+    - Dispatch persistent visible worker chats for conflict-safe parallel groups.
+    - Require each worker to submit a bounded fix intent before source edits.
+    - Let the coordinator approve, reject, or request boundary expansion before worker mutation.
+    - Let workers finish with a deterministic checkpoint that the coordinator can harvest, integrate, deploy, and verify serially.
   out:
     - Replacing GitHub Actions, Playwright, pytest, Vitest, CLI, or Apple test execution backends.
     - Rewriting product test suites except for focused control-plane regression coverage.
     - Requiring a final combined run of every campaign-selected test after each group passed individually.
     - Adding a user-facing web interface for campaigns.
     - Automatically changing disputed product behavior or high-risk contracts without clarification.
+    - Letting worker chats commit, deploy, merge, or close campaign groups independently.
+    - Running hidden disposable agents as the primary parallel debugging mechanism.
     - Storing raw screenshots, traces, private logs, credentials, or unredacted user data in Directus.
 
 context_discovery:
@@ -58,6 +64,7 @@ context_discovery:
     - The 2026-08-03 mass-failure investigation improved several areas but ended with 16 pytest failures and a selected E2E still red because no frozen campaign scope existed.
     - The embed and app-skill session eventually reached green after several hypotheses, but attempts and descendant-commit evidence required forensic reconstruction.
     - The billing session ended with unresolved configuration and iframe groups but no durable blocker or exact continuation command.
+    - The 2026-08-10 parallel dispatcher attempt proved visible spawned chats are useful, but lacked a fix-intent gate, boundary expansion contract, finish checkpoint, coordinator harvest loop, and stale-worker rejection.
     - A leased preflight group became green while newly exposed example-chat failures continued outside any recorded parent campaign.
 
 apple_impact:
@@ -94,7 +101,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+  subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
 
 approvals:
   product_contract:
@@ -130,6 +137,21 @@ decisions:
     decision: Routine acceptance criteria are derived from existing assertions; ambiguity or high-risk behavior requires clarification.
     reason: Existing regressions should remain autonomous while product decisions remain protected.
     decided_at: "2026-08-03T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Parallel failed-test debugging uses one persistent visible OpenCode worker chat per leased root-cause group.
+    reason: Keeping research, approved edits, retests, and finish checkpoints in one visible chat preserves continuity while avoiding hidden disposable-agent state.
+    decided_at: "2026-08-11T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Worker chats must submit a structured fix intent and wait for coordinator approval before mutating source files.
+    reason: The coordinator must be able to reject stale work, overlapping write sets, high-risk changes, and boundary expansions before parallel edits collide.
+    decided_at: "2026-08-11T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Parallel workers never deploy or complete campaign groups; the coordinator harvests finished checkpoints and serializes integration plus verification.
+    reason: Deployment, commit, and group-completion evidence are subject-commit-sensitive and must remain centralized.
+    decided_at: "2026-08-11T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -233,6 +255,58 @@ scenarios:
       - The campaign becomes completed.
       - No additional combined selected-set run is required.
       - The completion summary identifies every group and its green evidence.
+  - id: S-9
+    title: Worker submits bounded fix intent before editing
+    given:
+      - A campaign has a selected low-risk group with a leased visible worker chat.
+      - The worker has read the failure evidence and identified a likely fix.
+    when:
+      - The worker submits its fix intent.
+    then:
+      - The group records the worker chat, lease, base commit, hypothesis, planned write set, expected verification, and intent status.
+      - The worker remains unable to mutate until the coordinator approves that exact intent.
+      - The intent rejects paths outside the deterministic linked-file boundary unless marked as a boundary-expansion request.
+  - id: S-10
+    title: Coordinator approves only current non-overlapping worker intent
+    given:
+      - Two active workers propose fixes for different groups.
+      - One proposed write set overlaps another active approved write set or was based on a stale subject commit.
+    when:
+      - The coordinator reviews worker intents.
+    then:
+      - The non-overlapping current intent becomes approved with an approved write set.
+      - The overlapping or stale intent is rejected with a durable reason and next action.
+      - Rejected workers cannot pass the edit gate for the stale or overlapping write set.
+  - id: S-11
+    title: Worker requests boundary expansion instead of editing shared files
+    given:
+      - A worker discovers that the smallest correct fix requires an unlisted shared file.
+    when:
+      - The worker records a boundary expansion request.
+    then:
+      - The group stores the requested paths, reason, and current hypothesis.
+      - The coordinator can approve the expansion or block/reassign the group.
+      - No source edit is authorized until the approved write set includes the requested paths.
+  - id: S-12
+    title: Worker finish checkpoint is harvestable by coordinator
+    given:
+      - A worker has an approved intent and has completed its local edit/retest cycle.
+    when:
+      - The worker runs the finish command.
+    then:
+      - The command validates the active lease, worker identity, approved intent, base commit, changed files, and no independent deployment.
+      - The group records a finished checkpoint with changed files, summary, recommended verification, patch base, worker chat/session reference, and deterministic harvest commands.
+      - The lease stays active for coordinator review instead of being completed automatically.
+  - id: S-13
+    title: Coordinator dispatch explains and refills worker slots
+    given:
+      - A campaign has active workers, pending safe groups, and skipped high-risk groups.
+    when:
+      - The coordinator runs dispatch in dry-run or normal mode.
+    then:
+      - Dry-run returns selected/skipped reasons without leasing or spawning chats.
+      - Normal dispatch fills only available worker slots and spawns chats without deploy instructions.
+      - Status shows enough worker metadata for the coordinator to inspect, harvest, and refill slots after workers finish.
 
 acceptance_criteria:
   - id: AC-1
@@ -315,6 +389,46 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WORKFLOW-AUDIT]
+  - id: AC-11
+    scenario: S-9
+    text: A worker fix intent records the worker chat, lease, base commit, hypothesis, planned write set, verification command, and pending or approved status before source edits.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-12
+    scenario: S-10
+    text: Intent approval rejects stale base commits and write sets that overlap active approved worker write sets.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-13
+    scenario: S-11
+    text: Boundary expansion requests are recorded durably and do not authorize edits until explicitly approved by the coordinator.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-14
+    scenario: S-12
+    text: Worker finish validates lease, identity, approved intent, commit freshness, and changed-file boundaries, then records a harvestable checkpoint with worker session reference and checkpoint/diff commands without completing the lease or group.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-15
+    scenario: S-13
+    text: Parallel dispatch supports dry-run explanation, fills only available slots, reports active worker metadata, and spawns worker chats without deploy instructions.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
 
 assumptions:
   - id: A-1
@@ -397,6 +511,12 @@ contracts:
     - "`python3 scripts/tests.py campaign attempt --group <id> ...` appends a structured investigation attempt."
     - "`python3 scripts/tests.py campaign block --group <id> ...` records a resumable blocker."
     - "`python3 scripts/tests.py campaign complete-group --group <id> --commit <sha>` requires all member evidence green."
+    - "`python3 scripts/tests.py campaign intent --group <id> --lease <id> ...` records a worker fix intent before source edits."
+    - "`python3 scripts/tests.py campaign approve-intent --group <id> --lease <id> ...` approves the current non-overlapping write set."
+    - "`python3 scripts/tests.py campaign boundary --group <id> --lease <id> ...` records an explicit boundary expansion request."
+    - "`python3 scripts/tests.py campaign approve-boundary --group <id> --lease <id> ...` approves an explicit boundary expansion request."
+    - "`python3 scripts/tests.py campaign edit-gate --session <id> --file <path>` enforces approved worker write sets before edits."
+    - "`python3 scripts/tests.py campaign finish-worker --group <id> --lease <id> ...` records a coordinator-harvestable finish checkpoint."
     - "`python3 scripts/tests.py run --campaign <id> --group <id>` selects exact durable group members."
   privacy_security:
     - Persist sanitized summaries and artifact references only.
@@ -515,14 +635,98 @@ tests:
         run_id: local-pytest-green-campaigns-20260803T181438Z
         subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
         timestamp: "2026-08-03T18:14:38Z"
+  - id: T-PARALLEL-WORKER-LIFECYCLE
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch"
+    covers: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    assertions:
+      - Worker intents persist lease, chat, base commit, hypothesis, write set, and verification metadata before source edits.
+      - Intent approval rejects stale base commits, paths outside boundary, and overlapping active approved worker write sets.
+      - Boundary expansion requests are durable and do not authorize source edits until explicitly approved.
+      - Worker edit tools are blocked until the active worker lease has an approved intent containing the target file.
+      - Active worker edit tools cannot satisfy the write-set gate through another registered worktree path.
+      - Active workers cannot prepare or append attempts to leased or unleased groups they do not own.
+      - Worker finish records canonical lease identity and rejects omitted known session modified files.
+      - Finish-worker records a harvestable checkpoint with worker session, inspection, checkpoint, and diff-template commands without completing the lease or group.
+      - Dispatch dry-run explains selected/skipped groups and normal dispatch fills only available worker slots.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+        run_id: local-pytest-red-parallel-worker-lifecycle-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+        run_id: local-pytest-green-parallel-worker-lifecycle-20260811T204515Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T20:45:15Z"
+  - id: T-SPAWN-NO-DEPLOY
+    type: pytest
+    file: scripts/tests/test_spawn_chat_opencode.py
+    command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+    covers: [AC-15]
+    assertions:
+      - Execute-mode worker chats can opt out of the generic deploy instruction prefix.
+      - Parallel failed-test dispatch uses that no-deploy spawn mode.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+        run_id: local-pytest-red-spawn-no-deploy-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+        run_id: local-pytest-green-spawn-no-deploy-20260811T204515Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T20:45:15Z"
+  - id: T-HOOK-READONLY-RECOVERY
+    type: pytest
+    file: scripts/tests/test_opencode_hooks_recovery.py
+    command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    covers: [AC-15]
+    assertions:
+      - Recovery-mode hook checks allow `sessions.py chat read` and `sessions.py chat search` as safe read-only commands when routing has not resolved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+        run_id: local-pytest-red-hook-readonly-recovery-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+        run_id: local-pytest-green-hook-readonly-recovery-20260811T204515Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T20:45:15Z"
 
 verifications:
   - id: V-SPEC-VALIDATE
     kind: deterministic_check
     phase: final
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
-    status: passed
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15]
+    status: pending
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/test-debug-campaigns/spec.yml
@@ -530,6 +734,14 @@ verifications:
       subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
       summary: Spec validation and 60 focused tests passed. Directus created both new collections and all four linkage columns; a transactional campaign/group insert-read-rollback smoke passed. The full cms-setup sweep later failed in an unrelated pre-existing Project owner-context null-data migration.
       timestamp: "2026-08-03T18:14:38Z"
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This spec changes internal test-orchestration CLI behavior and persistent worker coordination, with no user-facing browser, CLI product, or native UI surface to demonstrate.
+    classified_at: "2026-08-11T00:00:00Z"
+    verification_ids: [V-SPEC-VALIDATE]
 implementation_plan:
   spec_path: docs/specs/test-debug-campaigns/spec.yml
   existing_patterns:
@@ -544,11 +756,14 @@ implementation_plan:
   data_flow:
     - Current failed state is deterministically triaged into durable campaign groups.
     - A claim links temporary ownership to one durable group.
+    - Parallel workers record intent before source edits and wait for coordinator approval.
+    - Finished workers record a checkpoint that the coordinator harvests before serial integration and verification.
     - Group-bound runs select exact member keys and write requested scope plus result evidence.
     - Imported new failures become child groups; verified groups update campaign completion state.
   boundaries:
     - "`scripts/tests.py` owns persistence, selection, lifecycle transitions, and evidence validation."
     - "`scripts/run_tests.py` remains the execution engine and receives explicit selected canonical keys."
+    - "`scripts/sessions.py spawn-chat` owns visible worker chat launch and must support no-deploy execute prompts for coordinator-owned workflows."
     - Skills orchestrate commands but cannot substitute chat-only state for campaign records.
   impacts:
     api: Internal operator CLI only; no public or developer API changes.
@@ -564,6 +779,10 @@ implementation_plan:
       reason: Durable root-cause group records.
     - path: .claude/skills/fix-tests/SKILL.md
       reason: Canonical campaign-driven debugging workflow.
+    - path: scripts/sessions.py
+      reason: No-deploy worker chat prompt mode.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Safe read-only chat inspection while routing is unresolved.
   migration_rollout:
     - Apply the additive Directus schemas through the existing schema setup path.
     - Do not backfill historical chats or claims; campaigns start from current Directus failures after deployment.
@@ -579,18 +798,23 @@ implementation_plan:
     - AC-3 maps to T-CAMPAIGN-SELECTION.
     - AC-9 maps to T-CAMPAIGN-SCHEMA.
     - AC-10 maps to T-WORKFLOW-AUDIT.
+    - AC-11, AC-12, AC-13, AC-14, and AC-15 map to T-PARALLEL-WORKER-LIFECYCLE.
+    - AC-15 also maps to T-SPAWN-NO-DEPLOY and T-HOOK-READONLY-RECOVERY.
   technical_approval:
     required: false
     reason: Separate campaign/group collections and individual-group completion were approved in the product clarification.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/test-debug-campaigns/spec.yml
     - python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py
+    - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy
+    - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py
     - python3 scripts/spec_verify.py docs/specs/test-debug-campaigns/spec.yml
   verification_order:
     - Validate schemas and in-memory campaign state transitions.
     - Verify exact Directus-backed member selection and run metadata.
     - Verify skills and auto-fix workflow references.
     - Run existing test-control-plane regression tests.
+    - Verify no-deploy spawned workers and read-only chat recovery hooks.
 
 tasks:
   - id: TASK-1
@@ -725,6 +949,103 @@ tasks:
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
+  - id: TASK-6
+    title: Add red worker lifecycle regression tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - scripts/tests/test_tests_control_campaigns.py
+      - scripts/tests/test_spawn_chat_opencode.py
+      - scripts/tests/test_opencode_hooks_recovery.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+      - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+      - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - scripts/tests/test_tests_control_campaigns.py
+        - scripts/tests/test_spawn_chat_opencode.py
+        - scripts/tests/test_opencode_hooks_recovery.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-7
+    title: Implement worker intent, boundary, finish, and dispatch dry-run commands
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - scripts/tests.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - scripts/tests.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-8
+    title: Implement no-deploy worker spawn and chat-read recovery hook
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-13]
+      acceptance_criteria: [AC-15]
+    expected_files:
+      - scripts/sessions.py
+      - .opencode/plugins/openmates-hooks.js
+    verification:
+      - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+      - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    verification_ids: [T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - scripts/sessions.py
+        - .opencode/plugins/openmates-hooks.js
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-9
+    title: Verify resumed parallel-worker architecture
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - docs/specs/test-debug-campaigns/spec.yml
+      - scripts/tests.py
+      - scripts/sessions.py
+      - .opencode/plugins/openmates-hooks.js
+    verification:
+      - python3 scripts/spec_validate.py docs/specs/test-debug-campaigns/spec.yml
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_opencode_hooks_recovery.py -q
+      - python3 scripts/spec_verify.py docs/specs/test-debug-campaigns/spec.yml
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY, V-SPEC-VALIDATE]
+    dependencies: [TASK-7, TASK-8]
+    ownership:
+      files:
+        - docs/specs/test-debug-campaigns/spec.yml
+        - scripts/tests.py
+        - scripts/sessions.py
+        - .opencode/plugins/openmates-hooks.js
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
 
 risks:
   - risk: Campaign groups become stale when triage signatures change between runs.
@@ -737,5 +1058,9 @@ risks:
     mitigation: Require passing result evidence after group selection and bind evidence to explicit run/result identifiers.
   - risk: Skill text diverges across Claude, Codex, and OpenCode mirrors.
     mitigation: Update canonical Claude sources, run agent parity sync, and enforce a deterministic workflow audit.
+  - risk: Worker chats receive generic execute-mode instructions to deploy independently.
+    mitigation: Add a no-deploy spawn mode used only by coordinator-owned worker workflows and cover it with deterministic tests.
+  - risk: A stale worker edits after the coordinator has moved the campaign to a newer base commit.
+    mitigation: Persist base commit in worker intent and finish checkpoints; reject stale approval or finish attempts.
 
 open_questions: []

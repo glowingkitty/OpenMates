@@ -286,3 +286,29 @@ def test_spawn_chat_reads_prompt_file_before_switching_to_canonical_root(tmp_pat
     assert captured["cwd"] == str(canonical)
     assert captured["prompt"].endswith("Investigate the leased group.")
     assert str(prompt_path) not in captured["prompt"]
+
+
+def test_spawn_chat_execute_no_deploy_instructions_omits_deploy_prompt(tmp_path: Path, monkeypatch) -> None:
+    worktree = tmp_path / "worktree"
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    captured = {}
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", worktree)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: "ses_worker")
+
+    sessions.cmd_spawn_chat(SimpleNamespace(
+        prompt="Debug the leased group, then stop for coordinator harvest.",
+        prompt_file=None,
+        name="test-debug-worker",
+        mode="execute",
+        linear_issue=None,
+        no_deploy_instructions=True,
+    ))
+
+    assert "Use sessions.py deploy" not in captured["prompt"]
+    assert "Do not deploy, commit, merge, or push" in captured["prompt"]
+    assert captured["prompt"].endswith("Debug the leased group, then stop for coordinator harvest.")

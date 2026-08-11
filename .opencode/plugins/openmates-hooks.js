@@ -518,6 +518,21 @@ function collisionRelativePath(file, data) {
   return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
 }
 
+function relativePathWithinBase(file, basePath) {
+  if (!file || !basePath) return "";
+  const candidate = relative(resolve(basePath), resolve(file));
+  if (!candidate || candidate === ".." || candidate.startsWith(`..${sep}`) || isAbsolute(candidate)) return "";
+  return candidate;
+}
+
+function routedEditRelativePathForTest(file, worktreePath = "") {
+  if (!file) return "";
+  const absolute = isAbsolute(file) ? resolve(file) : resolve(worktreePath || PROJECT_ROOT, file);
+  if (worktreePath) return relativePathWithinBase(absolute, worktreePath);
+  if (pathInProjectRoot(absolute)) return relative(PROJECT_ROOT, absolute);
+  return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
+}
+
 function samePresenceWorkUnit(requesterID, ownerID, presence) {
   if (requesterID === ownerID) return true;
   const requester = presence?.sessions?.[requesterID] || {};
@@ -751,6 +766,12 @@ function isReadOnlyChildBash(command) {
     const action = args[0];
     return argumentsMatch(args.slice(1), readOnlyIssueSpecs[action]);
   };
+  const sessionCommandIsReadOnly = (args) => {
+    if (args.length === 1 && ["-h", "--help"].includes(args[0])) return true;
+    if (args[0] !== "chat" || !["read", "search"].includes(args[1])) return false;
+    if (args[1] === "read") return args.length >= 3 && !args.slice(2).some((arg) => arg.startsWith("--out") || arg === "--write");
+    return args.length >= 4 && !args.slice(2).some((arg) => arg.startsWith("--out") || arg === "--write");
+  };
 
   return commandSegmentTokens(safeCommand.replace(/\\\s*\n/g, " ")).every((tokens) => {
     if (tokens.some((token) => isAssignment(token)) || basename(unquote(tokens[0] || "")) === "env") return false;
@@ -783,7 +804,7 @@ function isReadOnlyChildBash(command) {
     if (["python", "python3"].includes(commandName)) {
       const script = unquote(args[0] || "").replace(/^\.\//, "");
       if (script === "scripts/issues.py") return issueCommandIsReadOnly(args.slice(1));
-      if (script === "scripts/sessions.py") return args.length === 2 && ["-h", "--help"].includes(args[1]);
+      if (script === "scripts/sessions.py") return sessionCommandIsReadOnly(args.slice(1));
       if (script === "scripts/tests.py") return argumentsMatch(args.slice(2), readOnlyTestSpecs[args[1]]);
       return false;
     }
@@ -1314,6 +1335,72 @@ function normalizedInvocation(tokens) {
   return { command: commandName, args };
 }
 
+function changesOpenCodeSessionEnvironment(tokens) {
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) {
+    if (shellUnescape(tokens[index]).startsWith("OPENCODE_SESSION_ID=")) return true;
+    index += 1;
+  }
+  let commandName = basename(tokens[index] || "");
+  if (["command", "builtin"].includes(commandName)) {
+    index += 1;
+    while (index < tokens.length && isAssignment(tokens[index])) {
+      if (shellUnescape(tokens[index]).startsWith("OPENCODE_SESSION_ID=")) return true;
+      index += 1;
+    }
+    commandName = basename(tokens[index] || "");
+  }
+  if (commandName !== "env") return false;
+  for (let envIndex = index + 1; envIndex < tokens.length; envIndex += 1) {
+    const token = shellUnescape(tokens[envIndex] || "");
+    if (token === "--") return false;
+    if (token.startsWith("OPENCODE_SESSION_ID=")) return true;
+    if (token === "-i" || token === "--ignore-environment") return true;
+    if (token === "-u" || token === "--unset") {
+      if (shellUnescape(tokens[envIndex + 1] || "") === "OPENCODE_SESSION_ID") return true;
+      envIndex += 1;
+      continue;
+    }
+    if (token.startsWith("--unset=") && token.slice("--unset=".length) === "OPENCODE_SESSION_ID") return true;
+    if (isAssignment(token) || isOption(token)) continue;
+    return false;
+  }
+  return false;
+}
+
+function hasOpenCodeSessionEnvironmentChange(tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = shellUnescape(tokens[index] || "");
+    if (token.startsWith("OPENCODE_SESSION_ID=")) return true;
+    if (token === "-i" || token === "--ignore-environment") return true;
+    if ((token === "-u" || token === "--unset") && shellUnescape(tokens[index + 1] || "") === "OPENCODE_SESSION_ID") return true;
+    if (token.startsWith("--unset=") && token.slice("--unset=".length) === "OPENCODE_SESSION_ID") return true;
+  }
+  return false;
+}
+
+function isTestsScriptToken(token) {
+  const script = shellUnescape(token || "").replace(/^\.\//, "");
+  return script === "scripts/tests.py" || script.endsWith("/scripts/tests.py");
+}
+
+function testsCampaignVerbFromTokens(tokens) {
+  for (let index = 0; index < tokens.length - 2; index += 1) {
+    if (isTestsScriptToken(tokens[index]) && shellUnescape(tokens[index + 1] || "") === "campaign") {
+      return shellUnescape(tokens[index + 2] || "");
+    }
+  }
+  return "";
+}
+
+function mutatingCampaignVerbFromText(command) {
+  const text = String(command || "");
+  const shellMatch = text.match(/(?:^|[\s"'`])(?:\.\/|[^\s"'`]+\/)?scripts\/tests\.py\s+campaign\s+([a-z-]+)/);
+  const codeMatch = text.match(/scripts\/tests\.py["']?\s*,\s*["']campaign["']?\s*,\s*["']([a-z-]+)/);
+  const verb = shellMatch?.[1] || codeMatch?.[1] || "";
+  return verb && !new Set(["status", "worker-state"]).has(verb) ? verb : "";
+}
+
 function skipOption(args, index, optionsWithValues) {
   const arg = args[index];
   if (optionsWithValues.has(arg)) return Math.min(index + 2, args.length);
@@ -1560,6 +1647,162 @@ function runEditLease(action, files, sessionID) {
   }
 }
 
+function workerEditGateDecisionForTest({ sessionID = "", files = [], run = spawnSync } = {}) {
+  const selectedFiles = (files || []).filter(Boolean);
+  if (!sessionID || selectedFiles.length === 0) return { decision: "allow", message: "no worker edit gate input" };
+  const args = ["scripts/tests.py", "campaign", "edit-gate", "--session", sessionID];
+  for (const file of selectedFiles) args.push("--file", file);
+  const result = run("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8" });
+  if (result.status === 0) return { decision: "allow", message: "worker edit gate passed" };
+  const detail = (result.stderr || result.stdout || `worker edit gate exited ${result.status}`).trim();
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      detail,
+      "submit `campaign intent`, wait for coordinator `approve-intent`, then edit only files in the approved write set.",
+    ),
+  };
+}
+
+function workerEditPathDecisionForTest({ sessionID = "", files = [], relativePaths = [], run = spawnSync } = {}) {
+  if (!sessionID || !(files || []).length) return { decision: "allow", message: "no worker edit paths" };
+  if ((relativePaths || []).length === (files || []).length) return { decision: "allow", message: "all edit paths resolved" };
+  const state = workerSessionStateForTest({ sessionID, run });
+  if (!state?.active_worker) return { decision: "allow", message: "session is not an active debug worker" };
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      "active debug workers may edit only paths that resolve inside the repository or assigned worktree.",
+      "retry with repository-relative paths inside the approved write set.",
+    ),
+  };
+}
+
+function guardWorkerEditPaths(files, relativePaths, sessionID) {
+  const decision = workerEditPathDecisionForTest({ sessionID, files, relativePaths });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+function guardWorkerEditGate(files, sessionID) {
+  const decision = workerEditGateDecisionForTest({ sessionID, files });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+function workerCampaignCommandIsAllowed(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  if (changesOpenCodeSessionEnvironment(segments[0])) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  if (!["python", "python3"].includes(invocation.command)) return false;
+  const script = shellUnescape(invocation.args[0] || "").replace(/^\.\//, "");
+  if (script !== "scripts/tests.py") return false;
+  const args = invocation.args.slice(1).map(shellUnescape);
+  if (args[0] === "lease-required") return true;
+  if (args[0] !== "campaign") return false;
+  return new Set(["status", "prepare", "intent", "attempt", "boundary", "finish-worker", "worker-state"]).has(args[1]);
+}
+
+function workerCampaignCommandSpoofsSession(command) {
+  const commandText = String(command || "");
+  const mutatingVerb = mutatingCampaignVerbFromText(commandText);
+  if (mutatingVerb) {
+    if (hasUnsafeLocalShellExpansionOrRedirection(commandText)) return true;
+    if (/\bOPENCODE_SESSION_ID\b/.test(commandText)) return true;
+    if (/\b(?:bash|sh|python3?|node)\s+-c\b/.test(commandText)) return true;
+  }
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  let sessionEnvironmentChanged = false;
+  for (const segment of segments) {
+    if (hasOpenCodeSessionEnvironmentChange(segment)) sessionEnvironmentChanged = true;
+    const verb = testsCampaignVerbFromTokens(segment);
+    if (sessionEnvironmentChanged && verb && !new Set(["status", "worker-state"]).has(verb)) return true;
+  }
+  return false;
+}
+
+function interpreterEvaluationCommand(command) {
+  const segments = commandSegmentTokens(String(command || "").replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  const args = invocation.args.map(shellUnescape);
+  if (["bash", "sh"].includes(invocation.command)) return args.includes("-c") || args.includes("--command");
+  if (["python", "python3"].includes(invocation.command)) return args.includes("-c");
+  if (invocation.command === "node") return args.includes("-e") || args.includes("--eval") || args.includes("-p") || args.includes("--print");
+  return false;
+}
+
+function workerSessionStartCommandIsAllowed(command, sessionID = "") {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  if (changesOpenCodeSessionEnvironment(segments[0])) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  if (!["python", "python3"].includes(invocation.command)) return false;
+  const script = shellUnescape(invocation.args[0] || "").replace(/^\.\//, "");
+  const args = invocation.args.slice(1).map(shellUnescape);
+  if (script !== "scripts/sessions.py" || args[0] !== "start") return false;
+  const sessionIndex = args.indexOf("--opencode-session");
+  if (sessionIndex < 0 || sessionIndex + 1 >= args.length) return false;
+  return new Set([sessionID, "$OPENCODE_SESSION_ID", "${OPENCODE_SESSION_ID}"]).has(args[sessionIndex + 1]);
+}
+
+function workerSessionStateForTest({ sessionID = "", run = spawnSync } = {}) {
+  if (!sessionID) return { active_worker: false };
+  const result = run("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID], { cwd: PROJECT_ROOT, encoding: "utf8" });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || `worker-state exited ${result.status}`).trim();
+    throw new Error(actionable("[OpenMates worker edit gate]", detail, "resolve the test-control-plane worker-state error, then retry."));
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    throw new Error(actionable("[OpenMates worker edit gate]", "worker-state returned invalid JSON", "run python3 scripts/tests.py campaign worker-state --session <id> manually and fix the reported issue."));
+  }
+}
+
+function workerBashGateDecisionForTest({ sessionID = "", command = "", run = spawnSync } = {}) {
+  if (!sessionID || !command) return { decision: "allow", message: "no worker bash gate input" };
+  if (workerCampaignCommandSpoofsSession(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates worker edit gate]",
+        "campaign worker lifecycle commands must not override OPENCODE_SESSION_ID.",
+        "run the campaign command directly from the worker chat so the hook-provided session identity is preserved.",
+      ),
+    };
+  }
+  if (interpreterEvaluationCommand(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates worker edit gate]",
+        "nested interpreter evaluation is blocked because it can synthesize campaign commands with forged session identity.",
+        "run direct scripts with explicit arguments instead of bash -c, sh -c, python -c, or node -e.",
+      ),
+    };
+  }
+  if (isReadOnlyChildBash(command) || workerCampaignCommandIsAllowed(command) || workerSessionStartCommandIsAllowed(command, sessionID)) return { decision: "allow", message: "worker bash command is read-only or campaign bookkeeping" };
+  const state = workerSessionStateForTest({ sessionID, run });
+  if (!state?.active_worker) return { decision: "allow", message: "session is not an active debug worker" };
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      "active debug workers may not run arbitrary mutating Bash commands because they bypass approved write-set checks.",
+      "use read-only Bash for investigation, `campaign intent`/`boundary`/`finish-worker` for bookkeeping, and apply_patch/Edit after coordinator approval for source changes.",
+    ),
+  };
+}
+
+function guardWorkerBashGate(command, sessionID) {
+  const decision = workerBashGateDecisionForTest({ sessionID, command });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
 export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true } = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
@@ -1661,6 +1904,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      if (BASH_TOOLS.has(tool)) guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
       if (childMutation.decision === "block") throw new Error(childMutation.message);
       if (
@@ -1694,8 +1938,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
-        const relativePaths = files.map((file) => collisionRelativePath(file, routingData || sessionsData())).filter(Boolean);
+        const relativePaths = files.map((file) => routedEditRelativePathForTest(file, route.worktreePath || "")).filter(Boolean);
+        guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, relativePaths);
+        guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
         runStaleRead("check", files, routedOpenCodeSessionID);
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
@@ -1766,8 +2012,12 @@ OpenMatesHooks.test = Object.freeze({
   resolveWorktreeRouteForTest,
   rewriteEditArgsForTest,
   rootGuardDecisionForTest,
+  routedEditRelativePathForTest,
   routeLocalToolArgsForTest,
   routingDecisionForTest,
   routingFailureForTest,
   taskChildClassificationForTest,
+  workerBashGateDecisionForTest,
+  workerEditGateDecisionForTest,
+  workerEditPathDecisionForTest,
 });

@@ -12309,6 +12309,13 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Only read, search, and analyze code. "
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
+    elif getattr(args, "no_deploy_instructions", False):
+        mode_prefix = (
+            "IMPORTANT: This is an EXECUTE session. "
+            "You have full access to read, edit, and create files for the assigned scope. "
+            "Do not deploy, commit, merge, or push. "
+            "Stop after recording the required checkpoint for coordinator harvest.\n\n"
+        )
     else:
         mode_prefix = (
             "IMPORTANT: This is an EXECUTE session. "
@@ -13493,6 +13500,11 @@ def main() -> None:
         default="plan",
         help="Permission mode: 'plan' (read-only, default) or "
         "'execute' (full edit access with auto-approved permissions)",
+    )
+    p_spawn.add_argument(
+        "--no-deploy-instructions",
+        action="store_true",
+        help="For coordinator-owned execute workers, omit the generic deploy/commit instruction prefix.",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",

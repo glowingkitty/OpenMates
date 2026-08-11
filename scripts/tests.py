@@ -24,6 +24,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,7 @@ PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 LEASE_TTL_HOURS = 8
 MAX_LINKED_FILES = 12
 MAX_IMPORTED_ERROR_CHARS = 4000
+MIN_GIT_SHA_PREFIX_LENGTH = 7
 PARALLEL_DEBUG_ALLOWED_CATEGORIES = {"missing_element", "timeout", "unit_regression", "test_infra"}
 PARALLEL_DEBUG_MAX_MEMBERS = 2
 PARALLEL_DEBUG_MAX_LINKED_FILES = 4
@@ -968,7 +970,13 @@ def integrated_dev_sha() -> str:
 def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     actual = actual_sha.strip().lower()
     expected = expected_sha.strip().lower()
-    return bool(expected) and (actual.startswith(expected) or expected.startswith(actual))
+    if len(actual) < MIN_GIT_SHA_PREFIX_LENGTH or len(expected) < MIN_GIT_SHA_PREFIX_LENGTH:
+        return False
+    return actual.startswith(expected) or expected.startswith(actual)
+
+
+def _current_checkout_commit(fallback_commit: str = "") -> str:
+    return current_git_sha()
 
 
 def resolve_test_subject_commit(expected_commit: str = "") -> str:
@@ -1772,6 +1780,10 @@ def sanitize_debug_path(value: str) -> str:
         return f"<EXTERNAL_PATH>/{path.name}"
 
 
+def _shell_command(parts: list[str]) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)
+
+
 def classify_failure(test: dict[str, Any]) -> str:
     text = normalize_text(" ".join(str(test.get(key) or "") for key in (
         "suite",
@@ -2128,9 +2140,11 @@ def start_debug_campaign(
         campaign = _debug_campaign(campaign_key)
         if campaign.get("status") == "completed":
             raise RuntimeError(f"Debug campaign is already completed: {campaign_key}")
+        _require_campaign_coordinator_for_campaign(campaign_key, session_id, "campaign start")
         return get_store().update_debug_campaign(campaign_key, {"session_id": session_id, "updated_at": utc_now()})
     active = _active_debug_campaign_for_session(session_id)
     if active:
+        _require_session_identity(session_id, "campaign start")
         if active.get("selected_group_keys"):
             return active
         triage_entries = list(build_triage().get("entries") or [])
@@ -2167,6 +2181,7 @@ def start_debug_campaign(
         if requested_keys.intersection(pending_keys):
             resumable.append(campaign)
     if len(resumable) == 1:
+        _require_campaign_coordinator_for_campaign(str(resumable[0]["campaign_key"]), session_id, "campaign start")
         return get_store().update_debug_campaign(
             str(resumable[0]["campaign_key"]),
             {"session_id": session_id, "updated_at": utc_now()},
@@ -2174,6 +2189,7 @@ def start_debug_campaign(
     if len(resumable) > 1:
         raise RuntimeError("Multiple active campaigns overlap current failures; inspect campaign status and resume one explicitly")
 
+    _require_session_identity(session_id, "campaign start")
     campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
     now = utc_now()
     campaign = {
@@ -2203,9 +2219,38 @@ def start_debug_campaign(
     )
 
 
+def _require_active_worker_session_owns_group(group_key: str) -> None:
+    active_worker_claims = [
+        claim
+        for claim in _active_debug_claims(load_leases().get("leases") or [])
+        if claim.get("worker_id")
+    ]
+    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    env_worker_claims = [
+        claim for claim in active_worker_claims
+        if env_session in {str(claim.get("session_id") or ""), str(claim.get("worker_id") or "")}
+    ] if env_session else []
+    group_worker_claims = [claim for claim in active_worker_claims if claim.get("debug_group_key") == group_key]
+    if not group_worker_claims:
+        if env_worker_claims:
+            raise RuntimeError(f"OpenCode session {env_session} does not own debug group {group_key}")
+        return
+    if not env_session:
+        raise RuntimeError(f"OpenCode session is required to mutate active debug group {group_key}")
+    owner_sessions = {
+        session
+        for claim in group_worker_claims
+        for session in {str(claim.get("session_id") or ""), str(claim.get("worker_id") or "")}
+    }
+    owner_sessions.discard("")
+    if env_session not in owner_sessions:
+        raise RuntimeError(f"OpenCode session {env_session} does not own debug group {group_key}")
+
+
 def prepare_debug_group(group_key: str, expected_behavior: str, acceptance_criteria: list[str]) -> dict[str, Any]:
     if not expected_behavior.strip() or not acceptance_criteria:
         raise RuntimeError("Expected behavior and at least one acceptance criterion are required")
+    _require_active_worker_session_owns_group(group_key)
     return get_store().update_debug_group(group_key, {
         "status": "ready",
         "expected_behavior": sanitize_debug_text(expected_behavior),
@@ -2223,6 +2268,7 @@ def append_debug_group_attempt(
     changed_files: list[str] | None = None,
 ) -> dict[str, Any]:
     group = _debug_group(group_key)
+    _require_active_worker_session_owns_group(group_key)
     attempts = list(group.get("attempts") or [])
     attempts.append({
         "attempt": len(attempts) + 1,
@@ -2238,6 +2284,7 @@ def append_debug_group_attempt(
 
 def block_debug_group(group_key: str, reason: str, question: str, next_action: str) -> dict[str, Any]:
     group = _debug_group(group_key)
+    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("OPENCODE_SESSION_ID", ""), "campaign block")
     blocker = {
         "reason": sanitize_debug_text(reason),
         "question": sanitize_debug_text(question),
@@ -2253,6 +2300,446 @@ def block_debug_group(group_key: str, reason: str, question: str, next_action: s
         "updated_at": utc_now(),
     })
     return updated
+
+
+def _sanitized_path_list(paths: list[str]) -> list[str]:
+    result = []
+    seen = set()
+    for path in paths:
+        sanitized = sanitize_debug_path(str(path).strip())
+        if not sanitized or sanitized in seen:
+            continue
+        seen.add(sanitized)
+        result.append(sanitized)
+    return result
+
+
+def _require_active_debug_lease(
+    group_key: str,
+    lease_id: str,
+    worker_id: str = "",
+    require_session_owner: bool = False,
+) -> dict[str, Any]:
+    lease = _lease_for_id(lease_id)
+    if not lease:
+        raise RuntimeError(f"Unknown lease id: {lease_id}")
+    if lease.get("status") != "active":
+        raise RuntimeError(f"Debug lease {lease_id} is not active")
+    if lease.get("debug_group_key") != group_key:
+        raise RuntimeError(f"Debug lease {lease_id} does not own group {group_key}")
+    if worker_id and lease.get("worker_id") and worker_id not in {lease.get("worker_id"), lease.get("session_id")}:
+        raise RuntimeError(f"Debug lease {lease_id} belongs to worker {lease.get('worker_id')}")
+    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    if require_session_owner:
+        lease_session = str(lease.get("session_id") or "")
+        if not env_session:
+            raise RuntimeError("Worker lifecycle commands require OPENCODE_SESSION_ID")
+        if not lease_session or env_session != lease_session:
+            raise RuntimeError(f"OpenCode session {env_session} does not own debug lease {lease_id}")
+    expires_at = parse_utc(str(lease.get("expires_at") or ""))
+    if expires_at is not None and expires_at <= datetime.now(timezone.utc):
+        raise RuntimeError(f"Debug lease {lease_id} is expired")
+    return lease
+
+
+def _write_boundary_for_group(group: dict[str, Any], lease: dict[str, Any]) -> set[str]:
+    linked_files = _claim_linked_files(lease)
+    if not linked_files:
+        linked_files = set((group.get("metadata") or {}).get("linked_files") or [])
+    return {sanitize_debug_path(str(path)) for path in linked_files if str(path).strip()}
+
+
+def _active_approved_worker_write_sets(excluding_group_key: str = "") -> dict[str, set[str]]:
+    approved: dict[str, set[str]] = {}
+    for claim in _active_debug_claims(load_leases().get("leases") or []):
+        if not claim.get("worker_id"):
+            continue
+        group_key = str(claim.get("debug_group_key") or "")
+        if group_key == excluding_group_key:
+            continue
+        try:
+            group = _debug_group(group_key)
+        except RuntimeError:
+            continue
+        intent = (group.get("metadata") or {}).get("worker_intent") or {}
+        if intent.get("status") != "approved":
+            continue
+        files = set(intent.get("approved_write_files") or intent.get("write_files") or [])
+        if files:
+            approved[group_key] = files
+    return approved
+
+
+def _active_worker_identity_sessions() -> set[str]:
+    worker_sessions = {
+        session
+        for claim in _active_debug_claims(load_leases().get("leases") or [])
+        if claim.get("worker_id")
+        for session in {str(claim.get("session_id") or ""), str(claim.get("worker_id") or "")}
+    }
+    worker_sessions.discard("")
+    return worker_sessions
+
+
+def _require_session_identity(session_id: str, action: str) -> None:
+    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    if not env_session:
+        raise RuntimeError(f"{action} requires OPENCODE_SESSION_ID")
+    if env_session != session_id:
+        raise RuntimeError(f"{action} session mismatch: {env_session} != {session_id}")
+    if env_session in _active_worker_identity_sessions() or session_id in _active_worker_identity_sessions():
+        raise RuntimeError(f"Active debug workers cannot perform {action}")
+
+
+def _require_campaign_coordinator_for_campaign(campaign_key: str, coordinator_session: str, action: str) -> None:
+    campaign = _debug_campaign(campaign_key)
+    _require_session_identity(coordinator_session, action)
+    if coordinator_session != campaign.get("session_id"):
+        raise RuntimeError(
+            f"Only the campaign coordinator can perform {action}; "
+            f"expected {campaign.get('session_id') or '<unknown>'}"
+        )
+
+
+def _require_campaign_coordinator(campaign_key: str, lease: dict[str, Any], coordinator_session: str) -> None:
+    _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign coordinator approval")
+
+
+def submit_worker_fix_intent(
+    group_key: str,
+    lease_id: str,
+    worker_id: str,
+    base_commit: str,
+    hypothesis: str,
+    write_files: list[str],
+    verification_command: str = "",
+    boundary_expansion: bool = False,
+) -> dict[str, Any]:
+    group = _debug_group(group_key)
+    lease = _require_active_debug_lease(group_key, lease_id, worker_id=worker_id, require_session_owner=True)
+    sanitized_files = _sanitized_path_list(write_files)
+    if not sanitized_files:
+        raise RuntimeError("Worker fix intent requires at least one planned write file")
+    if not hypothesis.strip():
+        raise RuntimeError("Worker fix intent requires a root-cause hypothesis")
+    boundary = _write_boundary_for_group(group, lease)
+    outside = [path for path in sanitized_files if path not in boundary]
+    if outside and not boundary_expansion:
+        raise RuntimeError("Worker fix intent includes files outside the approved boundary: " + ", ".join(outside))
+    metadata = dict(group.get("metadata") or {})
+    intent = {
+        "status": "pending",
+        "lease_id": lease_id,
+        "worker_id": worker_id or lease.get("worker_id") or "",
+        "session_id": lease.get("session_id") or "",
+        "base_commit": sanitize_debug_text(base_commit),
+        "hypothesis": sanitize_debug_text(hypothesis),
+        "write_files": sanitized_files,
+        "outside_boundary_files": outside,
+        "boundary_expansion_requested": bool(outside or boundary_expansion),
+        "verification_command": sanitize_debug_text(verification_command or group.get("verification_command") or ""),
+        "submitted_at": utc_now(),
+    }
+    metadata["worker_intent"] = intent
+    root_cause = dict(group.get("root_cause") or {})
+    root_cause.update({
+        "status": "hypothesis",
+        "summary": intent["hypothesis"],
+        "suspect_files": sanitized_files,
+    })
+    return get_store().update_debug_group(group_key, {
+        "status": "investigating",
+        "metadata": metadata,
+        "root_cause": root_cause,
+        "updated_at": utc_now(),
+    })
+
+
+def approve_worker_fix_intent(
+    group_key: str,
+    lease_id: str,
+    coordinator_session: str,
+    current_commit: str = "",
+) -> dict[str, Any]:
+    def _approve() -> dict[str, Any]:
+        group = _debug_group(group_key)
+        lease = _require_active_debug_lease(group_key, lease_id)
+        _require_campaign_coordinator(str(group["campaign_key"]), lease, coordinator_session)
+        metadata = dict(group.get("metadata") or {})
+        intent = dict(metadata.get("worker_intent") or {})
+        if intent.get("lease_id") != lease_id:
+            raise RuntimeError(f"No worker fix intent is pending for lease {lease_id}")
+        subject_commit = _current_checkout_commit(current_commit)
+        base_commit = str(intent.get("base_commit") or "")
+        if base_commit and subject_commit and not _matches_commit_prefix(subject_commit, base_commit):
+            intent.update({"status": "rejected", "rejected_at": utc_now(), "rejection_reason": "stale base commit"})
+            metadata["worker_intent"] = intent
+            get_store().update_debug_group(group_key, {"metadata": metadata, "updated_at": utc_now()})
+            raise RuntimeError(f"Worker fix intent is stale: base {base_commit}, current {subject_commit}")
+        write_files = set(intent.get("write_files") or [])
+        for other_group_key, other_files in _active_approved_worker_write_sets(excluding_group_key=group_key).items():
+            overlap = sorted(write_files.intersection(other_files))
+            if overlap:
+                intent.update({"status": "rejected", "rejected_at": utc_now(), "rejection_reason": f"write set overlaps {other_group_key}: {', '.join(overlap)}"})
+                metadata["worker_intent"] = intent
+                get_store().update_debug_group(group_key, {"metadata": metadata, "updated_at": utc_now()})
+                raise RuntimeError("Worker fix intent write set overlap: " + ", ".join(overlap))
+        outside = list(intent.get("outside_boundary_files") or [])
+        boundary_request = metadata.get("boundary_request") or {}
+        approved_boundary_files = set(boundary_request.get("requested_files") or [])
+        unapproved_outside = [path for path in outside if path not in approved_boundary_files]
+        if outside and (boundary_request.get("status") != "approved" or unapproved_outside):
+            intent.update({"status": "rejected", "rejected_at": utc_now(), "rejection_reason": "outside approved boundary"})
+            metadata["worker_intent"] = intent
+            get_store().update_debug_group(group_key, {"metadata": metadata, "updated_at": utc_now()})
+            raise RuntimeError("Worker fix intent includes files outside the approved boundary: " + ", ".join(unapproved_outside or outside))
+        intent.update({
+            "status": "approved",
+            "approved_by": sanitize_debug_text(coordinator_session),
+            "approved_at": utc_now(),
+            "approved_write_files": list(intent.get("write_files") or []),
+        })
+        metadata["worker_intent"] = intent
+        return get_store().update_debug_group(group_key, {"metadata": metadata, "updated_at": utc_now()})
+
+    return with_lease_lock(_approve)
+
+
+def request_debug_group_boundary(
+    group_key: str,
+    lease_id: str,
+    worker_id: str,
+    requested_files: list[str],
+    reason: str,
+    hypothesis: str = "",
+) -> dict[str, Any]:
+    group = _debug_group(group_key)
+    _require_active_debug_lease(group_key, lease_id, worker_id=worker_id, require_session_owner=True)
+    files = _sanitized_path_list(requested_files)
+    if not files:
+        raise RuntimeError("Boundary expansion requires at least one requested file")
+    metadata = dict(group.get("metadata") or {})
+    metadata["boundary_request"] = {
+        "status": "pending",
+        "lease_id": lease_id,
+        "worker_id": worker_id,
+        "requested_files": files,
+        "reason": sanitize_debug_text(reason),
+        "hypothesis": sanitize_debug_text(hypothesis),
+        "requested_at": utc_now(),
+    }
+    root_cause = dict(group.get("root_cause") or {})
+    if hypothesis.strip():
+        root_cause.update({"status": "hypothesis", "summary": sanitize_debug_text(hypothesis), "suspect_files": files})
+    return get_store().update_debug_group(group_key, {
+        "status": "boundary_requested",
+        "metadata": metadata,
+        "root_cause": root_cause,
+        "updated_at": utc_now(),
+    })
+
+
+def approve_debug_group_boundary(
+    group_key: str,
+    lease_id: str,
+    coordinator_session: str,
+) -> dict[str, Any]:
+    def _approve() -> dict[str, Any]:
+        group = _debug_group(group_key)
+        lease = _require_active_debug_lease(group_key, lease_id)
+        _require_campaign_coordinator(str(group["campaign_key"]), lease, coordinator_session)
+        metadata = dict(group.get("metadata") or {})
+        boundary_request = dict(metadata.get("boundary_request") or {})
+        if boundary_request.get("lease_id") != lease_id or boundary_request.get("status") != "pending":
+            raise RuntimeError(f"No pending boundary request exists for lease {lease_id}")
+        boundary_request.update({
+            "status": "approved",
+            "approved_by": sanitize_debug_text(coordinator_session),
+            "approved_at": utc_now(),
+        })
+        linked_files = _sanitized_path_list(list((metadata.get("linked_files") or [])) + list(boundary_request.get("requested_files") or []))
+        metadata["boundary_request"] = boundary_request
+        metadata["linked_files"] = linked_files
+        entry = dict(lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json") or {})
+        entry["linked_files"] = linked_files
+        get_store().update_claim(lease_id, "active", {"entry": entry, "entry_json": entry})
+        return get_store().update_debug_group(group_key, {"metadata": metadata, "updated_at": utc_now()})
+
+    return with_lease_lock(_approve)
+
+
+def _worker_harvest_metadata(group: dict[str, Any], lease: dict[str, Any], changed_files: list[str], base_commit: str) -> dict[str, Any]:
+    entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json") or {}
+    launch = dict(entry.get("launch") or {}) if isinstance(entry, dict) else {}
+    worker_session_id = sanitize_debug_text(str(lease.get("session_id") or ""))
+    worker_chat = sanitize_debug_text(str(lease.get("worker_id") or ""))
+    status_command = _shell_command([
+        "python3",
+        "scripts/tests.py",
+        "campaign",
+        "status",
+        "--campaign",
+        str(group.get("campaign_key") or ""),
+        "--json",
+    ])
+    harvest = {
+        "kind": "sessions_worktree_checkpoint",
+        "worker_session_id": worker_session_id,
+        "worker_chat": worker_chat,
+        "web_chat": sanitize_debug_text(str(launch.get("web_chat") or "")),
+        "changed_files": changed_files,
+        "base_commit": sanitize_debug_text(base_commit),
+        "status_command": status_command,
+    }
+    if worker_session_id:
+        harvest["inspect_command"] = _shell_command(["python3", "scripts/sessions.py", "chat", "read", worker_session_id])
+        harvest["checkpoint_command"] = _shell_command([
+            "python3",
+            "scripts/sessions.py",
+            "worktree",
+            "checkpoint",
+            "--opencode-session",
+            worker_session_id,
+            "--event",
+            "idle",
+        ])
+        harvest["patch_diff_command_template"] = _shell_command([
+            "git",
+            "diff",
+            "--binary",
+            sanitize_debug_text(base_commit) or "<base-commit>",
+            "<checkpoint-commit>",
+            "--",
+            *changed_files,
+        ])
+    return harvest
+
+
+def _known_worker_modified_files(worker_session_id: str) -> list[str]:
+    if not worker_session_id:
+        return []
+    data = session_control._load_sessions()
+    sessions = data.get("sessions") or {}
+    session = sessions.get(worker_session_id)
+    if not isinstance(session, dict):
+        matched = session_control.session_for_opencode(data, worker_session_id)
+        session = matched[1] if matched else None
+    if not isinstance(session, dict):
+        return []
+    return _sanitized_path_list([str(path) for path in session.get("modified_files") or []])
+
+
+def finish_debug_worker(
+    group_key: str,
+    lease_id: str,
+    worker_id: str,
+    base_commit: str,
+    changed_files: list[str],
+    summary: str,
+    verification_command: str = "",
+    current_commit: str = "",
+) -> dict[str, Any]:
+    group = _debug_group(group_key)
+    lease = _require_active_debug_lease(group_key, lease_id, worker_id=worker_id, require_session_owner=True)
+    metadata = dict(group.get("metadata") or {})
+    intent = dict(metadata.get("worker_intent") or {})
+    if intent.get("status") != "approved" or intent.get("lease_id") != lease_id:
+        raise RuntimeError("Worker cannot finish before its current fix intent is approved")
+    subject_commit = _current_checkout_commit(current_commit)
+    intent_base = str(intent.get("base_commit") or "")
+    if intent_base and base_commit and not _matches_commit_prefix(intent_base, base_commit):
+        raise RuntimeError(f"Worker finish base commit does not match approved intent: {base_commit} != {intent_base}")
+    if intent_base and subject_commit and not _matches_commit_prefix(subject_commit, intent_base):
+        raise RuntimeError(f"Worker finish is stale: base {intent_base}, current {subject_commit}")
+    files = _sanitized_path_list(changed_files)
+    approved_files = set(intent.get("approved_write_files") or intent.get("write_files") or [])
+    outside = [path for path in files if path not in approved_files]
+    if outside:
+        raise RuntimeError("Worker finish changed files outside approved write set: " + ", ".join(outside))
+    known_modified_files = _known_worker_modified_files(str(lease.get("session_id") or ""))
+    omitted = sorted(set(known_modified_files).difference(files))
+    if omitted:
+        raise RuntimeError("Worker finish changed files omit session modified files: " + ", ".join(omitted))
+    canonical_base_commit = intent_base or base_commit
+    canonical_worker_id = str(lease.get("worker_id") or worker_id)
+    harvest = _worker_harvest_metadata(group, lease, files, canonical_base_commit)
+    metadata["worker_finish"] = {
+        "status": "ready_for_harvest",
+        "lease_id": lease_id,
+        "worker_id": sanitize_debug_text(canonical_worker_id),
+        "base_commit": sanitize_debug_text(canonical_base_commit),
+        "changed_files": files,
+        "harvest": harvest,
+        "summary": sanitize_debug_text(summary),
+        "verification_command": sanitize_debug_text(verification_command or intent.get("verification_command") or group.get("verification_command") or ""),
+        "finished_at": utc_now(),
+    }
+    return get_store().update_debug_group(group_key, {
+        "status": "worker_finished",
+        "metadata": metadata,
+        "updated_at": utc_now(),
+    })
+
+
+def _active_worker_claims_for_session(session_id: str) -> list[dict[str, Any]]:
+    if not session_id:
+        return []
+    claims = []
+    for claim in _active_debug_claims(load_leases().get("leases") or []):
+        if not claim.get("worker_id"):
+            continue
+        claim_session = str(claim.get("session_id") or "")
+        worker_id = str(claim.get("worker_id") or "")
+        if session_id == claim_session:
+            claims.append(claim)
+            continue
+        if claim_session == worker_id and resolve_opencode_session_id_for_name(worker_id) == session_id:
+            claims.append(claim)
+    return claims
+
+
+def worker_session_state(session_id: str) -> dict[str, Any]:
+    claims = _active_worker_claims_for_session(session_id)
+    return {
+        "active_worker": bool(claims),
+        "session_id": session_id,
+        "claims": [{
+            "lease_id": claim.get("lease_id") or claim.get("claim_key"),
+            "campaign_key": claim.get("campaign_key"),
+            "group_key": claim.get("debug_group_key"),
+            "worker_id": claim.get("worker_id"),
+        } for claim in claims],
+    }
+
+
+def worker_edit_gate(session_id: str, files: list[str]) -> dict[str, Any]:
+    sanitized_files = _sanitized_path_list(files)
+    claims = _active_worker_claims_for_session(session_id)
+    if not claims or not sanitized_files:
+        return {"ok": True, "enforced": False, "session_id": session_id, "files": sanitized_files}
+    approved_files: set[str] = set()
+    groups = []
+    for claim in claims:
+        group = _debug_group(str(claim.get("debug_group_key") or ""))
+        intent = (group.get("metadata") or {}).get("worker_intent") or {}
+        if intent.get("status") != "approved":
+            raise RuntimeError(
+                "Worker edit blocked; no approved worker fix intent exists for "
+                f"group {group.get('group_key')}. Submit campaign intent and wait for approve-intent."
+            )
+        approved_files.update(intent.get("approved_write_files") or intent.get("write_files") or [])
+        groups.append(str(group.get("group_key") or ""))
+    outside = [path for path in sanitized_files if path not in approved_files]
+    if outside:
+        raise RuntimeError("Worker edit blocked; files outside approved worker write set: " + ", ".join(outside))
+    return {
+        "ok": True,
+        "enforced": True,
+        "session_id": session_id,
+        "groups": groups,
+        "files": sanitized_files,
+        "approved_write_files": sorted(approved_files),
+    }
 
 
 def debug_group_test_keys(campaign_key: str, group_key: str) -> list[str]:
@@ -2293,6 +2780,7 @@ def _passing_evidence_for_group(group: dict[str, Any]) -> tuple[list[dict[str, A
 
 def complete_debug_group(group_key: str, commit: str = "") -> dict[str, Any]:
     group = _debug_group(group_key)
+    _require_campaign_coordinator_for_campaign(str(group["campaign_key"]), os.environ.get("OPENCODE_SESSION_ID", ""), "campaign complete")
     evidence, missing = _passing_evidence_for_group(group)
     if missing:
         raise RuntimeError("Cannot complete debug group; missing green evidence for: " + ", ".join(missing))
@@ -2391,17 +2879,28 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
         counts[group_status] = counts.get(group_status, 0) + 1
     now = datetime.now(timezone.utc)
     workers = []
+    groups_by_key = {str(group.get("group_key") or ""): group for group in groups}
     for claim in load_leases().get("leases") or []:
         if claim.get("campaign_key") != campaign_key or claim.get("status") != "active":
             continue
         expires_at = parse_utc(str(claim.get("expires_at") or ""))
         if expires_at is not None and expires_at <= now:
             continue
+        group = groups_by_key.get(str(claim.get("debug_group_key") or ""), {})
+        metadata = group.get("metadata") or {}
+        intent = metadata.get("worker_intent") or {}
+        finish = metadata.get("worker_finish") or {}
+        harvest = finish.get("harvest") or {}
         workers.append({
             "lease_id": claim.get("lease_id") or claim.get("claim_key"),
             "group_key": claim.get("debug_group_key"),
             "session_id": claim.get("session_id"),
             "worker_id": claim.get("worker_id"),
+            "intent_status": intent.get("status"),
+            "approved_write_files": intent.get("approved_write_files") or [],
+            "finish_status": finish.get("status"),
+            "changed_files": finish.get("changed_files") or [],
+            "harvest_command": harvest.get("checkpoint_command") or "",
             "leased_at": claim.get("leased_at"),
             "expires_at": claim.get("expires_at"),
         })
@@ -2534,10 +3033,56 @@ def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[s
     return None
 
 
+def resolve_opencode_session_id_for_name(session_name: str) -> str:
+    try:
+        from _zellij_utils import find_opencode_session_id
+    except ImportError:
+        scripts_dir = str(PROJECT_ROOT / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from _zellij_utils import find_opencode_session_id
+    try:
+        return find_opencode_session_id(session_name, str(PROJECT_ROOT), attempts=2) or ""
+    except Exception:
+        return ""
+
+
+def _bind_pending_worker_lease_session(lease: dict[str, Any], session_id: str) -> dict[str, Any]:
+    lease_id = str(lease.get("lease_id") or lease.get("claim_key") or "")
+    worker_id = str(lease.get("worker_id") or "")
+    lease_session = str(lease.get("session_id") or "")
+    session_id = str(session_id or "")
+    if not lease_id or not lease.get("debug_group_key") or not worker_id:
+        return lease
+    if not session_id or session_id == "manual" or session_id == worker_id:
+        return lease
+    if lease_session and lease_session != worker_id:
+        return lease
+    resolved_session_id = resolve_opencode_session_id_for_name(worker_id)
+    if not resolved_session_id:
+        raise RuntimeError(f"Pending worker lease {lease_id} cannot be bound until OpenCode session {worker_id} resolves; retry lease-required")
+    if resolved_session_id != session_id:
+        raise RuntimeError(f"OpenCode session {session_id} does not match spawned worker chat {worker_id}")
+    entry = _claim_entry_with_launch(
+        lease,
+        status="confirmed_by_worker",
+        bound_session_at=utc_now(),
+    )
+    return update_lease(
+        lease_id,
+        "active",
+        session_id=session_id,
+        entry=entry,
+        entry_json=entry,
+    )
+
+
 def require_active_lease(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
     """Require a failed-test lease only when there are current triage entries."""
     active_lease = active_lease_for_session(session_id=session_id, lease_id=lease_id)
     if active_lease:
+        if lease_id:
+            active_lease = _bind_pending_worker_lease_session(active_lease, session_id)
         return active_lease
     triage = build_triage(limit=1)
     if not triage.get("entries"):
@@ -2588,6 +3133,14 @@ def _claim_linked_files(
         return linked_files
     triage = (triage_by_id or {}).get(str(claim.get("group_id") or ""), {})
     return set(triage.get("linked_files") or [])
+
+
+def _claim_entry_with_launch(lease: dict[str, Any], **fields: Any) -> dict[str, Any]:
+    entry = dict(lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json") or {})
+    launch = dict(entry.get("launch") or {})
+    launch.update(fields)
+    entry["launch"] = launch
+    return entry
 
 
 def _create_debug_group_claim(
@@ -2694,6 +3247,8 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
 
 
 def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "") -> dict[str, Any] | None:
+    coordinator_session = os.environ.get("OPENCODE_SESSION_ID", "") if worker_id else session_id
+    _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign next")
     if worker_id:
         status = debug_campaign_status(campaign_key)
         claims = load_leases().get("leases") or []
@@ -2717,7 +3272,7 @@ def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = 
         return claim_debug_group(
             campaign_key,
             str(group["group_key"]),
-            session_id,
+            worker_id,
             worker_id=worker_id,
             linked_files=list(group.get("parallel_linked_files") or []),
         )
@@ -2745,7 +3300,13 @@ def _parallel_debug_chat_name(prefix: str, group: dict[str, Any], index: int) ->
 
 def _parallel_debug_prompt(campaign_key: str, group: dict[str, Any], lease: dict[str, Any], chat_name: str) -> str:
     member_lines = "\n".join(f"- `{key}`" for key in group.get("member_test_keys") or [])
-    file_lines = "\n".join(f"- `{path}`" for path in group.get("parallel_linked_files") or [])
+    linked_files = list(group.get("parallel_linked_files") or [])
+    file_lines = "\n".join(f"- `{path}`" for path in linked_files)
+    try:
+        base_commit = current_git_sha()
+    except RuntimeError:
+        base_commit = "current-commit"
+    example_write_file = str(linked_files[0] if linked_files else "path/from-boundary")
     return f"""Debug one leased OpenMates failed-test root-cause group in an isolated worktree.
 
 Before edits or Bash-heavy investigation, run:
@@ -2765,12 +3326,12 @@ Deterministic file boundary:
 
 Required workflow:
 1. Confirm the lease with `python3 scripts/tests.py lease-required --lease-id {lease.get('lease_id')}`.
-2. Read every member test and its failure evidence. Persist expected behavior before edits with `campaign prepare`.
-3. Investigate the root cause and apply the smallest correct fix only inside the listed file boundary.
-4. If a fix requires any unlisted shared file, auth, encryption, billing, sync, API, schema, migration, privacy, or product behavior change, do not edit it. Record a blocked campaign attempt explaining the required boundary expansion.
-5. Record every approach with `campaign attempt`, including changed files.
-6. Do not deploy, commit, release the lease, or run Playwright/Vitest locally. The coordinator will integrate and verify parallel work after review.
-7. Leave a concise final message with the root cause, current status, changed files, and exact recommended verification command.
+2. Read every member test and its failure evidence. Persist expected behavior before edits with `python3 scripts/tests.py campaign prepare --group {group.get('group_key')} --expected-behavior "..." --criterion "..."`.
+3. Investigate the root cause without editing source files, then submit a fix intent with `python3 scripts/tests.py campaign intent --group {group.get('group_key')} --lease {lease.get('lease_id')} --worker {chat_name} --base-commit {base_commit} --hypothesis "..." --write-file {example_write_file}`.
+4. Wait for coordinator approval before mutating files. If a fix requires any unlisted shared file, auth, encryption, billing, sync, API, schema, migration, privacy, or product behavior change, do not edit it. Record `python3 scripts/tests.py campaign boundary --group {group.get('group_key')} --lease {lease.get('lease_id')} --worker {chat_name} --requested-file path/from-expanded-boundary --reason "..."` or a blocked campaign attempt explaining the required expansion.
+5. After approval, apply the smallest correct fix only inside the approved write set and record every approach with `python3 scripts/tests.py campaign attempt --group {group.get('group_key')} --approach "..." --outcome failed --summary "..." --changed-file {example_write_file}`.
+6. Do not deploy, commit, release the lease, complete the group, or run Playwright/Vitest locally. The coordinator will integrate and verify parallel work after review.
+7. Finish with `python3 scripts/tests.py campaign finish-worker --group {group.get('group_key')} --lease {lease.get('lease_id')} --worker {chat_name} --base-commit {base_commit} --changed-file {example_write_file} --summary "..." --verification-command "{group.get('verification_command')}"` and leave a concise final message with the root cause, current status, changed files, and exact recommended verification command.
 """
 
 
@@ -2794,7 +3355,9 @@ def dispatch_parallel_debug_chats(
     coordinator_session: str,
     max_workers: int = 3,
     name_prefix: str = "test-debug",
+    dry_run: bool = False,
 ) -> dict[str, Any]:
+    _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign dispatch")
     status = debug_campaign_status(campaign_key)
     if status["campaign"].get("status") == "blocked":
         raise RuntimeError("Campaign is blocked; resolve its required user input before parallel dispatch")
@@ -2822,6 +3385,21 @@ def dispatch_parallel_debug_chats(
         triage_groups=triage_by_id,
         active_linked_files=active_linked_files,
     )
+    if dry_run:
+        return {
+            "campaign_key": campaign_key,
+            "coordinator_session": coordinator_session,
+            "dry_run": True,
+            "available_slots": min(max_workers, chat_slots),
+            "selected": [{
+                "group_key": group.get("group_key"),
+                "member_test_keys": group.get("member_test_keys") or [],
+                "linked_files": group.get("parallel_linked_files") or [],
+                "category": group.get("parallel_category"),
+            } for group in selection["selected"]],
+            "spawned": [],
+            "skipped": selection["skipped"],
+        }
     spawned = []
     for index, group in enumerate(selection["selected"], start=1):
         chat_name = _parallel_debug_chat_name(name_prefix, group, index)
@@ -2846,6 +3424,7 @@ def dispatch_parallel_debug_chats(
             chat_name,
             "--mode",
             "execute",
+            "--no-deploy-instructions",
         ]
         try:
             result = subprocess.run(
@@ -2856,24 +3435,40 @@ def dispatch_parallel_debug_chats(
                 timeout=120,
             )
         except subprocess.TimeoutExpired:
-            update_lease(str(lease["lease_id"]), "active", launch_status="unknown", launch_error="spawn timed out")
+            entry = _claim_entry_with_launch(lease, status="unknown", error="spawn timed out")
+            lease = update_lease(str(lease["lease_id"]), "active", entry=entry, entry_json=entry)
             selection["skipped"][str(group["group_key"])] = "chat launch timed out; lease retained pending observation"
             continue
         except OSError as exc:
+            entry = _claim_entry_with_launch(lease, status="failed", error=str(exc)[:500])
+            update_lease(str(lease["lease_id"]), "active", entry=entry, entry_json=entry)
             release_lease(str(lease["lease_id"]), reason=f"OpenCode chat launch failed: {exc}")
             selection["skipped"][str(group["group_key"])] = str(exc)[:500]
             continue
         if result.returncode != 0:
+            entry = _claim_entry_with_launch(lease, status="unknown", error=(result.stderr or result.stdout).strip()[:500])
             update_lease(
                 str(lease["lease_id"]),
                 "active",
-                launch_status="unknown",
-                launch_error=(result.stderr or result.stdout).strip()[:500],
+                entry=entry,
+                entry_json=entry,
             )
             selection["skipped"][str(group["group_key"])] = "chat launch was not confirmed; lease retained pending observation"
             continue
         spawn_details = _parse_spawn_chat_output(result.stdout)
         opencode_session_id = spawn_details.get("opencode_session_id")
+        if opencode_session_id:
+            entry = _claim_entry_with_launch(lease, status="spawned", web_chat=spawn_details.get("web_chat"))
+            update_lease(
+                str(lease["lease_id"]),
+                "active",
+                session_id=opencode_session_id,
+                entry=entry,
+                entry_json=entry,
+            )
+        else:
+            entry = _claim_entry_with_launch(lease, status="pending", web_chat=spawn_details.get("web_chat"))
+            update_lease(str(lease["lease_id"]), "active", entry=entry, entry_json=entry)
         spawned.append({
             "chat_name": chat_name,
             "opencode_session_id": opencode_session_id,
@@ -2888,6 +3483,13 @@ def dispatch_parallel_debug_chats(
     return {
         "campaign_key": campaign_key,
         "coordinator_session": coordinator_session,
+        "dry_run": False,
+        "selected": [{
+            "group_key": group.get("group_key"),
+            "member_test_keys": group.get("member_test_keys") or [],
+            "linked_files": group.get("parallel_linked_files") or [],
+            "category": group.get("parallel_category"),
+        } for group in selection["selected"]],
         "spawned": spawned,
         "skipped": selection["skipped"],
     }
@@ -2919,11 +3521,27 @@ def _blocking_triage_entry_for_lease(lease: dict[str, Any]) -> dict[str, Any] | 
     return None
 
 
+def _require_debug_lease_release_identity(lease: dict[str, Any], action: str) -> None:
+    if not lease.get("debug_group_key") or not lease.get("worker_id"):
+        return
+    env_session = os.environ.get("OPENCODE_SESSION_ID", "")
+    if not env_session:
+        raise RuntimeError(f"{action} requires OPENCODE_SESSION_ID")
+    if env_session == str(lease.get("session_id") or ""):
+        return
+    campaign_key = str(lease.get("campaign_key") or "")
+    if campaign_key:
+        _require_campaign_coordinator_for_campaign(campaign_key, env_session, action)
+        return
+    raise RuntimeError(f"OpenCode session {env_session} does not own debug lease {lease.get('lease_id') or lease.get('claim_key')}")
+
+
 def complete_lease(lease_id: str, commit: str = "", require_passing: bool = False) -> dict[str, Any]:
+    lease = _lease_for_id(lease_id)
+    if not lease:
+        raise RuntimeError(f"Unknown lease id: {lease_id}")
+    _require_debug_lease_release_identity(lease, "lease complete")
     if require_passing:
-        lease = _lease_for_id(lease_id)
-        if not lease:
-            raise RuntimeError(f"Unknown lease id: {lease_id}")
         blocking_entry = _blocking_triage_entry_for_lease(lease)
         if blocking_entry:
             raise RuntimeError(
@@ -2934,6 +3552,10 @@ def complete_lease(lease_id: str, commit: str = "", require_passing: bool = Fals
 
 
 def release_lease(lease_id: str, reason: str = "") -> dict[str, Any]:
+    lease = _lease_for_id(lease_id)
+    if not lease:
+        raise RuntimeError(f"Unknown lease id: {lease_id}")
+    _require_debug_lease_release_identity(lease, "lease release")
     return update_lease(lease_id, "released", released_at=utc_now(), release_reason=reason)
 
 
@@ -3249,6 +3871,12 @@ def command_run(runner_args: list[str]) -> int:
         return 2
     if options.campaign_key:
         try:
+            campaign = _debug_campaign(options.campaign_key)
+            _require_campaign_coordinator_for_campaign(
+                options.campaign_key,
+                str(campaign.get("session_id") or ""),
+                "campaign verification",
+            )
             selected_test_keys = debug_group_test_keys(options.campaign_key, options.debug_group_key)
             forwarded_args, selected_test_labels = campaign_runner_args(selected_test_keys, options.forwarded_args)
             options = ControlRunOptions(
@@ -3422,6 +4050,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_dispatch.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
     campaign_dispatch.add_argument("--max-workers", type=int, default=3)
     campaign_dispatch.add_argument("--name-prefix", default="test-debug")
+    campaign_dispatch.add_argument("--dry-run", action="store_true")
     campaign_dispatch.add_argument("--json", action="store_true")
     campaign_prepare = campaign_sub.add_parser("prepare", help="Record expected behavior and acceptance criteria")
     campaign_prepare.add_argument("--group", required=True)
@@ -3442,6 +4071,45 @@ def main(argv: list[str] | None = None) -> int:
     campaign_complete = campaign_sub.add_parser("complete-group", help="Complete a group after all members pass")
     campaign_complete.add_argument("--group", required=True)
     campaign_complete.add_argument("--commit", default="")
+    campaign_intent = campaign_sub.add_parser("intent", help="Record a worker fix intent before source edits")
+    campaign_intent.add_argument("--group", required=True)
+    campaign_intent.add_argument("--lease", required=True)
+    campaign_intent.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_intent.add_argument("--base-commit", required=True)
+    campaign_intent.add_argument("--hypothesis", required=True)
+    campaign_intent.add_argument("--write-file", action="append", required=True)
+    campaign_intent.add_argument("--verification-command", default="")
+    campaign_intent.add_argument("--boundary-expansion", action="store_true")
+    campaign_approve_intent = campaign_sub.add_parser("approve-intent", help="Approve a current worker fix intent")
+    campaign_approve_intent.add_argument("--group", required=True)
+    campaign_approve_intent.add_argument("--lease", required=True)
+    campaign_approve_intent.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_approve_intent.add_argument("--current-commit", default="")
+    campaign_boundary = campaign_sub.add_parser("boundary", help="Record a worker boundary expansion request")
+    campaign_boundary.add_argument("--group", required=True)
+    campaign_boundary.add_argument("--lease", required=True)
+    campaign_boundary.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_boundary.add_argument("--requested-file", action="append", required=True)
+    campaign_boundary.add_argument("--reason", required=True)
+    campaign_boundary.add_argument("--hypothesis", default="")
+    campaign_approve_boundary = campaign_sub.add_parser("approve-boundary", help="Approve a pending worker boundary expansion request")
+    campaign_approve_boundary.add_argument("--group", required=True)
+    campaign_approve_boundary.add_argument("--lease", required=True)
+    campaign_approve_boundary.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_finish = campaign_sub.add_parser("finish-worker", help="Record a harvestable worker finish checkpoint")
+    campaign_finish.add_argument("--group", required=True)
+    campaign_finish.add_argument("--lease", required=True)
+    campaign_finish.add_argument("--worker", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_finish.add_argument("--base-commit", required=True)
+    campaign_finish.add_argument("--changed-file", action="append", required=True)
+    campaign_finish.add_argument("--summary", required=True)
+    campaign_finish.add_argument("--verification-command", default="")
+    campaign_finish.add_argument("--current-commit", default="")
+    campaign_edit_gate = campaign_sub.add_parser("edit-gate", help="Validate that a worker edit is inside an approved write set")
+    campaign_edit_gate.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_edit_gate.add_argument("--file", action="append", required=True)
+    campaign_worker_state = campaign_sub.add_parser("worker-state", help="Return whether a session owns an active debug worker lease")
+    campaign_worker_state.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
 
     run_parser = sub.add_parser("run", help="Run tests through the unified control plane and record state")
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)
@@ -3537,14 +4205,16 @@ def main(argv: list[str] | None = None) -> int:
             elif args.campaign_command == "dispatch":
                 campaign_key = args.campaign
                 if not campaign_key:
+                    _require_session_identity(args.session, "campaign dispatch")
                     campaign_key = str(start_debug_campaign(args.session)["campaign_key"])
                 payload = dispatch_parallel_debug_chats(
                     campaign_key,
                     coordinator_session=args.session,
                     max_workers=max(1, args.max_workers),
                     name_prefix=args.name_prefix,
+                    dry_run=args.dry_run,
                 )
-                if not payload["spawned"]:
+                if not args.dry_run and not payload["spawned"]:
                     raise RuntimeError("No conflict-safe campaign groups were available for parallel dispatch")
             elif args.campaign_command == "prepare":
                 payload = prepare_debug_group(args.group, args.expected_behavior, args.criterion)
@@ -3559,8 +4229,58 @@ def main(argv: list[str] | None = None) -> int:
                 )
             elif args.campaign_command == "block":
                 payload = block_debug_group(args.group, args.reason, args.question, args.next_action)
-            else:
+            elif args.campaign_command == "complete-group":
                 payload = complete_debug_group(args.group, commit=args.commit)
+            elif args.campaign_command == "intent":
+                payload = submit_worker_fix_intent(
+                    args.group,
+                    args.lease,
+                    worker_id=args.worker,
+                    base_commit=args.base_commit,
+                    hypothesis=args.hypothesis,
+                    write_files=args.write_file,
+                    verification_command=args.verification_command,
+                    boundary_expansion=args.boundary_expansion,
+                )
+            elif args.campaign_command == "approve-intent":
+                payload = approve_worker_fix_intent(
+                    args.group,
+                    args.lease,
+                    coordinator_session=args.session,
+                    current_commit=args.current_commit,
+                )
+            elif args.campaign_command == "boundary":
+                payload = request_debug_group_boundary(
+                    args.group,
+                    args.lease,
+                    worker_id=args.worker,
+                    requested_files=args.requested_file,
+                    reason=args.reason,
+                    hypothesis=args.hypothesis,
+                )
+            elif args.campaign_command == "approve-boundary":
+                payload = approve_debug_group_boundary(
+                    args.group,
+                    args.lease,
+                    coordinator_session=args.session,
+                )
+            elif args.campaign_command == "finish-worker":
+                payload = finish_debug_worker(
+                    args.group,
+                    args.lease,
+                    worker_id=args.worker,
+                    base_commit=args.base_commit,
+                    changed_files=args.changed_file,
+                    summary=args.summary,
+                    verification_command=args.verification_command,
+                    current_commit=args.current_commit,
+                )
+            elif args.campaign_command == "edit-gate":
+                payload = worker_edit_gate(args.session, args.file)
+            elif args.campaign_command == "worker-state":
+                payload = worker_session_state(args.session)
+            else:
+                raise RuntimeError(f"Unknown campaign command: {args.campaign_command}")
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 1
