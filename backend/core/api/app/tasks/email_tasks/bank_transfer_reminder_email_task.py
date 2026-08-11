@@ -110,8 +110,10 @@ async def _async_send_bank_transfer_reminder(
         # Decrypt user email using the client-provided key (same pattern as purchase_confirmation_email_task)
         user_cache = await cache_service.get_user_by_id(user_id)
         if not user_cache:
-            logger.error("bank_transfer_reminder: user not found in cache for order %s", order_id)
-            return False
+            success, user_cache, message = await directus_service.get_user_profile(user_id)
+            if not success or not user_cache:
+                logger.error("bank_transfer_reminder: user lookup failed for order %s: %s", order_id, message)
+                return False
 
         encrypted_email = user_cache.get("encrypted_email_address")
         language = user_cache.get("language", "en")

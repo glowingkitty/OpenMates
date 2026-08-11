@@ -124,6 +124,8 @@ BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK = (
     "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task."
     "send_bank_transfer_duplicate_reference"
 )
+BANK_TRANSFER_PROCESSING_ALERT_KEY_PREFIX = "bank_transfer:processing_alert"
+BANK_TRANSFER_PROCESSING_ALERT_TTL_SECONDS = 24 * 60 * 60
 
 
 def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any]:
@@ -6155,6 +6157,79 @@ def _notify_admin_bank_transfer(subject: str, body: str) -> None:
         logger.error(f"Failed to dispatch bank transfer admin alert: {e}")
 
 
+async def _should_queue_bank_transfer_processing_alert(
+    cache_service: CacheService,
+    *,
+    order_id: str,
+    order_type: str,
+    transaction_id: str,
+) -> bool:
+    dedupe_key = ":".join(
+        [
+            BANK_TRANSFER_PROCESSING_ALERT_KEY_PREFIX,
+            order_id or "unknown_order",
+            order_type or "unknown_type",
+            transaction_id or "unknown_transaction",
+        ]
+    )
+    try:
+        client_property = getattr(cache_service, "client", None)
+        if client_property is None:
+            return True
+        client = await client_property
+        if not client:
+            return True
+        reserved = await client.set(
+            dedupe_key,
+            "1",
+            nx=True,
+            ex=BANK_TRANSFER_PROCESSING_ALERT_TTL_SECONDS,
+        )
+        if not reserved:
+            logger.info("Skipping duplicate bank-transfer processing alert %s", dedupe_key)
+            return False
+        return True
+    except Exception as exc:
+        logger.warning("Bank-transfer processing alert dedupe failed: %s", exc)
+        return True
+
+
+async def _notify_admin_bank_transfer_processing_error(
+    *,
+    cache_service: CacheService,
+    order_id: str,
+    reference: str,
+    order_type: str,
+    transaction_id: str,
+    error: BaseException | str,
+) -> None:
+    should_queue = await _should_queue_bank_transfer_processing_alert(
+        cache_service,
+        order_id=order_id,
+        order_type=order_type,
+        transaction_id=transaction_id,
+    )
+    if not should_queue:
+        return
+
+    error_type = type(error).__name__ if isinstance(error, BaseException) else str(error)
+    _notify_admin_bank_transfer(
+        subject=f"Bank transfer processing error — order {order_id or 'unknown'}",
+        body=(
+            "A confirmed Revolut Business transfer matched an OpenMates bank-transfer "
+            "order, but automatic settlement failed. No credits, gift card, team credits, "
+            "or receipt should be assumed until the order is verified.\n\n"
+            f"Order ID: {order_id or '(unknown)'}\n"
+            f"Order type: {order_type or '(unknown)'}\n"
+            f"Reference: {reference or '(none)'}\n"
+            f"Transaction ID: {transaction_id or '(unknown)'}\n"
+            f"Failure type: {error_type}\n\n"
+            "Action required: inspect the pending_bank_transfers row and user/team/gift-card "
+            "state, fix the underlying worker/API issue, then manually settle or retry safely."
+        ),
+    )
+
+
 async def _handle_revolut_business_webhook(
     event_payload: Dict[str, Any],
     event_type: str,
@@ -6560,6 +6635,14 @@ async def _handle_revolut_business_webhook(
             )
         except Exception as update_err:
             logger.error("Error updating underpaid bank transfer %s: %s", order_id, update_err)
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error=update_err,
+            )
             raise HTTPException(status_code=500, detail="Bank transfer partial payment update failed")
 
         _queue_bank_transfer_amount_notice(
@@ -6622,6 +6705,14 @@ async def _handle_revolut_business_webhook(
 
         except Exception as e:
             logger.error(f"Error completing support bank transfer {order_id}: {e}", exc_info=True)
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error=e,
+            )
             return {"status": "processing_error"}
 
     # ── Gift card purchase path (create card only after transfer arrives) ────
@@ -6629,11 +6720,27 @@ async def _handle_revolut_business_webhook(
         user_cache_data = await cache_service.get_user_by_id(user_id)
         if not user_cache_data:
             logger.error(f"User {user_id} not found in cache for gift-card bank transfer {order_id}")
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error="user_cache_missing",
+            )
             raise HTTPException(status_code=500, detail="User data temporarily unavailable")
 
         vault_key_id = user_cache_data.get("vault_key_id")
         if not vault_key_id:
             logger.error(f"Vault key ID missing from cache for gift-card bank transfer user {user_id}")
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error="vault_key_id_missing",
+            )
             raise HTTPException(status_code=500, detail="User encryption key unavailable")
 
         user_cache_data["payment_in_progress"] = True
@@ -6800,6 +6907,14 @@ async def _handle_revolut_business_webhook(
 
         except Exception as e:
             logger.error(f"Error processing gift-card bank transfer {order_id}: {e}", exc_info=True)
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error=e,
+            )
             return {"status": "processing_error"}
         finally:
             final_cache_data = await cache_service.get_user_by_id(user_id) or {}
@@ -6813,6 +6928,14 @@ async def _handle_revolut_business_webhook(
         team_id = pending_order.get("team_id")
         if not team_id:
             logger.error(f"Team bank transfer {order_id} is missing team_id")
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error="team_id_missing",
+            )
             return {"status": "processing_error"}
 
         completed_at = datetime.now(timezone.utc).isoformat()
@@ -6888,23 +7011,55 @@ async def _handle_revolut_business_webhook(
             return {"status": "team_bank_transfer_completed"}
         except Exception as e:
             logger.error(f"Error processing team bank transfer {order_id}: {e}", exc_info=True)
+            await _notify_admin_bank_transfer_processing_error(
+                cache_service=cache_service,
+                order_id=order_id,
+                reference=reference,
+                order_type=order_type,
+                transaction_id=transaction_id,
+                error=e,
+            )
             return {"status": "processing_error"}
 
     # ── Credit purchase path ─────────────────────────────────────────
     user_cache_data = await cache_service.get_user_by_id(user_id)
     if not user_cache_data:
         logger.error(f"User {user_id} not found in cache for bank transfer {order_id}")
+        await _notify_admin_bank_transfer_processing_error(
+            cache_service=cache_service,
+            order_id=order_id,
+            reference=reference,
+            order_type=order_type,
+            transaction_id=transaction_id,
+            error="user_cache_missing",
+        )
         # Return 500 so Revolut retries
         raise HTTPException(status_code=500, detail="User data temporarily unavailable")
 
     vault_key_id = user_cache_data.get("vault_key_id")
     if not vault_key_id:
         logger.error(f"Vault key ID missing from cache for user {user_id}")
+        await _notify_admin_bank_transfer_processing_error(
+            cache_service=cache_service,
+            order_id=order_id,
+            reference=reference,
+            order_type=order_type,
+            transaction_id=transaction_id,
+            error="vault_key_id_missing",
+        )
         raise HTTPException(status_code=500, detail="User encryption key unavailable")
 
     current_credits = user_cache_data.get("credits")
     if current_credits is None:
         logger.error(f"Credits field missing from cache for user {user_id}")
+        await _notify_admin_bank_transfer_processing_error(
+            cache_service=cache_service,
+            order_id=order_id,
+            reference=reference,
+            order_type=order_type,
+            transaction_id=transaction_id,
+            error="credits_cache_missing",
+        )
         raise HTTPException(status_code=500, detail="User credits data unavailable")
 
     # Set payment in progress flag
@@ -7126,6 +7281,14 @@ async def _handle_revolut_business_webhook(
 
     except Exception as e:
         logger.error(f"Error processing bank transfer {order_id}: {e}", exc_info=True)
+        await _notify_admin_bank_transfer_processing_error(
+            cache_service=cache_service,
+            order_id=order_id,
+            reference=reference,
+            order_type=order_type,
+            transaction_id=transaction_id,
+            error=e,
+        )
         return {"status": "processing_error"}
 
     finally:
