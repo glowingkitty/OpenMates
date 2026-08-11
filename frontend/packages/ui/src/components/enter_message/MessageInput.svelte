@@ -463,7 +463,8 @@
 
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed || editor.isEmpty) return false;
-        return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
+        // Legacy name: embeds are also sendable composer content.
+        return !isContentEmptyExceptMention(editor);
     }
 
     function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): boolean {
