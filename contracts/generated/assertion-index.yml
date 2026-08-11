@@ -4581,13 +4581,13 @@ assertions:
     direct_tests:
     - &id480
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 111
+      line: 119
       name: focused desktop guest composer suppresses surrounding welcome UI
       surface: gui.web
     supporting_tests:
     - &id481
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 133
+      line: 141
       name: clicking intro/example chats and new-chat repeatedly keeps UI responsive
       surface: gui.web
     tests:
