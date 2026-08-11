@@ -1830,8 +1830,9 @@ changes to the documentation (to keep the documentation up to date).
             // If so, go back to the app details page (apps/{appId}) instead of just removing the last segment
             const currentPath = navigationPath.join('/');
             
-            // Special handling for non-authenticated users on 'shared/share' - go directly to main
-            if (!$authStore.isAuthenticated && currentPath === 'shared/share') {
+            // Chat settings has no navigable `chats` index, so its breadcrumb
+            // button returns to the settings root instead of an unavailable page.
+            if (currentPath.startsWith('chats/') || (!$authStore.isAuthenticated && currentPath === 'shared/share')) {
                 direction = 'backward';
                 activeSettingsView = 'main';
                 showSubmenuInfo = false;

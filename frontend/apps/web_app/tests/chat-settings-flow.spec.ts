@@ -69,6 +69,7 @@ async function expectChatSettingsShell(page: any): Promise<any> {
 	return settingsMenu;
 }
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.shell-navigation,chat-share-settings.generated-link-controls
 test('chat Share opens Settings / Chats and supports tab deep links', async ({ page }: { page: any }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
@@ -96,6 +97,45 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	await expect(settingsMenu.getByTestId('chat-settings-title')).toHaveText(chatHeaderTitle, { timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-title')).not.toContainText(/untitled/i);
 	await expect(settingsMenu.getByTestId('chat-settings-credits')).toContainText(/\d+/, { timeout: 10_000 });
+	const expandedHeaderMetrics = await settingsMenu.getByTestId('chat-settings-header').evaluate((header: HTMLElement) => {
+		const title = header.querySelector<HTMLElement>('[data-testid="chat-settings-title"]');
+		const credits = header.querySelector<HTMLElement>('[data-testid="chat-settings-credits"]');
+		if (!title || !credits) throw new Error('chat settings header identity missing');
+		const headerRect = header.getBoundingClientRect();
+		const titleRect = title.getBoundingClientRect();
+		const creditsRect = credits.getBoundingClientRect();
+		const identityCenterX = (Math.min(titleRect.left, creditsRect.left) + Math.max(titleRect.right, creditsRect.right)) / 2;
+		return {
+			headerCenterX: headerRect.left + headerRect.width / 2,
+			identityCenterX,
+			creditsBelowTitle: creditsRect.top > titleRect.bottom
+		};
+	});
+	expect(Math.abs(expandedHeaderMetrics.identityCenterX - expandedHeaderMetrics.headerCenterX)).toBeLessThan(8);
+	expect(expandedHeaderMetrics.creditsBelowTitle).toBe(true);
+
+	await settingsMenu.getByTestId('chat-settings-tabpanel-share').evaluate((element: HTMLElement) => {
+		element.scrollIntoView({ block: 'end' });
+	});
+	await expect(async () => {
+		const collapsedTitle = await settingsMenu.getByTestId('chat-settings-title').evaluate((title: HTMLElement) => {
+			const styles = window.getComputedStyle(title);
+			return {
+				whiteSpace: styles.whiteSpace,
+				overflow: styles.overflow,
+				textOverflow: styles.textOverflow,
+				singleLine: title.getBoundingClientRect().height <= parseFloat(styles.lineHeight) * 1.35
+			};
+		});
+		expect(collapsedTitle.whiteSpace).toBe('nowrap');
+		expect(collapsedTitle.overflow).toBe('hidden');
+		expect(collapsedTitle.textOverflow).toBe('ellipsis');
+		expect(collapsedTitle.singleLine).toBe(true);
+	}).toPass({ timeout: 10_000 });
+	await settingsMenu.getByTestId('chat-settings-page').evaluate((element: HTMLElement) => {
+		element.scrollIntoView({ block: 'start' });
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-title')).not.toHaveCSS('white-space', 'nowrap', { timeout: 10_000 });
 	const settingsSummary = settingsMenu.getByTestId('chat-settings-summary');
 	await expect(settingsSummary).toBeVisible({ timeout: 10_000 });
 	await expect(settingsSummary).not.toContainText(/```json|"embed_id"|\[!\]\(embed:/i);

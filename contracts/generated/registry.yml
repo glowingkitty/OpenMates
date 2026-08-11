@@ -83,6 +83,13 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.chat-share-settings:
+    version: 1
+    status: draft
+    path: features/chat-share-settings
+    fingerprint: 5ef78f634b9a9a2beafbb9e988a2bd5cc0a90c3173bdf81de2d1814757607538
+    required_surfaces:
+    - gui.web
   feature.chats:
     version: 1
     status: approved
@@ -948,6 +955,34 @@ assertions:
     required_surfaces:
     - gui.web
     - gui.apple
+  chat-share-settings.shell-navigation:
+    contract: feature.chat-share-settings@1
+    contract_id: feature.chat-share-settings
+    type: behavior
+    fingerprint: a304573ed60aad749d2932ef0a69ef428d331af649c22bd0ade88070a57eb1b5
+    required_surfaces:
+    - gui.web
+  chat-share-settings.generated-link-controls:
+    contract: feature.chat-share-settings@1
+    contract_id: feature.chat-share-settings
+    type: behavior
+    fingerprint: bc54fe008b10c5e39a948600ab5280ef2253a022798bb89bf29ad9c461e4e780
+    required_surfaces:
+    - gui.web
+  chat-share-settings.readonly-viewer-controls:
+    contract: feature.chat-share-settings@1
+    contract_id: feature.chat-share-settings
+    type: behavior
+    fingerprint: 49d50a7b9924b2f1c4a0ae009371cb1131ca313e27210fdd89168a479d38bf3d
+    required_surfaces:
+    - gui.web
+  chat-share-settings.shared-link-open:
+    contract: feature.chat-share-settings@1
+    contract_id: feature.chat-share-settings
+    type: behavior
+    fingerprint: 410d771e1f3b38d7f95f05be1f3ff5589f3d9e07f163d8a30f704945dec01e42
+    required_surfaces:
+    - gui.web
   chats.persistence.client-encrypted:
     contract: feature.chats@1
     contract_id: feature.chats

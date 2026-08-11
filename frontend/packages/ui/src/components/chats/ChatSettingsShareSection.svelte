@@ -6,6 +6,7 @@
   old mixed chat/embed SettingsShare visual surface.
 -->
 <script lang="ts">
+  import { tick } from 'svelte';
   import QRCodeSVG from 'qrcode-svg';
   import { authStore } from '../../stores/authStore';
   import { getApiEndpoint } from '../../config/api';
@@ -58,6 +59,7 @@
   let showQr = $state(false);
   let showUrl = $state(false);
   let qrCodeImageUrl = $state('');
+  let qrCodeElement = $state<HTMLDivElement | null>(null);
   let shortLinkError = $state('');
   let storedSharedUrl = $state<string | null>(null);
   let isLoadingStoredSharedUrl = $state(false);
@@ -308,6 +310,14 @@
     setTimeout(() => { isCopied = false; }, 2000);
   }
 
+  async function toggleQrCode(): Promise<void> {
+    showQr = !showQr;
+    if (!showQr) return;
+    await tick();
+    qrCodeElement?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    qrCodeElement?.focus({ preventScroll: true });
+  }
+
   async function stopSharing(): Promise<void> {
     const existing = await chatDB.getChat(chat.chat_id);
     if (!existing) return;
@@ -339,17 +349,11 @@
 <section class="chat-share" data-testid="chat-settings-share-section">
   {#if isExampleShareChat}
     <SettingsCard>
-      <div class="generated" data-testid="chat-settings-share-readonly">
-        <SettingsInfoBox type="info">This public example chat already has a static share link. Passwords, expiration, and community sharing are only available for your private chats.</SettingsInfoBox>
-      </div>
       <div class="generated-actions" data-testid="share-short-link-section">
         <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy public chat link'} data-testid="share-copy-link" onClick={() => void copyPublicShareLink()} />
-        <div data-testid="share-short-link-copy" class="short-link-copy">
-          <span data-testid="share-short-link-url">{publicShareLink}</span>
-        </div>
-        <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+        <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => void toggleQrCode()} />
         {#if showQr}
-          <div class="qr-code" data-testid="chat-settings-share-qr">
+          <div class="qr-code" data-testid="chat-settings-share-qr" bind:this={qrCodeElement} tabindex="-1">
             <img src={qrCodeImageUrl} alt="Share QR code" />
           </div>
         {/if}
@@ -376,12 +380,9 @@
       {:else if storedSharedUrl}
         <div class="generated-actions" data-testid="share-short-link-section">
           <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy shared chat link'} data-testid="share-copy-link" onClick={() => void copyStoredSharedLink()} />
-          <div data-testid="share-short-link-copy" class="short-link-copy">
-            <span data-testid="share-short-link-url">{storedSharedUrl}</span>
-          </div>
-          <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+          <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => void toggleQrCode()} />
           {#if showQr}
-            <div class="qr-code" data-testid="chat-settings-share-qr">
+            <div class="qr-code" data-testid="chat-settings-share-qr" bind:this={qrCodeElement} tabindex="-1">
               <img src={qrCodeImageUrl} alt="Share QR code" />
             </div>
           {/if}
@@ -474,12 +475,9 @@
       </div>
       <div class="generated-actions" data-testid="share-short-link-section">
       <SettingsItem type="quickaction" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy to clipboard'} data-testid="share-copy-link" onClick={() => void copyGeneratedLink()} />
-      <div data-testid="share-short-link-copy" class="short-link-copy">
-        <span data-testid="share-short-link-url">{generatedLink}</span>
-      </div>
-      <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+      <SettingsItem type="quickaction" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => void toggleQrCode()} />
       {#if showQr}
-        <div class="qr-code" data-testid="chat-settings-share-qr">
+        <div class="qr-code" data-testid="chat-settings-share-qr" bind:this={qrCodeElement} tabindex="-1">
           <img src={qrCodeImageUrl} alt="Share QR code" />
         </div>
       {/if}
@@ -530,17 +528,6 @@
     background-size: 1.45rem;
   }
 
-  .short-link-copy {
-    width: 100%;
-    box-sizing: border-box;
-    border: 0;
-    border-radius: var(--radius-lg);
-    background: var(--color-grey-10);
-    padding: var(--spacing-4);
-    font: inherit;
-    word-break: break-all;
-  }
-
   .generated-actions {
     display: flex;
     flex-direction: column;
@@ -551,6 +538,19 @@
     display: flex;
     justify-content: center;
     padding: var(--spacing-4);
+  }
+
+  .qr-code:focus-visible {
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: 4px;
+  }
+
+  .chat-share :global([data-testid="chat-settings-share-url"]),
+  .chat-share :global([data-testid="chat-settings-share-url"] pre) {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 
   .share-error {

@@ -348,7 +348,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-share-settings.generated-link-controls,chat-share-settings.shell-navigation
 	test('guest example chat exposes share and chat settings with a static public link', async ({
 		page
 	}: {
@@ -403,13 +403,22 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
 
 		const expectedShareUrl = await page.evaluate((chatId: string) => `${window.location.origin}/#chat-id=${chatId}`, exampleChatId);
-		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveText(expectedShareUrl, {
+		await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-short-link-copy')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveCount(0);
+		await settingsMenu.getByTestId('chat-settings-share-show-url').click();
+		const publicUrl = settingsMenu.getByTestId('chat-settings-share-url');
+		await expect(publicUrl).toHaveText(expectedShareUrl, {
 			timeout: 10000
 		});
+		await expect(publicUrl).toHaveCSS('user-select', 'text');
 		await expect(settingsMenu.getByTestId('chat-settings-share-password')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('chat-settings-share-community')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('share-generate-link')).toHaveCount(0);
+		await settingsMenu.getByTestId('banner-back-button').click();
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main', { timeout: 10000 });
+		await expect(settingsMenu).not.toContainText(/\[T:settings\.chats\]/i);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering

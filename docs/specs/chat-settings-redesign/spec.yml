@@ -479,6 +479,8 @@ acceptance_criteria:
     verification_ids: [T-E2E-BILLING-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
 
 contracts:
+  permanent:
+    - contracts/features/chat-share-settings/contract.yml
   ui:
     - name: ChatSettingsRoute
       requirements:
