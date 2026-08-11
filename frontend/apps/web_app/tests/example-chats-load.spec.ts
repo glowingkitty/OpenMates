@@ -24,6 +24,26 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
+	'audio-generate-confirmation-tick',
+	'audio-speak-welcome-message'
+];
+
+const GENERATED_AUDIO_EXAMPLE_CASES = [
+	{
+		chatId: 'example-audio-generate-product-success-chime',
+		slug: 'audio-generate-product-success-chime',
+		skillId: 'generate',
+		promptSnippet: 'Create a short, friendly success chime for an OpenMates workflow finishing'
+	},
+	{
+		chatId: 'example-audio-speak-friendly-welcome-message',
+		slug: 'audio-speak-friendly-welcome-message',
+		skillId: 'speak',
+		promptSnippet: 'Say this as a warm, natural welcome message'
+	}
+] as const;
+
 const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
 	'Presigned URL request failed',
 	'Network error fetching S3',
@@ -60,6 +80,28 @@ function extractJsonLd(html: string): Record<string, any> {
 	const match = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/i);
 	expect(match, 'JSON-LD script should exist').not.toBeNull();
 	return JSON.parse(match[1]);
+}
+
+async function expectAudioCanPlay(audioLocator: any, label: string): Promise<void> {
+	await expect(async () => {
+		const state = await audioLocator.evaluate(async (audio: HTMLAudioElement) => {
+			audio.muted = true;
+			await audio.play();
+			await new Promise((resolve) => setTimeout(resolve, 800));
+			const result = {
+				currentTime: audio.currentTime,
+				duration: audio.duration,
+				readyState: audio.readyState
+			};
+			audio.pause();
+			return result;
+		});
+
+		expect(state.readyState, `${label} should load audio metadata`).toBeGreaterThanOrEqual(1);
+		expect(Number.isFinite(state.duration), `${label} should have finite duration`).toBe(true);
+		expect(state.duration, `${label} should have non-zero duration`).toBeGreaterThan(0);
+		expect(state.currentTime, `${label} should advance during playback`).toBeGreaterThan(0);
+	}).toPass({ timeout: 30000 });
 }
 
 async function expectGuestSlideZeroIntro(page: any) {
@@ -574,6 +616,77 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
 		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
 		await expect(page.locator('body')).toContainText('8.7g');
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	test('generated audio examples use natural prompts and recording-style playback', async ({
+		page,
+		request
+	}: {
+		page: any;
+		request: any;
+	}) => {
+		test.setTimeout(120000);
+
+		const listingResponse = await request.get('/example');
+		expect(listingResponse.status(), 'Example listing page should return 200').toBe(200);
+		const listingHtml = await listingResponse.text();
+		for (const slug of REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS) {
+			expect(listingHtml, `removed generated-audio example /example/${slug} should not remain listed`).not.toContain(
+				`/example/${slug}`
+			);
+		}
+		for (const exampleCase of GENERATED_AUDIO_EXAMPLE_CASES) {
+			expect(listingHtml, `replacement generated-audio example /example/${exampleCase.slug} should be listed`).toContain(
+				`/example/${exampleCase.slug}`
+			);
+		}
+
+		for (const exampleCase of GENERATED_AUDIO_EXAMPLE_CASES) {
+			await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
+				waitUntil: 'domcontentloaded'
+			});
+
+			await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+			const userMessages = await page.getByTestId('user-message-content').allInnerTexts();
+			const userText = userMessages.join('\n');
+			expect(userText, `${exampleCase.chatId} should show a natural user prompt`).toContain(
+				exampleCase.promptSnippet
+			);
+			expect(userText, `${exampleCase.chatId} should not expose forced skill mentions`).not.toMatch(
+				/@skill:audio/i
+			);
+
+			const preview = page
+				.locator(
+					`[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="${exampleCase.skillId}"][data-status="finished"]`
+				)
+				.first();
+			await expect(preview, `${exampleCase.chatId} should render a finished generated-audio preview`).toBeVisible({
+				timeout: 15000
+			});
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview`)).toBeVisible({ timeout: 15000 });
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt-label`)).toBeVisible({ timeout: 15000 });
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt`)).toContainText(
+				exampleCase.promptSnippet,
+				{ timeout: 15000 }
+			);
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview-play-button`)).toBeVisible({ timeout: 15000 });
+			await expect(
+				preview.getByTestId('embed-status-value'),
+				`${exampleCase.chatId} should not show a second subtitle line under the generated-audio title`
+			).toHaveCount(0);
+
+			const previewAudio = preview.getByTestId(`audio-${exampleCase.skillId}-audio`);
+			await expect(previewAudio).toBeAttached({ timeout: 15000 });
+			await expectAudioCanPlay(previewAudio, `${exampleCase.chatId} preview audio`);
+
+			const fullscreenOverlay = await openFullscreen(page, preview);
+			await expect(fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen`)).toBeVisible({ timeout: 15000 });
+			const fullscreenAudio = fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen-audio`);
+			await expect(fullscreenAudio).toBeVisible({ timeout: 15000 });
+			await expectAudioCanPlay(fullscreenAudio, `${exampleCase.chatId} fullscreen audio`);
+		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
