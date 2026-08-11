@@ -50,6 +50,7 @@
   let downloading = $state(false);
   let prefersTouchCta = $state(false);
   let latestLoadId = 0;
+  const terminalSubChatIds = new Set<string>();
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -73,6 +74,8 @@
       const previews = await loadSubChatPreviews(parentChatId, {
         subChatIds,
         forceRefresh,
+        allowUnsyncedAssistantSummary: status !== 'processing',
+        terminalSubChatIds,
       });
       if (loadId !== latestLoadId) return;
 
@@ -176,6 +179,9 @@
     const handleSubChatLifecycle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!shouldRefreshFromDetail(detail)) return;
+      if (detail?.type === 'sub_chat_completed' && typeof detail.chat_id === 'string') {
+        terminalSubChatIds.add(detail.chat_id);
+      }
       void load(true);
     };
 

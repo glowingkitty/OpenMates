@@ -91,6 +91,13 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 	log('Chat deleted.');
 }
 
+async function waitForEmailNotificationSettingsAck(page: any): Promise<void> {
+	await page.waitForEvent('console', {
+		predicate: (message: any) => message.text().includes('email_notification_settings_ack received'),
+		timeout: 30000
+	});
+}
+
 async function enableEmailNotifications(page: any, log: any, screenshot: any): Promise<void> {
 	const profileContainer = page.getByTestId('profile-container');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
@@ -122,8 +129,10 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	if (alreadyOn) {
 		log('Email notifications already enabled.');
 	} else {
+		const ackPromise = waitForEmailNotificationSettingsAck(page);
 		await toggle.click();
-		await page.waitForTimeout(2000);
+		await ackPromise;
+		await expect(checkbox).toBeChecked({ timeout: 5000 });
 		log('Email notifications enabled.');
 	}
 	await screenshot(page, 'email-toggle-enabled');
@@ -147,6 +156,7 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 // Test
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=notifications.settings.ack-persisted,notifications.delivery.email-enabled
 test('reminder — email: reminder email arrives after browser is closed', async ({
 	page,
 	context,

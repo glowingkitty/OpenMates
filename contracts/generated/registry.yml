@@ -108,6 +108,18 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.notifications:
+    version: 1
+    status: approved
+    path: features/notifications
+    fingerprint: ae2f357175af98f7d7c0d74230730cad0020ae072ffd209c657a6b7c1891c54d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.plans:
     version: 1
     status: draft
@@ -1117,6 +1129,90 @@ assertions:
     type: parity
     fingerprint: 1b1753b9559c6537454180d1f28debee24f25d0972ebaab203ad90bb2445ebf0
     required_surfaces:
+    - gui.web
+    - gui.apple
+  notifications.settings.ack-persisted:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: ebc63f76dea00a2fbb5751d28d3cf2c38ec57409ca85d261b596885b64dfc758
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.delivery.email-enabled:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: fb5a5f291373d11810ca35a9ec538f84b7ae7cefcfced087f0f860e6a1c60ac7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.delivery.push-enabled:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: cdeef624c95c758a9b87a82c875c61e06d6603403ca8e3abed0f7c84128cdd6a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.history.retained-listable:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: 1677cb0fa76553332355345e8fd138e21ca467510b0e56d53df0873280fc6b97
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.content.privacy-boundary:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: privacy
+    fingerprint: 2a342b81fbdc8ee56d0d161eb6e6d96378a17d7c8118b0d237dc66150ff9fd79
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.delivery.idempotent:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: invariant
+    fingerprint: c719c23ba5f3c45e7c457f59c1a2596a5387689033e8f762c6b0f0d75d5209a7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.surface.semantic-parity:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: parity
+    fingerprint: bd9a68132351c6f3938586a43a524db986dfa9d927e6a5c350ed6232323db5ff
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
     - gui.apple
   plans.content.client-encrypted:

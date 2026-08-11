@@ -3704,6 +3704,10 @@
 			transform 0.3s ease;
 	}
 
+	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
+		z-index: 10001;
+	}
+
 	/* Add new scrollable mode styles */
 	.main-content.scrollable {
 		position: absolute;

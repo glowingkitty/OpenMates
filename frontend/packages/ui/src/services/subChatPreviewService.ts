@@ -51,16 +51,21 @@ function truncateDerivedPreviewSummary(summary: string): string {
   return `${summary.slice(0, DERIVED_PREVIEW_SUMMARY_MAX_LENGTH).trimEnd()}...`;
 }
 
-function isCompletedAssistantMessage(message: Message): boolean {
-  return message.role === "assistant" && message.status === "synced";
+function canUseAssistantMessageForPreview(message: Message, allowUnsyncedAssistantSummary: boolean): boolean {
+  if (message.role !== "assistant") return false;
+  if (message.status === "failed" || message.status === "waiting_for_user") return false;
+  return message.status === "synced" || allowUnsyncedAssistantSummary;
 }
 
-async function derivePreviewSummaryFromCompletedMessage(chatId: string): Promise<string | null> {
+async function derivePreviewSummaryFromCompletedMessage(
+  chatId: string,
+  allowUnsyncedAssistantSummary: boolean,
+): Promise<string | null> {
   try {
     const messages = await chatDB.getMessagesForChat(chatId);
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
-      if (!isCompletedAssistantMessage(message)) continue;
+      if (!canUseAssistantMessageForPreview(message, allowUnsyncedAssistantSummary)) continue;
       const summary = sanitizeSubChatPreviewText(getMessageContentText(message.content));
       if (summary) return truncateDerivedPreviewSummary(summary);
     }
@@ -116,6 +121,8 @@ export async function loadSubChatPreviews(
     messageCreatedAt?: number;
     subChatIds?: string[];
     forceRefresh?: boolean;
+    allowUnsyncedAssistantSummary?: boolean;
+    terminalSubChatIds?: Iterable<string>;
   } = {},
 ): Promise<SubChatPreview[]> {
   const all = await getSubChatsForParentChat(parentChatId, options.forceRefresh);
@@ -132,6 +139,7 @@ export async function loadSubChatPreviews(
 
   const previews: SubChatPreview[] = [];
   const fallbackKey = await chatKeyManager.getKey(parentChatId);
+  const terminalSubChatIds = new Set(options.terminalSubChatIds ?? []);
 
   for (const chat of matchingSubChats) {
     const chatKey = (await chatKeyManager.getKey(chat.chat_id)) || fallbackKey;
@@ -169,7 +177,10 @@ export async function loadSubChatPreviews(
     preview.previewSummary =
       sanitizeSubChatPreviewText(preview.previewSummary) ||
       sanitizeSubChatPreviewText(chat.chat_summary) ||
-      await derivePreviewSummaryFromCompletedMessage(chat.chat_id);
+      await derivePreviewSummaryFromCompletedMessage(
+        chat.chat_id,
+        options.allowUnsyncedAssistantSummary === true || terminalSubChatIds.has(chat.chat_id),
+      );
     preview.previewCategory ||= chat.category || "general_knowledge";
     preview.previewIcon = getValidIconName(
       preview.previewIcon || "",
