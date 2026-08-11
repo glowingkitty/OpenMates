@@ -8,6 +8,7 @@
 
 import type { Message } from '../../types/chat';
 import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+import { getStaticGeneratedAudioDownload } from '../../services/generatedAudioExport';
 
 const DOWNLOADABLE_TYPES = new Set([
   'audio',
@@ -58,6 +59,34 @@ function parseJsonEmbedRef(json: string): string | null {
   }
 }
 
+function parseJsonEmbed(json: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(json.trim());
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasStaticGeneratedAudioEmbedRefs(messages: Message[]): boolean {
+  for (const message of messages) {
+    const text = `${message.content ?? ''}\n${message.truncated_content ?? ''}`;
+    for (const match of Array.from(text.matchAll(JSON_EMBED_BLOCK_RE))) {
+      const parsed = parseJsonEmbed(match[1]);
+      if (
+        parsed?.type === 'app_skill_use' &&
+        parsed.app_id === 'audio' &&
+        (parsed.skill_id === 'generate' || parsed.skill_id === 'speak')
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function isDownloadable(file: UploadedFileSearchResult): boolean {
   const type = String(file.type ?? '').toLowerCase();
   const nodeType = String(file.nodeType ?? '').toLowerCase();
@@ -69,11 +98,41 @@ function buildMetadata(file: UploadedFileSearchResult): string {
   return file.subtitle || file.type || 'File';
 }
 
+async function loadStaticGeneratedAudioRow(contentRef: string): Promise<ChatFileRow | null> {
+  const embed = await embedStore.get(contentRef);
+  if (!embed || typeof embed !== 'object') return null;
+  const content = typeof embed.content === 'string' ? embed.content : embed;
+  const download = getStaticGeneratedAudioDownload(content);
+  if (!download) return null;
+  const embedId = contentRef.replace(/^embed:/, '');
+  return {
+    embedId,
+    contentRef,
+    title: download.filename,
+    subtitle: 'Audio',
+    type: 'audio',
+    nodeType: 'recording',
+    iconName: 'audio',
+    createdAt: 0,
+    updatedAt: 0,
+    metadata: 'Audio',
+  };
+}
+
 export async function loadChatFileRows(messages: Message[]): Promise<ChatFileRow[]> {
   const refs = extractChatEmbedRefs(messages);
   if (refs.length === 0) return [];
   const files = await embedStore.getUploadedFilesByContentRefs(refs);
-  return files
+  const rows = files
     .filter(isDownloadable)
     .map((file) => ({ ...file, metadata: buildMetadata(file) }));
+  const listedRefs = new Set(rows.map((row) => row.contentRef));
+  for (const ref of refs) {
+    if (listedRefs.has(ref)) continue;
+    const staticAudioRow = await loadStaticGeneratedAudioRow(ref);
+    if (!staticAudioRow) continue;
+    rows.push(staticAudioRow);
+    listedRefs.add(ref);
+  }
+  return rows;
 }

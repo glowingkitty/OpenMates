@@ -30,6 +30,10 @@ import {
   generateImageFilename,
   embedPngMetadata,
 } from "../components/embeds/images/imageDownloadUtils";
+import {
+  getStaticGeneratedAudioDownload,
+  type StaticGeneratedAudioDownload,
+} from "./generatedAudioExport";
 
 type DecodedEmbedContent = Record<string, unknown>;
 type ImageFileEntry = {
@@ -45,6 +49,44 @@ function isRecord(value: unknown): value is DecodedEmbedContent {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function collectEmbedIdsFromMessages(messages: Message[]): string[] {
+  const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
+  for (const message of messages) {
+    let markdownContent = "";
+    if (typeof message.content === "string") {
+      markdownContent = message.content;
+    } else if (message.content && typeof message.content === "object") {
+      markdownContent = tipTapToCanonicalMarkdown(message.content);
+    }
+
+    for (const ref of extractEmbedReferences(markdownContent)) {
+      if (!embedRefs.has(ref.embed_id)) {
+        embedRefs.set(ref.embed_id, ref);
+      }
+    }
+  }
+  return Array.from(embedRefs.keys());
+}
+
+function uniqueFilename(filename: string, usedFilenames: Set<string>): string {
+  let nextFilename = filename.replace(/[/\\]/g, "_");
+  if (!usedFilenames.has(nextFilename.toLowerCase())) {
+    usedFilenames.add(nextFilename.toLowerCase());
+    return nextFilename;
+  }
+
+  const dotIndex = nextFilename.lastIndexOf(".");
+  const base = dotIndex > 0 ? nextFilename.slice(0, dotIndex) : nextFilename;
+  const extension = dotIndex > 0 ? nextFilename.slice(dotIndex) : "";
+  let counter = 2;
+  while (usedFilenames.has(`${base}_${counter}${extension}`.toLowerCase())) {
+    counter++;
+  }
+  nextFilename = `${base}_${counter}${extension}`;
+  usedFilenames.add(nextFilename.toLowerCase());
+  return nextFilename;
 }
 
 /**
@@ -972,6 +1014,59 @@ export async function getImageEmbedsForChat(messages: Message[]): Promise<
   }
 }
 
+async function fetchStaticGeneratedAudio(
+  download: StaticGeneratedAudioDownload,
+): Promise<Blob> {
+  const response = await fetch(download.url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch static generated audio: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: download.mimeType });
+}
+
+export async function getStaticGeneratedAudioFilesForChat(messages: Message[]): Promise<
+  Array<{
+    filename: string;
+    blob: Blob;
+  }>
+> {
+  try {
+    const embedIds = collectEmbedIdsFromMessages(messages);
+    if (embedIds.length === 0) return [];
+
+    const loadedEmbeds = await loadEmbeds(embedIds);
+    const audioFiles: Array<{ filename: string; blob: Blob }> = [];
+    const usedFilenames = new Set<string>();
+
+    for (const embed of loadedEmbeds) {
+      try {
+        if (!embed.content || typeof embed.content !== "string") continue;
+        const decoded = await decodeToonContent(embed.content);
+        const download = getStaticGeneratedAudioDownload(
+          isRecord(decoded) ? decoded : embed.content,
+        );
+        if (!download) continue;
+
+        const filename = uniqueFilename(download.filename, usedFilenames);
+        const blob = await fetchStaticGeneratedAudio(download);
+        audioFiles.push({ filename, blob });
+      } catch (error) {
+        console.warn(
+          "[ZipExportService] Failed to export static generated audio:",
+          embed.embed_id,
+          error,
+        );
+      }
+    }
+
+    return audioFiles;
+  } catch (error) {
+    console.error("[ZipExportService] Error collecting static generated audio:", error);
+    return [];
+  }
+}
+
 /**
  * Fetches and AES-256-GCM decrypts a binary blob from the private S3 bucket.
  * Uses the shared presigned URL service (GET /v1/embeds/presigned-url) — same
@@ -1441,6 +1536,12 @@ export async function downloadChatAsZip(
       zip.file(filePath, imageEmbed.blob);
     }
 
+    // Add public static generated-audio fixtures from example chats.
+    const staticGeneratedAudioFiles = await getStaticGeneratedAudioFilesForChat(messages);
+    for (const audioFile of staticGeneratedAudioFiles) {
+      zip.file(`generated-audio/${audioFile.filename}`, audioFile.blob);
+    }
+
     // Add user-uploaded audio recordings (original audio file + transcript sidecar)
     const audioRecordings = await getAudioRecordingsForChat(messages);
     for (const recording of audioRecordings) {
@@ -1559,6 +1660,12 @@ export async function downloadChatsAsZip(
         for (const imageEmbed of imageEmbeds) {
           const filePath = `images/${imageEmbed.filename}`;
           chatFolder.file(filePath, imageEmbed.blob);
+        }
+
+        // Add public static generated-audio fixtures from example chats.
+        const staticGeneratedAudioFiles = await getStaticGeneratedAudioFilesForChat(messages);
+        for (const audioFile of staticGeneratedAudioFiles) {
+          chatFolder.file(`generated-audio/${audioFile.filename}`, audioFile.blob);
         }
 
         // Add user-uploaded audio recordings (original audio file + transcript sidecar)

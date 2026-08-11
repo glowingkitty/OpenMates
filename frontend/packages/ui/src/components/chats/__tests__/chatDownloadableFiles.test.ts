@@ -6,11 +6,12 @@
  * expose only entries with an existing downloadable/exportable type.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Message } from '../../../types/chat';
 
 const uploadedFiles = vi.hoisted(() => ({
   getUploadedFilesByContentRefs: vi.fn(),
+  get: vi.fn(),
 }));
 
 vi.mock('../../../services/embedStore', () => ({
@@ -18,6 +19,27 @@ vi.mock('../../../services/embedStore', () => ({
 }));
 
 import { extractChatEmbedRefs, loadChatFileRows } from '../chatSettingsFiles';
+
+const STATIC_AUDIO_EMBED_ID = '463ace0f-02f9-43c2-94ee-cf385162bb75';
+const STATIC_AUDIO_CONTENT = `app_id: audio
+skill_id: speak
+type: audio
+status: finished
+prompt: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+generation_type: speech
+provider: ElevenLabs
+model: eleven_flash_v2_5
+mime_type: audio/mpeg
+duration_seconds: 4.968
+byte_length: 28413
+previewAudioUrl: /store-examples/audio-speak-friendly-welcome-message.mp3
+files:
+  original:
+    size_bytes: 28413
+    format: mp3
+    mime_type: audio/mpeg
+    duration_seconds: 4.968
+generated_at: "2026-08-11T02:30:00.000000+00:00"`;
 
 function message(content: string, truncatedContent = ''): Message {
   return {
@@ -30,6 +52,10 @@ function message(content: string, truncatedContent = ''): Message {
 }
 
 describe('chat settings downloadable files', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it('extracts unique embed refs from full and truncated message content', () => {
     const refs = extractChatEmbedRefs([
@@ -62,6 +88,34 @@ describe('chat settings downloadable files', () => {
     expect(uploadedFiles.getUploadedFilesByContentRefs).toHaveBeenCalledWith(['embed:voice-note-1']);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ contentRef: 'embed:voice-note-1', iconName: 'audio', metadata: '00:08' });
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,audio-speak.output.playable-audio
+  it('lists public static generated-audio MP3s as downloadable files', async () => {
+    uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([]);
+    uploadedFiles.get.mockResolvedValueOnce({
+      embed_id: STATIC_AUDIO_EMBED_ID,
+      type: 'app_skill_use',
+      status: 'finished',
+      content: STATIC_AUDIO_CONTENT,
+    });
+
+    const rows = await loadChatFileRows([
+      message(`\`\`\`json\n{"type":"app_skill_use","embed_id":"${STATIC_AUDIO_EMBED_ID}","app_id":"audio","skill_id":"speak"}\n\`\`\``),
+    ]);
+
+    expect(uploadedFiles.getUploadedFilesByContentRefs).toHaveBeenCalledWith([`embed:${STATIC_AUDIO_EMBED_ID}`]);
+    expect(uploadedFiles.get).toHaveBeenCalledWith(`embed:${STATIC_AUDIO_EMBED_ID}`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      contentRef: `embed:${STATIC_AUDIO_EMBED_ID}`,
+      title: 'audio-speak-friendly-welcome-message.mp3',
+      subtitle: 'Audio',
+      metadata: 'Audio',
+      type: 'audio',
+      nodeType: 'recording',
+      iconName: 'audio',
+    });
   });
 
   // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
