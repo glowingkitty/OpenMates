@@ -426,12 +426,24 @@ async def login(
         # If the user submits the password before the background cache write
         # completes, fetch the profile here instead of failing the login.
         user_profile = await cache_service.get_user_by_id(user_id)
-        if not user_profile:
+        login_profile_missing_fields = [
+            field
+            for field in ("username", "vault_key_id", "user_email_salt")
+            if not isinstance(user_profile, dict) or not user_profile.get(field)
+        ]
+        if login_profile_missing_fields:
             logger.warning(
-                "User profile not found in cache for user %s during login; fetching synchronously.",
+                "User profile cache incomplete for user %s during login; missing %s; fetching synchronously.",
                 user_id[:8],
+                login_profile_missing_fields,
             )
             user_email_salt = user.get("user_email_salt")
+            if not user_email_salt:
+                user_fields = await directus_service.get_user_fields_direct(user_id, ["user_email_salt"])
+                user_email_salt = user_fields.get("user_email_salt") if user_fields else None
+                if user_email_salt:
+                    user["user_email_salt"] = user_email_salt
+
             if not user_email_salt:
                 logger.error("Cannot fetch login profile fallback for user %s: user_email_salt is missing.", user_id)
                 return LoginResponse(success=False, message="User profile not found. Please try logging in again.")

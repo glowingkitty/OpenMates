@@ -85,6 +85,23 @@ function spawnCliLogin(apiUrl: string, homeDir: string) {
 				}, 250);
 			});
 		},
+		waitForPinPrompt(): Promise<void> {
+			return new Promise((resolve, reject) => {
+				const startedAt = Date.now();
+				const interval = setInterval(() => {
+					const output = stdout.join('') + stderr.join('');
+					if (output.includes('Enter 6-char pairing PIN:')) {
+						clearInterval(interval);
+						resolve();
+						return;
+					}
+					if (Date.now() - startedAt >= 15_000) {
+						clearInterval(interval);
+						reject(new Error(`CLI did not prompt for pairing PIN. stdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+					}
+				}, 250);
+			});
+		},
 		sendPin(pin: string): void {
 			child.stdin.write(`${pin}\n`);
 		},
@@ -127,6 +144,7 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 	await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
 	const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
 	expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+	await cli.waitForPinPrompt();
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
 	expect(output).toContain('Login successful');
