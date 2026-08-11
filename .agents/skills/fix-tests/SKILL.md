@@ -58,12 +58,16 @@ python3 scripts/tests.py campaign dispatch --campaign <campaign-id> \
   --session <coordinator-session> --max-workers 3 --json
 ```
 
-The dispatcher leases each exact group before launching a visible interactive
-OpenCode chat. It only selects narrow, low-risk groups with non-overlapping
-linked-file boundaries. Worker chats may investigate and edit inside their
-boundary, but they must not deploy or commit independently; the coordinator
-reviews and integrates their changes before verification. Inspect active workers
-with `campaign status`, which includes chat names, leases, groups, and expiry.
+Use `--dry-run --json` first when you need to explain which groups would launch
+and why other groups are skipped. The dispatcher leases each exact group before
+launching a visible interactive OpenCode chat. It only selects narrow, low-risk
+groups with non-overlapping linked-file boundaries. Worker chats may research in
+that same chat, but they must submit `campaign intent` and wait for coordinator
+approval before source edits. They must not deploy or commit independently; the
+coordinator harvests finished workers, integrates their patches serially, then
+deploys and verifies. Inspect active workers with `campaign status`, which
+includes chat names, leases, groups, intent status, finish status, write sets,
+changed files, and expiry.
 
 ### Step 3: Investigate and persist every attempt
 
@@ -77,6 +81,55 @@ python3 scripts/tests.py campaign attempt --group <group-id> \
 ```
 
 Never repeat an approach already recorded as failed or rejected.
+
+For a parallel worker, source edits require an approved fix intent first:
+
+```bash
+python3 scripts/tests.py campaign intent --group <group-id> --lease <lease-id> \
+  --worker <worker-id> --base-commit <sha> \
+  --hypothesis "<root-cause hypothesis>" \
+  --write-file <path> --verification-command "<exact group verification>"
+```
+
+The coordinator approves only current, non-overlapping write sets:
+
+```bash
+python3 scripts/tests.py campaign approve-intent --group <group-id> \
+  --lease <lease-id> --session <coordinator-session> --current-commit <sha>
+```
+
+If the smallest correct fix needs files outside the leased boundary, the worker
+records a boundary request and stops until the coordinator expands or blocks the
+scope:
+
+```bash
+python3 scripts/tests.py campaign boundary --group <group-id> --lease <lease-id> \
+  --worker <worker-id> --requested-file <path> \
+  --reason "<why this file is required>" --hypothesis "<updated hypothesis>"
+```
+
+The coordinator can approve that explicit expansion before approving the intent:
+
+```bash
+python3 scripts/tests.py campaign approve-boundary --group <group-id> \
+  --lease <lease-id> --session <coordinator-session>
+```
+
+After approved edits, the worker records a harvestable checkpoint rather than
+completing the lease or group:
+
+```bash
+python3 scripts/tests.py campaign finish-worker --group <group-id> \
+  --lease <lease-id> --worker <worker-id> --base-commit <sha> \
+  --changed-file <path> --summary "<what changed>" \
+  --verification-command "<exact group verification>"
+```
+
+`finish-worker` persists `worker_finish.harvest` with the worker OpenCode
+session, chat inspection command, exact `sessions.py worktree checkpoint`
+command, changed files, and patch diff template. The coordinator should read the
+`harvest_command` from `campaign status --json`, checkpoint that worker, review
+the resulting patch artifact, and only then integrate and verify serially.
 
 ### Step 4: Verify the exact group
 
@@ -128,6 +181,9 @@ python3 scripts/tests.py campaign block --group <group-id> \
 - **Always lease the durable group** before debugging so parallel workers do not collide.
 - **Visible OpenCode only** — parallel workers use `sessions.py spawn-chat`; never launch Claude or hidden disposable sessions.
 - **Centralize integration** — parallel workers do not deploy independently.
+- **Intent before worker edits** — worker chats research first, submit a bounded fix intent, and wait for coordinator approval before mutation.
+- **Edit gate is deterministic** — worker edits are hook-blocked unless the active lease has an approved intent containing the edited file.
+- **Finish before harvest** — worker chats record `finish-worker`; the coordinator integrates and verifies serially.
 - **Acceptance before edits** — existing assertions may be derived automatically; ambiguous behavior must be clarified.
 - **Fix console errors in app code** — never suppress them in tests
 - **NEVER run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
