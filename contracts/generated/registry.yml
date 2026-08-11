@@ -120,6 +120,15 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.pii-protection:
+    version: 1
+    status: approved
+    path: features/pii-protection
+    fingerprint: 881a91fb8c296b5a8d86fddb36473d083005ca062abe5953ac735a63567fb7d2
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
   feature.plans:
     version: 1
     status: draft
@@ -1213,6 +1222,51 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
+  pii.composer.detect-redact-exclude:
+    contract: feature.pii-protection@1
+    contract_id: feature.pii-protection
+    type: privacy
+    fingerprint: 7b445e41ae3cb28502ade81e713ea3a815f8017593a910d6e9a7fcad321145ad
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.message.owner-local-reveal:
+    contract: feature.pii-protection@1
+    contract_id: feature.pii-protection
+    type: privacy
+    fingerprint: 5ceb4f6d9b6cfc7247e22a176b28168a4078975d083a8323125d78ce38669176
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.embed.owner-local-reveal-sync:
+    contract: feature.pii-protection@1
+    contract_id: feature.pii-protection
+    type: privacy
+    fingerprint: 194b4b8c489d6d6d82bd08142f7a381fdccc53c88aa9cd216a1fea344104b582
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.outbound.known-original-rewrite:
+    contract: feature.pii-protection@1
+    contract_id: feature.pii-protection
+    type: privacy
+    fingerprint: 82885318ca611ec910557072d88aa073b6ba4f86ac5c04e2725299ed6caf57ac
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.surface.semantic-parity:
+    contract: feature.pii-protection@1
+    contract_id: feature.pii-protection
+    type: parity
+    fingerprint: ffb4d2039a72bfa5a7c93d4c4d201ce2424f5500b5976fba97dbe6d1bf1efd48
+    required_surfaces:
+    - cli
     - gui.web
     - gui.apple
   plans.content.client-encrypted:

@@ -113,6 +113,7 @@ async function expectLastUserMessageContains(page: any, expectedText: string | R
 	await expect(userMessage).toContainText(expectedText, { timeout: 15000 });
 }
 
+// contract-test: direct surface=gui.web assertions=pii.outbound.known-original-rewrite,pii.message.owner-local-reveal
 test('rewrites prior PII originals before outbound follow-up send', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300000);
