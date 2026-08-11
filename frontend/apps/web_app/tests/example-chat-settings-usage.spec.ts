@@ -9,6 +9,8 @@
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const fs = require('fs');
+const JSZip = require('jszip');
 
 const GENERATED_AUDIO_USAGE_CASES = [
 	{
@@ -16,18 +18,24 @@ const GENERATED_AUDIO_USAGE_CASES = [
 		totalCredits: /31\s*credits/i,
 		aiCredits: '17',
 		audioLabel: 'audio | generate',
-		audioCredits: '14'
+		audioCredits: '14',
+		filename: 'audio-generate-product-success-chime.mp3'
 	},
 	{
 		chatId: 'example-audio-speak-friendly-welcome-message',
 		totalCredits: /28\s*credits/i,
 		aiCredits: '18',
 		audioLabel: 'audio | speak',
-		audioCredits: '10'
+		audioCredits: '10',
+		filename: 'audio-speak-friendly-welcome-message.mp3'
 	}
 ] as const;
 
-async function openExampleUsageTab(page: any, exampleChatId: string): Promise<any> {
+async function openExampleSettings(
+	page: any,
+	exampleChatId: string,
+	options: { expectFilesTab?: boolean } = {}
+): Promise<any> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
 		waitUntil: 'domcontentloaded'
 	});
@@ -45,11 +53,31 @@ async function openExampleUsageTab(page: any, exampleChatId: string): Promise<an
 	await expect(settingsMenu.getByTestId('chat-settings-tab-usage')).toBeVisible({ timeout: 10000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tab-plan')).toHaveCount(0);
 	await expect(settingsMenu.getByTestId('chat-settings-tab-tasks')).toHaveCount(0);
-	await expect(settingsMenu.getByTestId('chat-settings-tab-files')).toHaveCount(0);
+	if (options.expectFilesTab) {
+		await expect(settingsMenu.getByTestId('chat-settings-tab-files')).toBeVisible({ timeout: 10000 });
+	} else {
+		await expect(settingsMenu.getByTestId('chat-settings-tab-files')).toHaveCount(0);
+	}
+
+	return settingsMenu;
+}
+
+async function openExampleUsageTab(
+	page: any,
+	exampleChatId: string,
+	options: { expectFilesTab?: boolean } = {}
+): Promise<any> {
+	const settingsMenu = await openExampleSettings(page, exampleChatId, options);
 
 	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
 	return settingsMenu;
+}
+
+async function readZipEntryNames(download: any, outputPath: string): Promise<string[]> {
+	await download.saveAs(outputPath);
+	const zip = await JSZip.loadAsync(fs.readFileSync(outputPath));
+	return Object.keys(zip.files);
 }
 
 test.describe('Example chat settings usage', () => {
@@ -73,7 +101,9 @@ test.describe('Example chat settings usage', () => {
 		test.setTimeout(90000);
 
 		for (const exampleCase of GENERATED_AUDIO_USAGE_CASES) {
-			const settingsMenu = await openExampleUsageTab(page, exampleCase.chatId);
+			const settingsMenu = await openExampleUsageTab(page, exampleCase.chatId, {
+				expectFilesTab: true
+			});
 			const rows = settingsMenu.getByTestId('chat-settings-usage-row');
 			await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(exampleCase.totalCredits);
 			await expect(rows).toHaveCount(2);
@@ -108,5 +138,35 @@ test.describe('Example chat settings usage', () => {
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
 		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/28\s*credits/i);
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	test('generated audio example chats expose static MP3 files in settings and ZIP exports', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(120000);
+
+		for (const exampleCase of GENERATED_AUDIO_USAGE_CASES) {
+			const settingsMenu = await openExampleSettings(page, exampleCase.chatId, {
+				expectFilesTab: true
+			});
+
+			await settingsMenu.getByTestId('chat-settings-tab-files').click();
+			const filesPanel = settingsMenu.getByTestId('chat-settings-tabpanel-files');
+			await expect(filesPanel).toBeVisible({ timeout: 10000 });
+			const fileRows = filesPanel.getByTestId('chat-settings-file-row');
+			await expect(fileRows).toHaveCount(1);
+			await expect(fileRows.first()).toContainText(exampleCase.filename);
+			await expect(fileRows.first()).toContainText('Audio');
+			await expect(filesPanel.getByTestId('chat-settings-download-files')).toContainText('1 downloadable item');
+
+			const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
+			await filesPanel.getByTestId('chat-settings-download-files').click();
+			const download = await downloadPromise;
+			expect(download.suggestedFilename()).toMatch(/\.zip$/);
+			const zipEntries = await readZipEntryNames(
+				download,
+				testInfo.outputPath(`${exampleCase.chatId}.zip`)
+			);
+			expect(zipEntries).toContain(`generated-audio/${exampleCase.filename}`);
+		}
 	});
 });
