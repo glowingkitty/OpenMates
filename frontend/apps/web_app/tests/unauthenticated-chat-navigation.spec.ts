@@ -61,6 +61,15 @@ async function expectBlankFocusedComposer(page: any) {
 	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 }
 
+async function expectGuestWelcomeSuppressedForComposer(page: any) {
+	await expect(page.getByTestId('daily-inspiration-area')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('report-issue-button')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('guest-input-context-link')).toHaveCount(0);
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+}
+
 async function expectCurrentLandingSlide(page: any, slideIndex: number, inspirationId: string) {
 	await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')).toHaveAttribute(
 		'data-slide-index',
@@ -98,6 +107,29 @@ async function expectLandingCarouselNavigatesBothDirections(page: any) {
 }
 
 test.describe('Unauthenticated chat navigation stays reactive', () => {
+	// contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression
+	test('focused desktop guest composer suppresses surrounding welcome UI', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1366, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('report-issue-button')).toBeVisible({ timeout: 10000 });
+
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await editor.click();
+		await expectGuestWelcomeSuppressedForComposer(page);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=message-input.focus.guest-welcome-suppression
 	test('clicking intro/example chats and new-chat repeatedly keeps UI responsive', async ({
 		page
 	}: {

@@ -108,6 +108,14 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.message-input:
+    version: 1
+    status: approved
+    path: features/message-input
+    fingerprint: 8f923e80c19adce5f38bc93552ff0760036e3215205e1695fb9469441f6d65a5
+    required_surfaces:
+    - gui.web
+    - gui.apple
   feature.notifications:
     version: 1
     status: approved
@@ -1137,6 +1145,78 @@ assertions:
     contract_id: feature.landing-onboarding
     type: parity
     fingerprint: 1b1753b9559c6537454180d1f28debee24f25d0972ebaab203ad90bb2445ebf0
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.focus.parent-state:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.focus.guest-welcome-suppression:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: 805ecc548a7c652f4ef6f7f5451e17643d895b1be6dbebb34fa7759f77d12e1e
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.actions.visibility:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: 6cfe810216681b5e6ab4400a55aa7071f9111895a46f6d18093326212b72ff9b
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.drafts.preview-persistence:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: 307e189a65700826d3880a15fd80f392051987651b156f8738e4b56f57af0afd
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.embeds.gated-send:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: invariant
+    fingerprint: f479841a1c94ae75b747896122ba4000cc4632edf4edcc4bb50f7e201657059c
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.recording.lifecycle:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: 1105a6c36d5fef330fe936ecc11793be56da84c7887caeb6a35b714f3fdd9d6a
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.suggestions.contextual:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.send.ownership:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: behavior
+    fingerprint: b4c1ba8664b6817ad70c02d25638ce7397bd294f8beee6731ecd993ef678d8cd
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.privacy-context:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: privacy
+    fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
     required_surfaces:
     - gui.web
     - gui.apple
