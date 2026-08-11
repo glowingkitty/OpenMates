@@ -101,7 +101,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+  subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
 
 approvals:
   product_contract:
@@ -665,9 +665,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
-        run_id: local-pytest-green-parallel-worker-lifecycle-20260811T204515Z
-        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
-        timestamp: "2026-08-11T20:45:15Z"
+        run_id: local-pytest-green-parallel-worker-lifecycle-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
   - id: T-SPAWN-NO-DEPLOY
     type: pytest
     file: scripts/tests/test_spawn_chat_opencode.py
@@ -691,9 +691,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
-        run_id: local-pytest-green-spawn-no-deploy-20260811T204515Z
-        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
-        timestamp: "2026-08-11T20:45:15Z"
+        run_id: local-pytest-green-spawn-no-deploy-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
   - id: T-HOOK-READONLY-RECOVERY
     type: pytest
     file: scripts/tests/test_opencode_hooks_recovery.py
@@ -716,9 +716,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
-        run_id: local-pytest-green-hook-readonly-recovery-20260811T204515Z
-        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
-        timestamp: "2026-08-11T20:45:15Z"
+        run_id: local-pytest-green-hook-readonly-recovery-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -730,10 +730,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/test-debug-campaigns/spec.yml
-      run_id: local-spec-validate-20260803T181438Z
-      subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
-      summary: Spec validation and 60 focused tests passed. Directus created both new collections and all four linkage columns; a transactional campaign/group insert-read-rollback smoke passed. The full cms-setup sweep later failed in an unrelated pre-existing Project owner-context null-data migration.
-      timestamp: "2026-08-03T18:14:38Z"
+      run_id: local-spec-validate-20260811T205215Z
+      subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+      summary: Spec validation passed after the deployed parallel worker orchestration hardening commit.
+      timestamp: "2026-08-11T20:52:15Z"
 
 demonstration:
   eligibility:
