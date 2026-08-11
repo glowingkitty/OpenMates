@@ -3,8 +3,8 @@
 """Contract tests for active OpenCode progress Discord notifications.
 
 The notifier observes existing OpenCode presence and bounded transcript
-projections, asks Gemini 3.5 Flash Lite for one progress digest, and posts only
-that digest to Discord. Tests use fakes for Gemini and Discord so they never send
+projections, asks a low-cost model for one progress digest, and posts only
+that digest to Discord. Tests use fakes for the model and Discord so they never send
 network traffic or expose real chat transcript content.
 Architecture: docs/specs/opencode-active-progress-notifier/spec.yml.
 """
@@ -93,6 +93,18 @@ def fake_chat_view(session_id: str) -> dict:
                 "time_updated": "2026-08-10T12:51:00Z",
                 "parts": [
                     {"type": "text", "text": "Chose option 2 and hit a GitHub auth issue."},
+                    {
+                        "type": "tool",
+                        "tool": "todowrite",
+                        "status": "completed",
+                        "input": {
+                            "todos": [
+                                {"content": "Create executable spec", "status": "completed", "priority": "high"},
+                                {"content": "Implement notifier format", "status": "in_progress", "priority": "high"},
+                                {"content": "Send validation Discord message", "status": "pending", "priority": "high"},
+                            ]
+                        },
+                    },
                     {"type": "file", "filename": "private.png", "content_omitted": True},
                 ],
             }
@@ -104,12 +116,19 @@ def fake_chat_view(session_id: str) -> dict:
 def fake_digest(active_chats: list[dict]) -> dict:
     return {
         "overall_summary": "Two chats are active; one made an architecture decision and one needs input.",
+        "summary_bullets": ["Architecture decision made", "One chat needs input"],
         "important_decisions": ["Use an external inspector rather than self-reporting chats."],
         "watch_points": ["GitHub auth returned 401."],
+        "_usage_metadata": {"prompt_tokens": 2000, "completion_tokens": 500, "total_tokens": 2500},
         "chats": [
             {
                 "session_id": chat["session_id"],
                 "summary": f"{chat['title']} is {chat['status_label']}",
+                "tasks": {
+                    "completed": ["Generated completed task"],
+                    "current": ["Generated current task"],
+                    "next": ["Generated next task"],
+                },
                 "important_decisions": [],
                 "watch_points": [],
             }
@@ -129,14 +148,14 @@ def test_active_selection_merges_children_and_excludes_idle() -> None:
     assert selected[1].status_label == "waiting_for_user"
 
 
-def test_no_active_chats_skips_gemini_and_discord(tmp_path: Path) -> None:
+def test_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
     notifier = load_module("progress_no_active")
     calls: list[str] = []
 
     result = notifier.run_once(
         status_loader=lambda: {"live": {"working": [], "waiting_for_user": [], "idle_after_response": [], "stopped_or_failed": []}},
         chat_reader=lambda _session_id: fake_chat_view(_session_id),
-        gemini_summarizer=lambda **_kwargs: calls.append("gemini") or {},
+        summarizer=lambda **_kwargs: calls.append("model") or {},
         discord_sender=lambda **_kwargs: calls.append("discord") or {"message_id": "1"},
         state_path=tmp_path / "state.json",
         api_key="test-key",
@@ -148,7 +167,7 @@ def test_no_active_chats_skips_gemini_and_discord(tmp_path: Path) -> None:
     assert calls == []
 
 
-def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> None:
+def test_run_once_uses_mistral_small_and_posts_digest(tmp_path: Path) -> None:
     notifier = load_module("progress_model_payload")
     captured: dict[str, object] = {}
 
@@ -166,7 +185,7 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
     result = notifier.run_once(
         status_loader=fake_status,
         chat_reader=fake_chat_view,
-        gemini_summarizer=summarize,
+        summarizer=summarize,
         discord_sender=send,
         state_path=tmp_path / "state.json",
         api_key="test-key",
@@ -175,17 +194,94 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
     )
 
     assert result["status"] == "sent"
-    assert captured["model"] == notifier.DEFAULT_GEMINI_MODEL
+    assert captured["model"] == notifier.DEFAULT_MODEL
     assert captured["api_key"] == "test-key"
     assert captured["webhook_url"] == "https://example.invalid/webhook"
+    assert result["cost_estimate"]["estimated_usd"] > 0
+    assert result["cost_estimate"]["token_source"] == "usage"
+    assert result["cost_estimate"]["input_tokens_estimate"] == 2000
+    assert result["cost_estimate"]["output_tokens_estimate"] == 500
+    assert result["cost_estimate"]["input_usd_per_million_tokens"] == 0.15
+    assert result["cost_estimate"]["output_usd_per_million_tokens"] == 0.60
+    assert result["cost_estimate"]["daily_runs"] == 48
+    evidence = captured["evidence"]
+    assert evidence["active_chats"][0]["task_items"][0]["content"] == "Create executable spec"
+    assert evidence["active_chats"][0]["task_items"][1]["status"] == "in_progress"
     payload = captured["payload"]
     combined = payload["content"] + "\n" + "\n".join(embed["description"] for embed in payload["embeds"])
-    assert "**OpenCode Active Progress**" in combined
-    assert "**Overall**" in combined
+    assert "**OpenCode Progress**" in combined
+    assert "**Summary**" in combined
+    assert "Cost:" in combined
+    assert "~$0.0006/run" in combined
+    assert "~$0.03/day" in combined
     assert "**Active Chats**" in combined
+    assert "Tasks:" in combined
+    assert "Done: Create executable spec" in combined
+    assert "Now: Implement notifier format" in combined
+    assert "Next: Send validation Discord message" in combined
+    assert "✅" not in combined
+    assert "🔵" not in combined
+    assert "⏭️" not in combined
+    assert "Generated current task" not in combined
     assert "Build notifier" in combined
     assert "https://code.dev.openmates.org/" in combined
     assert "ses-parent" in combined
+
+
+def test_model_task_fallback_renders_without_todowrite_input(tmp_path: Path) -> None:
+    notifier = load_module("progress_generated_tasks")
+
+    def chat_without_tasks(session_id: str) -> dict:
+        view = fake_chat_view(session_id)
+        view["messages"][0]["parts"] = [{"type": "text", "text": "Working through implementation."}]
+        return view
+
+    sent: dict[str, object] = {}
+    result = notifier.run_once(
+        status_loader=fake_status,
+        chat_reader=chat_without_tasks,
+        summarizer=lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
+        discord_sender=lambda **kwargs: sent.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
+        state_path=tmp_path / "state.json",
+        api_key="test-key",
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "sent"
+    combined = sent["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in sent["payload"]["embeds"])
+    assert "Done: Generated completed task" in combined
+    assert "Now: Generated current task" in combined
+    assert "Next: Generated next task" in combined
+
+
+def test_todowrite_output_is_not_used_as_task_evidence() -> None:
+    notifier = load_module("progress_no_tool_output_tasks")
+    view = fake_chat_view("ses-parent")
+    view["messages"][0]["parts"] = [
+        {
+            "type": "tool",
+            "tool": "todowrite",
+            "status": "completed",
+            "output": '[{"content":"leaked output task","status":"in_progress","priority":"high"}]',
+        },
+        {
+            "type": "tool",
+            "tool": "bash",
+            "status": "completed",
+            "output_preview": "raw command output should not be projected",
+        },
+    ]
+
+    evidence = notifier.project_chat_view(
+        notifier.ActiveChatRoot("ses-parent", "working", "Build notifier", "2026-08-10T12:50:00Z", []),
+        view,
+    )
+    encoded = json.dumps(evidence)
+
+    assert evidence["task_items"] == []
+    assert "leaked output task" not in encoded
+    assert "raw command output should not be projected" not in encoded
 
 
 def test_unchanged_digest_is_suppressed_inside_interval(tmp_path: Path) -> None:
@@ -196,7 +292,7 @@ def test_unchanged_digest_is_suppressed_inside_interval(tmp_path: Path) -> None:
     kwargs = {
         "status_loader": fake_status,
         "chat_reader": fake_chat_view,
-        "gemini_summarizer": lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
+        "summarizer": lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
         "discord_sender": lambda **kwargs: sends.append(kwargs["payload"]) or {"message_id": "discord-1"},
         "state_path": state_path,
         "api_key": "test-key",
@@ -222,7 +318,7 @@ def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> N
     first = notifier.run_once(
         status_loader=lambda: fake_status_with_timestamp("2026-08-10T12:55:00Z"),
         chat_reader=fake_chat_view,
-        gemini_summarizer=lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
+        summarizer=lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
         discord_sender=lambda **kwargs: sends.append(kwargs["payload"]) or {"message_id": "discord-1"},
         state_path=state_path,
         api_key="test-key",
@@ -233,7 +329,7 @@ def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> N
     second = notifier.run_once(
         status_loader=lambda: fake_status_with_timestamp("2026-08-10T12:59:59Z"),
         chat_reader=fake_chat_view,
-        gemini_summarizer=lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
+        summarizer=lambda **kwargs: fake_digest(kwargs["evidence"]["active_chats"]),
         discord_sender=lambda **kwargs: sends.append(kwargs["payload"]) or {"message_id": "discord-2"},
         state_path=state_path,
         api_key="test-key",
@@ -332,7 +428,7 @@ def test_payload_keeps_twenty_chat_links_and_disables_mentions() -> None:
     assert "...[truncated to fit Discord" not in description
 
 
-def test_render_crontab_installs_ten_minute_once_command(tmp_path: Path) -> None:
+def test_render_crontab_installs_fifteen_minute_once_command(tmp_path: Path) -> None:
     notifier = load_module("progress_cron")
     root = tmp_path / "OpenMates"
 
@@ -340,7 +436,7 @@ def test_render_crontab_installs_ten_minute_once_command(tmp_path: Path) -> None
 
     assert notifier.CRON_BEGIN in rendered
     assert notifier.CRON_END in rendered
-    assert "*/10 * * * *" in rendered
+    assert "*/15 * * * *" in rendered
     assert "opencode_progress_notifier.py --once" in rendered
     assert "existing" in rendered
     assert rendered.count("opencode_progress_notifier.py") == 1
