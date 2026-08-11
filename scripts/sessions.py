@@ -164,6 +164,19 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
+DEFAULT_REPO_ID = "openmates"
+OPENMATESCLOUD_REPO_ID = "openmatescloud"
+OPENMATESCLOUD_REPO_ROOT = (CONTROL_PLANE_ROOT.parent / "OpenMatesCloud").resolve()
+OPENMATESCLOUD_REPO_BRANCH = "main"
+OPENMATESCLOUD_REPO_REMOTE = "origin"
+OPENMATESCLOUD_REPO_REMOTE_ID_SHA256 = "7fccd2227ef3f311f489546cb0823c292a28aec9d7dafc2840389f022246e490"
+REPO_ALIASES = {
+    "default": DEFAULT_REPO_ID,
+    "openmates": DEFAULT_REPO_ID,
+    "openmatescloud": OPENMATESCLOUD_REPO_ID,
+    "openmates-cloud": OPENMATESCLOUD_REPO_ID,
+    "cloud": OPENMATESCLOUD_REPO_ID,
+}
 CONTRACT_GENERATED_ARTIFACTS = {
     "contracts/generated/assertion-index.yml",
     "contracts/generated/coverage.yml",
@@ -171,7 +184,7 @@ CONTRACT_GENERATED_ARTIFACTS = {
 }
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
-WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed"}
+WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed", "repo_routed"}
 INTEGRATION_WORKTREE_PREFIX = "integration-"
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
@@ -385,6 +398,119 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _resolve_repo_id(raw_repo: str | None) -> str:
+    """Normalize a user-facing repository selector to a supported repo id."""
+    key = (raw_repo or DEFAULT_REPO_ID).strip().lower()
+    repo_id = REPO_ALIASES.get(key)
+    if not repo_id:
+        supported = ", ".join(sorted(REPO_ALIASES))
+        raise ValueError(f"Unsupported repository {raw_repo!r}. Supported: {supported}")
+    return repo_id
+
+
+def _repo_metadata(repo_id: str) -> dict[str, str]:
+    """Return allowlisted repository metadata for the session control plane."""
+    if repo_id == DEFAULT_REPO_ID:
+        return {
+            "repo_id": DEFAULT_REPO_ID,
+            "repo_name": "OpenMates",
+            "repo_root": str(CONTROL_PLANE_ROOT.resolve()),
+            "repo_branch": "dev",
+            "repo_remote": "origin",
+            "repo_kind": "control_plane",
+        }
+    if repo_id == OPENMATESCLOUD_REPO_ID:
+        return {
+            "repo_id": OPENMATESCLOUD_REPO_ID,
+            "repo_name": "OpenMatesCloud",
+            "repo_root": str(OPENMATESCLOUD_REPO_ROOT),
+            "repo_branch": OPENMATESCLOUD_REPO_BRANCH,
+            "repo_remote": OPENMATESCLOUD_REPO_REMOTE,
+            "repo_remote_identity_sha256": OPENMATESCLOUD_REPO_REMOTE_ID_SHA256,
+            "repo_kind": "sibling",
+        }
+    raise ValueError(f"Unsupported repository id: {repo_id}")
+
+
+def _session_repo_metadata(session: dict | None) -> dict[str, str]:
+    """Return canonical allowlisted metadata for a persisted session."""
+    return _repo_metadata(_session_repo_id(session))
+
+
+def _remote_identity_sha256(remote_url: str) -> str:
+    """Hash the canonical git remote identity without storing private URLs."""
+    normalized = remote_url.strip().rstrip("/")
+    if not normalized:
+        return ""
+    if "://" in normalized:
+        parsed = urllib.parse.urlparse(normalized)
+        try:
+            port = parsed.port
+        except ValueError:
+            return ""
+        default_ports = {"git": 9418, "http": 80, "https": 443, "ssh": 22}
+        if port and default_ports.get(parsed.scheme) != port:
+            return ""
+        host = parsed.hostname or ""
+        path = parsed.path.lstrip("/")
+        identity = f"{host.lower()}/{path}" if host and path else normalized
+    elif re.match(r"^[^@]+@[^:]+:.+", normalized):
+        user_host, path = normalized.split(":", 1)
+        host = user_host.rsplit("@", 1)[-1]
+        identity = f"{host.lower()}/{path.lstrip('/')}"
+    else:
+        identity = str(Path(normalized).expanduser().resolve())
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _validate_session_repo(repo: dict[str, str]) -> None:
+    """Fail fast when an allowlisted sibling repository is unavailable."""
+    root = Path(repo["repo_root"])
+    if repo.get("repo_kind") == "control_plane":
+        return
+    if not root.is_dir():
+        raise RuntimeError(f"{repo['repo_name']} checkout not found: {root}")
+    rc, stdout, stderr = _run_cmd(["git", "rev-parse", "--show-toplevel"], cwd=str(root))
+    if rc != 0 or Path(stdout).resolve() != root.resolve():
+        raise RuntimeError(f"{repo['repo_name']} is not a git checkout at {root}: {stderr or stdout}")
+    rc, stdout, stderr = _run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(root))
+    expected_branch = repo["repo_branch"]
+    if rc != 0 or stdout.strip() != expected_branch:
+        raise RuntimeError(
+            f"{repo['repo_name']} checkout must be on {expected_branch}: {stderr or stdout or '<unknown>'}"
+        )
+    expected_remote = repo["repo_remote"]
+    rc, stdout, stderr = _run_cmd(["git", "remote", "get-url", expected_remote], cwd=str(root))
+    expected_remote_identity = repo.get("repo_remote_identity_sha256")
+    if rc != 0 or not expected_remote_identity or _remote_identity_sha256(stdout) != expected_remote_identity:
+        detail = stderr or "remote identity mismatch"
+        raise RuntimeError(f"{repo['repo_name']} {expected_remote} remote is not valid: {detail}")
+
+
+def _session_repo_id(session: dict | None) -> str:
+    return str((session or {}).get("repo_id") or DEFAULT_REPO_ID)
+
+
+def _session_repo_name(session: dict | None) -> str:
+    return _session_repo_metadata(session)["repo_name"]
+
+
+def _session_repo_branch(session: dict | None) -> str:
+    return _session_repo_metadata(session)["repo_branch"]
+
+
+def _session_repo_remote(session: dict | None) -> str:
+    return _session_repo_metadata(session)["repo_remote"]
+
+
+def _session_checkout_root(session: dict | None) -> Path:
+    return Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
+
+
+def _session_is_control_plane_repo(session: dict | None) -> bool:
+    return _session_checkout_root(session) == CONTROL_PLANE_ROOT.resolve()
+
+
 def _current_head() -> str:
     rc, stdout, _ = _run_cmd(["git", "rev-parse", "HEAD"])
     return stdout.strip() if rc == 0 else ""
@@ -447,7 +573,7 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
 
 
 def _opencode_worktree_relative_path(resolved: Path) -> str | None:
-    """Return the repo-relative path for a file inside a sessions.py worktree."""
+    """Return the repo-relative path for a file inside a routed session checkout."""
     if not SESSIONS_FILE.is_file():
         return None
     try:
@@ -457,12 +583,14 @@ def _opencode_worktree_relative_path(resolved: Path) -> str | None:
     candidates: list[Path] = []
     for session in sessions.values():
         worktree_path = session.get("worktree", {}).get("path") if isinstance(session, dict) else None
-        if not worktree_path:
-            continue
-        try:
-            candidates.append(Path(worktree_path).resolve())
-        except OSError:
-            continue
+        repo_root = session.get("repo_root") if isinstance(session, dict) else None
+        for candidate in (worktree_path, repo_root):
+            if not candidate:
+                continue
+            try:
+                candidates.append(Path(candidate).resolve())
+            except OSError:
+                continue
     for worktree in sorted(candidates, key=lambda path: len(path.as_posix()), reverse=True):
         try:
             return resolved.relative_to(worktree).as_posix()
@@ -1919,6 +2047,11 @@ def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
 
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     """Return the deploy file set, preferring the isolated worktree diff."""
+    if not _session_is_control_plane_repo(session):
+        dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
+        tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
+        return sorted(f for f in tracked if f in dirty_files and f not in exclude)
+
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
         changed = set(_worktree_changed_files(metadata))
@@ -1945,7 +2078,7 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
         if tracked:
             changed &= tracked
         return sorted(f for f in changed if f not in exclude)
-    dirty_files = _get_dirty_files()
+    dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
     return sorted(f for f in session.get("modified_files", []) if f in dirty_files and f not in exclude)
 
 
@@ -1966,6 +2099,17 @@ def _relative_repo_path_for_session(path_value: str | Path, session: dict | None
     if worktree_path:
         try:
             return resolved.relative_to(Path(worktree_path).resolve()).as_posix()
+        except ValueError:
+            pass
+    repo_root = None
+    if isinstance(session, dict):
+        try:
+            repo_root = _session_checkout_root(session)
+        except ValueError:
+            repo_root = None
+    if repo_root:
+        try:
+            return resolved.relative_to(repo_root).as_posix()
         except ValueError:
             pass
     try:
@@ -4001,7 +4145,7 @@ def _prune_stale_locks(data: dict) -> list[str]:
 
 def _lock_stale_minutes(lock_type: str) -> int:
     """Return lock-specific stale timeout in minutes."""
-    if lock_type == "vercel_deploy":
+    if lock_type == "vercel_deploy" or lock_type.endswith("_deploy"):
         return VERCEL_DEPLOY_LOCK_MINUTES
     return STALE_LOCK_MINUTES
 
@@ -4408,7 +4552,7 @@ def _get_commit_url(commit_hash: str) -> str | None:
 
 
 
-def _get_dirty_files() -> set[str]:
+def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
     """Parse `git status --porcelain` and return set of dirty file paths.
 
     Handles all porcelain v1 status formats including renames/copies
@@ -4425,7 +4569,7 @@ def _get_dirty_files() -> set[str]:
     # breaking the fixed-offset parsing at line[3:].
     result = subprocess.run(
         ["git", "status", "--porcelain", "-uall"],
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
         capture_output=True,
         text=True,
         timeout=120,
@@ -4493,13 +4637,13 @@ def _validate_staged_deploy_files(
     return False
 
 
-def _get_recent_commits(count: int = RECENT_COMMITS_COUNT) -> list[str]:
+def _get_recent_commits(count: int = RECENT_COMMITS_COUNT, *, checkout_root: Path | None = None) -> list[str]:
     """Return recent git commits as one-line summaries with relative timestamps."""
     rc, stdout, _ = _run_cmd([
         "git", "log", f"--max-count={count}",
         "--format=%h %ar %s",
         "--no-merges",
-    ])
+    ], cwd=str(checkout_root or CONTROL_PLANE_ROOT))
     if rc != 0 or not stdout:
         return []
     return stdout.splitlines()
@@ -4532,19 +4676,20 @@ def _save_last_deploy_sha(sha: str) -> None:
     _save_sessions(data)
 
 
-def _get_git_status_summary() -> dict:
+def _get_git_status_summary(*, checkout_root: Path | None = None) -> dict:
     """Return a compact git status summary for session start context."""
     result = {"branch": "unknown", "tracking": "", "uncommitted": [], "unpushed": 0}
 
     # Current branch
-    rc, stdout, _ = _run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    cwd = str(checkout_root or CONTROL_PLANE_ROOT)
+    rc, stdout, _ = _run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
     if rc == 0:
         result["branch"] = stdout.strip()
 
     # Tracking status (ahead/behind)
     rc, stdout, _ = _run_cmd([
         "git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD"
-    ])
+    ], cwd=cwd)
     if rc == 0 and stdout.strip():
         parts = stdout.strip().split()
         if len(parts) == 2:
@@ -4561,7 +4706,7 @@ def _get_git_status_summary() -> dict:
                 result["tracking"] = ", ".join(parts_str)
 
     # Uncommitted files (compact: just the paths with status)
-    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"])
+    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"], cwd=cwd)
     if rc == 0 and stdout:
         for line in stdout.splitlines():
             if len(line) >= 4:
@@ -5930,6 +6075,18 @@ def record_worktree_binding(
     def update(data: dict) -> dict:
         session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
         session = data["sessions"][session_id]
+        if not _session_is_control_plane_repo(session):
+            checkout_root = _session_checkout_root(session)
+            session["binding_mode"] = "repo_routed"
+            session["binding_updated_at"] = _now_iso()
+            session["binding_failure_reason"] = ""
+            session["last_active"] = _now_iso()
+            return {
+                "session_id": session_id,
+                "mode": "repo_routed",
+                "worktree_path": str(checkout_root),
+                "repo": _session_repo_name(session),
+            }
         worktree = session.get("worktree") or {}
         expected = Path(str(worktree.get("path") or "")).resolve()
         if mode == "native" and (not directory or Path(directory).resolve() != expected):
@@ -6044,6 +6201,12 @@ def cmd_start(args: argparse.Namespace) -> None:
             tags.append(et)
 
     mode = args.mode
+    try:
+        repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
+        _validate_session_repo(repo)
+    except (RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     task_id_arg = getattr(args, "task_id", None)
     linked_task = _load_task(task_id_arg) if task_id_arg else None
@@ -6065,6 +6228,8 @@ def cmd_start(args: argparse.Namespace) -> None:
     existing = session_for_opencode(_load_sessions(), opencode_session_id) if opencode_session_id else None
     if existing and not opencode_session_reusable_for_start(existing[1]):
         existing = None
+    if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
+        existing = None
     is_new_session = existing is None
     if existing:
         sid, _existing_session = existing
@@ -6081,6 +6246,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         cleared_locks: list[str] = []
     else:
         session_record: dict = {
+            **repo,
             "task": args.task or "(pending)",
             "mode": mode,
             "tags": tags,
@@ -6092,8 +6258,12 @@ def cmd_start(args: argparse.Namespace) -> None:
             "linear_issue_id": None,
             "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
             "opencode_session_id": None,
-            "binding_mode": "pending" if opencode_session_id and mode != "question" else "legacy_grandfathered",
-            "auto_integration_policy": "enabled" if opencode_session_id and mode != "question" else "disabled",
+            "binding_mode": (
+                "repo_routed"
+                if opencode_session_id and mode != "question" and repo["repo_kind"] != "control_plane"
+                else ("pending" if opencode_session_id and mode != "question" else "legacy_grandfathered")
+            ),
+            "auto_integration_policy": "enabled" if opencode_session_id and mode != "question" and repo["repo_kind"] == "control_plane" else "disabled",
         }
         sid, pruned, cleared_locks, data = register_session_record(
             session_record,
@@ -6101,7 +6271,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         )
     worktree_metadata: dict | None = None
     worktree_error = ""
-    if mode != "question":
+    if mode != "question" and repo["repo_kind"] == "control_plane":
         try:
             worktree_metadata = ensure_session_worktree(sid)
             data = _load_sessions()
@@ -6110,6 +6280,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                 data = _load_sessions()
         except (RuntimeError, OSError, ValueError) as exc:
             worktree_error = str(exc)
+    elif mode != "question":
+        data = _load_sessions()
 
     # Link task file to this session if --task-id was given
     if linked_task and is_new_session:
@@ -6130,7 +6302,8 @@ def cmd_start(args: argparse.Namespace) -> None:
     # ===================================================================
 
     # ── Warn if workflow scripts themselves are modified but untracked ─────
-    dirty_set = _get_dirty_files()
+    session_checkout_root = _session_checkout_root(data["sessions"].get(sid, {}))
+    dirty_set = _get_dirty_files(checkout_root=session_checkout_root)
     workflow_dirty = [
         f for f in dirty_set
         if f in ("scripts/sessions.py",
@@ -6150,7 +6323,7 @@ def cmd_start(args: argparse.Namespace) -> None:
                 tracked_by[wf] = other_sid
 
     # ── Header block ──────────────────────────────────────────────────────
-    git_status = _get_git_status_summary()
+    git_status = _get_git_status_summary(checkout_root=session_checkout_root)
     branch_info = git_status["branch"]
     if git_status["tracking"]:
         branch_info += f" ({git_status['tracking']})"
@@ -6162,6 +6335,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         f"  Tags:  {', '.join(tags) if tags else 'none'}",
         f"  Task:  {args.task or '(pending)'}",
     ]
+    if repo["repo_kind"] != "control_plane":
+        header_lines.append(f"  Repo:  {repo['repo_name']} ({repo['repo_branch']})")
     if linear_linked:
         header_lines.append(f"  Linear: {linear_linked}")
     zellij_name = data["sessions"][sid].get("zellij_session")
@@ -6171,6 +6346,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         header_lines.append(f"  Worktree: {worktree_metadata.get('path')}")
     elif worktree_error:
         header_lines.append(f"  Worktree: creation failed ({worktree_error})")
+    elif repo["repo_kind"] != "control_plane":
+        header_lines.append(f"  Checkout: {repo['repo_root']}")
 
     # Git status line
     if mode in ("feature", "bug", "testing"):
@@ -6186,7 +6363,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     # Recent commits — table layout: SHA  AGE   FULL TITLE (no truncation)
     if mode != "question":
         commit_limit = RECENT_COMMITS_COUNT if mode == "feature" else 3
-        recent_commits = _get_recent_commits(count=commit_limit)
+        recent_commits = _get_recent_commits(count=commit_limit, checkout_root=session_checkout_root)
         if recent_commits:
             # Parse all rows first so we can align columns
             rows = []
@@ -6572,7 +6749,7 @@ def cmd_end(args: argparse.Namespace) -> None:
 
     # Check for uncommitted modified files — BLOCK unless --force
     if modified:
-        dirty_files = _get_dirty_files()
+        dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
         uncommitted = [f for f in modified if f in dirty_files]
         if uncommitted:
             force = getattr(args, "force", False)
@@ -6596,7 +6773,7 @@ def cmd_end(args: argparse.Namespace) -> None:
 
     # Check related architecture docs
     if modified:
-        related = _find_related_docs(modified)
+        related = _find_related_docs(modified) if _session_is_control_plane_repo(session) else []
         if related:
             print("== ARCHITECTURE DOCS TO VERIFY ==")
             print(
@@ -6607,7 +6784,7 @@ def cmd_end(args: argparse.Namespace) -> None:
                 print(f"  - docs/architecture/{doc}")
             print()
 
-    if not getattr(args, "force", False):
+    if not getattr(args, "force", False) and _session_is_control_plane_repo(session):
         _enforce_visual_smoke_end_gate(
             sid,
             session,
@@ -6963,9 +7140,13 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     # --json: emit raw sessions dict for machine consumers (e.g. opencode plugin)
     if getattr(args, "json", False):
-        dirty_files = _get_dirty_files()
+        dirty_by_root: dict[Path, set[str]] = {}
         output = {"sessions": {}, "locks": locks, "edit_leases": edit_leases, "presence": presence, "live": view}
         for sid, info in sessions.items():
+            root = _session_checkout_root(info)
+            if root not in dirty_by_root:
+                dirty_by_root[root] = _get_dirty_files(checkout_root=root)
+            dirty_files = dirty_by_root[root]
             modified = info.get("modified_files", [])
             uncommitted = [f for f in modified if f in dirty_files]
             output["sessions"][sid] = {
@@ -7051,9 +7232,10 @@ def cmd_status(args: argparse.Namespace) -> None:
             linear_str = f" [{linear_id}]" if linear_id else ""
             worktree = info.get("worktree") if isinstance(info.get("worktree"), dict) else {}
             lifecycle = f" [worktree: {worktree.get('status', 'none')}]" if worktree else ""
+            repo_str = f" [repo: {_session_repo_name(info)}]" if not _session_is_control_plane_repo(info) else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{lifecycle}{writing_str}"
+                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{repo_str}{lifecycle}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -7079,9 +7261,11 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
     sessions = data.get("sessions", {})
     session_id = getattr(args, "session", None) or ""
-    dirty_files = sorted(_get_dirty_files())
-    staged_files = sorted(_get_staged_files())
-    git_summary = _get_git_status_summary()
+    focus_session = sessions.get(session_id) if session_id else None
+    checkout_root = _session_checkout_root(focus_session)
+    dirty_files = sorted(_get_dirty_files(checkout_root=checkout_root))
+    staged_files = sorted(_get_staged_files(checkout_root=checkout_root))
+    git_summary = _get_git_status_summary(checkout_root=checkout_root)
 
     tracked_by_file: dict[str, list[str]] = {}
     for sid, info in sessions.items():
@@ -7339,6 +7523,8 @@ def cmd_track(args: argparse.Namespace) -> None:
         for other_sid, other_info in sessions.items():
             if other_sid == sid:
                 continue
+            if _session_repo_id(other_info) != _session_repo_id(sessions.get(sid)):
+                continue
             other_files = other_info.get("modified_files", [])
             if filepath in other_files:
                 other_task = other_info.get("task", "?")[:60]
@@ -7479,10 +7665,7 @@ def cmd_untrack(args: argparse.Namespace) -> None:
         # Normalise like cmd_track does, so user-supplied absolute paths and
         # relative paths both work consistently.
         for raw in args.file:
-            try:
-                filepath = str(Path(raw).resolve().relative_to(PROJECT_ROOT))
-            except ValueError:
-                filepath = raw
+            filepath = _relative_repo_path_for_session(raw, session)
             if filepath in modified:
                 to_remove.append(filepath)
             else:
@@ -7934,7 +8117,7 @@ def cmd_wait_lock(args: argparse.Namespace) -> None:
 
     timeout = args.timeout
     if timeout is None:
-        timeout = VERCEL_DEPLOY_LOCK_MINUTES * 60 if lock_type == "vercel_deploy" else STALE_LOCK_MINUTES * 60
+        timeout = _lock_stale_minutes(lock_type) * 60
     poll = max(1, args.poll)
     deadline = time.time() + max(0, timeout)
     last_report = 0.0
@@ -7979,7 +8162,7 @@ def _wait_and_acquire_session_lock(
 ) -> bool:
     """Wait for a shared lock and acquire it in the same loop to avoid races."""
     if timeout is None:
-        timeout = VERCEL_DEPLOY_LOCK_MINUTES * 60 if lock_type == "vercel_deploy" else STALE_LOCK_MINUTES * 60
+        timeout = _lock_stale_minutes(lock_type) * 60
     poll = max(1, poll)
     deadline = time.time() + max(0, timeout)
     last_report = 0.0
@@ -8485,9 +8668,10 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     session = data["sessions"][sid]
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
+    checkout_root = _session_checkout_root(session)
 
     worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
-    dirty_files = _get_dirty_files()
+    dirty_files = _get_dirty_files(checkout_root=checkout_root)
     to_commit = _session_deploy_files(session, exclude)
     tracked_but_clean = [f for f in modified if f not in dirty_files]
     dirty_but_untracked = [f for f in dirty_files if f not in modified]
@@ -8496,6 +8680,9 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== DEPLOYMENT PLAN ==")
     print(f"Session: {sid}")
     print(f"Task: {session.get('task', '?')}")
+    if not _session_is_control_plane_repo(session):
+        print(f"Repo: {_session_repo_name(session)} ({_session_repo_branch(session)})")
+        print(f"Checkout: {checkout_root}")
     if worktree_metadata:
         print(f"Worktree: {worktree_metadata.get('path')}")
     print()
@@ -8526,6 +8713,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         for other_sid, other_info in data.get("sessions", {}).items():
             if other_sid == sid:
                 continue
+            if _session_repo_id(other_info) != _session_repo_id(session):
+                continue
             for of in other_info.get("modified_files", []):
                 file_tracking[of] = other_sid
 
@@ -8539,9 +8728,9 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     # Run linter on files to commit
     if to_commit:
         lint_flags = _get_lint_flags(to_commit)
-        if lint_flags:
+        if lint_flags and _session_is_control_plane_repo(session):
             print("Running linter...")
-            rc, stdout, stderr = _run_lint(to_commit)
+            rc, stdout, stderr = _run_lint(to_commit, checkout_root=checkout_root)
             if rc != 0:
                 print("LINT ERRORS — fix before deploying:")
                 if stdout:
@@ -8550,6 +8739,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
                     print(stderr)
             else:
                 print("Lint: PASSED")
+        elif lint_flags:
+            print(f"Lint: SKIPPED ({_session_repo_name(session)} has no OpenMates lint_changed.sh gate)")
         print()
 
     # Translation validation skipped here — deploy and pre-commit hook both
@@ -8564,7 +8755,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         print()
 
     # Related architecture docs
-    related = _find_related_docs(modified)
+    related = _find_related_docs(modified) if _session_is_control_plane_repo(session) else []
     if related:
         print("Architecture docs to verify:")
         for doc in related:
@@ -8581,7 +8772,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         and not f.endswith(".test.ts")
         and not f.endswith(".spec.ts")
     ]
-    if source_files:
+    if source_files and _session_is_control_plane_repo(session):
         verdicts = {"covered": 0, "partial": 0, "none": 0}
         all_specs: list[str] = []
         untested: list[str] = []
@@ -8887,6 +9078,180 @@ def _deploy_native_worktree(
         print(f"\nSession {sid} ended.")
 
 
+def _run_openmatescloud_deploy_gates(files: list[str], *, checkout_root: Path, no_verify: bool) -> None:
+    """Run the lightweight gate that belongs to the private cloud overlay repo."""
+    relevant = any(
+        path == "docker-compose.openmatescloud.yml"
+        or path == "backend/tests/test_overlay_compose.py"
+        or path.startswith("backend/openmatescloud/")
+        for path in files
+    )
+    if not relevant:
+        return
+    if no_verify:
+        print("OpenMatesCloud overlay pytest: SKIPPED (--no-verify)")
+        return
+    test_path = checkout_root / "backend" / "tests" / "test_overlay_compose.py"
+    if not test_path.is_file():
+        raise RuntimeError(f"OpenMatesCloud overlay pytest is missing: {test_path}")
+    print("Running OpenMatesCloud overlay pytest...")
+    rc, stdout, stderr = _run_cmd(
+        [sys.executable, "-m", "pytest", "backend/tests/test_overlay_compose.py"],
+        cwd=str(checkout_root),
+        timeout=120,
+    )
+    if rc != 0:
+        detail = stderr or stdout or "pytest failed"
+        raise RuntimeError(f"OpenMatesCloud overlay pytest failed: {detail}")
+    print("OpenMatesCloud overlay pytest: PASSED")
+
+
+def _run_external_repo_deploy_gates(session: dict, files: list[str], *, checkout_root: Path, no_verify: bool) -> None:
+    if _session_repo_id(session) == OPENMATESCLOUD_REPO_ID:
+        _run_openmatescloud_deploy_gates(files, checkout_root=checkout_root, no_verify=no_verify)
+
+
+def _deploy_external_repo(args: argparse.Namespace, session: dict, to_commit: list[str], dirty_but_untracked: list[str]) -> None:
+    """Commit selected files in an allowlisted sibling checkout and push its branch."""
+    sid = args.session
+    repo = _session_repo_metadata(session)
+    lock_type = f"{repo['repo_id']}_deploy"
+    acquired_lock = _wait_and_acquire_session_lock(
+        lock_type,
+        sid,
+        phase="deploying_sibling_repo",
+        timeout=getattr(args, "lock_timeout", None),
+        poll=getattr(args, "lock_poll", 30),
+    )
+    if not acquired_lock:
+        raise RuntimeError(f"{repo['repo_name']} deploy lock is already held by session {sid}")
+    try:
+        return _deploy_external_repo_locked(args, session, to_commit, dirty_but_untracked, repo=repo)
+    finally:
+        _release_session_lock(lock_type, released_by=sid)
+
+
+def _deploy_external_repo_locked(
+    args: argparse.Namespace,
+    session: dict,
+    to_commit: list[str],
+    dirty_but_untracked: list[str],
+    *,
+    repo: dict[str, str],
+) -> None:
+    """Run a sibling checkout deploy while the repo-scoped deploy lock is held."""
+    _validate_session_repo(repo)
+    checkout_root = Path(repo["repo_root"]).resolve()
+    branch = repo["repo_branch"]
+    remote = repo["repo_remote"]
+    no_verify = getattr(args, "no_verify", False)
+    use_staged = getattr(args, "use_staged", False)
+
+    if dirty_but_untracked:
+        print("Warning — dirty files NOT tracked by this session (will not be committed):")
+        for f in sorted(dirty_but_untracked):
+            print(f"  ? {f}")
+        print()
+
+    if not to_commit:
+        git_summary = _get_git_status_summary(checkout_root=checkout_root)
+        if git_summary.get("unpushed", 0) > 0:
+            rc, commit_hash_full, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
+            if rc != 0:
+                raise RuntimeError(f"Could not resolve {_session_repo_name(session)} HEAD: {stderr}")
+            commit_hash_full = commit_hash_full.strip()
+            commit_hash = commit_hash_full[:7]
+            print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to {remote} {branch}...")
+            _validate_session_repo(repo)
+            rc, _stdout, stderr = _run_cmd(
+                ["git", "push", remote, f"HEAD:refs/heads/{branch}"],
+                cwd=str(checkout_root),
+                timeout=300,
+            )
+            if rc != 0:
+                raise RuntimeError(f"git push failed: {stderr}")
+            print()
+            print("== DEPLOYED ==")
+            print(f"Repo: {_session_repo_name(session)}")
+            print(f"Commit: {commit_hash}")
+            print("Files: 0 (resumed previous deploy push)")
+            print(f"Branch: {branch}")
+            return
+        raise RuntimeError("No files to commit.")
+
+    _run_external_repo_deploy_gates(session, to_commit, checkout_root=checkout_root, no_verify=no_verify)
+    _validate_session_repo(repo)
+
+    staged_files = _get_staged_files(checkout_root=checkout_root)
+    foreign_staged = [f for f in staged_files if f not in to_commit]
+    if foreign_staged:
+        raise RuntimeError(
+            "staged files outside this session; aborting to preserve the shared index: "
+            + ", ".join(sorted(foreign_staged))
+        )
+
+    if use_staged:
+        staged_files = _get_staged_files(checkout_root=checkout_root)
+        missing_staged = [f for f in to_commit if f not in staged_files]
+        if missing_staged:
+            raise RuntimeError("--use-staged requires staged changes for: " + ", ".join(sorted(missing_staged)))
+        print(f"Using pre-staged changes for {len(to_commit)} tracked file(s)")
+    else:
+        files_to_add = [f for f in to_commit if (checkout_root / f).exists()]
+        deleted_files = [f for f in to_commit if not (checkout_root / f).exists()]
+        if deleted_files:
+            print(f"Staging {len(deleted_files)} deleted file(s)...")
+            rc, _stdout, stderr = _run_cmd(
+                ["git", "rm", "--cached", "--ignore-unmatch", "--", *deleted_files],
+                cwd=str(checkout_root),
+            )
+            if rc != 0:
+                raise RuntimeError(f"git rm failed: {stderr}")
+        if files_to_add:
+            print(f"Adding {len(files_to_add)} file(s)...")
+            rc, _stdout, stderr = _run_cmd(["git", "add", "--", *files_to_add], cwd=str(checkout_root))
+            if rc != 0:
+                raise RuntimeError(f"git add failed: {stderr}")
+        print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
+
+    if not _validate_staged_deploy_files(set(to_commit), context="before external repo commit", checkout_root=checkout_root):
+        raise RuntimeError("staged-file validation failed")
+
+    _validate_session_repo(repo)
+    commit_msg = _integration_commit_message(args, session)
+    commit_cmd = ["git", "commit", "-m", commit_msg]
+    if no_verify:
+        commit_cmd.append("--no-verify")
+    print(f"Committing {_session_repo_name(session)}: {args.title}")
+    rc, _stdout, stderr = _run_cmd(commit_cmd, cwd=str(checkout_root), timeout=300)
+    if rc != 0:
+        raise RuntimeError(f"git commit failed: {stderr}")
+
+    rc, commit_hash_full, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
+    commit_hash_full = commit_hash_full.strip()
+    if rc != 0 or not commit_hash_full:
+        raise RuntimeError(f"Could not resolve commit hash: {stderr}")
+
+    _validate_session_repo(repo)
+    print(f"Pushing to {remote} {branch}...")
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "push", remote, f"HEAD:refs/heads/{branch}"],
+        cwd=str(checkout_root),
+        timeout=300,
+    )
+    if rc != 0:
+        raise RuntimeError(f"git push failed: {stderr}")
+
+    print()
+    print("== DEPLOYED ==")
+    print(f"Repo: {_session_repo_name(session)}")
+    print(f"Commit: {commit_hash_full[:7]}")
+    print(f"Files: {len(to_commit)}")
+    for f in sorted(to_commit):
+        print(f"  {f}")
+    print(f"Branch: {branch}")
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     data = _load_sessions()
@@ -8899,13 +9264,28 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     session = data["sessions"][sid]
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
-    worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    is_control_plane_repo = _session_is_control_plane_repo(session)
+    worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
+    checkout_root = _session_checkout_root(session)
 
     use_staged = getattr(args, "use_staged", False)
-    dirty_files = _get_dirty_files()
+    dirty_files = _get_dirty_files(checkout_root=checkout_root)
     to_commit = _session_deploy_files(session, exclude)
-    staged_files_for_deploy = set(_get_staged_files()) if use_staged and not to_commit else set()
+    staged_files_for_deploy = set(_get_staged_files(checkout_root=checkout_root)) if use_staged and not to_commit else set()
     if staged_files_for_deploy:
+        allowed_staged_files = {
+            _canonical_stored_repo_path(path)
+            for path in modified
+            if _canonical_stored_repo_path(path) not in exclude
+        }
+        foreign_staged = sorted(staged_files_for_deploy - allowed_staged_files)
+        if foreign_staged:
+            print(
+                f"{_session_repo_name(session).upper()} DEPLOY FAILED — --use-staged found staged files outside this session: "
+                + ", ".join(foreign_staged),
+                file=sys.stderr,
+            )
+            sys.exit(1)
         to_commit = sorted(f for f in staged_files_for_deploy if f not in exclude)
         modified = sorted(set(modified) | set(to_commit))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
@@ -8943,8 +9323,24 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     for other_sid, other_info in data.get("sessions", {}).items():
         if other_sid == sid:
             continue
+        if _session_repo_id(other_info) != _session_repo_id(session):
+            continue
         for of in other_info.get("modified_files", []):
             file_tracking[of] = other_sid
+
+    if not is_control_plane_repo:
+        try:
+            _deploy_external_repo(args, session, to_commit, dirty_but_untracked)
+        except RuntimeError as exc:
+            print(f"{_session_repo_name(session).upper()} DEPLOY FAILED — {exc}", file=sys.stderr)
+            sys.exit(1)
+        if getattr(args, "end_session", False):
+            cmd_end(argparse.Namespace(
+                session=sid,
+                force=False,
+                skip_visual_smoke_reason=getattr(args, "skip_visual_smoke_reason", None),
+            ))
+        return
 
     if not to_commit or pending_worktree_commit:
         git_summary = _get_git_status_summary()
@@ -9706,7 +10102,7 @@ def cmd_summary(args: argparse.Namespace) -> None:
         if isinstance(session.get("worktree"), dict):
             uncommitted = _session_deploy_files(session, set())
         else:
-            dirty_files = _get_dirty_files()
+            dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
             uncommitted = [f for f in modified if f in dirty_files]
         committed = [f for f in modified if f not in set(uncommitted)]
 
@@ -9719,7 +10115,7 @@ def cmd_summary(args: argparse.Namespace) -> None:
             print(f"    python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
         elif committed:
             # Try to get the most recent commit SHA that touched any of these files
-            rc, sha, _ = _run_cmd(["git", "log", "-1", "--format=%h", "--"] + committed)
+            rc, sha, _ = _run_cmd(["git", "log", "-1", "--format=%h", "--"] + committed, cwd=str(_session_checkout_root(session)))
             sha_str = sha.strip() if rc == 0 and sha.strip() else "unknown"
             print(f"Deploy status: DEPLOYED (commit {sha_str})")
             for f in sorted(committed):
@@ -9753,8 +10149,11 @@ def cmd_lint(args: argparse.Namespace) -> None:
     if not lint_flags:
         print("No lintable file types found.")
         return
+    if not _session_is_control_plane_repo(session):
+        print(f"Lint: SKIPPED ({_session_repo_name(session)} has no OpenMates lint_changed.sh gate)")
+        return
 
-    rc, stdout, stderr = _run_lint(modified)
+    rc, stdout, stderr = _run_lint(modified, checkout_root=_session_checkout_root(session))
     if rc != 0:
         print("LINT ERRORS:")
         if stdout:
@@ -11685,6 +12084,12 @@ def main() -> None:
         "Controls which context sections are shown.",
     )
     p_start.add_argument("--task", "-t", help="Task description")
+    p_start.add_argument(
+        "--repo",
+        default=DEFAULT_REPO_ID,
+        choices=sorted(REPO_ALIASES),
+        help="Repository to work in (default: openmates; use openmatescloud for the private sibling overlay repo).",
+    )
     p_start.add_argument("--opencode-session", help=argparse.SUPPRESS)
     p_start.add_argument(
         "--tags",

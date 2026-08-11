@@ -11,6 +11,7 @@ Use `sessions.py` for deploys, durable multi-session work, coordinated Docker re
 # 1. START (must include --mode):
 python3 scripts/sessions.py start --mode <MODE> --task "brief description"
 #   Modes: feature | bug | docs | question | testing
+#   Private cloud overlay repo: add --repo openmatescloud
 #   Prefetch: --issue ID, --chat ID, --embed ID, --logs, --user EMAIL,
 #             --debug-id ID, --vercel, --run-id ID, --since-last-deploy, --task-id ID
 
@@ -30,6 +31,7 @@ python3 scripts/sessions.py end --session <ID>
 
 - **Always use `sessions.py deploy`** — never raw `git commit`. It selects and verifies the intended files.
 - **Use routed session worktrees:** OpenCode Web stays at the root project URL, but hooks force local file tools, searches, Bash, and Task children into the automatic session worktree. Run `sessions.py start` before mutating work, use repository-relative paths, and never override Bash `workdir` to root or another checkout. The root checkout remains the control plane; set `OPENMATES_ROOT_GUARD=off` only for an explicit manual emergency. If routing fails, follow the hook's `Next:` command instead of repeating the rejected call.
+- **Use `--repo openmatescloud` for the private overlay repo:** OpenMates remains the control plane, but the active session routes normal file and shell tools into the sibling `/home/superdev/projects/OpenMatesCloud` checkout and `sessions.py deploy` commits/pushes its tracked files to `origin/main`. Keep using repository-relative paths inside that checkout; do not use raw `git commit` or `git push` there.
 - **Scoped `dev` deploys are pre-authorized for verification:** do not ask before `sessions.py deploy` when the deployment is required to run dev-server, Vercel, GitHub Actions, Playwright, CLI/SDK, or Apple parity verification for the assigned task. Ask first for production deploys, raw git commit/push, broad/unscoped dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, same-file overlap that cannot be safely staged, or planning/review-only work.
 - **Deploy locks are atomic and short-lived:** `python3 scripts/sessions.py deploy` acquires the dev deploy push lock for root integration, commit, and push, then releases it immediately after push. Do not run a separate `wait-lock` before normal deploys; use it only for diagnostics/manual inspection. Vercel and test verification must be commit-scoped with `--expected-commit`, not protected by a long-lived global lock.
 - **Forgotten mutating chats are recoverable by default:** idle or closed top-level OpenCode chats create a local checkpoint ref. After the grace period, the hourly controller may integrate only the unchanged checkpoint through the normal deploy gates. Explicit holds, live edits, sensitive paths, changed patches, conflicts, and failed gates remain visible; question chats, children, legacy state, and uncheckpointed work are never implicit auto-integration inputs.

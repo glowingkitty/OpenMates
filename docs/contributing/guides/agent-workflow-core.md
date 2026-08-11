@@ -19,6 +19,14 @@ For hook, worktree, or child-chat debugging, read or search existing OpenCode
 chats with `python3 scripts/sessions.py chat read <ses_or_url>` and
 `python3 scripts/sessions.py chat search <ses_or_url> "query"`.
 
+For private OpenMatesCloud overlay work, keep OpenMates as the control-plane
+project but start the session with `python3 scripts/sessions.py start --repo
+openmatescloud --mode <mode> --task "..."`. The OpenCode hooks route normal
+file and shell tools into the sibling `/home/superdev/projects/OpenMatesCloud`
+checkout, while `python3 scripts/sessions.py deploy --session <id> ...` stays
+on the control plane and commits/pushes only the tracked OpenMatesCloud files to
+`origin/main`. Do not use raw `git commit` or `git push` in the sibling repo.
+
 When the user attaches files or images to an OpenCode chat, they are retained in
 the local OpenCode SQLite database as chat file parts. `sessions.py start`
 prints an `OPENCODE ATTACHMENTS` box when the current chat has extractable

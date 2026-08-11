@@ -508,6 +508,11 @@ function collisionRelativePath(file, data) {
     if (!worktree) continue;
     const candidate = relative(resolve(worktree), absolute);
     if (candidate && candidate !== ".." && !candidate.startsWith(`..${sep}`) && !isAbsolute(candidate)) return candidate;
+    const repoRoot = session?.repo_root;
+    if (typeof repoRoot === "string" && repoRoot) {
+      const repoCandidate = relative(resolve(repoRoot), absolute);
+      if (repoCandidate && repoCandidate !== ".." && !repoCandidate.startsWith(`..${sep}`) && !isAbsolute(repoCandidate)) return repoCandidate;
+    }
   }
   if (pathInProjectRoot(absolute)) return relative(PROJECT_ROOT, absolute);
   return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
@@ -542,6 +547,10 @@ function readConflictWarningForTest({ path = "", sessionID = "", data = {}, pres
 }
 
 function routingDecisionForTest({ session = {} } = {}) {
+  const repoRoot = typeof session?.repo_root === "string" ? session.repo_root : "";
+  if (repoRoot && resolve(repoRoot) !== resolve(PROJECT_ROOT) && session?.mode !== "question") {
+    return { decision: "worktree_routed", worktreePath: repoRoot, repoRoot, repoName: session.repo_name || "external" };
+  }
   if (session?.worktree?.status === "merged") {
     return {
       decision: "merged_worktree",
@@ -945,6 +954,15 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (staleCodeSegment >= 0 && !staleCodeReportControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: stale-code report generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/stale_code_daily.py --dry-run-notify with an optional numeric --limit.`);
     }
+    const sessionsPySegment = commandSegments.findIndex((tokens) => (
+      ["python", "python3"].includes(shellUnescape(tokens[0]))
+      && shellUnescape(tokens[1]) === "scripts/sessions.py"
+    ));
+    const sessionsPyControlPlane = sessionsPySegment === 0
+      && commandSegments.length === 1
+      && !hasTopLevelSeparator
+      && !unsafeControlSyntax
+      && !existsSync(resolve(worktreePath, "scripts/sessions.py"));
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
@@ -967,7 +985,7 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane) ? PROJECT_ROOT : worktreePath };
+    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };

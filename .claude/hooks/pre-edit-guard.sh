@@ -27,7 +27,7 @@ normalize_repo_relative() {
   esac
 
   jq -r --arg file "$file" '
-    [.sessions[]?.worktree?.path? | select($file | startswith(. + "/"))] |
+    [.sessions[]? | (.worktree.path? // .repo_root? // empty) | select($file | startswith(. + "/"))] |
     sort_by(length) |
     reverse |
     .[0] // empty
@@ -56,9 +56,11 @@ if [ -f "$SESSIONS_FILE" ]; then
       '[.sessions | to_entries[] | select(.value.zellij_session == $z) | .key] | if length == 1 then .[0] else empty end' \
       "$SESSIONS_FILE" 2>/dev/null)
   fi
-  CONFLICTS=$(jq -r --arg file "$REL_FILE" --arg current "$CURRENT_SESSION" '
+  CURRENT_REPO=$(jq -r --arg current "$CURRENT_SESSION" '.sessions[$current].repo_id // "openmates"' "$SESSIONS_FILE" 2>/dev/null)
+  CONFLICTS=$(jq -r --arg file "$REL_FILE" --arg current "$CURRENT_SESSION" --arg repo "$CURRENT_REPO" '
     [.sessions | to_entries[] |
      select(.key != $current) |
+     select((.value.repo_id // "openmates") == $repo) |
      select(.value.modified_files[]? == $file) |
      "\(.key) (\(.value.task // "unknown task"))"] | join(", ")
   ' "$SESSIONS_FILE" 2>/dev/null)

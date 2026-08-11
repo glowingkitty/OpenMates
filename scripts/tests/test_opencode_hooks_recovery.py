@@ -69,3 +69,33 @@ def test_merged_worktree_recovery_message_names_force_end() -> None:
         assert.match(result.message, /end --force/);
         """
     )
+
+
+def test_openmatescloud_repo_root_routes_tools_to_sibling_checkout() -> None:
+    run_hook_assertion(
+        """
+        import { strict as assert } from 'node:assert';
+        import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
+
+        const { routingDecisionForTest, routeLocalToolArgsForTest } = OpenMatesHooks.test;
+        const route = routingDecisionForTest({
+          session: {
+            repo_id: 'openmatescloud',
+            repo_name: 'OpenMatesCloud',
+            repo_root: '/tmp/OpenMatesCloud',
+            repo_branch: 'main',
+          },
+        });
+
+        assert.equal(route.decision, 'worktree_routed');
+        assert.equal(route.worktreePath, '/tmp/OpenMatesCloud');
+        assert.equal(
+          routeLocalToolArgsForTest('bash', { command: 'git status --short --branch' }, route.worktreePath).workdir,
+          '/tmp/OpenMatesCloud',
+        );
+        assert.equal(
+          routeLocalToolArgsForTest('bash', { command: 'python3 scripts/sessions.py deploy --session abcd --title "x"' }, route.worktreePath).workdir,
+          '/home/superdev/projects/OpenMates',
+        );
+        """
+    )
