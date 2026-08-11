@@ -137,6 +137,16 @@ contracts:
     fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
     required_surfaces:
     - gui.web
+  feature.tasks:
+    version: 1
+    status: approved
+    path: features/tasks
+    fingerprint: 5e289452b8bfd44fcc83c4f0413bf27471c3246b6cb3acf6cb9c37ff61906d75
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
   feature.workflows:
     version: 1
     status: approved
@@ -1294,6 +1304,66 @@ assertions:
     fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
     required_surfaces:
     - gui.web
+  tasks.content.client-encrypted:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: privacy
+    fingerprint: e6fc398c991570fc06386096638457f60510e20d135ff612ebdc37b503db32e8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.lifecycle.visible:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: behavior
+    fingerprint: 3a1262b916d9b0b2fab31c487ab1166d23012ff6310dd90745880cd6856dfb7d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.project-links.encrypted:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: invariant
+    fingerprint: 57c1abc2d98e76ee877c83e89fc2ac0144c5650e7c0462019c2563e1665c0fc2
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.key-wrappers.context-scoped:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: security
+    fingerprint: 45d7dace1ef42880916d6f6c529bcbbeb58ba7f1eff178f2f2e85fe369a168bf
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.workflow-projections.read-only:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: invariant
+    fingerprint: 8294dc751574a7ef32a7480e4dad0d111cddc6c2e9f14e3dd6cd5145db4ece92
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.surface.semantic-parity:
+    contract: feature.tasks@1
+    contract_id: feature.tasks
+    type: parity
+    fingerprint: 04d056d2827a339c8bccdeb45c8fecddc35c6f155b588b10c7c923f18f8e6df0
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     contract_id: feature.workflows

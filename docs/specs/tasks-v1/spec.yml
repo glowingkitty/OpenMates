@@ -201,6 +201,27 @@ clarification:
     edit them, and AI-assigned tasks can start immediately or at a due time.
   approved_by_user: true
 
+contract_refs:
+  - id: feature.tasks
+    version: 1
+    role: primary
+    fingerprint: 5e289452b8bfd44fcc83c4f0413bf27471c3246b6cb3acf6cb9c37ff61906d75
+    path: contracts/features/tasks/contract.yml
+    assertions:
+      - tasks.content.client-encrypted
+      - tasks.lifecycle.visible
+      - tasks.project-links.encrypted
+      - tasks.key-wrappers.context-scoped
+      - tasks.workflow-projections.read-only
+      - tasks.surface.semantic-parity
+    evidence_locations:
+      - backend/tests/test_user_tasks_api.py
+      - backend/tests/test_user_task_runtime_tools.py
+      - backend/tests/test_workflow_task_projections.py
+      - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/tests/test_tasks.py
+
 scenarios:
   - id: S-1
     title: Assistant creates and updates chat-linked tasks

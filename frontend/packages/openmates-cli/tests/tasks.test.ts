@@ -77,6 +77,7 @@ async function withServer(
 }
 
 describe("OpenMatesClient user tasks", () => {
+  // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("lists, creates, updates, and starts encrypted user tasks", async () => {
     const task = encryptedTaskInput();
     await withServer(
@@ -112,6 +113,7 @@ describe("OpenMatesClient user tasks", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=tasks.surface.semantic-parity
   it("rejects ambiguous short task IDs", () => {
     const tasks = [
       { taskId: "task-1", shortId: "TASK-1234" },
@@ -122,6 +124,7 @@ describe("OpenMatesClient user tasks", () => {
     assert.equal(findTask(tasks, "task-2").taskId, "task-2");
   });
 
+  // contract-test: direct surface=cli assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity
   it("renders workflow task projections without decrypting task ciphertext", async () => {
     const task = await decryptUserTask({
       task_id: "workflow-schedule:trigger-1:1000",
@@ -156,6 +159,7 @@ describe("OpenMatesClient user tasks", () => {
     assert.match(task.shortId, /^WF-/);
   });
 
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
   it("formats task child embeds for CLI output", () => {
     const lines = formatEmbedPreviewLines({
       embedId: "task-embed-12345678",

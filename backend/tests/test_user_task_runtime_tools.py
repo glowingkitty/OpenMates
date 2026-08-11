@@ -13,6 +13,7 @@ import pytest
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
     methods = AsyncMock()
@@ -47,6 +48,7 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
     assert next_patch["started_at"] == 500
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_block_pauses_queue_with_safe_reason() -> None:
     methods = AsyncMock()
@@ -79,6 +81,7 @@ async def test_block_pauses_queue_with_safe_reason() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_complete_starts_next_eligible_ai_task() -> None:
     methods = AsyncMock()
@@ -106,6 +109,7 @@ async def test_complete_starts_next_eligible_ai_task() -> None:
     assert next_patch["queue_state"] == "active"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_complete_uses_ordered_chat_queue_for_next_ai_task() -> None:
     methods = AsyncMock()
@@ -134,6 +138,7 @@ async def test_complete_uses_ordered_chat_queue_for_next_ai_task() -> None:
     assert next_call.args[3] == 3
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_complete_pauses_on_blocking_human_task_before_later_ai_task() -> None:
     methods = AsyncMock()
@@ -164,6 +169,7 @@ async def test_complete_pauses_on_blocking_human_task_before_later_ai_task() -> 
     assert methods.update_task_if_version.await_count == 1
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_complete_skips_independent_human_task_and_starts_later_ai_task() -> None:
     methods = AsyncMock()

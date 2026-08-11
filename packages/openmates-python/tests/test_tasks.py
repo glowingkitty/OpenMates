@@ -10,6 +10,7 @@ from openmates import OpenMates
 from openmates.sdk import _create_api_key_material
 
 
+# contract-test: direct surface=sdks.pip assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
 def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     master_key = bytes([7]) * 32
     api_key, material = _create_api_key_material("sdk task parity", master_key)
@@ -121,6 +122,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     assert any("priority=3" in request["url"] and request["url"].count("label_hash=") == 2 for request in requests_seen if request["method"] == "GET")
 
 
+# contract-test: direct surface=sdks.pip assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity
 def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
     api_key, _material = _create_api_key_material("sdk workflow task parity", bytes([9]) * 32)
 

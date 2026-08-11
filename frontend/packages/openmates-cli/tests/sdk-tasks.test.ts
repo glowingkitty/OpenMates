@@ -46,6 +46,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK user tasks", () => {
+  // contract-test: supporting surface=sdks.npm assertions=tasks.surface.semantic-parity
   it("exposes task app-skill child embeds and pending client search state", async () => {
     await withServer(
       (request, body) => {
@@ -121,6 +122,7 @@ describe("OpenMates SDK user tasks", () => {
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("manages decrypted tasks through API-key master-key recovery", async () => {
     const masterKey = Buffer.alloc(32, 7);
     const material = await createApiKeyCryptoMaterial("sdk task parity", masterKey.toString("base64"));

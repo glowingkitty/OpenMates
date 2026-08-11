@@ -75,6 +75,7 @@ def with_lock_cache(directus):
     return directus
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.project-links.encrypted
 @pytest.mark.asyncio
 async def test_create_task_hashes_owner_and_projects_without_plaintext_content() -> None:
     directus = SimpleNamespace()
@@ -97,6 +98,7 @@ async def test_create_task_hashes_owner_and_projects_without_plaintext_content()
     assert "description" not in record
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
 @pytest.mark.asyncio
 async def test_create_task_persists_label_hashes_and_priority_metadata() -> None:
     directus = SimpleNamespace()
@@ -111,6 +113,7 @@ async def test_create_task_persists_label_hashes_and_priority_metadata() -> None
     assert "labels" not in record
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_list_tasks_filters_labels_with_and_semantics_and_priority() -> None:
     directus = SimpleNamespace()
@@ -126,6 +129,7 @@ async def test_list_tasks_filters_labels_with_and_semantics_and_priority() -> No
     assert {"priority": {"_eq": 3}} in filter_terms
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
 @pytest.mark.asyncio
 async def test_task_label_hashes_must_be_valid_blind_indexes() -> None:
     methods = UserTaskMethods(with_lock_cache(SimpleNamespace()))
@@ -134,12 +138,14 @@ async def test_task_label_hashes_must_be_valid_blind_indexes() -> None:
         await methods.list_tasks("user-1", label_hashes=["not-a-hash"])
 
 
+# contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
 def test_task_short_id_matches_cli_derivation() -> None:
     task = {"task_id": "123e4567-e89b-12d3-a456-426614174000"}
 
     assert derive_task_short_id(task) == "TASK-9020"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_task_short_id_lookup_rejects_ambiguous_collisions() -> None:
     methods = UserTaskMethods(SimpleNamespace())
@@ -151,6 +157,7 @@ async def test_task_short_id_lookup_rejects_ambiguous_collisions() -> None:
     assert await methods.get_task_by_short_id("TASK-1234", "user-1") is None
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_task_uses_storage_level_conditional_patch() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -172,6 +179,7 @@ async def test_update_task_uses_storage_level_conditional_patch() -> None:
     )
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_task_if_version_honors_committed_payload_version() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -193,6 +201,7 @@ async def test_update_task_if_version_honors_committed_payload_version() -> None
     )
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers() -> None:
     existing = {
@@ -247,6 +256,7 @@ async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
     assert directus.delete_item.await_count == len(existing_wrappers)
 
 
+# contract-test: direct surface=rest_api assertions=tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_create_task_persists_key_wrappers_separately() -> None:
     directus = SimpleNamespace()
@@ -280,6 +290,7 @@ async def test_create_task_persists_key_wrappers_separately() -> None:
     assert wrapper_record["key_type"] == "master"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails() -> None:
     directus = SimpleNamespace()
@@ -307,6 +318,7 @@ async def test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails(
     assert directus.delete_item.await_args_list[1].args == ("user_tasks", "task-row")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field() -> None:
     directus = SimpleNamespace()
@@ -330,6 +342,7 @@ async def test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field() ->
     directus.delete_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappers() -> None:
     directus = SimpleNamespace()
@@ -358,6 +371,7 @@ async def test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappe
     directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper", admin_required=True)
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_replace_task_key_wrappers_rejects_stale_version() -> None:
     directus = SimpleNamespace()
@@ -380,6 +394,7 @@ async def test_replace_task_key_wrappers_rejects_stale_version() -> None:
     directus.delete_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_replace_task_key_wrappers_restores_old_wrappers_when_version_advance_fails() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -405,6 +420,7 @@ async def test_replace_task_key_wrappers_restores_old_wrappers_when_version_adva
     assert directus.create_item.await_args_list[-1].args[1]["encrypted_task_key"] == "cipher-old"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_delete_task_rejects_stale_version_and_uses_lock() -> None:
     directus = SimpleNamespace()
@@ -418,6 +434,7 @@ async def test_delete_task_rejects_stale_version_and_uses_lock() -> None:
     directus.delete_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_delete_task_deletes_when_expected_version_matches() -> None:
     directus = SimpleNamespace()
@@ -431,6 +448,7 @@ async def test_delete_task_deletes_when_expected_version_matches() -> None:
     directus.delete_item.assert_awaited_once_with("user_tasks", "task-row")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_task_fails_closed_when_lock_backend_is_unavailable() -> None:
     directus = SimpleNamespace()
@@ -446,6 +464,7 @@ async def test_update_task_fails_closed_when_lock_backend_is_unavailable() -> No
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.project-links.encrypted,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_list_tasks_filters_by_chat_and_project_hashes() -> None:
     directus = SimpleNamespace()
@@ -462,6 +481,7 @@ async def test_list_tasks_filters_by_chat_and_project_hashes() -> None:
     assert {"status": {"_eq": "todo"}} in filter_terms
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_rejects_stale_client_version() -> None:
     directus = SimpleNamespace()
@@ -476,6 +496,7 @@ async def test_update_rejects_stale_client_version() -> None:
     directus.update_item_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_update_task_replaces_wrappers_with_project_hash_update() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -511,6 +532,7 @@ async def test_update_task_replaces_wrappers_with_project_hash_update() -> None:
     directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper", admin_required=True)
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_task_accepts_empty_conditional_update_response_when_version_committed() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1", "status": "todo"}
@@ -528,6 +550,7 @@ async def test_update_task_accepts_empty_conditional_update_response_when_versio
     assert updated["status"] == committed["status"]
 
 
+# contract-test: direct surface=rest_api assertions=tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_update_task_fails_visibly_when_old_wrapper_delete_fails() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -559,6 +582,7 @@ async def test_update_task_fails_visibly_when_old_wrapper_delete_fails() -> None
     assert directus.delete_item.await_args_list[0].kwargs == {"admin_required": True}
 
 
+# contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_update_task_rejects_project_relink_without_replacement_wrappers() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -578,6 +602,7 @@ async def test_update_task_rejects_project_relink_without_replacement_wrappers()
     directus.update_item_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
 async def test_update_task_rejects_project_relink_with_empty_replacement_wrappers() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
@@ -602,6 +627,7 @@ async def test_update_task_rejects_project_relink_with_empty_replacement_wrapper
     directus.update_item_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_ai_task_without_due_date_starts_immediately() -> None:
     directus = SimpleNamespace()
@@ -616,6 +642,7 @@ async def test_ai_task_without_due_date_starts_immediately() -> None:
     assert created["started_at"] == 100
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> None:
     active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="ai")}
@@ -631,6 +658,7 @@ async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> N
     assert "started_at" not in created
 
 
+# contract-test: direct surface=rest_api assertions=tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_product_task_helpers_do_not_use_celery_tasks_collection() -> None:
     directus = SimpleNamespace()
@@ -644,6 +672,7 @@ async def test_product_task_helpers_do_not_use_celery_tasks_collection() -> None
     assert collection != "tasks"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_start_ai_dispatches_transient_plaintext_without_persisting() -> None:
     existing = {**task_payload(), "id": "row-1", "version": 2}
@@ -694,6 +723,7 @@ async def test_start_ai_dispatches_transient_plaintext_without_persisting() -> N
     cache.set_active_ai_task.assert_awaited_once_with("chat-1", "ai-task-1")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_start_ai_rejects_second_active_task_in_same_chat() -> None:
     existing = {"id": "row-1", "version": 2, **task_payload(task_id="task-1")}
