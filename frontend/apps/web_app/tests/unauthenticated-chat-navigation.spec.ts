@@ -27,7 +27,11 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
@@ -74,6 +78,15 @@ async function expectGuestWelcomeSuppressedForComposer(page: any) {
 	await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('report-issue-button')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('guest-input-context-link')).toHaveCount(0);
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+}
+
+async function expectNewChatWelcomeSuppressedForComposer(page: any) {
+	await expect(page.getByTestId('daily-inspiration-area')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('report-issue-button')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 }
@@ -135,6 +148,30 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
 		await editor.click();
 		await expectGuestWelcomeSuppressedForComposer(page);
+	});
+
+	// contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression
+	test('focused desktop authenticated composer suppresses surrounding welcome UI', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(120000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		await page.setViewportSize({ width: 1366, height: 900 });
+
+		const log = createSignupLogger('AUTH_COMPOSER_SUPPRESSION');
+		const screenshot = createStepScreenshotter(log);
+		await loginToTestAccount(page, log, screenshot);
+
+		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
+		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 15000 });
+
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await editor.click();
+		await expectNewChatWelcomeSuppressedForComposer(page);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=message-input.focus.guest-welcome-suppression

@@ -5301,19 +5301,32 @@ assertions:
       surface: gui.apple
     - &id575
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 119
+      line: 132
       name: focused desktop guest composer suppresses surrounding welcome UI
       surface: gui.web
-    supporting_tests:
     - &id576
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 141
+      line: 154
+      name: focused desktop authenticated composer suppresses surrounding welcome
+        UI
+      surface: gui.web
+    - &id578
+      path: scripts/tests/test_message_input_welcome_contract.py
+      line: 27
+      name: test_focused_new_chat_welcome_suppression_includes_authenticated_desktop
+      surface: gui.web
+    supporting_tests:
+    - &id577
+      path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+      line: 178
       name: clicking intro/example chats and new-chat repeatedly keeps UI responsive
       surface: gui.web
     tests:
     - *id574
     - *id575
     - *id576
+    - *id577
+    - *id578
     surfaces:
       gui.apple:
         direct_tests:
@@ -5322,32 +5335,34 @@ assertions:
       gui.web:
         direct_tests:
         - *id575
-        supporting_tests:
         - *id576
+        - *id578
+        supporting_tests:
+        - *id577
     current_direct_proof: false
   message-input.actions.visibility:
     contract: feature.message-input@1
     fingerprint: 6cfe810216681b5e6ab4400a55aa7071f9111895a46f6d18093326212b72ff9b
     direct_tests:
-    - &id577
+    - &id579
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 15
       name: testSignedOutWelcomeShortTapShowsPressHoldHintWithoutSignup
       surface: gui.apple
-    - &id578
+    - &id580
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 106
       name: testRecordButtonAndForcedOverlayMatchContractStructure
       surface: gui.apple
     supporting_tests: []
     tests:
-    - *id577
-    - *id578
+    - *id579
+    - *id580
     surfaces:
       gui.apple:
         direct_tests:
-        - *id577
-        - *id578
+        - *id579
+        - *id580
         supporting_tests: []
     current_direct_proof: false
   message-input.drafts.preview-persistence:
@@ -5362,71 +5377,71 @@ assertions:
     contract: feature.message-input@1
     fingerprint: f479841a1c94ae75b747896122ba4000cc4632edf4edcc4bb50f7e201657059c
     direct_tests:
-    - &id579
+    - &id581
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 29
       name: testSignedOutWelcomeHoldReleaseInsertsRecordingPreview
       surface: gui.apple
     supporting_tests: []
     tests:
-    - *id579
+    - *id581
     surfaces:
       gui.apple:
         direct_tests:
-        - *id579
+        - *id581
         supporting_tests: []
     current_direct_proof: false
   message-input.recording.lifecycle:
     contract: feature.message-input@1
     fingerprint: 1105a6c36d5fef330fe936ecc11793be56da84c7887caeb6a35b714f3fdd9d6a
     direct_tests:
-    - &id580
+    - &id582
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 15
       name: testSignedOutWelcomeShortTapShowsPressHoldHintWithoutSignup
       surface: gui.apple
-    - &id581
+    - &id583
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 29
       name: testSignedOutWelcomeHoldReleaseInsertsRecordingPreview
       surface: gui.apple
-    - &id582
+    - &id584
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 47
       name: testRecordRequestLaunchStartsWelcomeRecordingOverlay
       surface: gui.apple
-    - &id583
+    - &id585
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 69
       name: testSignedOutWelcomeRecordingCancelDoesNotInsertPreview
       surface: gui.apple
-    - &id584
+    - &id586
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 88
       name: testSignedOutWelcomeDragLeftCancelsRecordingWithoutPreview
       surface: gui.apple
-    - &id585
+    - &id587
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
       line: 106
       name: testRecordButtonAndForcedOverlayMatchContractStructure
       surface: gui.apple
     supporting_tests: []
     tests:
-    - *id580
-    - *id581
     - *id582
     - *id583
     - *id584
     - *id585
+    - *id586
+    - *id587
     surfaces:
       gui.apple:
         direct_tests:
-        - *id580
-        - *id581
         - *id582
         - *id583
         - *id584
         - *id585
+        - *id586
+        - *id587
         supporting_tests: []
     current_direct_proof: false
   message-input.suggestions.contextual:
@@ -5457,98 +5472,96 @@ assertions:
     contract: feature.notifications@1
     fingerprint: ebc63f76dea00a2fbb5751d28d3cf2c38ec57409ca85d261b596885b64dfc758
     direct_tests:
-    - &id587
-      path: frontend/apps/web_app/tests/reminder-email.spec.ts
-      line: 160
-      name: "reminder \u2014 email: reminder email arrives after browser is closed"
-      surface: gui.web
-    supporting_tests:
-    - &id586
-      path: backend/tests/test_reminder_email_notifications.py
-      line: 78
-      name: test_reminder_email_notification_uses_fresh_directus_settings
-      surface: rest_api
-    tests:
-    - *id586
-    - *id587
-    surfaces:
-      rest_api:
-        direct_tests: []
-        supporting_tests:
-        - *id586
-      gui.web:
-        direct_tests:
-        - *id587
-        supporting_tests: []
-    current_direct_proof: false
-  notifications.delivery.email-enabled:
-    contract: feature.notifications@1
-    fingerprint: fb5a5f291373d11810ca35a9ec538f84b7ae7cefcfced087f0f860e6a1c60ac7
-    direct_tests:
-    - &id599
+    - &id589
       path: frontend/apps/web_app/tests/reminder-email.spec.ts
       line: 160
       name: "reminder \u2014 email: reminder email arrives after browser is closed"
       surface: gui.web
     supporting_tests:
     - &id588
-      path: backend/tests/test_bank_transfer.py
-      line: 910
-      name: test_underpaid_transfer_stays_pending_extends_expiry_and_emails
-      surface: rest_api
-    - &id589
-      path: backend/tests/test_bank_transfer.py
-      line: 1075
-      name: test_overpaid_transfer_credits_selected_pack_and_queues_surplus_notice
-      surface: rest_api
-    - &id590
-      path: backend/tests/test_bank_transfer.py
-      line: 1162
-      name: test_distinct_transaction_for_completed_reference_emails_user_without_recredit
-      surface: rest_api
-    - &id591
-      path: backend/tests/test_bank_transfer.py
-      line: 1248
-      name: test_api_confirmation_failure_alerts_admin_and_does_not_settle
-      surface: rest_api
-    - &id592
-      path: backend/tests/test_bank_transfer.py
-      line: 1362
-      name: test_credit_settlement_processing_error_alerts_admin_once
-      surface: rest_api
-    - &id593
-      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
-      line: 34
-      name: test_duplicate_reference_email_task_is_registered_and_transactional
-      surface: rest_api
-    - &id594
-      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
-      line: 57
-      name: test_duplicate_reference_template_offers_gift_card_or_refund_options
-      surface: rest_api
-    - &id595
-      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
-      line: 70
-      name: test_duplicate_reference_email_task_uses_delivery_guard_and_order_email_key
-      surface: rest_api
-    - &id596
-      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
-      line: 84
-      name: test_bank_transfer_reminder_uses_directus_fallback_on_cache_miss
-      surface: rest_api
-    - &id597
       path: backend/tests/test_reminder_email_notifications.py
       line: 78
       name: test_reminder_email_notification_uses_fresh_directus_settings
       surface: rest_api
+    tests:
+    - *id588
+    - *id589
+    surfaces:
+      rest_api:
+        direct_tests: []
+        supporting_tests:
+        - *id588
+      gui.web:
+        direct_tests:
+        - *id589
+        supporting_tests: []
+    current_direct_proof: false
+  notifications.delivery.email-enabled:
+    contract: feature.notifications@1
+    fingerprint: fb5a5f291373d11810ca35a9ec538f84b7ae7cefcfced087f0f860e6a1c60ac7
+    direct_tests:
+    - &id601
+      path: frontend/apps/web_app/tests/reminder-email.spec.ts
+      line: 160
+      name: "reminder \u2014 email: reminder email arrives after browser is closed"
+      surface: gui.web
+    supporting_tests:
+    - &id590
+      path: backend/tests/test_bank_transfer.py
+      line: 910
+      name: test_underpaid_transfer_stays_pending_extends_expiry_and_emails
+      surface: rest_api
+    - &id591
+      path: backend/tests/test_bank_transfer.py
+      line: 1075
+      name: test_overpaid_transfer_credits_selected_pack_and_queues_surplus_notice
+      surface: rest_api
+    - &id592
+      path: backend/tests/test_bank_transfer.py
+      line: 1162
+      name: test_distinct_transaction_for_completed_reference_emails_user_without_recredit
+      surface: rest_api
+    - &id593
+      path: backend/tests/test_bank_transfer.py
+      line: 1248
+      name: test_api_confirmation_failure_alerts_admin_and_does_not_settle
+      surface: rest_api
+    - &id594
+      path: backend/tests/test_bank_transfer.py
+      line: 1362
+      name: test_credit_settlement_processing_error_alerts_admin_once
+      surface: rest_api
+    - &id595
+      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
+      line: 34
+      name: test_duplicate_reference_email_task_is_registered_and_transactional
+      surface: rest_api
+    - &id596
+      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
+      line: 57
+      name: test_duplicate_reference_template_offers_gift_card_or_refund_options
+      surface: rest_api
+    - &id597
+      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
+      line: 70
+      name: test_duplicate_reference_email_task_uses_delivery_guard_and_order_email_key
+      surface: rest_api
     - &id598
+      path: backend/tests/test_bank_transfer_duplicate_reference_email.py
+      line: 84
+      name: test_bank_transfer_reminder_uses_directus_fallback_on_cache_miss
+      surface: rest_api
+    - &id599
+      path: backend/tests/test_reminder_email_notifications.py
+      line: 78
+      name: test_reminder_email_notification_uses_fresh_directus_settings
+      surface: rest_api
+    - &id600
       path: backend/tests/test_reminder_email_notifications.py
       line: 104
       name: test_reminder_email_notification_respects_backup_reminder_preference
       surface: rest_api
     tests:
-    - *id588
-    - *id589
     - *id590
     - *id591
     - *id592
@@ -5559,12 +5572,12 @@ assertions:
     - *id597
     - *id598
     - *id599
+    - *id600
+    - *id601
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id588
-        - *id589
         - *id590
         - *id591
         - *id592
@@ -5574,9 +5587,11 @@ assertions:
         - *id596
         - *id597
         - *id598
+        - *id599
+        - *id600
       gui.web:
         direct_tests:
-        - *id599
+        - *id601
         supporting_tests: []
     current_direct_proof: false
   notifications.delivery.push-enabled:
@@ -5600,43 +5615,43 @@ assertions:
     fingerprint: 2a342b81fbdc8ee56d0d161eb6e6d96378a17d7c8118b0d237dc66150ff9fd79
     direct_tests: []
     supporting_tests:
-    - &id600
+    - &id602
       path: backend/tests/test_bank_transfer_duplicate_reference_email.py
       line: 217
       name: test_bank_transfer_reference_copy_mentions_single_use_in_ui_and_email_sources
       surface: gui.web
     tests:
-    - *id600
+    - *id602
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id600
+        - *id602
     current_direct_proof: false
   notifications.delivery.idempotent:
     contract: feature.notifications@1
     fingerprint: c719c23ba5f3c45e7c457f59c1a2596a5387689033e8f762c6b0f0d75d5209a7
     direct_tests: []
     supporting_tests:
-    - &id601
+    - &id603
       path: backend/tests/test_bank_transfer.py
       line: 1362
       name: test_credit_settlement_processing_error_alerts_admin_once
       surface: rest_api
-    - &id602
+    - &id604
       path: backend/tests/test_bank_transfer_duplicate_reference_email.py
       line: 70
       name: test_duplicate_reference_email_task_uses_delivery_guard_and_order_email_key
       surface: rest_api
     tests:
-    - *id601
-    - *id602
+    - *id603
+    - *id604
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id601
-        - *id602
+        - *id603
+        - *id604
     current_direct_proof: false
   notifications.surface.semantic-parity:
     contract: feature.notifications@1
@@ -5651,87 +5666,87 @@ assertions:
     fingerprint: 7b445e41ae3cb28502ade81e713ea3a815f8017593a910d6e9a7fcad321145ad
     direct_tests: []
     supporting_tests:
-    - &id603
+    - &id605
       path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       line: 142
       name: pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders,
         and show/hide toggle
       surface: gui.web
     tests:
-    - *id603
+    - *id605
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id603
+        - *id605
     current_direct_proof: false
   pii.message.owner-local-reveal:
     contract: feature.pii-protection@1
     fingerprint: 5ceb4f6d9b6cfc7247e22a176b28168a4078975d083a8323125d78ce38669176
-    direct_tests:
-    - &id605
-      path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
-      line: 519
-      name: pii toggle in embed fullscreen syncs with chat header state
-      surface: gui.web
-    - &id606
-      path: frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
-      line: 117
-      name: rewrites prior PII originals before outbound follow-up send
-      surface: gui.web
-    supporting_tests:
-    - &id604
-      path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
-      line: 142
-      name: pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders,
-        and show/hide toggle
-      surface: gui.web
-    tests:
-    - *id604
-    - *id605
-    - *id606
-    surfaces:
-      gui.web:
-        direct_tests:
-        - *id605
-        - *id606
-        supporting_tests:
-        - *id604
-    current_direct_proof: false
-  pii.embed.owner-local-reveal-sync:
-    contract: feature.pii-protection@1
-    fingerprint: 194b4b8c489d6d6d82bd08142f7a381fdccc53c88aa9cd216a1fea344104b582
     direct_tests:
     - &id607
       path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       line: 519
       name: pii toggle in embed fullscreen syncs with chat header state
       surface: gui.web
-    supporting_tests: []
+    - &id608
+      path: frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+      line: 117
+      name: rewrites prior PII originals before outbound follow-up send
+      surface: gui.web
+    supporting_tests:
+    - &id606
+      path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+      line: 142
+      name: pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders,
+        and show/hide toggle
+      surface: gui.web
     tests:
+    - *id606
     - *id607
+    - *id608
     surfaces:
       gui.web:
         direct_tests:
         - *id607
+        - *id608
+        supporting_tests:
+        - *id606
+    current_direct_proof: false
+  pii.embed.owner-local-reveal-sync:
+    contract: feature.pii-protection@1
+    fingerprint: 194b4b8c489d6d6d82bd08142f7a381fdccc53c88aa9cd216a1fea344104b582
+    direct_tests:
+    - &id609
+      path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+      line: 519
+      name: pii toggle in embed fullscreen syncs with chat header state
+      surface: gui.web
+    supporting_tests: []
+    tests:
+    - *id609
+    surfaces:
+      gui.web:
+        direct_tests:
+        - *id609
         supporting_tests: []
     current_direct_proof: false
   pii.outbound.known-original-rewrite:
     contract: feature.pii-protection@1
     fingerprint: 82885318ca611ec910557072d88aa073b6ba4f86ac5c04e2725299ed6caf57ac
     direct_tests:
-    - &id608
+    - &id610
       path: frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
       line: 117
       name: rewrites prior PII originals before outbound follow-up send
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id608
+    - *id610
     surfaces:
       gui.web:
         direct_tests:
-        - *id608
+        - *id610
         supporting_tests: []
     current_direct_proof: false
   pii.surface.semantic-parity:
@@ -5746,289 +5761,289 @@ assertions:
     contract: feature.plans@1
     fingerprint: 7cec3967ffd8e645ffc9109af1ba313462d8b312b955479d7705b766ae636d48
     direct_tests:
-    - &id609
+    - &id611
       path: backend/tests/test_user_plans_route_detail.py
       line: 60
       name: test_get_user_plan_returns_owner_scoped_encrypted_plan
       surface: rest_api
-    - &id610
+    - &id612
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 96
       name: manages encrypted plans through the shared API contract
       surface: sdks.npm
-    - &id611
+    - &id613
       path: packages/openmates-python/tests/test_plans.py
       line: 30
       name: test_pip_sdk_user_plan_methods_use_shared_plans_api
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id609
-    - *id610
     - *id611
+    - *id612
+    - *id613
     surfaces:
       rest_api:
         direct_tests:
-        - *id609
+        - *id611
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id610
+        - *id612
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id611
+        - *id613
         supporting_tests: []
     current_direct_proof: false
   plans.lifecycle.visible:
     contract: feature.plans@1
     fingerprint: beeee07cfb66fb44d42982c7c6c11f3564e909a8e04eecd583d3d745fcfd4f39
     direct_tests:
-    - &id612
+    - &id614
       path: backend/tests/test_user_plans_route_detail.py
       line: 60
       name: test_get_user_plan_returns_owner_scoped_encrypted_plan
       surface: rest_api
-    - &id613
+    - &id615
       path: backend/tests/test_user_plans_route_detail.py
       line: 78
       name: test_get_user_plan_checks_team_permission_before_team_lookup
       surface: rest_api
-    - &id614
+    - &id616
       path: backend/tests/test_user_plans_route_detail.py
       line: 107
       name: test_user_plan_service_get_plan_hides_missing_or_cross_owner_plan
       surface: rest_api
-    - &id615
+    - &id617
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 96
       name: manages encrypted plans through the shared API contract
       surface: sdks.npm
-    - &id616
+    - &id618
       path: packages/openmates-python/tests/test_plans.py
       line: 30
       name: test_pip_sdk_user_plan_methods_use_shared_plans_api
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id612
-    - *id613
     - *id614
     - *id615
     - *id616
+    - *id617
+    - *id618
     surfaces:
       rest_api:
         direct_tests:
-        - *id612
-        - *id613
         - *id614
+        - *id615
+        - *id616
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id615
+        - *id617
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id616
+        - *id618
         supporting_tests: []
     current_direct_proof: false
   plans.key-wrappers.contextual:
     contract: feature.plans@1
     fingerprint: f3a1a29f2d4f58af4b27dd815f99858f54cfc4bc3cb7b48f585884605f76f4ed
     direct_tests:
-    - &id617
+    - &id619
       path: backend/tests/test_user_plans_route_detail.py
       line: 78
       name: test_get_user_plan_checks_team_permission_before_team_lookup
       surface: rest_api
-    - &id618
+    - &id620
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 96
       name: manages encrypted plans through the shared API contract
       surface: sdks.npm
-    - &id619
+    - &id621
       path: packages/openmates-python/tests/test_plans.py
       line: 30
       name: test_pip_sdk_user_plan_methods_use_shared_plans_api
       surface: sdks.pip
-    - &id620
+    - &id622
       path: packages/openmates-python/tests/test_plans.py
       line: 181
       name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id617
-    - *id618
     - *id619
     - *id620
+    - *id621
+    - *id622
     surfaces:
       rest_api:
         direct_tests:
-        - *id617
+        - *id619
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id618
+        - *id620
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id619
-        - *id620
+        - *id621
+        - *id622
         supporting_tests: []
     current_direct_proof: false
   plans.project-links.encrypted:
     contract: feature.plans@1
     fingerprint: 5134bfe11e6fbf33d2c40152ced780a4a79d2ab9a0b0e8bd9e5b4b5d6f804a59
     direct_tests:
-    - &id621
+    - &id623
       path: packages/openmates-python/tests/test_plans.py
       line: 181
       name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id621
+    - *id623
     surfaces:
       sdks.pip:
         direct_tests:
-        - *id621
+        - *id623
         supporting_tests: []
     current_direct_proof: false
   plans.execution.gates-evidence:
     contract: feature.plans@1
     fingerprint: 1f4a55a60d285f06cbf8a6e554cf6d9aa3c019f043a1c76327d74d7647364179
     direct_tests:
-    - &id622
+    - &id624
       path: frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
       line: 16
       name: covers an acceptance criterion with a check and evidence
       surface: gui.web
-    - &id623
+    - &id625
       path: frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
       line: 16
       name: creates and confirms an encrypted plan assumption
       surface: gui.web
-    - &id624
+    - &id626
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 96
       name: manages encrypted plans through the shared API contract
       surface: sdks.npm
-    - &id625
+    - &id627
       path: packages/openmates-python/tests/test_plans.py
       line: 30
       name: test_pip_sdk_user_plan_methods_use_shared_plans_api
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id622
-    - *id623
     - *id624
     - *id625
+    - *id626
+    - *id627
     surfaces:
       gui.web:
         direct_tests:
-        - *id622
-        - *id623
+        - *id624
+        - *id625
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id624
+        - *id626
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id625
+        - *id627
         supporting_tests: []
     current_direct_proof: false
   plans.active-context.vault-boundary:
     contract: feature.plans@1
     fingerprint: da365afc864fa91e75b7db0486be49be48af8bfc5cda83affe29c0eca5813f03
     direct_tests:
-    - &id626
+    - &id628
       path: backend/tests/test_user_plans_route_detail.py
       line: 99
       name: test_active_context_route_stays_before_plan_detail_route
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id626
+    - *id628
     surfaces:
       rest_api:
         direct_tests:
-        - *id626
+        - *id628
         supporting_tests: []
     current_direct_proof: false
   plans.surface.semantic-parity:
     contract: feature.plans@1
     fingerprint: 216c6219e2b2d38f476df3efe8e013842df0fb94a24f22ebd7a284fc8743926e
     direct_tests:
-    - &id627
+    - &id629
       path: backend/tests/test_user_plans_route_detail.py
       line: 60
       name: test_get_user_plan_returns_owner_scoped_encrypted_plan
       surface: rest_api
-    - &id628
+    - &id630
       path: backend/tests/test_user_plans_route_detail.py
       line: 78
       name: test_get_user_plan_checks_team_permission_before_team_lookup
       surface: rest_api
-    - &id629
+    - &id631
       path: backend/tests/test_user_plans_route_detail.py
       line: 99
       name: test_active_context_route_stays_before_plan_detail_route
       surface: rest_api
-    - &id630
+    - &id632
       path: backend/tests/test_user_plans_route_detail.py
       line: 107
       name: test_user_plan_service_get_plan_hides_missing_or_cross_owner_plan
       surface: rest_api
-    - &id631
+    - &id633
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 63
       name: scopes plan task updates and deletes to the selected plan
       surface: sdks.npm
-    - &id632
+    - &id634
       path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
       line: 96
       name: manages encrypted plans through the shared API contract
       surface: sdks.npm
-    - &id633
+    - &id635
       path: packages/openmates-python/tests/test_plans.py
       line: 30
       name: test_pip_sdk_user_plan_methods_use_shared_plans_api
       surface: sdks.pip
-    - &id634
+    - &id636
       path: packages/openmates-python/tests/test_plans.py
       line: 181
       name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id627
-    - *id628
     - *id629
     - *id630
     - *id631
     - *id632
     - *id633
     - *id634
+    - *id635
+    - *id636
     surfaces:
       rest_api:
         direct_tests:
-        - *id627
-        - *id628
         - *id629
         - *id630
-        supporting_tests: []
-      sdks.npm:
-        direct_tests:
         - *id631
         - *id632
         supporting_tests: []
-      sdks.pip:
+      sdks.npm:
         direct_tests:
         - *id633
         - *id634
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id635
+        - *id636
         supporting_tests: []
     current_direct_proof: false
   projects.access.explicit-context:
@@ -6083,23 +6098,23 @@ assertions:
     contract: feature.public-example-chats@1
     fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
     direct_tests:
-    - &id635
+    - &id637
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 178
       name: example chats appear in for-everyone intro chat
       surface: gui.web
-    - &id636
+    - &id638
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 239
       name: guest show-all examples uses expanded resume cards and global search covers
         every example
       surface: gui.web
-    - &id637
+    - &id639
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 631
       name: generated audio examples use natural prompts and recording-style playback
       surface: gui.web
-    - &id638
+    - &id640
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 808
       name: sidebar example chats show newest first and append older results after
@@ -6107,103 +6122,101 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id635
-    - *id636
     - *id637
     - *id638
+    - *id639
+    - *id640
     surfaces:
       gui.web:
         direct_tests:
-        - *id635
-        - *id636
         - *id637
         - *id638
+        - *id639
+        - *id640
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.navigation.static-public-link:
     contract: feature.public-example-chats@1
     fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
     direct_tests:
-    - &id639
+    - &id641
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 352
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id640
+    - &id642
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 425
       name: memory example cards update the reloadable chat hash on wide viewports
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id639
-    - *id640
+    - *id641
+    - *id642
     surfaces:
       gui.web:
         direct_tests:
-        - *id639
-        - *id640
+        - *id641
+        - *id642
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.transcript.safe-rendering:
     contract: feature.public-example-chats@1
     fingerprint: e39475dbab54b733ca2a62aaeb52048fb5fd088992c9a1f951616da722424bdd
     direct_tests:
-    - &id641
+    - &id643
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 321
       name: deep research example renders static sub-chat cards without a forced focus
         mention
       surface: gui.web
-    - &id642
+    - &id644
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 352
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id643
+    - &id645
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 425
       name: memory example cards update the reloadable chat hash on wide viewports
       surface: gui.web
-    - &id644
+    - &id646
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 455
       name: reported memory examples render current text content without interactive-question
         errors
       surface: gui.web
-    - &id645
+    - &id647
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 487
       name: privacy-first local AI example hides compressed history behind forgotten
         messages
       surface: gui.web
-    - &id646
+    - &id648
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 571
       name: nutrition example renders Edamam recipe search embed card
       surface: gui.web
-    - &id647
+    - &id649
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 631
       name: generated audio examples use natural prompts and recording-style playback
       surface: gui.web
-    - &id648
+    - &id650
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 703
       name: Deutschlandticket travel example keeps preview metadata readable and shows
         map route lines
       surface: gui.web
-    - &id649
+    - &id651
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 864
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id641
-    - *id642
     - *id643
     - *id644
     - *id645
@@ -6211,11 +6224,11 @@ assertions:
     - *id647
     - *id648
     - *id649
+    - *id650
+    - *id651
     surfaces:
       gui.web:
         direct_tests:
-        - *id641
-        - *id642
         - *id643
         - *id644
         - *id645
@@ -6223,13 +6236,15 @@ assertions:
         - *id647
         - *id648
         - *id649
+        - *id650
+        - *id651
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.history.explicit-forgotten-reveal:
     contract: feature.public-example-chats@1
     fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
     direct_tests:
-    - &id650
+    - &id652
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 487
       name: privacy-first local AI example hides compressed history behind forgotten
@@ -6237,135 +6252,133 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id650
+    - *id652
     surfaces:
       gui.web:
         direct_tests:
-        - *id650
+        - *id652
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.seo.crawlable:
     contract: feature.public-example-chats@1
     fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
     direct_tests:
-    - &id651
+    - &id653
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 849
       name: example chat SSR pages are accessible
       surface: gui.web
-    - &id652
+    - &id654
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 864
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
-    - &id653
+    - &id655
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 958
       name: production sitemap includes every example chat with lastmod
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id651
-    - *id652
     - *id653
+    - *id654
+    - *id655
     surfaces:
       gui.web:
         direct_tests:
-        - *id651
-        - *id652
         - *id653
+        - *id654
+        - *id655
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.surface.semantic-parity:
     contract: feature.public-example-chats@1
     fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
     direct_tests:
-    - &id654
+    - &id656
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 107
       name: guest example chat with static usage exposes usage tab and rows
       surface: gui.web
-    - &id655
+    - &id657
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 142
       name: static example chats expose code, video, and document files in settings
       surface: gui.web
-    - &id656
+    - &id658
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 161
       name: example chat cost label deep links to usage details
       surface: gui.web
-    - &id657
+    - &id659
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 185
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
-    - &id658
+    - &id660
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 178
       name: example chats appear in for-everyone intro chat
       surface: gui.web
-    - &id659
+    - &id661
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 239
       name: guest show-all examples uses expanded resume cards and global search covers
         every example
       surface: gui.web
-    - &id660
+    - &id662
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 321
       name: deep research example renders static sub-chat cards without a forced focus
         mention
       surface: gui.web
-    - &id661
+    - &id663
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 352
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id662
+    - &id664
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 487
       name: privacy-first local AI example hides compressed history behind forgotten
         messages
       surface: gui.web
-    - &id663
+    - &id665
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 571
       name: nutrition example renders Edamam recipe search embed card
       surface: gui.web
-    - &id664
+    - &id666
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 631
       name: generated audio examples use natural prompts and recording-style playback
       surface: gui.web
-    - &id665
+    - &id667
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 703
       name: Deutschlandticket travel example keeps preview metadata readable and shows
         map route lines
       surface: gui.web
-    - &id666
+    - &id668
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 808
       name: sidebar example chats show newest first and append older results after
         show more
       surface: gui.web
-    - &id667
+    - &id669
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
       line: 124
       name: lists public static video files from example embeds
       surface: gui.web
-    - &id668
+    - &id670
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
       line: 160
       name: resolves file rows for every bundled example chat with static file embeds
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id654
-    - *id655
     - *id656
     - *id657
     - *id658
@@ -6379,11 +6392,11 @@ assertions:
     - *id666
     - *id667
     - *id668
+    - *id669
+    - *id670
     surfaces:
       gui.web:
         direct_tests:
-        - *id654
-        - *id655
         - *id656
         - *id657
         - *id658
@@ -6397,66 +6410,66 @@ assertions:
         - *id666
         - *id667
         - *id668
+        - *id669
+        - *id670
         supporting_tests: []
     current_direct_proof: false
   tasks.content.client-encrypted:
     contract: feature.tasks@1
     fingerprint: e6fc398c991570fc06386096638457f60510e20d135ff612ebdc37b503db32e8
     direct_tests:
-    - &id669
+    - &id671
       path: backend/tests/test_user_tasks_api.py
       line: 80
       name: test_create_task_hashes_owner_and_projects_without_plaintext_content
       surface: rest_api
-    - &id670
+    - &id672
       path: backend/tests/test_user_tasks_api.py
       line: 103
       name: test_create_task_persists_label_hashes_and_priority_metadata
       surface: rest_api
-    - &id671
+    - &id673
       path: backend/tests/test_user_tasks_api.py
       line: 118
       name: test_list_tasks_filters_labels_with_and_semantics_and_priority
       surface: rest_api
-    - &id672
+    - &id674
       path: backend/tests/test_user_tasks_api.py
       line: 134
       name: test_task_label_hashes_must_be_valid_blind_indexes
       surface: rest_api
-    - &id673
+    - &id675
       path: backend/tests/test_user_tasks_api.py
       line: 184
       name: test_update_task_if_version_honors_committed_payload_version
       surface: rest_api
-    - &id674
+    - &id676
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id675
+    - &id677
       path: backend/tests/test_user_tasks_api.py
       line: 677
       name: test_start_ai_dispatches_transient_plaintext_without_persisting
       surface: rest_api
-    - &id676
+    - &id678
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 126
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id677
+    - &id679
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id678
+    - &id680
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id669
-    - *id670
     - *id671
     - *id672
     - *id673
@@ -6465,153 +6478,153 @@ assertions:
     - *id676
     - *id677
     - *id678
+    - *id679
+    - *id680
     surfaces:
       rest_api:
         direct_tests:
-        - *id669
-        - *id670
         - *id671
         - *id672
         - *id673
         - *id674
         - *id675
+        - *id676
+        - *id677
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id676
+        - *id678
         supporting_tests: []
       cli:
         direct_tests:
-        - *id677
+        - *id679
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id678
+        - *id680
         supporting_tests: []
     current_direct_proof: false
   tasks.lifecycle.visible:
     contract: feature.tasks@1
     fingerprint: 3a1262b916d9b0b2fab31c487ab1166d23012ff6310dd90745880cd6856dfb7d
     direct_tests:
-    - &id679
+    - &id681
       path: backend/tests/test_user_task_runtime_tools.py
       line: 18
       name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
       surface: rest_api
-    - &id680
+    - &id682
       path: backend/tests/test_user_task_runtime_tools.py
       line: 53
       name: test_block_pauses_queue_with_safe_reason
       surface: rest_api
-    - &id681
+    - &id683
       path: backend/tests/test_user_task_runtime_tools.py
       line: 86
       name: test_complete_starts_next_eligible_ai_task
       surface: rest_api
-    - &id682
+    - &id684
       path: backend/tests/test_user_task_runtime_tools.py
       line: 114
       name: test_complete_uses_ordered_chat_queue_for_next_ai_task
       surface: rest_api
-    - &id683
+    - &id685
       path: backend/tests/test_user_task_runtime_tools.py
       line: 143
       name: test_complete_pauses_on_blocking_human_task_before_later_ai_task
       surface: rest_api
-    - &id684
+    - &id686
       path: backend/tests/test_user_task_runtime_tools.py
       line: 174
       name: test_complete_skips_independent_human_task_and_starts_later_ai_task
       surface: rest_api
-    - &id685
+    - &id687
       path: backend/tests/test_user_tasks_api.py
       line: 162
       name: test_update_task_uses_storage_level_conditional_patch
       surface: rest_api
-    - &id686
+    - &id688
       path: backend/tests/test_user_tasks_api.py
       line: 184
       name: test_update_task_if_version_honors_committed_payload_version
       surface: rest_api
-    - &id687
+    - &id689
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id688
+    - &id690
       path: backend/tests/test_user_tasks_api.py
       line: 347
       name: test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappers
       surface: rest_api
-    - &id689
+    - &id691
       path: backend/tests/test_user_tasks_api.py
       line: 376
       name: test_replace_task_key_wrappers_rejects_stale_version
       surface: rest_api
-    - &id690
+    - &id692
       path: backend/tests/test_user_tasks_api.py
       line: 425
       name: test_delete_task_rejects_stale_version_and_uses_lock
       surface: rest_api
-    - &id691
+    - &id693
       path: backend/tests/test_user_tasks_api.py
       line: 439
       name: test_delete_task_deletes_when_expected_version_matches
       surface: rest_api
-    - &id692
+    - &id694
       path: backend/tests/test_user_tasks_api.py
       line: 453
       name: test_update_task_fails_closed_when_lock_backend_is_unavailable
       surface: rest_api
-    - &id693
+    - &id695
       path: backend/tests/test_user_tasks_api.py
       line: 486
       name: test_update_rejects_stale_client_version
       surface: rest_api
-    - &id694
+    - &id696
       path: backend/tests/test_user_tasks_api.py
       line: 537
       name: test_update_task_accepts_empty_conditional_update_response_when_version_committed
       surface: rest_api
-    - &id695
+    - &id697
       path: backend/tests/test_user_tasks_api.py
       line: 632
       name: test_ai_task_without_due_date_starts_immediately
       surface: rest_api
-    - &id696
+    - &id698
       path: backend/tests/test_user_tasks_api.py
       line: 647
       name: test_second_ai_task_without_due_date_waits_for_active_chat_task
       surface: rest_api
-    - &id697
+    - &id699
       path: backend/tests/test_user_tasks_api.py
       line: 677
       name: test_start_ai_dispatches_transient_plaintext_without_persisting
       surface: rest_api
-    - &id698
+    - &id700
       path: backend/tests/test_user_tasks_api.py
       line: 728
       name: test_start_ai_rejects_second_active_task_in_same_chat
       surface: rest_api
-    - &id699
+    - &id701
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 126
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id700
+    - &id702
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id701
+    - &id703
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id679
-    - *id680
     - *id681
     - *id682
     - *id683
@@ -6633,11 +6646,11 @@ assertions:
     - *id699
     - *id700
     - *id701
+    - *id702
+    - *id703
     surfaces:
       rest_api:
         direct_tests:
-        - *id679
-        - *id680
         - *id681
         - *id682
         - *id683
@@ -6656,83 +6669,83 @@ assertions:
         - *id696
         - *id697
         - *id698
+        - *id699
+        - *id700
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id699
+        - *id701
         supporting_tests: []
       cli:
         direct_tests:
-        - *id700
+        - *id702
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id701
+        - *id703
         supporting_tests: []
     current_direct_proof: false
   tasks.project-links.encrypted:
     contract: feature.tasks@1
     fingerprint: 57c1abc2d98e76ee877c83e89fc2ac0144c5650e7c0462019c2563e1665c0fc2
     direct_tests:
-    - &id702
+    - &id704
       path: backend/tests/test_user_tasks_api.py
       line: 80
       name: test_create_task_hashes_owner_and_projects_without_plaintext_content
       surface: rest_api
-    - &id703
+    - &id705
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id704
+    - &id706
       path: backend/tests/test_user_tasks_api.py
       line: 295
       name: test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails
       surface: rest_api
-    - &id705
+    - &id707
       path: backend/tests/test_user_tasks_api.py
       line: 323
       name: test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field
       surface: rest_api
-    - &id706
+    - &id708
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id707
+    - &id709
       path: backend/tests/test_user_tasks_api.py
       line: 501
       name: test_update_task_replaces_wrappers_with_project_hash_update
       surface: rest_api
-    - &id708
+    - &id710
       path: backend/tests/test_user_tasks_api.py
       line: 587
       name: test_update_task_rejects_project_relink_without_replacement_wrappers
       surface: rest_api
-    - &id709
+    - &id711
       path: backend/tests/test_user_tasks_api.py
       line: 607
       name: test_update_task_rejects_project_relink_with_empty_replacement_wrappers
       surface: rest_api
-    - &id710
+    - &id712
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 126
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id711
+    - &id713
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id712
+    - &id714
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id702
-    - *id703
     - *id704
     - *id705
     - *id706
@@ -6742,94 +6755,94 @@ assertions:
     - *id710
     - *id711
     - *id712
+    - *id713
+    - *id714
     surfaces:
       rest_api:
         direct_tests:
-        - *id702
-        - *id703
         - *id704
         - *id705
         - *id706
         - *id707
         - *id708
         - *id709
+        - *id710
+        - *id711
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id710
+        - *id712
         supporting_tests: []
       cli:
         direct_tests:
-        - *id711
+        - *id713
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id712
+        - *id714
         supporting_tests: []
     current_direct_proof: false
   tasks.key-wrappers.context-scoped:
     contract: feature.tasks@1
     fingerprint: 45d7dace1ef42880916d6f6c529bcbbeb58ba7f1eff178f2f2e85fe369a168bf
     direct_tests:
-    - &id713
+    - &id715
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id714
+    - &id716
       path: backend/tests/test_user_tasks_api.py
       line: 261
       name: test_create_task_persists_key_wrappers_separately
       surface: rest_api
-    - &id715
+    - &id717
       path: backend/tests/test_user_tasks_api.py
       line: 295
       name: test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails
       surface: rest_api
-    - &id716
+    - &id718
       path: backend/tests/test_user_tasks_api.py
       line: 323
       name: test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field
       surface: rest_api
-    - &id717
+    - &id719
       path: backend/tests/test_user_tasks_api.py
       line: 347
       name: test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappers
       surface: rest_api
-    - &id718
+    - &id720
       path: backend/tests/test_user_tasks_api.py
       line: 376
       name: test_replace_task_key_wrappers_rejects_stale_version
       surface: rest_api
-    - &id719
+    - &id721
       path: backend/tests/test_user_tasks_api.py
       line: 399
       name: test_replace_task_key_wrappers_restores_old_wrappers_when_version_advance_fails
       surface: rest_api
-    - &id720
+    - &id722
       path: backend/tests/test_user_tasks_api.py
       line: 501
       name: test_update_task_replaces_wrappers_with_project_hash_update
       surface: rest_api
-    - &id721
+    - &id723
       path: backend/tests/test_user_tasks_api.py
       line: 555
       name: test_update_task_fails_visibly_when_old_wrapper_delete_fails
       surface: rest_api
-    - &id722
+    - &id724
       path: backend/tests/test_user_tasks_api.py
       line: 587
       name: test_update_task_rejects_project_relink_without_replacement_wrappers
       surface: rest_api
-    - &id723
+    - &id725
       path: backend/tests/test_user_tasks_api.py
       line: 607
       name: test_update_task_rejects_project_relink_with_empty_replacement_wrappers
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id713
-    - *id714
     - *id715
     - *id716
     - *id717
@@ -6839,11 +6852,11 @@ assertions:
     - *id721
     - *id722
     - *id723
+    - *id724
+    - *id725
     surfaces:
       rest_api:
         direct_tests:
-        - *id713
-        - *id714
         - *id715
         - *id716
         - *id717
@@ -6853,71 +6866,71 @@ assertions:
         - *id721
         - *id722
         - *id723
+        - *id724
+        - *id725
         supporting_tests: []
     current_direct_proof: false
   tasks.workflow-projections.read-only:
     contract: feature.tasks@1
     fingerprint: 8294dc751574a7ef32a7480e4dad0d111cddc6c2e9f14e3dd6cd5145db4ece92
     direct_tests:
-    - &id724
+    - &id726
       path: backend/tests/test_workflow_task_projections.py
       line: 67
       name: test_active_schedule_projects_exactly_one_future_todo_task
       surface: rest_api
-    - &id725
+    - &id727
       path: backend/tests/test_workflow_task_projections.py
       line: 91
       name: test_deleting_future_schedule_projection_marks_run_skipped_and_advances_trigger
       surface: rest_api
-    - &id726
+    - &id728
       path: backend/tests/test_workflow_task_projections.py
       line: 114
       name: test_active_scheduled_run_suppresses_duplicate_future_projection_for_same_occurrence
       surface: rest_api
-    - &id727
+    - &id729
       path: backend/tests/test_workflow_task_projections.py
       line: 138
       name: test_running_scheduled_workflow_projects_current_run_and_next_todo
       surface: rest_api
-    - &id728
+    - &id730
       path: backend/tests/test_workflow_task_projections.py
       line: 172
       name: test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_tasks
       surface: rest_api
-    - &id729
+    - &id731
       path: backend/tests/test_workflow_task_projections.py
       line: 197
       name: test_task_projections_limit_workflow_to_current_last_and_next_entries
       surface: rest_api
-    - &id730
+    - &id732
       path: backend/tests/test_workflow_task_projections.py
       line: 226
       name: test_failed_recent_past_run_projects_as_last_run_blocked
       surface: rest_api
-    - &id731
+    - &id733
       path: backend/tests/test_workflow_task_projections.py
       line: 245
       name: test_tasks_route_merges_workflow_run_projection_without_user_task_persistence
       surface: rest_api
-    - &id732
+    - &id734
       path: backend/tests/test_workflow_task_projections.py
       line: 281
       name: test_tasks_delete_route_skips_future_workflow_projection_without_user_task_delete
       surface: rest_api
-    - &id733
+    - &id735
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 128
       name: renders workflow task projections without decrypting task ciphertext
       surface: cli
-    - &id734
+    - &id736
       path: packages/openmates-python/tests/test_tasks.py
       line: 126
       name: test_pip_sdk_keeps_workflow_projection_metadata
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id724
-    - *id725
     - *id726
     - *id727
     - *id728
@@ -6927,11 +6940,11 @@ assertions:
     - *id732
     - *id733
     - *id734
+    - *id735
+    - *id736
     surfaces:
       rest_api:
         direct_tests:
-        - *id724
-        - *id725
         - *id726
         - *id727
         - *id728
@@ -6939,89 +6952,89 @@ assertions:
         - *id730
         - *id731
         - *id732
+        - *id733
+        - *id734
         supporting_tests: []
       cli:
         direct_tests:
-        - *id733
+        - *id735
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id734
+        - *id736
         supporting_tests: []
     current_direct_proof: false
   tasks.surface.semantic-parity:
     contract: feature.tasks@1
     fingerprint: 04d056d2827a339c8bccdeb45c8fecddc35c6f155b588b10c7c923f18f8e6df0
     direct_tests:
-    - &id735
+    - &id737
       path: backend/tests/test_user_tasks_api.py
       line: 118
       name: test_list_tasks_filters_labels_with_and_semantics_and_priority
       surface: rest_api
-    - &id737
+    - &id739
       path: backend/tests/test_user_tasks_api.py
       line: 150
       name: test_task_short_id_lookup_rejects_ambiguous_collisions
       surface: rest_api
-    - &id738
+    - &id740
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id739
+    - &id741
       path: backend/tests/test_user_tasks_api.py
       line: 663
       name: test_product_task_helpers_do_not_use_celery_tasks_collection
       surface: rest_api
-    - &id741
+    - &id743
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 126
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id742
+    - &id744
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id743
+    - &id745
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 117
       name: rejects ambiguous short task IDs
       surface: cli
-    - &id744
+    - &id746
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 128
       name: renders workflow task projections without decrypting task ciphertext
       surface: cli
-    - &id746
+    - &id748
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
-    - &id747
+    - &id749
       path: packages/openmates-python/tests/test_tasks.py
       line: 126
       name: test_pip_sdk_keeps_workflow_projection_metadata
       surface: sdks.pip
     supporting_tests:
-    - &id736
+    - &id738
       path: backend/tests/test_user_tasks_api.py
       line: 142
       name: test_task_short_id_matches_cli_derivation
       surface: cli
-    - &id740
+    - &id742
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 50
       name: exposes task app-skill child embeds and pending client search state
       surface: sdks.npm
-    - &id745
+    - &id747
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 163
       name: formats task child embeds for CLI output
       surface: cli
     tests:
-    - *id735
-    - *id736
     - *id737
     - *id738
     - *id739
@@ -7033,31 +7046,33 @@ assertions:
     - *id745
     - *id746
     - *id747
+    - *id748
+    - *id749
     surfaces:
       rest_api:
         direct_tests:
-        - *id735
         - *id737
-        - *id738
         - *id739
+        - *id740
+        - *id741
         supporting_tests: []
       cli:
         direct_tests:
-        - *id742
-        - *id743
         - *id744
-        supporting_tests:
-        - *id736
         - *id745
+        - *id746
+        supporting_tests:
+        - *id738
+        - *id747
       sdks.npm:
         direct_tests:
-        - *id741
+        - *id743
         supporting_tests:
-        - *id740
+        - *id742
       sdks.pip:
         direct_tests:
-        - *id746
-        - *id747
+        - *id748
+        - *id749
         supporting_tests: []
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
@@ -7088,18 +7103,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id748
+    - &id750
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id748
+    - *id750
     surfaces:
       gui.web:
         direct_tests:
-        - *id748
+        - *id750
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:

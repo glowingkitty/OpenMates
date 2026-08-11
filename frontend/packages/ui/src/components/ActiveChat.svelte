@@ -5252,12 +5252,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
     );
 
-    // Logged-out welcome surfaces must get out of the way whenever the composer
-    // is active; authenticated desktop still keeps the previous roomy layout.
+    // New-chat welcome surfaces must get out of the way whenever the composer
+    // is active. On active chats, keep the old constrained-layout-only behavior.
     let hideWelcomeForKeyboard = $derived(
         messageInputFocused &&
         (
-            (!$authStore.isAuthenticated && showWelcome) ||
+            showWelcome ||
             (!keepGuestInterestOverlayVisible && (isTouchEnvironment || isEffectivelyNarrow))
         )
     );
