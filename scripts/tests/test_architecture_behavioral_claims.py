@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Behavioral assertions for architecture documentation claims.
 
 Each test is intentionally lightweight and deterministic: it proves that a
@@ -56,7 +57,7 @@ CLAIM_SOURCES = {
     'arch-infrastructure-developer-settings-behavior': ['frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte', 'frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte', 'frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte', 'backend/core/api/app/routes/settings.py', 'backend/core/api/app/routers/webhooks.py'],
     'arch-infrastructure-file-upload-pipeline-behavior': ['backend/upload/routes/upload_route.py', 'backend/upload/services/file_encryption.py', 'backend/upload/services/sightengine_service.py', 'backend/core/api/app/routes/internal_api.py', 'backend/core/api/app/tasks/storage_billing_tasks.py'],
     'arch-infrastructure-health-checks-behavior': ['backend/core/api/app/tasks/health_check_tasks.py', 'backend/core/api/app/tasks/celery_config.py', 'backend/core/api/app/routes/status_routes.py'],
-    'arch-infrastructure-linear-auto-processing-behavior': ['scripts/linear-poller.py', 'scripts/linear-enricher.py', 'scripts/session-cleanup.py', 'scripts/_linear_client.py', 'scripts/_zellij_utils.py'],
+    'arch-infrastructure-linear-auto-processing-behavior': ['scripts/linear-poller.py', 'scripts/session-cleanup.py', 'scripts/_linear_client.py', 'scripts/_zellij_utils.py'],
     'arch-infrastructure-logging-behavior': ['backend/core/api/app/utils/setup_logging.py', 'backend/core/api/app/utils/setup_compliance_logging.py', 'backend/core/api/app/utils/log_filters.py'],
     'arch-infrastructure-status-page-behavior': ['backend/status/main.py', 'backend/core/api/app/routes/status_routes.py', 'backend/core/api/app/services/status_aggregator.py', 'backend/core/api/app/services/test_results_service.py'],
     'arch-infrastructure-video-hosting-behavior': ['frontend/packages/ui/src/demo_chats/data/for_everyone.ts', 'frontend/packages/ui/src/components/ChatHeader.svelte'],

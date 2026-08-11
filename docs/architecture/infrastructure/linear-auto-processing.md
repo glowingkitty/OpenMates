@@ -3,7 +3,6 @@ status: active
 last_verified: 2026-04-02
 key_files:
 - scripts/linear-poller.py
-- scripts/linear-enricher.py
 - scripts/session-cleanup.py
 - scripts/_linear_client.py
 - scripts/_zellij_utils.py
@@ -14,7 +13,6 @@ claims:
   claim: Linear Auto-Processing Pipeline is grounded in current source-of-truth files that parse or resolve successfully.
   source:
   - scripts/linear-poller.py
-  - scripts/linear-enricher.py
   - scripts/session-cleanup.py
   - scripts/_linear_client.py
   - scripts/_zellij_utils.py
@@ -100,6 +98,7 @@ Priority order: fix > research > plan (if multiple labels exist).
 - New poller workers launch as persisted OpenCode Web chats instead of consuming Zellij slots.
 - Legacy Zellij cleanup still enforces the historical session cap for older records and manual sessions.
 - If a future chat-worker cap is added, queued tasks should keep the existing deduped "Queued" comment behavior.
+- There is intentionally no blanket nightly enricher: open Todo/Backlog tasks only spawn OpenCode chats when explicitly labeled for automation.
 
 ### Cleanup Layers
 
@@ -166,7 +165,6 @@ The `claude_session_id` maps to the JSONL transcript at `~/.claude/projects/-hom
 |---------|----------|---------|
 | `linear-poller.service` | Every 30s (loop with flock) | Poll for labeled tasks, spawn sessions, cleanup completed |
 | `session-cleanup.service` + `.timer` | Every 5 min | Catch crashed sessions, enforce limits |
-| `linear-enricher.service` + `.timer` | 03:00 UTC daily | Auto-research all open Todo/Backlog tasks |
 | `linear-archive.service` + `.timer` | Daily | Archive old closed issues (free plan limit) |
 
 Check status:

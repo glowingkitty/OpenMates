@@ -239,7 +239,6 @@ def test_active_automation_never_spawns_claude_cli() -> None:
     automation_paths = (
         "scripts/_daily_meeting_helper.py",
         "scripts/linear-poller.py",
-        "scripts/linear-enricher.py",
         "scripts/server-restart.sh",
     )
 
