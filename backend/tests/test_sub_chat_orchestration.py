@@ -384,9 +384,11 @@ def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> No
 
 
 def test_ai_output_limit_fits_authoritative_remaining_orchestration_credits(monkeypatch) -> None:
-    main_processor = inspect.getmodule(_max_affordable_ai_output_tokens)
-    assert main_processor is not None
-    monkeypatch.setattr(main_processor, "_quote_ai_iteration_credits", lambda *, output_token_limit, **kwargs: 10 + output_token_limit)
+    monkeypatch.setitem(
+        _max_affordable_ai_output_tokens.__globals__,
+        "_quote_ai_iteration_credits",
+        lambda *, output_token_limit, **kwargs: 10 + output_token_limit,
+    )
     kwargs = {
         "model_id": "provider/model",
         "system_prompt": "system",

@@ -81,7 +81,10 @@ SPEED_PROFILES = {
 }
 
 DEFAULT_SPEED_PROFILE = "instant"
-DEFAULT_INITIAL_CHUNK_DELAY_MS = 250
+# Give the web client enough time to mount the active chat stream consumer after
+# ai_typing_started before mock chunks arrive. Instant mock fixtures otherwise
+# finish before CI browsers observe the transient stream.
+DEFAULT_INITIAL_CHUNK_DELAY_MS = 1000
 
 
 def _contains_focus_mode_activation_embed(content: str) -> bool:
