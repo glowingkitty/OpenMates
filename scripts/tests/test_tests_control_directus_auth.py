@@ -17,6 +17,8 @@ import sys
 import urllib.error
 from pathlib import Path
 
+# contract-test-file: tooling
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TESTS_CONTROL_PATH = PROJECT_ROOT / "scripts" / "tests.py"
@@ -250,6 +252,35 @@ def test_directus_history_query_filters_to_requested_window(monkeypatch):
     cutoff = json.loads(captured_params["filter"])["created_at_unix"]["_gte"]
     assert before <= cutoff <= after
     assert captured_params["sort"] == "-created_at_unix"
+
+
+def test_directus_list_test_results_uses_local_postgres_fast_path(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+    rows = [{"test_key": "playwright::quote's.spec.ts", "status": "passed"}]
+    psql_commands = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        if command[:4] == ["docker", "exec", "cms-database", "true"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:5] == ["docker", "exec", "cms-database", "sh", "-lc"]:
+            psql_commands.append(command[-1])
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(rows), stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    def fail_items(collection, params=None):
+        raise AssertionError("Directus REST fallback should not run when local Postgres returns rows")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+    monkeypatch.setattr(store, "_items", fail_items)
+
+    result = store.list_test_results(["playwright::quote's.spec.ts"])
+
+    assert result == rows
+    assert len(psql_commands) == 1
+    assert "test_results" in psql_commands[0]
+    assert "quote''s.spec.ts" in psql_commands[0]
 
 
 def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):

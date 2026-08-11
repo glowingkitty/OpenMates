@@ -515,6 +515,35 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             return None
         return rows if isinstance(rows, list) else None
 
+    def _load_test_result_rows_from_local_postgres(self, test_keys: list[str]) -> list[dict[str, Any]] | None:
+        if os.getenv("OPENMATES_DISABLE_FAST_TEST_IMPORT") == "1" or not test_keys:
+            return None
+        probe = subprocess.run(["docker", "exec", "cms-database", "true"], check=False, capture_output=True, text=True, timeout=10)
+        if probe.returncode != 0:
+            return None
+        escaped_values = [str(key).replace("'", "''") for key in test_keys]
+        sql_values = ", ".join(f"'{key}'" for key in escaped_values)
+        sql = (
+            "SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) "
+            "FROM ("
+            f"SELECT * FROM test_results WHERE test_key IN ({sql_values}) ORDER BY created_at_unix"
+            ") t;"
+        )
+        result = subprocess.run(
+            ["docker", "exec", "cms-database", "sh", "-lc", f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c {json.dumps(sql)}'],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+        try:
+            rows = json.loads(result.stdout.strip() or "[]")
+        except json.JSONDecodeError:
+            return None
+        return rows if isinstance(rows, list) else None
+
     def _fresh_current_state_rows(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         problem_filter = {"stable_status": {"_in": sorted(PROBLEM_STATUSES)}}
         fresh_problem_rows = self._items(
@@ -889,6 +918,10 @@ ON CONFLICT (result_key) DO UPDATE SET run_key=EXCLUDED.run_key, test_key=EXCLUD
         return self._upsert("test_debug_groups", "group_key", {"group_key": group_key, **fields})
 
     def list_test_results(self, test_keys: list[str] | None = None) -> list[dict[str, Any]]:
+        if test_keys:
+            rows = self._load_test_result_rows_from_local_postgres(test_keys)
+            if rows is not None:
+                return rows
         params: dict[str, Any] = {"limit": -1, "sort": "created_at_unix"}
         if test_keys:
             params["filter"] = json.dumps({"test_key": {"_in": test_keys}})
