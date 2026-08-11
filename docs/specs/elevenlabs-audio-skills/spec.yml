@@ -966,7 +966,7 @@ demonstration:
     publication_status: delivered
     review_attempts: 1
     subject_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
-    manifest_path: test-results/proof-videos/f6c1/audio-example-generated-assets-phone/manifest.json
+    manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-example-generated-assets-phone-proof-manifest.json
     manifest_hash: sha256:2188661afd5115ddf851fa1ab103fb722b5f67fe4455069d6ef92dd5627310c6
     review_run_id: review-audio-example-generated-assets-phone
     timestamp: "2026-08-11T22:24:44Z"
