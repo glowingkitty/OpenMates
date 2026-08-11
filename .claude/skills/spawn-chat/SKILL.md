@@ -20,10 +20,20 @@ sessions behind.
    - Use `plan` only for pure planning or review that can be completed without
      Bash, repository session start, file reads/searches, or test artifacts.
    - Use `execute` for read-only investigations that need Bash, repo scripts,
-     `sessions.py start`, file reads/searches, or test artifacts. If the user
-     did not approve implementation, make the prompt explicitly read-only.
+     `sessions.py start`, file reads/searches, or test artifacts only when the
+     user explicitly asks for research, a report, review, or no code changes.
+     Make the prompt explicitly read-only in that case.
    - Use `execute` for implementation or direct fixes only when the user
      explicitly requests code changes in the spawned chat.
+   - Use `execute` for failed-test debugging when the user asks workers to
+     debug, fix, continue, or get tests green. Do not make these workers
+     report-only; instruct them to lease a non-overlapping group, implement the
+     smallest fix, deploy only through the approved workflow when verification
+     requires deployed code, and continue until the leased tests are green or a
+     real blocker is recorded.
+   - Execute-mode spawned chats are launched by `sessions.py spawn-chat` with
+     GPT-5.5 xhigh unless `OPENCODE_EXECUTE_MODEL` or
+     `OPENCODE_EXECUTE_VARIANT` intentionally overrides that default.
 4. Choose a unique lowercase chat name with hyphens, no secrets, and at most
    50 characters. It becomes the OpenCode chat title.
 5. For every `execute` spawned chat, include this as the first required action:

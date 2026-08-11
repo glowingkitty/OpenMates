@@ -92,7 +92,8 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
     command = captured["command"]
     assert command[command.index("--title") + 1] == "fix-example"
     assert command[command.index("--agent") + 1] == "build"
-    assert command[command.index("--model") + 1] == "openai/gpt-5.6-sol"
+    assert command[command.index("--model") + 1] == "openai/gpt-5.5"
+    assert command[command.index("--variant") + 1] == "xhigh"
     assert "--auto" in command
     assert "--interactive" not in command
 
