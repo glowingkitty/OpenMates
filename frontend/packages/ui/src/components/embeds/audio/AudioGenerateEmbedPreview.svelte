@@ -243,22 +243,6 @@
   }
 </script>
 
-{#if hasAudioSrc && status !== 'error'}
-  <audio
-    bind:this={audioEl}
-    data-testid={`${resolvedTestIdPrefix}-audio`}
-    src={audioUrl}
-    onplay={handleAudioPlay}
-    onpause={handleAudioPause}
-    onended={handleAudioEnded}
-    ontimeupdate={updatePlaybackProgressFromAudio}
-    onloadedmetadata={handleAudioLoadedMetadata}
-    preload="metadata"
-    style="display:none"
-    aria-hidden="true"
-  ></audio>
-{/if}
-
 <UnifiedEmbedPreview
   {id}
   appId="audio"
@@ -293,6 +277,22 @@
 
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="generated-audio-preview" data-testid={`${resolvedTestIdPrefix}-preview`} class:mobile={isMobileSnippet}>
+      {#if hasAudioSrc && status !== 'error'}
+        <audio
+          bind:this={audioEl}
+          data-testid={`${resolvedTestIdPrefix}-audio`}
+          src={audioUrl}
+          onplay={handleAudioPlay}
+          onpause={handleAudioPause}
+          onended={handleAudioEnded}
+          ontimeupdate={updatePlaybackProgressFromAudio}
+          onloadedmetadata={handleAudioLoadedMetadata}
+          preload="metadata"
+          style="display:none"
+          aria-hidden="true"
+        ></audio>
+      {/if}
+
       {#if status === 'error'}
         <div class="error-state">{error || $text('embeds.music_generate.error')}</div>
       {:else}
