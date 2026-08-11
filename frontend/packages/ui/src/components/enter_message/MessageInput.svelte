@@ -713,9 +713,19 @@
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
     let pendingDefaultPasteTextForRecovery: string | null = null;
 
+    function waitForNextFrame(): Promise<void> {
+        return new Promise((resolve) => {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => resolve());
+                return;
+            }
+            setTimeout(resolve, 0);
+        });
+    }
+
     function setAutoConvertedPasteCandidate(embedId: string, text: string) {
         autoConvertedPasteCandidate = { embedId, text, dismissOnTextEdit: false };
-        tick().then(() => {
+        tick().then(waitForNextFrame).then(() => {
             if (autoConvertedPasteCandidate?.embedId === embedId) {
                 autoConvertedPasteCandidate = {
                     ...autoConvertedPasteCandidate,
@@ -906,6 +916,28 @@
         return result;
     }
 
+    function isDefaultPasteRecoveryEmbedType(embedType: string): boolean {
+        return (
+            embedType.startsWith('code') ||
+            embedType.startsWith('docs') ||
+            embedType.startsWith('sheets')
+        );
+    }
+
+    function collectDefaultPasteRecoveryEmbedIds(editor: Editor): Set<string> {
+        const embedIds = new Set<string>();
+        editor.state.doc.descendants((node) => {
+            const attrs = node.attrs ?? {};
+            const embedId = typeof attrs.id === 'string' ? attrs.id : '';
+            const embedType = typeof attrs.type === 'string' ? attrs.type : '';
+            if (embedId && isDefaultPasteRecoveryEmbedType(embedType)) {
+                embedIds.add(embedId);
+            }
+            return true;
+        });
+        return embedIds;
+    }
+
     function updateAutoConvertedPasteCandidateVisibility(editor: Editor) {
         if (!autoConvertedPasteCandidate) return;
         const match = findEmbedNodeById(editor, autoConvertedPasteCandidate.embedId);
@@ -915,19 +947,20 @@
         }
     }
 
-    function updateDefaultPasteRecoveryCandidate(editor: Editor, pastedText: string | null) {
-        if (!pastedText || autoConvertedPasteCandidate) return;
+    function updateDefaultPasteRecoveryCandidate(
+        editor: Editor,
+        pastedText: string | null,
+        existingEmbedIds: Set<string> = new Set()
+    ): boolean {
+        if (!pastedText || autoConvertedPasteCandidate) return false;
 
         let embedId: string | null = null;
         editor.state.doc.descendants((node) => {
             const attrs = node.attrs ?? {};
             const embedType = typeof attrs.type === 'string' ? attrs.type : '';
-            if (
-                embedType.startsWith('code') ||
-                embedType.startsWith('docs') ||
-                embedType.startsWith('sheets')
-            ) {
-                embedId = (attrs.id as string | undefined) || null;
+            const candidateId = typeof attrs.id === 'string' ? attrs.id : null;
+            if (candidateId && isDefaultPasteRecoveryEmbedType(embedType) && !existingEmbedIds.has(candidateId)) {
+                embedId = candidateId;
                 return false;
             }
             return true;
@@ -935,7 +968,23 @@
 
         if (embedId) {
             setAutoConvertedPasteCandidate(embedId, pastedText);
+            return true;
         }
+        return false;
+    }
+
+    async function captureDefaultPasteRecoveryCandidate(
+        editor: Editor,
+        pastedText: string | null,
+        existingEmbedIds: Set<string> | null
+    ) {
+        await tick();
+        if (!editor || editor.isDestroyed) return;
+        if (updateDefaultPasteRecoveryCandidate(editor, pastedText, existingEmbedIds ?? new Set())) return;
+
+        await waitForNextFrame();
+        if (!editor || editor.isDestroyed) return;
+        updateDefaultPasteRecoveryCandidate(editor, pastedText, existingEmbedIds ?? new Set());
     }
 
     async function replaceAutoConvertedPasteWithText() {
@@ -2981,6 +3030,11 @@
         // This halves synchronous work on delimiter keystrokes while keeping paste instant.
         const wasPaste = piiPasteDetectionPending;
         piiPasteDetectionPending = false;
+        const recoveryText = wasPaste ? pendingDefaultPasteTextForRecovery : null;
+        const existingPasteRecoveryEmbedIds = recoveryText ? collectDefaultPasteRecoveryEmbedIds(editor) : null;
+        if (wasPaste) {
+            pendingDefaultPasteTextForRecovery = null;
+        }
         
         // Heavy parsing (markdown serialization + unified parser + decorations):
         // Runs immediately on delimiter characters and paste, with a 400ms fallback
@@ -2988,13 +3042,7 @@
         // any content modifications (URL → embed conversion) complete first.
         scheduleHeavyParsing(editor, currentText, wasPaste);
         if (wasPaste) {
-            const recoveryText = pendingDefaultPasteTextForRecovery;
-            pendingDefaultPasteTextForRecovery = null;
-            tick().then(() => {
-                if (editor && !editor.isDestroyed) {
-                    updateDefaultPasteRecoveryCandidate(editor, recoveryText);
-                }
-            });
+            void captureDefaultPasteRecoveryCandidate(editor, recoveryText, existingPasteRecoveryEmbedIds);
         }
 
         // PII Detection: immediate only on paste events; delimiter-triggered detection
