@@ -3,7 +3,7 @@
 """Contract tests for active OpenCode progress Discord notifications.
 
 The notifier observes existing OpenCode presence and bounded transcript
-projections, asks a low-cost model for one progress digest, and posts only
+projections, asks Gemini Flash-Lite for one progress digest, and posts only
 that digest to Discord. Tests use fakes for the model and Discord so they never send
 network traffic or expose real chat transcript content.
 Architecture: docs/specs/opencode-active-progress-notifier/spec.yml.
@@ -31,7 +31,7 @@ def load_module(name: str = "opencode_progress_notifier_test"):
     return module
 
 
-def live_item(session_id: str, *, title: str, execution: str, parent_id: str = "") -> dict:
+def live_item(session_id: str, *, title: str, execution: str, parent_id: str = "", updated_at: str = "2026-08-10T12:50:00Z") -> dict:
     return {
         "opencode_session_id": session_id,
         "top_level_session_id": parent_id or session_id,
@@ -41,7 +41,7 @@ def live_item(session_id: str, *, title: str, execution: str, parent_id: str = "
         "attention": "none",
         "turn": "running" if execution == "busy" else "completed",
         "task": title,
-        "updated_at": "2026-08-10T12:50:00Z",
+        "updated_at": updated_at,
     }
 
 
@@ -52,7 +52,10 @@ def fake_status() -> dict:
                 live_item("ses-parent", title="Build notifier", execution="busy"),
                 live_item("ses-child", title="Child reviewer", execution="busy", parent_id="ses-parent"),
             ],
-            "waiting_for_user": [live_item("ses-wait", title="Needs decision", execution="idle")],
+            "waiting_for_user": [
+                live_item("ses-wait", title="Needs decision", execution="idle"),
+                live_item("ses-stale-wait", title="Old Fiverr research", execution="idle", updated_at="2026-08-09T12:50:00Z"),
+            ],
             "idle_after_response": [live_item("ses-idle", title="Done", execution="idle")],
             "stopped_or_failed": [],
         }
@@ -119,7 +122,7 @@ def fake_digest(active_chats: list[dict]) -> dict:
         "summary_bullets": ["Architecture decision made", "One chat needs input"],
         "important_decisions": ["Use an external inspector rather than self-reporting chats."],
         "watch_points": ["GitHub auth returned 401."],
-        "_usage_metadata": {"prompt_tokens": 2000, "completion_tokens": 500, "total_tokens": 2500},
+        "_usage_metadata": {"promptTokenCount": 2000, "candidatesTokenCount": 500, "totalTokenCount": 2500},
         "chats": [
             {
                 "session_id": chat["session_id"],
@@ -137,15 +140,17 @@ def fake_digest(active_chats: list[dict]) -> dict:
     }
 
 
-def test_active_selection_merges_children_and_excludes_idle() -> None:
+def test_selection_groups_recent_work_waiting_and_completed_only() -> None:
     notifier = load_module("progress_selection")
 
-    selected = notifier.select_active_chat_roots(fake_status())
+    selected = notifier.select_active_chat_roots(fake_status(), now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc))
 
-    assert [chat.session_id for chat in selected] == ["ses-parent", "ses-wait"]
+    assert [chat.session_id for chat in selected] == ["ses-parent", "ses-wait", "ses-idle"]
     assert selected[0].active_child_session_ids == ["ses-child"]
-    assert selected[0].status_label == "working"
+    assert selected[0].status_label == "active"
     assert selected[1].status_label == "waiting_for_user"
+    assert selected[2].status_label == "completed_recently"
+    assert "ses-stale-wait" not in [chat.session_id for chat in selected]
 
 
 def test_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
@@ -167,7 +172,7 @@ def test_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
     assert calls == []
 
 
-def test_run_once_uses_mistral_small_and_posts_digest(tmp_path: Path) -> None:
+def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> None:
     notifier = load_module("progress_model_payload")
     captured: dict[str, object] = {}
 
@@ -201,28 +206,29 @@ def test_run_once_uses_mistral_small_and_posts_digest(tmp_path: Path) -> None:
     assert result["cost_estimate"]["token_source"] == "usage"
     assert result["cost_estimate"]["input_tokens_estimate"] == 2000
     assert result["cost_estimate"]["output_tokens_estimate"] == 500
-    assert result["cost_estimate"]["input_usd_per_million_tokens"] == 0.15
-    assert result["cost_estimate"]["output_usd_per_million_tokens"] == 0.60
+    assert result["cost_estimate"]["input_usd_per_million_tokens"] == 0.30
+    assert result["cost_estimate"]["output_usd_per_million_tokens"] == 2.50
     assert result["cost_estimate"]["daily_runs"] == 48
     evidence = captured["evidence"]
     assert evidence["active_chats"][0]["task_items"][0]["content"] == "Create executable spec"
     assert evidence["active_chats"][0]["task_items"][1]["status"] == "in_progress"
     payload = captured["payload"]
     combined = payload["content"] + "\n" + "\n".join(embed["description"] for embed in payload["embeds"])
-    assert "**OpenCode Progress**" in combined
-    assert "**Summary**" in combined
-    assert "Cost:" in combined
-    assert "~$0.0006/run" in combined
-    assert "~$0.03/day" in combined
-    assert "**Active Chats**" in combined
+    assert "**🧭 OpenCode Progress**" in combined
+    assert "**📌 Summary**" in combined
+    assert "💸 Cost:" in combined
+    assert "~$0.0019/run" in combined
+    assert "~$0.09/day" in combined
+    assert "🟢 1 active · 🟡 1 waiting · ✅ 1 completed ≤30m" in combined
+    assert "**🟢 Currently Active Chats**" in combined
+    assert "**🟡 Waiting For User Input**" in combined
+    assert "**✅ Completed In Last 30 Min**" in combined
     assert "Tasks:" in combined
-    assert "Done: Create executable spec" in combined
-    assert "Now: Implement notifier format" in combined
-    assert "Next: Send validation Discord message" in combined
-    assert "✅" not in combined
-    assert "🔵" not in combined
-    assert "⏭️" not in combined
+    assert "✅ Done: Create executable spec" in combined
+    assert "🔵 Now: Implement notifier format" in combined
+    assert "⏭️ Next: Send validation Discord message" in combined
     assert "Generated current task" not in combined
+    assert "Old Fiverr research" not in combined
     assert "Build notifier" in combined
     assert "https://code.dev.openmates.org/" in combined
     assert "ses-parent" in combined
@@ -250,9 +256,9 @@ def test_model_task_fallback_renders_without_todowrite_input(tmp_path: Path) -> 
 
     assert result["status"] == "sent"
     combined = sent["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in sent["payload"]["embeds"])
-    assert "Done: Generated completed task" in combined
-    assert "Now: Generated current task" in combined
-    assert "Next: Generated next task" in combined
+    assert "✅ Done: Generated completed task" in combined
+    assert "🔵 Now: Generated current task" in combined
+    assert "⏭️ Next: Generated next task" in combined
 
 
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:

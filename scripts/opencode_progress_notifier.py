@@ -2,7 +2,7 @@
 """Send periodic Discord progress summaries for active OpenCode chats.
 
 This observer reads existing OpenCode presence and bounded transcript projections,
-summarizes active top-level chats with a low-cost model, and posts one
+summarizes selected top-level chats with Gemini Flash-Lite, and posts one
 maintainer-facing Discord digest. It is intentionally external to OpenCode hooks:
 passive lifecycle events must not start prompts or mutate chats.
 Architecture: docs/specs/opencode-active-progress-notifier/spec.yml.
@@ -32,14 +32,13 @@ from urllib import error, request
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DEFAULT_MODEL = "mistral-small-latest"
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
-DEFAULT_MISTRAL_MODEL = "mistral-small-latest"
+DEFAULT_MODEL = DEFAULT_GEMINI_MODEL
 DEFAULT_INTERVAL_MINUTES = 15
 DEFAULT_DAILY_ACTIVE_HOURS = 12
+RECENT_CHAT_WINDOW_MINUTES = 30
 MODEL_PRICING_USD_PER_MILLION_TOKENS = {
-    # Mistral official API pricing, verified 2026-08-11: https://docs.mistral.ai/inference/pricing
-    "mistral-small-latest": {"input": 0.15, "output": 0.60},
+    # Google Gemini API pricing, verified 2026-08-11: https://ai.google.dev/gemini-api/docs/pricing
     "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
 }
 ESTIMATED_CHARS_PER_TOKEN = 4
@@ -55,14 +54,14 @@ MAX_ISSUE_SIGNALS = 8
 MAX_DISCORD_CONTENT_CHARS = 1_900
 MAX_DISCORD_EMBED_DESCRIPTION_CHARS = 4_000
 MAX_DISCORD_EMBED_TOTAL_CHARS = 6_000
-ACTIVE_CHATS_EMBED_TITLE = "Currently Active Chats"
-ACTIVE_CHATS_CONTINUED_EMBED_TITLE = "Currently Active Chats (continued)"
+ACTIVE_CHATS_EMBED_TITLE = "OpenCode Chat Status"
+ACTIVE_CHATS_CONTINUED_EMBED_TITLE = "OpenCode Chat Status (continued)"
 GEMINI_SYSTEM_PROMPT = (
     "You summarize active OpenCode coding chats for the OpenMates maintainer. "
     "Return concise, scannable, evidence-grounded JSON. Use exact task_items when present. "
     "When task_items are absent, infer a short task list with completed, current, and next steps. "
     "Use the top-level notifier_config for the current notifier model and cadence; do not repeat older transcript claims as current config. "
-    "For the progress-notifier chat, never describe Gemini or 10-minute cadence as current when notifier_config says otherwise. "
+    "For the progress-notifier chat, never describe Mistral or 10-minute cadence as current when notifier_config says otherwise. "
     "Highlight important decisions, places the maintainer should watch, product/code issues, and agent workflow issues. "
     "Do not quote raw secrets, webhook URLs, API keys, reasoning traces, attachment content, or long tool outputs."
 )
@@ -146,6 +145,13 @@ def _parse_iso(value: str) -> datetime | None:
         return None
 
 
+def _is_within_minutes(value: str, *, now: datetime, minutes: int) -> bool:
+    parsed = _parse_iso(value)
+    if not parsed:
+        return False
+    return timedelta(0) <= now - parsed <= timedelta(minutes=minutes)
+
+
 def _bounded_text(value: Any, max_chars: int = MAX_TEXT_CHARS) -> str:
     text = str(value or "")
     text = redact_text(" ".join(text.split()))
@@ -204,25 +210,6 @@ def load_gemini_api_key() -> str:
     raise ProgressNotifierError("Gemini API key not found. Set GEMINI_API_KEY or SECRET__GOOGLE_AI_STUDIO__API_KEY.")
 
 
-def load_mistral_api_key() -> str:
-    for name in ("MISTRAL_API_KEY", "MISTRAL_AI_API_KEY", "SECRET__MISTRAL_AI__API_KEY"):
-        value = _dotenv_value(CONTROL_PLANE_ROOT, name)
-        if value and value != "IMPORTED_TO_VAULT":
-            return value
-    value = load_mistral_api_key_from_vault()
-    if value:
-        return value
-    raise ProgressNotifierError("Mistral API key not found. Set MISTRAL_API_KEY or SECRET__MISTRAL_AI__API_KEY.")
-
-
-def load_model_api_key(model: str) -> str:
-    if model == DEFAULT_GEMINI_MODEL:
-        return load_gemini_api_key()
-    if model == DEFAULT_MISTRAL_MODEL or model.startswith("mistral-"):
-        return load_mistral_api_key()
-    raise ProgressNotifierError(f"Unsupported progress summary model: {model}")
-
-
 def load_gemini_api_key_from_vault() -> str:
     compose_file = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
     env_file = CONTROL_PLANE_ROOT / ".env"
@@ -236,32 +223,6 @@ def load_gemini_api_key_from_vault() -> str:
         "    sm = SecretsManager()\n"
         "    await sm.initialize()\n"
         "    key = await _get_google_ai_studio_api_key(sm)\n"
-        "    print(key or '', end='')\n"
-        "asyncio.run(main())\n"
-    )
-    command = ["docker", "compose"]
-    if env_file.exists():
-        command.extend(["--env-file", str(env_file)])
-    command.extend(["-f", str(compose_file), "exec", "-T", "api", "python3", "-c", fetch_script])
-    try:
-        result = subprocess.run(command, cwd=CONTROL_PLANE_ROOT, text=True, capture_output=True, timeout=20, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        return ""
-    return result.stdout.strip()
-
-
-def load_mistral_api_key_from_vault() -> str:
-    compose_file = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
-    env_file = CONTROL_PLANE_ROOT / ".env"
-    if not compose_file.exists():
-        return ""
-    fetch_script = (
-        "import asyncio\n"
-        "from backend.core.api.app.utils.secrets_manager import SecretsManager\n"
-        "async def main():\n"
-        "    sm = SecretsManager()\n"
-        "    await sm.initialize()\n"
-        "    key = await sm.get_secret(secret_path='kv/data/providers/mistral_ai', secret_key='api_key')\n"
         "    print(key or '', end='')\n"
         "asyncio.run(main())\n"
     )
@@ -317,16 +278,19 @@ def select_active_chat_roots(
     *,
     exclude_session_ids: set[str] | None = None,
     max_chats: int = MAX_ACTIVE_CHATS,
+    now: datetime | None = None,
+    recent_window_minutes: int = RECENT_CHAT_WINDOW_MINUTES,
 ) -> list[ActiveChatRoot]:
+    current_time = now or datetime.now(timezone.utc)
     excluded = exclude_session_ids or set()
     live = status.get("live") if isinstance(status.get("live"), dict) else {}
     sections = (
-        ("working", "working"),
-        ("waiting_for_user", "waiting_for_user"),
-        ("stopped_or_failed", "stopped_or_failed"),
+        ("working", "active", recent_window_minutes, True),
+        ("waiting_for_user", "waiting_for_user", recent_window_minutes, True),
+        ("idle_after_response", "completed_recently", recent_window_minutes, False),
     )
     roots: dict[str, dict[str, Any]] = {}
-    for section, status_label in sections:
+    for section, status_label, window_minutes, include_child in sections:
         items = live.get(section) if isinstance(live.get(section), list) else []
         for item in items:
             if not isinstance(item, dict):
@@ -335,20 +299,28 @@ def select_active_chat_roots(
             root_id = str(item.get("top_level_session_id") or item.get("parent_id") or session_id)
             if not session_id or not root_id or root_id in excluded:
                 continue
+            updated_at = str(item.get("updated_at") or "")
+            if window_minutes and not _is_within_minutes(updated_at, now=current_time, minutes=window_minutes):
+                continue
+            if root_id in roots:
+                record = roots[root_id]
+                if include_child and session_id != root_id and session_id not in record["children"]:
+                    record["children"].append(session_id)
+                continue
             record = roots.setdefault(
                 root_id,
                 {
                     "session_id": root_id,
                     "status_label": status_label,
                     "title": str(item.get("task") or item.get("title") or ""),
-                    "updated_at": str(item.get("updated_at") or ""),
+                    "updated_at": updated_at,
                     "children": [],
                 },
             )
             if session_id == root_id:
                 record["title"] = str(item.get("task") or item.get("title") or record.get("title") or "")
-                record["updated_at"] = str(item.get("updated_at") or record.get("updated_at") or "")
-            elif session_id not in record["children"]:
+                record["updated_at"] = str(updated_at or record.get("updated_at") or "")
+            elif include_child and session_id not in record["children"]:
                 record["children"].append(session_id)
     result = []
     for record in roots.values():
@@ -543,7 +515,8 @@ def build_evidence(
             "interval_minutes": interval_minutes,
             "daily_active_hours": daily_active_hours,
             "daily_runs_assumption": _runs_per_day(interval_minutes, daily_active_hours),
-            "obsolete_current_claims": ["Gemini 3.5 Flash Lite", "gemini-3.5-flash-lite", "10-minute cadence", "10 minutes"],
+            "recent_window_minutes": RECENT_CHAT_WINDOW_MINUTES,
+            "obsolete_current_claims": ["Mistral", "mistral-small-latest", "10-minute cadence", "10 minutes"],
         },
         "active_count": len(active_chats),
         "instructions": {
@@ -774,98 +747,6 @@ def call_gemini_progress_summary(
     raise ProgressNotifierError("Gemini response did not include a progress digest")
 
 
-def _message_content_text(content: Any) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and isinstance(item.get("text"), str):
-                parts.append(item["text"])
-        return "\n".join(parts).strip()
-    return ""
-
-
-def _parse_json_digest(text: str, *, provider_name: str) -> dict[str, Any]:
-    cleaned = text.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned.removeprefix("```json").removesuffix("```").strip()
-    elif cleaned.startswith("```"):
-        cleaned = cleaned.removeprefix("```").removesuffix("```").strip()
-    try:
-        digest = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise ProgressNotifierError(f"{provider_name} response was not valid JSON") from exc
-    if not isinstance(digest, dict):
-        raise ProgressNotifierError(f"{provider_name} response JSON was not an object")
-    return digest
-
-
-def call_mistral_progress_summary(
-    *,
-    evidence: dict[str, Any],
-    api_key: str,
-    model: str = DEFAULT_MISTRAL_MODEL,
-    opener: Callable[..., Any] = request.urlopen,
-) -> dict[str, Any]:
-    if model != DEFAULT_MISTRAL_MODEL and not model.startswith("mistral-"):
-        raise ProgressNotifierError(f"Unsupported Mistral progress summary model: {model}")
-    user_message = "Summarize this bounded active-chat evidence as JSON:\n" + json.dumps(evidence, ensure_ascii=False, sort_keys=True)
-    system_message = (
-        GEMINI_SYSTEM_PROMPT
-        + " Return only a JSON object matching this schema: "
-        + json.dumps(progress_summary_schema(), ensure_ascii=False, sort_keys=True)
-    )
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.2,
-        "max_tokens": 4096,
-    }
-    body = json.dumps(payload).encode("utf-8")
-    req = request.Request(
-        "https://api.mistral.ai/v1/chat/completions",
-        data=body,
-        headers={"Content-Type": "application/json", "Accept": "application/json", "Authorization": f"Bearer {api_key}"},
-        method="POST",
-    )
-    try:
-        with opener(req, timeout=90) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
-        raise ProgressNotifierError(f"Mistral API error {exc.code}: {detail}") from exc
-    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
-        raise ProgressNotifierError(f"Mistral request failed: {exc}") from exc
-
-    try:
-        message = response_payload.get("choices", [])[0].get("message", {})
-    except (AttributeError, IndexError) as exc:
-        raise ProgressNotifierError("Mistral response did not include choices") from exc
-    text_response = _message_content_text(message.get("content"))
-    if not text_response:
-        raise ProgressNotifierError("Mistral response did not include content")
-    digest = _parse_json_digest(text_response, provider_name="Mistral")
-    return {**digest, "_usage_metadata": response_payload.get("usage") or {}}
-
-
-def call_progress_summary(
-    *,
-    evidence: dict[str, Any],
-    api_key: str,
-    model: str = DEFAULT_MODEL,
-) -> dict[str, Any]:
-    if model == DEFAULT_GEMINI_MODEL:
-        return call_gemini_progress_summary(evidence=evidence, api_key=api_key, model=model)
-    if model == DEFAULT_MISTRAL_MODEL or model.startswith("mistral-"):
-        return call_mistral_progress_summary(evidence=evidence, api_key=api_key, model=model)
-    raise ProgressNotifierError(f"Unsupported progress summary model: {model}")
-
-
 def _fallback_chat_summary(chat: dict[str, Any]) -> str:
     signals = chat.get("issue_signals") or []
     if signals:
@@ -955,7 +836,7 @@ def estimate_summary_cost(
         input_tokens = _estimated_tokens(input_text)
         output_tokens = _estimated_tokens(output_text)
         source = "character_estimate"
-    pricing = MODEL_PRICING_USD_PER_MILLION_TOKENS.get(model) or MODEL_PRICING_USD_PER_MILLION_TOKENS[DEFAULT_MISTRAL_MODEL]
+    pricing = MODEL_PRICING_USD_PER_MILLION_TOKENS.get(model) or MODEL_PRICING_USD_PER_MILLION_TOKENS[DEFAULT_GEMINI_MODEL]
     input_price = pricing["input"]
     output_price = pricing["output"]
     input_usd = (input_tokens / 1_000_000) * input_price
@@ -1024,6 +905,38 @@ def _discord_link_label(value: Any, max_chars: int = 80) -> str:
     )
 
 
+CHAT_STATUS_GROUPS = (
+    ("active", "🟢 Currently Active Chats", "No active chats."),
+    ("waiting_for_user", "🟡 Waiting For User Input", "No chats waiting for user input."),
+    ("completed_recently", "✅ Completed In Last 30 Min", "No chats completed in the last 30 minutes."),
+)
+
+
+def _chat_status_group(chat: dict[str, Any]) -> str:
+    status = str(chat.get("status_label") or "active")
+    if status == "working":
+        return "active"
+    if status in {"waiting_for_user", "completed_recently"}:
+        return status
+    return "active"
+
+
+def _chat_group_counts(chats: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {key: 0 for key, _title, _empty in CHAT_STATUS_GROUPS}
+    for chat in chats:
+        counts[_chat_status_group(chat)] = counts.get(_chat_status_group(chat), 0) + 1
+    return counts
+
+
+def _display_status_label(status: str) -> str:
+    return {
+        "active": "🟢 active",
+        "working": "🟢 active",
+        "waiting_for_user": "🟡 waiting for user input",
+        "completed_recently": "✅ completed in last 30 min",
+    }.get(status, status)
+
+
 def _render_task_lines(tasks: list[dict[str, str]], *, max_items: int) -> list[str]:
     if not tasks or max_items <= 0:
         return ["Next: not identified"]
@@ -1035,10 +948,10 @@ def _render_task_lines(tasks: list[dict[str, str]], *, max_items: int) -> list[s
     }
     lines = []
     slots = (
-        ("in_progress", "Now", 1),
-        ("pending", "Next", 1),
-        ("completed", "Done", 2),
-        ("cancelled", "Canceled", 1),
+        ("in_progress", "🔵 Now", 1),
+        ("pending", "⏭️ Next", 1),
+        ("completed", "✅ Done", 2),
+        ("cancelled", "🚫 Canceled", 1),
     )
     for status, label, per_status_limit in slots:
         for task in grouped[status][:per_status_limit]:
@@ -1055,7 +968,7 @@ def _chat_block(index: int, chat: dict[str, Any], *, summary_limit: int, task_li
     label_source = chat.get("session_id") if compact_label else (chat.get("title") or chat.get("session_id") or "Untitled chat")
     title = _discord_link_label(label_source)
     url = str(chat.get("url") or "")
-    status = _bounded_text(chat.get("status_label") or "active", 80)
+    status = _display_status_label(_bounded_text(chat.get("status_label") or "active", 80))
     lines = [f"**{index}. [{title}]({url})**", f"Status: `{status}`"]
     if summary_limit > 0:
         lines.extend(["", f"Summary: {_display_text(chat.get('summary') or 'No summary returned.', summary_limit)}"])
@@ -1071,8 +984,8 @@ def _chat_block(index: int, chat: dict[str, Any], *, summary_limit: int, task_li
 
 def _chunk_chat_blocks(blocks: list[str]) -> list[str]:
     chunks: list[str] = []
-    current = "**Active Chats**"
-    continued_header = "**Active Chats (continued)**"
+    current = ""
+    continued_header = "**OpenCode Chat Status (continued)**"
     for block in blocks:
         separator = "\n\n" if current else ""
         candidate = current + separator + block
@@ -1128,10 +1041,17 @@ def _render_active_chat_descriptions(chats: list[dict[str, Any]]) -> list[str]:
     for summary_limit, task_limit in ((160, 5), (120, 4), (80, 3), (50, 2), (0, 2), (0, 1), (0, 0)):
         include_details = summary_limit >= 160 and len(chats) <= 3
         compact_label = summary_limit == 0 and task_limit <= 1
-        blocks = [
-            _chat_block(index, chat, summary_limit=summary_limit, task_limit=task_limit, include_details=include_details, compact_label=compact_label)
-            for index, chat in enumerate(chats, start=1)
-        ]
+        blocks: list[str] = []
+        index = 1
+        for key, title, empty_text in CHAT_STATUS_GROUPS:
+            section_chats = [chat for chat in chats if _chat_status_group(chat) == key]
+            blocks.append(f"**{title}**")
+            if not section_chats:
+                blocks.append(empty_text)
+                continue
+            for chat in section_chats:
+                blocks.append(_chat_block(index, chat, summary_limit=summary_limit, task_limit=task_limit, include_details=include_details, compact_label=compact_label))
+                index += 1
         chunks = _chunk_chat_blocks(blocks)
         if _embed_descriptions_fit(chunks):
             return chunks
@@ -1146,13 +1066,20 @@ def build_discord_payload(
     model: str = DEFAULT_MODEL,
     cost_estimate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    chats = digest.get("chats") if isinstance(digest.get("chats"), list) else []
+    counts = _chat_group_counts(chats)
     lines = [
-        "**OpenCode Progress**",
-        f"{active_count} active · `{model}` · `{_now_iso(now)}`",
+        "**🧭 OpenCode Progress**",
+        (
+            f"🟢 {counts.get('active', 0)} active · "
+            f"🟡 {counts.get('waiting_for_user', 0)} waiting · "
+            f"✅ {counts.get('completed_recently', 0)} completed ≤30m · "
+            f"🤖 `{model}` · 🕒 `{_now_iso(now)}`"
+        ),
         "",
-        f"Cost: {_format_cost_estimate(cost_estimate)}",
+        f"💸 Cost: {_format_cost_estimate(cost_estimate)}",
         "",
-        "**Summary**",
+        "**📌 Summary**",
         str(digest.get("overall_summary") or "No overall summary returned."),
     ]
     summary_bullets = digest.get("summary_bullets") or []
@@ -1161,12 +1088,11 @@ def build_discord_payload(
     decisions = digest.get("important_decisions") or []
     watch_points = digest.get("watch_points") or []
     if decisions:
-        lines.extend(["", "**Decisions**"])
+        lines.extend(["", "**🧭 Decisions**"])
         lines.extend(f"• {_display_text(item, 140)}" for item in decisions[:3])
     if watch_points:
-        lines.extend(["", "**Watch**"])
+        lines.extend(["", "**⚠️ Watch**"])
         lines.extend(f"• {_display_text(item, 140)}" for item in watch_points[:3])
-    chats = digest.get("chats") if isinstance(digest.get("chats"), list) else []
     embeds = [
         {
             "title": ACTIVE_CHATS_EMBED_TITLE if index == 0 else ACTIVE_CHATS_CONTINUED_EMBED_TITLE,
@@ -1188,7 +1114,7 @@ def run_once(
     *,
     status_loader: Callable[[], dict[str, Any]] = load_status,
     chat_reader: Callable[[str], dict[str, Any]] = read_chat_view,
-    summarizer: Callable[..., dict[str, Any]] = call_progress_summary,
+    summarizer: Callable[..., dict[str, Any]] = call_gemini_progress_summary,
     discord_sender: Callable[..., dict[str, str] | None] = post_message,
     state_path: Path = DEFAULT_STATE_FILE,
     api_key: str | None = None,
@@ -1204,7 +1130,7 @@ def run_once(
 ) -> dict[str, Any]:
     current_time = now or datetime.now(timezone.utc)
     status = status_loader()
-    active_roots = select_active_chat_roots(status, max_chats=max_chats)
+    active_roots = select_active_chat_roots(status, max_chats=max_chats, now=current_time)
     if not active_roots:
         return {"status": "skipped_no_active_chats", "active_count": 0, "model": model}
     if not webhook_url and not dry_run:
@@ -1233,7 +1159,7 @@ def run_once(
                 "model": model,
             }
 
-        key = api_key or load_model_api_key(model)
+        key = api_key or load_gemini_api_key()
         raw_digest = summarizer(evidence=evidence, api_key=key, model=model)
         digest = normalize_digest(raw_digest, evidence["active_chats"])
         usage_metadata = raw_digest.get("_usage_metadata") if isinstance(raw_digest, dict) else None
@@ -1283,7 +1209,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--watch", action="store_true", help="Run continuously, sleeping --interval-minutes between ticks.")
     parser.add_argument("--interval-minutes", type=int, default=DEFAULT_INTERVAL_MINUTES, help="Notification cadence and duplicate suppression window.")
     parser.add_argument("--daily-active-hours", type=float, default=DEFAULT_DAILY_ACTIVE_HOURS, help="Active notifier hours per day used for displayed cost projection.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Summary model. Default: mistral-small-latest; gemini-3.5-flash-lite remains available for comparison.")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Summary model. Default: gemini-3.5-flash-lite.")
     parser.add_argument("--dry-run", action="store_true", help="Call the summary model and print the Discord payload without posting to Discord.")
     parser.add_argument("--force", action="store_true", help="Bypass duplicate suppression for this tick.")
     parser.add_argument("--no-state-update", action="store_true", help="Do not write .opencode/progress-notifier-state.json.")
@@ -1311,7 +1237,7 @@ def _print_result(result: dict[str, Any], *, as_json: bool) -> None:
     if status == "skipped_no_active_chats":
         print("No active OpenCode chats; skipped progress summary.")
         return
-    print(f"OpenCode progress notifier: {status} ({result.get('active_count', 0)} active chat(s))")
+    print(f"OpenCode progress notifier: {status} ({result.get('active_count', 0)} selected chat(s))")
 
 
 def main() -> int:

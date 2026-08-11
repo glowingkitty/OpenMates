@@ -11,12 +11,12 @@ goal: >
 scope:
   in:
     - Inspect live OpenCode presence and durable sessions from the existing local control plane.
-    - Summarize only currently active top-level chats: working, waiting for user, stopped, or failed.
-    - Exclude idle completed chats and notifier-owned analysis sessions.
-    - Use Mistral Small by default for LLM summary generation, with Gemini retained as an explicit comparison model.
-    - Post one Discord message containing a readable plain-text top summary and one per-active-chat section.
+    - Summarize only fresh top-level chats: currently active, waiting for user input, and completed in the last 30 minutes.
+    - Exclude stale waiting/completed chats, stale working records, and notifier-owned analysis sessions.
+    - Use Gemini 3.5 Flash-Lite for LLM summary generation; do not use Mistral for the normal notifier path.
+    - Post one Discord message containing a readable icon-aided top summary and grouped sections for active, waiting, and recently completed chats.
     - Include completed/current/next task lists for every active chat, preferring exact OpenCode `todowrite` data when available and model-generated task lists otherwise.
-    - Include an estimated model API cost per run and per day using a 15-minute cadence over up to 12 active hours.
+    - Include an estimated Gemini API cost per run and per day using a 15-minute cadence over up to 12 active hours.
     - Default the recurring cadence to 15 minutes and provide a `--once`/`--dry-run` test path.
     - Persist local notification state only to suppress duplicates and record last summaries.
   out:
@@ -52,7 +52,6 @@ context_discovery:
     - .opencode/plugins/openmates-hooks.js writes passive presence heartbeats and must not launch prompts from passive observation.
     - scripts/discord_webhook.py provides stdlib Discord webhook posting helpers.
     - scripts/release_intelligence.py and scripts/audit_example_chat_quality.py show existing Gemini key resolution and generateContent calls.
-    - backend/apps/ai/llm_providers/mistral_client.py shows the existing Mistral API key Vault path and chat-completions usage fields.
   tests:
     - scripts/tests/test_opencode_chat_improvement_review.py
     - scripts/tests/test_run_tests_discord_summary.py
@@ -73,18 +72,19 @@ clarification:
     - question: Which architecture should report progress?
       answer: Use a separate inspector script rather than making chats self-report.
     - question: Which model should summarize active chat progress?
-      answer: Initially use Gemini 3.5 Flash Lite, then compare and switch the validation path to Mistral Small because Gemini cost was too high.
+      answer: Initially use Gemini 3.5 Flash Lite, briefly compare Mistral Small, then switch back to Gemini 3.5 Flash-Lite because Gemini 3 Flash Preview lacks a cheaper current price and Mistral is not desired.
     - question: What should the Discord output contain?
       answer: One overall summary of all currently ongoing chats, highlighting important decisions and places to watch, followed by a list of all active chats with title, OpenCode link, and per-chat summary.
     - question: What cadence should the first implementation use?
       answer: Start with every 10 minutes, then revise to every 15 minutes with up to 12 active hours per day for cost estimates.
     - question: What format should be validated before cron installation?
-      answer: Make the summary easier to scan with a short text summary at the top, fewer icons, clearer spacing, per-chat task lists showing completed/current/next work, and a pricing estimate per run and per day.
+      answer: Make the summary easier to scan with a short text summary at the top, balanced icons, clearer spacing, per-chat task lists showing completed/current/next work, grouped active/waiting/completed sections, and a pricing estimate per run and per day.
   vision_summary: >
     The notifier is an external active-chat observer. It only posts when active
-    chats exist, uses Mistral Small by default for summaries, and produces a single
-    maintainer-oriented Discord digest with a plain-text top summary, per-chat
-    links, summaries, task status lists, and per-run/per-day cost estimate.
+    chats exist, uses Gemini 3.5 Flash-Lite for summaries, and produces a single
+    maintainer-oriented Discord digest with a balanced icon top summary, grouped
+    active/waiting/recently-completed sections, per-chat links, summaries, task
+    status lists, and per-run/per-day cost estimate.
   approved_by_user: true
 
 implementation_state:
@@ -108,8 +108,8 @@ decisions:
     decided_at: "2026-08-10T12:45:00Z"
   - id: D-2
     status: active
-    decision: Use Mistral Small by default for LLM summary attempts, with Gemini retained as an explicit comparison model.
-    reason: The user rejected Gemini's observed per-run/day cost as too high and requested the same process with Mistral Small.
+    decision: Use Gemini 3.5 Flash-Lite for LLM summary attempts.
+    reason: Gemini 3 Flash Preview is available only as an older preview without a documented cheaper current price, while current docs price Gemini 3.5 Flash-Lite as the lowest-cost current Gemini option; the user explicitly rejected Mistral for the normal path.
     decided_at: "2026-08-10T12:45:00Z"
   - id: D-3
     status: active
@@ -121,6 +121,11 @@ decisions:
     decision: Do not send a Discord message when no active chats are present.
     reason: The user explicitly requested no summary when no chats are currently actively running.
     decided_at: "2026-08-10T12:45:00Z"
+  - id: D-5
+    status: active
+    decision: Group the Discord embed into currently active, waiting for user input, and completed in the last 30 minutes.
+    reason: The user explicitly rejected stale waiting chats such as the old Fiverr research chat and requested these three buckets.
+    decided_at: "2026-08-11T16:35:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -208,17 +213,25 @@ attempts:
     command: python3 scripts/opencode_progress_notifier.py --once --force --max-chats 5 --json
     run_id: local-20260811T155657Z-mistral-send
     summary: Posted validation message 1536765432118120562 using mistral-small-latest with metered usage of 15.5k input and 1.5k output tokens, costing about $0.0032/run and $0.15/day at 48 runs.
+  - id: ATTEMPT-12
+    task_id: TASK-1
+    approach: Revert the normal path to Gemini 3.5 Flash-Lite, group chats by active/waiting/recently completed status, apply a 30-minute freshness cutoff, restore balanced emojis, and send a fresh validation message.
+    outcome: succeeded
+    recorded_at: "2026-08-11T16:35:33Z"
+    command: python3 scripts/opencode_progress_notifier.py --once --force --max-chats 10 --json
+    run_id: local-20260811T163533Z-gemini-sectioned-send
+    summary: Posted validation message 1536775132402425857 using gemini-3.5-flash-lite with metered usage of 17.5k input and 1.4k output tokens, costing about $0.0086/run and $0.41/day at 48 runs. The payload showed 4 active, 0 waiting, 2 completed within 30 minutes, and excluded the stale Fiverr waiting chat.
 
 handoff:
   current_task_id: TASK-1
-  next_action: Wait for maintainer validation of Discord message 1536765432118120562, then optionally install the managed 15-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron`.
-  command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --max-chats 5 --json
-  expected_outcome: Mistral Small prints the plain-text top summary, per-chat task lists, and estimated per-run/per-day cost without Discord posting.
+  next_action: Wait for maintainer validation of Discord message 1536775132402425857, then optionally install the managed 15-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron`.
+  command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
+  expected_outcome: Gemini 3.5 Flash-Lite prints the icon-aided top summary, active/waiting/completed sections, per-chat task lists, and estimated per-run/per-day cost without Discord posting.
   blocker:
     task_id: TASK-1
     requires_user_input: true
     reason: The cron should not be installed until the maintainer validates the revised Discord message format.
-    question: Please validate Discord message 1536765432118120562 or request another format adjustment.
+    question: Please validate Discord message 1536775132402425857 or request another format adjustment.
     next_action: Install the cron only after the revised format is approved.
   last_verified_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
 
@@ -226,19 +239,19 @@ scenarios:
   - id: S-1
     title: Active chats produce one Discord digest
     given:
-      - The OpenCode presence view contains at least one top-level chat in working, waiting_for_user, stopped, or failed state.
+      - The OpenCode presence view contains at least one top-level chat that is working, waiting for user input, or completed within the configured 30-minute freshness window.
     when:
       - The notifier runs with Discord delivery enabled.
     then:
-      - Mistral Small receives bounded active-chat evidence by default.
-      - Discord receives one readable message with a plain-text summary and one section per active chat.
+      - Gemini 3.5 Flash-Lite receives bounded selected-chat evidence.
+      - Discord receives one readable message with a balanced icon summary and grouped active/waiting/recently-completed sections.
       - Every chat section includes the title, OpenCode link, current summary, and a completed/current/next task list.
       - The top summary includes estimated model API cost per run and per day.
 
   - id: S-2
     title: No active chats stay silent
     given:
-      - The OpenCode presence view has no working, waiting_for_user, stopped, or failed top-level chats.
+      - The OpenCode presence view has no fresh working, waiting_for_user, or idle_after_response top-level chats.
     when:
       - The notifier runs.
     then:
@@ -269,7 +282,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: The notifier selects only active top-level OpenCode chats and includes each active chat title, OpenCode link, summary, and completed/current/next task list in the digest.
+    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, and includes each selected chat title, OpenCode link, summary, and completed/current/next task list in the digest.
     required: true
     status: satisfied
     coverage_status: covered
@@ -278,7 +291,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-2
     scenario: S-1
-    text: Every default LLM summary call uses `mistral-small-latest`, while `gemini-3.5-flash-lite` remains available only as an explicit comparison model.
+    text: Every default LLM summary call uses `gemini-3.5-flash-lite` and the normal notifier path does not use Mistral.
     required: true
     status: satisfied
     coverage_status: covered
@@ -325,10 +338,10 @@ tests:
       - AC-4
       - AC-5
     assertions:
-      - Active selection excludes child and idle sessions.
+      - Active selection merges children, filters stale waiting/working records, and includes recently completed chats.
       - No-active run skips the summary model and Discord.
-      - Default summary calls use `mistral-small-latest`.
-      - Discord payload contains a readable plain-text summary, per-run/per-day cost estimate, and per-chat sections with OpenCode links and task lists.
+      - Default summary calls use `gemini-3.5-flash-lite`.
+      - Discord payload contains a readable icon-aided summary, per-run/per-day cost estimate, grouped active/waiting/completed sections, and per-chat sections with OpenCode links and task lists.
       - Cadence state suppresses unchanged duplicate digests.
       - Evidence projection bounds raw text and omits attachment content.
     red_phase:
@@ -347,10 +360,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-        run_id: local-20260811T1556Z-pytest
+        run_id: local-20260811T1635Z-pytest
         subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
-        timestamp: "2026-08-11T15:56:00Z"
-        summary: Ten notifier tests passed, including Mistral Small default model, 48-runs/day cost estimate, reduced icon formatting, exact todowrite task extraction, generated task fallback, privacy redaction, duplicate suppression, and Discord bounds.
+        timestamp: "2026-08-11T16:35:00Z"
+        summary: Ten notifier tests passed, including Gemini 3.5 Flash-Lite default model, 30-minute stale waiting/working filtering, recently completed chat inclusion, balanced emoji formatting, 48-runs/day cost estimate, exact todowrite task extraction, generated task fallback, privacy redaction, duplicate suppression, and Discord bounds.
 
 verifications:
   - id: V-DRY-RUN
@@ -365,11 +378,11 @@ verifications:
     status: passed
     evidence:
       status: passed
-      command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 5 --json
-      run_id: local-20260811T155632Z-mistral-dry-run
+      command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
+      run_id: local-20260811T163501Z-gemini-sectioned-dry-run
       subject_commit: working-tree@78f29f1fedde174359ef65f749a6ee6036f14b5a+opencode-progress-notifier
-      timestamp: "2026-08-11T15:56:32Z"
-      summary: Mistral Small produced the requested overall and per-active-chat digest for 5 active OpenCode chats without Discord posting, with Discord mentions disabled, reduced icon usage, all selected chat links retained, and a metered cost estimate of about $0.0034/run and $0.16/day at 48 runs.
+      timestamp: "2026-08-11T16:35:01Z"
+      summary: Gemini 3.5 Flash-Lite produced the requested active/waiting/recently-completed digest for 6 selected OpenCode chats without Discord posting, with Discord mentions disabled, balanced emoji usage, stale waiting chats excluded, and a metered cost estimate of about $0.0081/run and $0.39/day at 48 runs.
 
 implementation_plan:
   spec_path: docs/specs/opencode-active-progress-notifier/spec.yml
@@ -377,16 +390,16 @@ implementation_plan:
     - scripts/sessions.py status --json and chat read projections
     - scripts/opencode_chat_improvement_review.py report, Discord, and scheduled tooling style
     - scripts/release_intelligence.py Gemini generateContent function-calling style
-    - backend/apps/ai/llm_providers/mistral_client.py direct Mistral chat-completions style
   architecture: >
     Add a standalone script that reads live status, fetches bounded transcripts
-    for active top-level chats, calls Mistral Small by default for a structured
-    JSON digest, formats a single Discord payload, and stores local dedupe state.
+    for fresh active, waiting, and recently completed top-level chats, calls
+    Gemini 3.5 Flash-Lite for a structured JSON digest, formats a single grouped
+    Discord payload, and stores local dedupe state.
   data_flow:
     - Read live session status from the local control plane.
-    - Fetch bounded OpenCode transcript projections for active top-level session IDs.
-    - Build a bounded JSON evidence prompt for Mistral Small by default.
-    - Format the returned overall and per-chat summaries into one Discord message.
+    - Fetch bounded OpenCode transcript projections for selected top-level session IDs.
+    - Build a bounded JSON evidence prompt for Gemini 3.5 Flash-Lite.
+    - Format the returned overall and per-chat summaries into one grouped Discord message.
     - Persist the active digest fingerprint and last-send timestamp in a local state file.
   affected_files:
     - path: scripts/opencode_progress_notifier.py
@@ -398,7 +411,7 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/opencode-active-progress-notifier/spec.yml
     - python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-    - python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 5
+    - python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10
   verification_order:
     - Spec validation before implementation.
     - Focused pytest after tests and script are present.
@@ -448,16 +461,16 @@ risks:
     risk: Summaries could leak raw transcript or secret-like content.
     mitigation: Use bounded projections, omit reasoning/attachments, apply simple secret redaction, and post summaries instead of raw evidence.
   - id: R-3
-    risk: Model name availability may differ across provider releases.
-    mitigation: Keep the model configurable by explicit CLI override while defaulting to `mistral-small-latest` and retaining `gemini-3.5-flash-lite` only for comparison.
+    risk: Model name availability may differ across Google AI Studio releases.
+    mitigation: Default to the currently priced low-cost Gemini model `gemini-3.5-flash-lite`; keep `--model` explicit but reject unsupported Gemini model names in the normal call path.
 
 open_questions: []
 
 privacy_security:
   data_classification: Repository-local developer tooling metadata and bounded OpenCode transcript projections.
   secrets_handling:
-    - Do not print or persist Discord webhook URLs, Mistral API keys, or Gemini API keys.
-    - Resolve Mistral and Gemini keys from existing environment or Vault-backed helper patterns.
+    - Do not print or persist Discord webhook URLs or Gemini API keys.
+    - Resolve Gemini keys from existing environment or Vault-backed helper patterns.
     - Redact secret-like tokens before prompts and Discord payloads.
   retention:
     - Persist only summary state and fingerprints in `.opencode/progress-notifier-state.json`.
