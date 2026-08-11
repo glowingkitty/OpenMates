@@ -560,8 +560,10 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     function getNormalizedChatSettingsPath(settingsPath: string): string {
-        const match = settingsPath.match(/^chats\/([^/]+)(?:\/[^/]+)?$/);
-        return match ? `chats/${match[1]}` : settingsPath;
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/([^/]+))?$/);
+        if (!match) return settingsPath;
+        const [, chatId, tab] = match;
+        return tab === 'usage' ? `chats/${chatId}/usage` : `chats/${chatId}`;
     }
 
     async function hydrateChatSettingsContext(settingsPath: string): Promise<void> {
