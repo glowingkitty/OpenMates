@@ -14,11 +14,12 @@ scope:
     - Summarize only fresh top-level chats: currently active, waiting for user input, and completed in the last 30 minutes.
     - Exclude stale waiting/completed chats, stale working records, and notifier-owned analysis sessions.
     - Use Gemini 3.5 Flash-Lite for LLM summary generation; do not use Mistral for the normal notifier path.
-    - Post one Discord message containing a readable icon-aided top summary and grouped sections for active, waiting, and recently completed chats, without visible model or cost details.
-    - Include full completed/current/next task lists for every active chat when Discord payload limits permit, preferring exact OpenCode `todowrite` data when available and model-generated task lists otherwise.
-    - Compute estimated Gemini API cost per run and per day for structured local diagnostics, not for the visible Discord response.
+    - Post one Discord message only when a selected chat is new or has deterministic task/status changes, without visible model or cost details.
+    - Use Gemini only for first-time chat overviews; follow-up notifications are deterministic task/status deltas from OpenCode state.
+    - Include completed/current/new-next task changes for known chats, preferring exact OpenCode `todowrite` data.
+    - Compute estimated Gemini API cost only when a first-time chat summary is generated, and keep it in structured local diagnostics rather than the visible Discord response.
     - Default the recurring cadence to 15 minutes and provide a `--once`/`--dry-run` test path.
-    - Persist local notification state only to suppress duplicates and record last summaries.
+    - Persist local per-chat snapshots to detect first mentions, completed tasks, current work changes, new next tasks, status changes, and unchanged chats to omit.
   out:
     - Product APIs, SDKs, web UI, Apple UI, or customer chat data.
     - OpenCode hook side effects, passive lifecycle prompt injection, or self-reporting agent instructions.
@@ -79,16 +80,18 @@ clarification:
       answer: Start with every 10 minutes, then revise to every 15 minutes with up to 12 active hours per day for cost estimates.
     - question: What format should be validated before cron installation?
       answer: Make the summary easier to scan with a short text summary at the top, balanced icons, clearer spacing, per-chat task lists showing completed/current/next work, grouped active/waiting/completed sections, no visible model/cost details, and no intentional ellipsis shortening for normal summaries/tasks.
+    - question: How should follow-up notifications behave after the initial format was still too dense?
+      answer: Show Gemini-generated overviews only the first time a chat appears, then use deterministic follow-up messages containing only task/status deltas and omit unchanged chats.
   vision_summary: >
     The notifier is an external active-chat observer. It only posts when active
-    chats exist, uses Gemini 3.5 Flash-Lite for summaries, and produces a single
-    maintainer-oriented Discord digest with a balanced icon top summary, grouped
-    active/waiting/recently-completed sections, per-chat links, summaries, and
-    full visible task status lists when the payload fits Discord limits.
+    chats are new or have meaningful deterministic changes. It uses Gemini 3.5
+    Flash-Lite only for first-time chat overviews, then produces short
+    maintainer-oriented Discord deltas with completed tasks, current work, new
+    next tasks, status changes, links, and unchanged-chat omission counts.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
+  subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
 
 approvals:
   product_contract:
@@ -131,6 +134,11 @@ decisions:
     decision: Do not show the summarizer model or cost estimate in the visible Discord response, and do not intentionally shorten normal summary or task text with ellipses.
     reason: The user validated the grouped format except for visible ellipses, hidden tasks, and unnecessary model/cost metadata.
     decided_at: "2026-08-11T17:10:00Z"
+  - id: D-7
+    status: active
+    decision: Summarize a chat with Gemini only the first time it appears; render follow-up notifications as deterministic task/status deltas and skip unchanged chats.
+    reason: The maintainer found repeated full summaries too dense and explicitly asked to focus follow-ups on updates while saving tokens.
+    decided_at: "2026-08-11T17:58:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -234,19 +242,27 @@ attempts:
     command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
     run_id: local-20260811T1710Z-pytest
     summary: Ten notifier tests passed, including regression coverage for no visible model/cost line, full long summary tail, all pending task lines, no `... +N more` task collapse, and no visible ellipsis in the normal payload.
+  - id: ATTEMPT-14
+    task_id: TASK-1
+    approach: Add per-chat state snapshots, classify first-seen/updated/completed/unchanged chats, call Gemini only for new chats, and render known-chat follow-ups from deterministic task/status deltas.
+    outcome: succeeded
+    recorded_at: "2026-08-11T17:58:36Z"
+    command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
+    run_id: local-20260811T1758Z-pytest
+    summary: Eleven notifier tests passed, including first-time Gemini overview calls, deterministic known-chat task deltas without model calls, no-change silence, stale-chat filtering, privacy redaction, Discord bounds, and cron rendering.
 
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the final format fix, then optionally install the managed 15-minute cron with `python3 scripts/opencode_progress_notifier.py --install-cron` if the maintainer wants the recurring job active.
+  next_action: Deploy first-seen plus deterministic-delta notifier mode; cron is already installed and will use the deployed script after push.
   command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
-  expected_outcome: Gemini 3.5 Flash-Lite prints the icon-aided top summary, active/waiting/completed sections, full visible per-chat task lists, and no visible model/cost line without Discord posting.
+  expected_outcome: New chats show short first-time overviews, known chats show only deterministic task/status deltas, unchanged chats are omitted, and visible model/cost lines remain hidden.
   blocker:
     task_id: TASK-1
     requires_user_input: false
-    reason: The maintainer requested the final visible format fixes and indicated the task is otherwise complete.
+    reason: The maintainer requested first-seen overview plus deterministic follow-up deltas and confirmed this should save tokens.
     question: none
-    next_action: Install cron only if explicitly requested after the final deployed fix.
-  last_verified_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
+    next_action: No user input is needed before deploying this scoped notifier refinement.
+  last_verified_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
 
 scenarios:
   - id: S-1
@@ -256,10 +272,22 @@ scenarios:
     when:
       - The notifier runs with Discord delivery enabled.
     then:
-      - Gemini 3.5 Flash-Lite receives bounded selected-chat evidence.
-      - Discord receives one readable message with a balanced icon summary and grouped active/waiting/recently-completed sections.
-      - Every chat section includes the title, OpenCode link, current summary, and a completed/current/next task list without intentional summary ellipses or collapsed task counts when the payload fits Discord limits.
+      - Gemini 3.5 Flash-Lite receives bounded evidence only for first-time chats.
+      - Discord receives one readable message with first-time chat overviews plus deterministic follow-up task/status deltas for known changed chats.
+      - Every known-chat follow-up includes the title, OpenCode link, completed tasks since last send, current work, new next tasks, and status changes where present.
       - The top summary omits the summarizer model name and estimated model API cost.
+
+  - id: S-5
+    title: Known unchanged chats stay silent and save tokens
+    given:
+      - The notifier has already recorded per-chat snapshots for all selected active chats.
+      - No selected chat has changed task status, current work, next tasks, or selected status bucket.
+    when:
+      - The notifier runs on its recurring cadence.
+    then:
+      - Gemini is not called.
+      - Discord is not called.
+      - The run records a local duplicate/no-change suppression.
 
   - id: S-2
     title: No active chats stay silent
@@ -273,9 +301,9 @@ scenarios:
       - Local state is not updated as a sent notification.
 
   - id: S-3
-    title: Duplicate unchanged summaries are suppressed between cadence windows
+    title: Unchanged known-chat notifications are suppressed between cadence windows
     given:
-      - A previous digest was sent for the same active-chat transcript fingerprint less than 15 minutes ago.
+      - A previous digest recorded per-chat task and status snapshots.
     when:
       - The notifier runs again.
     then:
@@ -295,7 +323,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, and includes each selected chat title, OpenCode link, summary, and completed/current/next task list in the digest without intentional summary ellipses or collapsed task counts when the payload fits Discord limits.
+    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, summarizes first-time chats, and renders known changed chats as deterministic completed/current/new-next/status deltas while omitting unchanged chats.
     required: true
     status: satisfied
     coverage_status: covered
@@ -322,7 +350,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-4
     scenario: S-3
-    text: The default 15-minute cadence suppresses unchanged duplicate notifications while allowing forced test sends.
+    text: The default 15-minute cadence suppresses unchanged known-chat notifications without calling Gemini or Discord while allowing forced test sends.
     required: true
     status: satisfied
     coverage_status: covered
@@ -332,6 +360,15 @@ acceptance_criteria:
   - id: AC-5
     scenario: S-4
     text: Prompt evidence and Discord payloads remain bounded and omit raw reasoning, attachments, secrets, full transcript dumps, and visible model/cost details.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-NOTIFIER
+  - id: AC-6
+    scenario: S-5
+    text: Known selected chats with no task/status delta skip Gemini, skip Discord, and are counted as unchanged/no-change suppressions.
     required: true
     status: satisfied
     coverage_status: covered
@@ -350,12 +387,14 @@ tests:
       - AC-3
       - AC-4
       - AC-5
+      - AC-6
     assertions:
       - Active selection merges children, filters stale waiting/working records, and includes recently completed chats.
       - No-active run skips the summary model and Discord.
-      - Default summary calls use `gemini-3.5-flash-lite`.
-      - Discord payload contains a readable icon-aided summary, grouped active/waiting/completed sections, per-chat sections with OpenCode links and task lists, no visible model/cost line, no normal summary ellipses, and no collapsed task counts.
-      - Cadence state suppresses unchanged duplicate digests.
+      - Default first-time summary calls use `gemini-3.5-flash-lite`.
+      - Known-chat follow-up notifications render deterministic completed/current/new-next/status deltas without calling the summary model.
+      - Discord payload contains readable first-seen and update sections with OpenCode links and task lists, no visible model/cost line, no normal summary ellipses, and no collapsed task counts.
+      - Cadence state suppresses unchanged known-chat notifications without model or Discord calls.
       - Evidence projection bounds raw text and omits attachment content.
     red_phase:
       required: true
@@ -373,10 +412,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-        run_id: local-20260811T1710Z-pytest
-        subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
-        timestamp: "2026-08-11T17:10:41Z"
-        summary: Ten notifier tests passed, including Gemini 3.5 Flash-Lite default model, 30-minute stale waiting/working filtering, recently completed chat inclusion, balanced emoji formatting, hidden visible model/cost metadata, full long summary tails, all pending task lines, exact todowrite task extraction, generated task fallback, privacy redaction, duplicate suppression, and Discord bounds.
+        run_id: local-20260811T1758Z-pytest
+        subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
+        timestamp: "2026-08-11T17:58:36Z"
+        summary: Eleven notifier tests passed, including Gemini 3.5 Flash-Lite first-time summaries, deterministic known-chat follow-up deltas without model calls, no-change silence, 30-minute stale waiting/working filtering, recently completed chat inclusion, hidden visible model/cost metadata, exact todowrite task extraction, generated task fallback, privacy redaction, and Discord bounds.
 
 verifications:
   - id: V-DRY-RUN
@@ -392,10 +431,10 @@ verifications:
     evidence:
       status: passed
       command: python3 -c '<bounded verifier invoking scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json>'
-      run_id: local-20260811T1716Z-final-format-dry-run
-      subject_commit: working-tree@031c0d3de+opencode-progress-notifier-final-format
-      timestamp: "2026-08-11T17:16:19Z"
-      summary: Live dry-run selected 7 chats and produced 2 Discord embeds without posting. The verifier found no visible cost line, summarizer model name, `... +N more` task collapse, unicode summary ellipsis, or Discord truncation marker in the visible payload.
+      run_id: local-20260811T1802Z-delta-mode-dry-run
+      subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
+      timestamp: "2026-08-11T18:02:50Z"
+      summary: Live dry-run selected 5 first-time chats, called Gemini only for those new-chat overviews, produced one compact Discord embed without posting, and found no visible cost line, summarizer model name, `... +N more` task collapse, unicode summary ellipsis, or Discord truncation marker in the visible payload. Deterministic follow-up/no-change token-saving behavior is covered by the focused pytest evidence.
 
 implementation_plan:
   spec_path: docs/specs/opencode-active-progress-notifier/spec.yml

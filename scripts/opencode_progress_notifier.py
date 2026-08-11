@@ -528,6 +528,23 @@ def build_evidence(
     active_chats = []
     for active in active_roots:
         active_chats.append(project_chat_view(active, chat_reader(active.session_id)))
+    return build_evidence_from_chats(
+        active_chats,
+        now=now,
+        model=model,
+        interval_minutes=interval_minutes,
+        daily_active_hours=daily_active_hours,
+    )
+
+
+def build_evidence_from_chats(
+    active_chats: list[dict[str, Any]],
+    *,
+    now: datetime,
+    model: str = DEFAULT_MODEL,
+    interval_minutes: int = DEFAULT_INTERVAL_MINUTES,
+    daily_active_hours: float = DEFAULT_DAILY_ACTIVE_HOURS,
+) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "generated_at": _now_iso(now),
@@ -568,11 +585,12 @@ def load_state(path: Path) -> dict[str, Any]:
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return {"schema_version": STATE_SCHEMA_VERSION, "last_digest": {}, "duplicate_suppressions": 0}
+        return {"schema_version": STATE_SCHEMA_VERSION, "last_digest": {}, "duplicate_suppressions": 0, "chats": {}}
     if state.get("schema_version") != STATE_SCHEMA_VERSION:
-        return {"schema_version": STATE_SCHEMA_VERSION, "last_digest": {}, "duplicate_suppressions": 0}
+        return {"schema_version": STATE_SCHEMA_VERSION, "last_digest": {}, "duplicate_suppressions": 0, "chats": {}}
     state.setdefault("last_digest", {})
     state.setdefault("duplicate_suppressions", 0)
+    state.setdefault("chats", {})
     return state
 
 
@@ -649,16 +667,6 @@ def install_cron(project_root: Path) -> None:
         raise RuntimeError(f"crontab installation failed: {result.stderr.strip()}")
 
 
-def should_skip_duplicate(state: dict[str, Any], fingerprint: str, *, now: datetime, interval_minutes: int) -> bool:
-    last = state.get("last_digest") if isinstance(state.get("last_digest"), dict) else {}
-    if last.get("fingerprint") != fingerprint:
-        return False
-    sent_at = _parse_iso(str(last.get("sent_at") or ""))
-    if not sent_at:
-        return False
-    return now - sent_at < timedelta(minutes=interval_minutes)
-
-
 def record_duplicate_suppression(state: dict[str, Any], *, now: datetime) -> None:
     state["duplicate_suppressions"] = int(state.get("duplicate_suppressions") or 0) + 1
     state["last_suppressed_at"] = _now_iso(now)
@@ -672,6 +680,114 @@ def record_sent(state: dict[str, Any], *, fingerprint: str, now: datetime, activ
         "message_id": message_id,
         "model": model,
     }
+
+
+def _task_key(task: dict[str, str] | str) -> str:
+    content = task.get("content") if isinstance(task, dict) else task
+    return " ".join(str(content or "").casefold().split())
+
+
+def _task_snapshot(chat: dict[str, Any]) -> list[dict[str, str]]:
+    tasks = chat.get("task_items") if isinstance(chat.get("task_items"), list) else []
+    snapshot = []
+    for task in tasks:
+        normalized = _normalize_task_item(task)
+        if normalized:
+            snapshot.append({"content": normalized["content"], "status": normalized["status"]})
+    return snapshot
+
+
+def _chat_snapshot(chat: dict[str, Any], *, now: datetime, previous: dict[str, Any] | None = None) -> dict[str, Any]:
+    prior = previous if isinstance(previous, dict) else {}
+    first_seen_at = str(prior.get("first_seen_at") or _now_iso(now))
+    return {
+        "first_seen_at": first_seen_at,
+        "last_seen_at": _now_iso(now),
+        "title": _bounded_text(chat.get("title") or chat.get("session_id") or "", 200),
+        "url": str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or ""))),
+        "status_label": _bounded_text(chat.get("status_label") or "active", 80),
+        "updated_at": _bounded_text(chat.get("updated_at") or "", 80),
+        "task_snapshot": _task_snapshot(chat),
+    }
+
+
+def _task_map(tasks: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+    result = {}
+    for task in tasks:
+        key = _task_key(task)
+        if key:
+            result[key] = task
+    return result
+
+
+def _task_contents(tasks: list[dict[str, str]]) -> list[str]:
+    return [_visible_text(task.get("content") or "") for task in tasks if _visible_text(task.get("content") or "")]
+
+
+def _chat_delta(chat: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any] | None:
+    current_tasks = _task_snapshot(chat)
+    previous_tasks = previous.get("task_snapshot") if isinstance(previous.get("task_snapshot"), list) else []
+    current_by_key = _task_map(current_tasks)
+    previous_by_key = _task_map(previous_tasks)
+    completed = [task for key, task in current_by_key.items() if task.get("status") == "completed" and previous_by_key.get(key, {}).get("status") != "completed"]
+    cancelled = [task for key, task in current_by_key.items() if task.get("status") == "cancelled" and previous_by_key.get(key, {}).get("status") != "cancelled"]
+    current_now = [task for task in current_tasks if task.get("status") == "in_progress"]
+    previous_now_keys = {key for key, task in previous_by_key.items() if task.get("status") == "in_progress"}
+    current_now_keys = {key for key, task in current_by_key.items() if task.get("status") == "in_progress"}
+    new_next = [task for key, task in current_by_key.items() if task.get("status") == "pending" and previous_by_key.get(key, {}).get("status") != "pending"]
+    previous_status = str(previous.get("status_label") or "")
+    current_status = str(chat.get("status_label") or "active")
+    status_changed = bool(previous_status and previous_status != current_status)
+    now_changed = current_now_keys != previous_now_keys
+    completed_recently = current_status == "completed_recently" and previous_status != "completed_recently"
+    if not any((completed, cancelled, new_next, status_changed, now_changed, completed_recently)):
+        return None
+    return {
+        "session_id": str(chat.get("session_id") or ""),
+        "title": _bounded_text(chat.get("title") or chat.get("session_id") or "Untitled chat", 160),
+        "url": str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or ""))),
+        "status_label": current_status,
+        "previous_status_label": previous_status,
+        "change_kind": "completed" if current_status == "completed_recently" else "updated",
+        "changes": {
+            "completed": _task_contents(completed),
+            "now": _task_contents(current_now),
+            "next": _task_contents(new_next),
+            "cancelled": _task_contents(cancelled),
+            "status_changed": status_changed,
+        },
+    }
+
+
+def classify_chat_changes(state: dict[str, Any], active_chats: list[dict[str, Any]], *, now: datetime) -> dict[str, Any]:
+    stored_chats = state.get("chats") if isinstance(state.get("chats"), dict) else {}
+    new_chats: list[dict[str, Any]] = []
+    changed_chats: list[dict[str, Any]] = []
+    unchanged_count = 0
+    next_snapshots: dict[str, dict[str, Any]] = {}
+    for chat in active_chats:
+        session_id = str(chat.get("session_id") or "")
+        if not session_id:
+            continue
+        previous = stored_chats.get(session_id) if isinstance(stored_chats.get(session_id), dict) else None
+        if previous is None:
+            new_chats.append(chat)
+        else:
+            delta = _chat_delta(chat, previous)
+            if delta:
+                changed_chats.append(delta)
+            else:
+                unchanged_count += 1
+        next_snapshots[session_id] = _chat_snapshot(chat, now=now, previous=previous)
+    return {"new_chats": new_chats, "changed_chats": changed_chats, "unchanged_count": unchanged_count, "next_snapshots": next_snapshots}
+
+
+def record_chat_snapshots(state: dict[str, Any], snapshots: dict[str, dict[str, Any]]) -> None:
+    chats = state.setdefault("chats", {})
+    if not isinstance(chats, dict):
+        chats = {}
+        state["chats"] = chats
+    chats.update(snapshots)
 
 
 def progress_summary_schema() -> dict[str, Any]:
@@ -1059,6 +1175,111 @@ def _render_active_chat_descriptions(chats: list[dict[str, Any]]) -> list[str]:
     return _fit_embed_descriptions_total(chunks)
 
 
+def _new_chat_block(index: int, chat: dict[str, Any]) -> str:
+    title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
+    url = str(chat.get("url") or "")
+    lines = [f"**{index}. [{title}]({url})**", f"Status: `{_display_status_label(str(chat.get('status_label') or 'active'))}`"]
+    if chat.get("summary"):
+        lines.extend(["", f"Overview: {_visible_text(chat.get('summary'))}"])
+    tasks = chat.get("tasks") if isinstance(chat.get("tasks"), list) else []
+    if tasks:
+        lines.extend(["", "Tasks:"])
+        lines.extend(_render_task_lines(tasks))
+    return "\n".join(lines)
+
+
+def _change_lines(label: str, values: list[str]) -> list[str]:
+    if not values:
+        return []
+    return [f"{label}:"] + [f"• {_visible_text(value)}" for value in values if _visible_text(value)]
+
+
+def _updated_chat_block(index: int, chat: dict[str, Any]) -> str:
+    title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
+    url = str(chat.get("url") or "")
+    status = _display_status_label(str(chat.get("status_label") or "active"))
+    previous_status = str(chat.get("previous_status_label") or "")
+    lines = [f"**{index}. [{title}]({url})**"]
+    if previous_status and previous_status != chat.get("status_label"):
+        lines.append(f"Status: `{_display_status_label(previous_status)}` → `{status}`")
+    else:
+        lines.append(f"Status: `{status}`")
+    changes = chat.get("changes") if isinstance(chat.get("changes"), dict) else {}
+    lines.extend(_change_lines("✅ Completed", changes.get("completed") or []))
+    lines.extend(_change_lines("🔵 Now", changes.get("now") or []))
+    lines.extend(_change_lines("⏭️ New Next", changes.get("next") or []))
+    lines.extend(_change_lines("🚫 Canceled", changes.get("cancelled") or []))
+    if len(lines) <= 2:
+        lines.append("No task delta captured; status changed only.")
+    return "\n".join(lines)
+
+
+def _render_delta_descriptions(digest: dict[str, Any]) -> list[str]:
+    blocks: list[str] = []
+    index = 1
+    new_chats = digest.get("new_chats") if isinstance(digest.get("new_chats"), list) else []
+    updated_chats = digest.get("updated_chats") if isinstance(digest.get("updated_chats"), list) else []
+    completed_chats = digest.get("completed_chats") if isinstance(digest.get("completed_chats"), list) else []
+    if new_chats:
+        blocks.append("**🆕 New Chats**")
+        for chat in new_chats:
+            blocks.append(_new_chat_block(index, chat))
+            index += 1
+    if updated_chats:
+        blocks.append("**🔄 Updates Since Last Check**")
+        for chat in updated_chats:
+            blocks.append(_updated_chat_block(index, chat))
+            index += 1
+    if completed_chats:
+        blocks.append("**✅ Completed In Last 30 Min**")
+        for chat in completed_chats:
+            blocks.append(_updated_chat_block(index, chat))
+            index += 1
+    return _chunk_chat_blocks(blocks)
+
+
+def build_delta_digest(raw_new_digest: dict[str, Any], plan: dict[str, Any], active_chats: list[dict[str, Any]]) -> dict[str, Any]:
+    new_chats = plan.get("new_chats") if isinstance(plan.get("new_chats"), list) else []
+    normalized_new = normalize_digest(raw_new_digest, new_chats)["chats"] if new_chats else []
+    changed_chats = plan.get("changed_chats") if isinstance(plan.get("changed_chats"), list) else []
+    updated = [chat for chat in changed_chats if chat.get("change_kind") != "completed"]
+    completed = [chat for chat in changed_chats if chat.get("change_kind") == "completed"]
+    unchanged_count = int(plan.get("unchanged_count") or 0)
+    return {
+        "mode": "delta",
+        "new_chats": normalized_new,
+        "updated_chats": updated,
+        "completed_chats": completed,
+        "unchanged_count": unchanged_count,
+        "active_count": len(active_chats),
+    }
+
+
+def build_delta_discord_payload(digest: dict[str, Any], *, now: datetime) -> dict[str, Any]:
+    new_count = len(digest.get("new_chats") or [])
+    updated_count = len(digest.get("updated_chats") or [])
+    completed_count = len(digest.get("completed_chats") or [])
+    unchanged_count = int(digest.get("unchanged_count") or 0)
+    lines = [
+        "**🧭 OpenCode Progress**",
+        f"🆕 {new_count} new · 🔄 {updated_count} updated · ✅ {completed_count} completed · ⏸️ {unchanged_count} unchanged omitted · 🕒 `{_now_iso(now)}`",
+    ]
+    return {
+        "username": "OpenMates Agent Progress",
+        "avatar_url": "https://openmates.org/favicon.png",
+        "allowed_mentions": {"parse": []},
+        "content": _fit_discord_content("\n".join(lines)),
+        "embeds": [
+            {
+                "title": ACTIVE_CHATS_EMBED_TITLE if index == 0 else ACTIVE_CHATS_CONTINUED_EMBED_TITLE,
+                "description": description,
+                "color": 0x3B82F6,
+            }
+            for index, description in enumerate(_render_delta_descriptions(digest))
+        ],
+    }
+
+
 def build_discord_payload(
     digest: dict[str, Any],
     *,
@@ -1135,68 +1356,94 @@ def run_once(
     if not webhook_url and not dry_run:
         return {"status": "skipped_missing_webhook", "active_count": len(active_roots), "model": model}
 
-    evidence = build_evidence(
-        active_roots,
-        chat_reader=chat_reader,
-        now=current_time,
-        model=model,
-        interval_minutes=interval_minutes,
-        daily_active_hours=daily_active_hours,
-    )
+    active_chats = [project_chat_view(active, chat_reader(active.session_id)) for active in active_roots]
+    evidence = build_evidence_from_chats(active_chats, now=current_time, model=model, interval_minutes=interval_minutes, daily_active_hours=daily_active_hours)
     fingerprint = fingerprint_evidence(evidence)
     lock_context = state_lock(state_path) if update_state and not dry_run else nullcontext()
     with lock_context:
         state = load_state(state_path)
-        if not force and should_skip_duplicate(state, fingerprint, now=current_time, interval_minutes=interval_minutes):
+        plan = classify_chat_changes(state, active_chats, now=current_time)
+        if not plan["new_chats"] and not plan["changed_chats"] and not force:
             if update_state:
                 record_duplicate_suppression(state, now=current_time)
+                record_chat_snapshots(state, plan["next_snapshots"])
                 save_state(state_path, state)
             return {
-                "status": "skipped_duplicate",
+                "status": "skipped_no_changes",
                 "active_count": len(active_roots),
                 "fingerprint": fingerprint,
                 "model": model,
+                "unchanged_count": plan["unchanged_count"],
             }
+        if force and not plan["new_chats"] and not plan["changed_chats"]:
+            plan["changed_chats"] = [
+                {
+                    "session_id": str(chat.get("session_id") or ""),
+                    "title": _bounded_text(chat.get("title") or chat.get("session_id") or "Untitled chat", 160),
+                    "url": str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or ""))),
+                    "status_label": str(chat.get("status_label") or "active"),
+                    "previous_status_label": str(chat.get("status_label") or "active"),
+                    "change_kind": "updated",
+                    "changes": {"completed": [], "now": _task_contents([task for task in _task_snapshot(chat) if task.get("status") == "in_progress"]), "next": [], "cancelled": [], "status_changed": False},
+                }
+                for chat in active_chats
+            ]
+            plan["unchanged_count"] = 0
 
-        key = api_key or load_gemini_api_key()
-        raw_digest = summarizer(evidence=evidence, api_key=key, model=model)
-        digest = normalize_digest(raw_digest, evidence["active_chats"])
-        usage_metadata = raw_digest.get("_usage_metadata") if isinstance(raw_digest, dict) else None
-        cost_estimate = estimate_summary_cost(
-            evidence,
-            raw_digest if isinstance(raw_digest, dict) else digest,
-            usage_metadata=usage_metadata,
-            model=model,
-            interval_minutes=interval_minutes,
-            daily_active_hours=daily_active_hours,
-        )
-        payload = build_discord_payload(digest, active_count=len(evidence["active_chats"]), now=current_time, model=model, cost_estimate=cost_estimate)
+        raw_digest: dict[str, Any] = {}
+        cost_estimate = {"estimated_usd": 0.0, "daily_estimated_usd": 0.0, "token_source": "not_called", "daily_runs": _runs_per_day(interval_minutes, daily_active_hours)}
+        if plan["new_chats"]:
+            new_evidence = build_evidence_from_chats(plan["new_chats"], now=current_time, model=model, interval_minutes=interval_minutes, daily_active_hours=daily_active_hours)
+            key = api_key or load_gemini_api_key()
+            raw_digest = summarizer(evidence=new_evidence, api_key=key, model=model)
+            usage_metadata = raw_digest.get("_usage_metadata") if isinstance(raw_digest, dict) else None
+            cost_estimate = estimate_summary_cost(
+                new_evidence,
+                raw_digest,
+                usage_metadata=usage_metadata,
+                model=model,
+                interval_minutes=interval_minutes,
+                daily_active_hours=daily_active_hours,
+            )
+        digest = build_delta_digest(raw_digest, plan, active_chats)
+        payload = build_delta_discord_payload(digest, now=current_time)
         if dry_run:
             return {
                 "status": "dry_run",
-                "active_count": len(evidence["active_chats"]),
+                "active_count": len(active_chats),
                 "fingerprint": fingerprint,
                 "model": model,
                 "cost_estimate": cost_estimate,
+                "model_called": bool(plan["new_chats"]),
+                "new_count": len(digest["new_chats"]),
+                "updated_count": len(digest["updated_chats"]),
+                "completed_count": len(digest["completed_chats"]),
+                "unchanged_count": digest["unchanged_count"],
                 "payload": payload,
             }
         result = discord_sender(webhook_url=webhook_url, payload=payload)
         if not result:
             return {
                 "status": "failed_discord",
-                "active_count": len(evidence["active_chats"]),
+                "active_count": len(active_chats),
                 "fingerprint": fingerprint,
                 "model": model,
             }
         if update_state:
-            record_sent(state, fingerprint=fingerprint, now=current_time, active_count=len(evidence["active_chats"]), model=model, message_id=result.get("message_id", ""))
+            record_sent(state, fingerprint=fingerprint, now=current_time, active_count=len(active_chats), model=model, message_id=result.get("message_id", ""))
+            record_chat_snapshots(state, plan["next_snapshots"])
             save_state(state_path, state)
         return {
             "status": "sent",
-            "active_count": len(evidence["active_chats"]),
+            "active_count": len(active_chats),
             "fingerprint": fingerprint,
             "message_id": result.get("message_id", ""),
             "model": model,
+            "model_called": bool(plan["new_chats"]),
+            "new_count": len(digest["new_chats"]),
+            "updated_count": len(digest["updated_chats"]),
+            "completed_count": len(digest["completed_chats"]),
+            "unchanged_count": digest["unchanged_count"],
             "cost_estimate": cost_estimate,
             "payload": payload,
         }

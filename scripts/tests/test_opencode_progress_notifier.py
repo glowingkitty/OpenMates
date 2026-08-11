@@ -202,6 +202,9 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
     )
 
     assert result["status"] == "sent"
+    assert result["model_called"] is True
+    assert result["new_count"] == 3
+    assert result["updated_count"] == 0
     assert captured["model"] == notifier.DEFAULT_MODEL
     assert captured["api_key"] == "test-key"
     assert captured["webhook_url"] == "https://example.invalid/webhook"
@@ -218,16 +221,14 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
     payload = captured["payload"]
     combined = payload["content"] + "\n" + "\n".join(embed["description"] for embed in payload["embeds"])
     assert "**🧭 OpenCode Progress**" in combined
-    assert "**📌 Summary**" in combined
+    assert "🆕 3 new · 🔄 0 updated · ✅ 0 completed" in combined
+    assert "**🆕 New Chats**" in combined
+    assert "Overview:" in combined
     assert "💸 Cost:" not in combined
     assert "~$" not in payload["content"]
     assert notifier.DEFAULT_MODEL not in payload["content"]
     assert "Gemini 3.5" not in combined
     assert "gemini-3.5" not in combined
-    assert "🟢 1 active · 🟡 1 waiting · ✅ 1 completed ≤30m" in combined
-    assert "**🟢 Currently Active Chats**" in combined
-    assert "**🟡 Waiting For User Input**" in combined
-    assert "**✅ Completed In Last 30 Min**" in combined
     assert "Tasks:" in combined
     assert LONG_SUMMARY_TAIL in combined
     assert "✅ Done: Create executable spec" in combined
@@ -270,6 +271,60 @@ def test_model_task_fallback_renders_without_todowrite_input(tmp_path: Path) -> 
     assert "⏭️ Next: Generated next task" in combined
 
 
+def test_known_chat_followup_is_deterministic_task_delta_without_model(tmp_path: Path) -> None:
+    notifier = load_module("progress_deterministic_followup")
+    state_path = tmp_path / "state.json"
+    state = notifier.load_state(state_path)
+    now = datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc)
+    initial_view = fake_chat_view("ses-parent")
+    initial_chat = notifier.project_chat_view(
+        notifier.ActiveChatRoot("ses-parent", "active", "Build notifier", "2026-08-10T12:50:00Z", []),
+        initial_view,
+    )
+    notifier.record_chat_snapshots(state, {"ses-parent": notifier._chat_snapshot(initial_chat, now=now)})
+    notifier.save_state(state_path, state)
+
+    def changed_status() -> dict:
+        return {"live": {"working": [live_item("ses-parent", title="Build notifier", execution="busy", updated_at="2026-08-10T13:05:00Z")], "waiting_for_user": [], "idle_after_response": [], "stopped_or_failed": []}}
+
+    def changed_chat(_session_id: str) -> dict:
+        view = fake_chat_view("ses-parent")
+        todos = view["messages"][0]["parts"][1]["input"]["todos"]
+        todos[1]["status"] = "completed"
+        todos[2]["status"] = "in_progress"
+        todos.append({"content": "Review deterministic delta output", "status": "pending", "priority": "high"})
+        return view
+
+    calls: list[str] = []
+    sent: dict[str, object] = {}
+    result = notifier.run_once(
+        status_loader=changed_status,
+        chat_reader=changed_chat,
+        summarizer=lambda **_kwargs: calls.append("model") or {},
+        discord_sender=lambda **kwargs: sent.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
+        state_path=state_path,
+        api_key="test-key",
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "sent"
+    assert result["model_called"] is False
+    assert calls == []
+    assert result["new_count"] == 0
+    assert result["updated_count"] == 1
+    combined = sent["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in sent["payload"]["embeds"])
+    assert "🆕 0 new · 🔄 1 updated · ✅ 0 completed" in combined
+    assert "**🔄 Updates Since Last Check**" in combined
+    assert "✅ Completed:" in combined
+    assert "• Implement notifier format" in combined
+    assert "🔵 Now:" in combined
+    assert "• Send validation Discord message" in combined
+    assert "⏭️ New Next:" in combined
+    assert "• Review deterministic delta output" in combined
+    assert "Overview:" not in combined
+
+
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:
     notifier = load_module("progress_no_tool_output_tasks")
     view = fake_chat_view("ses-parent")
@@ -299,7 +354,7 @@ def test_todowrite_output_is_not_used_as_task_evidence() -> None:
     assert "raw command output should not be projected" not in encoded
 
 
-def test_unchanged_digest_is_suppressed_inside_interval(tmp_path: Path) -> None:
+def test_unchanged_known_chats_skip_model_and_discord(tmp_path: Path) -> None:
     notifier = load_module("progress_dedupe")
     state_path = tmp_path / "state.json"
     sends: list[dict] = []
@@ -319,10 +374,11 @@ def test_unchanged_digest_is_suppressed_inside_interval(tmp_path: Path) -> None:
     second = notifier.run_once(now=datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc), **kwargs)
 
     assert first["status"] == "sent"
-    assert second["status"] == "skipped_duplicate"
+    assert second["status"] == "skipped_no_changes"
     assert len(sends) == 1
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert state["duplicate_suppressions"] == 1
+    assert "ses-parent" in state["chats"]
 
 
 def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> None:
@@ -354,7 +410,7 @@ def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> N
     )
 
     assert first["status"] == "sent"
-    assert second["status"] == "skipped_duplicate"
+    assert second["status"] == "skipped_no_changes"
     assert len(sends) == 1
 
 
