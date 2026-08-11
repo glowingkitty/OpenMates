@@ -86,6 +86,7 @@ from backend.shared.python_utils.media_encryption import (
     encrypt_media_variants,
     load_media_write_version,
 )
+from backend.upload.billing_payloads import build_pdf_billing_payload
 from backend.upload.s3_keys import upload_s3_prefix
 
 logger = logging.getLogger(__name__)
@@ -1180,19 +1181,16 @@ async def _handle_pdf_dedup(
         async with httpx.AsyncClient(timeout=15) as _client:
             charge_resp = await _client.post(
                 f"{core_api_url}/internal/billing/charge",
-                json={
-                    "user_id": user_id,
-                    "user_id_hash": user_id_hash,
-                    "credits": credits_to_charge,
-                    "skill_id": "process",
-                    "app_id": "pdf",
-                    "usage_details": {
-                        "page_count": page_count,
-                        "credits_per_page": PDF_CREDITS_PER_PAGE,
-                        "filename": filename,
-                        "deduplicated": True,
-                    },
-                },
+                json=build_pdf_billing_payload(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    embed_id=embed_id,
+                    credits_to_charge=credits_to_charge,
+                    page_count=page_count,
+                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    filename=filename,
+                    deduplicated=True,
+                ),
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if charge_resp.status_code == 402:
@@ -1404,6 +1402,7 @@ async def _handle_pdf_upload(
     import hashlib as _hashlib
     credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+    embed_id = str(uuid.uuid4())
 
     logger.info(
         f"{log_prefix} [PDF-2/7] Charging {credits_to_charge} credits "
@@ -1413,18 +1412,15 @@ async def _handle_pdf_upload(
         async with httpx.AsyncClient(timeout=15) as client:
             charge_resp = await client.post(
                 f"{core_api_url}/internal/billing/charge",
-                json={
-                    "user_id": user_id,
-                    "user_id_hash": user_id_hash,
-                    "credits": credits_to_charge,
-                    "skill_id": "process",
-                    "app_id": "pdf",
-                    "usage_details": {
-                        "page_count": page_count,
-                        "credits_per_page": PDF_CREDITS_PER_PAGE,
-                        "filename": filename,
-                    },
-                },
+                json=build_pdf_billing_payload(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    embed_id=embed_id,
+                    credits_to_charge=credits_to_charge,
+                    page_count=page_count,
+                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    filename=filename,
+                ),
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if charge_resp.status_code == 402:
@@ -1482,7 +1478,6 @@ async def _handle_pdf_upload(
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
 
     # --- PDF 5. Upload to S3 ---
-    embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     s3_prefix = upload_s3_prefix(user_id, content_hash, embed_id)
     s3_service = request.app.state.s3
