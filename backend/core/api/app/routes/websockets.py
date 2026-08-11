@@ -2139,6 +2139,48 @@ def _schedule_sync_metadata_chats_background(
     )
 
 
+def _schedule_phased_sync_background(
+    *,
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict,
+    user_otel_attrs: dict | None = None,
+    previous_task: asyncio.Task | None = None,
+) -> asyncio.Task:
+    async def run_phased_sync() -> None:
+        if previous_task is not None:
+            try:
+                await previous_task
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Previous phased sync task failed before queued request for user=%s device=%s",
+                    user_id[:8],
+                    device_fingerprint_hash[:8],
+                )
+        await handle_phased_sync_request(
+            websocket=websocket,
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            payload=payload,
+            user_otel_attrs=user_otel_attrs,
+        )
+
+    # Startup sync can perform Directus/cache fallback work for large accounts.
+    # Keep the receive loop free so chat_turn_preflight and recovery claims ACK promptly.
+    return asyncio.create_task(run_phased_sync())
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2177,6 +2219,9 @@ async def websocket_endpoint(
         device_fingerprint_hash,
         supports_task_update_jobs=supports_task_update_jobs,
     )
+
+    phased_sync_tasks: set[asyncio.Task] = set()
+    phased_sync_tail_task: asyncio.Task | None = None
 
     try:
         recovery_epoch = await ChatRecoveryCutoverController(
@@ -2851,8 +2896,12 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "phased_sync_request":
-                # Handle phased sync requests (Phase 1, 2, 3)
-                await handle_phased_sync_request(
+                previous_phased_sync_task = (
+                    phased_sync_tail_task
+                    if phased_sync_tail_task is not None and not phased_sync_tail_task.done()
+                    else None
+                )
+                phased_sync_tail_task = _schedule_phased_sync_background(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
@@ -2862,7 +2911,10 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    previous_task=previous_phased_sync_task,
                 )
+                phased_sync_tasks.add(phased_sync_tail_task)
+                phased_sync_tail_task.add_done_callback(phased_sync_tasks.discard)
 
             elif message_type == "sync_status_request":
                 # Handle sync status requests
@@ -3261,5 +3313,9 @@ async def websocket_endpoint(
         finally:
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
+    finally:
+        for task in list(phased_sync_tasks):
+            if not task.done():
+                task.cancel()
 
 # Note: Fingerprint and device cache logic now correctly uses imported utility functions

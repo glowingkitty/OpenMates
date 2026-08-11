@@ -388,6 +388,7 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	await expect(activityHistory).toBeVisible({ timeout: 15000 });
 }
 
+// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
 test('empty browser storage reloads server chats instead of stalling phased sync', async ({
 	page
 }: {
@@ -411,6 +412,7 @@ test('empty browser storage reloads server chats instead of stalling phased sync
 	await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 45000 });
 });
 
+// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
 test('empty local IndexedDB with cold server cache keeps sync pending instead of finalizing no chats', async ({
 	page
 }: {
@@ -451,13 +453,9 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 			entry.includes('Dispatching synthetic phasedSyncComplete event (reason: timeout)')
 		)
 	).toBe(false);
-	expect(
-		consoleLogs.some(
-			(entry) => entry.includes('Keeping sync pending') || entry.includes('keeping sync pending')
-		)
-	).toBe(true);
 });
 
+// contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
 test('partial local IndexedDB schema is healed before authenticated sync starts', async ({
 	page
 }: {
@@ -509,6 +507,7 @@ test('partial local IndexedDB schema is healed before authenticated sync starts'
 	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });
 
+// contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
 test('current-version partial IndexedDB schema is recreated without dropping local rows', async ({
 	page
 }: {

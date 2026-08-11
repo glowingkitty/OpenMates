@@ -19,6 +19,7 @@ describe("webSocketService early message replay", () => {
       .clear();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover
   it("replays buffered recovery availability once when the handler registers", async () => {
     const payload = { jobs: [{ job_id: "job-1" }] };
     (webSocketService as unknown as {
@@ -44,6 +45,7 @@ describe("webSocketService early message replay", () => {
 });
 
 describe("webSocketService recovery protocol errors", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("does not emit a global server error for retryable recovery version conflicts", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -69,6 +71,7 @@ describe("webSocketService recovery protocol errors", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("does not emit a global server error for retryable recovery lease conflicts", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -93,6 +96,32 @@ describe("webSocketService recovery protocol errors", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it("does not emit a global server error for stale recovery jobs", () => {
+    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = (webSocketService as unknown as {
+      messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+    }).messageHandlers.get("error");
+
+    handlers?.[0]?.({
+      code: "recovery_job_not_found",
+      job_id: "job-1",
+      request_id: "request-1",
+      message: "Recovery job is no longer available.",
+    });
+
+    expect(consoleDebug).toHaveBeenCalledWith(
+      "[WebSocketService] Received retryable recovery protocol error:",
+      expect.objectContaining({ code: "recovery_job_not_found" }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[WebSocketService] Received error message from server:",
+      expect.anything(),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("does not emit a global server error for stale legacy recovery persistence", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
