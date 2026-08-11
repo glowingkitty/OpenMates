@@ -158,7 +158,7 @@
     const file = resolvedFiles?.original;
     if (!file?.s3_key || !resolvedAesKey) return;
     if (retainedS3Key === file.s3_key && audioUrl) return;
-    loadAudio(file.s3_key, file.mime_type || 'audio/mpeg');
+    loadAudio(file.s3_key, file.mime_type || 'audio/mpeg', file);
   });
 
   $effect(() => {
@@ -176,7 +176,7 @@
     return value === 'processing' || value === 'finished' || value === 'error' ? value : undefined;
   }
 
-  async function loadAudio(s3Key: string, mimeType: string) {
+  async function loadAudio(s3Key: string, mimeType: string, variant: unknown) {
     try {
       if (retainedS3Key && retainedS3Key !== s3Key) {
         releaseCachedAudio(retainedS3Key);
@@ -184,7 +184,7 @@
       }
       isLoadingAudio = true;
       audioError = undefined;
-      audioUrl = await fetchAndDecryptAudio(resolvedS3BaseUrl, s3Key, resolvedAesKey, resolvedAesNonce, mimeType);
+      audioUrl = await fetchAndDecryptAudio(resolvedS3BaseUrl, s3Key, resolvedAesKey, resolvedAesNonce, mimeType, variant);
       retainedS3Key = s3Key;
     } catch (err) {
       console.error('[AudioGenerateEmbedFullscreen] Failed to load generated audio:', err);

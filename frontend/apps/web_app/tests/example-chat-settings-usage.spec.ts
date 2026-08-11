@@ -14,20 +14,20 @@ const JSZip = require('jszip');
 
 const GENERATED_AUDIO_USAGE_CASES = [
 	{
-		chatId: 'example-audio-generate-product-success-chime',
-		totalCredits: /31\s*credits/i,
+		chatId: 'example-audio-generate-openmates-success-chime',
+		totalCredits: /34\s*credits/i,
 		aiCredits: '17',
 		audioLabel: 'audio | generate',
-		audioCredits: '14',
-		filename: 'audio-generate-product-success-chime.mp3'
+		audioCredits: '17',
+		filename: 'audio-generate-openmates-success-chime.mp3'
 	},
 	{
-		chatId: 'example-audio-speak-friendly-welcome-message',
-		totalCredits: /28\s*credits/i,
+		chatId: 'example-audio-speak-openmates-welcome-message',
+		totalCredits: /37\s*credits/i,
 		aiCredits: '18',
 		audioLabel: 'audio | speak',
-		audioCredits: '10',
-		filename: 'audio-speak-friendly-welcome-message.mp3'
+		audioCredits: '19',
+		filename: 'audio-speak-openmates-welcome-message.mp3'
 	}
 ] as const;
 
@@ -160,7 +160,7 @@ test.describe('Example chat settings usage', () => {
 	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,public-example-chats.surface.semantic-parity
 	test('example chat cost label deep links to usage details', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
-		const exampleChatId = 'example-audio-speak-friendly-welcome-message';
+		const exampleChatId = 'example-audio-speak-openmates-welcome-message';
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
 			waitUntil: 'domcontentloaded'
@@ -168,7 +168,7 @@ test.describe('Example chat settings usage', () => {
 
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 		const costLink = page.getByTestId('generated-by-cost').first();
-		await expect(costLink).toContainText(/28\s*credits/i, { timeout: 10000 });
+		await expect(costLink).toContainText(/37\s*credits/i, { timeout: 10000 });
 		await costLink.click();
 
 		const settingsMenu = page.getByTestId('settings-menu');
@@ -177,7 +177,7 @@ test.describe('Example chat settings usage', () => {
 			timeout: 10000
 		});
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/28\s*credits/i);
+		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/37\s*credits/i);
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
 	});
 

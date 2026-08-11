@@ -31,14 +31,14 @@ const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
 
 const GENERATED_AUDIO_EXAMPLE_CASES = [
 	{
-		chatId: 'example-audio-generate-product-success-chime',
-		slug: 'audio-generate-product-success-chime',
+		chatId: 'example-audio-generate-openmates-success-chime',
+		slug: 'audio-generate-openmates-success-chime',
 		skillId: 'generate',
 		promptSnippet: 'Create a short, friendly success chime for an OpenMates workflow finishing'
 	},
 	{
-		chatId: 'example-audio-speak-friendly-welcome-message',
-		slug: 'audio-speak-friendly-welcome-message',
+		chatId: 'example-audio-speak-openmates-welcome-message',
+		slug: 'audio-speak-openmates-welcome-message',
 		skillId: 'speak',
 		promptSnippet: 'Say this as a warm, natural welcome message'
 	}

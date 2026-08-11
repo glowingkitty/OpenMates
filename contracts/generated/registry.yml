@@ -21,7 +21,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-generate
-    fingerprint: fbfb037ee622fac26bf85b86626b24e358502beea3751429e885ea9e2df78be0
+    fingerprint: c4757dad3e92978a5975b26786be66d7f7d3a0af2325f34635606b8ab977a5d8
     required_surfaces:
     - rest_api
     - cli
@@ -33,7 +33,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-speak
-    fingerprint: 63f38609763e912427babecd5e74eeb2c2814b5deaf6b350edaaa20c7ba41c63
+    fingerprint: 6928e06478ea7825934d912179dd361b9b7fe7cf6c7e7051c31f5e293cfd8999
     required_surfaces:
     - rest_api
     - cli
@@ -343,7 +343,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: validation
-    fingerprint: 5e29c5e58fbb29d13eba0c0dc663cd27ccac15040575e9087280ccc4d8a3f307
+    fingerprint: 51c4617e07fd951f91c246b84011eef1037b8689117b58f0033e1530940e5515
     required_surfaces:
     - rest_api
     - cli
@@ -355,7 +355,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: 450b07ec4b29499f62b66b4ea1cab73bf7043d281322c9330339455184fb2dd5
+    fingerprint: f51c12a896cf78f916ac4fe51c0a8b239d0bedaa5fed47ef0c6b934d6ec7cb36
     required_surfaces:
     - rest_api
     - cli
@@ -367,7 +367,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: 72d432bd95df4b280b146a9908045a9b6cd5729b3aef2205426184b3c37a0c5d
+    fingerprint: b42801bfebc1951f15cf0a7904e1184be8d1be1f8cfad1440cbcfed0f7c9469f
     required_surfaces:
     - rest_api
     - cli
@@ -403,7 +403,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: behavior
-    fingerprint: be197832997bc129e3c0c67a472f5cc0e3571a962a49220545b7605022bb52cc
+    fingerprint: 2882e471281f6f4d0888492de50ec54994433c0c8041956ae3290141b435a062
     required_surfaces:
     - rest_api
     - cli
@@ -415,7 +415,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: privacy
-    fingerprint: 35ff4cd84df658ae525fd50b3f2ae41d78753c53f0fe4b0acd00bf5c0de7b385
+    fingerprint: d7d461e2b61e947294e096cfda97ee17fe8032f772719957274767a0e56d104f
     required_surfaces:
     - rest_api
     - cli
@@ -427,7 +427,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: 8ce63a0e08111def93abfe070e11445fbc9a68a0424899865771a50b15806923
+    fingerprint: 99709d05f0cdcf92d2edf8c0672eb1e2d7d5775095f7ea9fbabb85c28221e189
     required_surfaces:
     - rest_api
     - cli
@@ -439,7 +439,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: failure
-    fingerprint: 9d7cc07f2f1db2b960766006482c0754d2f319e2676601d8b8d4b01b36888e07
+    fingerprint: 58ed54981f287785fecdbee16f2c0333db7c7a0ac90c90e8b4520d3ec5355deb
     required_surfaces:
     - rest_api
     - cli
@@ -447,11 +447,11 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
-  audio-generate.latency.direct-suitable:
+  audio-generate.execution.async-generated-assets:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: bd5b5fef3fa693518e538138b54f4c77687eddd3ba053f0f5af1d64a2bb39c08
+    fingerprint: 2a78bd9021c17733feae6e5f79aea4134733fecf469d1753da829b21d8f831cc
     required_surfaces:
     - rest_api
     - cli
@@ -463,7 +463,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: parity
-    fingerprint: 931781c45f190ad82074b6d6b10bedd08f060b037beddcb01299b75564a31c73
+    fingerprint: 86c4521cd7e163deab20f4d254f3072c9d84583bbb03f005620eb18d49ce2edd
     required_surfaces:
     - rest_api
     - cli
@@ -475,7 +475,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: validation
-    fingerprint: 80dc84fd593ae5cb1273c127872c36561c21fd4c3917fa637e741adf6a94570d
+    fingerprint: 3983074c3f27d3b60437806b0754e51c11d340e3f632c8b96c762c03abc1d2bc
     required_surfaces:
     - rest_api
     - cli
@@ -487,7 +487,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 0e41bc7e5590fce44a98106dbb106dbe529b031ee60b906094a75b99473c9079
+    fingerprint: 3d8701228a80c17aeeba898ca05d8de41ef9445ada17d5efd8f4ce803a92b9ee
     required_surfaces:
     - rest_api
     - cli
@@ -499,7 +499,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: b7ea80d92e9916f01282ca26456c3a462bcdb951eb6c4ff81262649dbe57d8b6
+    fingerprint: 3f2ef55fefcc3c883b4804efb67566d534796d0eb1f76a9fe9134fde8b02843e
     required_surfaces:
     - rest_api
     - cli
@@ -535,7 +535,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: security
-    fingerprint: 45007c8804ff4078964ac6da69be65143f08b35abe04e8dd95ce9837752df27d
+    fingerprint: 992e132c26ab757033df43a498ed579e7225b52e5f9841315c491129977c5359
     required_surfaces:
     - rest_api
     - cli
@@ -547,7 +547,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: security
-    fingerprint: 0dbfe13784ac17ecadc24c315f1b63d4ace422aa77d603652c4efbf728f2e76b
+    fingerprint: 583d59ab1ef4c3d0ffb4caebd07454c19de51373623c1db2da6ba5eac857499f
     required_surfaces:
     - rest_api
     - cli
@@ -559,7 +559,19 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: e0099e688fe7ae52dd132e6e640dd39dd3c8e3f93bcb185e0a704998b1aeb23a
+    fingerprint: 6c22d46f20c2c467fbf9752f88c75faa35ef26ea894b8809403117e457bce591
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  audio-speak.model.high-quality-default:
+    contract: feature.app-skill.audio-speak@1
+    contract_id: feature.app-skill.audio-speak
+    type: invariant
+    fingerprint: 0697b83503d669e01d1af619c3eb9aa1f3d9bfedc7cc75b019f3787884c5246f
     required_surfaces:
     - rest_api
     - cli
@@ -571,7 +583,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: behavior
-    fingerprint: 474926d6de31e03062d93c7f46457c26ec59bd0ac9353114781566bd21dba000
+    fingerprint: 60cb71d510b68d4b6ce0e682740d299c5f4aaef318ed758984b9ee81c1c5c08b
     required_surfaces:
     - rest_api
     - cli
@@ -583,7 +595,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: 7f6db22d18455bae204ad4002b52c50809410efd1d7d18f553235d10ae363019
+    fingerprint: fa4c7b81b70a7a02e8d36db77d832b3f544f25f66ae3af3160dfd1cd56eb881c
     required_surfaces:
     - rest_api
     - cli
@@ -595,7 +607,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 9bd997a97ff96e141a69ad549cb5039c6aec4c9b754c4b123ff1562be963bf0f
+    fingerprint: a87a005a6085ef479d75d5a07abf58ff051fa8329b9936353a01483568d99014
     required_surfaces:
     - rest_api
     - cli
@@ -607,7 +619,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: failure
-    fingerprint: a2efd90b009db2aeed4be82e38169976122d9b285a5b3bc3bf1eff52f3da433c
+    fingerprint: 36a973ac39d941642f2448b7126a75ee47a6695f86906bbafa473dd459fc5ae3
     required_surfaces:
     - rest_api
     - cli
@@ -615,11 +627,11 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
-  audio-speak.latency.direct-suitable:
+  audio-speak.execution.async-generated-assets:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 98da7ad5db6362732ae67ab5b332964a809a238ebec8d5687b630bad75568507
+    fingerprint: b8a96dcc31755a4f01841e62d586dbd522eb5fe686b6c94a23f2a2b39fa21571
     required_surfaces:
     - rest_api
     - cli
@@ -631,7 +643,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: parity
-    fingerprint: cac41051166644361bf74b7f05026832705672b3b073ea4e3c2055658e6b5cfc
+    fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
     required_surfaces:
     - rest_api
     - cli

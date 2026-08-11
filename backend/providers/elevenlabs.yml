@@ -45,7 +45,7 @@ models:
 
   - id: "eleven_flash_v2_5"
     name: "ElevenLabs Flash v2.5"
-    description: "Low-latency, low-cost text-to-speech model used as the default by audio.speak."
+    description: "Low-latency, lower-cost text-to-speech model available when explicitly selected by audio.speak."
     country_origin: "US"
     for_app_skill: "audio.speak"
     input_types:
@@ -70,7 +70,7 @@ models:
 
   - id: "eleven_multilingual_v2"
     name: "ElevenLabs Multilingual v2"
-    description: "Premium high-quality text-to-speech model available through audio.speak."
+    description: "Premium high-quality text-to-speech model used as the default by audio.speak."
     country_origin: "US"
     for_app_skill: "audio.speak"
     input_types:

@@ -9,7 +9,7 @@ valid_inputs:
           provider: elevenlabs
           duration_seconds: 0.8
           prompt_influence: 0.35
-    expect: {groups: 1, generation_type: sound_effect, maximum_duration_seconds: 2.0}
+    expect: {groups: 1, generation_type: sound_effect, maximum_duration_seconds: 2.0, initial_status: processing}
   - id: correlated-sfx-batch
     input:
       requests:
@@ -45,25 +45,13 @@ invalid_inputs:
     expect_error: {constraint: AudioGenerateRequest.requests.max_items}
 
 successful_outputs:
-  - id: playable-direct-sfx
+  - id: async-dispatch-sfx
     output:
-      results:
-        - id: 1
-          status: finished
-          prompt: soft upward message sent confirmation tick, warm and subtle, no speech
-          generation_type: sound_effect
-          provider: ElevenLabs
-          model: eleven_text_to_sound_v2
-          mime_type: audio/mpeg
-          duration_seconds: 0.8
-          byte_length: 4096
-          audio_base64: <BASE64_AUDIO_OMITTED>
-          credits_charged: 16
-          error: null
-      provider: ElevenLabs
+      task_id: task-audio-generate-1
+      embed_id: <GENERATED_AUDIO_EMBED_ID>
+      status: processing
       error: null
-      ignore_fields_for_inference: [audio_base64, aes_key, aes_nonce, vault_wrapped_aes_key]
-    expect: {playable: true, llm_payload_omits_audio_base64: true}
+    expect: {audio_base64_absent: true, final_result_requires_generated_asset: true, poll_until_terminal_when_present: true}
   - id: encrypted-generated-audio-embed
     output:
       results:
@@ -83,13 +71,16 @@ successful_outputs:
               format: mp3
               mime_type: audio/mpeg
               duration_seconds: 0.7
+              encryption: aes-gcm-nonce-prefixed-v1
+              download_url: https://api.dev.openmates.org/v1/generated-assets/<GENERATED_AUDIO_EMBED_ID>/files/original/download?token=<SIGNED_DOWNLOAD_TOKEN>
+              download_expires_at: 1786383600
           s3_base_url: https://<CHATFILES_BUCKET>
           aes_key: <BASE64_AES_KEY>
-          aes_nonce: <BASE64_AES_NONCE>
+          aes_nonce: ""
           vault_wrapped_aes_key: <VAULT_WRAPPED_AES_KEY>
           credits_charged: 14
           error: null
-    expect: {embed_type: app_skill_use, app_id: audio, skill_id: generate, audio_player_visible: true}
+    expect: {embed_type: app_skill_use, app_id: audio, skill_id: generate, audio_player_visible: true, upload_files_indexed: true, audio_base64_absent: true}
 
 error_outputs:
   - id: provider-timeout
@@ -104,6 +95,8 @@ error_outputs:
           mime_type: audio/mpeg
           duration_seconds: 0.8
           byte_length: 0
+          files: null
+          s3_base_url: null
           error: Audio generation timed out. Please try again.
       provider: ElevenLabs
       error: null
@@ -124,9 +117,9 @@ boundary_cases:
   - id: maximum-duration
     input: {requests: [{prompt: soft two second transition sound, provider: elevenlabs, duration_seconds: 2.0}]}
     expect: accepted
-  - id: direct-latency-probe
+  - id: async-generated-asset-required
     input: {requests: [{prompt: soft upward message sent tick, provider: elevenlabs, duration_seconds: 0.8}]}
-    expect: {p95_latency_seconds_target: 6, if_exceeded: switch_to_task_flow_before_release}
+    expect: {initial_status: processing, audio_base64_absent: true, completed_result_has_encrypted_files: true, upload_files_indexed: true}
 
 safety_rejections:
   - id: named-person-voice-sfx

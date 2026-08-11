@@ -561,10 +561,18 @@ def test_apps_api_uses_audio_result_declared_credits() -> None:
             {"status": "finished", "model": "eleven_flash_v2_5", "duration_seconds": 4.968, "credits_charged": 10},
         ]
     }
+    processing_result = {
+        "status": "processing",
+        "results": [
+            {"status": "processing", "task_id": "task-audio-1", "embed_id": "embed-audio-1"},
+        ],
+    }
 
     assert apps_api.get_variable_result_credits("audio", "generate", generate_result) == 14
     assert apps_api.get_variable_result_charge_items("audio", "generate", generate_result) == [(1, 14)]
     assert apps_api.get_variable_result_credits("audio", "speak", speak_result) == 10
+    assert apps_api.get_variable_result_credits("audio", "speak", processing_result) == 0
+    assert apps_api.get_variable_result_charge_items("audio", "speak", processing_result) == []
     assert apps_api.get_variable_result_credits("audio", "transcribe", generate_result) is None
     assert apps_api.get_variable_result_usage_details("audio", "generate", generate_result, 1) == {
         "model_used": "elevenlabs/eleven_text_to_sound_v2",

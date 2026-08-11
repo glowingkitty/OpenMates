@@ -30,18 +30,18 @@ status: finished
 prompt: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
 generation_type: speech
 provider: ElevenLabs
-model: eleven_flash_v2_5
+model: eleven_multilingual_v2
 mime_type: audio/mpeg
-duration_seconds: 4.968
-byte_length: 28413
-previewAudioUrl: /store-examples/audio-speak-friendly-welcome-message.mp3
+duration_seconds: 4.624
+byte_length: 74440
+previewAudioUrl: /store-examples/audio-speak-openmates-welcome-message.mp3
 files:
   original:
-    size_bytes: 28413
+    size_bytes: 74440
     format: mp3
     mime_type: audio/mpeg
-    duration_seconds: 4.968
-generated_at: "2026-08-11T02:30:00.000000+00:00"`;
+    duration_seconds: 4.624
+generated_at: "2026-08-09T23:36:02.000000+00:00"`;
 
 function message(content: string, truncatedContent = ''): Message {
   return {
@@ -111,7 +111,7 @@ describe('chat settings downloadable files', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       contentRef: `embed:${STATIC_AUDIO_EMBED_ID}`,
-      title: 'audio-speak-friendly-welcome-message.mp3',
+      title: 'audio-speak-openmates-welcome-message.mp3',
       subtitle: 'Audio',
       metadata: 'Audio | 5.0s | 28 KB',
       type: 'audio',

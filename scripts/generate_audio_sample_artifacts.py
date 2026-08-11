@@ -3,7 +3,7 @@
 
 Purpose: call audio app-skill REST endpoints against the real dev API and save
 MP3 evidence for spec review. Architecture: docs/specs/elevenlabs-audio-skills.
-Security: temporary API keys, webhook URLs, raw prompts, and audio_base64 values
+Security: temporary API keys, webhook URLs, raw prompts, and signed download URLs
 are never printed or persisted in the manifest. The temp key is revoked on exit.
 Run: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json <path>
 """
@@ -11,7 +11,6 @@ Run: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifa
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -33,6 +32,8 @@ DEFAULT_API_URL = "https://api.dev.openmates.org"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "docs/specs/elevenlabs-audio-skills/artifacts"
 DEFAULT_CLI = "/home/superdev/.npm-global/bin/openmates"
 SECRET_PATTERN = re.compile(r"sk-api-[A-Za-z0-9._-]+")
+TASK_POLL_TIMEOUT_SECONDS = 240
+TASK_POLL_INTERVAL_SECONDS = 2.0
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from discord_webhook import post_attachment  # noqa: E402
@@ -151,6 +152,82 @@ def _post_skill(
         raise RuntimeError(f"{app_id}.{skill_id} request failed: {exc}") from exc
 
 
+def _get_task_status(
+    *,
+    api_url: str,
+    api_key: str,
+    device_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    task_request = urllib_request.Request(
+        f"{api_url.rstrip('/')}/v1/tasks/{task_id}",
+        method="GET",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "X-OpenMates-SDK": "cli",
+            "X-OpenMates-Device-Identity": device_id,
+        },
+    )
+    try:
+        with urllib_request.urlopen(task_request, timeout=45) as response:
+            return json.loads(response.read().decode("utf-8") or "{}")
+    except HTTPError as exc:
+        body_text = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Task {task_id} status failed with HTTP {exc.code}: {_redact(body_text[:1200])}") from exc
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"Task {task_id} status request failed: {exc}") from exc
+
+
+def _poll_task_result(
+    *,
+    api_url: str,
+    api_key: str,
+    device_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + TASK_POLL_TIMEOUT_SECONDS
+    last_status = "pending"
+    while time.monotonic() <= deadline:
+        status_payload = _get_task_status(
+            api_url=api_url,
+            api_key=api_key,
+            device_id=device_id,
+            task_id=task_id,
+        )
+        last_status = str(status_payload.get("status") or "unknown")
+        if last_status == "completed":
+            result = status_payload.get("result")
+            if not isinstance(result, dict):
+                raise RuntimeError(f"Task {task_id} completed without a result object")
+            return result
+        if last_status == "failed":
+            raise RuntimeError(f"Task {task_id} failed: {_redact(str(status_payload.get('error') or 'unknown error'))}")
+        time.sleep(TASK_POLL_INTERVAL_SECONDS)
+    raise RuntimeError(f"Task {task_id} did not complete within {TASK_POLL_TIMEOUT_SECONDS}s; last status={last_status}")
+
+
+def _download_generated_audio(download_url: str) -> bytes:
+    if not download_url.startswith(("https://", "http://")):
+        raise RuntimeError("Generated audio download URL is not absolute")
+    download_request = urllib_request.Request(
+        download_url,
+        method="GET",
+        headers={"Accept": "audio/mpeg"},
+    )
+    try:
+        with urllib_request.urlopen(download_request, timeout=90) as response:
+            audio = response.read()
+    except HTTPError as exc:
+        body_text = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Generated audio download failed with HTTP {exc.code}: {_redact(body_text[:1200])}") from exc
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"Generated audio download request failed: {exc}") from exc
+    if not audio:
+        raise RuntimeError("Generated audio download returned an empty file")
+    return audio
+
+
 def _unwrap_skill_payload(response: dict[str, Any]) -> dict[str, Any]:
     current: Any = response
     for _ in range(3):
@@ -187,6 +264,9 @@ def _plan_hash(path: Path) -> str:
 
 def _write_sample(
     *,
+    api_url: str,
+    api_key: str,
+    device_id: str,
     output_dir: Path,
     sample: dict[str, Any],
     response: dict[str, Any],
@@ -198,12 +278,26 @@ def _write_sample(
     if not isinstance(results, list) or not results:
         raise RuntimeError(f"{sample['id']} returned no results")
     first = results[0]
-    if not isinstance(first, dict) or first.get("status") != "finished":
+    if not isinstance(first, dict):
+        raise RuntimeError(f"{sample['id']} returned an invalid result: {first!r}")
+    if first.get("status") == "processing":
+        task_id = first.get("task_id") or payload.get("task_id")
+        if not isinstance(task_id, str) or not task_id:
+            raise RuntimeError(f"{sample['id']} processing result did not include task_id")
+        first = _poll_task_result(
+            api_url=api_url,
+            api_key=api_key,
+            device_id=device_id,
+            task_id=task_id,
+        )
+    if first.get("status") != "finished":
         raise RuntimeError(f"{sample['id']} did not finish: {first!r}")
-    audio_base64 = first.get("audio_base64")
-    if not isinstance(audio_base64, str) or not audio_base64:
-        raise RuntimeError(f"{sample['id']} returned no audio_base64")
-    audio = base64.b64decode(audio_base64, validate=True)
+    files = first.get("files")
+    original = files.get("original") if isinstance(files, dict) else None
+    download_url = original.get("download_url") if isinstance(original, dict) else None
+    if not isinstance(download_url, str) or not download_url:
+        raise RuntimeError(f"{sample['id']} returned no generated-asset download URL")
+    audio = _download_generated_audio(download_url)
     filename = str(sample["filename"])
     if not filename.endswith(".mp3") or "/" in filename or ".." in filename:
         raise RuntimeError(f"Unsafe sample filename: {filename}")
@@ -303,6 +397,9 @@ def main() -> int:
             latency_ms = int((time.perf_counter() - started) * 1000)
             artifacts.append(
                 _write_sample(
+                    api_url=args.api_url,
+                    api_key=api_key,
+                    device_id=device_id,
                     output_dir=output_dir,
                     sample=sample,
                     response=response,
@@ -329,7 +426,8 @@ def main() -> int:
             "api_key_persisted": False,
             "webhook_url_persisted": False,
             "prompts_persisted": False,
-            "binary_audio_payload_persisted": False,
+            "inline_audio_base64_persisted": False,
+            "signed_download_url_persisted": False,
         },
         "plan_sha256": _plan_hash(args.plan_json),
         "artifacts": artifacts,

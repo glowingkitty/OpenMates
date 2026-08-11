@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 import yaml
@@ -20,9 +20,35 @@ class _FakeCeleryConf:
         return None
 
 
+class _FakeSignal:
+    def connect(self, fn=None, **_kwargs):
+        if fn is not None:
+            return fn
+
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+class _FakeSignals:
+    def __getattr__(self, _name):
+        return _FakeSignal()
+
+
 class _FakeCelery:
     def __init__(self, *_args, **_kwargs):
         self.conf = _FakeCeleryConf()
+
+    def task(self, *_args, **_kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+class _FakeBaseServiceTask:
+    pass
 
 
 class _FakeQueue:
@@ -32,7 +58,38 @@ class _FakeQueue:
 
 celery_stub = ModuleType("celery")
 celery_stub.Celery = _FakeCelery
+celery_stub.Task = _FakeBaseServiceTask
+celery_stub.signals = _FakeSignals()
 sys.modules.setdefault("celery", celery_stub)
+
+celery_exceptions_stub = ModuleType("celery.exceptions")
+celery_exceptions_stub.Ignore = type("Ignore", (Exception,), {})
+celery_exceptions_stub.SoftTimeLimitExceeded = type("SoftTimeLimitExceeded", (Exception,), {})
+sys.modules.setdefault("celery.exceptions", celery_exceptions_stub)
+
+celery_schedules_stub = ModuleType("celery.schedules")
+celery_schedules_stub.crontab = lambda *_args, **_kwargs: None
+sys.modules.setdefault("celery.schedules", celery_schedules_stub)
+
+tasks_package_stub = ModuleType("backend.core.api.app.tasks")
+tasks_package_stub.__path__ = []
+base_task_stub = ModuleType("backend.core.api.app.tasks.base_task")
+base_task_stub.BaseServiceTask = _FakeBaseServiceTask
+celery_config_stub = ModuleType("backend.core.api.app.tasks.celery_config")
+celery_config_stub.app = _FakeCelery()
+celery_config_stub.broker_url = "memory://"
+tasks_package_stub.base_task = base_task_stub
+tasks_package_stub.celery_config = celery_config_stub
+sys.modules.setdefault("backend.core.api.app.tasks", tasks_package_stub)
+sys.modules.setdefault("backend.core.api.app.tasks.base_task", base_task_stub)
+sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_stub)
+
+pythonjsonlogger_stub = ModuleType("pythonjsonlogger")
+jsonlogger_stub = ModuleType("pythonjsonlogger.jsonlogger")
+jsonlogger_stub.JsonFormatter = type("JsonFormatter", (object,), {"__init__": lambda self, *_args, **_kwargs: None})
+pythonjsonlogger_stub.jsonlogger = jsonlogger_stub
+sys.modules.setdefault("pythonjsonlogger", pythonjsonlogger_stub)
+sys.modules.setdefault("pythonjsonlogger.jsonlogger", jsonlogger_stub)
 
 kombu_stub = ModuleType("kombu")
 kombu_stub.Queue = _FakeQueue
@@ -82,10 +139,10 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
         assert request_item["properties"]["provider"]["enum"] == ["elevenlabs"]
         if skill_id == "speak":
             assert request_item["properties"]["model"]["enum"] == [
-                "eleven_flash_v2_5",
                 "eleven_multilingual_v2",
+                "eleven_flash_v2_5",
             ]
-            assert request_item["properties"]["model"]["default"] == "eleven_flash_v2_5"
+            assert request_item["properties"]["model"]["default"] == "eleven_multilingual_v2"
         assert "audio_base64" in skill["exclude_fields_for_llm"]
         assert "aes_key" in skill["exclude_fields_for_llm"]
         assert "vault_wrapped_aes_key" in skill["exclude_fields_for_llm"]
@@ -106,6 +163,9 @@ def test_audio_generate_request_rejects_unsupported_provider_and_duration():
 def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
     from backend.apps.audio.skills.speak_skill import AudioSpeakRequest
 
+    request = AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs"}])
+    assert request.requests[0].model == "eleven_multilingual_v2"
+
     with pytest.raises(ValidationError):
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "other"}])
 
@@ -116,45 +176,53 @@ def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs", "model": "unsupported_tts_model"}])
 
 
-# contract-test: direct surface=rest_api assertions=audio-generate.output.playable-audio,audio-generate.output.binary-excluded-from-inference,audio-generate.billing.success-only
+class _FakeAudioTask:
+    def __init__(self, task_id: str = "task-audio-1"):
+        self.request = SimpleNamespace(id=task_id)
+        self._secrets_manager = object()
+        self._cache_service = object()
+
+    async def initialize_services(self):
+        return None
+
+    async def cleanup_services(self):
+        return None
+
+
+# contract-test: direct surface=rest_api assertions=audio-generate.execution.async-generated-assets,audio-generate.output.binary-excluded-from-inference,audio-generate.billing.success-only
 @pytest.mark.asyncio
-async def test_audio_generate_returns_playable_audio_without_leaks(monkeypatch):
+async def test_audio_generate_dispatches_async_without_inline_audio(monkeypatch):
     import backend.apps.audio.skills.generate_skill as generate_module
-    from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
 
-    calls = {"sound_effect": 0}
+    calls = []
 
-    class FakeElevenLabsClient:
-        def __init__(self, **_kwargs):
-            pass
+    async def fake_execute_skill_via_celery(**kwargs):
+        calls.append(kwargs)
+        arguments = kwargs["arguments"]
+        assert kwargs["app_id"] == "audio"
+        assert kwargs["skill_id"] == "generate"
+        assert arguments["prompt"] == "soft upward message sent tick"
+        assert arguments["duration_seconds"] == 0.8
+        assert arguments["full_model_reference"] == "elevenlabs/eleven_text_to_sound_v2"
+        return "task-audio-generate-1"
 
-        async def generate_sound_effect(self, **kwargs):
-            calls["sound_effect"] += 1
-            assert kwargs["prompt"] == "soft upward message sent tick"
-            assert kwargs["duration_seconds"] == 0.8
-            return ElevenLabsAudioResult(
-                audio_bytes=b"mp3-bytes",
-                mime_type="audio/mpeg",
-                model="eleven_text_to_sound_v2",
-                duration_seconds=0.8,
-            )
-
-    monkeypatch.setattr(generate_module, "ElevenLabsClient", FakeElevenLabsClient)
+    monkeypatch.setattr(generate_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
 
     result = await _load_audio_app().dispatch_skill(
         "generate",
         {"requests": [{"prompt": "soft upward message sent tick", "provider": "elevenlabs", "duration_seconds": 0.8}]},
     )
 
-    assert calls["sound_effect"] == 1
+    assert len(calls) == 1
+    assert result["status"] == "processing"
+    assert result["task_id"] == "task-audio-generate-1"
     assert result["provider"] == "ElevenLabs"
     first = result["results"][0]
-    assert first["status"] == "finished"
+    assert first["status"] == "processing"
     assert first["generation_type"] == "sound_effect"
-    assert first["mime_type"] == "audio/mpeg"
-    assert first["byte_length"] == len(b"mp3-bytes")
-    assert first["audio_base64"]
-    assert first["credits_charged"] == 16
+    assert first["task_id"] == "task-audio-generate-1"
+    assert "audio_base64" not in first
+    assert "credits_charged" not in first
     assert "provider_api_key" not in str(result)
 
 
@@ -162,21 +230,14 @@ async def test_audio_generate_returns_playable_audio_without_leaks(monkeypatch):
 @pytest.mark.asyncio
 async def test_audio_generate_ignores_rest_context_fields_for_strict_request_models(monkeypatch):
     import backend.apps.audio.skills.generate_skill as generate_module
-    from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
 
-    class FakeElevenLabsClient:
-        def __init__(self, **_kwargs):
-            pass
+    captured_arguments = {}
 
-        async def generate_sound_effect(self, **_kwargs):
-            return ElevenLabsAudioResult(
-                audio_bytes=b"mp3-bytes",
-                mime_type="audio/mpeg",
-                model="eleven_text_to_sound_v2",
-                duration_seconds=0.6,
-            )
+    async def fake_execute_skill_via_celery(**kwargs):
+        captured_arguments.update(kwargs["arguments"])
+        return "task-audio-generate-context"
 
-    monkeypatch.setattr(generate_module, "ElevenLabsClient", FakeElevenLabsClient)
+    monkeypatch.setattr(generate_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
 
     result = await _load_audio_app().dispatch_skill(
         "generate",
@@ -196,19 +257,24 @@ async def test_audio_generate_ignores_rest_context_fields_for_strict_request_mod
         },
     )
 
-    assert result["results"][0]["status"] == "finished"
+    assert result["results"][0]["status"] == "processing"
+    assert captured_arguments["user_id"] == "user-audio-test"
+    assert captured_arguments["api_key_hash"] == "api-key-hash"
+    assert captured_arguments["device_hash"] == "device-hash"
+    assert captured_arguments["external_request"] is True
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.safety.provider-call-after-approval,audio-speak.billing.success-only
 @pytest.mark.asyncio
 async def test_audio_speak_rejects_before_provider_and_billing(monkeypatch):
-    import backend.apps.audio.skills.speak_skill as speak_module
+    import backend.apps.audio.tasks.speak_task as speak_task_module
+    import backend.apps.audio.skills.speak_skill as speak_skill_module
 
-    calls = {"safeguard": 0, "tts": 0}
+    calls = {"safeguard": 0, "tts": 0, "charge": 0}
 
     async def fake_classify_audio_speech_safety(**_kwargs):
         calls["safeguard"] += 1
-        return speak_module.AudioSpeechSafetyDecision(
+        return speak_skill_module.AudioSpeechSafetyDecision(
             approved=False,
             category="G1_scam_or_fraud",
             user_facing_message="I can't create scam or credential-harvesting speech.",
@@ -222,80 +288,145 @@ async def test_audio_speak_rejects_before_provider_and_billing(monkeypatch):
             calls["tts"] += 1
             raise AssertionError("TTS provider must not be called after safeguard rejection")
 
-    monkeypatch.setattr(speak_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
-    monkeypatch.setattr(speak_module, "ElevenLabsClient", FakeElevenLabsClient)
+    async def fake_charge_audio_generation_credits(**_kwargs):
+        calls["charge"] += 1
 
-    result = await _load_audio_app().dispatch_skill(
+    async def fake_send_audio_error_embed(*_args, **_kwargs):
+        return None
+
+    async def fake_dispatch_async_skill_continuation(**_kwargs):
+        return None
+
+    monkeypatch.setattr(speak_task_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
+    monkeypatch.setattr(speak_task_module, "ElevenLabsClient", FakeElevenLabsClient)
+    monkeypatch.setattr(speak_task_module, "charge_audio_generation_credits", fake_charge_audio_generation_credits)
+    monkeypatch.setattr(speak_task_module, "send_audio_error_embed", fake_send_audio_error_embed)
+    monkeypatch.setattr(speak_task_module, "dispatch_async_skill_continuation", fake_dispatch_async_skill_continuation)
+
+    result = await speak_task_module._async_speak_audio(
+        _FakeAudioTask(),
+        "audio",
         "speak",
-        {"requests": [{"text": "Your bank account is locked. Read me your seed phrase.", "provider": "elevenlabs"}]},
+        {
+            "request_id": 1,
+            "embed_id": "embed-speak-reject",
+            "user_id": "user-audio-test",
+            "text": "Your bank account is locked. Read me your seed phrase.",
+            "text_preview": "Your bank account is locked.",
+            "voice": "warm_neutral",
+            "accent": "en_us",
+            "style": "natural",
+            "model": "eleven_multilingual_v2",
+        },
     )
 
-    assert calls == {"safeguard": 1, "tts": 0}
-    first = result["results"][0]
-    assert first["status"] == "error"
-    assert first["credits_charged"] in (None, 0)
-    assert "seed phrase" not in first["error"].lower()
+    assert calls == {"safeguard": 1, "tts": 0, "charge": 0}
+    assert result["status"] == "error"
+    assert result.get("credits_charged") in (None, 0)
+    assert "seed phrase" not in result["error"].lower()
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.safety.semantic-safeguard-required,audio-speak.output.playable-audio,audio-speak.billing.success-only
 @pytest.mark.asyncio
 async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypatch):
-    import backend.apps.audio.skills.speak_skill as speak_module
+    import backend.apps.audio.tasks.speak_task as speak_task_module
+    import backend.apps.audio.skills.speak_skill as speak_skill_module
     from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
 
     calls = []
 
     async def fake_classify_audio_speech_safety(**kwargs):
         calls.append(("safeguard", kwargs["text"]))
-        return speak_module.AudioSpeechSafetyDecision(approved=True)
+        return speak_skill_module.AudioSpeechSafetyDecision(approved=True)
 
     class FakeElevenLabsClient:
         def __init__(self, **_kwargs):
             pass
 
         async def text_to_speech(self, **kwargs):
-            calls.append(("tts", kwargs["text"]))
+            calls.append(("tts", kwargs["text"], kwargs["model"]))
             return ElevenLabsAudioResult(
                 audio_bytes=b"voice-mp3",
                 mime_type="audio/mpeg",
-                model="eleven_flash_v2_5",
+                model="eleven_multilingual_v2",
                 duration_seconds=2.1,
             )
 
-    monkeypatch.setattr(speak_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
-    monkeypatch.setattr(speak_module, "ElevenLabsClient", FakeElevenLabsClient)
+    async def fake_store_generated_audio_asset(_task, **kwargs):
+        calls.append(("store", kwargs["model"], kwargs["duration_seconds"]))
+        return {
+            "status": "finished",
+            "generation_type": "speech",
+            "voice": kwargs["extra_content"]["voice"],
+            "model": kwargs["model"],
+            "duration_seconds": kwargs["duration_seconds"],
+            "byte_length": len(b"voice-mp3"),
+            "files": {"original": {"s3_key": "generated/speech.mp3", "encryption": "aes-gcm-nonce-prefixed-v1"}},
+        }
+
+    async def fake_charge_audio_generation_credits(**kwargs):
+        calls.append(("charge", kwargs["credits"], kwargs["model_ref"]))
+
+    async def fake_ensure_audio_credit_headroom(**kwargs):
+        calls.append(("preflight", kwargs["estimated_credits"]))
+
+    async def fake_dispatch_async_skill_continuation(**_kwargs):
+        return None
+
+    monkeypatch.setattr(speak_task_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
+    monkeypatch.setattr(speak_task_module, "ElevenLabsClient", FakeElevenLabsClient)
+    monkeypatch.setattr(speak_task_module, "store_generated_audio_asset", fake_store_generated_audio_asset)
+    monkeypatch.setattr(speak_task_module, "charge_audio_generation_credits", fake_charge_audio_generation_credits)
+    monkeypatch.setattr(speak_task_module, "ensure_audio_credit_headroom", fake_ensure_audio_credit_headroom)
+    monkeypatch.setattr(speak_task_module, "dispatch_async_skill_continuation", fake_dispatch_async_skill_continuation)
     text = "Welcome back. I found the best next step for you. " * 5
 
-    result = await _load_audio_app().dispatch_skill(
+    result = await speak_task_module._async_speak_audio(
+        _FakeAudioTask(),
+        "audio",
         "speak",
-        {"requests": [{"text": text, "provider": "elevenlabs", "voice": "warm_neutral"}]},
+        {
+            "request_id": 1,
+            "embed_id": "embed-speak-success",
+            "user_id": "user-audio-test",
+            "text": text,
+            "text_preview": text.strip()[:80],
+            "voice": "warm_neutral",
+            "accent": "en_us",
+            "style": "natural",
+            "model": "eleven_multilingual_v2",
+            "full_model_reference": "elevenlabs/eleven_multilingual_v2",
+        },
     )
 
     assert calls == [
         ("safeguard", text.strip()),
-        ("tts", text.strip()),
+        ("preflight", 60),
+        ("tts", text.strip(), "eleven_multilingual_v2"),
+        ("store", "eleven_multilingual_v2", 2.1),
+        ("charge", 9, "elevenlabs/eleven_multilingual_v2"),
     ]
-    first = result["results"][0]
-    assert first["status"] == "finished"
-    assert first["generation_type"] == "speech"
-    assert first["voice"] == "warm_neutral"
-    assert first["audio_base64"]
-    assert first["duration_seconds"] == 2.1
-    assert first["credits_charged"] == 5
+    assert result["status"] == "finished"
+    assert result["generation_type"] == "speech"
+    assert result["voice"] == "warm_neutral"
+    assert "audio_base64" not in result
+    assert result["duration_seconds"] == 2.1
+    assert result["credits_charged"] == 9
     assert "voice-mp3" not in str(result)
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.request.validated,audio-speak.output.playable-audio,audio-speak.billing.success-only
 @pytest.mark.asyncio
-async def test_audio_speak_accepts_premium_model_and_charges_model_rate(monkeypatch):
-    import backend.apps.audio.skills.speak_skill as speak_module
+async def test_audio_speak_accepts_flash_model_and_charges_model_rate(monkeypatch):
+    import backend.apps.audio.tasks.speak_task as speak_task_module
+    import backend.apps.audio.skills.speak_skill as speak_skill_module
     from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
 
     calls = []
 
     async def fake_classify_audio_speech_safety(**kwargs):
         calls.append(("safeguard", kwargs["text"]))
-        return speak_module.AudioSpeechSafetyDecision(approved=True)
+        return speak_skill_module.AudioSpeechSafetyDecision(approved=True)
 
     class FakeElevenLabsClient:
         def __init__(self, **_kwargs):
@@ -303,41 +434,70 @@ async def test_audio_speak_accepts_premium_model_and_charges_model_rate(monkeypa
 
         async def text_to_speech(self, **kwargs):
             calls.append(("tts", kwargs["model"]))
-            assert kwargs["model"] == "eleven_multilingual_v2"
+            assert kwargs["model"] == "eleven_flash_v2_5"
             return ElevenLabsAudioResult(
                 audio_bytes=b"premium-voice-mp3",
                 mime_type="audio/mpeg",
-                model="eleven_multilingual_v2",
+                model="eleven_flash_v2_5",
                 duration_seconds=2.4,
             )
 
-    monkeypatch.setattr(speak_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
-    monkeypatch.setattr(speak_module, "ElevenLabsClient", FakeElevenLabsClient)
+    async def fake_store_generated_audio_asset(_task, **kwargs):
+        calls.append(("store", kwargs["model"]))
+        return {
+            "status": "finished",
+            "generation_type": "speech",
+            "model": kwargs["model"],
+            "duration_seconds": kwargs["duration_seconds"],
+            "files": {"original": {"s3_key": "generated/flash.mp3", "encryption": "aes-gcm-nonce-prefixed-v1"}},
+        }
+
+    async def fake_charge_audio_generation_credits(**kwargs):
+        calls.append(("charge", kwargs["credits"], kwargs["model_ref"]))
+
+    async def fake_ensure_audio_credit_headroom(**kwargs):
+        calls.append(("preflight", kwargs["estimated_credits"]))
+
+    async def fake_dispatch_async_skill_continuation(**_kwargs):
+        return None
+
+    monkeypatch.setattr(speak_task_module, "classify_audio_speech_safety", fake_classify_audio_speech_safety)
+    monkeypatch.setattr(speak_task_module, "ElevenLabsClient", FakeElevenLabsClient)
+    monkeypatch.setattr(speak_task_module, "store_generated_audio_asset", fake_store_generated_audio_asset)
+    monkeypatch.setattr(speak_task_module, "charge_audio_generation_credits", fake_charge_audio_generation_credits)
+    monkeypatch.setattr(speak_task_module, "ensure_audio_credit_headroom", fake_ensure_audio_credit_headroom)
+    monkeypatch.setattr(speak_task_module, "dispatch_async_skill_continuation", fake_dispatch_async_skill_continuation)
     text = "Premium voice sample. " * 8
 
-    result = await _load_audio_app().dispatch_skill(
+    result = await speak_task_module._async_speak_audio(
+        _FakeAudioTask(),
+        "audio",
         "speak",
         {
-            "requests": [
-                {
-                    "text": text,
-                    "provider": "elevenlabs",
-                    "voice": "warm_neutral",
-                    "model": "eleven_multilingual_v2",
-                }
-            ]
+            "request_id": 1,
+            "embed_id": "embed-speak-flash",
+            "user_id": "user-audio-test",
+            "text": text,
+            "text_preview": text.strip()[:80],
+            "voice": "warm_neutral",
+            "accent": "en_us",
+            "style": "natural",
+            "model": "eleven_flash_v2_5",
+            "full_model_reference": "elevenlabs/eleven_flash_v2_5",
         },
     )
 
     assert calls == [
         ("safeguard", text.strip()),
-        ("tts", "eleven_multilingual_v2"),
+        ("preflight", 21),
+        ("tts", "eleven_flash_v2_5"),
+        ("store", "eleven_flash_v2_5"),
+        ("charge", 5, "elevenlabs/eleven_flash_v2_5"),
     ]
-    first = result["results"][0]
-    assert first["status"] == "finished"
-    assert first["model"] == "eleven_multilingual_v2"
-    assert first["credits_charged"] == 10
-    assert first["audio_base64"]
+    assert result["status"] == "finished"
+    assert result["model"] == "eleven_flash_v2_5"
+    assert result["credits_charged"] == 5
+    assert "audio_base64" not in result
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.billing.success-only

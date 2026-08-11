@@ -118,23 +118,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'preserved '
                                                                                         'in the '
                                                                                         'result.'},
-                                                                  'model': {'default': 'eleven_flash_v2_5',
+                                                                  'model': {'default': 'eleven_multilingual_v2',
                                                                             'description': 'ElevenLabs '
                                                                                            'TTS '
                                                                                            'model. '
-                                                                                           'Flash '
-                                                                                           'v2.5 '
-                                                                                           'is the '
-                                                                                           'low-cost '
-                                                                                           'default; '
                                                                                            'Multilingual '
                                                                                            'v2 is '
                                                                                            'the '
-                                                                                           'premium '
-                                                                                           'high-quality '
+                                                                                           'higher-quality '
+                                                                                           'default; '
+                                                                                           'Flash '
+                                                                                           'v2.5 '
+                                                                                           'is the '
+                                                                                           'lower-cost '
+                                                                                           'explicit '
                                                                                            'option.',
-                                                                            'enum': ['eleven_flash_v2_5',
-                                                                                     'eleven_multilingual_v2'],
+                                                                            'enum': ['eleven_multilingual_v2',
+                                                                                     'eleven_flash_v2_5'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',

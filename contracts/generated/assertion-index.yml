@@ -647,16 +647,16 @@ assertions:
     current_direct_proof: false
   audio-generate.request.validated:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 5e29c5e58fbb29d13eba0c0dc663cd27ccac15040575e9087280ccc4d8a3f307
+    fingerprint: 51c4617e07fd951f91c246b84011eef1037b8689117b58f0033e1530940e5515
     direct_tests:
     - &id069
       path: backend/tests/test_rest_api_audio.py
-      line: 95
+      line: 152
       name: test_audio_generate_request_rejects_unsupported_provider_and_duration
       surface: rest_api
     - &id070
       path: backend/tests/test_rest_api_audio.py
-      line: 163
+      line: 231
       name: test_audio_generate_ignores_rest_context_fields_for_strict_request_models
       surface: rest_api
     supporting_tests: []
@@ -672,17 +672,17 @@ assertions:
     current_direct_proof: false
   audio-generate.provider.explicit-selection:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 450b07ec4b29499f62b66b4ea1cab73bf7043d281322c9330339455184fb2dd5
+    fingerprint: f51c12a896cf78f916ac4fe51c0a8b239d0bedaa5fed47ef0c6b934d6ec7cb36
     direct_tests:
     - &id072
       path: backend/tests/test_rest_api_audio.py
-      line: 95
+      line: 152
       name: test_audio_generate_request_rejects_unsupported_provider_and_duration
       surface: rest_api
     supporting_tests:
     - &id071
       path: backend/tests/test_rest_api_audio.py
-      line: 65
+      line: 122
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
@@ -697,7 +697,7 @@ assertions:
     current_direct_proof: false
   audio-generate.request.ids-correlated:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 72d432bd95df4b280b146a9908045a9b6cd5729b3aef2205426184b3c37a0c5d
+    fingerprint: b42801bfebc1951f15cf0a7904e1184be8d1be1f8cfad1440cbcfed0f7c9469f
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -741,25 +741,20 @@ assertions:
     current_direct_proof: false
   audio-generate.output.playable-audio:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: be197832997bc129e3c0c67a472f5cc0e3571a962a49220545b7605022bb52cc
+    fingerprint: 2882e471281f6f4d0888492de50ec54994433c0c8041956ae3290141b435a062
     direct_tests:
     - &id075
-      path: backend/tests/test_rest_api_audio.py
-      line: 121
-      name: test_audio_generate_returns_playable_audio_without_leaks
-      surface: rest_api
-    - &id076
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 185
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
-    - &id077
+    - &id076
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 631
       name: generated audio examples use natural prompts and recording-style playback
       surface: gui.web
-    - &id078
+    - &id077
       path: frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
       line: 55
       name: 'Phase 1: deployed web renders playable generated-audio previews and fullscreens'
@@ -769,126 +764,131 @@ assertions:
     - *id075
     - *id076
     - *id077
-    - *id078
     surfaces:
-      rest_api:
-        direct_tests:
-        - *id075
-        supporting_tests: []
       gui.web:
         direct_tests:
+        - *id075
         - *id076
         - *id077
-        - *id078
         supporting_tests: []
     current_direct_proof: false
   audio-generate.output.binary-excluded-from-inference:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 35ff4cd84df658ae525fd50b3f2ae41d78753c53f0fe4b0acd00bf5c0de7b385
+    fingerprint: d7d461e2b61e947294e096cfda97ee17fe8032f772719957274767a0e56d104f
     direct_tests:
-    - &id080
+    - &id079
       path: backend/tests/test_rest_api_audio.py
-      line: 121
-      name: test_audio_generate_returns_playable_audio_without_leaks
+      line: 194
+      name: test_audio_generate_dispatches_async_without_inline_audio
       surface: rest_api
-    - &id081
+    - &id080
       path: frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
       line: 55
       name: 'Phase 1: deployed web renders playable generated-audio previews and fullscreens'
       surface: gui.web
     supporting_tests:
-    - &id079
+    - &id078
       path: backend/tests/test_rest_api_audio.py
-      line: 65
+      line: 122
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
+    - *id078
     - *id079
     - *id080
-    - *id081
     surfaces:
       rest_api:
         direct_tests:
-        - *id080
-        supporting_tests:
         - *id079
+        supporting_tests:
+        - *id078
       gui.web:
         direct_tests:
-        - *id081
+        - *id080
         supporting_tests: []
     current_direct_proof: false
   audio-generate.billing.success-only:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 8ce63a0e08111def93abfe070e11445fbc9a68a0424899865771a50b15806923
+    fingerprint: 99709d05f0cdcf92d2edf8c0672eb1e2d7d5775095f7ea9fbabb85c28221e189
     direct_tests:
-    - &id082
+    - &id081
       path: backend/tests/test_apps_api.py
       line: 552
       name: test_apps_api_uses_audio_result_declared_credits
       surface: rest_api
-    - &id083
+    - &id082
       path: backend/tests/test_apps_api.py
-      line: 600
+      line: 608
       name: test_audio_generate_route_charges_successful_result_indices
       surface: rest_api
-    - &id084
+    - &id083
       path: backend/tests/test_main_processor_invalid_tool_calls.py
       line: 274
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
-    - &id085
+    - &id084
       path: backend/tests/test_rest_api_audio.py
-      line: 121
-      name: test_audio_generate_returns_playable_audio_without_leaks
+      line: 194
+      name: test_audio_generate_dispatches_async_without_inline_audio
       surface: rest_api
-    - &id086
+    - &id085
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 122
       name: generated audio example chats include audio app-skill usage rows
       surface: gui.web
     supporting_tests: []
     tests:
+    - *id081
     - *id082
     - *id083
     - *id084
     - *id085
-    - *id086
     surfaces:
       rest_api:
         direct_tests:
+        - *id081
         - *id082
         - *id083
         - *id084
-        - *id085
         supporting_tests: []
       gui.web:
         direct_tests:
-        - *id086
+        - *id085
         supporting_tests: []
     current_direct_proof: false
   audio-generate.provider-error.visible:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 9d7cc07f2f1db2b960766006482c0754d2f319e2676601d8b8d4b01b36888e07
+    fingerprint: 58ed54981f287785fecdbee16f2c0333db7c7a0ac90c90e8b4520d3ec5355deb
     direct_tests: []
     supporting_tests: []
     tests: []
     surfaces: {}
     current_direct_proof: false
-  audio-generate.latency.direct-suitable:
+  audio-generate.execution.async-generated-assets:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: bd5b5fef3fa693518e538138b54f4c77687eddd3ba053f0f5af1d64a2bb39c08
-    direct_tests: []
+    fingerprint: 2a78bd9021c17733feae6e5f79aea4134733fecf469d1753da829b21d8f831cc
+    direct_tests:
+    - &id086
+      path: backend/tests/test_rest_api_audio.py
+      line: 194
+      name: test_audio_generate_dispatches_async_without_inline_audio
+      surface: rest_api
     supporting_tests: []
-    tests: []
-    surfaces: {}
+    tests:
+    - *id086
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id086
+        supporting_tests: []
     current_direct_proof: false
   audio-generate.surface-parity:
     contract: feature.app-skill.audio-generate@1
-    fingerprint: 931781c45f190ad82074b6d6b10bedd08f060b037beddcb01299b75564a31c73
+    fingerprint: 86c4521cd7e163deab20f4d254f3072c9d84583bbb03f005620eb18d49ce2edd
     direct_tests:
     - &id087
       path: backend/tests/test_rest_api_audio.py
-      line: 163
+      line: 231
       name: test_audio_generate_ignores_rest_context_fields_for_strict_request_models
       surface: rest_api
     - &id088
@@ -969,17 +969,17 @@ assertions:
     current_direct_proof: false
   audio-speak.request.validated:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 80dc84fd593ae5cb1273c127872c36561c21fd4c3917fa637e741adf6a94570d
+    fingerprint: 3983074c3f27d3b60437806b0754e51c11d340e3f632c8b96c762c03abc1d2bc
     direct_tests:
     - &id096
       path: backend/tests/test_rest_api_audio.py
-      line: 106
+      line: 163
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     - &id097
       path: backend/tests/test_rest_api_audio.py
-      line: 290
-      name: test_audio_speak_accepts_premium_model_and_charges_model_rate
+      line: 420
+      name: test_audio_speak_accepts_flash_model_and_charges_model_rate
       surface: rest_api
     supporting_tests: []
     tests:
@@ -994,17 +994,17 @@ assertions:
     current_direct_proof: false
   audio-speak.provider.explicit-selection:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 0e41bc7e5590fce44a98106dbb106dbe529b031ee60b906094a75b99473c9079
+    fingerprint: 3d8701228a80c17aeeba898ca05d8de41ef9445ada17d5efd8f4ce803a92b9ee
     direct_tests:
     - &id099
       path: backend/tests/test_rest_api_audio.py
-      line: 106
+      line: 163
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     supporting_tests:
     - &id098
       path: backend/tests/test_rest_api_audio.py
-      line: 65
+      line: 122
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
@@ -1019,7 +1019,7 @@ assertions:
     current_direct_proof: false
   audio-speak.request.ids-correlated:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: b7ea80d92e9916f01282ca26456c3a462bcdb951eb6c4ff81262649dbe57d8b6
+    fingerprint: 3f2ef55fefcc3c883b4804efb67566d534796d0eb1f76a9fe9134fde8b02843e
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -1031,7 +1031,7 @@ assertions:
     direct_tests:
     - &id100
       path: backend/tests/test_rest_api_audio.py
-      line: 106
+      line: 163
       name: test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id
       surface: rest_api
     supporting_tests: []
@@ -1053,11 +1053,11 @@ assertions:
     current_direct_proof: false
   audio-speak.safety.semantic-safeguard-required:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 45007c8804ff4078964ac6da69be65143f08b35abe04e8dd95ce9837752df27d
+    fingerprint: 992e132c26ab757033df43a498ed579e7225b52e5f9841315c491129977c5359
     direct_tests:
     - &id106
       path: backend/tests/test_rest_api_audio.py
-      line: 242
+      line: 331
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     supporting_tests:
@@ -1106,11 +1106,11 @@ assertions:
     current_direct_proof: false
   audio-speak.safety.provider-call-after-approval:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 0dbfe13784ac17ecadc24c315f1b63d4ace422aa77d603652c4efbf728f2e76b
+    fingerprint: 583d59ab1ef4c3d0ffb4caebd07454c19de51373623c1db2da6ba5eac857499f
     direct_tests:
     - &id108
       path: backend/tests/test_rest_api_audio.py
-      line: 204
+      line: 269
       name: test_audio_speak_rejects_before_provider_and_billing
       surface: rest_api
     supporting_tests:
@@ -1131,7 +1131,15 @@ assertions:
     current_direct_proof: false
   audio-speak.safety.minimal-classifier-payload:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: e0099e688fe7ae52dd132e6e640dd39dd3c8e3f93bcb185e0a704998b1aeb23a
+    fingerprint: 6c22d46f20c2c467fbf9752f88c75faa35ef26ea894b8809403117e457bce591
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  audio-speak.model.high-quality-default:
+    contract: feature.app-skill.audio-speak@1
+    fingerprint: 0697b83503d669e01d1af619c3eb9aa1f3d9bfedc7cc75b019f3787884c5246f
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -1139,17 +1147,17 @@ assertions:
     current_direct_proof: false
   audio-speak.output.playable-audio:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 474926d6de31e03062d93c7f46457c26ec59bd0ac9353114781566bd21dba000
+    fingerprint: 60cb71d510b68d4b6ce0e682740d299c5f4aaef318ed758984b9ee81c1c5c08b
     direct_tests:
     - &id109
       path: backend/tests/test_rest_api_audio.py
-      line: 242
+      line: 331
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     - &id110
       path: backend/tests/test_rest_api_audio.py
-      line: 290
-      name: test_audio_speak_accepts_premium_model_and_charges_model_rate
+      line: 420
+      name: test_audio_speak_accepts_flash_model_and_charges_model_rate
       surface: rest_api
     - &id111
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
@@ -1196,11 +1204,11 @@ assertions:
     current_direct_proof: false
   audio-speak.output.binary-excluded-from-inference:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 7f6db22d18455bae204ad4002b52c50809410efd1d7d18f553235d10ae363019
+    fingerprint: fa4c7b81b70a7a02e8d36db77d832b3f544f25f66ae3af3160dfd1cd56eb881c
     direct_tests:
     - &id116
       path: backend/tests/test_rest_api_audio.py
-      line: 352
+      line: 512
       name: test_audio_speak_output_safety_skips_declared_binary_fields
       surface: rest_api
     - &id117
@@ -1211,7 +1219,7 @@ assertions:
     supporting_tests:
     - &id115
       path: backend/tests/test_rest_api_audio.py
-      line: 65
+      line: 122
       name: test_audio_app_metadata_exposes_generate_and_speak_contracts
       surface: rest_api
     tests:
@@ -1231,7 +1239,7 @@ assertions:
     current_direct_proof: false
   audio-speak.billing.success-only:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 9bd997a97ff96e141a69ad549cb5039c6aec4c9b754c4b123ff1562be963bf0f
+    fingerprint: a87a005a6085ef479d75d5a07abf58ff051fa8329b9936353a01483568d99014
     direct_tests:
     - &id118
       path: backend/tests/test_apps_api.py
@@ -1245,22 +1253,22 @@ assertions:
       surface: rest_api
     - &id120
       path: backend/tests/test_rest_api_audio.py
-      line: 204
+      line: 269
       name: test_audio_speak_rejects_before_provider_and_billing
       surface: rest_api
     - &id121
       path: backend/tests/test_rest_api_audio.py
-      line: 242
+      line: 331
       name: test_audio_speak_calls_provider_only_after_safeguard_approval
       surface: rest_api
     - &id122
       path: backend/tests/test_rest_api_audio.py
-      line: 290
-      name: test_audio_speak_accepts_premium_model_and_charges_model_rate
+      line: 420
+      name: test_audio_speak_accepts_flash_model_and_charges_model_rate
       surface: rest_api
     - &id123
       path: backend/tests/test_rest_api_audio.py
-      line: 344
+      line: 504
       name: test_elevenlabs_tts_duration_is_estimated_from_mp3_output_format
       surface: rest_api
     - &id124
@@ -1301,11 +1309,11 @@ assertions:
     current_direct_proof: false
   audio-speak.provider-error.visible:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: a2efd90b009db2aeed4be82e38169976122d9b285a5b3bc3bf1eff52f3da433c
+    fingerprint: 36a973ac39d941642f2448b7126a75ee47a6695f86906bbafa473dd459fc5ae3
     direct_tests:
     - &id127
       path: backend/tests/test_rest_api_audio.py
-      line: 352
+      line: 512
       name: test_audio_speak_output_safety_skips_declared_binary_fields
       surface: rest_api
     supporting_tests:
@@ -1324,9 +1332,9 @@ assertions:
         supporting_tests:
         - *id126
     current_direct_proof: false
-  audio-speak.latency.direct-suitable:
+  audio-speak.execution.async-generated-assets:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: 98da7ad5db6362732ae67ab5b332964a809a238ebec8d5687b630bad75568507
+    fingerprint: b8a96dcc31755a4f01841e62d586dbd522eb5fe686b6c94a23f2a2b39fa21571
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -1334,7 +1342,7 @@ assertions:
     current_direct_proof: false
   audio-speak.surface-parity:
     contract: feature.app-skill.audio-speak@1
-    fingerprint: cac41051166644361bf74b7f05026832705672b3b073ea4e3c2055658e6b5cfc
+    fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
     direct_tests:
     - &id128
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
@@ -2632,17 +2640,17 @@ assertions:
       surface: rest_api
     - &id266
       path: backend/tests/test_apps_api.py
-      line: 586
+      line: 594
       name: test_apps_api_calculates_image_to_html_preflight_reservation
       surface: rest_api
     - &id267
       path: backend/tests/test_apps_api.py
-      line: 600
+      line: 608
       name: test_audio_generate_route_charges_successful_result_indices
       surface: rest_api
     - &id268
       path: backend/tests/test_apps_api.py
-      line: 689
+      line: 697
       name: test_generated_image_to_html_route_preserves_base64_request
       surface: rest_api
     - &id274

@@ -568,6 +568,8 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "get-posts"),
 }
 ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
+    ("audio", "generate"),
+    ("audio", "speak"),
     ("code", "image_to_html"),
     ("images", "generate"),
     ("images", "generate_draft"),

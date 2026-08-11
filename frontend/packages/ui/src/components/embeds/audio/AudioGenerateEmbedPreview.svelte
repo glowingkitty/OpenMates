@@ -149,7 +149,7 @@
     const file = resolvedFiles?.original;
     if (!file?.s3_key || !resolvedAesKey) return;
     if (retainedS3Key === file.s3_key && audioUrl) return;
-    loadAudio(file.s3_key, file.mime_type || 'audio/mpeg');
+    loadAudio(file.s3_key, file.mime_type || 'audio/mpeg', file);
   });
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
@@ -162,7 +162,7 @@
     }
   }
 
-  async function loadAudio(s3Key: string, mimeType: string) {
+  async function loadAudio(s3Key: string, mimeType: string, variant: unknown) {
     try {
       audioError = undefined;
       audioUrl = await fetchAndDecryptAudio(
@@ -171,6 +171,7 @@
         resolvedAesKey,
         resolvedAesNonce,
         mimeType,
+        variant,
       );
       retainedS3Key = s3Key;
     } catch (err) {

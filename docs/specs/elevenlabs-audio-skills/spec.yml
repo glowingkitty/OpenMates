@@ -7,18 +7,18 @@ contract_refs:
   - id: feature.app-skill.audio-generate
     version: 1
     role: primary
-    fingerprint: 5340e1f0d150ee5e77f0120bb04a1daba61c423f3c8b49f791efbcd0c3a85ca3
+    fingerprint: c4757dad3e92978a5975b26786be66d7f7d3a0af2325f34635606b8ab977a5d8
   - id: feature.app-skill.audio-speak
     version: 1
     role: inherited
-    fingerprint: 79f9c10952bd41af416e724c8d9f33780767a363505013a9466bb3a8d6389781
+    fingerprint: 6928e06478ea7825934d912179dd361b9b7fe7cf6c7e7051c31f5e293cfd8999
   - id: feature.public-example-chats
     version: 1
     role: inherited
     fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
 
 contract_impact:
-  classification: new_contract
+  classification: semantic_change
   contract_update_required: true
   affected_assertions:
     - audio-generate.request.validated
@@ -29,7 +29,7 @@ contract_impact:
     - audio-generate.output.binary-excluded-from-inference
     - audio-generate.billing.success-only
     - audio-generate.provider-error.visible
-    - audio-generate.latency.direct-suitable
+    - audio-generate.execution.async-generated-assets
     - audio-generate.surface-parity
     - audio-speak.request.validated
     - audio-speak.provider.explicit-selection
@@ -38,16 +38,18 @@ contract_impact:
     - audio-speak.safety.semantic-safeguard-required
     - audio-speak.safety.provider-call-after-approval
     - audio-speak.safety.minimal-classifier-payload
+    - audio-speak.model.high-quality-default
     - audio-speak.output.playable-audio
     - audio-speak.output.binary-excluded-from-inference
     - audio-speak.billing.success-only
     - audio-speak.provider-error.visible
-    - audio-speak.latency.direct-suitable
+    - audio-speak.execution.async-generated-assets
     - audio-speak.surface-parity
   reason: >
-    This feature adds two new provider-backed app skills, provider metadata,
-    public REST/CLI/SDK surfaces, generated-audio embeds, billing, privacy, and
-    explicit safety gates.
+    The resumed slice revises the already-approved audio app-skill contracts so
+    successful audio.generate/audio.speak outputs use async encrypted generated
+    assets indexed in upload_files instead of inline audio_base64, and so
+    audio.speak defaults to ElevenLabs Multilingual v2.
 
 documentation_impact:
   generated_reference:
@@ -69,8 +71,9 @@ documentation_impact:
 goal: >
   Add ElevenLabs-backed audio.generate and audio.speak as first-class OpenMates
   app skills, with explicit provider input, safe pre-provider speech
-  classification, success-only billing, playable generated-audio embeds, CLI and
-  SDK parity, and sample outputs delivered to Discord for review.
+  classification, success-only billing, async encrypted generated-audio assets,
+  CLI and SDK parity, and refreshed public example chats using real generated
+  audio evidence.
 
 scope:
   in:
@@ -78,9 +81,10 @@ scope:
     - "audio.speak generates explicit user-invoked speech samples using provider: elevenlabs and OpenMates voice presets only."
     - audio.speak runs deterministic rules and the Groq-hosted openai/gpt-oss-safeguard-20b model with an optimized audio-speech safety prompt before any ElevenLabs call.
     - Rejected audio.speak requests call no speech provider and charge no generation credits.
-    - Generated audio returns playable MP3-compatible direct output or encrypted generated-audio embed metadata without exposing audio bytes or encryption material to LLM inference.
+    - Generated audio returns processing task/embed IDs first, then playable MP3-compatible encrypted generated-asset metadata without exposing inline audio_base64 or encryption material to LLM inference.
     - REST API, CLI, npm SDK, pip SDK, web embed, and Apple rendering semantics follow the approved contracts.
-    - Generate and post OpenMates sound-effect samples plus one assistant-response voice sample to Discord for review.
+    - audio.speak defaults to ElevenLabs Multilingual v2; Flash v2.5 remains available only when explicitly selected.
+    - Recreate the public audio.generate/audio.speak example chats from real generated audio evidence and remove old static example chat IDs/assets.
   out:
     - Automatic assistant voice replies or chat-wide voice playback settings.
     - Voice cloning, user-uploaded voice samples, raw ElevenLabs voice IDs, or imitation of real people/public figures.
@@ -152,7 +156,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d23d3b608
+  subject_commit: 526390c2d5
 
 approvals:
   product_contract:
@@ -179,10 +183,20 @@ decisions:
     reason: TTS can turn malicious or deceptive text into more convincing synthetic audio and must be blocked before provider execution or billing.
     decided_at: "2026-08-09T14:11:06Z"
   - id: D-4
-    status: active
+    status: superseded
     decision: Direct synchronous execution is allowed only if low-cost live probes stay within the 5-6 second target.
-    reason: App-skill callers need predictable latency; slower provider behavior must move to task-based generated-asset flow before release.
+    reason: Superseded on 2026-08-11 by the encrypted generated-asset storage/indexing parity requirement; latency no longer controls whether generated audio may be returned inline.
     decided_at: "2026-08-09T14:11:06Z"
+  - id: D-5
+    status: active
+    decision: audio.generate and audio.speak successful outputs must use the existing async app-skill task pattern and encrypted generated-asset storage indexed in upload_files.
+    reason: Generated audio should match image, music, and video storage/privacy/indexing semantics and must not add new inline audio_base64 payloads to chat sync.
+    decided_at: "2026-08-11T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: audio.speak defaults to ElevenLabs Multilingual v2, while Flash v2.5 remains an explicit lower-cost model selection.
+    reason: User-approved product direction prioritizes higher-quality default speech output.
+    decided_at: "2026-08-11T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -213,14 +227,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-10T22:31:29Z"
     evidence: test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/summary.json
+  - id: ATTEMPT-6
+    task_id: TASK-8
+    approach: Update audio.generate/audio.speak contracts to require async encrypted generated assets and make Multilingual v2 the audio.speak default before product implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-11T00:00:00Z"
+    evidence: contracts/features/app-skills/audio-generate/contract.yml and contracts/features/app-skills/audio-speak/contract.yml exact-hash approvals in session a983
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Complete any remaining user-confirmation and Apple parity gates after the deployed web/example evidence.
-  command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml
-  expected_outcome: Spec verification reports only genuinely pending gates such as user confirmation or Apple parity.
+  current_task_id: TASK-8
+  next_action: Implement async encrypted audio generated assets, update default TTS model, refresh example chats/assets, then run REST/API before CLI/SDK/web verification.
+  command: python3 scripts/spec_validate.py docs/specs/elevenlabs-audio-skills/spec.yml
+  expected_outcome: Spec validates after the approved contract revision and before product-code implementation continues.
   blocker: null
-  last_verified_commit: d23d3b608
+  last_verified_commit: 526390c2d5
 
 scenarios:
   - id: S-1
@@ -233,7 +253,8 @@ scenarios:
     then:
       - The request is validated with duration between 0.5 and 2.0 seconds and no speech/TTS content.
       - ElevenLabs sound generation runs only after safety checks pass.
-      - The response preserves request IDs and returns playable audio/mpeg data or encrypted generated-audio embed metadata.
+      - The initial response preserves task/embed IDs with status processing.
+      - The finished task stores audio/mpeg bytes as encrypted private chatfiles generated-asset metadata indexed in upload_files.
       - Credits are charged only for successful audio output.
 
   - id: S-2
@@ -245,8 +266,9 @@ scenarios:
       - Alice calls audio.speak with text such as Welcome back. I found the best next step for you.
     then:
       - The request accepts only OpenMates voice presets, accent values, style values, and supported formats.
+      - The omitted model defaults to ElevenLabs Multilingual v2.
       - The optimized GPT OSS safeguard prompt classifies the text before ElevenLabs is called.
-      - Approved text starts ElevenLabs TTS and returns playable audio/mpeg data or encrypted generated-audio embed metadata.
+      - Approved text starts ElevenLabs TTS asynchronously and stores playable audio/mpeg bytes as encrypted private chatfiles generated-asset metadata indexed in upload_files.
       - The assistant response sample can be posted to Discord without exposing secrets, full logs, or binary payloads to the LLM.
 
   - id: S-3
@@ -283,14 +305,14 @@ scenarios:
       - CLI/SDK docs expose native audio app-skill methods rather than a generic provider escape hatch.
 
   - id: S-6
-    title: Web and Apple render generated audio embeds
+    title: Web and Apple render encrypted generated audio embeds
     given:
       - A chat contains successful audio.generate and audio.speak app-skill outputs.
     when:
       - Alice opens the web app or Apple app chat and fullscreen embed.
     then:
-      - The generated-audio preview and fullscreen include a playable audio control, provider/model/duration metadata, and safe error state.
-      - Binary audio fields, encryption keys, nonces, wrapped keys, raw provider diagnostics, and safeguard reasoning are excluded from assistant-visible text and logs.
+      - The generated-audio preview and fullscreen decrypt private generated-asset metadata client-side and include a playable audio control, provider/model/duration metadata, and safe error state.
+      - Inline audio_base64, binary audio fields, encryption keys, nonces, wrapped keys, raw provider diagnostics, and safeguard reasoning are excluded from assistant-visible text and logs.
       - Web and Apple parity differences are recorded only as approved visual chrome differences.
 
   - id: S-7
@@ -304,10 +326,22 @@ scenarios:
       - The files are posted to the configured Discord dev channel with concise captions and without secrets.
       - The spec records the Discord message ID or a publication blocker.
 
+  - id: S-8
+    title: Public generated-audio examples are refreshed safely
+    given:
+      - Real audio.generate and audio.speak outputs have been regenerated under the approved async generated-asset contract.
+      - Public example chats cannot expose private bucket paths, signed tokens, AES keys, wrapped keys, or inline audio_base64.
+    when:
+      - The public example catalog, example routes, chat Settings usage/files tabs, and ZIP export load generated-audio examples.
+    then:
+      - The old audio-generate-product-success-chime and audio-speak-friendly-welcome-message example IDs/routes/assets are removed.
+      - Replacement audio.generate/audio.speak public examples render playable static public MP3 fixtures derived from real generated outputs.
+      - Public transcript HTML, chat surfaces, usage details, Files tab, and ZIP export omit private generated-asset markers and inline audio_base64.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: audio.generate validates provider, prompt, duration, format, batch size, safety, correlated IDs, output privacy, and success-only billing before provider execution or response.
+    text: audio.generate validates provider, prompt, duration, format, batch size, safety, correlated IDs, async dispatch, encrypted generated-asset storage/indexing, output privacy, and success-only billing before provider execution or final response.
     required: true
     status: pending
     coverage_status: covered
@@ -321,10 +355,11 @@ acceptance_criteria:
       - audio-generate.output.playable-audio
       - audio-generate.output.binary-excluded-from-inference
       - audio-generate.billing.success-only
+      - audio-generate.execution.async-generated-assets
 
   - id: AC-2
     scenario: S-2
-    text: audio.speak accepts only explicit provider selection and OpenMates voice presets, then runs the GPT OSS safeguard before ElevenLabs TTS.
+    text: audio.speak accepts only explicit provider selection and OpenMates voice presets, defaults to ElevenLabs Multilingual v2 when model is omitted, then runs the GPT OSS safeguard before ElevenLabs TTS.
     required: true
     status: pending
     coverage_status: covered
@@ -336,6 +371,7 @@ acceptance_criteria:
       - audio-speak.voice.presets-only
       - audio-speak.safety.semantic-safeguard-required
       - audio-speak.safety.minimal-classifier-payload
+      - audio-speak.model.high-quality-default
 
   - id: AC-3
     scenario: S-3
@@ -367,7 +403,7 @@ acceptance_criteria:
 
   - id: AC-5
     scenario: S-5
-    text: REST API, CLI, npm SDK, and pip SDK expose the same audio.generate/audio.speak request and response semantics against the dev server.
+    text: REST API, CLI, npm SDK, and pip SDK expose the same audio.generate/audio.speak async task, generated-asset download, request, response, and error semantics against the dev server.
     required: true
     status: pending
     coverage_status: covered
@@ -376,10 +412,12 @@ acceptance_criteria:
     contract_assertions:
       - audio-generate.surface-parity
       - audio-speak.surface-parity
+      - audio-generate.execution.async-generated-assets
+      - audio-speak.execution.async-generated-assets
 
   - id: AC-6
     scenario: S-6
-    text: Web and Apple render successful and error generated-audio embeds with playable audio, safe metadata, no leaked binary/encryption fields, and approved parity differences only.
+    text: Web and Apple render successful and error encrypted generated-audio embeds with playable audio, safe metadata, no leaked inline audio_base64 or encryption fields, and approved parity differences only.
     required: true
     status: pending
     coverage_status: covered
@@ -392,20 +430,38 @@ acceptance_criteria:
       - audio-speak.output.binary-excluded-from-inference
       - audio-generate.surface-parity
       - audio-speak.surface-parity
+      - audio-generate.execution.async-generated-assets
+      - audio-speak.execution.async-generated-assets
 
   - id: AC-7
     scenario: S-7
-    text: Live probes generate OpenMates SFX samples plus default and premium assistant response voice samples, save local artifacts, and post them to Discord or record a publication blocker.
+    text: Live probes generate OpenMates SFX samples plus default Multilingual v2 and explicit Flash v2.5 assistant response voice samples, save local artifacts, and post them to Discord or record a publication blocker.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: manual
     verification_ids: [V-DISCORD-SAMPLES, V-LATENCY-PRICING]
     contract_assertions:
-      - audio-generate.latency.direct-suitable
-      - audio-speak.latency.direct-suitable
+      - audio-generate.execution.async-generated-assets
+      - audio-speak.execution.async-generated-assets
+      - audio-speak.model.high-quality-default
       - audio-generate.billing.success-only
       - audio-speak.billing.success-only
+
+  - id: AC-8
+    scenario: S-8
+    text: Public audio example chats are recreated from real generated outputs, old static audio example IDs/assets are removed, and public routes/settings/ZIP exports remain playable without private generated-asset markers or inline audio_base64.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PW-AUDIO-EXAMPLE-CHATS, T-PW-AUDIO-SETTINGS-USAGE, V-UI-VISUAL-SMOKE]
+    contract_assertions:
+      - audio-generate.output.binary-excluded-from-inference
+      - audio-speak.output.binary-excluded-from-inference
+      - public-example-chats.transcript.safe-rendering
+      - public-example-chats.catalog.discoverable
+      - public-example-chats.seo.crawlable
 
 assumptions:
   - id: A-1
@@ -417,15 +473,15 @@ assumptions:
       - source: vault-setup logs from session d4bc
         summary: Vault setup imported kv/data/providers/elevenlabs:api_key and redacted the env value.
   - id: A-2
-    text: Representative short ElevenLabs SFX and TTS requests usually complete within the 5-6 second direct-response target.
-    category: latency
+    text: Representative short ElevenLabs SFX and TTS requests can be dispatched asynchronously and completed as encrypted generated assets without timing out the app-skill task flow.
+    category: async_execution
     required_before: completion
-    status: confirmed
+    status: checking
     evidence:
       - source: test-results/audio-samples/elevenlabs-20260809/manifest.json
-        summary: Live dev REST probes completed in 3339ms, 2331ms, and 1673ms for two audio.generate SFX samples and one audio.speak sample.
+        summary: Historical live dev REST probes showed provider calls complete quickly, but they predate the async encrypted generated-asset storage contract and do not satisfy the resumed green gate.
       - source: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
-        summary: Durable live dev REST probes completed nine audio samples in 1487-3780ms, including Flash v2.5 speech and premium Multilingual v2 speech.
+        summary: Historical sample artifact generation remains useful for provider availability, pricing, and Discord publishing history only.
   - id: A-3
     text: Official ElevenLabs TTS pricing can be mapped to an OpenMates credit rule before billing ships.
     category: billing
@@ -452,24 +508,25 @@ contracts:
       auth: authenticated session or approved API key/device
       rate_limits: existing app-skill route limiter plus provider/budget limits
       credit_budget_limits: user credit headroom before provider call; charge only successful outputs
-      encryption_boundary: accepts plaintext prompts for provider generation; returns audio bytes only in direct response or encrypted generated-asset metadata
+      encryption_boundary: accepts plaintext prompts for provider generation; returns processing task/embed IDs first and final encrypted generated-asset metadata only, never new inline audio_base64
       request: AudioGenerateRequest from feature.app-skill.audio-generate@1
-      response: AudioGenerateResponse from feature.app-skill.audio-generate@1
+      response: AudioGenerateDispatchResponse followed by AudioGenerateResponse from feature.app-skill.audio-generate@1
     - route: POST /v1/apps/audio/skills/speak
       access_model: first-party client surface only plus approved developer API-key SDK access
       auth: authenticated session or approved API key/device
       rate_limits: existing app-skill route limiter plus provider/budget limits
       credit_budget_limits: user credit headroom before safeguard/provider call; charge only successful outputs using result-declared duration pricing
-      encryption_boundary: accepts plaintext TTS text for safeguard and provider generation; returns audio bytes only in direct response or encrypted generated-asset metadata
+      encryption_boundary: accepts plaintext TTS text for safeguard and provider generation; returns processing task/embed IDs first and final encrypted generated-asset metadata only, never new inline audio_base64
       request: AudioSpeakRequest from feature.app-skill.audio-speak@1
-      response: AudioSpeakResponse from feature.app-skill.audio-speak@1
+      response: AudioSpeakDispatchResponse followed by AudioSpeakResponse from feature.app-skill.audio-speak@1
   data:
-    - Generated sample artifacts are temporary local files or encrypted generated assets; no provider credentials or raw safeguard diagnostics are persisted.
+    - Successful private generated audio is encrypted into chatfiles S3, indexed in upload_files, and exposed to REST/CLI/SDK consumers through short-lived generated-asset download URLs.
+    - Public example audio uses static public MP3 fixtures derived from real generated outputs and must not commit private generated-asset keys, signed tokens, wrapped keys, or inline audio_base64.
     - OpenMates voice presets map internally to provider voice IDs and are not exposed through public request contracts.
   ui_states:
     - Audio preview, fullscreen playback, processing or unavailable state, validation error, safeguard rejection, provider timeout, and provider unavailable.
   privacy_security:
-    - Binary audio, AES keys, nonces, wrapped keys, raw provider diagnostics, and safeguard reasoning are excluded from LLM inference, logs, assistant prose, committed examples, and Discord captions.
+    - New successful outputs never include inline audio_base64; binary audio, AES keys, nonces, wrapped keys, generated-asset bearer tokens, raw provider diagnostics, and safeguard reasoning are excluded from LLM inference, logs, assistant prose, committed examples, public examples, and Discord captions.
     - audio.speak must receive explicit GPT OSS approval before ElevenLabs generation starts.
     - Rejected or safeguard-error speech requests do not call ElevenLabs and do not charge generation credits.
 
@@ -492,11 +549,20 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: The resumed TASK-8 slice started from an already-implemented legacy safety test set; no fresh red run for this unchanged safety file was captured before the async storage/default-model revision.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_media_generation_safety.py
+        run_id: local-pytest-a983-media-safety-20260811T194556Z
+        subject_commit: 526390c2d5
+        timestamp: "2026-08-11T19:45:56Z"
+        summary: 21 passed, including audio.generate speech-request rejection, safe SFX allowance, audio.speak scam/fake-authority blocking, and safe assistant sample allowance.
 
   - id: T-PY-REST-AUDIO
     type: pytest
@@ -506,26 +572,42 @@ tests:
     assertions:
       - "REST metadata exposes audio.generate and audio.speak with provider: elevenlabs."
       - REST validation rejects unsupported providers, invalid durations, raw voice IDs, and excessive batches.
-      - Safe requests return playable audio output or safe provider-unavailable errors without secrets.
+      - Safe requests return processing task/embed IDs first, then encrypted generated-asset metadata or safe provider-unavailable errors without secrets.
+      - Successful generated audio creates upload_files records with encrypted private chatfiles metadata and no inline audio_base64.
+      - audio.speak defaults to eleven_multilingual_v2 while explicit eleven_flash_v2_5 remains accepted.
       - Rejected speech requests call no ElevenLabs provider and charge no credits.
     contract_assertions:
       - audio-generate.request.validated
       - audio-generate.provider.explicit-selection
       - audio-generate.output.playable-audio
+      - audio-generate.output.binary-excluded-from-inference
+      - audio-generate.execution.async-generated-assets
       - audio-generate.billing.success-only
       - audio-speak.request.validated
       - audio-speak.provider.explicit-selection
+      - audio-speak.model.high-quality-default
       - audio-speak.safety.provider-call-after-approval
       - audio-speak.output.playable-audio
+      - audio-speak.output.binary-excluded-from-inference
+      - audio-speak.execution.async-generated-assets
       - audio-speak.billing.success-only
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: This continuation resumed after the legacy REST tests already existed; the focused async generated-asset/default-model changes were verified with green tests but no clean pre-fix red run was captured.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_rest_api_audio.py backend/tests/test_apps_api.py::test_apps_api_uses_audio_result_declared_credits backend/tests/test_main_processor_invalid_tool_calls.py::test_chat_skill_billing_uses_audio_result_declared_credits
+        run_id: local-pytest-a983-rest-audio-20260811T194556Z
+        subject_commit: 526390c2d5
+        timestamp: "2026-08-11T19:45:56Z"
+        summary: 12 passed, covering async dispatch without inline audio, REST context propagation, safeguard-before-provider ordering, success-only billing, model-specific speech pricing, and result-declared billing integration.
 
   - id: T-NODE-SDK-GEN
     type: unit
@@ -534,18 +616,28 @@ tests:
     covers: [AC-5]
     assertions:
       - Generated npm app-skill methods include apps.audio.generate and apps.audio.speak.
-      - Generated TypeScript input shapes include explicit provider fields.
+      - Generated TypeScript input shapes include explicit provider fields, async task resolution, and the default speech model metadata.
     contract_assertions:
       - audio-generate.surface-parity
       - audio-speak.surface-parity
+      - audio-speak.model.high-quality-default
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: The npm SDK generator test was updated during the resumed metadata/default-model revision; no clean pre-fix red run was captured in this continuation.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+        run_id: local-node-test-a983-sdk-generator-20260811T194556Z
+        subject_commit: 526390c2d5
+        timestamp: "2026-08-11T19:45:56Z"
+        summary: 2 passed; generated npm/CLI app-skill metadata includes audio.generate/audio.speak and delegates native app-skill methods correctly.
 
   - id: T-PY-SDK-GEN
     type: pytest
@@ -554,18 +646,28 @@ tests:
     covers: [AC-5]
     assertions:
       - Generated pip app-skill methods include apps.audio.generate and apps.audio.speak.
-      - Generated Python request dictionaries preserve explicit provider fields.
+      - Generated Python request dictionaries preserve explicit provider fields, async task resolution, and the default speech model metadata.
     contract_assertions:
       - audio-generate.surface-parity
       - audio-speak.surface-parity
+      - audio-speak.model.high-quality-default
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: The pip SDK generator test was updated during the resumed metadata/default-model revision; no clean pre-fix red run was captured in this continuation.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
+        run_id: local-pytest-a983-pip-sdk-generator-20260811T194556Z
+        subject_commit: 526390c2d5
+        timestamp: "2026-08-11T19:45:56Z"
+        summary: 2 passed; generated pip SDK app-skill metadata includes audio.generate/audio.speak and the updated default model metadata.
 
   - id: T-AUDIT-SDK-CLI
     type: unit
@@ -580,11 +682,20 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: The parity audit is a deterministic consistency audit rather than a behavior-first red test; no intentional broken parity run was captured in this continuation.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-audit-a983-sdk-cli-parity-20260811T194556Z
+        subject_commit: 526390c2d5
+        timestamp: "2026-08-11T19:45:56Z"
+        summary: sdk-cli-parity checked 89 command entries and 4 workflow template transport entries.
 
   - id: T-PW-AUDIO-SKILLS
     type: playwright
@@ -601,32 +712,33 @@ tests:
       - audio-speak.output.playable-audio
       - audio-generate.output.binary-excluded-from-inference
       - audio-speak.output.binary-excluded-from-inference
+      - audio-generate.execution.async-generated-assets
+      - audio-speak.execution.async-generated-assets
       - audio-generate.surface-parity
       - audio-speak.surface-parity
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: not_applicable
+        reason: This Playwright spec must run against deployed code; the resumed replacement IDs/assets cannot produce a local red phase before the scoped dev deploy.
+        timestamp: "2026-08-11T19:45:56Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed_after_deploy
-        command: python3 scripts/tests.py run --spec skill-audio-generate-speak.spec.ts --gate-deploy --expected-commit 4f912b39b
-        run_id: gha-playwright-31416749219
-        timestamp: "2026-08-10T18:01:09Z"
-        subject_commit: 4f912b39b
-        target: app.dev.openmates.org
-        summary: Deployed web audio skill spec passed for audio.generate and audio.speak generated-audio app-skill embeds, playable preview/fullscreen states, and no visible binary, key, provider secret, or raw safeguard diagnostics.
+        status: pending_after_contract_revision
+        summary: Previous deployed green evidence predates the async encrypted generated-asset contract and must be replaced for the resumed slice.
 
   - id: T-PW-AUDIO-EXAMPLE-CHATS
     type: playwright
     file: frontend/apps/web_app/tests/example-chats-load.spec.ts
     command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
     target: app.dev.openmates.org
-    covers: [AC-6, AC-7]
+    covers: [AC-6, AC-8]
     assertions:
-      - Public audio.generate and audio.speak example chats are reachable through the static example catalog and crawlable public routes.
+      - Replacement public audio.generate and audio.speak example chats are reachable through the static example catalog and crawlable public routes.
+      - Old public audio example IDs/routes/assets are absent.
       - Rendered public example HTML and chat surfaces omit generated-audio binary data, encryption keys, wrapped keys, private storage markers, and unresolved i18n keys.
     contract_assertions:
       - audio-generate.output.binary-excluded-from-inference
@@ -648,14 +760,36 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed_after_deploy
-        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 81a07512e
-        run_id: gha-playwright-31437889308
-        timestamp: "2026-08-10T22:23:57Z"
-        subject_commit: 81a07512e
-        target: app.dev.openmates.org
-        deployment_reference: Vercel dpl_3qFd54UZ5QP9FNUTRPmKBeGTn2H6 READY for 81a07512e
-        summary: Deployed public example-chat regression passed after the selector fix and public-example contract backfill; the run covered every example SSR page, public-safety markers including generated-audio binary/key fields, catalog discovery, and compressed-history reveal behavior.
+        status: pending_after_contract_revision
+        summary: Previous public example evidence predates the requested regenerated example IDs/assets and must be replaced after implementation.
+
+  - id: T-PW-AUDIO-SETTINGS-USAGE
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    command: python3 scripts/tests.py run --spec example-chat-settings-usage.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-8]
+    assertions:
+      - Replacement public generated-audio examples appear in chat Settings usage/details and Files surfaces.
+      - ZIP export includes the public generated-audio MP3 fixtures and omits old removed audio example fixture paths.
+      - Usage details reflect the current audio.speak default model and duration-based credits.
+    contract_assertions:
+      - audio-generate.output.binary-excluded-from-inference
+      - audio-speak.output.binary-excluded-from-inference
+      - audio-speak.model.high-quality-default
+      - public-example-chats.transcript.safe-rendering
+      - public-example-chats.catalog.discoverable
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        reason: This Playwright spec must run against deployed code; the replacement audio example IDs/assets cannot produce a local red phase before the scoped dev deploy.
+        timestamp: "2026-08-11T19:45:56Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {}
 
 verifications:
   - id: V-REST-CLI-SDK-DEV
@@ -669,11 +803,11 @@ verifications:
   - id: V-LATENCY-PRICING
     kind: manual_check
     phase: green
-    required_for_done: true
+    required_for_done: false
     covers: [AC-7]
-    status: passed
+    status: skipped
     evidence:
-      status: passed
+      status: superseded_by_contract_revision
       command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_0baf.json --api-url https://api.dev.openmates.org
       run_id: elevenlabs-20260809-233535
       timestamp: "2026-08-09T23:36:02Z"
@@ -681,16 +815,16 @@ verifications:
       target: https://api.dev.openmates.org
       manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
       manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
-      summary: Historical live probes completed seven audio.generate SFX samples in 1842-3780ms and Flash/Premium speech samples in 1487-1939ms. Current billing uses result-declared duration credits while retaining the same direct-response latency target.
+      summary: Historical live probes completed seven audio.generate SFX samples and Flash/Premium speech samples. The resumed contract no longer uses direct-response latency as a release gate, so this record remains history only.
 
   - id: V-DISCORD-SAMPLES
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-7]
-    status: passed
+    status: pending
     evidence:
-      status: passed
+      status: pending_after_contract_revision
       command: OPENMATES_LIVE_AUDIO_SAMPLES=1 python3 scripts/generate_audio_sample_artifacts.py --plan-json /tmp/opencode/audio_samples_0baf.json --api-url https://api.dev.openmates.org
       run_id: elevenlabs-20260809-233535
       timestamp: "2026-08-09T23:36:02Z"
@@ -698,16 +832,16 @@ verifications:
       target: https://api.dev.openmates.org
       manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
       manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
-      summary: Generated openmates-sfx-success-chime.mp3, openmates-sfx-gentle-alert.mp3, openmates-assistant-voice-sample-flash.mp3, openmates-assistant-voice-sample-premium.mp3, openmates-sfx-authenticated-ready.mp3, openmates-sfx-message-sent-processing-started.mp3, openmates-sfx-assistant-message-complete.mp3, openmates-sfx-assistant-needs-user-input.mp3, and openmates-sfx-full-plan-completed.mp3; all nine Discord attachment posts returned delivered message and attachment IDs. Manifest stores no API key, webhook URL, audio_base64, or sample prompts.
+      summary: Historical Discord sample evidence predates async generated-asset outputs and the Multilingual v2 default. Regenerate or record an approved blocker before completion.
 
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
     required_for_done: true
-    covers: [AC-6]
-    status: passed
+    covers: [AC-6, AC-8]
+    status: pending
     evidence:
-      status: passed
+      status: pending_after_contract_revision
       command: >-
         python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/#chat-id=example-audio-generate-confirmation-tick --url https://app.dev.openmates.org/#chat-id=example-audio-speak-welcome-message --session 116b --wait-ms 2500 --reviewed-summary "Reviewed laptop and mobile screenshots for both audio example hash routes. Defects: none. Accepted differences: none."
       run_id: test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/summary.json
@@ -723,7 +857,7 @@ verifications:
         - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-laptop.png
         - test-results/visual-smoke/2026-08-10T22-31-29-695647+00-00/app-dev-openmates-org-chat-id-example-audio-speak-welcome-message-mobile.png
       summary: >-
-        Reviewed laptop and mobile screenshots for both audio example hash routes. Defects: none. Accepted differences: none.
+        Previous visual-smoke evidence predates regenerated audio example IDs/assets and must be replaced after implementation.
 
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
@@ -750,14 +884,14 @@ demonstration:
   narration_outline:
     - id: NARR-1
       purpose: Show audio.generate producing a short OpenMates UI sound effect through the verified app-skill surface.
-      expected_proof: Terminal or web evidence shows provider elevenlabs, finished status, playable MP3 metadata, and no leaked binary or key fields.
-      scenario_ids: [S-1, S-7]
-      acceptance_criteria: [AC-1, AC-7]
+      expected_proof: Terminal or web evidence shows provider elevenlabs, processing task dispatch, finished encrypted generated-asset metadata, playable MP3 output, upload_files indexing, and no leaked binary or key fields.
+      scenario_ids: [S-1, S-8]
+      acceptance_criteria: [AC-1, AC-8]
     - id: NARR-2
-      purpose: Show audio.speak accepting a safe assistant-response sample only after GPT OSS safeguard approval.
-      expected_proof: Evidence shows safeguard approved before ElevenLabs TTS, then a playable speech MP3 is produced and posted to Discord.
-      scenario_ids: [S-2, S-7]
-      acceptance_criteria: [AC-2, AC-7]
+      purpose: Show audio.speak accepting a safe assistant-response sample with the default Multilingual v2 model only after GPT OSS safeguard approval.
+      expected_proof: Evidence shows safeguard approved before ElevenLabs TTS, processing task dispatch, default eleven_multilingual_v2 metadata, encrypted generated-asset storage, and playable speech MP3 output.
+      scenario_ids: [S-2, S-8]
+      acceptance_criteria: [AC-2, AC-8]
     - id: NARR-3
       purpose: Show a malicious audio.speak request blocked before provider execution.
       expected_proof: Evidence shows a safe rejection, no speech provider call, and no generation credit charge.
@@ -786,15 +920,16 @@ implementation_plan:
   architecture: >
     Add ElevenLabs as a pure provider wrapper under backend/shared/providers,
     expose audio.generate and audio.speak through the existing audio app metadata
-    and dynamic app-skill REST routes, use existing generated-asset encryption
-    helpers for persisted embed metadata, and gate audio.speak through a minimal
-    GPT OSS safeguard classifier before provider execution or billing.
+    and dynamic app-skill REST routes, dispatch both skills through the existing
+    async app-skill/Celery path, use existing generated-asset encryption helpers
+    plus upload_files indexing for persisted embed metadata, and gate audio.speak
+    through a minimal GPT OSS safeguard classifier before provider execution or billing.
   data_flow:
     - "Authenticated REST/CLI/SDK caller sends audio.generate or audio.speak with provider: elevenlabs."
     - Backend validates request schema and provider availability from app metadata and Vault-backed provider metadata.
     - audio.generate applies deterministic SFX safety checks; audio.speak applies deterministic checks and GPT OSS safeguard approval.
-    - Approved requests call the ElevenLabs provider wrapper and receive MP3 bytes plus normalized metadata.
-    - Successful results are charged once, direct responses include audio_base64 only when allowed, and persisted embeds use encrypted generated-asset metadata.
+    - Approved requests dispatch Celery tasks, then the workers call the ElevenLabs provider wrapper and receive MP3 bytes plus normalized metadata.
+    - Successful results are encrypted into private chatfiles S3, indexed in upload_files, charged once, and delivered through generated-asset metadata/download URLs; new responses do not include inline audio_base64.
     - Web and Apple render generated-audio app-skill outputs with playable controls and safe error states.
   affected_files:
     - path: docs/specs/elevenlabs-audio-skills/spec.yml
@@ -817,6 +952,12 @@ implementation_plan:
       reason: audio.generate skill implementation.
     - path: backend/apps/audio/skills/speak_skill.py
       reason: audio.speak skill implementation.
+    - path: backend/apps/audio/tasks/generate_task.py
+      reason: async audio.generate worker, encrypted generated-asset persistence, and upload_files indexing.
+    - path: backend/apps/audio/tasks/speak_task.py
+      reason: async audio.speak worker, safeguard/provider execution, encrypted generated-asset persistence, and upload_files indexing.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: async app-skill registration for audio.generate/audio.speak.
     - path: backend/tests/test_media_generation_safety.py
       reason: Safety red/green coverage.
     - path: backend/tests/test_rest_api_audio.py
@@ -829,6 +970,8 @@ implementation_plan:
       reason: Generated-audio preview/fullscreen rendering.
     - path: frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
       reason: Deployed web app-skill embed coverage.
+    - path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+      reason: Public audio example usage/details/files/ZIP regression.
     - path: shared/docs/privacy_policy.yml
       reason: ElevenLabs privacy disclosure.
   verification_strategy:
@@ -836,7 +979,7 @@ implementation_plan:
     - python3 scripts/contracts.py check-generated
     - python3 -m pytest backend/tests/test_media_generation_safety.py backend/tests/test_rest_api_audio.py
     - python3 scripts/audit_sdk_cli_parity.py
-    - python3 scripts/sessions.py deploy --session d4bc --title "Add ElevenLabs audio app skills" --message "Add ElevenLabs audio app skills"
+    - python3 scripts/sessions.py deploy --session a983 --title "Use encrypted audio generated assets" --message "Use encrypted audio generated assets"
     - python3 scripts/tests.py run --spec skill-audio-generate-speak.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
     - node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session d4bc
     - python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml
@@ -901,7 +1044,7 @@ tasks:
 
   - id: TASK-3
     title: Implement audio app skills and metadata
-    status: pending
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -910,6 +1053,9 @@ tasks:
       - backend/apps/audio/app.yml
       - backend/apps/audio/skills/generate_skill.py
       - backend/apps/audio/skills/speak_skill.py
+      - backend/apps/audio/tasks/generate_task.py
+      - backend/apps/audio/tasks/speak_task.py
+      - backend/apps/ai/processing/main_processor.py
       - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
       - shared/docs/privacy_policy.yml
     verification_ids: [T-PY-AUDIO-SAFETY, T-PY-REST-AUDIO]
@@ -919,6 +1065,9 @@ tasks:
         - backend/apps/audio/app.yml
         - backend/apps/audio/skills/generate_skill.py
         - backend/apps/audio/skills/speak_skill.py
+        - backend/apps/audio/tasks/generate_task.py
+        - backend/apps/audio/tasks/speak_task.py
+        - backend/apps/ai/processing/main_processor.py
         - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
         - shared/docs/privacy_policy.yml
       shared_files: []
@@ -980,8 +1129,8 @@ tasks:
 
   - id: TASK-6
     title: Generate and post live Discord samples
-    status: done
-    phase: complete
+    status: needs_fix
+    phase: working_tasks
     covers:
       scenarios: [S-7]
       acceptance_criteria: [AC-7]
@@ -989,7 +1138,7 @@ tasks:
       - scripts/generate_audio_sample_artifacts.py
       - scripts/discord_webhook.py
       - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
-    verification_ids: [V-DISCORD-SAMPLES, V-LATENCY-PRICING]
+    verification_ids: [V-DISCORD-SAMPLES]
     dependencies: [TASK-3]
     ownership:
       files:
@@ -1003,15 +1152,15 @@ tasks:
 
   - id: TASK-7
     title: Deploy and complete cross-client verification
-    status: in_progress
+    status: pending
     phase: running_checks
     covers:
-      scenarios: [S-5, S-6]
-      acceptance_criteria: [AC-5, AC-6]
+      scenarios: [S-5, S-6, S-8]
+      acceptance_criteria: [AC-5, AC-6, AC-8]
     expected_files:
       - docs/specs/elevenlabs-audio-skills/spec.yml
-    verification_ids: [T-PW-AUDIO-SKILLS, V-REST-CLI-SDK-DEV, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-PARITY]
-    dependencies: [TASK-4, TASK-5, TASK-6]
+    verification_ids: [T-PW-AUDIO-SKILLS, T-PW-AUDIO-EXAMPLE-CHATS, T-PW-AUDIO-SETTINGS-USAGE, V-REST-CLI-SDK-DEV, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-PARITY]
+    dependencies: [TASK-4, TASK-5, TASK-6, TASK-8]
     ownership:
       files:
         - docs/specs/elevenlabs-audio-skills/spec.yml
@@ -1019,3 +1168,52 @@ tasks:
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
+
+  - id: TASK-8
+    title: Migrate audio skills to async encrypted generated assets and refresh examples
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-5, AC-6, AC-8]
+    expected_files:
+      - backend/apps/audio/app.yml
+      - backend/apps/audio/pricing.py
+      - backend/apps/audio/skills/generate_skill.py
+      - backend/apps/audio/skills/speak_skill.py
+      - backend/apps/audio/tasks/generate_task.py
+      - backend/apps/audio/tasks/speak_task.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/tests/test_rest_api_audio.py
+      - frontend/packages/openmates-cli/src/generated/appSkills.ts
+      - packages/openmates-python/openmates/generated/app_skills.py
+      - frontend/packages/ui/src/components/embeds/audio
+      - frontend/packages/ui/src/demo_chats/data/example_chats
+      - frontend/apps/web_app/static/store-examples
+      - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    verification_ids: [T-PY-REST-AUDIO, T-NODE-SDK-GEN, T-PY-SDK-GEN, T-AUDIT-SDK-CLI, T-PW-AUDIO-SKILLS, T-PW-AUDIO-EXAMPLE-CHATS, T-PW-AUDIO-SETTINGS-USAGE]
+    dependencies: []
+    ownership:
+      files:
+        - backend/apps/audio/app.yml
+        - backend/apps/audio/pricing.py
+        - backend/apps/audio/skills/generate_skill.py
+        - backend/apps/audio/skills/speak_skill.py
+        - backend/apps/audio/tasks/generate_task.py
+        - backend/apps/audio/tasks/speak_task.py
+        - backend/apps/ai/processing/main_processor.py
+        - backend/tests/test_rest_api_audio.py
+        - frontend/packages/openmates-cli/src/generated/appSkills.ts
+        - packages/openmates-python/openmates/generated/app_skills.py
+        - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+        - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/embeds/audio
+        - frontend/packages/ui/src/demo_chats/data/example_chats
+        - frontend/apps/web_app/static/store-examples
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
