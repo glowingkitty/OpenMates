@@ -709,6 +709,21 @@ def test_complete_lease_require_passing_blocks_active_failure_group(tmp_path, mo
     assert completed["completed_commit"] == "def456a"
 
 
+def test_complete_debug_group_requires_member_test_keys(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    store = tests_control.get_store()
+    store.create_debug_campaign({"campaign_key": "campaign", "status": "active"})
+    store.create_debug_group({"group_key": "group-empty", "campaign_key": "campaign", "member_test_keys": []})
+
+    def fail_list_test_results(test_keys=None):
+        raise AssertionError("empty debug groups must fail before test result history lookup")
+
+    monkeypatch.setattr(store, "list_test_results", fail_list_test_results)
+
+    with pytest.raises(RuntimeError, match="no member test keys recorded"):
+        tests_control.complete_debug_group("group-empty", commit="abc123d")
+
+
 def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")

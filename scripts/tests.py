@@ -2264,6 +2264,8 @@ def debug_group_test_keys(campaign_key: str, group_key: str) -> list[str]:
 
 def _passing_evidence_for_group(group: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     members = list(group.get("member_test_keys") or [])
+    if not members:
+        raise RuntimeError(f"Cannot complete debug group {group.get('group_key') or '<unknown>'}; no member test keys recorded")
     red_runs = set((group.get("red_evidence") or {}).get("run_keys") or [])
     passing_by_test: dict[str, dict[str, Any]] = {}
     for result in get_store().list_test_results(members):
