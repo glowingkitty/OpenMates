@@ -77,7 +77,7 @@ def create_opencode_fixture(path: Path) -> None:
                 ROOT_SESSION,
                 1_786_000_000_100,
                 1_786_000_000_100,
-                json.dumps({"type": "text", "text": "Please debug the worktree hook setup."}),
+                json.dumps({"type": "text", "text": "Please debug the worktree hook setup. The old grep output said failed."}),
             ),
             (
                 "part_child_tool",
@@ -108,6 +108,40 @@ def create_opencode_fixture(path: Path) -> None:
                         "filename": "hello.txt",
                         "mime": "text/plain",
                         "url": "data:text/plain;base64,aGVsbG8=",
+                    }
+                ),
+            ),
+            (
+                "part_root_tool_output",
+                "msg_root_user",
+                ROOT_SESSION,
+                1_786_000_000_300,
+                1_786_000_000_300,
+                json.dumps(
+                    {
+                        "type": "tool",
+                        "tool": "grep",
+                        "state": {
+                            "status": "completed",
+                            "output": "Found 80 matches and one failed assertion in broad output",
+                        },
+                    }
+                ),
+            ),
+            (
+                "part_root_tool_artifact",
+                "msg_root_user",
+                ROOT_SESSION,
+                1_786_000_000_400,
+                1_786_000_000_400,
+                json.dumps(
+                    {
+                        "type": "tool",
+                        "tool": "bash",
+                        "state": {
+                            "status": "completed",
+                            "output": "...output truncated... Full output saved to: /tmp/opencode/tool-output/tool_123",
+                        },
                     }
                 ),
             ),
@@ -149,11 +183,28 @@ def test_read_opencode_chat_includes_children_and_issue_signals(tmp_path: Path, 
 
     assert [item["session_id"] for item in view["sessions"]] == [ROOT_SESSION, CHILD_SESSION]
     assert view["repository_sessions"][0]["repository_session_id"] == "abcd"
-    assert view["issue_signals"][0]["kind"] == "tool_error"
-    assert view["issue_signals"][0]["tool"] == "bash"
-    assert "missing worktree mapping" in view["issue_signals"][0]["text"]
+    tool_error = next(item for item in view["issue_signals"] if item["kind"] == "tool_error")
+    assert tool_error["tool"] == "bash"
+    assert "missing worktree mapping" in tool_error["text"]
+    assert {item["kind"] for item in view["issue_signals"]} == {"tool_artifact", "tool_error"}
+    assert view["suppressed_signal_count"] == 2
     assert view["attachments"][0]["part_id"] == "part_root_file"
     assert view["attachments"][0]["extractable"] is True
+
+
+def test_repo_session_id_resolves_to_opencode_chat(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {"sessions": {"abcd": {"opencode_session_id": ROOT_SESSION, "task": "Debug worktree routing"}}},
+    )
+
+    view = sessions.read_opencode_chat("abcd", db_path=database)
+
+    assert view["session_id"] == ROOT_SESSION
+    assert view["resolved_repository_session_id"] == "abcd"
 
 
 def test_search_opencode_chat_filters_to_matching_messages(tmp_path: Path, monkeypatch) -> None:
@@ -167,6 +218,19 @@ def test_search_opencode_chat_filters_to_matching_messages(tmp_path: Path, monke
     assert view["message_count"] == 1
     assert view["messages"][0]["session_id"] == CHILD_SESSION
     assert view["messages"][0]["parts"][0]["matched"] is True
+
+
+def test_all_signal_mode_restores_broad_text_and_tool_signals(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+
+    view = sessions.read_opencode_chat(ROOT_SESSION, signal_mode="all", db_path=database)
+
+    kinds = {item["kind"] for item in view["issue_signals"]}
+    assert "text_signal" in kinds
+    assert "tool_output_signal" in kinds
+    assert view["suppressed_signal_count"] == 0
 
 
 def test_opencode_chat_attachments_extract_data_url(tmp_path: Path, monkeypatch) -> None:
@@ -193,8 +257,26 @@ def test_format_opencode_chat_shows_attachment_extract_hint(tmp_path: Path, monk
     text = sessions._format_opencode_chat_text(view)
 
     assert "Attachments:" in text
+    assert "Actionable signals:" in text
+    assert "Suppressed broad grep/read/text signals: 2" in text
     assert f"chat attachments {ROOT_SESSION}" in text
     assert "part_root_file" in text
+
+
+def test_recent_opencode_chats_include_repo_mapping_and_open_command(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {"sessions": {"abcd": {"opencode_session_id": ROOT_SESSION, "task": "Debug worktree routing"}}},
+    )
+    monkeypatch.setattr(sessions, "_opencode_presence_store", lambda: type("Store", (), {"snapshot": lambda self: {"sessions": {}}})())
+
+    result = sessions.list_recent_opencode_chats(days=30, limit=5, db_path=database)
+
+    assert result["chats"][0]["repository_session_id"] == "abcd"
+    assert result["chats"][0]["inspect_command"] == "python3 scripts/sessions.py chat read abcd"
 
 
 def test_chat_alias_dispatches_to_opencode_chat_reader(monkeypatch, capsys) -> None:
