@@ -55,6 +55,9 @@ PLAYWRIGHT_SOURCE_FIELDS = {
 MAX_REVIEW_INTERVAL_SECONDS = 3.0
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
 END_FRAME_OFFSET_SECONDS = 0.1
+DEFAULT_NARRATION_PROVIDER = "elevenlabs"
+DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
+DEFAULT_NARRATION_VOICE = "warm_neutral"
 REVIEW_VERDICTS = {"supported", "contradicted", "not_visible", "ambiguous", "wrong_time"}
 DEFECT_RETURN_STAGES = {
     "implementation": "implementation",
@@ -66,11 +69,12 @@ DEFECT_RETURN_STAGES = {
 }
 FULL_VIDEO_REVIEW_KEYS = {"video", "video_path", "video_bytes", "video_base64", "video_attachment"}
 SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-REVIEW_REQUEST_FIELDS = {"spec_id", "subject_commit", "captions", "expected_proof", "frames", "video_metadata"}
+REVIEW_REQUEST_FIELDS = {"spec_id", "subject_commit", "captions", "expected_proof", "frames", "video_metadata", "narration_audio"}
 REVIEW_CAPTION_FIELDS = {"id", "narration_id", "text", "start", "end", "claim_ids"}
 REVIEW_PROOF_FIELDS = {"claim_id", "text", "acceptance_criteria", "evidence_intervals"}
 REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
 REVIEW_METADATA_FIELDS = {"duration_seconds", "sha256", "width", "height"}
+NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
 
 
 class DemonstrationError(RuntimeError):
@@ -309,9 +313,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     _write_private(path, header + dialogues)
 
 
-def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_path: Path) -> None:
+def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_path: Path, output_path: Path) -> None:
     """Render a readable timed terminal tutorial with canonical captions."""
-    for path in (captions_path, TERMINAL_FONT):
+    for path in (captions_path, audio_path, TERMINAL_FONT):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     duration_seconds = float(timeline.get("duration_seconds", 0))
@@ -335,6 +339,8 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
             "lavfi",
             "-i",
             f"color=c=#111827:s={TERMINAL_VIDEO_SIZE}:r=30",
+            "-i",
+            str(audio_path),
             "-t",
             str(duration_seconds),
             "-vf",
@@ -343,6 +349,12 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
             "libx264",
             "-pix_fmt",
             "yuv420p",
+            "-af",
+            "apad",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
             "-map_metadata",
             "-1",
             "-map_chapters",
@@ -360,9 +372,9 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
     timeline_path.unlink(missing_ok=True)
 
 
-def render_captioned_video(source_path: Path, captions_path: Path, output_path: Path) -> None:
+def render_captioned_video(source_path: Path, captions_path: Path, audio_path: Path, output_path: Path) -> None:
     """Burn canonical captions into a copy without mutating the raw recording."""
-    for path in (source_path, captions_path):
+    for path in (source_path, captions_path, audio_path):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
@@ -375,14 +387,26 @@ def render_captioned_video(source_path: Path, captions_path: Path, output_path: 
             "-y",
             "-i",
             str(source_path),
+            "-i",
+            str(audio_path),
             "-vf",
             f"subtitles='{captions}'",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
+            "-af",
+            "apad",
             "-c:a",
-            "copy",
+            "aac",
+            "-b:a",
+            "128k",
+            "-t",
+            str(media_duration_seconds(source_path)),
             "-map_metadata",
             "-1",
             "-map_metadata:s",
@@ -528,7 +552,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
             "-v",
             "error",
             "-show_entries",
-            "format=duration:format_tags:stream=width,height,codec_name:stream_tags",
+            "format=duration:format_tags:stream=codec_type,width,height,codec_name:stream_tags",
             "-of",
             "json",
             str(video_path),
@@ -542,6 +566,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(result.stdout)
         stream = next(item for item in payload["streams"] if item.get("width") and item.get("height"))
+        audio_stream = next((item for item in payload["streams"] if item.get("codec_type") == "audio"), None)
         duration = float(payload["format"]["duration"])
     except (KeyError, StopIteration, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise DemonstrationError("ffprobe did not return complete video metadata") from exc
@@ -557,8 +582,74 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
         "width": int(stream["width"]),
         "height": int(stream["height"]),
         "codec": str(stream.get("codec_name") or "unknown"),
+        "has_audio": audio_stream is not None,
+        "audio_codec": str(audio_stream.get("codec_name") or "unknown") if audio_stream else "",
         "sha256": sha256_file(video_path),
         "tags": tags,
+    }
+
+
+def media_duration_seconds(path: Path) -> float:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"ffprobe failed: {result.stderr.strip()[-500:]}")
+    try:
+        return round(float(json.loads(result.stdout)["format"]["duration"]), 3)
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise DemonstrationError("ffprobe did not return complete audio metadata") from exc
+
+
+def _narration_audio_mime_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".mp3":
+        return "audio/mpeg"
+    if suffix in {".m4a", ".mp4"}:
+        return "audio/mp4"
+    if suffix == ".wav":
+        return "audio/wav"
+    if suffix == ".ogg":
+        return "audio/ogg"
+    raise DemonstrationError("Narration audio must be mp3, m4a, wav, or ogg")
+
+
+def prepare_narration_audio(
+    *,
+    run_dir: Path,
+    audio_path: Path,
+    provider: str = DEFAULT_NARRATION_PROVIDER,
+    model: str = DEFAULT_NARRATION_MODEL,
+    voice: str = DEFAULT_NARRATION_VOICE,
+    reused_from: str = "",
+) -> dict[str, Any]:
+    if provider != DEFAULT_NARRATION_PROVIDER:
+        raise DemonstrationError("Narration audio provider must be ElevenLabs")
+    if model != DEFAULT_NARRATION_MODEL:
+        raise DemonstrationError(f"Narration audio must use {DEFAULT_NARRATION_MODEL}")
+    if not voice.strip():
+        raise DemonstrationError("Narration audio requires an ElevenLabs voice")
+    if not audio_path.is_file():
+        raise DemonstrationError(f"Narration audio does not exist: {audio_path}")
+    run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_dir.chmod(0o700)
+    target = run_dir / f"narration-audio{audio_path.suffix.lower()}"
+    if audio_path.resolve() != target.resolve():
+        shutil.copyfile(audio_path, target)
+        target.chmod(0o600)
+    return {
+        "status": "passed",
+        "provider": provider,
+        "model": model,
+        "voice": voice,
+        "path": str(target),
+        "sha256": sha256_file(target),
+        "mime_type": _narration_audio_mime_type(target),
+        "duration_seconds": media_duration_seconds(target),
+        "reused_from": reused_from,
     }
 
 
@@ -632,9 +723,17 @@ def prepare_review_artifacts(
     expected_proof: str,
     acceptance_criteria: list[str],
     source: dict[str, Any],
+    narration_audio: dict[str, Any],
     caption_segments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
+    if not metadata.get("has_audio"):
+        raise DemonstrationError("Rendered demonstration video must contain a narration audio track")
+    if not isinstance(narration_audio, dict) or narration_audio.get("status") != "passed":
+        raise DemonstrationError("Narration audio metadata must be present and passed")
+    missing_audio_fields = NARRATION_AUDIO_FIELDS - set(narration_audio)
+    if missing_audio_fields:
+        raise DemonstrationError(f"Narration audio metadata missing {sorted(missing_audio_fields)[0]}")
     source_metadata = (
         playwright_source_privacy_payload(source)
         if source.get("kind") == "playwright"
@@ -646,6 +745,10 @@ def prepare_review_artifacts(
             "expected_proof": expected_proof,
             "narration_id": narration_id,
             "video_filename": video_path.name,
+            "audio_filename": Path(str(narration_audio.get("path", ""))).name,
+            "audio_provider": str(narration_audio.get("provider", "")),
+            "audio_model": str(narration_audio.get("model", "")),
+            "audio_voice": str(narration_audio.get("voice", "")),
             "source_metadata": source_metadata,
             "acceptance_criteria": json.dumps(acceptance_criteria),
         }
@@ -690,6 +793,7 @@ def prepare_review_artifacts(
             "evidence_intervals": [[0.0, metadata["duration_seconds"]]],
         }
     ]
+    review_audio = {**narration_audio, "path": Path(str(narration_audio["path"])).name}
     request = build_review_request(
         spec_id=spec_id,
         subject_commit=subject_commit,
@@ -697,6 +801,7 @@ def prepare_review_artifacts(
         expected_proof=expected,
         frames=frames,
         video_metadata=metadata,
+        narration_audio=review_audio,
     )
     manifest = {
         "schema_version": 1,
@@ -705,6 +810,7 @@ def prepare_review_artifacts(
         "source": source,
         "video_path": str(video_path),
         "video_metadata": metadata,
+        "narration_audio": narration_audio,
         "captions": captions,
         "expected_proof": expected,
         "privacy": {"status": "passed", "findings": [], "text_scan": text_privacy},
@@ -715,7 +821,7 @@ def prepare_review_artifacts(
             "additional_frame_requests": [],
         },
         "publication": {"status": "pending"},
-        "retained_paths": [str(run_dir / "transcript.txt"), str(run_dir / "captions.srt")],
+        "retained_paths": [str(run_dir / "transcript.txt"), str(run_dir / "captions.srt"), str(narration_audio["path"])],
         "disposable_artifacts": [
             {"path": str(video_path), "kind": "derived_video", "sha256": metadata["sha256"]},
             *[
@@ -746,6 +852,11 @@ def produce_cli_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
+    narration_audio_path: Path,
+    narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
+    narration_audio_model: str = DEFAULT_NARRATION_MODEL,
+    narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
+    narration_audio_reused_from: str = "",
     anonymize_sensitive: bool = False,
 ) -> dict[str, Any]:
     capture = capture_pty(
@@ -786,6 +897,14 @@ def produce_cli_demonstration(
     duration = float(timeline["duration_seconds"])
     captions_path = run_dir / "captions.srt"
     video_path = run_dir / "demo.mp4"
+    narration_audio = prepare_narration_audio(
+        run_dir=run_dir,
+        audio_path=narration_audio_path,
+        provider=narration_audio_provider,
+        model=narration_audio_model,
+        voice=narration_audio_voice,
+        reused_from=narration_audio_reused_from,
+    )
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
@@ -793,7 +912,7 @@ def produce_cli_demonstration(
         narration_id=narration_id,
         first_transition_at=timeline["first_output_at"],
     )
-    render_terminal_video(timeline, captions_path, video_path)
+    render_terminal_video(timeline, captions_path, Path(str(narration_audio["path"])), video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -804,6 +923,7 @@ def produce_cli_demonstration(
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         source={"kind": "cli", **capture},
+        narration_audio=narration_audio,
         caption_segments=caption_segments,
     )
 
@@ -819,6 +939,11 @@ def produce_playwright_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
+    narration_audio_path: Path,
+    narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
+    narration_audio_model: str = DEFAULT_NARRATION_MODEL,
+    narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
+    narration_audio_reused_from: str = "",
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
@@ -839,6 +964,14 @@ def produce_playwright_demonstration(
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
     captions_path = run_dir / "captions.srt"
+    narration_audio = prepare_narration_audio(
+        run_dir=run_dir,
+        audio_path=narration_audio_path,
+        provider=narration_audio_provider,
+        model=narration_audio_model,
+        voice=narration_audio_voice,
+        reused_from=narration_audio_reused_from,
+    )
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
@@ -846,7 +979,7 @@ def produce_playwright_demonstration(
         narration_id=narration_id,
     )
     video_path = run_dir / "demo.mp4"
-    render_captioned_video(source_video, captions_path, video_path)
+    render_captioned_video(source_video, captions_path, Path(str(narration_audio["path"])), video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -857,6 +990,7 @@ def produce_playwright_demonstration(
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         source={"kind": "playwright", **selected},
+        narration_audio=narration_audio,
         caption_segments=caption_segments,
     )
 
@@ -982,6 +1116,27 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
         or not SHA256_RE.fullmatch(metadata["sha256"])
     ):
         raise DemonstrationError("Review request video_metadata contains invalid values")
+    audio = request["narration_audio"]
+    require_fields(audio, NARRATION_AUDIO_FIELDS, "narration_audio")
+    if NARRATION_AUDIO_FIELDS - set(audio):
+        raise DemonstrationError("Review request narration_audio is missing required fields")
+    if (
+        audio.get("status") != "passed"
+        or audio.get("provider") != DEFAULT_NARRATION_PROVIDER
+        or audio.get("model") != DEFAULT_NARRATION_MODEL
+        or not isinstance(audio.get("voice"), str)
+        or not audio["voice"].strip()
+        or not isinstance(audio.get("path"), str)
+        or not audio["path"].strip()
+        or not isinstance(audio.get("sha256"), str)
+        or not SHA256_RE.fullmatch(audio["sha256"])
+        or not isinstance(audio.get("mime_type"), str)
+        or not audio["mime_type"].startswith("audio/")
+        or not finite_number(audio.get("duration_seconds"))
+        or audio["duration_seconds"] <= 0
+        or not isinstance(audio.get("reused_from"), str)
+    ):
+        raise DemonstrationError("Review request narration_audio contains invalid values")
     for item in request.get("captions", []):
         require_fields(item, REVIEW_CAPTION_FIELDS, "captions")
         if REVIEW_CAPTION_FIELDS - set(item):
@@ -1046,6 +1201,7 @@ def build_review_request(
     expected_proof: list[dict[str, Any]],
     frames: list[dict[str, Any]],
     video_metadata: dict[str, Any],
+    narration_audio: dict[str, Any],
 ) -> dict[str, Any]:
     allowed_metadata = {key: video_metadata[key] for key in ("duration_seconds", "sha256", "width", "height") if key in video_metadata}
     request = {
@@ -1055,6 +1211,7 @@ def build_review_request(
         "expected_proof": expected_proof,
         "frames": frames,
         "video_metadata": allowed_metadata,
+        "narration_audio": narration_audio,
     }
     assert_frame_only_review_request(request)
     return request
@@ -1134,13 +1291,16 @@ def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int)
             raise DemonstrationError("Every review verdict requires a claim_id")
         if verdict not in REVIEW_VERDICTS:
             raise DemonstrationError(f"Unsupported review verdict for {claim_id}: {verdict}")
+        observation = claim.get("observation")
+        if not isinstance(observation, str) or not observation.strip():
+            raise DemonstrationError(f"Review claim {claim_id} requires a frame-grounded observation")
+        if "frame" not in observation.lower():
+            raise DemonstrationError(f"Review claim {claim_id} observation must reference reviewed frames")
         if verdict == "supported":
             continue
         defect_class = claim.get("defect_class")
         if defect_class not in DEFECT_RETURN_STAGES:
             raise DemonstrationError(f"Failed claim {claim_id} requires one approved defect_class")
-        if not isinstance(claim.get("observation"), str) or not claim["observation"].strip():
-            raise DemonstrationError(f"Failed claim {claim_id} requires an observation")
         failed_claim_ids.append(claim_id)
         stage = DEFECT_RETURN_STAGES[defect_class]
         if stage not in return_stages:
@@ -1214,6 +1374,10 @@ def publish_reviewed_video(
 ) -> dict[str, Any]:
     if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
         raise DemonstrationError("Discord publication requires passed privacy and demonstration review")
+    if manifest.get("narration_audio", {}).get("status") != "passed":
+        raise DemonstrationError("Discord publication requires passed ElevenLabs narration audio")
+    if manifest.get("video_metadata", {}).get("has_audio") is not True:
+        raise DemonstrationError("Discord publication requires a rendered video with an audio track")
     video_path = Path(str(manifest.get("video_path", "")))
     if not video_path.is_file():
         raise DemonstrationError("Reviewed demonstration video does not exist")
@@ -1472,6 +1636,11 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--caption", required=True)
     cli_parser.add_argument("--expected-proof", required=True)
     cli_parser.add_argument("--acceptance-criterion", action="append", required=True)
+    cli_parser.add_argument("--audio-path", type=Path, required=True)
+    cli_parser.add_argument("--audio-provider", default=DEFAULT_NARRATION_PROVIDER)
+    cli_parser.add_argument("--audio-model", default=DEFAULT_NARRATION_MODEL)
+    cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)
+    cli_parser.add_argument("--audio-reused-from", default="")
     cli_parser.add_argument("--anonymize-sensitive", action="store_true")
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
     review_parser = subparsers.add_parser("record-review")
@@ -1505,6 +1674,11 @@ def main(argv: list[str] | None = None) -> int:
             caption_text=args.caption,
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
+            narration_audio_path=args.audio_path,
+            narration_audio_provider=args.audio_provider,
+            narration_audio_model=args.audio_model,
+            narration_audio_voice=args.audio_voice,
+            narration_audio_reused_from=args.audio_reused_from,
             anonymize_sensitive=args.anonymize_sensitive,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))

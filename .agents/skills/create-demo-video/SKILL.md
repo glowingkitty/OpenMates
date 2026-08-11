@@ -15,11 +15,14 @@ temporary uploads.
 
 - Start or reuse a `sessions.py` session before producing artifacts.
 - Use a real dev CLI command or a passing deployed Playwright test result.
+- Generate ElevenLabs `eleven_flash_v2_5` narration audio before rendering and pass it with `--audio-path`; every final proof video must have that audio track and burned-in captions.
+- Reuse the same narration transcript and audio across viewport recordings unless the narration must change.
+- Keep web/spec/example-chat proof as separate phone and laptop videos, Apple proof as separate iPhone portrait and iPad landscape videos, and CLI proof as one terminal video.
 - Never narrate a failed, skipped, timed-out, mocked, or fixture-only result as a successful feature.
 - Use controlled dev/test accounts and do not intentionally capture production data, secrets, unrelated chats, or personal account content.
 - The canonical scanner checks commands, transcripts, captions, metadata, filenames, and publication text. Frame OCR is intentionally not part of this workflow.
 - Keep the full video out of model context. Review the bounded frame bundle only.
-- Publish only after every claim receives a supported frame-review verdict.
+- Publish only after every claim receives a supported frame-review verdict with a frame-grounded observation.
 - Confirm Discord delivery before deleting generated video and frame files. Retain sanitized transcripts, captions, manifests, review evidence, and publication status.
 
 ## Narration
@@ -33,6 +36,10 @@ Write three to five tutorial-style sentences that:
 
 Narration must help the reviewer detect mismatches. Do not use generic captions
 such as "the feature works" or claims not visible in the recording.
+
+Generate the narration audio with the cheap/fast ElevenLabs model used by the
+audio app (`eleven_flash_v2_5`, default voice `warm_neutral`) and retain the
+audio file so the same file can be reused for each viewport-specific render.
 
 ## CLI Source
 
@@ -48,6 +55,8 @@ python3 scripts/sessions.py proof-video produce \
   --subject-commit <commit> \
   --run-id <run-id> \
   --target-environment https://api.dev.openmates.org \
+  --audio-path <elevenlabs-narration.mp3> \
+  --audio-model eleven_flash_v2_5 \
   --caption "<tutorial narration>" \
   --expected-proof "<visible success contract>" \
   --acceptance-criterion <AC-ID> \
@@ -86,6 +95,8 @@ python3 scripts/sessions.py proof-video produce-playwright \
   --target-environment https://app.dev.openmates.org \
   --deployment-reference <deployment-id> \
   --test-account-provenance "<controlled account description>" \
+  --audio-path <elevenlabs-narration.mp3> \
+  --audio-model eleven_flash_v2_5 \
   --caption "<tutorial narration>" \
   --expected-proof "<visible success contract>" \
   --acceptance-criterion <AC-ID>
@@ -104,7 +115,7 @@ python3 scripts/sessions.py proof-video review \
   --claims-json '[{"claim_id":"CLAIM-1","verdict":"supported","observation":"<frame-grounded observation>"}]'
 ```
 
-Fix composition, timing, narration, recording, or implementation defects and
+Fix composition, timing, narration, audio, recording, or implementation defects and
 repeat review when needed. Obvious product/rendering defects in reviewed frames
 must auto-trigger product work rather than an accepted difference: add or
 strengthen a failing test, fix the code or web app, deploy, rerun the real source
@@ -120,5 +131,7 @@ python3 scripts/sessions.py proof-video publish \
   --run-dir <run-dir>
 ```
 
-Report the source run, subject commit, duration, review result, Discord delivery
-status, retained evidence path, tests, and any accepted differences.
+When `DISCORD_WEBHOOK_DEV_SMOKE` is configured, confirmed Discord delivery is a
+hard completion gate. Report the source run, subject commit, duration, audio
+model, review result, Discord delivery status, retained evidence path, tests, and
+any accepted differences.

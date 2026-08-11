@@ -7,6 +7,8 @@ Security: no credentials, network calls, or product data are involved.
 Tests: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -186,7 +188,9 @@ def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
     assert {
         "narration outline",
         "frame-only review",
-        "Discord publication",
+        "proof-video",
+        "ElevenLabs",
+        "Discord delivery",
     }.issubset(audit.PLAN_PROMPT_TERMS)
 
 
@@ -195,8 +199,8 @@ def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
     expected = {
         ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
         ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
-        ".claude/skills/tasks-from-spec/SKILL.md": {"demonstration review", "Discord publication"},
-        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "configured Discord publication", "ElevenLabs"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending", "ElevenLabs", "configured Discord delivery"},
     }
 
     for path, terms in expected.items():
@@ -207,7 +211,9 @@ def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms()
     audit = load_audit_module()
 
     assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "ElevenLabs" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
     assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+    assert "proof-video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
 
 
 def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms():

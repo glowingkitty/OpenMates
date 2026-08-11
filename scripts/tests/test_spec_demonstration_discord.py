@@ -6,6 +6,8 @@ Privacy: webhook URLs, response bodies, media, and identifiers are synthetic.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -51,16 +53,30 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     video = run_dir / "demo.mp4"
     transcript = run_dir / "transcript.txt"
     caption = run_dir / "captions.srt"
+    audio = run_dir / "narration-audio.mp3"
     frame = frames / "frame-001.png"
     video.write_bytes(b"synthetic-video")
     transcript.write_text("sanitized transcript", encoding="utf-8")
     caption.write_text("sanitized captions", encoding="utf-8")
+    audio.write_bytes(b"synthetic-audio")
     frame.write_bytes(b"synthetic-frame")
     manifest = {
         "spec_id": "example",
         "subject_commit": "abc1234",
         "video_path": str(video),
-        "retained_paths": [str(transcript), str(caption)],
+        "video_metadata": {"has_audio": True},
+        "narration_audio": {
+            "status": "passed",
+            "provider": "elevenlabs",
+            "model": "eleven_flash_v2_5",
+            "voice": "warm_neutral",
+            "path": str(audio),
+            "sha256": f"sha256:{hashlib.sha256(audio.read_bytes()).hexdigest()}",
+            "mime_type": "audio/mpeg",
+            "duration_seconds": 1.0,
+            "reused_from": "",
+        },
+        "retained_paths": [str(transcript), str(caption), str(audio)],
         "disposable_artifacts": [
             {"path": str(video), "kind": "derived_video", "sha256": f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"},
             {"path": str(frame), "kind": "review_frame", "sha256": f"sha256:{hashlib.sha256(frame.read_bytes()).hexdigest()}"},

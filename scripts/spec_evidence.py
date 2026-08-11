@@ -106,10 +106,16 @@ def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: ar
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Could not read demonstration manifest: {exc}") from exc
     privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+    audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
-    if payload["status"] == "passed" and (privacy.get("status") != "passed" or review.get("status") != "passed"):
-        raise RuntimeError("Passing demonstration evidence requires passed manifest privacy and review states")
+    if payload["status"] == "passed" and (
+        privacy.get("status") != "passed"
+        or audio.get("status") != "passed"
+        or review.get("status") != "passed"
+        or publication.get("status") != "delivered"
+    ):
+        raise RuntimeError("Passing demonstration evidence requires passed privacy, audio, review, and Discord delivery states")
     manifest_commit = manifest.get("subject_commit")
     if manifest_commit != payload["subject_commit"]:
         raise RuntimeError("Demonstration manifest subject commit does not match recorded evidence")
@@ -120,6 +126,7 @@ def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: ar
             "manifest_path": display_path(manifest_path),
             "manifest_hash": manifest_hash,
             "privacy_status": privacy.get("status", "pending"),
+            "audio_status": audio.get("status", "pending"),
             "review_status": review.get("status", "pending"),
             "review_run_id": review.get("run_id", ""),
             "review_attempts": review.get("attempt_count", 0),

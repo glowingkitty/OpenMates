@@ -43,7 +43,9 @@ PLAN_PROMPT_TERMS = {
     "handoff",
     "narration outline",
     "frame-only review",
-    "Discord publication",
+    "proof-video",
+    "ElevenLabs",
+    "Discord delivery",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
     ("*", "deny"),
@@ -80,8 +82,9 @@ SKILL_TERMS = {
         "--viewport laptop --viewport mobile",
         "ownership",
         "handoff",
-        "demonstration review",
-        "Discord publication",
+        "frame-only review",
+        "configured Discord publication",
+        "ElevenLabs",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "Continue On Failure",
@@ -94,18 +97,20 @@ SKILL_TERMS = {
         "material",
         "frame-only",
         "publication_pending",
+        "ElevenLabs",
+        "configured Discord delivery",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "ElevenLabs", "Discord delivery", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "ElevenLabs", "publication_pending"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",
@@ -149,7 +154,7 @@ def audit_config(config: dict[str, Any]) -> list[str]:
         failures.append("agent.plan.mode must be primary")
 
     prompt = plan_agent.get("prompt", "")
-    documented_plan_terms = {"narration outline", "frame-only review", "Discord publication"}
+    documented_plan_terms = {"narration outline", "frame-only review", "proof-video", "ElevenLabs", "Discord delivery"}
     instruction_text = "\n".join(
         (REPO_ROOT / path).read_text(encoding="utf-8")
         for path in instructions

@@ -6,6 +6,8 @@ Privacy: fixtures contain synthetic frame paths and no media or user data.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_review.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -19,6 +21,21 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "spec_demo.py"
 VIDEO_HASH = "sha256:" + "a" * 64
 FRAME_HASH = "sha256:" + "b" * 64
+AUDIO_HASH = "sha256:" + "c" * 64
+
+
+def narration_audio() -> dict[str, object]:
+    return {
+        "status": "passed",
+        "provider": "elevenlabs",
+        "model": "eleven_flash_v2_5",
+        "voice": "warm_neutral",
+        "path": "narration-audio.mp3",
+        "sha256": AUDIO_HASH,
+        "mime_type": "audio/mpeg",
+        "duration_seconds": 3.0,
+        "reused_from": "",
+    }
 
 
 def load_module():
@@ -63,6 +80,7 @@ def test_review_request_contains_frames_and_captions_but_no_video() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "The result is visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[1.0, 2.0]]}],
         frames=[{"timestamp": 1.0, "path": "frames/frame-001.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 3.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
 
     assert request["frames"][0]["path"].endswith(".png")
@@ -91,6 +109,7 @@ def test_review_request_rejects_unknown_payload_fields() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     request["recording_attachment"] = "demo.mp4"
 
@@ -114,6 +133,7 @@ def test_review_request_rejects_ambiguous_frame_timestamps() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     request["frames"][0]["timestamp"] = "invalid"
 
@@ -142,6 +162,7 @@ def test_review_request_rejects_malformed_allowlisted_values(section: str, field
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     target = request[section][0] if isinstance(request[section], list) else request[section]
     target[field] = value
@@ -186,7 +207,7 @@ def test_failed_claims_map_to_one_responsible_stage(
                 "claim_id": "CLAIM-1",
                 "verdict": "contradicted",
                 "defect_class": defect_class,
-                "observation": "Synthetic mismatch.",
+                "observation": "Synthetic mismatch is visible in frame 0001.",
             }
         ],
         prior_attempts=0,
@@ -208,6 +229,16 @@ def test_supported_claims_pass_without_return_stage() -> None:
     assert result["status"] == "passed"
     assert result["return_stages"] == []
     assert result["invalidate_implementation_evidence"] is False
+
+
+def test_supported_claims_require_frame_grounded_observation() -> None:
+    module = load_module()
+
+    with pytest.raises(module.DemonstrationError, match="reviewed frames"):
+        module.evaluate_review_claims(
+            [{"claim_id": "CLAIM-1", "verdict": "supported", "observation": "Looks good."}],
+            prior_attempts=0,
+        )
 
 
 def test_record_review_requires_exactly_one_verdict_for_every_expected_claim(tmp_path: Path) -> None:
@@ -233,7 +264,7 @@ def test_fourth_unresolved_review_requires_user_input() -> None:
                 "claim_id": "CLAIM-1",
                 "verdict": "ambiguous",
                 "defect_class": "recording",
-                "observation": "The relevant state is not readable.",
+                "observation": "The relevant state is not readable in frame 0003.",
             }
         ],
         prior_attempts=3,

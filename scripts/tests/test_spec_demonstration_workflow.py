@@ -6,6 +6,8 @@ Privacy: fixtures contain synthetic paths, hashes, and identifiers only.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -52,6 +54,7 @@ def required_demonstration(*, evidence: str | None = None) -> str:
     manifest_path: ""
     manifest_hash: ""
     privacy_status: pending
+    audio_status: pending
     review_status: pending
     review_run_id: ""
     review_attempts: 0
@@ -89,7 +92,8 @@ def passed_evidence(**overrides: object) -> str:
         "review_run_id": "review-1",
         "review_attempts": 1,
         "timestamp": "2026-08-06T00:00:00Z",
-        "publication_status": "publication_pending",
+        "audio_status": "passed",
+        "publication_status": "delivered",
     }
     values.update(overrides)
     return """  evidence:
@@ -98,6 +102,7 @@ def passed_evidence(**overrides: object) -> str:
     manifest_path: {manifest_path}
     manifest_hash: {manifest_hash}
     privacy_status: {privacy_status}
+    audio_status: {audio_status}
     review_status: {review_status}
     review_run_id: {review_run_id}
     review_attempts: {review_attempts}
@@ -113,8 +118,10 @@ def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") ->
             {
                 "subject_commit": subject_commit,
                 "privacy": {"status": "passed"},
+                "narration_audio": {"status": "passed", "provider": "elevenlabs", "model": "eleven_flash_v2_5"},
+                "video_metadata": {"has_audio": True},
                 "review": {"status": "passed", "run_id": "review-1", "attempt_count": 1},
-                "publication": {"status": "publication_pending"},
+                "publication": {"status": "delivered"},
             }
         ),
         encoding="utf-8",
@@ -193,7 +200,7 @@ def test_verifier_rejects_missing_required_demonstration_evidence(tmp_path: Path
     assert any("demonstration" in failure and "passing" in failure for failure in failures)
 
 
-def test_verifier_accepts_current_review_with_pending_discord_publication(tmp_path: Path) -> None:
+def test_verifier_accepts_current_review_with_delivered_discord_publication(tmp_path: Path) -> None:
     spec_verify = load_module("spec_verify")
     manifest_path, manifest_hash = write_passed_manifest(tmp_path)
     path = write_spec(
@@ -207,6 +214,36 @@ def test_verifier_accepts_current_review_with_pending_discord_publication(tmp_pa
     )
 
     assert spec_verify.verify_spec(path, require_red=False, require_green=True) == []
+
+
+def test_verifier_rejects_pending_discord_publication(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    manifest_path, manifest_hash = write_passed_manifest(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["publication"] = {"status": "publication_pending"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manifest_without_publication = dict(manifest)
+    manifest_without_publication.pop("publication")
+    manifest_hash = "sha256:" + hashlib.sha256(
+        json.dumps(manifest_without_publication, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    path = write_spec(
+        tmp_path,
+        with_demonstration(
+            schema_v2_spec(),
+            required_demonstration(
+                evidence=passed_evidence(
+                    manifest_path=manifest_path,
+                    manifest_hash=manifest_hash,
+                    publication_status="publication_pending",
+                )
+            ),
+        ),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("Discord delivery" in failure for failure in failures)
 
 
 def test_verifier_rejects_stale_demonstration_evidence(tmp_path: Path) -> None:
@@ -287,7 +324,7 @@ def test_verifier_rejects_fabricated_or_changed_demonstration_manifest(tmp_path:
     assert any("manifest hash" in failure for failure in failures)
 
 
-def test_verifier_ignores_non_gating_publication_state_changes(tmp_path: Path) -> None:
+def test_verifier_rejects_recorded_publication_status_that_differs_from_manifest(tmp_path: Path) -> None:
     spec_verify = load_module("spec_verify")
     manifest_path, manifest_hash = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -309,7 +346,8 @@ def test_verifier_ignores_non_gating_publication_state_changes(tmp_path: Path) -
 
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
-    assert not any("manifest hash" in failure or "publication_status" in failure for failure in failures)
+    assert not any("manifest hash" in failure for failure in failures)
+    assert any("publication_status" in failure or "Discord delivery" in failure for failure in failures)
 
 
 def test_demonstration_recorder_derives_evidence_from_manifest(tmp_path: Path) -> None:
@@ -325,4 +363,5 @@ def test_demonstration_recorder_derives_evidence_from_manifest(tmp_path: Path) -
     )
 
     assert data["demonstration"]["evidence"]["manifest_hash"] == manifest_hash
+    assert data["demonstration"]["evidence"]["audio_status"] == "passed"
     assert data["demonstration"]["evidence"]["review_run_id"] == "review-1"

@@ -64,6 +64,7 @@ VALID_DEMONSTRATION_SURFACES = {"visual", "cli", "native", "mixed", "non_visual"
 VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked"}
 VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked"}
 VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_AUDIO_STATUSES = {"pending", "passed", "failed", "blocked"}
 VALID_DEMONSTRATION_PUBLICATION_STATUSES = {
     "pending",
     "not_configured",
@@ -432,6 +433,14 @@ def _validate_demonstration(
         raise SpecError(
             "demonstration.evidence.privacy_status must be one of "
             + ", ".join(sorted(VALID_DEMONSTRATION_PRIVACY_STATUSES))
+        )
+    audio_status = evidence.get("audio_status", "pending")
+    if not isinstance(audio_status, str) or not audio_status.strip():
+        raise SpecError("demonstration.evidence.audio_status must be a string")
+    if audio_status not in VALID_DEMONSTRATION_AUDIO_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.audio_status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_AUDIO_STATUSES))
         )
     review_status = _require_string(evidence, "demonstration.evidence.review_status")
     if review_status not in VALID_DEMONSTRATION_REVIEW_STATUSES:

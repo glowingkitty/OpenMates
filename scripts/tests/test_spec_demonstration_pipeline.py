@@ -6,6 +6,8 @@ Privacy: all commands, frames, secrets, and account identifiers are synthetic.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_pipeline.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -29,6 +31,37 @@ def load_module():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def write_synthetic_audio(path: Path, *, duration: float = 1.0) -> Path:
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"sine=frequency=440:duration={duration}",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return path
+
+
+def synthetic_audio_metadata(path: Path) -> dict[str, object]:
+    return {
+        "status": "passed",
+        "provider": "elevenlabs",
+        "model": "eleven_flash_v2_5",
+        "voice": "warm_neutral",
+        "path": str(path),
+        "sha256": "sha256:" + "a" * 64,
+        "mime_type": "audio/wav",
+        "duration_seconds": 1.0,
+        "reused_from": "",
+    }
 
 
 def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Path) -> None:
@@ -162,8 +195,9 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     output = tmp_path / "demo.mp4"
+    audio = write_synthetic_audio(tmp_path / "narration.wav")
 
-    module.render_terminal_video(timeline, captions, output)
+    module.render_terminal_video(timeline, captions, audio, output)
 
     assert output.is_file() and output.stat().st_size > 0
     probe = subprocess.run(
@@ -175,6 +209,7 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     assert float(json.loads(probe.stdout)["format"]["duration"]) >= 1.0
     metadata = module.video_metadata(output)
     assert (metadata["width"], metadata["height"]) == (1280, 720)
+    assert metadata["has_audio"] is True
     end_frame = module.extract_frame(
         output,
         timestamp_seconds=module.video_metadata(output)["duration_seconds"],
@@ -313,6 +348,7 @@ def test_cli_anonymization_failure_removes_raw_capture(
             caption_text="Safe caption.",
             expected_proof="Safe output is visible.",
             acceptance_criteria=["AC-1"],
+            narration_audio_path=tmp_path / "narration.wav",
             anonymize_sensitive=True,
         )
 
@@ -363,6 +399,7 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
     source = tmp_path / "source.mp4"
     captions = tmp_path / "captions.srt"
     output = tmp_path / "output.mp4"
+    audio = write_synthetic_audio(tmp_path / "narration.wav")
     captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
     subprocess.run(
         [
@@ -374,9 +411,10 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
     )
 
     assert module.video_metadata(source)["tags"]["comment"] == "private synthetic metadata"
-    module.render_captioned_video(source, captions, output)
+    module.render_captioned_video(source, captions, audio, output)
 
     assert "comment" not in module.video_metadata(output)["tags"]
+    assert module.video_metadata(output)["has_audio"] is True
 
 
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:
@@ -401,6 +439,11 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
     observed = {}
     monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
 
     def prepare(**kwargs):
         observed.update(kwargs)
@@ -421,6 +464,7 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
         caption_text="Safe caption.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
+        narration_audio_path=tmp_path / "narration.wav",
     )
 
     assert result["status"] == "review_ready"
@@ -436,6 +480,11 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
     observed: dict[str, object] = {}
     monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
 
     def prepare(**kwargs: object) -> dict[str, str]:
         observed.update(kwargs)
@@ -455,6 +504,7 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
         caption_text="Safe caption.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
+        narration_audio_path=tmp_path / "narration.wav",
         anonymize_sensitive=True,
     )
 

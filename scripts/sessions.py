@@ -206,6 +206,16 @@ VISUAL_SMOKE_REQUIRED_VIEWPORTS = {"laptop", "mobile"}
 VISUAL_SMOKE_REVIEW_RE = re.compile(r"\bscreenshot\w*\b.*\breview\w*\b|\breview\w*\b.*\bscreenshot\w*\b", re.IGNORECASE | re.DOTALL)
 VISUAL_SMOKE_DEFECTS_RE = re.compile(r"\b(defects?|issues?|findings?)\s*:", re.IGNORECASE)
 VISUAL_SMOKE_ACCEPTED_DIFF_RE = re.compile(r"\baccepted differences?\s*:", re.IGNORECASE)
+PROOF_VIDEO_PRODUCT_PATH_RE = re.compile(
+    r"^(frontend/(apps/web_app/src|packages/ui/src|packages/openmates-cli/src)/|backend/(apps|core|shared)/|packages/openmates-python/openmates/|apple/)",
+)
+PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
+    r"^(frontend/packages/ui/src/(data/web-app-example-chats\.json|demo_chats/data/example_chats/|i18n/sources/example_chats/)|frontend/apps/web_app/tests/.*example-chat.*\.spec\.ts$)",
+    re.IGNORECASE,
+)
+PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
+PROOF_VIDEO_DELIVERY_ENV = "DISCORD_WEBHOOK_DEV_SMOKE"
+PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
 APPLE_CONTEXT_KEYWORDS = (
     "apple",
     "ios",
@@ -6959,6 +6969,7 @@ def cmd_end(args: argparse.Namespace) -> None:
             modified,
             skip_reason=getattr(args, "skip_visual_smoke_reason", None),
         )
+        _enforce_proof_video_end_gate(sid, session, modified)
 
     worktree_backed = isinstance(session.get("worktree"), dict)
     if worktree_backed:
@@ -7083,7 +7094,8 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
     )
 
     data = _load_sessions()
-    if args.session not in data.get("sessions", {}):
+    session = data.get("sessions", {}).get(args.session)
+    if session is None:
         raise DemonstrationError(f"Session {args.session} not found")
     if args.proof_action == "produce":
         command_argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
@@ -7105,9 +7117,18 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             caption_text=args.caption,
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
+            narration_audio_path=args.audio_path,
+            narration_audio_provider=args.audio_provider,
+            narration_audio_model=args.audio_model,
+            narration_audio_voice=args.audio_voice,
+            narration_audio_reused_from=args.audio_reused_from,
             anonymize_sensitive=True,
         )
+        record = _upsert_proof_video_record(session, run_dir, result)
+        _save_sessions(data)
         print(json.dumps({"status": "review_ready", "run_dir": str(run_dir), "privacy": result["privacy"]}, sort_keys=True))
+        if record.get("problems"):
+            print(json.dumps({"proof_video_pending": record["problems"]}, sort_keys=True))
         return
     if args.proof_action == "produce-playwright":
         if args.source_status != "passed":
@@ -7135,8 +7156,17 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             caption_text=args.caption,
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
+            narration_audio_path=args.audio_path,
+            narration_audio_provider=args.audio_provider,
+            narration_audio_model=args.audio_model,
+            narration_audio_voice=args.audio_voice,
+            narration_audio_reused_from=args.audio_reused_from,
         )
+        record = _upsert_proof_video_record(session, run_dir, result)
+        _save_sessions(data)
         print(json.dumps({"status": "review_ready", "run_dir": str(run_dir), "privacy": result["privacy"]}, sort_keys=True))
+        if record.get("problems"):
+            print(json.dumps({"proof_video_pending": record["problems"]}, sort_keys=True))
         return
     run_dir = args.run_dir
     if args.proof_action == "review":
@@ -7144,6 +7174,8 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         if not isinstance(claims, list):
             raise DemonstrationError("--claims-json must contain a JSON array")
         result = record_review(run_dir, claims)
+        _upsert_proof_video_record(session, run_dir, result)
+        _save_sessions(data)
         print(json.dumps({"status": result["review"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
         return
     env = {**_load_env_pairs(ENV_FILE), **os.environ}
@@ -7157,6 +7189,8 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         webhook_url=webhook,
         now=datetime.now(timezone.utc),
     )
+    _upsert_proof_video_record(session, run_dir, result)
+    _save_sessions(data)
     print(json.dumps({"status": result["publication"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
 
 
@@ -8694,6 +8728,162 @@ def _record_visual_smoke_skip(session: dict, reason: str, commit_sha: str | None
     )
 
 
+def _proof_video_delivery_required() -> bool:
+    env = {**_load_env_pairs(ENV_FILE), **os.environ}
+    return bool(str(env.get(PROOF_VIDEO_DELIVERY_ENV, "")).strip())
+
+
+def _proof_video_runtime_files(files: list[str]) -> list[str]:
+    return [
+        f
+        for f in files
+        if PROOF_VIDEO_PRODUCT_PATH_RE.search(f)
+        and "/tests/" not in f
+        and "/__tests__/" not in f
+        and not f.endswith((".test.ts", ".spec.ts", ".md"))
+    ]
+
+
+def _requires_proof_video(session: dict, files: list[str]) -> bool:
+    if not files:
+        return False
+    if any(PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE.search(f) for f in files):
+        return True
+    mode = str(session.get("mode") or "").strip().lower()
+    if mode == "feature" and _proof_video_runtime_files(files):
+        return True
+    if mode == "testing" and any(PROOF_VIDEO_E2E_PATH_RE.search(f) for f in files):
+        return True
+    return False
+
+
+def _proof_video_manifest_problems(manifest: dict, *, delivery_required: bool) -> list[str]:
+    problems: list[str] = []
+    if manifest.get("privacy", {}).get("status") != "passed":
+        problems.append("privacy review has not passed")
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    if review.get("status") != "passed":
+        problems.append("frame review has not passed")
+    if not isinstance(review.get("attempt_count"), int) or review.get("attempt_count", 0) < 1:
+        problems.append("missing review attempt count")
+    audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
+    if audio.get("status") != "passed":
+        problems.append("ElevenLabs narration audio has not passed")
+    if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
+        problems.append("narration audio must use ElevenLabs eleven_flash_v2_5")
+    if not str(audio.get("path") or "").strip() or not str(audio.get("sha256") or "").startswith("sha256:"):
+        problems.append("narration audio provenance is incomplete")
+    if manifest.get("video_metadata", {}).get("has_audio") is not True:
+        problems.append("rendered video has no audio track")
+    captions = manifest.get("captions")
+    if not isinstance(captions, list) or not captions:
+        problems.append("caption evidence is missing")
+    publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+    if delivery_required and publication.get("status") != "delivered":
+        problems.append("Discord delivery has not completed")
+    return problems
+
+
+def _proof_video_record_problems(record: dict, expected_commit: str | None) -> list[str]:
+    problems: list[str] = []
+    if record.get("status") not in PROOF_VIDEO_PASS_STATUSES:
+        problems.append("record is not passed")
+    if not _commit_matches(str(record.get("subject_commit") or ""), expected_commit):
+        problems.append("subject commit does not match")
+    manifest_value = str(record.get("manifest_path") or "").strip()
+    if not manifest_value:
+        problems.append("missing manifest_path")
+        return problems
+    manifest_path = Path(manifest_value)
+    if not manifest_path.is_absolute():
+        manifest_path = PROJECT_ROOT / manifest_path
+    if not manifest_path.is_file():
+        problems.append("manifest_path does not exist")
+        return problems
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        problems.append(f"could not parse manifest: {exc}")
+        return problems
+    problems.extend(_proof_video_manifest_problems(manifest, delivery_required=_proof_video_delivery_required()))
+    return problems
+
+
+def _latest_proof_video_record(session: dict, expected_commit: str | None = None) -> dict | None:
+    records = session.get("proof_videos")
+    if not isinstance(records, list):
+        return None
+    for record in reversed(records):
+        if isinstance(record, dict) and not _proof_video_record_problems(record, expected_commit):
+            return record
+    return None
+
+
+def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
+    publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+    audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
+    delivery_required = _proof_video_delivery_required()
+    manifest_problems = _proof_video_manifest_problems(manifest, delivery_required=delivery_required)
+    return {
+        "status": "passed" if not manifest_problems else "pending",
+        "proof_id": manifest.get("spec_id", "session-proof"),
+        "run_dir": str(run_dir),
+        "manifest_path": str(run_dir / "manifest.json"),
+        "subject_commit": str(manifest.get("subject_commit") or ""),
+        "privacy_status": privacy.get("status", "pending"),
+        "review_status": review.get("status", "pending"),
+        "review_run_id": review.get("run_id", ""),
+        "review_attempts": review.get("attempt_count", 0),
+        "audio_status": audio.get("status", "pending"),
+        "audio_provider": audio.get("provider", ""),
+        "audio_model": audio.get("model", ""),
+        "publication_status": publication.get("status", "pending"),
+        "delivery_required": delivery_required,
+        "problems": manifest_problems,
+        "timestamp": _now_iso(),
+    }
+
+
+def _upsert_proof_video_record(session: dict, run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    record = _proof_video_manifest_record(run_dir, manifest)
+    records = session.setdefault("proof_videos", [])
+    if not isinstance(records, list):
+        session["proof_videos"] = records = []
+    run_dir_text = str(run_dir)
+    for index, existing in enumerate(records):
+        if isinstance(existing, dict) and existing.get("run_dir") == run_dir_text:
+            records[index] = record
+            return record
+    records.append(record)
+    return record
+
+
+def _enforce_proof_video_end_gate(
+    sid: str,
+    session: dict,
+    files: list[str],
+    *,
+    commit_sha: str | None = None,
+) -> None:
+    if not _requires_proof_video(session, files):
+        return
+    expected_commit = commit_sha or _current_head()
+    if _latest_proof_video_record(session, expected_commit):
+        print("Proof video gate: PASSED")
+        return
+    delivery_hint = " and published to Discord" if _proof_video_delivery_required() else ""
+    print("PROOF VIDEO REQUIRED — session cannot be ended yet.", file=sys.stderr)
+    print("This session changed a product feature, example chat, or actively-debugged E2E proof surface.", file=sys.stderr)
+    print(f"Create a narrated proof video with burned-in captions, ElevenLabs audio, frame review{delivery_hint}:", file=sys.stderr)
+    print(f"  python3 scripts/sessions.py proof-video produce --session {sid} --audio-path <elevenlabs-audio.mp3> --caption \"...\" --expected-proof \"...\" --acceptance-criterion AC-1 -- <command>", file=sys.stderr)
+    print(f"  python3 scripts/sessions.py proof-video review --session {sid} --run-dir <run-dir> --claims-json '[{{\"claim_id\":\"CLAIM-1\",\"verdict\":\"supported\",\"observation\":\"Visible in frame 0001.\"}}]'", file=sys.stderr)
+    if _proof_video_delivery_required():
+        print(f"  python3 scripts/sessions.py proof-video publish --session {sid} --run-dir <run-dir>", file=sys.stderr)
+    sys.exit(1)
+
+
 def _enforce_visual_smoke_end_gate(
     sid: str,
     session: dict,
@@ -9409,6 +9599,7 @@ def _deploy_native_worktree(
             skip_reason=getattr(args, "skip_visual_smoke_reason", None),
             commit_sha=commit_hash_full,
         )
+        _enforce_proof_video_end_gate(sid, latest_session, to_commit, commit_sha=commit_hash_full)
         try:
             finalize_session_worktree(sid, target_ref=commit_hash_full)
         except RuntimeError as exc:
@@ -9747,6 +9938,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                     latest_session,
                     modified or _get_unpushed_files(),
                     skip_reason=getattr(args, "skip_visual_smoke_reason", None),
+                    commit_sha=commit_hash_full,
+                )
+                _enforce_proof_video_end_gate(
+                    sid,
+                    latest_session,
+                    modified or _get_unpushed_files(),
                     commit_sha=commit_hash_full,
                 )
                 try:
@@ -10092,6 +10289,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             skip_reason=getattr(args, "skip_visual_smoke_reason", None),
             commit_sha=commit_hash_full,
         )
+        _enforce_proof_video_end_gate(sid, latest_session, to_commit, commit_sha=commit_hash_full)
         try:
             finalize_session_worktree(sid, target_ref=commit_hash_full)
         except RuntimeError as exc:
@@ -12646,6 +12844,11 @@ def main() -> None:
     p_proof_produce.add_argument("--caption", required=True)
     p_proof_produce.add_argument("--expected-proof", required=True)
     p_proof_produce.add_argument("--acceptance-criterion", action="append", required=True)
+    p_proof_produce.add_argument("--audio-path", type=Path, required=True, help="ElevenLabs narration audio file")
+    p_proof_produce.add_argument("--audio-provider", default="elevenlabs")
+    p_proof_produce.add_argument("--audio-model", default="eleven_flash_v2_5")
+    p_proof_produce.add_argument("--audio-voice", default="warm_neutral")
+    p_proof_produce.add_argument("--audio-reused-from", default="")
     p_proof_produce.add_argument("argv", nargs=argparse.REMAINDER)
     p_proof_playwright = proof_actions.add_parser(
         "produce-playwright",
@@ -12666,6 +12869,11 @@ def main() -> None:
     p_proof_playwright.add_argument("--caption", required=True)
     p_proof_playwright.add_argument("--expected-proof", required=True)
     p_proof_playwright.add_argument("--acceptance-criterion", action="append", required=True)
+    p_proof_playwright.add_argument("--audio-path", type=Path, required=True, help="ElevenLabs narration audio file")
+    p_proof_playwright.add_argument("--audio-provider", default="elevenlabs")
+    p_proof_playwright.add_argument("--audio-model", default="eleven_flash_v2_5")
+    p_proof_playwright.add_argument("--audio-voice", default="warm_neutral")
+    p_proof_playwright.add_argument("--audio-reused-from", default="")
     p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
     p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_review.add_argument("--run-dir", type=Path, required=True)

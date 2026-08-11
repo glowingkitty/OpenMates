@@ -205,8 +205,12 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
         failures.append("demonstration: missing required passing evidence")
     if evidence.get("privacy_status") != "passed":
         failures.append("demonstration: privacy review has not passed")
+    if evidence.get("audio_status") != "passed":
+        failures.append("demonstration: ElevenLabs narration audio has not passed")
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
+    if evidence.get("publication_status") != "delivered":
+        failures.append("demonstration: Discord delivery has not completed")
 
     review_attempts = evidence.get("review_attempts")
     if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):
@@ -239,12 +243,20 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
                     failures.append("demonstration: manifest hash does not match the recorded artifact")
                 privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
                 review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+                audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
+                publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+                if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
+                    failures.append("demonstration: narration audio must use ElevenLabs eleven_flash_v2_5")
+                if manifest.get("video_metadata", {}).get("has_audio") is not True:
+                    failures.append("demonstration: rendered video is missing an audio track")
                 expected = {
                     "subject_commit": manifest.get("subject_commit"),
                     "privacy_status": privacy.get("status"),
+                    "audio_status": audio.get("status"),
                     "review_status": review.get("status"),
                     "review_run_id": review.get("run_id"),
                     "review_attempts": review.get("attempt_count"),
+                    "publication_status": publication.get("status"),
                 }
                 for field, value in expected.items():
                     if field == "subject_commit":
