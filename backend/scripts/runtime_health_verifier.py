@@ -235,13 +235,29 @@ async def _check_billing_mode() -> None:
         raise RuntimeError("billing_mode_disabled")
 
 
-async def _check_stripe_account_read() -> None:
-    import stripe
+async def _initialized_secrets_manager():
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
+    secrets_manager = SecretsManager()
+    if not await secrets_manager.initialize():
+        raise RuntimeError("vault_unavailable")
+    return secrets_manager
+
+
+def _environment_secret_key(environment: Optional[str], suffix: str) -> str:
+    env = "production" if environment == "production" else "sandbox"
+    return f"{env}_{suffix}"
+
+
+async def _check_stripe_account_read() -> None:
+    import stripe
+
     environment = resolve_runtime_deployment_mode().environment
-    secret_key = "production_secret_key" if environment == "production" else "sandbox_secret_key"
-    api_key = await SecretsManager().get_secret("kv/data/providers/stripe", secret_key)
+    secrets_manager = await _initialized_secrets_manager()
+    api_key = await secrets_manager.get_secret(
+        "kv/data/providers/stripe",
+        _environment_secret_key(environment, "secret_key"),
+    )
     if not api_key:
         raise RuntimeError("stripe_credential_missing")
 
@@ -271,7 +287,14 @@ async def _check_billing_workers() -> None:
 
 
 async def _check_billing_webhook() -> None:
-    if not any(os.getenv(key) for key in ("STRIPE_WEBHOOK_SECRET", "SECRET__STRIPE__WEBHOOK_SECRET")):
+    environment = resolve_runtime_deployment_mode().environment
+    secrets_manager = await _initialized_secrets_manager()
+    webhook_secret = await secrets_manager.get_secret(
+        "kv/data/providers/stripe",
+        _environment_secret_key(environment, "webhook_secret"),
+        log_missing=False,
+    )
+    if not webhook_secret:
         raise RuntimeError("billing_webhook_unconfigured")
 
 

@@ -11,6 +11,8 @@ Spec: docs/specs/post-update-runtime-health-alerting/spec.yml.
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
+import sys
 
 import pytest
 
@@ -20,6 +22,8 @@ from backend.scripts.runtime_health_verifier import (
     CELERY_PROBE_RESULT_TIMEOUT_SECONDS,
     GLOBAL_DEADLINE_SECONDS,
     CheckDefinition,
+    _check_billing_webhook,
+    _check_stripe_account_read,
     build_check_inventory,
     execute_checks,
 )
@@ -144,3 +148,63 @@ def test_verifier_source_has_no_paid_provider_path() -> None:
 
     assert source is not None
     assert all(marker not in source for marker in forbidden)
+
+
+@pytest.mark.asyncio
+async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+    from backend.core.api.app.utils import secrets_manager as secrets_module
+
+    calls: list[object] = []
+    fake_stripe = SimpleNamespace(api_key=None)
+
+    class FakeAccount:
+        @staticmethod
+        def retrieve() -> None:
+            calls.append(("retrieve", fake_stripe.api_key))
+
+    fake_stripe.Account = FakeAccount
+
+    class FakeSecretsManager:
+        async def initialize(self) -> bool:
+            calls.append("initialize")
+            return True
+
+        async def get_secret(self, secret_path: str, secret_key: str, log_missing: bool = True) -> str:
+            calls.append((secret_path, secret_key, log_missing))
+            return "sk_test_runtime_health"
+
+    monkeypatch.setitem(sys.modules, "stripe", fake_stripe)
+    monkeypatch.setattr(secrets_module, "SecretsManager", FakeSecretsManager)
+    monkeypatch.setattr(verifier, "resolve_runtime_deployment_mode", lambda: SimpleNamespace(environment="production"))
+
+    await _check_stripe_account_read()
+
+    assert "initialize" in calls
+    assert ("kv/data/providers/stripe", "production_secret_key", True) in calls
+    assert ("retrieve", "sk_test_runtime_health") in calls
+
+
+@pytest.mark.asyncio
+async def test_billing_webhook_uses_environment_specific_vault_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+    from backend.core.api.app.utils import secrets_manager as secrets_module
+
+    calls: list[object] = []
+
+    class FakeSecretsManager:
+        async def initialize(self) -> bool:
+            calls.append("initialize")
+            return True
+
+        async def get_secret(self, secret_path: str, secret_key: str, log_missing: bool = True) -> str:
+            calls.append((secret_path, secret_key, log_missing))
+            return "whsec_test_runtime_health"
+
+    monkeypatch.setattr(secrets_module, "SecretsManager", FakeSecretsManager)
+    monkeypatch.setattr(verifier, "resolve_runtime_deployment_mode", lambda: SimpleNamespace(environment="production"))
+
+    await _check_billing_webhook()
+
+    assert "initialize" in calls
+    assert ("kv/data/providers/stripe", "production_webhook_secret", False) in calls
