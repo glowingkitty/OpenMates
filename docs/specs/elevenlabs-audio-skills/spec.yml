@@ -156,7 +156,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+  subject_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
 
 approvals:
   product_contract:
@@ -251,14 +251,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-11T21:26:18Z"
     evidence: test-results/visual-smoke/2026-08-11T21-25-48-344170+00-00/summary.json
+  - id: ATTEMPT-10
+    task_id: TASK-7
+    approach: Deploy the mobile audio.speak proof-source check, rerun example-chats-load.spec.ts against the exact deployed commit, and publish a reviewed phone/mobile proof video to Discord.
+    outcome: succeeded
+    recorded_at: "2026-08-11T22:24:44Z"
+    evidence: test-results/proof-videos/f6c1/audio-example-generated-assets-phone/manifest.json
 
 handoff:
   current_task_id: TASK-7
-  next_action: Resolve the installed CLI package live-execution blocker, collect user confirmation, complete proof-video evidence, then run Apple parity or record an explicit waiver before closing the spec.
+  next_action: Resolve the installed CLI package live-execution blocker, collect user confirmation, then run Apple parity or record an explicit waiver before closing the spec.
   command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml --phase complete
-  expected_outcome: Spec remains active until CLI, user confirmation, proof-video, and Apple parity gates are passed, waived, or explicitly blocked.
+  expected_outcome: Spec remains active until CLI, user confirmation, and Apple parity gates are passed, waived, or explicitly blocked.
   blocker: null
-  last_verified_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+  last_verified_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
 
 scenarios:
   - id: S-1
@@ -787,13 +793,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed_after_deploy
-        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit e4a49b2
-        run_id: gha-playwright-31536486701
-        subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
-        deployment_reference: https://github.com/glowingkitty/OpenMates/actions/runs/31536486701
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
+        run_id: gha-playwright-31541393278
+        subject_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
+        deployment_reference: https://github.com/glowingkitty/OpenMates/actions/runs/31541393278
         target: app.dev.openmates.org
-        timestamp: "2026-08-11T21:11:59Z"
-        summary: Deployed public example-chat coverage passed for refreshed audio example IDs/routes and safe rendered transcript surfaces; run head d751c3ab7 includes the audio generated-asset implementation commit e4a49b2b4.
+        timestamp: "2026-08-11T22:15:38Z"
+        summary: Deployed public example-chat coverage passed for refreshed audio example IDs/routes, safe rendered transcript surfaces, and the mobile audio.speak preview/fullscreen playback proof-source check.
 
   - id: T-PW-AUDIO-SETTINGS-USAGE
     type: playwright
@@ -953,24 +959,28 @@ demonstration:
       scenario_ids: [S-3]
       acceptance_criteria: [AC-3]
   evidence:
-    status: blocked
+    status: passed
     privacy_status: passed
     audio_status: passed
     review_status: passed
     publication_status: delivered
     review_attempts: 1
-    subject_commit: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
-    manifest_path: test-results/proof-videos/7550/audio-example-generated-assets-laptop/manifest.json
-    manifest_hash: sha256:a41b659fc843aecae857ba9bad3a5f01fd658da56aeb116cbddea3662fd99000
-    review_run_id: review-audio-example-generated-assets-laptop
-    timestamp: "2026-08-11T21:52:51Z"
-    blocked_reason: Separate phone/mobile proof video is still required before the demonstration gate can be marked passed.
+    subject_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
+    manifest_path: test-results/proof-videos/f6c1/audio-example-generated-assets-phone/manifest.json
+    manifest_hash: sha256:2188661afd5115ddf851fa1ab103fb722b5f67fe4455069d6ef92dd5627310c6
+    review_run_id: review-audio-example-generated-assets-phone
+    timestamp: "2026-08-11T22:24:44Z"
     delivered_proofs:
       - proof_id: audio-example-generated-assets-laptop
         source: example-chats-load.spec.ts
         source_run_id: gha-playwright-31536486701-audio-example
         target: https://app.dev.openmates.org
         discord_message_id: "1536854946266349690"
+      - proof_id: audio-example-generated-assets-phone
+        source: example-chats-load.spec.ts
+        source_run_id: gha-playwright-31541393278-mobile-audio-speak
+        target: https://app.dev.openmates.org
+        discord_message_id: "1536862968518672475"
 
 implementation_plan:
   spec_path: docs/specs/elevenlabs-audio-skills/spec.yml
@@ -1232,7 +1242,7 @@ tasks:
       shared_files: []
     blockers:
       - Native installed CLI live execution remains blocked by package/hook state.
-      - User confirmation, proof-video evidence, and Apple parity are still pending.
+      - User confirmation and Apple parity are still pending.
     follow_up_tasks: []
     independently_deployable: true
 
