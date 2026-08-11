@@ -326,17 +326,72 @@ class DirectusTestControlStore(InMemoryTestControlStore):
     def _mint_local_dev_token(self) -> str | None:
         if os.getenv("OPENMATES_DISABLE_DOCKER_DIRECTUS_TOKEN") == "1":
             return None
+        if not os.getenv("CMS_URL"):
+            token = self._mint_cms_admin_token_from_container("cms")
+            if token:
+                return token
+            for container_name in self._running_compose_containers("cms"):
+                token = self._mint_cms_admin_token_from_container(container_name)
+                if token:
+                    return token
+        token = self._mint_local_dev_token_from_container("api")
+        if token:
+            return token
+        for container_name in self._running_compose_containers("api"):
+            token = self._mint_local_dev_token_from_container(container_name)
+            if token:
+                return token
+        return None
+
+    def _running_compose_containers(self, service_name: str) -> list[str]:
+        command = [
+            "docker",
+            "ps",
+            "--filter",
+            f"label=com.docker.compose.service={service_name}",
+            "--format",
+            "{{.Names}}",
+        ]
+        try:
+            result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            return []
+        return [name for name in result.stdout.splitlines() if name and name != service_name]
+
+    def _mint_cms_admin_token_from_container(self, container_name: str) -> str | None:
         command = [
             "docker",
             "exec",
-            "api",
+            container_name,
+            "node",
+            "-e",
+            (
+                "fetch('http://127.0.0.1:8055/auth/login',{method:'POST',"
+                "headers:{'Content-Type':'application/json'},"
+                "body:JSON.stringify({email:process.env.ADMIN_EMAIL,password:process.env.ADMIN_PASSWORD})})"
+                ".then(r=>r.json()).then(j=>process.stdout.write(j?.data?.access_token||''))"
+                ".catch(()=>process.exit(0))"
+            ),
+        ]
+        try:
+            result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        token = result.stdout.strip()
+        return token or None
+
+    def _mint_local_dev_token_from_container(self, container_name: str) -> str | None:
+        command = [
+            "docker",
+            "exec",
+            container_name,
             "python3",
             "-c",
             (
                 "import json, os, urllib.request;"
                 "base=os.getenv('CMS_URL','http://cms:8055').rstrip('/');"
-                "email=os.getenv('DATABASE_ADMIN_EMAIL');"
-                "password=os.getenv('DATABASE_ADMIN_PASSWORD');"
+                "email=os.getenv('DIRECTUS_ADMIN_EMAIL') or os.getenv('DATABASE_ADMIN_EMAIL');"
+                "password=os.getenv('DIRECTUS_ADMIN_PASSWORD') or os.getenv('DATABASE_ADMIN_PASSWORD');"
                 "assert email and password;"
                 "body=json.dumps({'email': email, 'password': password}).encode();"
                 "req=urllib.request.Request(base + '/auth/login', data=body, "

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """
 Regression tests for host-side Directus auth used by scripts/tests.py.
 
@@ -37,6 +38,10 @@ def test_directus_store_mints_local_dev_token_when_env_token_missing(monkeypatch
     monkeypatch.delenv("CMS_URL", raising=False)
 
     def fake_run(command, check, capture_output, text, timeout):
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         assert command[:3] == ["docker", "exec", "api"]
         return subprocess.CompletedProcess(command, 0, stdout="short-lived-token\n", stderr="")
 
@@ -46,6 +51,64 @@ def test_directus_store_mints_local_dev_token_when_env_token_missing(monkeypatch
 
     assert store.base_url == "http://127.0.0.1:8055"
     assert store.token == "short-lived-token"
+
+
+def test_directus_store_mints_local_cms_admin_token_when_available(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.delenv("DIRECTUS_TOKEN", raising=False)
+    monkeypatch.delenv("CMS_URL", raising=False)
+
+    calls = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append(command)
+        if command[:3] == ["docker", "exec", "cms"]:
+            assert "ADMIN_EMAIL" in command[-1]
+            assert "ADMIN_PASSWORD" in command[-1]
+            return subprocess.CompletedProcess(command, 0, stdout="cms-admin-token\n", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+
+    store = tests_control.DirectusTestControlStore()
+
+    assert store.base_url == "http://127.0.0.1:8055"
+    assert store.token == "cms-admin-token"
+    assert calls[0][:5] == ["docker", "exec", "cms", "node", "-e"]
+    assert "auth/login" in calls[0][-1]
+
+
+def test_directus_store_falls_back_to_running_compose_api_container(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.delenv("DIRECTUS_TOKEN", raising=False)
+    monkeypatch.delenv("CMS_URL", raising=False)
+
+    calls = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append(command)
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"] and "label=com.docker.compose.service=cms" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:3] == ["docker", "exec", "api"]:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="container api is not running")
+        if command[:2] == ["docker", "ps"] and "label=com.docker.compose.service=api" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="opendates-api-1\n", stderr="")
+        if command[:3] == ["docker", "exec", "opendates-api-1"]:
+            assert "DIRECTUS_ADMIN_EMAIL" in command[-1]
+            assert "DATABASE_ADMIN_EMAIL" in command[-1]
+            return subprocess.CompletedProcess(command, 0, stdout="fallback-token\n", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+
+    store = tests_control.DirectusTestControlStore()
+
+    assert store.token == "fallback-token"
+    assert calls[2][:3] == ["docker", "exec", "api"]
+    assert calls[3][:2] == ["docker", "ps"]
+    assert calls[4][:3] == ["docker", "exec", "opendates-api-1"]
 
 
 def test_directus_request_refreshes_token_once_after_unauthorized(monkeypatch):
@@ -98,6 +161,10 @@ def test_command_run_invokes_runner_without_env_directus_token(monkeypatch, tmp_
     runner_calls = []
 
     def fake_run(command, check=False, capture_output=False, text=False, timeout=None, cwd=None, env=None):
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         if command[:3] == ["docker", "exec", "api"]:
             return subprocess.CompletedProcess(command, 0, stdout="short-lived-token\n", stderr="")
         runner_calls.append(command)
