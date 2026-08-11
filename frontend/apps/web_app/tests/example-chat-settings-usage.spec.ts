@@ -85,4 +85,28 @@ test.describe('Example chat settings usage', () => {
 			await expect(rows.nth(1)).toContainText(exampleCase.audioCredits);
 		}
 	});
+
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,public-example-chats.surface.semantic-parity
+	test('example chat cost label deep links to usage details', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		const exampleChatId = 'example-audio-speak-friendly-welcome-message';
+
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+		const costLink = page.getByTestId('generated-by-cost').first();
+		await expect(costLink).toContainText(/28\s*credits/i, { timeout: 10000 });
+		await costLink.click();
+
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}/usage`, {
+			timeout: 10000
+		});
+		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/28\s*credits/i);
+		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
+	});
 });

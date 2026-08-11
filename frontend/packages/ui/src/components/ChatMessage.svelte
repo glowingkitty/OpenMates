@@ -50,6 +50,7 @@
   import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
+  import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -1503,6 +1504,20 @@
       settingsDeepLink.set(`ai/model/${modelMeta.id}`);
       panelState.openSettings();
     }
+  }
+
+  function handleGeneratedByCostClick() {
+    if (!currentChatId || exampleResponseCredits === null) return;
+
+    const detailsEvent = new CustomEvent('openmates-open-chat-details', {
+      cancelable: true,
+      detail: { chatId: currentChatId, tab: 'usage' },
+    });
+    window.dispatchEvent(detailsEvent);
+    if (detailsEvent.defaultPrevented) return;
+
+    settingsDeepLink.set(chatSettingsRouteFor(currentChatId, 'usage'));
+    panelState.openSettings();
   }
 
   /**
@@ -3485,9 +3500,9 @@
       <div class="generated-by-container">
         <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         {#if exampleResponseCredits !== null}
-          <span class="generated-by-cost" data-testid="generated-by-cost">
+          <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
-          </span>
+          </button>
         {/if}
         <button 
           class="report-bad-answer-btn" 
@@ -4193,9 +4208,17 @@
   }
 
   .generated-by-cost {
+    all: unset;
     color: var(--color-grey-60);
+    cursor: pointer;
     font-size: var(--font-size-small);
     white-space: nowrap;
+  }
+
+  .generated-by-cost:hover,
+  .generated-by-cost:focus-visible {
+    color: var(--color-primary);
+    text-decoration: underline;
   }
 
   .generated-by-container {
