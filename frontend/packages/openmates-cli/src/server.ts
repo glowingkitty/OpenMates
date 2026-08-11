@@ -31,6 +31,7 @@ import {
   type CoreProfile,
   type ServerRole,
   type ServerDeploymentMode,
+  OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
   appendSelectedServices,
   defaultOpenMatesCloudComposeFile,
   defaultOpenMatesCloudOverlayPath,
@@ -84,6 +85,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
   upload: join("upload", "docker-compose.yml"),
   preview: join("preview", "docker-compose.preview.yml"),
 };
+const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
@@ -353,6 +355,13 @@ function getServerDeploymentMode(flags: Record<string, string | boolean>, config
   return normalizeServerDeploymentMode(config?.deploymentMode);
 }
 
+function getInstallDeploymentMode(installPath: string, config: ServerConfig | null): ServerDeploymentMode {
+  const env = readEnvMap(installPath);
+  if (env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true") return "official_cloud";
+  if (env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false") return "self_host";
+  return normalizeServerDeploymentMode(config?.deploymentMode);
+}
+
 function getOpenMatesCloudOverlayPath(flags: Record<string, string | boolean>, config: ServerConfig | null): string | undefined {
   const explicit = flags["openmatescloud-path"] ?? flags["openmates-cloud-path"];
   if (explicit === true) throw new Error("Provide an OpenMatesCloud path: --openmatescloud-path <dir>.");
@@ -452,13 +461,10 @@ export function composeArgs(
   installMode: NonNullable<ServerConfig["installMode"]> = getInstallMode(installPath),
   role: ServerRole = "core",
 ): string[] {
-  const env = readEnvMap(installPath);
   const config = loadConfigForInstallPath(installPath);
-  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true"
-    ? "official_cloud"
-    : env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false"
-      ? "self_host"
-      : normalizeServerDeploymentMode(config?.deploymentMode);
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
+  ensureOfficialCloudNoWebappComposeFile(installPath, deploymentMode, role);
+  const env = readEnvMap(installPath);
   const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || config?.openMatesCloudOverlayPath || undefined;
   const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
   const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
@@ -634,8 +640,40 @@ function packagedTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", ROLE_TEMPLATE_FILES[role]);
 }
 
+function packagedNoWebappTemplatePath(): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", CORE_NO_WEBAPP_TEMPLATE_FILE);
+}
+
 function packagedCaddyTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "caddy", role, "Caddyfile");
+}
+
+function readOfficialCloudNoWebappComposeTemplate(): string {
+  const packaged = packagedNoWebappTemplatePath();
+  if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
+  return [
+    "# backend/core/docker-compose.no-webapp.yml",
+    "#",
+    "# Keeps official OpenMatesCloud core runtimes backend-only while regular",
+    "# self-host installs continue to start the webapp from the base compose file.",
+    "",
+    "services:",
+    "  webapp:",
+    "    profiles: [\"webapp\"]",
+    "",
+  ].join("\n");
+}
+
+function ensureOfficialCloudNoWebappComposeFile(
+  installPath: string,
+  deploymentMode: ServerDeploymentMode,
+  role: ServerRole,
+): void {
+  if (deploymentMode !== "official_cloud" || role !== "core") return;
+  const filePath = join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE);
+  if (existsSync(filePath)) return;
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, readOfficialCloudNoWebappComposeTemplate());
 }
 
 function fileHash(path: string): string | null {
@@ -666,6 +704,9 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
   writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  if (role === "core") {
+    writeFileSync(join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE), readOfficialCloudNoWebappComposeTemplate());
+  }
   if (role === "core") {
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
@@ -1568,6 +1609,7 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const installMode = getInstallMode(installPath, config);
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
   const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
   const args = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
   if (hasServiceFilter(flags)) {
@@ -1594,8 +1636,12 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
     printJson({ command: "start", status: "success", path: installPath });
   } else {
     console.log("\nServer started.");
-    console.log("Web app: http://localhost:5173");
     console.log("API:     http://localhost:8000");
+    if (deploymentMode === "official_cloud") {
+      console.log("Web app: deployed separately for official cloud");
+    } else {
+      console.log("Web app: http://localhost:5173");
+    }
     if (withOverrides) {
       console.log("Directus CMS: http://localhost:8055");
       console.log("Grafana:      http://localhost:3000");
@@ -2096,6 +2142,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
   const filterRequested = hasServiceFilter(flags);
   const selectedServices = filterRequested ? selectedComposeServices(role, flags) : [];
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
@@ -2219,7 +2266,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     try {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
-        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+        checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
       });
       const runtimeOutput = runRuntimeVerification(installPath, role, config);
       await persistRuntimeResult(installPath, role, runtimeOutput);
@@ -2294,14 +2341,14 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         path: installPath,
         mode: "source",
         selectedServices: filterRequested ? selectedServices : "all",
-        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+        checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
       });
     } else {
       console.log("Update plan:");
       console.log("  Mode:          source");
       console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
-      console.log(`  Web health:    ${shouldCheckWebHealth({ role, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
+      console.log(`  Web health:    ${shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
       console.log("  Commands:      git pull --ff-only, docker compose build, docker compose up -d, health checks");
     }
     return;
@@ -2351,7 +2398,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  const checkWebApp = shouldCheckWebHealth({ role, selectedServices, filterRequested });
+  const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
   let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
   try {

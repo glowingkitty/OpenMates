@@ -77,6 +77,7 @@ import {
   planRuntimeVerification,
   resolveRuntimeDeploymentMode,
   shouldAutoInstallRuntimeMonitoringServices,
+  OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
@@ -485,7 +486,7 @@ describe("composeArgs", () => {
     rmSync(emptyDir, { recursive: true, force: true });
   });
 
-  it("appends the OpenMatesCloud compose file when env enables official-cloud mode", () => {
+  it("appends the OpenMatesCloud compose file and no-webapp override when env enables official-cloud mode", () => {
     const rootDir = join(tmpdir(), `openmates-official-cloud-${Date.now()}`);
     const installPath = join(rootDir, "OpenMates");
     const overlayPath = join(rootDir, "OpenMatesCloud");
@@ -502,6 +503,7 @@ describe("composeArgs", () => {
       "compose", "--env-file", ".env",
       "-f", join("backend", "core", "docker-compose.yml"),
       "-f", overlayComposeFile,
+      "-f", OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
     ]);
     rmSync(rootDir, { recursive: true, force: true });
   });
@@ -510,7 +512,8 @@ describe("composeArgs", () => {
     const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
     const composeSource = source.slice(source.indexOf("export function composeArgs"), source.indexOf("/** Ensure compose interpolation"));
 
-    assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
+    assert.match(composeSource, /getInstallDeploymentMode/);
+    assert.match(composeSource, /ensureOfficialCloudNoWebappComposeFile/);
     assert.match(composeSource, /planDockerComposeArgs/);
   });
 
@@ -587,7 +590,7 @@ describe("OpenMatesCloud overlay planning", () => {
     assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), baseArgs);
   });
 
-  it("resolves sibling official-cloud overlay and appends its compose file", () => {
+  it("resolves sibling official-cloud overlay and disables the bundled webapp", () => {
     const plan = planOpenMatesCloudOverlay({
       deploymentMode: "official_cloud",
       openMatesPath,
@@ -597,7 +600,10 @@ describe("OpenMatesCloud overlay planning", () => {
 
     assert.equal(plan.enabled, true);
     assert.equal(plan.overlayPath, siblingOverlayPath);
-    assert.deepEqual(plan.composeFiles, [join(siblingOverlayPath, "docker-compose.openmatescloud.yml")]);
+    assert.deepEqual(plan.composeFiles, [
+      join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
+    ]);
     assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "true");
     assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_PATH, siblingOverlayPath);
     assert.match(plan.modeLabel, /official cloud overlay/);
@@ -605,6 +611,8 @@ describe("OpenMatesCloud overlay planning", () => {
       ...baseArgs,
       "-f",
       join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      "-f",
+      OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
     ]);
   });
 
@@ -620,6 +628,21 @@ describe("OpenMatesCloud overlay planning", () => {
       "compose", "--env-file", ".env",
       "-f", join("backend", "core", "docker-compose.yml"),
       "-f", join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      "-f", OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
+    ]);
+  });
+
+  it("keeps regular self-host Docker compose args on the base core stack", () => {
+    const args = planDockerComposeArgs({
+      openMatesPath,
+      installMode: "image",
+      deploymentMode: "self_host",
+      overlayExists: false,
+    });
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
     ]);
   });
 
@@ -758,6 +781,7 @@ describe("role-based server planning", () => {
     assert.ok(upArgs.includes("api"));
     assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: services, filterRequested: true }), false);
     assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: ["api", "webapp"], filterRequested: true }), true);
+    assert.equal(shouldCheckWebHealth({ role: "core", deploymentMode: "official_cloud", filterRequested: false }), false);
     assert.equal(shouldCheckWebHealth({ role: "core", filterRequested: false }), true);
     assert.equal(shouldCheckWebHealth({ role: "upload", filterRequested: false }), false);
   });

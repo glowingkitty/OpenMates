@@ -1,0 +1,8 @@
+# backend/core/docker-compose.no-webapp.yml
+#
+# Keeps official OpenMatesCloud core runtimes backend-only while regular
+# self-host installs continue to start the webapp from the base compose file.
+
+services:
+  webapp:
+    profiles: ["webapp"]

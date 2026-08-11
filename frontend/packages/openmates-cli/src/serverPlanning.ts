@@ -189,6 +189,7 @@ const CORE_WORKER_SERVICES = [
 ];
 const OPENMATESCLOUD_OVERLAY_DIR = "OpenMatesCloud";
 const OPENMATESCLOUD_COMPOSE_FILE = "docker-compose.openmatescloud.yml";
+export const OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE = "backend/core/docker-compose.no-webapp.yml";
 const SOURCE_COMPOSE_FILES: Record<ServerRole, string> = {
   core: "backend/core/docker-compose.yml",
   upload: "backend/upload/docker-compose.yml",
@@ -427,7 +428,7 @@ export function planOpenMatesCloudOverlay(input: OpenMatesCloudOverlayInput): Op
     deploymentMode,
     enabled: true,
     overlayPath,
-    composeFiles: [overlayComposeFile],
+    composeFiles: [overlayComposeFile, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE],
     env: {
       OPENMATES_CLOUD_OVERLAY_ENABLED: "true",
       OPENMATES_CLOUD_OVERLAY_PATH: overlayPath,
@@ -512,11 +513,13 @@ export function appendSelectedServices(args: string[], selectedServices: string[
 
 export function shouldCheckWebHealth(input: {
   role?: ServerRole | string;
+  deploymentMode?: ServerDeploymentMode;
   selectedServices?: string[];
   filterRequested?: boolean;
 }): boolean {
   const role = parseServerRole(input.role);
   if (role !== "core") return false;
+  if (input.deploymentMode === "official_cloud") return false;
   return input.filterRequested !== true || (input.selectedServices ?? []).includes("webapp");
 }
 

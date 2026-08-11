@@ -81,8 +81,12 @@ For OpenMatesCloud official-cloud overlay work, clone or update the private
 checkout as needed, but enable and restart the runtime through the CLI by setting
 `OPENMATES_DEPLOYMENT_MODE`, `OPENMATES_CLOUD_OVERLAY_ENABLED`,
 `OPENMATES_CLOUD_OVERLAY_PACKAGE`, and `OPENMATES_CLOUD_OVERLAY_PATH` with
-`openmates server env set`, then use `openmates server start` or
-`openmates server restart` with scoped `--services`.
+`openmates server env set`. Regular self-hosting intentionally starts the
+bundled `webapp`; official-cloud mode must stay backend-only because the web app
+is deployed separately. In official-cloud mode the CLI should compose the
+OpenMatesCloud overlay plus `backend/core/docker-compose.no-webapp.yml`; if a
+planned command would start `webapp`, stop and fix the CLI/overlay plan before
+mutating prod.
 
 ### 4. Run non-runtime diagnostic commands freely
 
