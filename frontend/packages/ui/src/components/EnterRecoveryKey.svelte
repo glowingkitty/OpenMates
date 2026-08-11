@@ -14,6 +14,30 @@
 
     const dispatch = createEventDispatcher();
 
+    type RecoveryKeyLoginUser = {
+        encrypted_key?: string;
+        salt?: string;
+        key_iv?: string;
+        username?: string;
+        profile_image_url?: string | null;
+        credits?: number;
+        is_admin?: boolean;
+        last_opened?: string;
+        tfa_app_name?: string | null;
+        tfa_enabled?: boolean;
+        consent_privacy_and_apps_default_settings?: boolean;
+        consent_mates_default_settings?: boolean;
+        language?: string;
+        darkmode?: boolean;
+    };
+
+    type RecoveryKeyLoginResponse = {
+        success?: boolean;
+        message?: string;
+        ws_token?: string;
+        user?: RecoveryKeyLoginUser;
+    };
+
     // Props using Svelte 5 runes
     let { 
         email = '',
@@ -102,7 +126,7 @@
                 credentials: 'include'
             });
 
-            const data = await response.json();
+            const data: RecoveryKeyLoginResponse = await response.json();
 
             if (response.ok && data.success) {
                 // Recovery key login successful
@@ -123,7 +147,7 @@
     }
 
     // Handle successful login
-    async function handleSuccessfulLogin(data: any) {
+    async function handleSuccessfulLogin(data: RecoveryKeyLoginResponse) {
         console.debug('[EnterRecoveryKey] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
             hasEncryptedKey: !!data.user?.encrypted_key,
@@ -206,50 +230,52 @@
                 return;
             }
 
-            // Save email encrypted with master key for payment processing
-            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
-            if (!emailStoredSuccessfully) {
-                console.error('[EnterRecoveryKey] Failed to encrypt and store email with master key during recovery key login');
-                // Don't block login for this - it's not critical
-            } else {
-                console.debug('[EnterRecoveryKey] Email encrypted and stored with master key for payment processing');
+            let inSignupFlow = false;
+            try {
+                const { isSignupPath } = await import('../stores/signupState');
+                inSignupFlow = isSignupPath(data.user?.last_opened) || false;
+            } catch (signupStateErr) {
+                console.error('[EnterRecoveryKey] Failed to import signupState:', signupStateErr);
             }
-            
-            // Update user profile with received data
-            const userProfileData = {
-                username: data.user.username || '',
-                profile_image_url: data.user.profile_image_url || null,
-                credits: data.user.credits || 0,
-                is_admin: data.user.is_admin || false,
-                last_opened: data.user.last_opened || '',
-                tfa_app_name: data.user.tfa_app_name || null,
-                tfa_enabled: data.user.tfa_enabled || false,
-                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                language: data.user.language || 'en',
-                darkmode: data.user.darkmode || false
-            };
-            
-            // Update the user profile store
-            updateProfile(userProfileData);
-            console.debug('[EnterRecoveryKey] User profile updated with login data:', userProfileData);
-            
-            // Check if user is in signup flow based on last_opened path
-            // Import isSignupPath helper for checking signup paths
-            const { isSignupPath } = await import('../stores/signupState');
-            const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
-            console.debug('[EnterRecoveryKey] Login success (recovery key), in signup flow:', inSignupFlow);
-            
-            // Clear sensitive data
+
+            const emailForStorage = email;
             recoveryKey = '';
-            
-            // Dispatch success event
-            console.debug('[EnterRecoveryKey] Dispatching loginSuccess event');
+
+            // Dispatch before non-critical storage/profile work so successful auth always updates UI state.
+            console.debug('[EnterRecoveryKey] Dispatching loginSuccess event, in signup flow:', inSignupFlow);
             dispatch('loginSuccess', {
                 user: data.user,
                 inSignupFlow: inSignupFlow,
                 recoveryKeyUsed: true
             });
+
+            try {
+                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(emailForStorage, stayLoggedIn);
+                if (!emailStoredSuccessfully) {
+                    console.error('[EnterRecoveryKey] Failed to encrypt and store email with master key during recovery key login');
+                } else {
+                    console.debug('[EnterRecoveryKey] Email encrypted and stored with master key for payment processing');
+                }
+
+                const userProfileData = {
+                    username: data.user.username || '',
+                    profile_image_url: data.user.profile_image_url || null,
+                    credits: data.user.credits || 0,
+                    is_admin: data.user.is_admin || false,
+                    last_opened: data.user.last_opened || '',
+                    tfa_app_name: data.user.tfa_app_name || null,
+                    tfa_enabled: data.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                    language: data.user.language || 'en',
+                    darkmode: data.user.darkmode || false
+                };
+
+                updateProfile(userProfileData);
+                console.debug('[EnterRecoveryKey] User profile updated with login data:', userProfileData);
+            } catch (postLoginErr) {
+                console.error('[EnterRecoveryKey] Non-critical post-login error (login still succeeded):', postLoginErr);
+            }
         } catch (e) {
             console.error('[EnterRecoveryKey] Error during recovery key login processing:', e);
             errorMessage = 'Error decrypting master key with recovery key. Please try again.';
@@ -290,6 +316,7 @@
     </div>
 
     <p class="recovery-key-text">
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted internal translation copy uses inline markup -->
         {@html $text('login.use_for_emergencies_only')}
     </p>
 
