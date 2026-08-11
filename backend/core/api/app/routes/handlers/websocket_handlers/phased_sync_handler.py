@@ -605,22 +605,41 @@ async def handle_phased_sync_request(
                     client_chat_versions, client_chat_ids, sent_embed_ids, team_id
                 )
 
-            # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
-            # Sent after Phase 1a so "continue where you left off" renders without waiting
-            if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
-                await _handle_phase1b_sync(
-                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
-                    user_otel_attrs=user_otel_attrs,
+            if sync_phase == "all":
+                startup_phase_tasks = []
+                if phase1_chat_ids:
+                    startup_phase_tasks.append(
+                        _handle_phase1b_sync(
+                            manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                            phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                            user_otel_attrs=user_otel_attrs,
+                        )
+                    )
+                startup_phase_tasks.append(
+                    _handle_phase2_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                        refresh_chat_ids
+                    )
                 )
+                await asyncio.gather(*startup_phase_tasks)
+            else:
+                # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
+                # Sent after Phase 1a so "continue where you left off" renders without waiting
+                if sync_phase == "phase1" and phase1_chat_ids:
+                    await _handle_phase1b_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                        user_otel_attrs=user_otel_attrs,
+                    )
 
-            # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
-            if sync_phase == "phase2" or sync_phase == "all":
-                await _handle_phase2_sync(
-                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
-                    refresh_chat_ids
-                )
+                # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
+                if sync_phase == "phase2":
+                    await _handle_phase2_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                        refresh_chat_ids
+                    )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
             # default web startup `all` sync, otherwise chats 11-100 would receive

@@ -673,19 +673,27 @@ def test_parent_chat_detection_excludes_sub_chats() -> None:
 
 
 @pytest.mark.anyio
-async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch, doc_assert) -> None:
+async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_assert) -> None:
     doc_assert("phase-all-does-not-run-background-content-sync")
     calls = []
+    phase1b_started = asyncio.Event()
+    phase2_started = asyncio.Event()
 
     async def fake_phase1(*args, **kwargs):
         calls.append("phase1")
         return ["parent-1"]
 
     async def fake_phase1b(*args, **kwargs):
-        calls.append("phase1b")
+        calls.append("phase1b_start")
+        phase1b_started.set()
+        await phase2_started.wait()
+        calls.append("phase1b_finish")
 
     async def fake_phase2(*args, **kwargs):
-        calls.append("phase2")
+        await phase1b_started.wait()
+        calls.append("phase2_start")
+        phase2_started.set()
+        calls.append("phase2_finish")
 
     async def fake_phase3(*args, **kwargs):
         calls.append("phase3")
@@ -706,18 +714,24 @@ async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch
 
     manager.send_personal_message = send_personal_message
 
-    await handle_phased_sync_request(
-        websocket=None,
-        manager=manager,
-        cache_service=SimpleNamespace(),
-        directus_service=SimpleNamespace(),
-        encryption_service=SimpleNamespace(),
-        user_id="user-1",
-        device_fingerprint_hash="device-1",
-        payload={"phase": "all"},
+    await asyncio.wait_for(
+        handle_phased_sync_request(
+            websocket=None,
+            manager=manager,
+            cache_service=SimpleNamespace(),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+            user_id="user-1",
+            device_fingerprint_hash="device-1",
+            payload={"phase": "all"},
+        ),
+        timeout=1,
     )
 
-    assert calls == ["phase1", "phase1b", "phase2", "app_settings"]
+    assert calls.index("phase2_start") < calls.index("phase1b_finish")
+    assert calls.index("app_settings") > calls.index("phase1b_finish")
+    assert calls.index("app_settings") > calls.index("phase2_finish")
+    assert "phase3" not in calls
     assert all(message["type"] != "background_message_sync" for message in manager.sent)
 
 
