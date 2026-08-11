@@ -5252,12 +5252,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
     );
 
-    // Keep desktop welcome controls interactive after composer auto-focus.
-    // Constrained layouts still hide them to make room for the keyboard.
+    // Logged-out welcome surfaces must get out of the way whenever the composer
+    // is active; authenticated desktop still keeps the previous roomy layout.
     let hideWelcomeForKeyboard = $derived(
         messageInputFocused &&
-        !keepGuestInterestOverlayVisible &&
-        (isTouchEnvironment || isEffectivelyNarrow)
+        (
+            (!$authStore.isAuthenticated && showWelcome) ||
+            (!keepGuestInterestOverlayVisible && (isTouchEnvironment || isEffectivelyNarrow))
+        )
     );
 
     // Effective chat width: The actual width of the chat area
