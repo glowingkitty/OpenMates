@@ -17,6 +17,10 @@ import {
   EMBED_FULLSCREEN_COMPONENTS,
   normalizeEmbedType,
 } from "../data/embedRegistry.generated";
+import {
+  collectExampleChatFileReferences,
+  type ChatFileReference,
+} from "./exampleChatFiles";
 
 const FOCUS_ACTIVATION_EMBED_TYPE = "focus-mode-activation";
 
@@ -357,6 +361,14 @@ export function getExampleChatUsageEntries(chatId: string): ChatUsageEntry[] {
     ...entry,
     code_run_filenames: entry.code_run_filenames ? [...entry.code_run_filenames] : entry.code_run_filenames,
   })) ?? [];
+}
+
+/** Get public static file rows for an example chat's Files settings tab. */
+export function getExampleChatFileReferences(chatId: string): ChatFileReference[] {
+  const record = chatRecordById.get(chatId);
+  return record
+    ? collectExampleChatFileReferences(record.example.embeds, record.example.messages)
+    : [];
 }
 
 /** Get compression checkpoints for a static example chat. */

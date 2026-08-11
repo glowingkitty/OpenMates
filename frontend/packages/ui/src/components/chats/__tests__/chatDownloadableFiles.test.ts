@@ -8,6 +8,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Message } from '../../../types/chat';
+import { ALL_EXAMPLE_CHATS } from '../../../demo_chats/exampleChatData';
+import { collectExampleChatFileReferences } from '../../../demo_chats/exampleChatFiles';
 
 const uploadedFiles = vi.hoisted(() => ({
   getUploadedFilesByContentRefs: vi.fn(),
@@ -53,7 +55,7 @@ function message(content: string, truncatedContent = ''): Message {
 
 describe('chat settings downloadable files', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
@@ -93,7 +95,7 @@ describe('chat settings downloadable files', () => {
   // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,audio-speak.output.playable-audio
   it('lists public static generated-audio MP3s as downloadable files', async () => {
     uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([]);
-    uploadedFiles.get.mockResolvedValueOnce({
+    uploadedFiles.get.mockResolvedValue({
       embed_id: STATIC_AUDIO_EMBED_ID,
       type: 'app_skill_use',
       status: 'finished',
@@ -111,11 +113,77 @@ describe('chat settings downloadable files', () => {
       contentRef: `embed:${STATIC_AUDIO_EMBED_ID}`,
       title: 'audio-speak-friendly-welcome-message.mp3',
       subtitle: 'Audio',
-      metadata: 'Audio',
+      metadata: 'Audio | 5.0s | 28 KB',
       type: 'audio',
       nodeType: 'recording',
       iconName: 'audio',
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity
+  it('lists public static video files from example embeds', async () => {
+    uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([]);
+    uploadedFiles.get.mockResolvedValue({
+      embed_id: 'video-1',
+      type: 'app_skill_use',
+      status: 'finished',
+      content: `app_id: videos
+skill_id: generate
+type: video
+status: finished
+previewVideoUrl: /store-examples/video-generate-1.mp4
+files:
+  original:
+    size_bytes: 11473361
+    format: mp4
+    mime_type: video/mp4
+    duration_seconds: 8`,
+    });
+
+    const rows = await loadChatFileRows([
+      message('```json\n{"type":"app_skill_use","embed_id":"video-1","app_id":"videos","skill_id":"generate"}\n```'),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      contentRef: 'embed:video-1',
+      title: 'video-generate-1.mp4',
+      subtitle: 'Video',
+      type: 'video',
+      nodeType: 'video',
+      iconName: 'video',
+      url: '/store-examples/video-generate-1.mp4',
+    });
+  });
+
+  // contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity
+  it('resolves file rows for every bundled example chat with static file embeds', () => {
+    const examplesWithFiles = ALL_EXAMPLE_CHATS
+      .map((chat) => ({ chat, rows: collectExampleChatFileReferences(chat.embeds, chat.messages) }))
+      .filter(({ rows }) => rows.length > 0);
+    const chatIds = examplesWithFiles.map(({ chat }) => chat.chat_id);
+
+    expect(chatIds).toEqual(expect.arrayContaining([
+      'example-beautiful-single-page-html',
+      'example-python-squares-code-run',
+      'example-pdf-view-page-layout',
+      'example-launch-readiness-checklist-doc',
+      'example-image-vectorize-openmates-header',
+      'example-private-workspace-demo-video',
+      'example-product-launch-synth-loop',
+      'example-reference-image-3d-model',
+      'example-audio-generate-product-success-chime',
+      'example-audio-speak-friendly-welcome-message',
+    ]));
+    expect(examplesWithFiles.length).toBeGreaterThan(20);
+    for (const { chat, rows } of examplesWithFiles) {
+      expect(rows.length, chat.chat_id).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row.title, chat.chat_id).toBeTruthy();
+        expect(row.metadata, chat.chat_id).toBeTruthy();
+        expect(row.contentRef, chat.chat_id).toMatch(/^embed:/);
+      }
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity

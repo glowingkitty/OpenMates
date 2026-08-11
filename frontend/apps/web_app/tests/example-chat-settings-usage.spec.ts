@@ -31,10 +31,28 @@ const GENERATED_AUDIO_USAGE_CASES = [
 	}
 ] as const;
 
+const STATIC_FILE_CASES = [
+	{
+		chatId: 'example-beautiful-single-page-html',
+		filename: 'index.html',
+		metadata: 'Code file'
+	},
+	{
+		chatId: 'example-private-workspace-demo-video',
+		filename: 'video-generate-1.mp4',
+		metadata: 'Video'
+	},
+	{
+		chatId: 'example-launch-readiness-checklist-doc',
+		filename: 'Launch_Readiness_Checklist.docx',
+		metadata: 'Document'
+	}
+] as const;
+
 async function openExampleSettings(
 	page: any,
 	exampleChatId: string,
-	options: { expectFilesTab?: boolean } = {}
+	options: { expectFilesTab?: boolean; expectUsageTab?: boolean } = {}
 ): Promise<any> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
 		waitUntil: 'domcontentloaded'
@@ -50,7 +68,11 @@ async function openExampleSettings(
 		timeout: 10000
 	});
 	await expect(settingsMenu.getByTestId('chat-settings-tab-share')).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu.getByTestId('chat-settings-tab-usage')).toBeVisible({ timeout: 10000 });
+	if (options.expectUsageTab === false) {
+		await expect(settingsMenu.getByTestId('chat-settings-tab-usage')).toHaveCount(0);
+	} else {
+		await expect(settingsMenu.getByTestId('chat-settings-tab-usage')).toBeVisible({ timeout: 10000 });
+	}
 	await expect(settingsMenu.getByTestId('chat-settings-tab-plan')).toHaveCount(0);
 	await expect(settingsMenu.getByTestId('chat-settings-tab-tasks')).toHaveCount(0);
 	if (options.expectFilesTab) {
@@ -113,6 +135,25 @@ test.describe('Example chat settings usage', () => {
 			await expect(rows.nth(1)).toContainText(exampleCase.audioLabel);
 			await expect(rows.nth(1)).toContainText('ElevenLabs / US');
 			await expect(rows.nth(1)).toContainText(exampleCase.audioCredits);
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity
+	test('static example chats expose code, video, and document files in settings', async ({ page }: { page: any }) => {
+		test.setTimeout(120000);
+
+		for (const exampleCase of STATIC_FILE_CASES) {
+			const settingsMenu = await openExampleSettings(page, exampleCase.chatId, {
+				expectFilesTab: true,
+				expectUsageTab: false
+			});
+
+			await settingsMenu.getByTestId('chat-settings-tab-files').click();
+			const filesPanel = settingsMenu.getByTestId('chat-settings-tabpanel-files');
+			await expect(filesPanel).toBeVisible({ timeout: 10000 });
+			await expect(filesPanel.getByTestId('chat-settings-file-row').filter({ hasText: exampleCase.filename })).toBeVisible({ timeout: 10000 });
+			await expect(filesPanel.getByTestId('chat-settings-file-row').filter({ hasText: exampleCase.filename })).toContainText(exampleCase.metadata);
+			await expect(filesPanel.getByTestId('chat-settings-download-files')).toContainText(/downloadable item/i);
 		}
 	});
 

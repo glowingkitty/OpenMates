@@ -10,6 +10,7 @@ import {
 
 // Export types
 export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage, ExampleSubChat } from "./types";
+export type { ChatFileReference } from "./exampleChatFiles";
 
 // Export conversion utilities
 export {
@@ -35,6 +36,7 @@ export {
   getExampleChatBySlug,
   getExampleChatMessages,
   getExampleChatUsageEntries,
+  getExampleChatFileReferences,
   getExampleChatCompressionCheckpoints,
   getExampleChatEmbeds,
   getExampleChatEmbed,

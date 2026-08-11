@@ -10,14 +10,14 @@
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
   import SettingsItem from '../SettingsItem.svelte';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
-  import { hasStaticGeneratedAudioEmbedRefs, loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
+  import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
   import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageEntriesToChatUsageRows, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
-  import { getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
+  import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
@@ -61,7 +61,8 @@
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
   let staticUsageEntries = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatUsageEntries(chat.chat_id) : []);
-  let hasExampleStaticFiles = $derived(isExampleChatSettings && hasStaticGeneratedAudioEmbedRefs(messages));
+  let exampleStaticFiles = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatFileReferences(chat.chat_id) : []);
+  let hasExampleStaticFiles = $derived(exampleStaticFiles.length > 0);
   let localUsageRows = $derived.by(() => {
     const staticRows = usageEntriesToChatUsageRows(staticUsageEntries);
     return staticRows.length > 0 ? staticRows : buildChatUsageRows(messages);
@@ -167,7 +168,7 @@
   async function refreshFiles(): Promise<void> {
     isLoadingFiles = true;
     try {
-      files = await loadChatFileRows(messages);
+      files = isExampleChatSettings ? [...exampleStaticFiles] : await loadChatFileRows(messages);
     } catch (error) {
       console.error('[ChatSettingsPage] Failed to load chat files:', error);
       files = [];
@@ -313,6 +314,15 @@
   }
 
   function downloadFileReference(file: ChatFileRow): void {
+    if (file.url) {
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.title || `${file.embedId}.download`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
     downloadTextFile(JSON.stringify(file, null, 2), `${file.title || file.embedId}.json`, 'application/json');
   }
 

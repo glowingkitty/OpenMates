@@ -8,6 +8,12 @@
  */
 
 import { ALL_EXAMPLE_CHATS } from "../../ui/src/demo_chats/exampleChatData";
+import {
+  collectExampleChatFileReferences,
+  extractReferencedExampleEmbedIds,
+  type ChatFileReference,
+} from "../../ui/src/demo_chats/exampleChatFiles";
+import type { ExampleChatEmbed } from "../../ui/src/demo_chats/types";
 import enLocale from "../../ui/src/i18n/locales/en.json" with { type: "json" };
 
 type LocaleNode = string | { [key: string]: LocaleNode };
@@ -39,6 +45,8 @@ export interface ExampleChatMessage {
 export interface ExampleChatConversation {
   chat: ExampleChatListItem;
   messages: ExampleChatMessage[];
+  embeds: ExampleChatEmbed[];
+  files: ChatFileReference[];
   followUpSuggestions: string[];
 }
 
@@ -152,8 +160,10 @@ export function getExampleChatConversation(query: string): ExampleChatConversati
       category: message.category ?? chat.category,
       modelName: message.model_name ?? null,
       createdAt: message.created_at,
-      embedIds: [],
+      embedIds: extractReferencedExampleEmbedIds([message], chat.embeds),
     })),
+    embeds: chat.embeds,
+    files: collectExampleChatFileReferences(chat.embeds, chat.messages),
     followUpSuggestions: chat.follow_up_suggestions.map(translate),
   };
 }

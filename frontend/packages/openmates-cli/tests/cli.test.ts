@@ -3937,6 +3937,35 @@ describe("unauthenticated example chats", () => {
     assert.ok(output.includes("This is a public example chat"));
   });
 
+  it("lists files for a public generated-audio example chat without a session", () => {
+    const output = runCliWithoutSession([
+      "chats",
+      "files",
+      "example-audio-speak-friendly-welcome-message",
+      "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      source?: string;
+      count?: number;
+      files?: Array<{ title?: string; type?: string; url?: string; metadata?: string }>;
+    };
+
+    assert.equal(parsed.source, "example");
+    assert.equal(parsed.count, 1);
+    assert.equal(parsed.files?.[0]?.title, "audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.type, "audio");
+    assert.equal(parsed.files?.[0]?.url, "/store-examples/audio-speak-friendly-welcome-message.mp3");
+    assert.match(parsed.files?.[0]?.metadata ?? "", /Audio/);
+  });
+
+  it("lists code files for public example chats without a session", () => {
+    const output = runCliWithoutSession(["chats", "files", "example-python-squares-code-run", "--json"]);
+    const parsed = JSON.parse(output) as { files?: Array<{ title?: string; type?: string; node_type?: string }> };
+
+    assert.ok(parsed.files?.some((file) => file.title === "square_parity.py" && file.type === "code"));
+    assert.ok(parsed.files?.every((file) => file.node_type));
+  });
+
   it("returns signup_required before reading anonymous file references", () => {
     const result = runCliWithoutSessionResult([
       "chats",

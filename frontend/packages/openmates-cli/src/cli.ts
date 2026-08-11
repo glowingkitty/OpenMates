@@ -18,6 +18,7 @@ import {
   type ChatListPage,
   type ChatListItem,
   type ChatRewindResult,
+  type DecryptedEmbed,
   type DecryptedMessage,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
@@ -112,6 +113,11 @@ import {
   type ExampleChatConversation,
   type ExampleChatSkillListItem,
 } from "./exampleChats.js";
+import {
+  extractEmbedIdsFromContent,
+  getEmbedFileReferences,
+  type ChatFileReference,
+} from "../../ui/src/demo_chats/exampleChatFiles";
 import {
   formatInteractiveQuestionAnswer,
   parseInteractiveQuestionBlock,
@@ -3865,6 +3871,31 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "files") {
+    const chatId = rest[0];
+    if (!chatId) {
+      throw new Error("Missing chat ID. Usage: openmates chats files <chat-id> [--json]");
+    }
+    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    if (apiKey) {
+      throw new Error("Chat file listing through --api-key is not supported; use an authenticated CLI session so encrypted chat embeds can be decrypted locally.");
+    }
+
+    if (!client.hasSession()) {
+      const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
+      if (!example) {
+        throw new Error(`Example chat '${chatId}' not found. Run 'openmates chats list' to see available examples.`);
+      }
+      printChatFiles(example.chat, example.files, flags, { example: true });
+      return;
+    }
+
+    const { chat, messages } = await client.getChatMessages(resolvedId, teamContext);
+    const result = await loadChatFileReferencesForCli(client, messages);
+    printChatFiles(chat, result.files, flags, { errors: result.errors });
+    return;
+  }
+
   if (subcommand === "messages") {
     const chatId = rest[0];
     if (!chatId) {
@@ -5062,6 +5093,129 @@ function resolveExampleChatForOpen(target: string): ExampleChatConversation | nu
     return chat ? getExampleChatConversation(chat.id) : null;
   }
   return getExampleChatConversation(target);
+}
+
+function collectMessageEmbedIdsForFiles(messages: DecryptedMessage[]): string[] {
+  const ids = new Set<string>();
+  const inlineEmbedRefRe = /embed:([a-zA-Z0-9_.:-]+)/g;
+  for (const message of messages) {
+    for (const embedId of message.embedIds ?? []) {
+      if (embedId) ids.add(embedId);
+    }
+    for (const match of Array.from((message.content ?? "").matchAll(inlineEmbedRefRe))) {
+      if (match[1]) ids.add(match[1]);
+    }
+    for (const segment of parseMessageSegments(message.content ?? "")) {
+      if (segment.type === "embed" && segment.value) ids.add(segment.value);
+    }
+  }
+  return Array.from(ids);
+}
+
+function fileReferenceKey(file: ChatFileReference): string {
+  return `${file.embedId}:${file.title}`.toLowerCase();
+}
+
+function chatFileReferenceFromEmbed(embed: DecryptedEmbed): ChatFileReference[] {
+  return getEmbedFileReferences({
+    embedId: embed.embedId,
+    type: embed.type,
+    content: embed.content,
+    appId: embed.appId,
+    skillId: embed.skillId,
+    createdAt: embed.createdAt,
+  });
+}
+
+async function loadChatFileReferencesForCli(
+  client: OpenMatesClient,
+  messages: DecryptedMessage[],
+): Promise<{ files: ChatFileReference[]; errors: Array<{ embed_id: string; message: string }> }> {
+  const queue = collectMessageEmbedIdsForFiles(messages);
+  const visitedEmbeds = new Set<string>();
+  const seenFiles = new Set<string>();
+  const files: ChatFileReference[] = [];
+  const errors: Array<{ embed_id: string; message: string }> = [];
+
+  while (queue.length > 0) {
+    const embedId = queue.shift();
+    if (!embedId || visitedEmbeds.has(embedId)) continue;
+    visitedEmbeds.add(embedId);
+
+    try {
+      const embed = await client.getEmbed(embedId);
+      for (const file of chatFileReferenceFromEmbed(embed)) {
+        const key = fileReferenceKey(file);
+        if (seenFiles.has(key)) continue;
+        files.push(file);
+        seenFiles.add(key);
+      }
+
+      for (const childId of extractEmbedIdsFromContent(embed.content)) {
+        if (childId && !visitedEmbeds.has(childId)) queue.push(childId);
+      }
+    } catch (error) {
+      errors.push({
+        embed_id: embedId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { files, errors };
+}
+
+function chatFileToJson(file: ChatFileReference): Record<string, unknown> {
+  return {
+    embed_id: file.embedId,
+    content_ref: file.contentRef,
+    title: file.title,
+    type: file.type,
+    node_type: file.nodeType,
+    metadata: file.metadata,
+    app_id: file.appId,
+    skill_id: file.skillId,
+    url: file.url,
+    mime_type: file.mimeType,
+  };
+}
+
+function printChatFiles(
+  chat: Pick<ChatListItem, "id" | "shortId" | "title">,
+  files: ChatFileReference[],
+  flags: Record<string, string | boolean>,
+  options: { example?: boolean; errors?: Array<{ embed_id: string; message: string }> } = {},
+): void {
+  if (flags.json === true) {
+    printJson({
+      chat_id: chat.id,
+      title: chat.title,
+      source: options.example ? "example" : "chat",
+      count: files.length,
+      files: files.map(chatFileToJson),
+      errors: options.errors ?? [],
+    });
+    return;
+  }
+
+  const title = chat.title ?? chat.shortId ?? chat.id;
+  header(`Files for ${title}`);
+  if (options.example) {
+    process.stdout.write("\x1b[2mPublic example chat files are resolved from bundled static embed metadata.\x1b[0m\n");
+  }
+  if (files.length === 0) {
+    process.stdout.write("\x1b[2mNo files found for this chat.\x1b[0m\n");
+  } else {
+    for (const file of files) {
+      const appSkill = [file.appId, file.skillId].filter(Boolean).join("/");
+      const suffix = appSkill ? `  \x1b[2m${appSkill}\x1b[0m` : "";
+      process.stdout.write(`  \x1b[1m${file.title}\x1b[0m  \x1b[2m${file.metadata}\x1b[0m${suffix}\n`);
+      process.stdout.write(`    \x1b[2m${file.contentRef}${file.url ? `  ${file.url}` : ""}\x1b[0m\n`);
+    }
+  }
+  for (const error of options.errors ?? []) {
+    process.stderr.write(`Warning: could not inspect embed ${error.embed_id}: ${error.message}\n`);
+  }
 }
 
 async function openUrl(url: string): Promise<void> {
@@ -12452,6 +12606,7 @@ function printChatsHelp(): void {
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json] [--all]
   openmates chats messages <chat-id> [--json]
+  openmates chats files <chat-id> [--json]
   openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
   openmates chats <chat-id> remove-from-project <project-id> [--json]
   openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
@@ -12478,6 +12633,11 @@ Options for 'show':
   --all         Load full chat history. By default, show loads latest 30 messages.
   --raw         Show raw decrypted message content without rendering embeds
                 or cleaning embed references. Useful for debugging.
+
+Options for 'files':
+  Lists uploaded and generated files connected to a saved or public example chat.
+  Saved chats require an authenticated CLI session so encrypted embeds can be
+  decrypted locally. Public examples also work while logged out.
 
 Options for 'fork', 'rewind', and 'retry':
   --from-message <id>  Message boundary for non-destructive fork.
@@ -12556,6 +12716,8 @@ Examples:
   openmates chats open gigantic-airplanes-transporting-rocket-parts
   openmates chats show d262cb68
   openmates chats messages d262cb68
+  openmates chats files d262cb68
+  openmates chats files example-audio-speak-friendly-welcome-message --json
   openmates chats fork d262cb68 --from-message 8f4e2a1c --title "Clean branch"
   openmates chats rewind d262cb68 --to-message 8f4e2a1c --send "Continue from here" --yes
   openmates chats retry d262cb68 --yes
