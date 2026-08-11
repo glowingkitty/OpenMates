@@ -15,23 +15,22 @@ from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.audio.pricing import (
+    DEFAULT_SPEECH_MODEL,
+    PREMIUM_SPEECH_MODEL,
+    calculate_speech_credits,
+    estimate_speech_duration_seconds,
+)
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.providers.groq.safeguard import get_safeguard_client
-from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROVIDER = "elevenlabs"
-DEFAULT_MODEL = "eleven_flash_v2_5"
-PREMIUM_MODEL = "eleven_multilingual_v2"
+DEFAULT_MODEL = DEFAULT_SPEECH_MODEL
+PREMIUM_MODEL = PREMIUM_SPEECH_MODEL
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
-SPEECH_MODEL_PRICING = {
-    DEFAULT_MODEL: {"per_minute": {"credits": 50, "unit_name": "speech_minute"}},
-    PREMIUM_MODEL: {"per_minute": {"credits": 100, "unit_name": "speech_minute"}},
-}
-SECONDS_PER_MINUTE = 60
-ELEVENLABS_APPROX_CHARS_PER_MINUTE = 1000
 VOICE_PRESET_TO_ELEVENLABS_ID = {
     "warm_neutral": "21m00Tcm4TlvDq8ikWAM",
     "bright_neutral": "EXAVITQu4vr4xnSDxMaL",
@@ -40,15 +39,8 @@ VOICE_PRESET_TO_ELEVENLABS_ID = {
 IGNORE_FIELDS_FOR_INFERENCE = ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"]
 
 
-def _estimate_speech_duration_seconds(text: str) -> float:
-    return max(0.1, (len(text) / ELEVENLABS_APPROX_CHARS_PER_MINUTE) * SECONDS_PER_MINUTE)
-
-
 def _calculate_speech_credits(*, model: str, duration_seconds: float) -> int:
-    return calculate_total_credits(
-        pricing_config=SPEECH_MODEL_PRICING[model],
-        duration_minutes=duration_seconds / SECONDS_PER_MINUTE,
-    )
+    return calculate_speech_credits(model=model, duration_seconds=duration_seconds)
 
 
 @dataclass(frozen=True)
@@ -237,7 +229,7 @@ class SpeakSkill(BaseSkill):
                 )
                 duration_seconds = generated.duration_seconds
                 if duration_seconds is None:
-                    duration_seconds = _estimate_speech_duration_seconds(item.text)
+                    duration_seconds = estimate_speech_duration_seconds(item.text)
                     logger.warning(
                         "audio.speak could not derive provider audio duration; using ElevenLabs pricing-page estimate"
                     )

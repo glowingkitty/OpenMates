@@ -27,7 +27,7 @@ export const audioSpeakFriendlyWelcomeMessageChat: ExampleChat = {
       content: "example_chats.audio_speak_friendly_welcome_message.message_2",
       created_at: 1786382255,
       user_message_id: "b39cb42f-ec3e-45ec-9339-801b54c7cb03",
-      response_credits: 18,
+      response_credits: 28,
       category: "onboarding_support",
       model_name: "Gemini 3.5 Flash-Lite"
     }
@@ -61,6 +61,23 @@ export const audioSpeakFriendlyWelcomeMessageChat: ExampleChat = {
       created_at: 1786382249,
       updated_at: 1786382249,
       tool_inference_iterations: 1
+    },
+    {
+      id: "example-audio-speak-friendly-welcome-message-usage-2",
+      type: "skill_execution",
+      source: "chat",
+      app_id: "audio",
+      skill_id: "speak",
+      model_used: "elevenlabs/eleven_flash_v2_5",
+      credits: 10,
+      server_provider: "ElevenLabs",
+      server_region: "US",
+      chat_id: "example-audio-speak-friendly-welcome-message",
+      message_id: "b39cb42f-ec3e-45ec-9339-801b54c7cb03",
+      created_at: 1786382246,
+      updated_at: 1786382246,
+      tool_inference_iterations: 0,
+      code_run_duration_seconds: 4.968
     }
   ],
   metadata: {

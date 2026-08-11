@@ -433,7 +433,7 @@ assumptions:
     status: confirmed
     evidence:
       - source: https://elevenlabs.io/pricing/api
-        summary: ElevenLabs API pricing lists Flash/Turbo Text to Speech at $0.05 per 1K characters and approximately $0.05/minute, Multilingual v2/v3 at $0.10 per 1K characters and approximately $0.10/minute, and Sound Effects at $0.12/minute. OpenMates maps these to duration-based billing as Flash 50 credits/minute, Multilingual v2 100 credits/minute, and Sound Effects 2 credits/second, with the shared one-credit successful-output floor.
+        summary: User-approved duration pricing charges result-declared successful outputs as audio.generate 20 credits/sec for ElevenLabs sound effects, audio.speak Flash/Turbo 2 credits/sec, and audio.speak Multilingual v2/v3 4 credits/sec, with the shared one-credit successful-output floor.
   - id: A-4
     text: Discord webhook configuration is available to scripts/discord_webhook.py for posting generated samples.
     category: publication
@@ -459,7 +459,7 @@ contracts:
       access_model: first-party client surface only plus approved developer API-key SDK access
       auth: authenticated session or approved API key/device
       rate_limits: existing app-skill route limiter plus provider/budget limits
-      credit_budget_limits: user credit headroom before safeguard/provider call; charge only successful outputs using generated-audio duration pricing
+      credit_budget_limits: user credit headroom before safeguard/provider call; charge only successful outputs using result-declared duration pricing
       encryption_boundary: accepts plaintext TTS text for safeguard and provider generation; returns audio bytes only in direct response or encrypted generated-asset metadata
       request: AudioSpeakRequest from feature.app-skill.audio-speak@1
       response: AudioSpeakResponse from feature.app-skill.audio-speak@1
@@ -681,7 +681,7 @@ verifications:
       target: https://api.dev.openmates.org
       manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
       manifest_sha256: caf2dd2ffc6e6e31b8ddcec8c541f9b9022637a8b0a78d49b4b97caba47b10c0
-      summary: Seven audio.generate SFX samples completed in 1842-3780ms with 1-2 credits charged; Flash v2.5 speech completed in 1487ms with 1 credit charged; premium Multilingual v2 speech completed in 1939ms with 1 credit charged due the one-credit floor. All stayed below the 5-6 second direct-response target.
+      summary: Historical live probes completed seven audio.generate SFX samples in 1842-3780ms and Flash/Premium speech samples in 1487-1939ms. Current billing uses result-declared duration credits while retaining the same direct-response latency target.
 
   - id: V-DISCORD-SAMPLES
     kind: artifact_review

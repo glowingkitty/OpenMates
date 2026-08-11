@@ -21,7 +21,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-generate
-    fingerprint: 5340e1f0d150ee5e77f0120bb04a1daba61c423f3c8b49f791efbcd0c3a85ca3
+    fingerprint: fbfb037ee622fac26bf85b86626b24e358502beea3751429e885ea9e2df78be0
     required_surfaces:
     - rest_api
     - cli
@@ -33,7 +33,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-speak
-    fingerprint: 79f9c10952bd41af416e724c8d9f33780767a363505013a9466bb3a8d6389781
+    fingerprint: 63f38609763e912427babecd5e74eeb2c2814b5deaf6b350edaaa20c7ba41c63
     required_surfaces:
     - rest_api
     - cli
@@ -388,7 +388,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: behavior
-    fingerprint: 280cae348d5e8ade787a318d071e13889a95d3d193e8884f000bd72e5d0a6a81
+    fingerprint: be197832997bc129e3c0c67a472f5cc0e3571a962a49220545b7605022bb52cc
     required_surfaces:
     - rest_api
     - cli
@@ -400,7 +400,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: privacy
-    fingerprint: fdcc7acaf3ef87c558dd454abcf5bfcfd7ec48e407ac9949620c6e6b66b3d15c
+    fingerprint: 35ff4cd84df658ae525fd50b3f2ae41d78753c53f0fe4b0acd00bf5c0de7b385
     required_surfaces:
     - rest_api
     - cli
@@ -412,7 +412,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: d364d83498ca514d968fe248721eaa80426a104f89ba507d150c94ea339d1a7c
+    fingerprint: 8ce63a0e08111def93abfe070e11445fbc9a68a0424899865771a50b15806923
     required_surfaces:
     - rest_api
     - cli
@@ -448,7 +448,7 @@ assertions:
     contract: feature.app-skill.audio-generate@1
     contract_id: feature.app-skill.audio-generate
     type: parity
-    fingerprint: 050669b20b184f509a500ec72639d3aad699047dff6e2867d35c6b4c6d5606ed
+    fingerprint: 931781c45f190ad82074b6d6b10bedd08f060b037beddcb01299b75564a31c73
     required_surfaces:
     - rest_api
     - cli
@@ -544,7 +544,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: 4a207d8796ad81d510fb8318bbf0595f8d74c83fe0d53b59f966f645b1c456ee
+    fingerprint: e0099e688fe7ae52dd132e6e640dd39dd3c8e3f93bcb185e0a704998b1aeb23a
     required_surfaces:
     - rest_api
     - cli
@@ -556,7 +556,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: behavior
-    fingerprint: ab3a731589523d8dce1879e7fc8df0c62d362ca152fd4554d1f76eb2d4e9bb0a
+    fingerprint: 474926d6de31e03062d93c7f46457c26ec59bd0ac9353114781566bd21dba000
     required_surfaces:
     - rest_api
     - cli
@@ -568,7 +568,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: 780bd18c794e6df6e292cf9d1508feb872bc74e29ba3b2d16d55263520dc1211
+    fingerprint: 7f6db22d18455bae204ad4002b52c50809410efd1d7d18f553235d10ae363019
     required_surfaces:
     - rest_api
     - cli
@@ -580,7 +580,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 253dca861fa95acbb6f33788ca87cf37e70b5f8c954b8bf4bb7ff6c5ea651865
+    fingerprint: 9bd997a97ff96e141a69ad549cb5039c6aec4c9b754c4b123ff1562be963bf0f
     required_surfaces:
     - rest_api
     - cli
@@ -616,7 +616,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: parity
-    fingerprint: ebd6047a5e5b4047d425c7c42105673829ff7fa5e7ab42ba996c450b795791ab
+    fingerprint: cac41051166644361bf74b7f05026832705672b3b073ea4e3c2055658e6b5cfc
     required_surfaces:
     - rest_api
     - cli

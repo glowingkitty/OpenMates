@@ -74,7 +74,7 @@ successful_outputs:
           duration_seconds: 2.1
           byte_length: 12345
           audio_base64: <BASE64_AUDIO_OMITTED>
-          credits_charged: 1
+          credits_charged: 5
           error: null
       provider: ElevenLabs
       error: null
@@ -106,7 +106,7 @@ successful_outputs:
           aes_key: <BASE64_AES_KEY>
           aes_nonce: <BASE64_AES_NONCE>
           vault_wrapped_aes_key: <VAULT_WRAPPED_AES_KEY>
-          credits_charged: 1
+          credits_charged: 4
           error: null
     expect: {embed_type: app_skill_use, app_id: audio, skill_id: speak, audio_player_visible: true}
 

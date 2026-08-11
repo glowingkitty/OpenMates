@@ -184,7 +184,7 @@ skills:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_text_to_sound_v2
     pricing:
-      per_second: 2
+      per_second: 20
     tool_schema:
       type: object
       properties:
@@ -257,7 +257,7 @@ skills:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_flash_v2_5
     pricing:
-      per_minute: 50
+      per_second: 2
     tool_schema:
       type: object
       properties:

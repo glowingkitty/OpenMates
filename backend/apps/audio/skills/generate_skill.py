@@ -14,6 +14,7 @@ from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.audio.pricing import calculate_sound_effect_credits
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
@@ -154,7 +155,7 @@ class GenerateSkill(BaseSkill):
                     output_format=item.output_format,
                     model=item.model,
                 )
-                credits = await self.calculate_skill_credits(duration_seconds=item.duration_seconds)
+                duration_seconds = generated.duration_seconds or item.duration_seconds
                 results.append(
                     AudioGenerateResult(
                         id=item_id,
@@ -162,10 +163,10 @@ class GenerateSkill(BaseSkill):
                         prompt=item.prompt,
                         model=generated.model,
                         mime_type=generated.mime_type or "audio/mpeg",
-                        duration_seconds=generated.duration_seconds or item.duration_seconds,
+                        duration_seconds=duration_seconds,
                         byte_length=generated.byte_length,
                         audio_base64=base64.b64encode(generated.audio_bytes).decode("ascii"),
-                        credits_charged=credits,
+                        credits_charged=calculate_sound_effect_credits(duration_seconds=duration_seconds),
                         error=None,
                     )
                 )

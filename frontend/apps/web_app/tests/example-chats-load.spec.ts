@@ -683,8 +683,9 @@ test.describe('Example chats loading for new users', () => {
 
 			const fullscreenOverlay = await openFullscreen(page, preview);
 			await expect(fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen`)).toBeVisible({ timeout: 15000 });
+			await expect(fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen-play-button`)).toBeVisible({ timeout: 15000 });
 			const fullscreenAudio = fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen-audio`);
-			await expect(fullscreenAudio).toBeVisible({ timeout: 15000 });
+			await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
 			await expectAudioCanPlay(fullscreenAudio, `${exampleCase.chatId} fullscreen audio`);
 		}
 	});

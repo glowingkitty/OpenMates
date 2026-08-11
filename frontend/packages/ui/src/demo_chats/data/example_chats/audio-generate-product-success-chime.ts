@@ -27,7 +27,7 @@ export const audioGenerateProductSuccessChimeChat: ExampleChat = {
       content: "example_chats.audio_generate_product_success_chime.message_2",
       created_at: 1786382154,
       user_message_id: "0fe80324-42f5-4b87-9e11-0b0d8f36c9d5",
-      response_credits: 17,
+      response_credits: 31,
       category: "general_knowledge",
       model_name: "Gemini 3.5 Flash-Lite"
     }
@@ -61,6 +61,23 @@ export const audioGenerateProductSuccessChimeChat: ExampleChat = {
       created_at: 1786382147,
       updated_at: 1786382147,
       tool_inference_iterations: 1
+    },
+    {
+      id: "example-audio-generate-product-success-chime-usage-2",
+      type: "skill_execution",
+      source: "chat",
+      app_id: "audio",
+      skill_id: "generate",
+      model_used: "elevenlabs/eleven_text_to_sound_v2",
+      credits: 14,
+      server_provider: "ElevenLabs",
+      server_region: "US",
+      chat_id: "example-audio-generate-product-success-chime",
+      message_id: "0fe80324-42f5-4b87-9e11-0b0d8f36c9d5",
+      created_at: 1786382144,
+      updated_at: 1786382144,
+      tool_inference_iterations: 0,
+      code_run_duration_seconds: 0.679
     }
   ],
   metadata: {

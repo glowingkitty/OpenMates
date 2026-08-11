@@ -69,10 +69,11 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
     provider_models = {model["id"]: model for model in provider_yml["models"]}
 
     assert {"generate", "speak"}.issubset(skills)
-    assert skills["speak"]["pricing"] == {"per_minute": 50}
+    assert skills["generate"]["pricing"] == {"per_second": 20}
+    assert skills["speak"]["pricing"] == {"per_second": 2}
     assert provider_yml["logo_svg"] == "logos/elevenlabs.svg"
-    assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_minute": 50}
-    assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_minute": 100}
+    assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_second": 2}
+    assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_second": 4}
     for skill_id in ("generate", "speak"):
         skill = skills[skill_id]
         assert skill["api_config"] == {"expose_get": True, "expose_post": True}
@@ -153,6 +154,7 @@ async def test_audio_generate_returns_playable_audio_without_leaks(monkeypatch):
     assert first["mime_type"] == "audio/mpeg"
     assert first["byte_length"] == len(b"mp3-bytes")
     assert first["audio_base64"]
+    assert first["credits_charged"] == 16
     assert "provider_api_key" not in str(result)
 
 
@@ -279,7 +281,7 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
     assert first["voice"] == "warm_neutral"
     assert first["audio_base64"]
     assert first["duration_seconds"] == 2.1
-    assert first["credits_charged"] == 1
+    assert first["credits_charged"] == 5
     assert "voice-mp3" not in str(result)
 
 
@@ -334,7 +336,7 @@ async def test_audio_speak_accepts_premium_model_and_charges_model_rate(monkeypa
     first = result["results"][0]
     assert first["status"] == "finished"
     assert first["model"] == "eleven_multilingual_v2"
-    assert first["credits_charged"] == 4
+    assert first["credits_charged"] == 10
     assert first["audio_base64"]
 
 

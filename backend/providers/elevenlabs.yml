@@ -33,12 +33,12 @@ models:
         model_id: "eleven_text_to_sound_v2"
         region: "US"
     pricing:
-      per_second: 2
+      per_second: 20
     costs:
-      output_per_minute:
-        price: 0.12
+      output_per_second:
+        price: 0.00727
         currency: USD
-        source: "ElevenLabs API pricing: Sound Effects $0.12/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+        source: "ElevenLabs Creator plan: $22 for 121,000 credits; duration-specified sound effects cost 40 ElevenLabs credits/second."
     features:
       min_duration_seconds: 0.5
       max_duration_seconds: 30
@@ -59,12 +59,12 @@ models:
         model_id: "eleven_flash_v2_5"
         region: "US"
     pricing:
-      per_minute: 50
+      per_second: 2
     costs:
-      output_per_minute:
-        price: 0.05
+      output_per_second:
+        price: 0.000833
         currency: USD
-        source: "ElevenLabs API pricing: Flash/Turbo TTS $0.05 per 1K characters and approximately $0.05/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+        source: "ElevenLabs API pricing lists Flash/Turbo TTS at roughly $0.05/minute."
     features:
       max_input_characters: 2000
 
@@ -84,11 +84,11 @@ models:
         model_id: "eleven_multilingual_v2"
         region: "US"
     pricing:
-      per_minute: 100
+      per_second: 4
     costs:
-      output_per_minute:
-        price: 0.10
+      output_per_second:
+        price: 0.001667
         currency: USD
-        source: "ElevenLabs API pricing: Multilingual v2/v3 TTS $0.10 per 1K characters and approximately $0.10/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+        source: "ElevenLabs API pricing lists Multilingual v2/v3 TTS at roughly $0.10/minute."
     features:
       max_input_characters: 2000

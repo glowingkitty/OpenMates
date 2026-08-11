@@ -215,7 +215,7 @@ assertions:
     depends_on: [models.AudioSpeakResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.billing.success-only
     type: invariant
-    must: Credits are charged only for successful generated speech, using documented duration pricing derived from generated audio duration with at least a one-credit successful-output floor and idempotent billing.
+    must: Credits are charged only for successful generated speech, using result-declared duration billing at 2 OpenMates credits per Flash/Turbo second or 4 OpenMates credits per Multilingual v2/v3 second with a one-credit successful-output floor and idempotent billing.
     depends_on: [models.AudioSpeakResult.credits_charged, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.provider-error.visible
     type: failure

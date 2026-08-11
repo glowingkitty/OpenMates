@@ -184,7 +184,7 @@ assertions:
     depends_on: [models.AudioGenerateResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
   - id: audio-generate.billing.success-only
     type: invariant
-    must: Credits are charged only for successful generated audio, using documented per-second pricing with at least a one-credit successful-output floor and idempotent billing.
+    must: Credits are charged only for successful generated audio, using result-declared duration billing at 20 OpenMates credits per ElevenLabs sound-effect second with a one-credit successful-output floor and idempotent billing.
     depends_on: [models.AudioGenerateResult.credits_charged, examples.successful_outputs, examples.error_outputs]
   - id: audio-generate.provider-error.visible
     type: failure

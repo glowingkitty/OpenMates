@@ -548,6 +548,40 @@ def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
     }
 
 
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,audio-generate.billing.success-only,audio-speak.billing.success-only
+def test_apps_api_uses_audio_result_declared_credits() -> None:
+    generate_result = {
+        "results": [
+            {"status": "error", "credits_charged": None},
+            {"status": "finished", "model": "eleven_text_to_sound_v2", "duration_seconds": 0.679, "credits_charged": 14},
+        ]
+    }
+    speak_result = {
+        "results": [
+            {"status": "finished", "model": "eleven_flash_v2_5", "duration_seconds": 4.968, "credits_charged": 10},
+        ]
+    }
+
+    assert apps_api.get_variable_result_credits("audio", "generate", generate_result) == 14
+    assert apps_api.get_variable_result_charge_items("audio", "generate", generate_result) == [(1, 14)]
+    assert apps_api.get_variable_result_credits("audio", "speak", speak_result) == 10
+    assert apps_api.get_variable_result_credits("audio", "transcribe", generate_result) is None
+    assert apps_api.get_variable_result_usage_details("audio", "generate", generate_result, 1) == {
+        "model_used": "elevenlabs/eleven_text_to_sound_v2",
+        "duration_second": 0.679,
+    }
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "audio",
+        "generate",
+        {"requests": [{"prompt": "success"}, {"prompt": "alert"}]},
+    ) == 40
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "audio",
+        "speak",
+        {"requests": [{"text": "  Hi  "}, {"text": "  Ok  ", "model": "eleven_multilingual_v2"}]},
+    ) == 2
+
+
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
     assert apps_api.get_variable_preflight_reserved_credits(
@@ -560,6 +594,95 @@ def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
         "run",
         {"requests": [{"max_correction_passes": 2}]},
     ) == 0
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,audio-generate.billing.success-only
+def test_audio_generate_route_charges_successful_result_indices(monkeypatch) -> None:
+    captured: dict[str, object] = {"budget_checks": [], "charges": [], "sequence": []}
+    user_info = {
+        "user_id": "user-1",
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["audio.generate"]},
+        "device_hash": "device-hash",
+    }
+
+    async def fake_call_app_skill(**kwargs):
+        captured["sequence"].append("call")
+        captured["input_data"] = kwargs["input_data"]
+        return {
+            "results": [
+                {
+                    "id": "failed",
+                    "status": "error",
+                    "prompt": "bad speech",
+                    "duration_seconds": 1.0,
+                    "byte_length": 0,
+                    "credits_charged": None,
+                    "error": "rejected",
+                },
+                {
+                    "id": "ok",
+                    "status": "finished",
+                    "prompt": "soft success tick",
+                    "model": "eleven_text_to_sound_v2",
+                    "duration_seconds": 0.679,
+                    "byte_length": 1234,
+                    "credits_charged": 14,
+                },
+            ]
+        }
+
+    async def fake_require_api_key_budget_for_charge(_directus_service, *, user_info, requested_credits):
+        captured["sequence"].append(f"budget:{requested_credits}")
+        captured["budget_checks"].append({"user_info": user_info, "requested_credits": requested_credits})
+
+    async def fake_charge_credits_via_internal_api(**kwargs):
+        captured["charges"].append(kwargs)
+
+    app_yml_data = yaml.safe_load((REPO_ROOT / "apps/audio/app.yml").read_text(encoding="utf-8"))
+    app_yml_data["icon_image"] = app_yml_data["icon_image"].strip()
+    app_yml = AppYAML.model_validate(app_yml_data)
+    app = FastAPI()
+    app.state.config_manager = types.SimpleNamespace(
+        get_model_pricing=lambda *_args, **_kwargs: None,
+        get_provider_config=lambda provider_id: {"name": provider_id, "region": None},
+    )
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    monkeypatch.setattr(apps_api, "charge_credits_via_internal_api", fake_charge_credits_via_internal_api)
+    apps_api.register_app_and_skill_routes(app, {"audio": app_yml})
+
+    response = TestClient(app).post(
+        "/v1/apps/audio/skills/generate",
+        json={"requests": [{"prompt": "bad speech"}, {"prompt": "soft success tick"}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["credits_charged"] == 14
+    assert captured["sequence"][:2] == ["budget:40", "call"]
+    assert captured["budget_checks"][-1]["requested_credits"] == 14
+    assert captured["charges"] == [{
+        "user_id": "user-1",
+        "user_id_hash": hashlib.sha256("user-1".encode()).hexdigest(),
+        "credits": 14,
+        "app_id": "audio",
+        "skill_id": "generate",
+        "usage_details": {
+            "api_key_name": "key-name",
+            "external_request": True,
+            "units_processed": 1,
+            "model_used": "elevenlabs/eleven_text_to_sound_v2",
+            "server_provider": "elevenlabs",
+            "server_region": None,
+            "duration_second": 0.679,
+        },
+        "api_key_hash": "api-key-hash",
+        "device_hash": "device-hash",
+    }]
 
 
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
