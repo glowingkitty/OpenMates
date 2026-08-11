@@ -4,10 +4,16 @@
 # A valid authenticated user or API key must not receive another user's terminal
 # task result by guessing a Celery task id.
 
+# ruff: noqa: E402
+
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+
+from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+
+install_code_route_import_stubs()
 
 from backend.core.api.app.routes import tasks_api
 
@@ -30,6 +36,7 @@ async def _get_task_status(task_id: str):
     return await handler(task_id=task_id, request=SimpleNamespace(), user_info={"user_id": "user-1"})
 
 
+# contract-test: infrastructure
 @pytest.mark.anyio
 async def test_owned_task_result_is_returned(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tasks_api, "AsyncResult", FakeAsyncResult)
@@ -43,6 +50,7 @@ async def test_owned_task_result_is_returned(monkeypatch: pytest.MonkeyPatch) ->
     assert nested_response.result["payload"] == {"ok": True}
 
 
+# contract-test: infrastructure
 @pytest.mark.anyio
 async def test_other_users_task_result_is_not_returned(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tasks_api, "AsyncResult", FakeAsyncResult)
@@ -54,6 +62,7 @@ async def test_other_users_task_result_is_not_returned(monkeypatch: pytest.Monke
     assert exc.value.detail == "Task not found"
 
 
+# contract-test: infrastructure
 @pytest.mark.anyio
 async def test_unverified_terminal_task_result_is_not_returned(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tasks_api, "AsyncResult", FakeAsyncResult)
@@ -65,6 +74,7 @@ async def test_unverified_terminal_task_result_is_not_returned(monkeypatch: pyte
     assert exc.value.detail == {"error": "task_owner_unverified"}
 
 
+# contract-test: infrastructure
 @pytest.mark.anyio
 async def test_pending_task_status_does_not_return_result(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tasks_api, "AsyncResult", FakeAsyncResult)

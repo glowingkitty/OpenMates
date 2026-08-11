@@ -162,6 +162,12 @@
     return detail.chat_id === parentChatId || detail.parent_id === parentChatId;
   }
 
+  function shouldRefreshFromChatUpdate(detail: Record<string, unknown> | undefined): boolean {
+    if (!detail) return false;
+    const chatId = typeof detail.chat_id === 'string' ? detail.chat_id : null;
+    return Boolean(chatId && subChatIds.includes(chatId));
+  }
+
   onMount(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
     const updatePointerCta = () => {
@@ -184,15 +190,25 @@
       }
       void load(true);
     };
+    const handleChatUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+      if (!shouldRefreshFromChatUpdate(detail)) return;
+      if (typeof detail.chat_id === 'string') {
+        terminalSubChatIds.add(detail.chat_id);
+      }
+      void load(true);
+    };
 
     window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
     window.addEventListener('subChatProgress', handleSubChatLifecycle);
     window.addEventListener('subChatCompleted', handleSubChatLifecycle);
+    chatSyncService.addEventListener('chatUpdated', handleChatUpdated);
 
     return () => {
       window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
       window.removeEventListener('subChatProgress', handleSubChatLifecycle);
       window.removeEventListener('subChatCompleted', handleSubChatLifecycle);
+      chatSyncService.removeEventListener('chatUpdated', handleChatUpdated);
       pointerQuery.removeEventListener('change', updatePointerCta);
     };
   });
