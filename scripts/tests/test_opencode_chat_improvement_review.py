@@ -476,11 +476,12 @@ def test_cron_source_has_no_implementation_or_deploy_path() -> None:
     assert "git push" not in source
 
 
-def test_cron_research_agent_denies_mutating_tools() -> None:
+def test_cron_research_agent_is_hidden_and_denies_mutating_tools() -> None:
     config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
     agent = config["agent"]["cron-research"]
 
     assert agent["mode"] == "primary"
+    assert agent["hidden"] is True
     assert agent["permission"]["*"] == "deny"
     assert agent["permission"]["edit"] == "deny"
     assert agent["permission"]["bash"] == "deny"

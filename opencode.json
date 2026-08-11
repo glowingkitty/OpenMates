@@ -73,6 +73,7 @@
     "cron-research": {
       "description": "Strictly read-only unattended research over bounded local evidence; returns findings without changing files or launching children.",
       "mode": "primary",
+      "hidden": true,
       "permission": {
         "*": "deny",
         "read": "allow",
