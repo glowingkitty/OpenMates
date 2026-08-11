@@ -38,6 +38,9 @@ async function openExampleUsageTab(page: any, exampleChatId: string): Promise<an
 	await page.getByTestId('chat-details-button').click();
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
+		timeout: 10000
+	});
 	await expect(settingsMenu.getByTestId('chat-settings-tab-share')).toBeVisible({ timeout: 10000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tab-usage')).toBeVisible({ timeout: 10000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tab-plan')).toHaveCount(0);
@@ -45,9 +48,6 @@ async function openExampleUsageTab(page: any, exampleChatId: string): Promise<an
 	await expect(settingsMenu.getByTestId('chat-settings-tab-files')).toHaveCount(0);
 
 	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
-	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
-		timeout: 10000
-	});
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
 	return settingsMenu;
 }
