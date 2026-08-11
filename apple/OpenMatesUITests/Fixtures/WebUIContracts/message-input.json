@@ -111,7 +111,15 @@
           "severity": "fail",
           "exists": true,
           "structure": {
-            "childTestIds": ["release-text", "timer-pill", "cancel-hint", "mic-button"]
+            "childTestIds": [
+              "release-text",
+              "record-shortcuts",
+              "record-controls",
+              "timer-pill",
+              "record-action-buttons",
+              "record-cancel-button",
+              "record-finish-button"
+            ]
           },
           "computedStyle": {
             "border-radius": "24px"
@@ -131,6 +139,19 @@
           }
         },
         {
+          "semanticId": "record-shortcuts",
+          "testId": "record-shortcuts",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "opacity": "0.72"
+          }
+        },
+        {
           "semanticId": "timer-pill",
           "testId": "timer-pill",
           "required": true,
@@ -140,12 +161,12 @@
             "childTestIds": []
           },
           "computedStyle": {
-            "border-radius": "20px"
+            "border-radius": "8px"
           }
         },
         {
-          "semanticId": "cancel-hint",
-          "testId": "cancel-hint",
+          "semanticId": "record-cancel-button",
+          "testId": "record-cancel-button",
           "required": true,
           "severity": "fail",
           "exists": true,
@@ -153,7 +174,20 @@
             "childTestIds": []
           },
           "computedStyle": {
-            "opacity": "0.7"
+            "border-radius": "8px"
+          }
+        },
+        {
+          "semanticId": "record-finish-button",
+          "testId": "record-finish-button",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "border-radius": "8px"
           }
         }
       ]

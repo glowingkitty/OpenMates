@@ -11,6 +11,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
     func testSignedOutWelcomeShortTapShowsPressHoldHintWithoutSignup() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-welcome-mic-granted"])
 
@@ -24,6 +25,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "message-field").isHittable)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testSignedOutWelcomeHoldReleaseInsertsRecordingPreview() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: [
             "--ui-test-welcome-mic-granted",
@@ -41,6 +43,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.focus.guest-welcome-suppression,message-input.recording.lifecycle
     func testRecordRequestLaunchStartsWelcomeRecordingOverlay() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -57,11 +60,12 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         }
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 8))
-        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        assertRecordingOverlayCopy(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
-        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
+        assertWelcomeSuppressedAndComposerUsable(in: app)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
     func testSignedOutWelcomeRecordingCancelDoesNotInsertPreview() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: [
             "--ui-test-welcome-mic-granted",
@@ -70,7 +74,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         ])
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
-        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        assertRecordingOverlayCopy(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
 
         element(in: app, identifier: "record-cancel-button").tap()
@@ -80,6 +84,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
     func testSignedOutWelcomeDragLeftCancelsRecordingWithoutPreview() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: [
             "--ui-test-welcome-mic-granted",
@@ -97,6 +102,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.recording.lifecycle
     func testRecordButtonAndForcedOverlayMatchContractStructure() throws {
         let welcomeApp = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-welcome-mic-granted"])
         XCTAssertTrue(element(in: welcomeApp, identifier: "record-audio-button").waitForExistence(timeout: 5))
@@ -111,8 +117,10 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let releaseText = element(in: app, identifier: "release-text")
         XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
-        XCTAssertTrue(releaseText.label.localizedCaseInsensitiveContains("Release to finish"), "Expected pointer overlay release text; label=\(releaseText.label)")
+        XCTAssertTrue(releaseText.label.localizedCaseInsensitiveContains("Recording"), "Expected pointer overlay recording text; label=\(releaseText.label)")
+        XCTAssertTrue(element(in: app, identifier: "record-shortcuts").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-action-buttons").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
 
@@ -140,7 +148,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        assertRecordingOverlayCopy(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
     }
@@ -157,12 +165,31 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             .firstMatch
     }
 
-    private func assertReleaseText(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
+    private func assertRecordingOverlayCopy(in app: XCUIApplication) {
         let releaseText = element(in: app, identifier: "release-text")
         XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
-        let label = releaseText.label
-        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected release text to contain \(expected); label=\(label)")
-        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected release text to exclude \(unexpected); label=\(label)")
+        XCTAssertTrue(
+            releaseText.label.localizedCaseInsensitiveContains("Recording"),
+            "Expected release text to match web recording label; label=\(releaseText.label)"
+        )
+
+        let shortcuts = element(in: app, identifier: "record-shortcuts")
+        XCTAssertTrue(shortcuts.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            shortcuts.label.localizedCaseInsensitiveContains("Enter") &&
+            shortcuts.label.localizedCaseInsensitiveContains("Escape"),
+            "Expected web shortcut copy in record-shortcuts; label=\(shortcuts.label)"
+        )
+    }
+
+    private func assertWelcomeSuppressedAndComposerUsable(in app: XCUIApplication) {
+        XCTAssertFalse(element(in: app, identifier: "daily-inspiration-card").exists)
+        XCTAssertFalse(element(in: app, identifier: "guest-interest-tags").exists)
+        XCTAssertFalse(element(in: app, identifier: "welcome-chat-cards-carousel").exists)
+
+        let messageField = element(in: app, identifier: "message-field")
+        XCTAssertTrue(messageField.waitForExistence(timeout: 2))
+        XCTAssertTrue(messageField.isHittable, "Message input must remain mounted and hittable while welcome UI is suppressed")
     }
 
     private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
