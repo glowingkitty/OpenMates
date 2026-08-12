@@ -470,10 +470,10 @@ def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
 
     assert "FontSize=8" in phone_style
     assert "MarginV=15" in phone_style
-    assert "Alignment=8" in phone_style
+    assert "Alignment=2" in phone_style
     assert "FontSize=20" in laptop_style
     assert "MarginV=16" in laptop_style
-    assert "Alignment=8" in laptop_style
+    assert "Alignment=2" in laptop_style
 
 
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:

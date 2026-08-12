@@ -305,7 +305,7 @@ def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
         "FontName=DejaVu Sans,"
         f"FontSize={font_size},"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=8,MarginV={margin_v}"
+        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=2,MarginV={margin_v}"
     )
 
 
