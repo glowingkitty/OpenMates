@@ -536,6 +536,10 @@ async def handle_encrypted_chat_metadata(
                 # Add all updated fields to broadcast
                 if encrypted_chat_key:
                     broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
+                    if allow_chat_key_rotation:
+                        broadcast_payload["payload"]["allow_chat_key_rotation"] = True
+                    if chat_key_rotation_reason:
+                        broadcast_payload["payload"]["chat_key_rotation_reason"] = chat_key_rotation_reason
                 if encrypted_title:
                     broadcast_payload["payload"]["encrypted_title"] = encrypted_title
                 if encrypted_chat_summary:

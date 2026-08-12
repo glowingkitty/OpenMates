@@ -1817,6 +1817,8 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_icon?: string;
     encrypted_category?: string;
     encrypted_chat_category?: string;
+    allow_chat_key_rotation?: boolean;
+    chat_key_rotation_reason?: string;
     versions?: {
       messages_v?: number;
       title_v?: number;
@@ -1886,6 +1888,7 @@ export async function handleEncryptedChatMetadataImpl(
     }
 
     let changed = createdMetadataShell;
+    const allowChatKeyRotation = payload.allow_chat_key_rotation === true;
 
     // Update encrypted_chat_key if provided.
     // IMPORTANT: AES-GCM uses a random IV, so the same raw key re-encrypted twice
@@ -1929,12 +1932,13 @@ export async function handleEncryptedChatMetadataImpl(
         console.debug(
           `[ChatSyncService:ChatUpdates] encrypted_chat_key ciphertext changed for chat ${payload.chat_id} but raw key is identical — updating stored ciphertext without clearing cache`,
         );
-      } else if (cachedKey) {
-        // Genuinely different raw key — this is a real key rotation (e.g. hidden chat toggle).
+      } else if (cachedKey && allowChatKeyRotation) {
+        // Genuinely different raw key with explicit rotation intent (e.g. hidden chat toggle).
         // Clear the cached key and accept the incoming key before any validation can
         // call withKey(), otherwise withKey() may reload the stale IndexedDB key.
         console.info(
-          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — accepting incoming key`,
+          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} ` +
+            `(raw key differs, reason=${payload.chat_key_rotation_reason ?? "unspecified"}) — accepting incoming key`,
         );
         chatDB.clearChatKey(payload.chat_id);
         try {
@@ -1961,6 +1965,11 @@ export async function handleEncryptedChatMetadataImpl(
             e,
           );
         }
+      } else if (cachedKey) {
+        console.warn(
+          `[ChatSyncService:ChatUpdates] Ignoring mismatched encrypted_chat_key for chat ${payload.chat_id} ` +
+            "because rotation was not explicitly allowed. Preserving the established key.",
+        );
       } else {
         // FIRST-TIME KEY DELIVERY: No cached key existed — this is a secondary device
         // receiving the chat key for the first time (e.g. brand-new chat created on
@@ -1993,9 +2002,10 @@ export async function handleEncryptedChatMetadataImpl(
         }
       }
 
-      // Always update the stored encrypted_chat_key to the latest ciphertext
-      chat.encrypted_chat_key = payload.encrypted_chat_key;
-      changed = true;
+      if (rawKeysMatch || !cachedKey || allowChatKeyRotation) {
+        chat.encrypted_chat_key = payload.encrypted_chat_key;
+        changed = true;
+      }
     }
 
     // Update other metadata fields from broadcast.

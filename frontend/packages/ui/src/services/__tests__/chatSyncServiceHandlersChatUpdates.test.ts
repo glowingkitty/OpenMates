@@ -306,11 +306,10 @@ describe("handleEncryptedChatMetadataImpl", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
-  it("accepts a mismatched incoming metadata key before validating encrypted fields", async () => {
+  it("preserves the established chat key when metadata broadcasts carry an unapproved mismatch", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
-    const staleKey = new Uint8Array([9, 9, 9]);
+    const establishedKey = new Uint8Array([9, 9, 9]);
     const incomingKey = new Uint8Array([1, 2, 3]);
-    const callOrder: string[] = [];
 
     mocks.chatDB.getChat.mockResolvedValue({
       chat_id: "chat-key-race",
@@ -325,27 +324,15 @@ describe("handleEncryptedChatMetadataImpl", () => {
       created_at: 100,
       updated_at: 100,
     });
-    mocks.chatKeyManager.getKeySync.mockReturnValue(staleKey);
+    mocks.chatKeyManager.getKeySync.mockReturnValue(establishedKey);
     mocks.decryptChatKeyWithMasterKey.mockResolvedValue(incomingKey);
-    mocks.chatDB.clearChatKey.mockImplementation(() => {
-      callOrder.push("clear");
-    });
-    mocks.chatKeyManager.receiveKeyFromServer.mockImplementation(async () => {
-      callOrder.push("receive");
-      return incomingKey;
-    });
     mocks.chatKeyManager.withKey.mockImplementation(
       async (
         _chatId: string,
         _reason: string,
         callback: (key: Uint8Array) => Promise<void>,
       ) => {
-        callOrder.push("withKey");
-        await callback(
-          mocks.chatKeyManager.receiveKeyFromServer.mock.calls.length > 0
-            ? incomingKey
-            : staleKey,
-        );
+        await callback(establishedKey);
       },
     );
     mocks.decryptWithChatKey.mockResolvedValue("decrypts");
@@ -362,12 +349,79 @@ describe("handleEncryptedChatMetadataImpl", () => {
       },
     });
 
-    expect(callOrder).toEqual(["clear", "receive", "withKey"]);
-    expect(mocks.decryptWithChatKey).toHaveBeenCalledWith("new-title", incomingKey);
+    expect(mocks.chatDB.clearChatKey).not.toHaveBeenCalled();
+    expect(mocks.chatKeyManager.receiveKeyFromServer).not.toHaveBeenCalled();
+    expect(mocks.decryptWithChatKey).toHaveBeenCalledWith("new-title", establishedKey);
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({
         chat_id: "chat-key-race",
-        encrypted_chat_key: "new-encrypted-chat-key",
+        encrypted_chat_key: "old-encrypted-chat-key",
+        encrypted_title: "new-title",
+      }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
+  it("accepts a mismatched metadata key only when rotation is explicitly allowed", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const oldKey = new Uint8Array([9, 9, 9]);
+    const rotatedKey = new Uint8Array([1, 2, 3]);
+    const callOrder: string[] = [];
+
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-key-rotation",
+      encrypted_title: "old-title",
+      encrypted_chat_key: "old-encrypted-chat-key",
+      messages_v: 1,
+      title_v: 1,
+      metadata_v: 1,
+      draft_v: 0,
+      last_edited_overall_timestamp: 100,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 100,
+    });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(oldKey);
+    mocks.decryptChatKeyWithMasterKey.mockResolvedValue(rotatedKey);
+    mocks.chatDB.clearChatKey.mockImplementation(() => {
+      callOrder.push("clear");
+    });
+    mocks.chatKeyManager.receiveKeyFromServer.mockImplementation(async () => {
+      callOrder.push("receive");
+      return rotatedKey;
+    });
+    mocks.chatKeyManager.withKey.mockImplementation(
+      async (
+        _chatId: string,
+        _reason: string,
+        callback: (key: Uint8Array) => Promise<void>,
+      ) => {
+        callOrder.push("withKey");
+        await callback(rotatedKey);
+      },
+    );
+    mocks.decryptWithChatKey.mockResolvedValue("decrypts");
+
+    await handleEncryptedChatMetadataImpl(service, {
+      chat_id: "chat-key-rotation",
+      encrypted_chat_key: "rotated-encrypted-chat-key",
+      encrypted_title: "new-title",
+      allow_chat_key_rotation: true,
+      chat_key_rotation_reason: "hidden_chat",
+      versions: {
+        messages_v: 1,
+        title_v: 2,
+        metadata_v: 2,
+        draft_v: 0,
+      },
+    });
+
+    expect(callOrder).toEqual(["clear", "receive", "withKey"]);
+    expect(mocks.decryptWithChatKey).toHaveBeenCalledWith("new-title", rotatedKey);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-key-rotation",
+        encrypted_chat_key: "rotated-encrypted-chat-key",
         encrypted_title: "new-title",
       }),
     );
