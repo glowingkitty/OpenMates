@@ -1,4 +1,5 @@
 # backend/tests/test_celery_config.py
+# contract-test-file: infrastructure
 #
 # Tests Celery worker boot helpers that are too small for integration tests.
 # Worker process startup preloads process-local caches before any queued task can
@@ -26,12 +27,13 @@ def test_warm_translation_cache_preloads_english(monkeypatch):
     assert calls == ["en"]
 
 
-def test_custom_workflow_task_names_route_manual_runs_to_isolated_queue():
+def test_custom_workflow_task_names_route_execution_to_isolated_queue():
     from backend.core.api.app.tasks import celery_config
 
     assert celery_config.get_expected_queue_for_task("workflows.cleanup_expired_temporary") == "persistence"
     assert celery_config.get_expected_queue_for_task("workflows.run") == "workflow"
-    assert celery_config.get_expected_queue_for_task("workflows.run_scheduled_trigger") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.run_scheduled_trigger") == "workflow"
+    assert celery_config.get_expected_queue_for_task("workflows.scan_due_triggers") == "workflow"
     assert celery_config.get_expected_queue_for_task("workflows.dispatch_event") == "persistence"
     assert celery_config.get_expected_queue_for_task("workflows.expire_assistant_proposals") == "persistence"
     assert celery_config.get_expected_queue_for_task("workflows.execute_assistant_countdown") == "persistence"

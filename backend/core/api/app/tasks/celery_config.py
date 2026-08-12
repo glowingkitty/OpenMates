@@ -1008,8 +1008,10 @@ task_routes = {
     "demo.*": {'queue': 'demo'},
     # Reminder tasks use custom names like "reminder.*"
     "reminder.*": {'queue': 'reminder'},
-    # Manual workflow runs must not wait behind persistence/scheduled-trigger backlog.
+    # Workflow execution tasks must not wait behind persistence backlog.
     "workflows.run": {'queue': 'workflow'},
+    "workflows.run_scheduled_trigger": {'queue': 'workflow'},
+    "workflows.scan_due_triggers": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1138,9 +1140,11 @@ _EXPLICIT_TASK_ROUTES = {
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
 
-     # Workflow tasks
-     "workflows.run": "workflow",
- }
+      # Workflow tasks
+      "workflows.run": "workflow",
+      "workflows.run_scheduled_trigger": "workflow",
+      "workflows.scan_due_triggers": "workflow",
+  }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
     """
@@ -1394,7 +1398,7 @@ app.conf.beat_schedule = {
     'scan-due-workflow-triggers': {
         'task': 'workflows.scan_due_triggers',
         'schedule': timedelta(seconds=60),
-        'options': {'queue': 'persistence'},
+        'options': {'queue': 'workflow'},
     },
     # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.
     # Runs Sunday at 03:00 UTC so it doesn't overlap with the daily auto-delete at 02:30 UTC.
