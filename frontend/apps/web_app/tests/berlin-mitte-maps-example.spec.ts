@@ -4,7 +4,7 @@
  *
  * The example is generated from a real OpenMates CLI chat and checked in as
  * static public data. The test verifies the deployed page renders messages,
- * Maps search embeds, the inline map-view block, and parent/child fullscreens.
+ * Maps search embeds, the inline map-view block, and parent fullscreens.
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -47,21 +47,8 @@ async function expectMapBackedLocationFullscreen(page: any, label: string): Prom
 	return overlay;
 }
 
-async function expectMapLocationPreviewLayout(card: any): Promise<void> {
-	const metrics = await card.evaluate((element: HTMLElement) => {
-		const cardBox = element.getBoundingClientRect();
-		const imageBox = element.querySelector('img')?.getBoundingClientRect();
-		return {
-			cardHeight: cardBox.height,
-			imageTopGap: imageBox ? imageBox.top - cardBox.top : null
-		};
-	});
-	expect(metrics.cardHeight, 'maps result preview should have room for image and text').toBeGreaterThanOrEqual(240);
-	expect(metrics.imageTopGap, 'maps result preview image should reach the top of the card').not.toBeNull();
-	expect(metrics.imageTopGap).toBeLessThanOrEqual(4);
-}
-
 test.describe('Berlin Mitte Maps public example', () => {
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('renders messages, maps embeds, map view, fullscreens, and reloads', async ({
 		page,
 		request
@@ -127,20 +114,41 @@ test.describe('Berlin Mitte Maps public example', () => {
 			'cafe restaurant with wifi Berlin Mitte',
 			{ timeout: 15_000 }
 		);
-		const resultCards = resultsOverlay.locator(
-			'[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="location"][data-status="finished"]'
-		);
+		await expect(resultsOverlay).toHaveCount(1);
+		const fullscreenMapView = resultsOverlay.getByTestId('embeds-map-view');
+		await expect(fullscreenMapView).toBeVisible({ timeout: 30_000 });
+		await expect(fullscreenMapView.getByTestId('embeds-map-view-list')).toBeVisible({ timeout: 15_000 });
+		await expect(fullscreenMapView.getByTestId('embeds-map-view-map')).toBeVisible({ timeout: 15_000 });
+
+		const resultCards = fullscreenMapView.getByTestId('embeds-map-view-card');
 		await expect.poll(async () => resultCards.count(), {
-			message: 'Maps search fullscreen should render place result cards',
+			message: 'Maps search fullscreen should render place results in the reusable map-view list',
 			timeout: 30_000
 		}).toBeGreaterThanOrEqual(3);
 		await expect(resultCards.first()).toContainText(/St\. Oberholz|Cafe Latrio|Father Carpenter/i);
-		await expectMapLocationPreviewLayout(resultCards.first());
 
-		await resultCards.first().click({ force: true });
-		const childLocationOverlay = await expectMapBackedLocationFullscreen(page, 'clicked maps search result');
-		await expect(page.getByTestId('map-location-fullscreen')).toContainText(/Berlin|Rosenthaler|Monbijou|Münzstraße/i);
-		await closeFullscreen(page, childLocationOverlay);
+		const desktopListBox = await fullscreenMapView.getByTestId('embeds-map-view-list').boundingBox();
+		const desktopMapBox = await fullscreenMapView.getByTestId('embeds-map-view-map').boundingBox();
+		expect(desktopListBox, 'maps fullscreen desktop list box should exist').not.toBeNull();
+		expect(desktopMapBox, 'maps fullscreen desktop map box should exist').not.toBeNull();
+		expect(desktopMapBox!.x, 'maps fullscreen desktop map should sit to the right of the list').toBeGreaterThan(desktopListBox!.x);
+		expect(desktopMapBox!.width, 'maps fullscreen desktop map should be wider than the list').toBeGreaterThan(desktopListBox!.width);
+
+		const overlayCountBeforeSelect = await page.getByTestId('embed-fullscreen-overlay').count();
+		await resultCards.first().click();
+		await expect(resultCards.first()).toHaveAttribute('data-selected', 'true');
+		expect(await page.getByTestId('embed-fullscreen-overlay').count()).toBe(overlayCountBeforeSelect);
+		await expect(page.getByTestId('map-location-fullscreen')).toHaveCount(0);
+
+		await page.setViewportSize({ width: 390, height: 844 });
+		const mobileListBox = await fullscreenMapView.getByTestId('embeds-map-view-list').boundingBox();
+		const mobileMapBox = await fullscreenMapView.getByTestId('embeds-map-view-map').boundingBox();
+		expect(mobileListBox, 'maps fullscreen mobile list box should exist').not.toBeNull();
+		expect(mobileMapBox, 'maps fullscreen mobile map box should exist').not.toBeNull();
+		expect(mobileMapBox!.y, 'maps fullscreen mobile map should sit below the result list').toBeGreaterThan(mobileListBox!.y);
+		expect(mobileListBox!.width).toBeLessThanOrEqual(390);
+
+		await page.setViewportSize({ width: 1280, height: 900 });
 		await closeFullscreen(page, resultsOverlay);
 
 		const noResultsOverlay = await openFullscreen(page, noResultsCard);

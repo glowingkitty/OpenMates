@@ -170,7 +170,7 @@ contracts:
     version: 1
     status: approved
     path: features/public-example-chats
-    fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
+    fingerprint: 8469f5b452da01b2fa7c60b19908d7d0b2f31bb3971bef2c83679882678348d6
     required_surfaces:
     - gui.web
   feature.tasks:
@@ -1557,7 +1557,7 @@ assertions:
     contract: feature.public-example-chats@1
     contract_id: feature.public-example-chats
     type: privacy
-    fingerprint: e39475dbab54b733ca2a62aaeb52048fb5fd088992c9a1f951616da722424bdd
+    fingerprint: fd6ff0edd6f3344f9944b04aa9fea05ab0d121dbcd75259248be62a9008f401c
     required_surfaces:
     - gui.web
   public-example-chats.history.explicit-forgotten-reveal:
@@ -1578,7 +1578,7 @@ assertions:
     contract: feature.public-example-chats@1
     contract_id: feature.public-example-chats
     type: parity
-    fingerprint: 840c91eeca2debe0d4745ccb7990edf41d329c91068265898abc80cd59679f31
+    fingerprint: 2754d8e41bd329d24cc4d8b6a3bfdac5e4477d1903d06265e98e2dae88cf1eba
     required_surfaces:
     - gui.web
   tasks.content.client-encrypted:

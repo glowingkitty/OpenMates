@@ -28,8 +28,8 @@ renderable_transcripts:
     input: {chat_ids: [example-memory-books-currently-reading, example-memory-mail-writing-styles]}
     expected: {memory_summary_visible: true, invalid_interactive_question_absent: true, raw_memory_payload_absent: true}
   - id: app-skill-embed-previews
-    input: {chat_ids: [example-chickpea-spinach-protein-dinners, example-deutschlandticket-train-fare-breakdown, example-ai-workshops-meetups-berlin]}
-    expected: {finished_embed_previews_visible: true, known_result_counts_visible: true, raw_tool_payload_absent: true, map_routes_visible_when_applicable: true}
+    input: {chat_ids: [example-chickpea-spinach-protein-dinners, example-deutschlandticket-train-fare-breakdown, example-ai-workshops-meetups-berlin, example-berlin-mitte-work-friendly]}
+    expected: {finished_embed_previews_visible: true, known_result_counts_visible: true, raw_tool_payload_absent: true, map_routes_visible_when_applicable: true, maps_search_parent_fullscreen_map_view: true}
   - id: generated-audio-public-safety
     input: {chat_ids: [example-audio-generate-confirmation-tick, example-audio-speak-welcome-message]}
     expected: {generated_audio_embed_visible: true, audio_base64_absent: true, aes_key_absent: true, aes_nonce_absent: true, vault_wrapped_aes_key_absent: true}

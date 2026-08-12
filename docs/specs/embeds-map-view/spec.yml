@@ -31,7 +31,7 @@ scope:
     - Assistant-authored filter schemas, categories, or facets beyond `title`, `embeds`, `sources`, and `highlight`.
     - Automatic calls to `travel.flight_details`, booking details, Flightradar24, FlightAware, or any other paid provider/enrichment endpoint.
     - Drawing exact flight tracks unless those tracks already exist in the referenced embed content.
-    - Replacing fullscreen search-result pages for events, health, travel, or maps.
+    - Replacing fullscreen search-result pages for events, health, or travel.
     - Apple implementation before REST/API, CLI, SDK, web, and user-confirmation gates are complete.
 
 context_discovery:
@@ -196,6 +196,15 @@ decisions:
       not add repeated TOON decoding, source resolution, or Leaflet layer rebuilds
       during initial chat load or slider changes.
     decided_at: "2026-07-31T15:00:00Z"
+  - id: D-8
+    status: active
+    decision: Maps Search parent fullscreens reuse the map-view list/map layout inside UnifiedEmbedFullscreen.
+    reason: >
+      Maps Search is itself a place-results map surface. Reusing the existing
+      `EmbedsMapView` layout removes nested child fullscreens while preserving
+      the standard fullscreen embed header, top bar, share behavior, and no
+      provider-enrichment boundary.
+    decided_at: "2026-08-12T11:10:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -375,6 +384,20 @@ scenarios:
       - Example data preserves the real generated transcript instead of a hand-authored fixture.
       - Private fields, share keys, provider secrets, and raw account identifiers are absent from committed example-chat data.
 
+  - id: S-12
+    title: Maps Search parent fullscreen shows map-view results without nested child fullscreen
+    given:
+      - Alice opens a Maps Search parent embed fullscreen from a chat or public example.
+      - The parent embed exposes place child embed IDs or legacy place results with coordinates.
+    when:
+      - The fullscreen content renders and Alice selects a result row.
+    then:
+      - The standard `UnifiedEmbedFullscreen` header and top bar remain visible for the parent Maps Search embed.
+      - The fullscreen body shows the reusable `EmbedsMapView` list and map layout.
+      - Desktop positions the result list to the left of the map, and mobile stacks the list above the map.
+      - Selecting a result highlights the row and marker rather than opening `MapLocationEmbedFullscreen` inside the parent fullscreen.
+      - The render uses local parent/child embed data only and does not call Maps, Geoapify, or other enrichment endpoints.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -472,6 +495,17 @@ acceptance_criteria:
     verification_ids:
       - T-PLAYWRIGHT-EXAMPLES
       - V-USER-CONFIRMATION
+
+  - id: AC-12
+    scenario: S-12
+    text: 'Maps Search parent fullscreens keep the standard UnifiedEmbedFullscreen header while rendering reusable map-view list/map content and preventing nested child fullscreen overlays on result selection.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FULLSCREEN-SELECT
+      - T-PLAYWRIGHT-MAPS-FULLSCREEN
 
   - id: AC-10
     scenario: S-10
@@ -828,6 +862,69 @@ tests:
             run_id: firecrawl-scrape-019fb292-df74-7009-87bb-d9292cb6a229
             timestamp: "2026-07-30T10:31:00Z"
             summary: containsCodeSnippetCard=false; containsRawEmbedsMapViewText=false; containsMappedResults=true.
+
+  - id: T-VITEST-FULLSCREEN-SELECT
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-12
+    assertions:
+      - Fullscreen/select mode selects a map-view entry locally and marks the selected card.
+      - Fullscreen/select mode does not dispatch `dispatchEmbedFullscreen` for child map locations.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-MAPS-FULLSCREEN
+    type: playwright
+    file: frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-8
+      - AC-12
+    assertions:
+      - The deployed Berlin Mitte example renders Maps Search parent embeds and the assistant map-view block from static public data.
+      - Opening a Maps Search parent fullscreen keeps the parent embed header visible and renders one `EmbedsMapView` result list plus map.
+      - Desktop and mobile Maps Search fullscreen layouts preserve list-left/map-right and list-top/map-bottom ordering.
+      - Selecting a place result in the parent fullscreen highlights the row and does not create a nested `map-location-fullscreen` overlay.
+      - No-result Maps Search parent fullscreen still renders the no-results and strict-amenity status copy.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts
+        run_id: ""
+        subject_commit: ""
+        target: app.dev.openmates.org
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts --gate-deploy --expected-commit <sha>
+        run_id: ""
+        subject_commit: ""
+        target: app.dev.openmates.org
+        timestamp: ""
 
   - id: T-VITEST-FILTERS
     type: vitest

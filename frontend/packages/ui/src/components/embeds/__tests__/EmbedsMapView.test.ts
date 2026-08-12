@@ -246,6 +246,7 @@ describe("EmbedsMapView", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("loads source children, sorts highlights first, and derives filters", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -279,6 +280,40 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("selects entries locally in fullscreen mode without opening child fullscreens", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-select",
+        title: "Berlin AI events",
+        embedRefs: [],
+        sourceRefs: ["events-search-abcdef"],
+        highlightRefs: [],
+        interactionMode: "select",
+      },
+    });
+
+    await flush();
+
+    const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
+    expect(cards).toHaveLength(2);
+    expect(cards[0].dataset.selected).toBe("false");
+
+    cards[0].click();
+    await tick();
+
+    expect(cards[0].dataset.selected).toBe("true");
+    expect(fullscreenMocks.dispatchEmbedFullscreen).not.toHaveBeenCalled();
+
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("opens a top-right filter menu and dims non-hovered entries", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -321,6 +356,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("switches map and calendar visual tabs while keeping the result list", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -358,6 +394,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("labels event and appointment start filters as time, not departure time", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -389,6 +426,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("draws multiple travel connection routes from structured and flat segment coordinates", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -417,6 +455,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("derives route filters and applies them without re-decoding entries", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -479,6 +518,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("does not re-resolve ready entries for unrelated ref-index bumps", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
@@ -508,6 +548,7 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("cancels one scheduled idle map hydration when unmounted", async () => {
     const originalRequestIdleCallback = globalThis.requestIdleCallback;
     const originalCancelIdleCallback = globalThis.cancelIdleCallback;
