@@ -163,7 +163,13 @@
 
 <style>
   .maps-search-fullscreen-body {
-    min-height: calc(100dvh - 240px);
+    --maps-search-fullscreen-header-height: 240px;
+    --maps-search-fullscreen-body-height: calc(100% - var(--maps-search-fullscreen-header-height));
+
+    display: flex;
+    flex-direction: column;
+    height: var(--maps-search-fullscreen-body-height);
+    min-height: 360px;
     background: var(--color-bg-secondary);
   }
 
@@ -207,25 +213,77 @@
   }
 
   :global(.maps-search-fullscreen-body .embeds-map-view) {
-    min-height: calc(100dvh - 240px);
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
     border: 0;
     border-radius: 0;
     box-shadow: none;
   }
 
   :global(.maps-search-fullscreen-body .map-view-body) {
-    min-height: calc(100dvh - 296px);
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   :global(.maps-search-fullscreen-body .map-view-list),
   :global(.maps-search-fullscreen-body .map-view-map),
   :global(.maps-search-fullscreen-body .results-view-pane) {
-    min-height: calc(100dvh - 296px);
+    min-height: 0;
+  }
+
+  :global(.maps-search-fullscreen-body .map-view-list),
+  :global(.maps-search-fullscreen-body .map-view-map),
+  :global(.maps-search-fullscreen-body .results-view-pane),
+  :global(.maps-search-fullscreen-body .results-view-calendar) {
+    max-height: none;
+  }
+
+  @media (min-width: 721px) {
+    :global(.maps-search-fullscreen-body .map-view-body) {
+      display: grid;
+      grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-list) {
+      flex-direction: column;
+      height: 100%;
+      overflow: auto;
+      border-right: 1px solid var(--color-grey-20, #f3f3f3);
+      border-bottom: 0;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-map),
+    :global(.maps-search-fullscreen-body .results-view-pane),
+    :global(.maps-search-fullscreen-body .results-view-calendar),
+    :global(.maps-search-fullscreen-body .embed-leaflet-map) {
+      height: 100%;
+    }
   }
 
   @media (max-width: 720px) {
-    :global(.maps-search-fullscreen-body .map-view-list) {
+    .maps-search-fullscreen-body {
+      --maps-search-fullscreen-header-height: 190px;
+
       min-height: 0;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-list) {
+      flex: 0 0 auto;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    :global(.maps-search-fullscreen-body .results-view-pane) {
+      flex: 1 1 auto;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-map),
+    :global(.maps-search-fullscreen-body .embed-leaflet-map) {
+      min-height: clamp(320px, 52dvh, 520px);
     }
   }
 </style>
