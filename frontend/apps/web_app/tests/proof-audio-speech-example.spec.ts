@@ -20,6 +20,11 @@ const PROOF_VIEWPORTS = [
 	{ name: 'web-laptop', width: 1440, height: 900 }
 ] as const;
 
+const PROOF_PHONE_CONTROL_TOP_MIN_PX = 520;
+const PROOF_PHONE_CONTROL_BOTTOM_MAX_PX = 740;
+const PROOF_LAPTOP_CONTROL_TOP_MIN_PX = 420;
+const PROOF_LAPTOP_CONTROL_BOTTOM_MAX_PX = 820;
+
 async function waitForPreviewAudioPlayback(audioLocator: any, label: string): Promise<void> {
 	await expect(async () => {
 		const state = await audioLocator.evaluate((audio: HTMLAudioElement) => ({
@@ -39,6 +44,32 @@ async function centerLocatorInViewport(locator: any): Promise<void> {
 	await locator.evaluate((element: HTMLElement) => {
 		element.scrollIntoView({ block: 'center', inline: 'nearest' });
 	});
+}
+
+async function keepPlaybackControlInProofSafeArea(page: any, viewportName: string): Promise<void> {
+	const minTop = viewportName === 'web-phone' ? PROOF_PHONE_CONTROL_TOP_MIN_PX : PROOF_LAPTOP_CONTROL_TOP_MIN_PX;
+	const maxBottom = viewportName === 'web-phone' ? PROOF_PHONE_CONTROL_BOTTOM_MAX_PX : PROOF_LAPTOP_CONTROL_BOTTOM_MAX_PX;
+
+	await expect(async () => {
+		await page.evaluate(({ minTop, maxBottom }: { minTop: number; maxBottom: number }) => {
+			const container = document.querySelector('[data-testid="chat-history-container"]') as HTMLElement | null;
+			const button = document.querySelector('[data-testid="audio-speak-preview-play-button"]') as HTMLElement | null;
+
+			if (!container || !button) {
+				throw new Error('Missing audio proof scroll target');
+			}
+
+			const buttonRect = button.getBoundingClientRect();
+			const safeCenterY = minTop + (maxBottom - minTop) / 2;
+			container.scrollTop += buttonRect.top + buttonRect.height / 2 - safeCenterY;
+		}, { minTop, maxBottom });
+
+		await page.waitForTimeout(150);
+		const box = await page.getByTestId('audio-speak-preview-play-button').boundingBox();
+		expect(box, `${viewportName} playback control should have a visible bounding box`).not.toBeNull();
+		expect(box!.y, `${viewportName} playback control should clear the caption area`).toBeGreaterThanOrEqual(minTop);
+		expect(box!.y + box!.height, `${viewportName} playback control should clear the composer`).toBeLessThanOrEqual(maxBottom);
+	}).toPass({ timeout: 5000 });
 }
 
 test.describe('Audio speech example proof video source', () => {
@@ -83,7 +114,7 @@ test.describe('Audio speech example proof video source', () => {
 				await waitForPreviewAudioPlayback(previewAudio, `${viewport.name} preview audio`);
 
 				await expect(playButton).toHaveAttribute('aria-label', 'Pause', { timeout: 5000 });
-				await centerLocatorInViewport(playButton);
+				await keepPlaybackControlInProofSafeArea(page, viewport.name);
 				await page.waitForTimeout(2500);
 			} finally {
 				await context.close();
