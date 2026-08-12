@@ -1069,6 +1069,7 @@
                     class="provider-switch-btn"
                     data-testid="switch-to-stripe"
                     onclick={() => switchPaymentMode('stripe')}
+                    disabled={isLoading || isInitializing}
                 >
                     {$text('signup.switch_to_eu_card')}
                 </button>
@@ -1105,7 +1106,7 @@
                             class="provider-switch-btn"
                             data-testid="switch-to-non-eu"
                             onclick={() => switchPaymentMode('managed')}
-                            disabled={isLoading}
+                            disabled={isLoading || isInitializing}
                         >
                             {$text('signup.switch_to_non_eu_card')}
                         </button>
@@ -1113,7 +1114,7 @@
                             <button
                                 class="provider-switch-btn"
                                 onclick={() => { showBankTransfer = true; }}
-                                disabled={isLoading}
+                                disabled={isLoading || isInitializing}
                                 data-testid="switch-to-bank-transfer"
                             >
                                 {$text('settings.billing.bank_transfer')}
@@ -1162,7 +1163,7 @@
                         class="provider-switch-btn"
                         data-testid="switch-to-non-eu"
                         onclick={() => switchPaymentMode('managed')}
-                        disabled={isLoading}
+                        disabled={isLoading || isInitializing}
                     >
                         {$text('signup.switch_to_non_eu_card')}
                     </button>
@@ -1170,7 +1171,7 @@
                         <button
                             class="provider-switch-btn"
                             onclick={() => { showBankTransfer = true; }}
-                            disabled={isLoading}
+                            disabled={isLoading || isInitializing}
                             data-testid="switch-to-bank-transfer"
                         >
                             {$text('settings.billing.bank_transfer')}
