@@ -32,10 +32,12 @@ const mockGetKeySync = vi.fn();
 const mockInjectKey = vi.fn();
 const mockCreateKeyForNewChat = vi.fn();
 const mockCreateAndPersistKeyLocked = vi.fn();
+const mockGetProvenance = vi.fn();
 const mockComputeKeyFingerprint = vi.fn().mockReturnValue("abcd1234");
 vi.mock("../../encryption/ChatKeyManager", () => ({
   chatKeyManager: {
     getKeySync: (...args: unknown[]) => mockGetKeySync(...args),
+    getProvenance: (...args: unknown[]) => mockGetProvenance(...args),
     injectKey: (...args: unknown[]) => mockInjectKey(...args),
     createKeyForNewChat: (...args: unknown[]) =>
       mockCreateKeyForNewChat(...args),
@@ -141,6 +143,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     mockGetKeySync.mockReturnValue(null);
     mockDecryptChatKeyWithMasterKey.mockResolvedValue(null);
     mockEncryptChatKeyWithMasterKey.mockResolvedValue(null);
+    mockGetProvenance.mockReturnValue(null);
     mockCreateKeyForNewChat.mockReturnValue(fakeKey);
     mockCreateAndPersistKeyLocked.mockResolvedValue({
       chatKey: fakeKey,
@@ -382,6 +385,25 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(mockGetKeySync).not.toHaveBeenCalled();
     expect(result.chat_id).toBe("demo-welcome");
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open
+  it("does not master-wrap shared chat keys loaded from shared storage", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat();
+
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockGetProvenance.mockReturnValue({
+      source: "shared_storage",
+      timestamp: 1234,
+      keyFingerprint: "abcd1234",
+    });
+
+    const result = await encryptChatForStorage(db as any, chat);
+
+    expect(mockEncryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(result.encrypted_chat_key).toBeNull();
+    expect(result.key_fingerprint).toBe("abcd1234");
   });
 });
 

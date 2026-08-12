@@ -46,6 +46,13 @@ const MESSAGES_STORE_NAME = "messages";
 // Maximum candidate keys stored per chat — prevents unbounded IDB growth
 const MAX_CANDIDATE_KEYS = 5;
 
+const SHARED_CHAT_KEY_SOURCES = new Set(["share_link", "shared_storage"]);
+
+function isSharedChatKeySource(chatId: string): boolean {
+  const provenance = chatKeyManager.getProvenance(chatId);
+  return provenance ? SHARED_CHAT_KEY_SOURCES.has(provenance.source) : false;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -302,7 +309,11 @@ export async function encryptChatForStorage(
   }
 
   // Ensure encrypted_chat_key is present in the stored object
-  if (!encryptedChat.encrypted_chat_key && !chat.is_anonymous) {
+  if (
+    !encryptedChat.encrypted_chat_key &&
+    !chat.is_anonymous &&
+    !isSharedChatKeySource(chat.chat_id)
+  ) {
     const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
