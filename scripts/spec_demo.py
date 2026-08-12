@@ -73,8 +73,56 @@ REVIEW_REQUEST_FIELDS = {"spec_id", "subject_commit", "captions", "expected_proo
 REVIEW_CAPTION_FIELDS = {"id", "narration_id", "text", "start", "end", "claim_ids"}
 REVIEW_PROOF_FIELDS = {"claim_id", "text", "acceptance_criteria", "evidence_intervals"}
 REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
-REVIEW_METADATA_FIELDS = {"duration_seconds", "sha256", "width", "height"}
+REVIEW_METADATA_REQUIRED_FIELDS = {"duration_seconds", "sha256", "width", "height"}
+REVIEW_METADATA_OPTIONAL_FIELDS = {
+    "black_bar_scan_status",
+    "demo_audio_mixed",
+    "device_profile",
+    "hold_last_frame_seconds",
+    "playback_rate",
+    "target_height",
+    "target_width",
+}
+REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
+DEVICE_PROFILES = {
+    "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
+    "web-phone": {"width": 390, "height": 844, "surface": "web", "label": "phone web"},
+    "web-laptop": {"width": 1440, "height": 900, "surface": "web", "label": "laptop web"},
+    "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
+    "apple-ipad-landscape": {"width": 1366, "height": 1024, "surface": "apple", "label": "iPad landscape"},
+}
+DEVICE_PROFILE_ALIASES = {
+    "cli": "cli-terminal",
+    "terminal": "cli-terminal",
+    "mobile": "web-phone",
+    "phone": "web-phone",
+    "web-mobile": "web-phone",
+    "laptop": "web-laptop",
+    "web-desktop": "web-laptop",
+    "desktop": "web-laptop",
+    "iphone": "apple-iphone-portrait",
+    "iphone-portrait": "apple-iphone-portrait",
+    "ipad": "apple-ipad-landscape",
+    "ipad-landscape": "apple-ipad-landscape",
+}
+DEVICE_ASPECT_RATIO_TOLERANCE = 0.01
+BLACK_BAR_DARK_LUMA_MAX = 16
+BLACK_BAR_DARK_PIXEL_RATIO = 0.98
+BLACK_BAR_CENTER_DARK_PIXEL_RATIO = 0.80
+BLACK_BAR_MIN_PIXELS = 8
+BLACK_BAR_MIN_FRACTION = 0.025
+BLACK_BAR_MAX_EDGE_FRACTION = 0.25
+MIN_TUTORIAL_NARRATION_SENTENCES = 3
+MIN_TUTORIAL_NARRATION_WORDS = 24
+GENERIC_NARRATION_RE = re.compile(
+    r"\b(?:it works|works correctly|feature works|successfully demonstrates|as you can see|proof video|demo video)\b",
+    re.IGNORECASE,
+)
+VISIBLE_NARRATION_RE = re.compile(
+    r"\b(?:screen|page|card|button|menu|field|terminal|command|result|message|audio|play|player|caption|visible|shows?|opens?|lists?|renders?)\b",
+    re.IGNORECASE,
+)
 
 
 class DemonstrationError(RuntimeError):
@@ -241,6 +289,135 @@ def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
+def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
+    if name is None or not str(name).strip():
+        return None
+    key = str(name).strip().lower()
+    canonical = DEVICE_PROFILE_ALIASES.get(key, key)
+    profile = DEVICE_PROFILES.get(canonical)
+    if profile is None:
+        supported = ", ".join(sorted(DEVICE_PROFILES))
+        raise DemonstrationError(f"Unsupported proof-video device profile {name!r}; use one of: {supported}")
+    return {"id": canonical, **profile}
+
+
+def assert_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str, Any] | None) -> None:
+    if profile is None:
+        return
+    width = int(profile["width"])
+    height = int(profile["height"])
+    if metadata.get("width") != width or metadata.get("height") != height:
+        actual = f"{metadata.get('width')}x{metadata.get('height')}"
+        expected = f"{width}x{height}"
+        label = str(profile.get("label") or profile["id"])
+        raise DemonstrationError(
+            f"{label} proof video must be {expected}, got {actual}. "
+            "Do not letterbox, pillarbox, or wrap device recordings in a generic landscape canvas."
+        )
+    expected_ratio = width / height
+    actual_ratio = int(metadata["width"]) / int(metadata["height"])
+    if abs(actual_ratio - expected_ratio) > DEVICE_ASPECT_RATIO_TOLERANCE:
+        raise DemonstrationError(f"Proof-video aspect ratio does not match device profile {profile['id']}")
+
+
+def _black_bar_probe_times(duration_seconds: float) -> list[float]:
+    if duration_seconds <= 0:
+        raise DemonstrationError("Video duration must be positive before black-bar scanning")
+    first_probe = min(duration_seconds - END_FRAME_OFFSET_SECONDS, max(0.25, duration_seconds * 0.1))
+    candidates = {first_probe, min(duration_seconds - END_FRAME_OFFSET_SECONDS, duration_seconds * 0.5)}
+    if duration_seconds > 2.0:
+        candidates.add(min(duration_seconds - END_FRAME_OFFSET_SECONDS, duration_seconds - 1.0))
+    return sorted(max(0.0, round(value, 3)) for value in candidates)
+
+
+def _crop_dark_ratio(frame_path: Path, *, crop: str) -> float:
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(frame_path),
+            "-vf",
+            f"crop={crop},format=gray",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        raise DemonstrationError(f"FFmpeg black-bar edge scan failed: {stderr.strip()[-500:]}")
+    if not result.stdout:
+        raise DemonstrationError("FFmpeg black-bar edge scan returned no pixels")
+    dark_pixels = sum(1 for value in result.stdout if value <= BLACK_BAR_DARK_LUMA_MAX)
+    return dark_pixels / len(result.stdout)
+
+
+def _edge_dark_ratio(frame_path: Path, *, edge: str, edge_pixels: int) -> float:
+    crop = {
+        "top": f"iw:{edge_pixels}:0:0",
+        "bottom": f"iw:{edge_pixels}:0:ih-{edge_pixels}",
+        "left": f"{edge_pixels}:ih:0:0",
+        "right": f"{edge_pixels}:ih:iw-{edge_pixels}:0",
+    }[edge]
+    return _crop_dark_ratio(frame_path, crop=crop)
+
+
+def _center_dark_ratio(frame_path: Path) -> float:
+    return _crop_dark_ratio(frame_path, crop="iw/2:ih/2:iw/4:ih/4")
+
+
+def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    width = int(metadata["width"])
+    height = int(metadata["height"])
+    edge_pixels = max(
+        BLACK_BAR_MIN_PIXELS,
+        min(int(min(width, height) * BLACK_BAR_MIN_FRACTION), int(min(width, height) * BLACK_BAR_MAX_EDGE_FRACTION)),
+    )
+    scan_dir = video_path.parent / ".black-bar-scan"
+    scan_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    scan_dir.chmod(0o700)
+    offenders: list[str] = []
+    try:
+        for index, timestamp in enumerate(_black_bar_probe_times(float(metadata["duration_seconds"]))):
+            frame_path = scan_dir / f"probe-{index:02d}.png"
+            extract_frame(video_path, timestamp_seconds=timestamp, output_path=frame_path)
+            ratios = {
+                edge: _edge_dark_ratio(frame_path, edge=edge, edge_pixels=edge_pixels)
+                for edge in ("top", "bottom", "left", "right")
+            }
+            center_ratio = _center_dark_ratio(frame_path)
+            if (
+                ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and ratios["bottom"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
+            ):
+                offenders.append(f"letterbox@{timestamp:g}s")
+            if (
+                ratios["left"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and ratios["right"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
+            ):
+                offenders.append(f"pillarbox@{timestamp:g}s")
+    finally:
+        shutil.rmtree(scan_dir, ignore_errors=True)
+    if offenders:
+        raise DemonstrationError(
+            "Proof video appears letterboxed or pillarboxed; black edge detected at "
+            + ", ".join(offenders[:6])
+        )
+    return {
+        "status": "passed",
+        "edge_pixels": edge_pixels,
+        "probes": len(_black_bar_probe_times(float(metadata["duration_seconds"]))),
+    }
+
+
 def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]) -> dict[str, Any]:
     """Build visible typing and output states while preserving captured delays."""
     command = f"$ {shlex.join(argv)}"
@@ -372,41 +549,68 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
     timeline_path.unlink(missing_ok=True)
 
 
-def render_captioned_video(source_path: Path, captions_path: Path, audio_path: Path, output_path: Path) -> None:
+def render_captioned_video(
+    source_path: Path,
+    captions_path: Path,
+    audio_path: Path,
+    output_path: Path,
+    *,
+    playback_rate: float = 1.0,
+    hold_last_frame_seconds: float = 0.0,
+    demo_audio_path: Path | None = None,
+) -> None:
     """Burn canonical captions into a copy without mutating the raw recording."""
-    for path in (source_path, captions_path, audio_path):
+    optional_paths = (demo_audio_path,) if demo_audio_path else ()
+    for path in (source_path, captions_path, audio_path, *optional_paths):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
         raise DemonstrationError("Caption output must not replace the raw recording")
+    if not 0.25 <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.25 and 4.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     captions = _ffmpeg_filter_path(captions_path)
+    source_duration = media_duration_seconds(source_path)
+    output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
+    video_filters = [f"setpts=PTS/{playback_rate:g}"]
+    if hold_last_frame_seconds:
+        video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
+    video_filters.append(f"subtitles='{captions}'")
+    audio_inputs = [f"[1:a:0]volume=1.0,apad,atrim=0:{output_duration:g}[narr]"]
+    input_args = ["-i", str(source_path), "-i", str(audio_path)]
+    if demo_audio_path is not None:
+        input_args.extend(["-stream_loop", "-1", "-i", str(demo_audio_path)])
+        audio_inputs.append(f"[2:a:0]volume=0.30,atrim=0:{output_duration:g}[demo]")
+        audio_inputs.append(
+            "[narr][demo]amix=inputs=2:duration=longest:dropout_transition=0,"
+            "aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
+        )
+    else:
+        audio_inputs.append("[narr]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]")
+    filter_complex = ";".join([f"[0:v:0]{','.join(video_filters)}[vout]", *audio_inputs])
     result = subprocess.run(
         [
             "ffmpeg",
             "-y",
-            "-i",
-            str(source_path),
-            "-i",
-            str(audio_path),
-            "-vf",
-            f"subtitles='{captions}'",
+            *input_args,
+            "-filter_complex",
+            filter_complex,
             "-map",
-            "0:v:0",
+            "[vout]",
             "-map",
-            "1:a:0",
+            "[aout]",
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
-            "-af",
-            "apad",
             "-c:a",
             "aac",
             "-b:a",
             "128k",
             "-t",
-            str(media_duration_seconds(source_path)),
+            str(output_duration),
             "-map_metadata",
             "-1",
             "-map_metadata:s",
@@ -532,12 +736,7 @@ def playwright_source_privacy_payload(source: dict[str, Any]) -> str:
     """Exclude the typed CI run identifier from heuristic PII detection."""
     payload = json.dumps(source, sort_keys=True)
     run_id = str(source.get("run_id", "")).strip()
-    if not run_id:
-        return payload
-    tokens = {run_id, *re.findall(r"\d{8,}", run_id)}
-    for token in tokens:
-        payload = payload.replace(token, "[RUN_ID]")
-    return payload
+    return payload.replace(run_id, "[RUN_ID]") if run_id else payload
 
 
 def build_artifact_manifest(*, raw: Path, derived: Path, subject_commit: str) -> dict[str, Any]:
@@ -684,6 +883,7 @@ def write_tutorial_captions(
     first_transition_at: float | None = None,
 ) -> list[dict[str, Any]]:
     """Split tutorial narration into readable sentence-level caption cues."""
+    assert_realistic_tutorial_narration(text)
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     if not sentences or duration_seconds <= 0:
         raise DemonstrationError("Tutorial narration and duration are required")
@@ -717,6 +917,19 @@ def write_tutorial_captions(
     return segments
 
 
+def assert_realistic_tutorial_narration(text: str) -> None:
+    sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
+    words = re.findall(r"\b\w+\b", text)
+    if len(sentences) < MIN_TUTORIAL_NARRATION_SENTENCES or len(words) < MIN_TUTORIAL_NARRATION_WORDS:
+        raise DemonstrationError(
+            "Tutorial narration must use at least three concrete sentences that describe the visible action and result"
+        )
+    if GENERIC_NARRATION_RE.search(text):
+        raise DemonstrationError("Tutorial narration is too generic; describe the visible UI/action/result instead")
+    if not VISIBLE_NARRATION_RE.search(text):
+        raise DemonstrationError("Tutorial narration must mention visible UI, terminal output, or playback state")
+
+
 def prepare_review_artifacts(
     *,
     run_dir: Path,
@@ -730,8 +943,22 @@ def prepare_review_artifacts(
     source: dict[str, Any],
     narration_audio: dict[str, Any],
     caption_segments: list[dict[str, Any]] | None = None,
+    device_profile: dict[str, Any] | None = None,
+    render_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
+    if device_profile is not None:
+        assert_device_profile_dimensions(metadata, device_profile)
+        metadata.update(
+            {
+                "device_profile": device_profile["id"],
+                "target_width": int(device_profile["width"]),
+                "target_height": int(device_profile["height"]),
+                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(video_path, metadata),
+            }
+        )
+    if render_metadata:
+        metadata.update(render_metadata)
     if not metadata.get("has_audio"):
         raise DemonstrationError("Rendered demonstration video must contain a narration audio track")
     if not isinstance(narration_audio, dict) or narration_audio.get("status") != "passed":
@@ -949,10 +1176,22 @@ def produce_playwright_demonstration(
     narration_audio_model: str = DEFAULT_NARRATION_MODEL,
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
     narration_audio_reused_from: str = "",
+    device_profile_name: str | None = None,
+    playback_rate: float = 1.0,
+    hold_last_frame_seconds: float = 0.0,
+    demo_audio_path: Path | None = None,
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
     source_metadata = video_metadata(source_video)
+    device_profile = resolve_device_profile(device_profile_name)
+    if device_profile is None:
+        raise DemonstrationError("Playwright proof videos require --device-profile")
+    assert_device_profile_dimensions(source_metadata, device_profile)
+    if not 0.25 <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.25 and 4.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     pre_render_privacy = scan_text_sources(
         {
             "source_filename": source_video.name,
@@ -961,6 +1200,8 @@ def produce_playwright_demonstration(
             "expected_proof": expected_proof,
             "output_filename": "demo.mp4",
             "source_media_tags": json.dumps(source_metadata["tags"], sort_keys=True),
+            "device_profile": str(device_profile_name or ""),
+            "demo_audio_filename": demo_audio_path.name if demo_audio_path else "",
         }
     )
     if pre_render_privacy["status"] != "passed":
@@ -980,11 +1221,19 @@ def produce_playwright_demonstration(
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
-        duration_seconds=source_metadata["duration_seconds"],
+        duration_seconds=round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3),
         narration_id=narration_id,
     )
     video_path = run_dir / "demo.mp4"
-    render_captioned_video(source_video, captions_path, Path(str(narration_audio["path"])), video_path)
+    render_captioned_video(
+        source_video,
+        captions_path,
+        Path(str(narration_audio["path"])),
+        video_path,
+        playback_rate=playback_rate,
+        hold_last_frame_seconds=hold_last_frame_seconds,
+        demo_audio_path=demo_audio_path,
+    )
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -997,6 +1246,12 @@ def produce_playwright_demonstration(
         source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
+        device_profile=device_profile,
+        render_metadata={
+            "playback_rate": playback_rate,
+            "hold_last_frame_seconds": hold_last_frame_seconds,
+            "demo_audio_mixed": demo_audio_path is not None,
+        },
     )
 
 
@@ -1105,7 +1360,7 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
             raise DemonstrationError(f"Review request {field} must be a non-empty list")
     metadata = request["video_metadata"]
     require_fields(metadata, REVIEW_METADATA_FIELDS, "video_metadata")
-    if REVIEW_METADATA_FIELDS - set(metadata):
+    if REVIEW_METADATA_REQUIRED_FIELDS - set(metadata):
         raise DemonstrationError("Review request video_metadata is missing required fields")
     duration = metadata.get("duration_seconds")
     if (
@@ -1208,7 +1463,7 @@ def build_review_request(
     video_metadata: dict[str, Any],
     narration_audio: dict[str, Any],
 ) -> dict[str, Any]:
-    allowed_metadata = {key: video_metadata[key] for key in ("duration_seconds", "sha256", "width", "height") if key in video_metadata}
+    allowed_metadata = {key: video_metadata[key] for key in REVIEW_METADATA_FIELDS if key in video_metadata}
     request = {
         "spec_id": spec_id,
         "subject_commit": subject_commit,

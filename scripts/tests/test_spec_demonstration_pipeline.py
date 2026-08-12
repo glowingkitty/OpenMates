@@ -253,7 +253,7 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
 
     segments = module.write_tutorial_captions(
         path,
-        text="First, create the Plan. Next, inspect the returned fields. The undo commands make the change reversible.",
+        text="First, the terminal shows the plan command being typed at a readable pace. Next, the screen lists the returned plan fields so the reviewer can confirm the created result. The final message explains that the undo command is visible if the plan should be reversed.",
         duration_seconds=15,
         narration_id="NARR-1",
         first_transition_at=7,
@@ -264,6 +264,51 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
     assert segments[0]["end"] == 7
     assert segments[-1]["end"] == 15
     assert path.read_text(encoding="utf-8").count(" --> ") == 3
+
+
+def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:
+    module = load_module()
+
+    with pytest.raises(module.DemonstrationError, match="too generic|visible action"):
+        module.write_tutorial_captions(
+            tmp_path / "captions.srt",
+            text="The feature works correctly.",
+            duration_seconds=5,
+            narration_id="NARR-1",
+        )
+
+
+def test_device_profile_dimensions_reject_landscape_mobile_wrapper() -> None:
+    module = load_module()
+    profile = module.resolve_device_profile("web-phone")
+
+    with pytest.raises(module.DemonstrationError, match="390x844"):
+        module.assert_device_profile_dimensions({"width": 800, "height": 450}, profile)
+
+
+def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
+    module = load_module()
+    video = tmp_path / "letterbox.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:s=390x844:r=10",
+            "-vf",
+            "drawbox=x=0:y=160:w=390:h=524:color=white:t=fill",
+            "-t",
+            "1",
+            str(video),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
+        module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
 
 
 def test_text_scan_detects_known_environment_secret(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -285,10 +330,9 @@ def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyP
 def test_playwright_privacy_scan_does_not_treat_ci_run_id_as_phone_number() -> None:
     module = load_module()
     source = {
-        "run_id": "gha-playwright-31231661641",
+        "run_id": "31231661641",
         "subject_commit": "6150eb0",
         "target": "https://app.dev.openmates.org",
-        "deployment_reference": "https://github.com/glowingkitty/OpenMates/actions/runs/31231661641",
         "artifact_path": "/tmp/playwright-31231661641/video.webm",
     }
 
@@ -346,7 +390,7 @@ def test_cli_anonymization_failure_removes_raw_capture(
             target_environment="local fixture",
             test_account_provenance="no account used",
             narration_id="NARR-1",
-            caption_text="Safe caption.",
+            caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
             expected_proof="Safe output is visible.",
             acceptance_criteria=["AC-1"],
             narration_audio_path=tmp_path / "narration.wav",
@@ -462,7 +506,7 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
         target_environment="local fixture",
         test_account_provenance="no account used",
         narration_id="NARR-1",
-        caption_text="Safe caption.",
+        caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
         narration_audio_path=tmp_path / "narration.wav",
@@ -502,7 +546,7 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
         target_environment="local fixture",
         test_account_provenance="no account used",
         narration_id="NARR-1",
-        caption_text="Safe caption.",
+        caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
         narration_audio_path=tmp_path / "narration.wav",

@@ -92,16 +92,23 @@ with passing real CLI or deployed Playwright evidence, ElevenLabs
 `eleven_flash_v2_5` narration audio, and burned-in captions. Web/spec/example
 chat proof uses separate phone and laptop videos, Apple proof uses separate
 iPhone portrait and iPad landscape videos, and CLI proof uses one terminal video.
-Give the active agent the canonical narration and bounded image frames, never the
-full video. Use a default three-second interval plus event boundaries, request
-exact-timestamp frames only when needed, and require confirmed Discord delivery
-before completion when the proof destination is configured. If any reviewed frame
-shows an objective product defect such as clipping, premature truncation, wrong
-metadata, raw protocol/error text, missing processing animation, stale loading
-state, or broken navigation, classify it as an implementation defect and
-automatically return to a failing test, product fix, deploy, source rerun, and
-replacement recording. Do not accept, document as an accepted difference, or
-narrate around an obvious rendering defect.
+Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
+iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
+`1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device
+captures wrapped in a generic 16:9/16:10 canvas. Narration must describe the
+specific visible UI/action/result, not generic success claims; use retiming or a
+last-frame hold when the source flow moves too quickly, and mix product audio
+under narration when playback is part of the claim. Give the active agent the
+canonical narration and bounded image frames, never the full video. Use a default
+three-second interval plus event boundaries, request exact-timestamp frames only
+when needed, and require confirmed Discord delivery before completion when the
+proof destination is configured. If any reviewed frame shows an objective product
+defect such as clipping, premature truncation, wrong metadata, raw protocol/error
+text, missing processing animation, stale loading state, or broken navigation,
+classify it as an implementation defect and automatically return to a failing
+test, product fix, deploy, source rerun, and replacement recording. Do not
+accept, document as an accepted difference, or narrate around an obvious
+rendering defect.
 
 ## Agent Workflow Retrospective
 

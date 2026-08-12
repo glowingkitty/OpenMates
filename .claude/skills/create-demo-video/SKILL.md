@@ -18,6 +18,8 @@ temporary uploads.
 - Generate ElevenLabs `eleven_flash_v2_5` narration audio before rendering and pass it with `--audio-path`; every final proof video must have that audio track and burned-in captions.
 - Reuse the same narration transcript and audio across viewport recordings unless the narration must change.
 - Keep web/spec/example-chat proof as separate phone and laptop videos, Apple proof as separate iPhone portrait and iPad landscape videos, and CLI proof as one terminal video.
+- Use the exact proof-video device profile for each surface. Do not put phone or iPad recordings inside a 16:9 or 16:10 wrapper: phone web is `390x844`, laptop web is `1440x900`, iPhone portrait is `393x852`, iPad landscape is `1366x1024`, and CLI terminal is `1280x720`.
+- Reject videos with black bars, letterboxing, pillarboxing, or visible generic landscape canvases around a device recording. Re-record with the correct Playwright `recordVideo.size` or Apple simulator capture instead of cropping around the wrapper.
 - Never narrate a failed, skipped, timed-out, mocked, or fixture-only result as a successful feature.
 - Use controlled dev/test accounts and do not intentionally capture production data, secrets, unrelated chats, or personal account content.
 - The canonical scanner checks commands, transcripts, captions, metadata, filenames, and publication text. Frame OCR is intentionally not part of this workflow.
@@ -27,15 +29,17 @@ temporary uploads.
 
 ## Narration
 
-Write three to five tutorial-style sentences that:
+Write three to five realistic tutorial-style sentences that:
 
 1. Explain the feature and why the viewer would use it.
 2. Describe the action currently shown.
 3. Name the visible result that proves success.
 4. Mention an important follow-up or reversible action when visible.
 
-Narration must help the reviewer detect mismatches. Do not use generic captions
-such as "the feature works" or claims not visible in the recording.
+Narration must help the reviewer detect mismatches. Name concrete visible UI,
+terminal output, controls, playback state, messages, or reversible actions. Do
+not use generic captions such as "the feature works", "the demo is successful",
+or claims not visible in the recording.
 
 Generate the narration audio with the cheap/fast ElevenLabs model used by the
 audio app (`eleven_flash_v2_5`, default voice `warm_neutral`) and retain the
@@ -97,10 +101,17 @@ python3 scripts/sessions.py proof-video produce-playwright \
   --test-account-provenance "<controlled account description>" \
   --audio-path <elevenlabs-narration.mp3> \
   --audio-model eleven_flash_v2_5 \
+  --device-profile <web-phone|web-laptop|apple-iphone-portrait|apple-ipad-landscape> \
   --caption "<tutorial narration>" \
   --expected-proof "<visible success contract>" \
   --acceptance-criterion <AC-ID>
 ```
+
+For audio or video playback proofs, add `--demo-audio-path <product-audio-file>`
+so the product audio is mixed quietly underneath narration. For fast flows, use
+`--playback-rate 0.75` or `--hold-last-frame-seconds 2` instead of editing claims
+around unreadable timing. The renderer preserves the source aspect ratio and
+fails if the source/output dimensions do not exactly match the device profile.
 
 ## Review And Publish
 

@@ -216,6 +216,13 @@ PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
 PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
 PROOF_VIDEO_DELIVERY_ENV = "DISCORD_WEBHOOK_DEV_SMOKE"
 PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
+PROOF_VIDEO_DEVICE_PROFILES = {
+    "cli-terminal": (1280, 720),
+    "web-phone": (390, 844),
+    "web-laptop": (1440, 900),
+    "apple-iphone-portrait": (393, 852),
+    "apple-ipad-landscape": (1366, 1024),
+}
 APPLE_CONTEXT_KEYWORDS = (
     "apple",
     "ios",
@@ -7161,6 +7168,10 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             narration_audio_model=args.audio_model,
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
+            device_profile_name=args.device_profile,
+            playback_rate=args.playback_rate,
+            hold_last_frame_seconds=args.hold_last_frame_seconds,
+            demo_audio_path=args.demo_audio_path,
         )
         record = _upsert_proof_video_record(session, run_dir, result)
         _save_sessions(data)
@@ -8773,8 +8784,21 @@ def _proof_video_manifest_problems(manifest: dict, *, delivery_required: bool) -
         problems.append("narration audio must use ElevenLabs eleven_flash_v2_5")
     if not str(audio.get("path") or "").strip() or not str(audio.get("sha256") or "").startswith("sha256:"):
         problems.append("narration audio provenance is incomplete")
-    if manifest.get("video_metadata", {}).get("has_audio") is not True:
+    video_metadata = manifest.get("video_metadata") if isinstance(manifest.get("video_metadata"), dict) else {}
+    if video_metadata.get("has_audio") is not True:
         problems.append("rendered video has no audio track")
+    device_profile = str(video_metadata.get("device_profile") or "")
+    if device_profile:
+        expected_size = PROOF_VIDEO_DEVICE_PROFILES.get(device_profile)
+        if expected_size is None:
+            problems.append(f"unknown proof-video device profile: {device_profile}")
+        elif (video_metadata.get("width"), video_metadata.get("height")) != expected_size:
+            problems.append(f"{device_profile} proof video must be {expected_size[0]}x{expected_size[1]}")
+        if video_metadata.get("target_width") != video_metadata.get("width") or video_metadata.get("target_height") != video_metadata.get("height"):
+            problems.append("proof-video target dimensions do not match rendered dimensions")
+        black_bar = video_metadata.get("black_bar_scan_status")
+        if not isinstance(black_bar, dict) or black_bar.get("status") != "passed":
+            problems.append("proof-video black-bar scan has not passed")
     captions = manifest.get("captions")
     if not isinstance(captions, list) or not captions:
         problems.append("caption evidence is missing")
@@ -12309,13 +12333,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Only read, search, and analyze code. "
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
-    elif getattr(args, "no_deploy_instructions", False):
-        mode_prefix = (
-            "IMPORTANT: This is an EXECUTE session. "
-            "You have full access to read, edit, and create files for the assigned scope. "
-            "Do not deploy, commit, merge, or push. "
-            "Stop after recording the required checkpoint for coordinator harvest.\n\n"
-        )
     else:
         mode_prefix = (
             "IMPORTANT: This is an EXECUTE session. "
@@ -12881,6 +12898,28 @@ def main() -> None:
     p_proof_playwright.add_argument("--audio-model", default="eleven_flash_v2_5")
     p_proof_playwright.add_argument("--audio-voice", default="warm_neutral")
     p_proof_playwright.add_argument("--audio-reused-from", default="")
+    p_proof_playwright.add_argument(
+        "--device-profile",
+        choices=["web-phone", "web-laptop", "apple-iphone-portrait", "apple-ipad-landscape"],
+        help="Require exact source and output dimensions for this proof-video surface.",
+    )
+    p_proof_playwright.add_argument(
+        "--playback-rate",
+        type=float,
+        default=1.0,
+        help="Retiming factor for the visible Playwright recording; values below 1 slow the flow down.",
+    )
+    p_proof_playwright.add_argument(
+        "--hold-last-frame-seconds",
+        type=float,
+        default=0.0,
+        help="Clone the final frame for a readable end-state hold before review.",
+    )
+    p_proof_playwright.add_argument(
+        "--demo-audio-path",
+        type=Path,
+        help="Optional product audio fixture to mix quietly under the ElevenLabs narration when playback itself is part of the proof.",
+    )
     p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
     p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_review.add_argument("--run-dir", type=Path, required=True)
@@ -13500,11 +13539,6 @@ def main() -> None:
         default="plan",
         help="Permission mode: 'plan' (read-only, default) or "
         "'execute' (full edit access with auto-approved permissions)",
-    )
-    p_spawn.add_argument(
-        "--no-deploy-instructions",
-        action="store_true",
-        help="For coordinator-owned execute workers, omit the generic deploy/commit instruction prefix.",
     )
     p_spawn.add_argument(
         "--linear-issue", "--linear",

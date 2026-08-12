@@ -24,6 +24,14 @@ scope:
   - Reuse the same narration transcript and ElevenLabs audio across viewport recordings unless the narration must change.
   - Keep web/spec/example-chat proof as separate phone and laptop videos, Apple proof as separate iPhone portrait and iPad
     landscape videos, and CLI proof as one terminal video.
+  - 'Render each proof-video surface at its exact device-profile dimensions: phone web 390x844, laptop web 1440x900,
+    iPhone portrait 393x852, iPad landscape 1366x1024, and CLI terminal 1280x720.'
+  - Reject black bars, letterboxing, pillarboxing, and generic 16:9 or 16:10 wrapper canvases around phone, iPad, or web
+    recordings.
+  - Require exact narration to describe specific visible UI, terminal output, controls, playback state, messages, or reversible
+    actions; generic success narration is not accepted.
+  - Support source retiming, final-frame holds, and quiet product-audio mixing when a real recording moves too quickly or audio
+    playback is itself part of the claim.
   - Review the finished video indirectly using the full narration transcript, synchronized captions, sampled frames at the
     default three-second cadence plus exact requested timestamps, recording metadata, and linked acceptance criteria without
     placing the full video in model context.
@@ -279,6 +287,11 @@ decisions:
   decision: Provide a reusable create-demo-video skill and a sessions.py produce-playwright action that accepts only passing deployed Playwright case recordings.
   reason: The user wants repeatable narrated examples for both CLI interactions and product feature specs without re-deriving the evidence, review, and Discord workflow.
   decided_at: '2026-08-06T10:30:00Z'
+- id: D-15
+  status: active
+  decision: Proof videos use declared device profiles with exact output dimensions, no black bars, realistic visible-state narration, optional retiming or end-state holds, and quiet product-audio mixing when playback is part of the claim.
+  reason: Mobile and iPad proofs must not be hidden inside landscape wrappers, and reviewers need concrete narration plus readable timing to catch mismatches instead of accepting generic success videos.
+  decided_at: '2026-08-12T00:00:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -366,10 +379,16 @@ scenarios:
   - The demonstration renderer runs.
   then:
   - It writes exact narration text based only on verified behavior.
+  - It rejects generic narration that fails to name visible UI, terminal output, controls, playback state, messages, or follow-up
+    actions.
   - It creates ElevenLabs eleven_flash_v2_5 audio for that narration.
   - It creates canonical timestamped burned-in captions and a final video with a readable caption layer and audio track.
   - Every factual caption claim maps to an acceptance criterion and a visible or terminal evidence interval.
   - The raw recording remains separate from the derived narrated demonstration artifact.
+  - Browser and Apple recordings declare a device profile, preserve exact profile dimensions in the raw and rendered video,
+    and fail when black bars, letterboxing, pillarboxing, or generic landscape wrappers are detected.
+  - Fast flows may be slowed or held on the final state, and product audio may be mixed quietly under narration when audio
+    playback is part of the proof.
 - id: S-6
   title: Multimodal review detects and routes a mismatch
   given:
@@ -459,8 +478,9 @@ acceptance_criteria:
   - V-CLI-DEMO
 - id: AC-5
   scenario: S-5
-  text: Exact narration is generated only after normal required implementation gates pass, and canonical timestamped captions
-    remain synchronized and readable in the final video.
+  text: Exact narration is generated only after normal required implementation gates pass, names concrete visible UI, terminal
+    output, controls, playback state, messages, or follow-up actions, and keeps canonical timestamped captions synchronized
+    and readable in the final video.
   required: true
   status: pending
   coverage_status: covered
@@ -472,7 +492,8 @@ acceptance_criteria:
 - id: AC-6
   scenario: S-5
   text: Every factual caption claim links to an acceptance criterion and a visible or terminal evidence interval in a machine-readable
-    demonstration manifest.
+    demonstration manifest, including declared device profile, exact rendered dimensions, retiming or hold metadata when used,
+    and product-audio mixing metadata when playback is part of the proof.
   required: true
   status: pending
   coverage_status: covered
@@ -482,8 +503,9 @@ acceptance_criteria:
 - id: AC-7
   scenario: S-6
   text: Multimodal review keeps the full video out of model context, compares synchronized captions and expected proof with
-    scene, action, caption-boundary, and default three-second frames, permits bounded exact-timestamp frame requests, and
-    returns a structured verdict for every claim.
+    scene, action, caption-boundary, and default three-second frames, verifies exact device-profile dimensions plus no
+    letterbox/pillarbox black bars, permits bounded exact-timestamp frame requests, and returns a structured verdict for
+    every claim.
   required: true
   status: pending
   coverage_status: covered

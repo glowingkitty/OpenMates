@@ -67,6 +67,10 @@ def test_proof_video_produce_always_enables_typed_anonymization(
         audio_model="eleven_flash_v2_5",
         audio_voice="warm_neutral",
         audio_reused_from="",
+        device_profile=None,
+        playback_rate=1.0,
+        hold_last_frame_seconds=0.0,
+        demo_audio_path=None,
     )
 
     sessions.cmd_proof_video(args)
@@ -114,6 +118,10 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         audio_model="eleven_flash_v2_5",
         audio_voice="warm_neutral",
         audio_reused_from="",
+        device_profile="web-phone",
+        playback_rate=0.75,
+        hold_last_frame_seconds=2.0,
+        demo_audio_path=tmp_path / "product-audio.mp3",
         spec_name="signup-flow-passkey.spec.ts",
         deployment_reference="dpl-example",
         source_status="passed",
@@ -132,6 +140,10 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         "artifact_path": str(video),
         "test_account_provenance": "reserved test account with synthetic signup identity",
     }
+    assert observed["device_profile_name"] == "web-phone"
+    assert observed["playback_rate"] == 0.75
+    assert observed["hold_last_frame_seconds"] == 2.0
+    assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
 
 
 def test_proof_video_publish_loads_dev_smoke_webhook_without_printing_it(
@@ -247,3 +259,21 @@ def test_proof_video_gate_accepts_current_delivered_manifest(
         session,
         ["frontend/packages/ui/src/components/NewFeature.svelte"],
     )
+
+
+def test_proof_video_manifest_requires_exact_device_profile_dimensions(tmp_path: Path) -> None:
+    manifest_path = write_passed_manifest(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["video_metadata"] = {
+        "has_audio": True,
+        "device_profile": "web-phone",
+        "width": 800,
+        "height": 450,
+        "target_width": 390,
+        "target_height": 844,
+        "black_bar_scan_status": {"status": "passed"},
+    }
+
+    problems = sessions._proof_video_manifest_problems(manifest, delivery_required=True)
+
+    assert "web-phone proof video must be 390x844" in problems
