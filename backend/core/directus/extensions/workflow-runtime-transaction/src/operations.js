@@ -261,11 +261,13 @@ async function advanceClaimedTrigger(database, raw, now) {
   return database.transaction(async (trx) => {
     const trigger = await lockedTrigger(trx, triggerId);
     if (!activeClaim(trigger, now) || trigger.claim_generation !== generation || trigger.claim_token_hash !== tokenDigest(claimToken)) fail(409, 'stale_claim');
-    if (nextRunAt <= Number(trigger.next_run_at || 0)) fail(409, 'invalid_next_run_at');
+    const completesOneTimeTrigger = nextRunAt === 0;
+    if (!completesOneTimeTrigger && nextRunAt <= Number(trigger.next_run_at || 0)) fail(409, 'invalid_next_run_at');
     await trx(TRIGGERS).where({ trigger_id: triggerId, claim_generation: generation }).update({
-      next_run_at: nextRunAt, claim_status: null, claim_token_hash: null, claimed_at: null, claim_expires_at: null,
+      next_run_at: completesOneTimeTrigger ? null : nextRunAt, enabled: completesOneTimeTrigger ? false : trigger.enabled,
+      claim_status: null, claim_token_hash: null, claimed_at: null, claim_expires_at: null,
     });
-    return { trigger_id: triggerId, next_run_at: nextRunAt };
+    return { trigger_id: triggerId, next_run_at: completesOneTimeTrigger ? null : nextRunAt, completed: completesOneTimeTrigger };
   });
 }
 

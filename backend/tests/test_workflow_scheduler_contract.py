@@ -49,6 +49,7 @@ def scheduled_graph() -> dict[str, object]:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_scheduler_fences_claim_and_advances_recurrence_before_side_effects() -> None:
     runtime = FakeRuntime(
@@ -94,6 +95,7 @@ async def test_scheduler_fences_claim_and_advances_recurrence_before_side_effect
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_claim() -> None:
     runtime = FakeRuntime({"accepted": False, "run_id": "run-1", "version_id": "version-1"}, {})
@@ -109,6 +111,7 @@ async def test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_cl
     assert runtime.calls == [("claim_due_trigger", {"trigger_id": "trigger-1"})]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_scheduler_runs_a_reclaimed_queued_occurrence() -> None:
     runtime = FakeRuntime(
@@ -141,6 +144,7 @@ async def test_scheduler_runs_a_reclaimed_queued_occurrence() -> None:
     assert effects == ["run-1"]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes() -> None:
     runtime = FakeRuntime(
@@ -175,6 +179,44 @@ async def test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+@pytest.mark.anyio
+async def test_scheduler_completes_one_time_occurrence_without_future_requeue() -> None:
+    runtime = FakeRuntime(
+        {
+            "accepted": True,
+            "run_id": "run-1",
+            "workflow_id": "workflow-1",
+            "version_id": "version-1",
+            "owner_user_id": "alice",
+            "encrypted_schedule_config_ref": "blob-schedule-1",
+            "claim_token": "claim-token",
+            "claim_generation": 2,
+        },
+        {"started": True, "run_id": "run-1", "workflow_id": "workflow-1", "version_id": "version-1"},
+    )
+
+    async def decrypt_and_schedule(_owner_user_id: str, _blob_ref: str) -> int:
+        return WorkflowSchedulerService.next_run_at_from_schedule({"schedule": {"type": "once", "at": "2026-07-12T08:00:00Z"}})
+
+    async def execute_run(_run_id: str, _workflow_id: str, _version_id: str, _owner_user_id: str) -> None:
+        return None
+
+    result = await WorkflowSchedulerService(runtime).execute_due_trigger("trigger-1", decrypt_and_schedule, execute_run)
+
+    assert result == {"accepted": True, "run_id": "run-1", "next_run_at": 0}
+    assert runtime.calls[-1] == (
+        "advance_claimed_trigger",
+        {
+            "trigger_id": "trigger-1",
+            "claim_generation": 2,
+            "claim_token": "claim-token",
+            "next_run_at": 0,
+        },
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_scheduler_executes_the_claimed_run_id_without_creating_another_run() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
