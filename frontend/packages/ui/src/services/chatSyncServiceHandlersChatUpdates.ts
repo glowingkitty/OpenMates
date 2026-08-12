@@ -34,20 +34,62 @@ const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
 /**
  * Pending message queue for cross-device sync.
  *
- * When a `new_chat_message` broadcast arrives from another device but the chat
- * key is not yet available (e.g. brand-new chat where the server hasn't
- * persisted `encrypted_chat_key` before broadcasting), we cannot safely call
- * `chatDB.saveMessage()` — doing so would trigger `getOrGenerateChatKey()`,
- * which generates a random throwaway key and encrypts the message with it.
- * When the real key later arrives the ciphertext can no longer be decrypted,
- * causing "[Content decryption failed]" on the receiving device.
+ * When a message broadcast arrives from another device but the local chat shell
+ * or key is not yet available, we cannot safely call `chatDB.saveMessage()`.
+ * Without a chat key, saveMessage would trigger `getOrGenerateChatKey()`, which
+ * generates a random throwaway key and encrypts the message with it. When the
+ * real key later arrives the ciphertext can no longer be decrypted, causing
+ * "[Content decryption failed]" on the receiving device.
  *
  * Solution: buffer the plaintext message here and flush it through
  * `chatDB.saveMessage()` only after the correct key has been cached via
  * `chatDB.setChatKey()`.  Call `flushPendingMessagesForChat()` from every
  * code-path that sets the key for a synced chat.
  */
-const _pendingMessages: Map<string, Message[]> = new Map();
+type PendingMessage = {
+  message: Message;
+  messagesV?: number;
+  lastEditedOverallTimestamp?: number;
+};
+
+type PendingMessageFlushSummary = {
+  messagesV?: number;
+  lastEditedOverallTimestamp?: number;
+};
+
+const _pendingMessages: Map<string, PendingMessage[]> = new Map();
+
+function queuePendingMessage(
+  chatId: string,
+  message: Message,
+  metadata?: PendingMessageFlushSummary,
+): number {
+  const pending = _pendingMessages.get(chatId) ?? [];
+  pending.push({
+    message,
+    messagesV: metadata?.messagesV,
+    lastEditedOverallTimestamp: metadata?.lastEditedOverallTimestamp,
+  });
+  _pendingMessages.set(chatId, pending);
+  return pending.length;
+}
+
+function mergePendingMessageFlushSummary(
+  current: PendingMessageFlushSummary | null,
+  incoming: PendingMessageFlushSummary | null,
+): PendingMessageFlushSummary | null {
+  if (!incoming) return current;
+  if (!current) return incoming;
+  return {
+    messagesV:
+      Math.max(current.messagesV ?? 0, incoming.messagesV ?? 0) || undefined,
+    lastEditedOverallTimestamp:
+      Math.max(
+        current.lastEditedOverallTimestamp ?? 0,
+        incoming.lastEditedOverallTimestamp ?? 0,
+      ) || undefined,
+  };
+}
 
 /**
  * In-memory set tracking chat IDs whose `encrypted_chat_key` has already been
@@ -190,9 +232,9 @@ async function notifyBackgroundAssistantBroadcast(
  */
 export async function flushPendingMessagesForChat(
   chatId: string,
-): Promise<void> {
+): Promise<PendingMessageFlushSummary | null> {
   const pending = _pendingMessages.get(chatId);
-  if (!pending || pending.length === 0) return;
+  if (!pending || pending.length === 0) return null;
 
   // Remove from map immediately so concurrent flushes can't double-save
   _pendingMessages.delete(chatId);
@@ -200,19 +242,48 @@ export async function flushPendingMessagesForChat(
   console.info(
     `[ChatSyncService:ChatUpdates] Flushing ${pending.length} pending message(s) for chat ${chatId} now that key is available`,
   );
-  for (const msg of pending) {
+  let summary: PendingMessageFlushSummary | null = null;
+  for (const pendingMessage of pending) {
     try {
-      await chatDB.saveMessage(msg);
+      await chatDB.saveMessage(pendingMessage.message);
+      summary = mergePendingMessageFlushSummary(summary, {
+        messagesV: pendingMessage.messagesV,
+        lastEditedOverallTimestamp: pendingMessage.lastEditedOverallTimestamp,
+      });
       console.debug(
-        `[ChatSyncService:ChatUpdates] Flushed pending message ${msg.message_id} for chat ${chatId}`,
+        `[ChatSyncService:ChatUpdates] Flushed pending message ${pendingMessage.message.message_id} for chat ${chatId}`,
       );
     } catch (err) {
       console.error(
-        `[ChatSyncService:ChatUpdates] Error flushing pending message ${msg.message_id} for chat ${chatId}:`,
+        `[ChatSyncService:ChatUpdates] Error flushing pending message ${pendingMessage.message.message_id} for chat ${chatId}:`,
         err,
       );
     }
   }
+
+  if (summary?.messagesV || summary?.lastEditedOverallTimestamp) {
+    const chat = await chatDB.getChat(chatId);
+    if (chat) {
+      const nextMessagesV = Math.max(chat.messages_v ?? 0, summary.messagesV ?? 0);
+      const nextLastEdited = Math.max(
+        chat.last_edited_overall_timestamp ?? 0,
+        summary.lastEditedOverallTimestamp ?? 0,
+      );
+      if (
+        nextMessagesV !== (chat.messages_v ?? 0) ||
+        nextLastEdited !== (chat.last_edited_overall_timestamp ?? 0)
+      ) {
+        await chatDB.updateChat({
+          ...chat,
+          messages_v: nextMessagesV,
+          last_edited_overall_timestamp: nextLastEdited,
+          updated_at: Math.floor(Date.now() / 1000),
+        });
+      }
+    }
+  }
+
+  return summary;
 }
 
 export async function handleChatTitleUpdatedImpl(
@@ -578,6 +649,7 @@ export async function handleNewChatMessageImpl(
   }
 
   let isNewChat = false;
+  let pendingFlushSummary: PendingMessageFlushSummary | null = null;
 
   try {
     // CRITICAL: Avoid shared transactions here because encryption/decryption is async.
@@ -718,7 +790,10 @@ export async function handleNewChatMessageImpl(
       );
 
       if (chatKeyManager.getKeySync(payload.chat_id)) {
-        await flushPendingMessagesForChat(payload.chat_id);
+        pendingFlushSummary = mergePendingMessageFlushSummary(
+          pendingFlushSummary,
+          await flushPendingMessagesForChat(payload.chat_id),
+        );
         await flushPendingSystemMessagesForChat(payload.chat_id);
       }
 
@@ -765,7 +840,10 @@ export async function handleNewChatMessageImpl(
             `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`,
           );
           // Flush any regular messages and system messages that arrived before the key was available
-          await flushPendingMessagesForChat(payload.chat_id);
+          pendingFlushSummary = mergePendingMessageFlushSummary(
+            pendingFlushSummary,
+            await flushPendingMessagesForChat(payload.chat_id),
+          );
           await flushPendingSystemMessagesForChat(payload.chat_id);
           // Also persist encrypted_chat_key to the IDB chat record so the key survives page reload.
           // Without this, the key is only in memory — lost on refresh for the "existing chat" path.
@@ -832,24 +910,32 @@ export async function handleNewChatMessageImpl(
       );
     } catch (keyError) {
       // withKey timed out or failed — fall back to manual queue for later flush
-      const queue = _pendingMessages.get(payload.chat_id) ?? [];
-      queue.push(newMessage);
-      _pendingMessages.set(payload.chat_id, queue);
+      const queueLength = queuePendingMessage(payload.chat_id, newMessage, {
+        messagesV: payload.messages_v,
+        lastEditedOverallTimestamp: payload.last_edited_overall_timestamp,
+      });
       console.warn(
-        `[ChatSyncService:ChatUpdates] No chat key for ${payload.chat_id} — queued message ${payload.message_id} (queue length: ${queue.length}). Will save once key arrives.`,
+        `[ChatSyncService:ChatUpdates] No chat key for ${payload.chat_id} — queued message ${payload.message_id} (queue length: ${queueLength}). Will save once key arrives.`,
         keyError,
       );
     }
 
     // Update chat metadata
-    chat.messages_v = payload.messages_v || chat.messages_v + 1;
+    chat.messages_v = Math.max(
+      chat.messages_v ?? 0,
+      payload.messages_v ?? (chat.messages_v ?? 0) + 1,
+      pendingFlushSummary?.messagesV ?? 0,
+    );
     if (!payload.last_edited_overall_timestamp) {
       console.warn(
         `[ChatSyncService:ChatUpdates] new_chat_message for existing chat ${payload.chat_id} missing last_edited_overall_timestamp — falling back to Date.now()`,
       );
     }
-    chat.last_edited_overall_timestamp =
-      payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
+    chat.last_edited_overall_timestamp = Math.max(
+      chat.last_edited_overall_timestamp ?? 0,
+      payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000),
+      pendingFlushSummary?.lastEditedOverallTimestamp ?? 0,
+    );
     chat.updated_at = Math.floor(Date.now() / 1000);
 
     await chatDB.updateChat(chat);
@@ -1157,9 +1243,10 @@ export async function handleChatMessageReceivedImpl(
           );
         }
 
-        const pending = _pendingMessages.get(payload.chat_id) || [];
-        pending.push(incomingMessage);
-        _pendingMessages.set(payload.chat_id, pending);
+        queuePendingMessage(payload.chat_id, incomingMessage, {
+          messagesV: payload.versions?.messages_v,
+          lastEditedOverallTimestamp: payload.last_edited_overall_timestamp,
+        });
         return;
       }
 
@@ -1229,11 +1316,16 @@ export async function handleChatMessageReceivedImpl(
         finalChatState || chatUpdate,
       );
     } else {
-      // This case implies a message arrived for a chat not in local DB.
-      // This could happen if initial sync was incomplete or chat was deleted locally then message arrived.
-      // For now, log a warning. A more robust solution might involve creating a shell chat.
+      // A server/Redis assistant broadcast can beat the direct new_chat_message
+      // broadcast that creates the local chat shell on secondary devices. Queue it
+      // and replay after the shell and key arrive instead of dropping the message.
+      const queueLength = queuePendingMessage(payload.chat_id, incomingMessage, {
+        messagesV: payload.versions?.messages_v,
+        lastEditedOverallTimestamp: payload.last_edited_overall_timestamp,
+      });
       console.warn(
-        `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling 'chat_message_added'. Message ID: ${incomingMessage.message_id}.`,
+        `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling 'chat_message_added'. ` +
+          `Queued message ${incomingMessage.message_id} until the chat shell arrives (queue length: ${queueLength}).`,
       );
     }
   } catch (error) {

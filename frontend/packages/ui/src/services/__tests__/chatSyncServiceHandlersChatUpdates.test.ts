@@ -133,6 +133,7 @@ describe("handleNewChatMessageImpl", () => {
     setWindowHash("");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
   it("stores the current user id on new chat shells created from sync broadcasts", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatKeyManager.receiveKeyFromServer.mockResolvedValue(new Uint8Array([1, 2, 3]));
@@ -192,6 +193,7 @@ describe("handleEncryptedChatMetadataImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
   it("creates a synced metadata-only shell when metadata arrives before the chat row", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     const chatHiddenListener = vi.fn();
@@ -262,6 +264,7 @@ describe("handleEncryptedChatMetadataImpl", () => {
     expect(chatHiddenListener).not.toHaveBeenCalled();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.local-state.precedence,chats.message.identity-idempotent
   it("merges summary broadcasts at the current metadata revision", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getChat.mockResolvedValue({
@@ -302,6 +305,7 @@ describe("handleEncryptedChatMetadataImpl", () => {
     expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
   it("accepts a mismatched incoming metadata key before validating encrypted fields", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     const staleKey = new Uint8Array([9, 9, 9]);
@@ -379,6 +383,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
   });
 
+  // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted,chats.sync.key-gated-recovery
   it("stores IdeaBucket metadata on draft-only chats created from sync broadcasts", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getChat.mockRejectedValue(new Error("decrypted getChat must not run"));
@@ -419,6 +424,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted,chats.persistence.client-encrypted
   it("updates existing draft chats from raw metadata without creating replacement keys", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getRawChat.mockResolvedValue({
@@ -457,6 +463,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,chats.local-state.precedence
   it("ignores stale draft broadcasts when local draft version is newer", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getRawChat.mockResolvedValue({
@@ -494,14 +501,84 @@ describe("handleChatDraftUpdatedImpl", () => {
 describe("handleChatMessageReceivedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.saveMessage.mockResolvedValue(undefined);
     mocks.chatDB.getMessage.mockResolvedValue(null);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
     mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    mocks.chatKeyManager.withKey.mockImplementation(
+      async (_chatId: string, _reason: string, callback: () => Promise<void>) => {
+        await callback();
+      },
+    );
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
     setWindowHash("");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.message.identity-idempotent
+  it("replays assistant messages that arrive before the synced chat shell", async () => {
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    mocks.chatDB.getChat.mockResolvedValue(null);
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "chat_message_added",
+      chat_id: "chat-out-of-order",
+      message: {
+        message_id: "assistant-1",
+        chat_id: "chat-out-of-order",
+        role: "assistant",
+        content: "The answer arrived first.",
+        status: "synced",
+        created_at: 200,
+        encrypted_content: "",
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 200,
+    });
+
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+
+    await handleNewChatMessageImpl(service, {
+      chat_id: "chat-out-of-order",
+      message_id: "user-1",
+      content: "Question from another device",
+      role: "user",
+      messages_v: 1,
+      created_at: 100,
+      last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        message_id: "assistant-1",
+        chat_id: "chat-out-of-order",
+        role: "assistant",
+      }),
+    );
+    expect(mocks.chatDB.saveMessage).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        message_id: "user-1",
+        chat_id: "chat-out-of-order",
+        role: "user",
+      }),
+    );
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-out-of-order",
+        messages_v: 2,
+        last_edited_overall_timestamp: 200,
+      }),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence
   it("notifies for assistant broadcasts when the visible chat is different from stale active state", async () => {
     const chat = {
       chat_id: "chat-a",
@@ -548,6 +625,7 @@ describe("handleChatMessageReceivedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,chats.local-state.precedence
   it("clears draft-only shell fields when a synced message arrives", async () => {
     const chat = {
       chat_id: "chat-ideabucket-processed",
