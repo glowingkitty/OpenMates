@@ -2078,6 +2078,113 @@ def _active_debug_campaign_for_session(session_id: str) -> dict[str, Any] | None
     return sorted(matching, key=lambda campaign: str(campaign.get("created_at") or ""))[-1] if matching else None
 
 
+def _campaign_resume_hint(campaign_key: str, session_id: str) -> str:
+    return (
+        f"python3 scripts/tests.py campaign start --campaign {campaign_key} "
+        f"--session {session_id} --json"
+    )
+
+
+def _campaign_status_hint(campaign_key: str) -> str:
+    return f"python3 scripts/tests.py campaign status --campaign {campaign_key} --json"
+
+
+def _active_campaign_pending_test_keys(campaign_key: str) -> set[str]:
+    return {
+        str(key)
+        for group in debug_groups_for_campaign(campaign_key)
+        if group.get("status") != "green"
+        for key in group.get("member_test_keys") or []
+    }
+
+
+def debug_campaign_summary(campaign: dict[str, Any], current_failure_keys: set[str] | None = None) -> dict[str, Any]:
+    campaign_key = str(campaign.get("campaign_key") or "")
+    groups = debug_groups_for_campaign(campaign_key) if campaign_key else []
+    counts: dict[str, int] = {}
+    pending_test_keys: set[str] = set()
+    for group in groups:
+        group_status = str(group.get("status") or "selected")
+        counts[group_status] = counts.get(group_status, 0) + 1
+        if group_status != "green":
+            pending_test_keys.update(str(key) for key in group.get("member_test_keys") or [])
+    session_id = str(campaign.get("session_id") or "")
+    current_failure_keys = current_failure_keys or set()
+    overlapping_keys = sorted(pending_test_keys.intersection(current_failure_keys))
+    return {
+        "campaign_key": campaign_key,
+        "title": campaign.get("title") or "",
+        "status": campaign.get("status") or "unknown",
+        "session_id": session_id,
+        "created_at": campaign.get("created_at"),
+        "updated_at": campaign.get("updated_at"),
+        "current_group_key": campaign.get("current_group_key"),
+        "counts": counts,
+        "selected_groups": len(groups),
+        "pending_groups": sum(count for status, count in counts.items() if status != "green"),
+        "pending_tests": len(pending_test_keys),
+        "overlap_count": len(overlapping_keys),
+        "overlapping_test_keys": overlapping_keys[:20],
+        "status_command": _campaign_status_hint(campaign_key),
+        "resume_command": _campaign_resume_hint(campaign_key, session_id) if session_id else "",
+    }
+
+
+def list_debug_campaigns(
+    session_id: str = "",
+    active_only: bool = True,
+    overlap_current_failures: bool = False,
+) -> dict[str, Any]:
+    current_failure_keys = {
+        str(entry["key"])
+        for entry in build_triage().get("entries") or []
+    } if overlap_current_failures else set()
+    statuses = {"active", "blocked"} if active_only else None
+    campaigns = [
+        campaign
+        for campaign in get_store().list_debug_campaigns()
+        if (statuses is None or campaign.get("status") in statuses)
+        and (not session_id or campaign.get("session_id") == session_id)
+    ]
+    campaigns = sorted(
+        campaigns,
+        key=lambda campaign: str(campaign.get("updated_at") or campaign.get("created_at") or ""),
+        reverse=True,
+    )
+    summaries = [debug_campaign_summary(campaign, current_failure_keys=current_failure_keys) for campaign in campaigns]
+    return {
+        "campaigns": summaries,
+        "count": len(summaries),
+        "filters": {
+            "session_id": session_id,
+            "active_only": active_only,
+            "overlap_current_failures": overlap_current_failures,
+        },
+        "next_command": "python3 scripts/tests.py campaign start --session ${OPENCODE_SESSION_ID:-manual} --json"
+        if not summaries else summaries[0].get("status_command", ""),
+    }
+
+
+def _format_resumable_campaigns_error(campaigns: list[dict[str, Any]], session_id: str) -> str:
+    lines = [
+        "Active campaigns overlap current failures; resume or inspect one explicitly.",
+        "Run: python3 scripts/tests.py campaign list --active --overlap-current-failures --json",
+    ]
+    for campaign in campaigns[:5]:
+        campaign_key = str(campaign.get("campaign_key") or "")
+        coordinator = str(campaign.get("session_id") or "")
+        pending = sorted(_active_campaign_pending_test_keys(campaign_key))[:5]
+        lines.append(
+            f"- {campaign_key} coordinator={coordinator or '<unknown>'}; "
+            f"status: {_campaign_status_hint(campaign_key)}; "
+            f"resume from owner: {_campaign_resume_hint(campaign_key, coordinator) if coordinator else '<unknown>'}; "
+            f"pending={', '.join(pending) if pending else '<none>'}"
+        )
+    if session_id:
+        lines.append(f"This chat session is {session_id}; it cannot take over another coordinator without an explicit handoff.")
+    return "\n".join(lines)
+
+
 def _debug_group_key(campaign_key: str, triage_group_id: str, parent_group_key: str = "") -> str:
     digest = hashlib.sha1(f"{campaign_key}:{triage_group_id}:{parent_group_key}".encode("utf-8")).hexdigest()[:12]
     return f"debug-group-{digest}"
@@ -2172,12 +2279,7 @@ def start_debug_campaign(
     for campaign in get_store().list_debug_campaigns():
         if campaign.get("status") not in {"active", "blocked"}:
             continue
-        pending_keys = {
-            str(key)
-            for group in debug_groups_for_campaign(str(campaign["campaign_key"]))
-            if group.get("status") != "green"
-            for key in group.get("member_test_keys") or []
-        }
+        pending_keys = _active_campaign_pending_test_keys(str(campaign["campaign_key"]))
         if requested_keys.intersection(pending_keys):
             resumable.append(campaign)
     if len(resumable) == 1:
@@ -2187,7 +2289,7 @@ def start_debug_campaign(
             {"session_id": session_id, "updated_at": utc_now()},
         )
     if len(resumable) > 1:
-        raise RuntimeError("Multiple active campaigns overlap current failures; inspect campaign status and resume one explicitly")
+        raise RuntimeError(_format_resumable_campaigns_error(resumable, session_id))
 
     _require_session_identity(session_id, "campaign start")
     campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
@@ -2395,9 +2497,12 @@ def _require_campaign_coordinator_for_campaign(campaign_key: str, coordinator_se
     campaign = _debug_campaign(campaign_key)
     _require_session_identity(coordinator_session, action)
     if coordinator_session != campaign.get("session_id"):
+        owner_session = str(campaign.get("session_id") or "")
         raise RuntimeError(
             f"Only the campaign coordinator can perform {action}; "
-            f"expected {campaign.get('session_id') or '<unknown>'}"
+            f"expected {owner_session or '<unknown>'}. "
+            f"Inspect with: {_campaign_status_hint(campaign_key)}. "
+            f"Resume from the owner chat with: {_campaign_resume_hint(campaign_key, owner_session) if owner_session else '<unknown>'}."
         )
 
 
@@ -4036,6 +4141,12 @@ def main(argv: list[str] | None = None) -> int:
     campaign_start.add_argument("--campaign", default="")
     campaign_start.add_argument("--test-key", action="append", default=[])
     campaign_start.add_argument("--json", action="store_true")
+    campaign_list = campaign_sub.add_parser("list", help="List resumable failed-test debug campaigns")
+    campaign_list.add_argument("--session", default="")
+    campaign_list.add_argument("--active", action="store_true", help="Only active or blocked campaigns (default)")
+    campaign_list.add_argument("--all", action="store_true")
+    campaign_list.add_argument("--overlap-current-failures", action="store_true")
+    campaign_list.add_argument("--json", action="store_true")
     campaign_status = campaign_sub.add_parser("status", help="Show campaign groups, evidence, and next action")
     campaign_status.add_argument("--campaign", required=True)
     campaign_status.add_argument("--json", action="store_true")
@@ -4196,6 +4307,12 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if args.campaign_command == "start":
                 payload = start_debug_campaign(args.session, selected_test_keys=args.test_key or None, campaign_key=args.campaign)
+            elif args.campaign_command == "list":
+                payload = list_debug_campaigns(
+                    session_id=args.session,
+                    active_only=not args.all,
+                    overlap_current_failures=args.overlap_current_failures,
+                )
             elif args.campaign_command == "status":
                 payload = debug_campaign_status(args.campaign)
             elif args.campaign_command == "next":

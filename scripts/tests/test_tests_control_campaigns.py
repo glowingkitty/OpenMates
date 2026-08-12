@@ -201,10 +201,34 @@ def test_campaign_start_rejects_matching_scope_takeover_from_new_session(tmp_pat
     first = control.start_debug_campaign(session_id="session-1")
 
     monkeypatch.setenv("OPENCODE_SESSION_ID", "session-2")
-    with pytest.raises(RuntimeError, match="campaign coordinator"):
+    with pytest.raises(RuntimeError, match="campaign coordinator") as excinfo:
         control.start_debug_campaign(session_id="session-2")
 
+    message = str(excinfo.value)
+    assert f"campaign status --campaign {first['campaign_key']}" in message
+    assert f"campaign start --campaign {first['campaign_key']} --session session-1" in message
     assert control._debug_campaign(first["campaign_key"])["session_id"] == "session-1"
+
+
+def test_campaign_list_surfaces_resumable_active_campaigns(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts"))
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "session-1")
+    campaign = control.start_debug_campaign(session_id="session-1")
+
+    listing = control.list_debug_campaigns(overlap_current_failures=True)
+
+    assert listing["count"] == 1
+    summary = listing["campaigns"][0]
+    assert summary["campaign_key"] == campaign["campaign_key"]
+    assert summary["status"] == "active"
+    assert summary["session_id"] == "session-1"
+    assert summary["overlap_count"] == 1
+    assert summary["overlapping_test_keys"] == ["playwright::first.spec.ts"]
+    assert summary["status_command"] == f"python3 scripts/tests.py campaign status --campaign {campaign['campaign_key']} --json"
+    assert summary["resume_command"] == (
+        f"python3 scripts/tests.py campaign start --campaign {campaign['campaign_key']} --session session-1 --json"
+    )
 
 
 def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path, monkeypatch):

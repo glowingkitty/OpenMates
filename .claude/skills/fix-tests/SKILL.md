@@ -18,9 +18,17 @@ as the source of truth; those files are import/export artifacts only.
 ### Step 1: Create or resume the campaign
 
 ```bash
+python3 scripts/tests.py campaign list --active --overlap-current-failures --json
 python3 scripts/tests.py campaign start --session <session-id> --json
 python3 scripts/tests.py campaign status --campaign <campaign-id> --json
 ```
+
+Always list campaigns first. If the current session already has an active or
+blocked campaign, resume that campaign. If another active campaign overlaps the
+current failures, do not start a duplicate or take over its session. Use the
+listed `status_command` or resume in the original coordinator chat shown by
+`session_id`; only create a new campaign when the list is empty or does not
+overlap the current failures.
 
 The initial selected manifest is durable. If a campaign-bound verification
 exposes a new failure, the control plane adds a child group and records why the

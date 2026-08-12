@@ -14,6 +14,7 @@ scope:
     - Add Directus-backed test debug campaign and root-cause group records.
     - Keep `test_claims` focused on short-lived ownership while linking claims to durable groups.
     - Make `fix-tests` automatically create or resume a campaign with an explicit selected failure manifest.
+    - List active and blocked campaigns before starting a new campaign so fresh chats can discover resumable work without duplicating coordinators.
     - Derive routine acceptance criteria from existing test assertions and failure evidence before source edits.
     - Persist observed failures, expected behavior, root-cause hypotheses, attempts, blockers, and red/green evidence.
     - Run exact campaign group members from Directus-backed selection instead of local `last-run.json` state.
@@ -505,6 +506,7 @@ contracts:
     - collection: test_runs
       change: Reliably populate requested test keys and campaign/group references for completed runs.
   cli:
+    - "`python3 scripts/tests.py campaign list --active --overlap-current-failures --json` lists resumable campaigns, owner sessions, current-failure overlap, and status/resume commands."
     - "`python3 scripts/tests.py campaign start --session <id> --json` creates or resumes a campaign from Directus failures."
     - "`python3 scripts/tests.py campaign status --campaign <id> --json` returns groups, attempts, evidence, blockers, and next action."
     - "`python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json` leases the next campaign group."
@@ -559,6 +561,8 @@ tests:
     covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8]
     assertions:
       - Campaign start is idempotent per active session and freezes initial membership.
+      - Campaign listing surfaces active campaign ownership, current-failure overlap, and actionable status/resume commands.
+      - Campaign start rejection for overlapping or foreign-owned campaigns points at the exact campaign status/resume command.
       - Groups persist acceptance, attempts, parent relationships, blockers, and red/green evidence.
       - Completion rejects missing member evidence and succeeds after all members pass.
       - Campaign completion waits for selected and child groups and does not require an aggregate rerun.
@@ -614,6 +618,7 @@ tests:
     covers: [AC-2, AC-10]
     assertions:
       - "`fix-tests` creates or resumes a campaign and processes one durable group at a time until completion or blocker."
+      - "`fix-tests` lists active overlapping campaigns before starting a new campaign."
       - "`fix-next-test` resumes the next group rather than defining an independent workflow."
       - Triager output fields map to durable group diagnosis.
       - Auto-fix uses campaign attempts and does not treat local state as canonical.
