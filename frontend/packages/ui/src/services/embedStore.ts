@@ -12,6 +12,7 @@
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import {
+  EMBED_CHILD_TYPE_MAP,
   EMBED_FULLSCREEN_COMPONENTS,
   normalizeEmbedType as registryNormalizeEmbedType,
 } from "../data/embedRegistry.generated";
@@ -737,9 +738,7 @@ export class EmbedStore {
     let directParentId: string | null = null;
     try {
       const rawEntry = await this.getRawEntry(`embed:${normalizedEmbedId}`);
-      const directRegistryKey = typeof rawEntry?.type === "string"
-        ? registryNormalizeEmbedType(rawEntry.type)
-        : null;
+      const directRegistryKey = this.resolveRawEntryFullscreenRegistryKey(rawEntry);
       if (directRegistryKey && directRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
         return { targetEmbedId: normalizedEmbedId };
       }
@@ -773,6 +772,25 @@ export class EmbedStore {
     }
 
     return { targetEmbedId: normalizedEmbedId };
+  }
+
+  private resolveRawEntryFullscreenRegistryKey(
+    rawEntry: Awaited<ReturnType<EmbedStore["getRawEntry"]>>,
+  ): string | null {
+    if (!rawEntry) return null;
+
+    if (
+      rawEntry.app_id &&
+      rawEntry.skill_id &&
+      rawEntry.parent_embed_id &&
+      (!rawEntry.type || registryNormalizeEmbedType(rawEntry.type) === "app-skill-use")
+    ) {
+      return EMBED_CHILD_TYPE_MAP[`${rawEntry.app_id}:${rawEntry.skill_id}`] ?? null;
+    }
+
+    return typeof rawEntry.type === "string"
+      ? registryNormalizeEmbedType(rawEntry.type)
+      : null;
   }
 
   private normalizeEmbedType(type: string): EmbedType {
@@ -2334,6 +2352,8 @@ export class EmbedStore {
     parent_embed_id?: string;
     embed_ids?: string[];
     type?: string;
+    app_id?: string;
+    skill_id?: string;
     status?: EmbedStoreEntry["status"];
   } | null> {
     // Check memory cache first
@@ -2376,6 +2396,8 @@ export class EmbedStore {
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined,
         type: entry.type,
+        app_id: entry.app_id,
+        skill_id: entry.skill_id,
         status: entry.status,
       };
     }
@@ -2399,6 +2421,9 @@ export class EmbedStore {
             embed_ids: Array.isArray(parsed.embed_ids)
               ? parsed.embed_ids
               : undefined,
+            type: parsed.type,
+            app_id: parsed.app_id,
+            skill_id: parsed.skill_id,
             status: parsed.status,
           };
         }
@@ -2410,6 +2435,9 @@ export class EmbedStore {
           embed_ids: Array.isArray(parsed.embed_ids)
             ? parsed.embed_ids as string[]
             : undefined,
+          type: parsed.type as string | undefined,
+          app_id: parsed.app_id as string | undefined,
+          skill_id: parsed.skill_id as string | undefined,
           status: parsed.status as EmbedStoreEntry["status"] | undefined,
         };
       }
