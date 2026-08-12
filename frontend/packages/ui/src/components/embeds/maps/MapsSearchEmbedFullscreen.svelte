@@ -222,4 +222,10 @@
   :global(.maps-search-fullscreen-body .results-view-pane) {
     min-height: calc(100dvh - 296px);
   }
+
+  @media (max-width: 720px) {
+    :global(.maps-search-fullscreen-body .map-view-list) {
+      min-height: 0;
+    }
+  }
 </style>
