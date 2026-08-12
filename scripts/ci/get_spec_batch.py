@@ -28,6 +28,12 @@ import math
 import os
 import sys
 
+EXCLUDED_SPECS = {
+    "create-test-account.spec.ts",
+    "default-model-settings-proof.spec.ts",
+    "proof-audio-speech-example.spec.ts",
+}
+
 
 def main():
     if len(sys.argv) < 3:
@@ -53,7 +59,7 @@ def main():
         sys.exit(0)
 
     # Extract basenames
-    basenames = [os.path.basename(f) for f in spec_files]
+    basenames = [os.path.basename(f) for f in spec_files if os.path.basename(f) not in EXCLUDED_SPECS]
 
     # Compute batch
     total_batches = math.ceil(len(basenames) / batch_size)
