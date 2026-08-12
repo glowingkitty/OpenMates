@@ -44,6 +44,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const PROOF_RECORDING_DIR = 'test-results/proof-video-source/default-model-settings';
 const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
 const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'";
+const PROOF_PROFILE_TIMEOUT_MS = 360000;
 
 const PROOF_VIEWPORTS = [
 	{ name: 'web-phone', width: 390, height: 844 },
@@ -66,9 +67,9 @@ async function navigateToAiSettings(
 		return;
 	}
 
-	const settingsToggle = page.locator('#settings-menu-toggle');
+	const settingsToggle = page.getByRole('button', { name: 'Open settings menu' }).first();
 	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	await settingsToggle.click();
+	await settingsToggle.click({ force: true, timeout: 5000 });
 	logCheckpoint('Opened settings menu.');
 
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
@@ -254,13 +255,13 @@ async function recordProofProfile(
 }
 
 test.describe('Default model settings proof video source', () => {
-	test.setTimeout(900000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	test('records exact web proof profiles after login', async ({ browser, baseURL }: { browser: any; baseURL: string }) => {
-		fs.rmSync(PROOF_RECORDING_DIR, { recursive: true, force: true });
-		for (const viewport of PROOF_VIEWPORTS) {
+	for (const viewport of PROOF_VIEWPORTS) {
+		test(`records exact ${viewport.name} proof profile after login`, async ({ browser, baseURL }: { browser: any; baseURL: string }) => {
+			test.setTimeout(PROOF_PROFILE_TIMEOUT_MS);
+			fs.mkdirSync(PROOF_RECORDING_DIR, { recursive: true });
 			await recordProofProfile(browser, baseURL, viewport);
-		}
-	});
+		});
+	}
 });
