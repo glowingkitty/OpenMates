@@ -2,9 +2,9 @@
 /**
  * Exact-dimension proof-video source for default model settings.
  *
- * This spec is intentionally manual-only. It logs in without recording, snapshots
- * authenticated cookies, localStorage, and IndexedDB, then records the visible
- * default-model settings flow at the two required web proof profiles.
+ * This spec is intentionally manual-only. It records login and the visible
+ * default-model settings flow in one page per required proof profile so the
+ * in-memory encryption key remains available for new-chat sends.
  *
  * Product regression coverage remains in default-model-settings.spec.ts; this
  * file exists to produce proof-video-compatible Playwright source artifacts.
@@ -51,17 +51,6 @@ const PROOF_VIEWPORTS = [
 ] as const;
 
 async function noopScreenshot(_page: any, _label: string): Promise<void> {}
-
-async function copySessionStorage(page: any): Promise<Record<string, string>> {
-	return await page.evaluate(() => {
-		const values: Record<string, string> = {};
-		for (let index = 0; index < sessionStorage.length; index += 1) {
-			const key = sessionStorage.key(index);
-			if (key) values[key] = sessionStorage.getItem(key) ?? '';
-		}
-		return values;
-	});
-}
 
 async function navigateToAiSettings(
 	page: any,
@@ -202,8 +191,6 @@ async function sendQuestionAndAssertMistral(
 async function recordProofProfile(
 	browser: any,
 	baseURL: string,
-	storageState: any,
-	sessionStorageState: Record<string, string>,
 	viewport: { name: string; width: number; height: number }
 ): Promise<void> {
 	const logCheckpoint = createSignupLogger(`DEFAULT_MODEL_PROOF_${viewport.name.toUpperCase()}`);
@@ -214,19 +201,12 @@ async function recordProofProfile(
 
 	const context = await browser.newContext({
 		baseURL,
-		storageState,
 		recordVideo: {
 			dir: PROOF_RECORDING_DIR,
 			size: { width: viewport.width, height: viewport.height }
 		},
 		viewport: { width: viewport.width, height: viewport.height }
 	});
-
-	await context.addInitScript((values: Record<string, string>) => {
-		for (const [key, value] of Object.entries(values)) {
-			sessionStorage.setItem(key, value);
-		}
-	}, sessionStorageState);
 
 	const page = await context.newPage();
 	attachConsoleListeners(page);
@@ -235,9 +215,7 @@ async function recordProofProfile(
 	let chatCreated = false;
 
 	try {
-		await page.goto('/', { waitUntil: 'domcontentloaded' });
-		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		await loginToTestAccount(page, logCheckpoint, noopScreenshot);
 
 		await navigateToAiSettings(page, logCheckpoint);
 		await ensureAutoSelectOn(page, logCheckpoint);
@@ -280,23 +258,9 @@ test.describe('Default model settings proof video source', () => {
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('records exact web proof profiles after login', async ({ browser, baseURL }: { browser: any; baseURL: string }) => {
-		const logCheckpoint = createSignupLogger('DEFAULT_MODEL_PROOF_LOGIN');
-		const loginContext = await browser.newContext({ baseURL });
-		const loginPage = await loginContext.newPage();
-
-		let storageState: any;
-		let sessionStorageState: Record<string, string>;
-		try {
-			await loginToTestAccount(loginPage, logCheckpoint, noopScreenshot);
-			storageState = await loginContext.storageState({ indexedDB: true });
-			sessionStorageState = await copySessionStorage(loginPage);
-		} finally {
-			await loginContext.close();
-		}
-
 		fs.rmSync(PROOF_RECORDING_DIR, { recursive: true, force: true });
 		for (const viewport of PROOF_VIEWPORTS) {
-			await recordProofProfile(browser, baseURL, storageState, sessionStorageState, viewport);
+			await recordProofProfile(browser, baseURL, viewport);
 		}
 	});
 });
