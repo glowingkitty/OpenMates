@@ -2089,6 +2089,14 @@ def _campaign_status_hint(campaign_key: str) -> str:
     return f"python3 scripts/tests.py campaign status --campaign {campaign_key} --json"
 
 
+def _campaign_handoff_hint(campaign_key: str, from_session: str, to_session: str) -> str:
+    return (
+        f"python3 scripts/tests.py campaign handoff --campaign {campaign_key} "
+        f"--from-session {from_session} --to-session {to_session} "
+        "--reason \"resume from current visible coordinator chat\" --json"
+    )
+
+
 def _active_campaign_pending_test_keys(campaign_key: str) -> set[str]:
     return {
         str(key)
@@ -2127,6 +2135,8 @@ def debug_campaign_summary(campaign: dict[str, Any], current_failure_keys: set[s
         "overlapping_test_keys": overlapping_keys[:20],
         "status_command": _campaign_status_hint(campaign_key),
         "resume_command": _campaign_resume_hint(campaign_key, session_id) if session_id else "",
+        "handoff_command": _campaign_handoff_hint(campaign_key, session_id, os.environ.get("OPENCODE_SESSION_ID", ""))
+        if session_id and os.environ.get("OPENCODE_SESSION_ID", "") and os.environ.get("OPENCODE_SESSION_ID", "") != session_id else "",
     }
 
 
@@ -2178,6 +2188,7 @@ def _format_resumable_campaigns_error(campaigns: list[dict[str, Any]], session_i
             f"- {campaign_key} coordinator={coordinator or '<unknown>'}; "
             f"status: {_campaign_status_hint(campaign_key)}; "
             f"resume from owner: {_campaign_resume_hint(campaign_key, coordinator) if coordinator else '<unknown>'}; "
+            f"handoff: {_campaign_handoff_hint(campaign_key, coordinator, session_id) if coordinator and session_id else '<unknown>'}; "
             f"pending={', '.join(pending) if pending else '<none>'}"
         )
     if session_id:
@@ -2319,6 +2330,74 @@ def start_debug_campaign(
         campaign_key,
         {"selected_group_keys": [group["group_key"] for group in groups], "updated_at": utc_now()},
     )
+
+
+def handoff_debug_campaign(
+    campaign_key: str,
+    from_session: str,
+    to_session: str,
+    reason: str,
+) -> dict[str, Any]:
+    from_session = from_session.strip()
+    to_session = to_session.strip()
+    if not from_session or not to_session:
+        raise RuntimeError("Campaign handoff requires both from-session and to-session")
+    if not reason.strip():
+        raise RuntimeError("Campaign handoff requires a reason")
+    _require_session_identity(to_session, "campaign handoff")
+
+    def _handoff() -> dict[str, Any]:
+        campaign = _debug_campaign(campaign_key)
+        if campaign.get("status") == "completed":
+            raise RuntimeError(f"Debug campaign is already completed: {campaign_key}")
+        owner_session = str(campaign.get("session_id") or "")
+        if owner_session != from_session:
+            raise RuntimeError(
+                f"Campaign handoff source mismatch: expected {owner_session or '<unknown>'}, got {from_session}. "
+                f"Inspect with: {_campaign_status_hint(campaign_key)}."
+            )
+        now = utc_now()
+        metadata = dict(campaign.get("metadata") or {})
+        handoffs = list(metadata.get("coordinator_handoffs") or [])
+        record = {
+            "from_session": sanitize_debug_text(from_session),
+            "to_session": sanitize_debug_text(to_session),
+            "reason": sanitize_debug_text(reason),
+            "timestamp": now,
+        }
+        handoffs.append(record)
+        metadata["coordinator_handoffs"] = handoffs
+        updated_lease_ids = []
+        for claim in _active_debug_claims(load_leases().get("leases") or []):
+            if claim.get("campaign_key") != campaign_key:
+                continue
+            if claim.get("worker_id") or str(claim.get("session_id") or "") != from_session:
+                continue
+            lease_id = str(claim.get("lease_id") or claim.get("claim_key") or "")
+            if not lease_id:
+                continue
+            entry = dict(claim.get("entry") if isinstance(claim.get("entry"), dict) else claim.get("entry_json") or {})
+            entry["coordinator_handoff"] = record
+            get_store().update_claim(
+                lease_id,
+                "active",
+                {"session_id": to_session, "entry_json": entry},
+            )
+            updated_lease_ids.append(lease_id)
+        campaign = get_store().update_debug_campaign(
+            campaign_key,
+            {"session_id": to_session, "metadata": metadata, "updated_at": now},
+        )
+        return {
+            "campaign_key": campaign_key,
+            "campaign": campaign,
+            "from_session": from_session,
+            "to_session": to_session,
+            "reason": record["reason"],
+            "updated_coordinator_leases": updated_lease_ids,
+        }
+
+    return with_lease_lock(_handoff)
 
 
 def _require_active_worker_session_owns_group(group_key: str) -> None:
@@ -3287,6 +3366,7 @@ def claim_debug_group(
     session_id: str,
     worker_id: str = "",
     linked_files: list[str] | None = None,
+    allow_blocked_campaign: bool = False,
 ) -> dict[str, Any] | None:
     """Atomically lease one explicitly selected durable campaign group."""
     def _claim() -> dict[str, Any] | None:
@@ -3314,7 +3394,7 @@ def claim_debug_group(
                 if candidate_files.intersection(active_files):
                     return None
         campaign = _debug_campaign(campaign_key)
-        if campaign.get("status") == "blocked":
+        if campaign.get("status") == "blocked" and not allow_blocked_campaign:
             return None
         return _create_debug_group_claim(campaign_key, group, session_id, worker_id, linked_files=linked_files)
 
@@ -3380,6 +3460,7 @@ def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = 
             worker_id,
             worker_id=worker_id,
             linked_files=list(group.get("parallel_linked_files") or []),
+            allow_blocked_campaign=True,
         )
 
     def _claim() -> dict[str, Any] | None:
@@ -3464,8 +3545,6 @@ def dispatch_parallel_debug_chats(
 ) -> dict[str, Any]:
     _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign dispatch")
     status = debug_campaign_status(campaign_key)
-    if status["campaign"].get("status") == "blocked":
-        raise RuntimeError("Campaign is blocked; resolve its required user input before parallel dispatch")
     claims = load_leases().get("leases") or []
     active_claims = _active_debug_claims(claims)
     active_parallel_claims = [claim for claim in active_claims if claim.get("worker_id")]
@@ -3514,6 +3593,7 @@ def dispatch_parallel_debug_chats(
             chat_name,
             worker_id=chat_name,
             linked_files=list(group.get("parallel_linked_files") or []),
+            allow_blocked_campaign=True,
         )
         if lease is None:
             selection["skipped"][str(group["group_key"])] = "group became leased before chat launch"
@@ -4141,6 +4221,12 @@ def main(argv: list[str] | None = None) -> int:
     campaign_start.add_argument("--campaign", default="")
     campaign_start.add_argument("--test-key", action="append", default=[])
     campaign_start.add_argument("--json", action="store_true")
+    campaign_handoff = campaign_sub.add_parser("handoff", help="Rebind a campaign coordinator to the current visible chat")
+    campaign_handoff.add_argument("--campaign", required=True)
+    campaign_handoff.add_argument("--from-session", required=True)
+    campaign_handoff.add_argument("--to-session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_handoff.add_argument("--reason", required=True)
+    campaign_handoff.add_argument("--json", action="store_true")
     campaign_list = campaign_sub.add_parser("list", help="List resumable failed-test debug campaigns")
     campaign_list.add_argument("--session", default="")
     campaign_list.add_argument("--active", action="store_true", help="Only active or blocked campaigns (default)")
@@ -4307,6 +4393,13 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if args.campaign_command == "start":
                 payload = start_debug_campaign(args.session, selected_test_keys=args.test_key or None, campaign_key=args.campaign)
+            elif args.campaign_command == "handoff":
+                payload = handoff_debug_campaign(
+                    args.campaign,
+                    from_session=args.from_session,
+                    to_session=args.to_session,
+                    reason=args.reason,
+                )
             elif args.campaign_command == "list":
                 payload = list_debug_campaigns(
                     session_id=args.session,

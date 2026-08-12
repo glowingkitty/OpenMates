@@ -12334,12 +12334,20 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
     else:
-        mode_prefix = (
-            "IMPORTANT: This is an EXECUTE session. "
-            "You have full access to read, edit, and create files. "
-            "Investigate the issue and implement the fix directly. "
-            "Use sessions.py deploy to commit and push when done.\n\n"
-        )
+        if getattr(args, "no_deploy_instructions", False):
+            mode_prefix = (
+                "IMPORTANT: This is an EXECUTE session. "
+                "You have full access to read, edit, and create files. "
+                "Investigate the issue and implement the fix directly. "
+                "Do not deploy, commit, merge, or push; leave changes for the coordinator to harvest.\n\n"
+            )
+        else:
+            mode_prefix = (
+                "IMPORTANT: This is an EXECUTE session. "
+                "You have full access to read, edit, and create files. "
+                "Investigate the issue and implement the fix directly. "
+                "Use sessions.py deploy to commit and push when done.\n\n"
+            )
 
     # Handle Linear issue linking
     linear_issue_id = getattr(args, "linear_issue", None)
@@ -13545,6 +13553,11 @@ def main() -> None:
         metavar="ISSUE_ID",
         help="Linear issue to link (e.g., OPE-42). Auto-marks In Progress, "
         "adds claude-is-working label, and injects Linear update instructions.",
+    )
+    p_spawn.add_argument(
+        "--no-deploy-instructions",
+        action="store_true",
+        help="For coordinator-owned execute workers, omit generic deploy guidance and tell the worker not to deploy.",
     )
 
     # restore

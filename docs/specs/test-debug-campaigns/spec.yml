@@ -24,6 +24,7 @@ scope:
     - Complete a campaign when every selected and discovered child group is individually green.
     - Integrate interactive skills, deterministic triage, and the sequential auto-fix controller with the same records.
     - Dispatch persistent visible worker chats for conflict-safe parallel groups.
+    - Allow an explicitly identified current visible coordinator chat to take over an active or blocked campaign from a stale coordinator session.
     - Require each worker to submit a bounded fix intent before source edits.
     - Let the coordinator approve, reject, or request boundary expansion before worker mutation.
     - Let workers finish with a deterministic checkpoint that the coordinator can harvest, integrate, deploy, and verify serially.
@@ -301,13 +302,27 @@ scenarios:
   - id: S-13
     title: Coordinator dispatch explains and refills worker slots
     given:
-      - A campaign has active workers, pending safe groups, and skipped high-risk groups.
+      - A campaign has active workers, pending safe groups, and skipped high-risk or blocked groups.
     when:
       - The coordinator runs dispatch in dry-run or normal mode.
     then:
       - Dry-run returns selected/skipped reasons without leasing or spawning chats.
       - Normal dispatch fills only available worker slots and spawns chats without deploy instructions.
+      - A blocked group does not prevent dispatch from selecting other unblocked, conflict-safe groups in the same campaign.
       - Status shows enough worker metadata for the coordinator to inspect, harvest, and refill slots after workers finish.
+  - id: S-14
+    title: Current visible coordinator can take over stale campaign ownership
+    given:
+      - An active or blocked campaign is still assigned to an older coordinator session.
+      - The current visible chat is not an active debug worker.
+      - The campaign may have a coordinator-owned lease and separate worker-owned leases.
+    when:
+      - The current visible chat runs the explicit campaign handoff command with the expected old coordinator session and a reason.
+    then:
+      - The campaign coordinator session is rebound to the current visible chat.
+      - The campaign records the handoff reason and timestamp in metadata.
+      - Coordinator-owned leases are rebound to the current visible chat, while worker-owned leases remain assigned to their workers.
+      - Active debug worker sessions are rejected as handoff targets.
 
 acceptance_criteria:
   - id: AC-1
@@ -424,12 +439,20 @@ acceptance_criteria:
     verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
   - id: AC-15
     scenario: S-13
-    text: Parallel dispatch supports dry-run explanation, fills only available slots, reports active worker metadata, and spawns worker chats without deploy instructions.
+    text: Parallel dispatch supports dry-run explanation, fills only available slots, reports active worker metadata, skips blocked groups without blocking unrelated safe groups, and spawns worker chats without deploy instructions.
     required: true
     status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+  - id: AC-16
+    scenario: S-14
+    text: Explicit coordinator handoff rebinds active or blocked campaigns to the current non-worker chat, records the handoff, updates only coordinator-owned leases, and rejects active workers as new coordinators.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
 
 assumptions:
   - id: A-1
@@ -506,8 +529,9 @@ contracts:
     - collection: test_runs
       change: Reliably populate requested test keys and campaign/group references for completed runs.
   cli:
-    - "`python3 scripts/tests.py campaign list --active --overlap-current-failures --json` lists resumable campaigns, owner sessions, current-failure overlap, and status/resume commands."
+    - "`python3 scripts/tests.py campaign list --active --overlap-current-failures --json` lists resumable campaigns, owner sessions, current-failure overlap, and status/resume/handoff commands."
     - "`python3 scripts/tests.py campaign start --session <id> --json` creates or resumes a campaign from Directus failures."
+    - "`python3 scripts/tests.py campaign handoff --campaign <id> --from-session <old> --to-session <current> --reason <why> --json` explicitly rebinds stale campaign coordination to the current non-worker visible chat."
     - "`python3 scripts/tests.py campaign status --campaign <id> --json` returns groups, attempts, evidence, blockers, and next action."
     - "`python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json` leases the next campaign group."
     - "`python3 scripts/tests.py campaign attempt --group <id> ...` appends a structured investigation attempt."
@@ -558,11 +582,12 @@ tests:
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
     command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py
-    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8]
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8, AC-16]
     assertions:
       - Campaign start is idempotent per active session and freezes initial membership.
       - Campaign listing surfaces active campaign ownership, current-failure overlap, and actionable status/resume commands.
       - Campaign start rejection for overlapping or foreign-owned campaigns points at the exact campaign status/resume command.
+      - Explicit handoff rebinds campaign ownership to the current non-worker coordinator and preserves worker leases.
       - Groups persist acceptance, attempts, parent relationships, blockers, and red/green evidence.
       - Completion rejects missing member evidence and succeeds after all members pass.
       - Campaign completion waits for selected and child groups and does not require an aggregate rerun.
@@ -654,7 +679,7 @@ tests:
       - Active workers cannot prepare or append attempts to leased or unleased groups they do not own.
       - Worker finish records canonical lease identity and rejects omitted known session modified files.
       - Finish-worker records a harvestable checkpoint with worker session, inspection, checkpoint, and diff-template commands without completing the lease or group.
-      - Dispatch dry-run explains selected/skipped groups and normal dispatch fills only available worker slots.
+      - Dispatch dry-run explains selected/skipped groups and normal dispatch fills only available worker slots, including when another campaign group is blocked.
     red_phase:
       required: true
       expected: fail
@@ -730,7 +755,7 @@ verifications:
     kind: deterministic_check
     phase: final
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16]
     status: pending
     evidence:
       status: passed
@@ -805,6 +830,7 @@ implementation_plan:
     - AC-10 maps to T-WORKFLOW-AUDIT.
     - AC-11, AC-12, AC-13, AC-14, and AC-15 map to T-PARALLEL-WORKER-LIFECYCLE.
     - AC-15 also maps to T-SPAWN-NO-DEPLOY and T-HOOK-READONLY-RECOVERY.
+    - AC-16 maps to T-CAMPAIGN-CONTROL.
   technical_approval:
     required: false
     reason: Separate campaign/group collections and individual-group completion were approved in the product clarification.
@@ -1028,8 +1054,8 @@ tasks:
     status: pending
     phase: running_checks
     covers:
-      scenarios: [S-9, S-10, S-11, S-12, S-13]
-      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+      scenarios: [S-9, S-10, S-11, S-12, S-13, S-14]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15, AC-16]
     expected_files:
       - docs/specs/test-debug-campaigns/spec.yml
       - scripts/tests.py

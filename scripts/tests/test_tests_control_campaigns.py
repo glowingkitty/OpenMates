@@ -244,6 +244,60 @@ def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path
     assert resumed["campaign_key"] == campaign_key
 
 
+def test_campaign_handoff_rebinds_coordinator_without_taking_worker_leases(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    campaign_key, groups = create_parallel_campaign(control, group_count=2)
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
+    coordinator_lease = control.claim_next_debug_group(campaign_key, session_id="coordinator")
+    worker_lease = control.claim_debug_group(
+        campaign_key,
+        groups[1]["group_key"],
+        session_id="ses-worker",
+        worker_id="worker-chat",
+        linked_files=["frontend/test-2.test.ts"],
+    )
+
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "new-coordinator")
+    handed_off = control.handoff_debug_campaign(
+        campaign_key,
+        from_session="coordinator",
+        to_session="new-coordinator",
+        reason="Resume from the current visible coordinator chat.",
+    )
+
+    assert handed_off["campaign"]["session_id"] == "new-coordinator"
+    assert handed_off["from_session"] == "coordinator"
+    assert handed_off["to_session"] == "new-coordinator"
+    assert handed_off["updated_coordinator_leases"] == [coordinator_lease["lease_id"]]
+    campaign = control._debug_campaign(campaign_key)
+    assert campaign["metadata"]["coordinator_handoffs"][-1]["to_session"] == "new-coordinator"
+    assert control._lease_for_id(coordinator_lease["lease_id"])["session_id"] == "new-coordinator"
+    assert control._lease_for_id(worker_lease["lease_id"])["session_id"] == "ses-worker"
+
+
+def test_campaign_handoff_rejects_active_worker_as_new_coordinator(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    campaign_key, groups = create_parallel_campaign(control, group_count=1)
+    control.claim_debug_group(
+        campaign_key,
+        groups[0]["group_key"],
+        session_id="ses-worker",
+        worker_id="worker-chat",
+        linked_files=["frontend/test-1.test.ts"],
+    )
+
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses-worker")
+    with pytest.raises(RuntimeError, match="Active debug workers"):
+        control.handoff_debug_campaign(
+            campaign_key,
+            from_session="coordinator",
+            to_session="ses-worker",
+            reason="Worker should not become coordinator.",
+        )
+
+    assert control._debug_campaign(campaign_key)["session_id"] == "coordinator"
+
+
 def test_campaign_start_rejects_spoofed_initial_owner(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))
@@ -677,6 +731,43 @@ def test_parallel_dispatch_records_failed_launch_metadata_before_release(tmp_pat
     assert claim["status"] == "released"
     assert (claim["entry"].get("launch") or {}).get("status") == "failed"
     assert "launch_status" not in claim
+
+
+def test_parallel_dispatch_skips_blocked_group_and_spawns_unblocked_workers(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    campaign_key, groups = create_parallel_campaign(control, group_count=3)
+    launches = []
+
+    def capture_run(command, **_kwargs):
+        launches.append(command)
+        index = len(launches)
+        return CompletedProcess(
+            command,
+            0,
+            stdout=(
+                f"OpenCode chat spawned: worker-{index}\n"
+                f"OpenCode session: ses_worker_{index}\n"
+                f"Web chat: https://code.dev.openmates.org/root/session/ses_worker_{index}\n"
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(control.subprocess, "run", capture_run)
+    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
+    control.block_debug_group(
+        groups[0]["group_key"],
+        reason="This group needs user input.",
+        question="Which product behavior should this group assert?",
+        next_action="Resolve the blocked group, then verify it separately.",
+    )
+
+    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=2)
+
+    assert len(result["spawned"]) == 2
+    assert [item["group_key"] for item in result["selected"]] == [groups[1]["group_key"], groups[2]["group_key"]]
+    assert result["skipped"][groups[0]["group_key"]] == "group is completed, blocked, or already leased"
+    assert len(launches) == 2
 
 
 def test_lease_required_binds_pending_worker_session(tmp_path, monkeypatch):
