@@ -39,6 +39,8 @@ TERMINAL_COLUMNS = 72
 TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
+PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 8
+PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 20
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -287,6 +289,24 @@ def mark_reconstructed(source: dict[str, Any], *, displayed_transcript_hash: str
 
 def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+
+def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
+    """Keep burned-in web proof captions readable without covering mobile controls."""
+    width = int(metadata.get("width") or 0)
+    height = int(metadata.get("height") or 0)
+    font_size = max(
+        PLAYWRIGHT_CAPTION_MIN_FONT_SIZE,
+        min(PLAYWRIGHT_CAPTION_MAX_FONT_SIZE, round(width / 72)),
+    )
+    margin_v = max(12, min(24, round(height * 0.018)))
+    outline = 1 if font_size <= PLAYWRIGHT_CAPTION_MIN_FONT_SIZE else 2
+    return (
+        "FontName=DejaVu Sans,"
+        f"FontSize={font_size},"
+        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
+        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=8,MarginV={margin_v}"
+    )
 
 
 def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
@@ -573,11 +593,12 @@ def render_captioned_video(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     captions = _ffmpeg_filter_path(captions_path)
     source_duration = media_duration_seconds(source_path)
+    source_metadata = video_metadata(source_path)
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     video_filters = [f"setpts=PTS/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
-    video_filters.append(f"subtitles='{captions}'")
+    video_filters.append(f"subtitles='{captions}':force_style='{_playwright_caption_force_style(source_metadata)}'")
     audio_inputs = [f"[1:a:0]volume=1.0,apad,atrim=0:{output_duration:g}[narr]"]
     input_args = ["-i", str(source_path), "-i", str(audio_path)]
     if demo_audio_path is not None:

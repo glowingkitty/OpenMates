@@ -1177,7 +1177,7 @@ assertions:
       surface: gui.web
     - &id114
       path: frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
-      line: 41
+      line: 47
       name: ${viewport.name} records speech playback controls
       surface: gui.web
     - &id115
@@ -1371,7 +1371,7 @@ assertions:
       surface: gui.web
     - &id132
       path: frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
-      line: 41
+      line: 47
       name: ${viewport.name} records speech playback controls
       surface: gui.web
     - &id134
@@ -6251,7 +6251,7 @@ assertions:
       surface: gui.web
     - &id656
       path: frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
-      line: 41
+      line: 47
       name: ${viewport.name} records speech playback controls
       surface: gui.web
     supporting_tests: []

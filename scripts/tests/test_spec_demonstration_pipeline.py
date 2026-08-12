@@ -462,6 +462,20 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
     assert module.video_metadata(output)["has_audio"] is True
 
 
+def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
+    module = load_module()
+
+    phone_style = module._playwright_caption_force_style({"width": 390, "height": 844})
+    laptop_style = module._playwright_caption_force_style({"width": 1440, "height": 900})
+
+    assert "FontSize=8" in phone_style
+    assert "MarginV=15" in phone_style
+    assert "Alignment=8" in phone_style
+    assert "FontSize=20" in laptop_style
+    assert "MarginV=16" in laptop_style
+    assert "Alignment=8" in laptop_style
+
+
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:
     module = load_module()
     raw = tmp_path / "raw.webm"

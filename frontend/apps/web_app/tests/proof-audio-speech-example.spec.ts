@@ -35,6 +35,12 @@ async function waitForPreviewAudioPlayback(audioLocator: any, label: string): Pr
 	}).toPass({ timeout: 30000 });
 }
 
+async function centerLocatorInViewport(locator: any): Promise<void> {
+	await locator.evaluate((element: HTMLElement) => {
+		element.scrollIntoView({ block: 'center', inline: 'nearest' });
+	});
+}
+
 test.describe('Audio speech example proof video source', () => {
 	for (const viewport of PROOF_VIEWPORTS) {
 		// contract-test: direct surface=gui.web assertions=audio-speak.output.playable-audio,public-example-chats.transcript.safe-rendering,audio-speak.surface-parity
@@ -69,14 +75,16 @@ test.describe('Audio speech example proof video source', () => {
 
 				const playButton = preview.getByTestId('audio-speak-preview-play-button');
 				await expect(playButton).toBeVisible({ timeout: 15000 });
+				await centerLocatorInViewport(playButton);
 				await playButton.click();
 
 				const previewAudio = preview.getByTestId('audio-speak-audio');
 				await expect(previewAudio).toBeAttached({ timeout: 15000 });
 				await waitForPreviewAudioPlayback(previewAudio, `${viewport.name} preview audio`);
 
-				await page.waitForTimeout(2500);
 				await expect(playButton).toHaveAttribute('aria-label', 'Pause', { timeout: 5000 });
+				await centerLocatorInViewport(playButton);
+				await page.waitForTimeout(2500);
 			} finally {
 				await context.close();
 			}
