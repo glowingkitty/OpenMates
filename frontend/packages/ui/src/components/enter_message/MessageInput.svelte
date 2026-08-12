@@ -437,7 +437,7 @@
             if (node.type.name !== 'embed') return true;
             const attrs = node.attrs as Record<string, unknown>;
             const status = typeof attrs.status === 'string' ? attrs.status : '';
-            if (status === 'uploading' || status === 'transcribing') {
+            if (status === 'uploading' || status === 'processing' || status === 'transcribing') {
                 found = true;
                 return false;
             }
@@ -446,19 +446,13 @@
         return found;
     }
 
-    function draftContentHasMeaningfulContent(content: unknown): boolean {
-        if (typeof content === 'string') return content.trim().length > 0;
-        if (Array.isArray(content)) return content.some(draftContentHasMeaningfulContent);
+    function draftContentHasEmbedContent(content: unknown): boolean {
+        if (Array.isArray(content)) return content.some(draftContentHasEmbedContent);
         if (!content || typeof content !== 'object') return false;
 
         const node = content as Record<string, unknown>;
         if (node.type === 'embed') return true;
-        if (typeof node.text === 'string' && node.text.trim().length > 0) return true;
-        return draftContentHasMeaningfulContent(node.content);
-    }
-
-    function isEmptyDraftContent(draftContent: Content | null): boolean {
-        return !draftContentHasMeaningfulContent(draftContent);
+        return draftContentHasEmbedContent(node.content);
     }
 
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
@@ -5271,7 +5265,7 @@
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
             draftContent !== null &&
-            isEmptyDraftContent(draftContent) &&
+            !draftContentHasEmbedContent(draftContent) &&
             editorHasInFlightEmbed(editor) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
