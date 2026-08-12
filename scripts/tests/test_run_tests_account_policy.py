@@ -86,6 +86,115 @@ def test_batch_size_is_capped_to_normal_account_pool():
     assert plan[20] == (1, "regular-20.spec.ts", 1)
 
 
+def test_gift_card_fixture_is_seeded_only_for_dev_redemption_spec(monkeypatch):
+    run_tests = load_run_tests_module()
+    calls: list[str] = []
+
+    def fake_seed(spec_name: str):
+        calls.append(spec_name)
+        return run_tests.SeededGiftCard(
+            spec=spec_name,
+            code="E2E2-TEST-CARD",
+            directus_id="gift-card-id",
+            credits_value=run_tests.E2E_GIFT_CARD_REDEMPTION_CREDITS,
+        )
+
+    monkeypatch.setattr(run_tests, "_seed_e2e_gift_card", fake_seed)
+
+    assert run_tests._seed_playwright_fixtures_for_specs(
+        [run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC],
+        "production",
+    ) == {}
+    assert calls == []
+
+    fixtures = run_tests._seed_playwright_fixtures_for_specs(
+        ["regular.spec.ts", run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC],
+        "development",
+    )
+
+    assert calls == [run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC]
+    assert fixtures[run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC].code == "E2E2-TEST-CARD"
+
+
+def test_seeded_gift_card_code_is_passed_to_matching_dispatch(monkeypatch):
+    run_tests = load_run_tests_module()
+    dispatches: list[tuple[str, str | None]] = []
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def dispatch_spec(self, spec, _account, *_args, seeded_gift_card_code=None, **_kwargs):
+            dispatches.append((spec, seeded_gift_card_code))
+            return len(dispatches)
+
+        def wait_for_runs(self, run_ids, _fail_fast):
+            return {run_id: {"status": "completed", "conclusion": "success"} for run_id in run_ids}
+
+        def download_artifact(self, *_args, **_kwargs):
+            return None
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["regular.spec.ts", run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC],
+        batch_size=2,
+        fail_fast=True,
+        seeded_gift_cards={
+            run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC: run_tests.SeededGiftCard(
+                spec=run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC,
+                code="E2E2-TEST-CARD",
+                directus_id="gift-card-id",
+                credits_value=run_tests.E2E_GIFT_CARD_REDEMPTION_CREDITS,
+            )
+        },
+    )
+
+    result = runner.run_all_batches()
+
+    assert result.status == "passed"
+    assert dispatches == [
+        ("regular.spec.ts", None),
+        (run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC, "E2E2-TEST-CARD"),
+    ]
+
+
+def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
+    run_tests = load_run_tests_module()
+    dispatches: list[tuple[str, str | None]] = []
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def dispatch_spec(self, spec, _account, *_args, seeded_gift_card_code=None, **_kwargs):
+            dispatches.append((spec, seeded_gift_card_code))
+            return len(dispatches)
+
+        def wait_for_runs(self, run_ids, _fail_fast):
+            return {run_id: {"status": "completed", "conclusion": "success"} for run_id in run_ids}
+
+        def download_artifact(self, *_args, **_kwargs):
+            return None
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["regular.spec.ts"],
+        batch_size=1,
+        fail_fast=True,
+        seeded_gift_cards={
+            run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC: run_tests.SeededGiftCard(
+                spec=run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC,
+                code="E2E2-TEST-CARD",
+                directus_id="gift-card-id",
+                credits_value=run_tests.E2E_GIFT_CARD_REDEMPTION_CREDITS,
+            )
+        },
+    )
+
+    result = runner.run_all_batches()
+
+    assert result.status == "passed"
+    assert dispatches == [("regular.spec.ts", None)]
+
+
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(5)]

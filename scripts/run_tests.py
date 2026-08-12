@@ -48,6 +48,7 @@ import json
 import mimetypes
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -127,6 +128,10 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
+E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
+E2E_GIFT_CARD_SEED_RETRIES = 5
+E2E_GIFT_CARD_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
 BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
@@ -320,6 +325,14 @@ class RunResult:
     summary: dict  # {total, passed, failed, dispatch_error, skipped, not_started}
     suites: dict  # {suite_name: SuiteResult as dict}
     flags: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SeededGiftCard:
+    spec: str
+    code: str
+    directus_id: str
+    credits_value: int
 
 
 # ---------------------------------------------------------------------------
@@ -714,18 +727,113 @@ def record_flake_history(run_data: dict) -> None:
     _safe_write_json(history_path, history)
 
 
-def _record_unified_test_state(data: dict) -> None:
-    """Update scripts/tests.py state files without making this runner depend on it."""
+def _load_tests_control_module():
+    """Load scripts/tests.py lazily so this runner can reuse its control plane."""
     tests_script = PROJECT_ROOT / "scripts" / "tests.py"
     if not tests_script.is_file():
-        return
+        raise RuntimeError("scripts/tests.py is missing")
     spec = importlib.util.spec_from_file_location("openmates_tests_control", tests_script)
     if spec is None or spec.loader is None:
-        return
+        raise RuntimeError("Could not load scripts/tests.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    return module
+
+
+def _record_unified_test_state(data: dict) -> None:
+    """Update scripts/tests.py state files without making this runner depend on it."""
+    try:
+        module = _load_tests_control_module()
+    except RuntimeError:
+        return
     module.record_run_result(data)
+
+
+def _generate_e2e_gift_card_code() -> str:
+    """Return a short, human-enterable gift-card code matching production rules."""
+    return "-".join(
+        "".join(secrets.choice(E2E_GIFT_CARD_CODE_CHARSET) for _ in range(4))
+        for _ in range(3)
+    )
+
+
+def _seed_e2e_gift_card(spec: str) -> SeededGiftCard:
+    """Create a disposable dev gift card in Directus for a real redemption spec."""
+    module = _load_tests_control_module()
+    store = module.DirectusTestControlStore()
+    last_error: Optional[Exception] = None
+    for _attempt in range(E2E_GIFT_CARD_SEED_RETRIES):
+        code = _generate_e2e_gift_card_code()
+        notes = (
+            f"E2E disposable gift-card redemption fixture for {spec}; "
+            f"seeded {datetime.now(timezone.utc).isoformat()} by scripts/run_tests.py."
+        )
+        try:
+            created = store._request(
+                "POST",
+                "/items/gift_cards",
+                data={
+                    "code": code,
+                    "credits_value": E2E_GIFT_CARD_REDEMPTION_CREDITS,
+                    "notes": notes,
+                },
+            )
+        except RuntimeError as exc:
+            last_error = exc
+            if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
+                continue
+            raise RuntimeError(f"Could not seed dev gift card for {spec}: {exc}") from exc
+
+        if not isinstance(created, dict) or not created.get("id"):
+            raise RuntimeError(f"Directus returned an invalid gift-card seed response for {spec}")
+
+        card = SeededGiftCard(
+            spec=spec,
+            code=code,
+            directus_id=str(created["id"]),
+            credits_value=E2E_GIFT_CARD_REDEMPTION_CREDITS,
+        )
+        _log(f"Seeded disposable dev gift card for {spec} (Directus ID {card.directus_id})")
+        return card
+
+    raise RuntimeError(f"Could not seed a unique dev gift card for {spec}: {last_error}")
+
+
+def _cleanup_e2e_gift_cards(cards: dict[str, SeededGiftCard]) -> None:
+    """Best-effort removal of unredeemed disposable dev gift cards."""
+    if not cards:
+        return
+    try:
+        module = _load_tests_control_module()
+        store = module.DirectusTestControlStore()
+    except RuntimeError as exc:
+        _log(f"Disposable gift-card cleanup skipped: {exc}", "WARN")
+        return
+
+    for card in cards.values():
+        try:
+            store._request("DELETE", f"/items/gift_cards/{urllib.parse.quote(card.directus_id)}")
+            _log(f"Deleted unredeemed disposable gift card for {card.spec} (Directus ID {card.directus_id})")
+        except RuntimeError as exc:
+            detail = str(exc)
+            if "404" in detail or "not found" in detail.lower():
+                continue
+            _log(f"Disposable gift-card cleanup failed for {card.spec}: {detail[:200]}", "WARN")
+
+
+def _seed_playwright_fixtures_for_specs(
+    specs: list[str],
+    environment: str,
+) -> dict[str, SeededGiftCard]:
+    """Seed per-run fixtures that must exist before a GitHub-hosted spec starts."""
+    if environment != "development":
+        return {}
+    if E2E_GIFT_CARD_REDEMPTION_SPEC not in specs:
+        return {}
+    return {
+        E2E_GIFT_CARD_REDEMPTION_SPEC: _seed_e2e_gift_card(E2E_GIFT_CARD_REDEMPTION_SPEC),
+    }
 
 
 def _log(msg: str, level: str = "INFO") -> None:
@@ -1406,6 +1514,7 @@ class GitHubActionsClient:
         record_live_fixtures: bool = False,
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
+        seeded_gift_card_code: Optional[str] = None,
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -1431,6 +1540,8 @@ class GitHubActionsClient:
             command.extend(["-f", f"checkout_ref={self.git_sha}"])
         if create_account_slot is not None:
             command.extend(["-f", f"create_account_slot={create_account_slot}"])
+        if seeded_gift_card_code:
+            command.extend(["-f", f"seeded_gift_card_code={seeded_gift_card_code}"])
 
         rc = subprocess.run(
             command,
@@ -1761,6 +1872,7 @@ class BatchRunner:
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
+        seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1771,6 +1883,7 @@ class BatchRunner:
         self.normal_account_slots = normal_account_slots
         self.create_account_slot = create_account_slot
         self.allow_credential_updates = allow_credential_updates
+        self.seeded_gift_cards = seeded_gift_cards or {}
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1846,6 +1959,7 @@ class BatchRunner:
             _log(f"  Dispatching {spec} (account {account})")
 
             create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            seeded_gift_card = self.seeded_gift_cards.get(spec)
             run_id = self.client.dispatch_spec(
                 spec,
                 account,
@@ -1853,6 +1967,7 @@ class BatchRunner:
                 self.record_live_fixtures,
                 create_account_slot=create_account_slot,
                 allow_credential_updates=self.allow_credential_updates,
+                seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
             )
             if run_id is None:
                 # Retry once
@@ -1864,6 +1979,7 @@ class BatchRunner:
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
                     allow_credential_updates=self.allow_credential_updates,
+                    seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                 )
 
             if run_id is None:
@@ -6474,6 +6590,25 @@ class TestOrchestrator:
             else:
                 normal_account_slots = (account,)
 
+        try:
+            seeded_gift_cards = _seed_playwright_fixtures_for_specs(specs, self.environment)
+        except RuntimeError as exc:
+            fixture_error = str(exc)
+            return SuiteResult(
+                status="failed",
+                tests=[
+                    {
+                        "name": "playwright-fixture-seed",
+                        "file": "scripts/run_tests.py",
+                        "status": "failed",
+                        "duration_seconds": 0,
+                        "error": fixture_error,
+                    },
+                    *_not_started_playwright_specs(specs, fixture_error),
+                ],
+                reason=fixture_error,
+            )
+
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -6484,8 +6619,12 @@ class TestOrchestrator:
             normal_account_slots=normal_account_slots,
             create_account_slot=self.create_account_slot,
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
+            seeded_gift_cards=seeded_gift_cards,
         )
-        result = runner.run_all_batches()
+        try:
+            result = runner.run_all_batches()
+        finally:
+            _cleanup_e2e_gift_cards(seeded_gift_cards)
 
         if blocked_preflight_results:
             result.tests = [

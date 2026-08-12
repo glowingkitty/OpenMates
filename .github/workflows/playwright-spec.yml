@@ -48,6 +48,10 @@ on:
         description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
+      seeded_gift_card_code:
+        description: "Disposable dev-only gift-card code seeded by scripts/run_tests.py for real redemption specs."
+        type: string
+        default: ""
       checkout_ref:
         description: "Commit SHA selected by scripts/run_tests.py."
         required: true
@@ -90,6 +94,10 @@ on:
         type: string
         default: ""
       dispatch_token:
+        required: false
+        type: string
+        default: ""
+      seeded_gift_card_code:
         required: false
         type: string
         default: ""
@@ -239,6 +247,12 @@ jobs:
           echo "Migrated expanded account slot $SLOT into the consolidated secret."
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Export seeded gift card code
+        if: inputs.seeded_gift_card_code != ''
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${{ inputs.seeded_gift_card_code }}"
+          echo "OPENMATES_E2E_GIFT_CARD_CODE=${{ inputs.seeded_gift_card_code }}" >> "$GITHUB_ENV"
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend

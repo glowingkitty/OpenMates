@@ -154,11 +154,12 @@ Tests: (none yet)
 <div class="gift-card-redeem-container">
     <div class="gift-card-form">
         <label class="gift-card-label" for="gift-card-code">
-            {@html $text('settings.billing.gift_card.enter_code')}
+            {$text('settings.billing.gift_card.enter_code')}
         </label>
         
         <input
             id="gift-card-code"
+            data-testid="gift-card-code-input"
             type="text"
             class="gift-card-input"
             placeholder={$text('settings.billing.gift_card.placeholder')}
@@ -184,21 +185,23 @@ Tests: (none yet)
             <button
                 id="signup-gift-card-cancel"
                 class="cancel-button"
+                data-testid="gift-card-redeem-cancel"
                 onclick={handleCancel}
                 disabled={isRedeeming}
             >
-                {@html $text('common.cancel')}
+                {$text('common.cancel')}
             </button>
             
             <button
                 class="redeem-button"
+                data-testid="gift-card-redeem-submit"
                 onclick={redeemCode}
                 disabled={isRedeeming || !giftCardCode.trim()}
             >
                 {#if isRedeeming}
-                    {@html $text('settings.billing.gift_card.redeem')}...
+                    {$text('settings.billing.gift_card.redeem')}...
                 {:else}
-                    {@html $text('settings.billing.gift_card.redeem')}
+                    {$text('settings.billing.gift_card.redeem')}
                 {/if}
             </button>
         </div>
