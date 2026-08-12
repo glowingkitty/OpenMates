@@ -1799,7 +1799,7 @@ class WorkflowService:
                 )
                 trigger["encrypted_schedule_config_ref"] = blob["ref"]
             if trigger["enabled"]:
-                trigger["next_run_at"] = WorkflowSchedulerService.next_run_at_from_schedule({"schedule": schedule_config})
+                trigger["next_run_at"] = WorkflowSchedulerService.initial_next_run_at_from_schedule({"schedule": schedule_config})
         elif trigger_type == "event":
             event_config = trigger_node.config.get("event") if isinstance(trigger_node.config.get("event"), dict) else trigger_node.config
             source = event_config.get("source")

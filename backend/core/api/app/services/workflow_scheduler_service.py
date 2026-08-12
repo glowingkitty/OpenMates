@@ -159,6 +159,20 @@ class WorkflowSchedulerService:
         raise ValueError("Workflow schedule type is not supported for unattended execution")
 
     @staticmethod
+    def initial_next_run_at_from_schedule(schedule_config: Any, now: int | None = None) -> int:
+        """Calculate the indexed first due time before a schedule has been claimed."""
+        schedule = schedule_config.get("schedule", schedule_config) if isinstance(schedule_config, dict) else None
+        if isinstance(schedule, dict) and schedule.get("type") == "once":
+            at_value = schedule.get("at")
+            if not isinstance(at_value, str) or not at_value:
+                raise ValueError("One-time workflow schedule requires at")
+            try:
+                return int(datetime.fromisoformat(at_value.replace("Z", "+00:00")).timestamp())
+            except ValueError as exc:
+                raise ValueError("One-time workflow schedule timestamp is invalid") from exc
+        return WorkflowSchedulerService.next_run_at_from_schedule(schedule_config, now=now)
+
+    @staticmethod
     def _required_string(payload: dict[str, Any], field: str) -> str:
         value = payload.get(field)
         if not isinstance(value, str) or not value:

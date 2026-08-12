@@ -7584,6 +7584,26 @@ assertions:
       line: 221
       name: test_scheduler_executes_the_claimed_run_id_without_creating_another_run
       surface: rest_api
+    - &id823
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 77
+      name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
+      surface: rest_api
+    - &id824
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 126
+      name: test_one_time_schedule_trigger_initially_indexes_the_due_timestamp
+      surface: rest_api
+    - &id825
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 142
+      name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
+      surface: rest_api
+    - &id826
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 219
+      name: test_directus_trigger_repository_upserts_by_public_trigger_id
+      surface: rest_api
     tests:
     - *id805
     - *id806
@@ -7603,6 +7623,10 @@ assertions:
     - *id820
     - *id821
     - *id822
+    - *id823
+    - *id824
+    - *id825
+    - *id826
     surfaces:
       rest_api:
         direct_tests: []
@@ -7625,32 +7649,57 @@ assertions:
         - *id820
         - *id821
         - *id822
+        - *id823
+        - *id824
+        - *id825
+        - *id826
     current_direct_proof: false
   workflows.content.encrypted-retained:
     contract: feature.workflows@1
     fingerprint: 99cd4a5703e0e6e6645e017decec9547f4a195ba8c65eb4bbaf18466c19aa1df
     direct_tests: []
     supporting_tests:
-    - &id823
+    - &id827
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 192
       name: due claim fails closed when the scheduler-only raw owner reference is
         missing
       surface: rest_api
-    - &id824
+    - &id828
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 358
       name: event acceptance stores one payload-free receipt and one run
       surface: rest_api
+    - &id829
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 77
+      name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
+      surface: rest_api
+    - &id830
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 142
+      name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
+      surface: rest_api
+    - &id831
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 168
+      name: test_deleting_a_workflow_removes_its_trigger_and_trigger_config_blob
+      surface: rest_api
     tests:
-    - *id823
-    - *id824
+    - *id827
+    - *id828
+    - *id829
+    - *id830
+    - *id831
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id823
-        - *id824
+        - *id827
+        - *id828
+        - *id829
+        - *id830
+        - *id831
     current_direct_proof: false
   workflows.chat-delivery.pending-private:
     contract: feature.workflows@1
@@ -7664,18 +7713,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id825
+    - &id832
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id825
+    - *id832
     surfaces:
       gui.web:
         direct_tests:
-        - *id825
+        - *id832
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:
@@ -7691,115 +7740,133 @@ assertions:
     fingerprint: 771fdad5361a08f36636996970e9eb67b48281573595902ace90327581fd160c
     direct_tests: []
     supporting_tests:
-    - &id826
+    - &id833
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 93
       name: two concurrent due claims create one run and lease recovery reuses it
       surface: rest_api
-    - &id827
+    - &id834
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 134
       name: due trigger listing returns enabled due schedule trigger ids only
       surface: rest_api
-    - &id828
+    - &id835
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 148
       name: due trigger listing and claim wait while an earlier scheduled run is active
       surface: rest_api
-    - &id829
+    - &id836
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 170
       name: advancing with zero completes a claimed one-time trigger without requeueing
         it
       surface: rest_api
-    - &id830
+    - &id837
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 192
       name: due claim fails closed when the scheduler-only raw owner reference is
         missing
       surface: rest_api
-    - &id831
+    - &id838
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 206
       name: manual acceptance creates one queued run pinned to the locked current
         immutable version
       surface: rest_api
-    - &id832
+    - &id839
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 242
       name: manual acceptance rejects a missing immutable version without creating
         a run
       surface: rest_api
-    - &id833
+    - &id840
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 259
       name: only one worker can start an accepted manual run
       surface: rest_api
-    - &id834
+    - &id841
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 282
       name: owner cancellation is durable and rejects terminal or cross-owner runs
       surface: rest_api
-    - &id835
+    - &id842
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 307
       name: cancelling a queued scheduled run releases its lease and advances the
         occurrence without execution
       surface: rest_api
-    - &id836
+    - &id843
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 337
       name: missing scheduled run releases the stale claim so the occurrence can be
         reclaimed
       surface: rest_api
-    - &id837
+    - &id844
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 358
       name: event acceptance stores one payload-free receipt and one run
       surface: rest_api
-    - &id838
+    - &id845
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 377
       name: event acceptance rejects cross-owner and unknown operation requests
       surface: rest_api
-    - &id839
+    - &id846
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 54
       name: test_scheduler_fences_claim_and_advances_recurrence_before_side_effects
       surface: rest_api
-    - &id840
+    - &id847
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 100
       name: test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_claim
       surface: rest_api
-    - &id841
+    - &id848
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 116
       name: test_scheduler_runs_a_reclaimed_queued_occurrence
       surface: rest_api
-    - &id842
+    - &id849
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 149
       name: test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes
       surface: rest_api
-    - &id843
+    - &id850
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 184
       name: test_scheduler_completes_one_time_occurrence_without_future_requeue
       surface: rest_api
-    - &id844
+    - &id851
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 221
       name: test_scheduler_executes_the_claimed_run_id_without_creating_another_run
       surface: rest_api
+    - &id852
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 77
+      name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
+      surface: rest_api
+    - &id853
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 126
+      name: test_one_time_schedule_trigger_initially_indexes_the_due_timestamp
+      surface: rest_api
+    - &id854
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 142
+      name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
+      surface: rest_api
+    - &id855
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 168
+      name: test_deleting_a_workflow_removes_its_trigger_and_trigger_config_blob
+      surface: rest_api
+    - &id856
+      path: backend/tests/test_workflow_trigger_persistence.py
+      line: 219
+      name: test_directus_trigger_repository_upserts_by_public_trigger_id
+      surface: rest_api
     tests:
-    - *id826
-    - *id827
-    - *id828
-    - *id829
-    - *id830
-    - *id831
-    - *id832
     - *id833
     - *id834
     - *id835
@@ -7812,17 +7879,22 @@ assertions:
     - *id842
     - *id843
     - *id844
+    - *id845
+    - *id846
+    - *id847
+    - *id848
+    - *id849
+    - *id850
+    - *id851
+    - *id852
+    - *id853
+    - *id854
+    - *id855
+    - *id856
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id826
-        - *id827
-        - *id828
-        - *id829
-        - *id830
-        - *id831
-        - *id832
         - *id833
         - *id834
         - *id835
@@ -7835,6 +7907,18 @@ assertions:
         - *id842
         - *id843
         - *id844
+        - *id845
+        - *id846
+        - *id847
+        - *id848
+        - *id849
+        - *id850
+        - *id851
+        - *id852
+        - *id853
+        - *id854
+        - *id855
+        - *id856
     current_direct_proof: false
   sdk.auth.approved-api-key-device:
     contract: surface.sdk@1
