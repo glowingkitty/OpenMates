@@ -2602,6 +2602,46 @@ def block_debug_group(group_key: str, reason: str, question: str, next_action: s
     return updated
 
 
+def unblock_debug_group(group_key: str, coordinator_session: str, reason: str, approved_files: list[str] | None = None) -> dict[str, Any]:
+    """Clear a structural blocker after the coordinator has approved the required scope."""
+    if not reason.strip():
+        raise RuntimeError("Unblocking a debug group requires an approval reason")
+
+    def _unblock() -> dict[str, Any]:
+        group = _debug_group(group_key)
+        campaign_key = str(group["campaign_key"])
+        _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign unblock")
+        if group.get("status") != "blocked":
+            raise RuntimeError(f"Debug group {group_key} is not blocked")
+
+        files = _sanitized_path_list(approved_files or [])
+        metadata = dict(group.get("metadata") or {})
+        previous_blocker = group.get("blocker") or {}
+        linked_files = _sanitized_path_list(list(metadata.get("linked_files") or []) + files)
+        unblocks = list(metadata.get("coordinator_unblocks") or [])
+        unblocks.append({
+            "approved_by": sanitize_debug_text(coordinator_session),
+            "reason": sanitize_debug_text(reason),
+            "approved_files": files,
+            "previous_blocker": previous_blocker,
+            "timestamp": utc_now(),
+        })
+        metadata["coordinator_unblocks"] = unblocks
+        if linked_files:
+            metadata["linked_files"] = linked_files
+
+        updated_group = get_store().update_debug_group(group_key, {
+            "status": "ready",
+            "blocker": None,
+            "metadata": metadata,
+            "updated_at": utc_now(),
+        })
+        status = debug_campaign_status(campaign_key, persist=True)
+        return {"group": updated_group, "campaign": status["campaign"]}
+
+    return with_lease_lock(_unblock)
+
+
 def _sanitized_path_list(paths: list[str]) -> list[str]:
     result = []
     seen = set()
@@ -3550,9 +3590,21 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
     return with_lease_lock(_claim)
 
 
-def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "") -> dict[str, Any] | None:
+def claim_next_debug_group(campaign_key: str, session_id: str, worker_id: str = "", group_key: str = "") -> dict[str, Any] | None:
     coordinator_session = os.environ.get("OPENCODE_SESSION_ID", "") if worker_id else session_id
     _require_campaign_coordinator_for_campaign(campaign_key, coordinator_session, "campaign next")
+    if group_key:
+        group = _debug_group(group_key)
+        if group.get("campaign_key") != campaign_key:
+            raise RuntimeError(f"Debug group {group_key} does not belong to campaign {campaign_key}")
+        linked_files = list((group.get("metadata") or {}).get("linked_files") or []) if worker_id else None
+        return claim_debug_group(
+            campaign_key,
+            group_key,
+            session_id,
+            worker_id=worker_id,
+            linked_files=linked_files,
+        )
     if worker_id:
         status = debug_campaign_status(campaign_key)
         claims = load_leases().get("leases") or []
@@ -4423,6 +4475,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_status.add_argument("--json", action="store_true")
     campaign_next = campaign_sub.add_parser("next", help="Lease the next durable campaign group")
     campaign_next.add_argument("--campaign", required=True)
+    campaign_next.add_argument("--group", default="", help="Lease this exact unblocked group instead of the first available group")
     campaign_next.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
     campaign_next.add_argument("--worker", default="")
     campaign_next.add_argument("--lease", action="store_true")
@@ -4450,6 +4503,11 @@ def main(argv: list[str] | None = None) -> int:
     campaign_block.add_argument("--reason", required=True)
     campaign_block.add_argument("--question", required=True)
     campaign_block.add_argument("--next-action", required=True)
+    campaign_unblock = campaign_sub.add_parser("unblock", help="Clear a structured blocker after coordinator approval")
+    campaign_unblock.add_argument("--group", required=True)
+    campaign_unblock.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    campaign_unblock.add_argument("--reason", required=True)
+    campaign_unblock.add_argument("--approved-file", action="append", default=[])
     campaign_complete = campaign_sub.add_parser("complete-group", help="Complete a group after all members pass")
     campaign_complete.add_argument("--group", required=True)
     campaign_complete.add_argument("--commit", default="")
@@ -4602,7 +4660,7 @@ def main(argv: list[str] | None = None) -> int:
             elif args.campaign_command == "status":
                 payload = debug_campaign_status(args.campaign)
             elif args.campaign_command == "next":
-                payload = claim_next_debug_group(args.campaign, args.session, worker_id=args.worker)
+                payload = claim_next_debug_group(args.campaign, args.session, worker_id=args.worker, group_key=args.group)
                 if payload is None:
                     raise RuntimeError("No available campaign group; inspect campaign status for blockers or completion")
             elif args.campaign_command == "dispatch":
@@ -4632,6 +4690,13 @@ def main(argv: list[str] | None = None) -> int:
                 )
             elif args.campaign_command == "block":
                 payload = block_debug_group(args.group, args.reason, args.question, args.next_action)
+            elif args.campaign_command == "unblock":
+                payload = unblock_debug_group(
+                    args.group,
+                    coordinator_session=args.session,
+                    reason=args.reason,
+                    approved_files=args.approved_file,
+                )
             elif args.campaign_command == "complete-group":
                 payload = complete_debug_group(args.group, commit=args.commit)
             elif args.campaign_command == "intent":

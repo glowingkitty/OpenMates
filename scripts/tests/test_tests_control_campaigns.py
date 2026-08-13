@@ -369,6 +369,69 @@ def test_campaign_group_persists_acceptance_attempts_and_blocker(tmp_path, monke
     assert status["next_action"].startswith("Confirm dev capability")
 
 
+def test_campaign_unblock_clears_structural_blocker_and_restores_next_lease(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("audio-recording.spec.ts"))
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "session-1")
+    campaign = control.start_debug_campaign(session_id="session-1")
+    group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    control.block_debug_group(
+        group["group_key"],
+        reason="The fix requires the shared recording layout files.",
+        question="Expand the boundary to MessageInput and RecordAudio?",
+        next_action="Approve the boundary, then rerun audio-recording.spec.ts.",
+    )
+
+    assert control.claim_next_debug_group(campaign["campaign_key"], session_id="session-1") is None
+    unblocked = control.unblock_debug_group(
+        group["group_key"],
+        coordinator_session="session-1",
+        reason="User approved the expanded recording layout boundary.",
+        approved_files=[
+            "frontend/packages/ui/src/components/enter_message/MessageInput.svelte",
+            "frontend/packages/ui/src/components/enter_message/RecordAudio.svelte",
+        ],
+    )
+    lease = control.claim_next_debug_group(campaign["campaign_key"], session_id="session-1")
+
+    assert unblocked["group"]["status"] == "ready"
+    assert unblocked["campaign"]["status"] == "active"
+    assert unblocked["campaign"].get("blocker") is None
+    assert lease is not None
+    assert lease["debug_group_key"] == group["group_key"]
+    linked_files = unblocked["group"]["metadata"]["linked_files"]
+    assert "frontend/packages/ui/src/components/enter_message/MessageInput.svelte" in linked_files
+    assert "frontend/packages/ui/src/components/enter_message/RecordAudio.svelte" in linked_files
+
+
+def test_campaign_next_can_lease_explicit_unblocked_group(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    campaign_key, groups = create_parallel_campaign(control, group_count=2)
+    target = groups[1]
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
+    control.block_debug_group(
+        target["group_key"],
+        reason="The second group needs an approved shared helper boundary.",
+        question="Approve shared helper edits?",
+        next_action="Approve the helper and lease this exact group.",
+    )
+    control.unblock_debug_group(
+        target["group_key"],
+        coordinator_session="coordinator",
+        reason="User approved the shared helper boundary.",
+        approved_files=["frontend/shared-helper.ts"],
+    )
+
+    lease = control.claim_next_debug_group(
+        campaign_key,
+        session_id="coordinator",
+        group_key=target["group_key"],
+    )
+
+    assert lease is not None
+    assert lease["debug_group_key"] == target["group_key"]
+
+
 def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts", "second.spec.ts"))
