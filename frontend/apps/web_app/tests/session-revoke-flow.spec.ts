@@ -249,11 +249,11 @@ test('session revoke: revoking session B from session A does not log out session
 		// Session B's chatSyncService handler calls logout() and redirects
 		// to the login screen (Login / Sign up button appears).
 		logB('Session B: waiting to receive force_logout and be logged out…');
+		const logoutNotificationB = pageB.getByTestId('notification').filter({ hasText: /logged out/i });
+		await expect(logoutNotificationB).toBeVisible({ timeout: 60000 });
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
 		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
 		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
-		const logoutNotificationB = pageB.getByTestId('notification').filter({ hasText: /logged out/i });
-		await expect(logoutNotificationB).toBeVisible({ timeout: 5000 });
 		const notificationBox = await logoutNotificationB.boundingBox();
 		expect(notificationBox, 'mobile logout notification should be measurable').not.toBeNull();
 		expect(notificationBox!.x, 'mobile notification inline-start inset').toBeCloseTo(10, 0);
