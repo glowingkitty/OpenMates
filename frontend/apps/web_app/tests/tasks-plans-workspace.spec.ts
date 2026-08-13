@@ -15,6 +15,8 @@ const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const TASK_COLUMNS = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
 const PLAN_COLUMNS = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
+const LAPTOP_PROOF_VIEWPORT = { width: 1440, height: 900 };
+const PHONE_PROOF_VIEWPORT = { width: 390, height: 844 };
 const TOP_LEVEL_WORKSPACES = [
 	{
 		path: '/projects',
@@ -90,81 +92,94 @@ async function expectBoardScrollsUnderFixedComposer(page: any, shellTestId: stri
 }
 
 test.describe('Tasks and Plans workspace transition', () => {
-	// contract-test: direct surface=gui.web assertions=workspace-shell.start.shared-affordances,workspace-shell.kanban.scroll-containment
-	test('renders route-specific shared workspace shells', async ({ page }) => {
-		test.setTimeout(150000);
-		test.skip(!getTestAccount().email, 'Test account credentials required.');
-		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
+	test.describe('proof laptop viewport', () => {
+		test.use({
+			viewport: LAPTOP_PROOF_VIEWPORT,
+			video: { mode: 'on', size: LAPTOP_PROOF_VIEWPORT }
+		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await loginToTestAccount(page);
+		// contract-test: direct surface=gui.web assertions=workspace-shell.start.shared-affordances,workspace-shell.kanban.scroll-containment
+		test('renders route-specific shared workspace shells', async ({ page }) => {
+			test.setTimeout(150000);
+			test.skip(!getTestAccount().email, 'Test account credentials required.');
+			await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('tasks-workspace-home')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('tasks-workspace-background-icon')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i, { timeout: 15000 });
-		await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('tasks-board-workspace')).toBeVisible({ timeout: 15000 });
-		await expectBoardScrollsUnderFixedComposer(page, 'tasks-workspace-home', 'tasks-board-scroll-content', 'task-workspace-composer');
-		for (const column of TASK_COLUMNS) {
-			await expect(page.getByTestId(`task-column-${column}`)).toBeVisible({ timeout: 15000 });
-		}
+			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+			await loginToTestAccount(page);
 
-		await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('plans-daily-inspiration-area')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('plans-workspace-background-icon')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('plan-greeting')).toContainText(/what is your next plan\?/i, { timeout: 15000 });
-		await expect(page.getByTestId('plan-workspace-composer')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('plans-board-workspace')).toBeVisible({ timeout: 15000 });
-		await expectBoardScrollsUnderFixedComposer(page, 'plans-workspace-home', 'plans-board-scroll-content', 'plan-workspace-composer');
-		await expect(page.getByTestId('task-create-form')).toHaveCount(0);
-		await expect(page.getByTestId('task-extract-card')).toHaveCount(0);
-		for (const column of PLAN_COLUMNS) {
-			await expect(page.getByTestId(`plan-column-${column}`)).toBeVisible({ timeout: 15000 });
-		}
+			await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('tasks-workspace-home')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('tasks-workspace-background-icon')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i, { timeout: 15000 });
+			await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('tasks-board-workspace')).toBeVisible({ timeout: 15000 });
+			await expectBoardScrollsUnderFixedComposer(page, 'tasks-workspace-home', 'tasks-board-scroll-content', 'task-workspace-composer');
+			for (const column of TASK_COLUMNS) {
+				await expect(page.getByTestId(`task-column-${column}`)).toBeVisible({ timeout: 15000 });
+			}
+
+			await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('plans-daily-inspiration-area')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('plans-workspace-background-icon')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('plan-greeting')).toContainText(/what is your next plan\?/i, { timeout: 15000 });
+			await expect(page.getByTestId('plan-workspace-composer')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('plans-board-workspace')).toBeVisible({ timeout: 15000 });
+			await expectBoardScrollsUnderFixedComposer(page, 'plans-workspace-home', 'plans-board-scroll-content', 'plan-workspace-composer');
+			await expect(page.getByTestId('task-create-form')).toHaveCount(0);
+			await expect(page.getByTestId('task-extract-card')).toHaveCount(0);
+			for (const column of PLAN_COLUMNS) {
+				await expect(page.getByTestId(`plan-column-${column}`)).toBeVisible({ timeout: 15000 });
+			}
+		});
+
+		// contract-test: direct surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,workspace-shell.start.shared-affordances
+		test('keeps top-level workspace tabs and composers aligned with the chat shell', async ({ page }) => {
+			test.setTimeout(180000);
+			test.skip(!getTestAccount().email, 'Test account credentials required.');
+			await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans', 'platform:workflows']);
+
+			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+			await loginToTestAccount(page);
+
+			for (const workspace of TOP_LEVEL_WORKSPACES) {
+				await expect(page.getByTestId(workspace.navTestId)).toBeVisible({ timeout: 30000 });
+			}
+
+			for (const workspace of TOP_LEVEL_WORKSPACES) {
+				await page.goto(getE2EDebugUrl(workspace.path), { waitUntil: 'domcontentloaded' });
+				await expect(page.getByTestId(workspace.shellTestId)).toBeVisible({ timeout: 30000 });
+				await expect(page.getByTestId(workspace.backgroundIconTestId)).toBeVisible({ timeout: 15000 });
+				await expect(page.getByTestId(workspace.composerTestId)).toBeVisible({ timeout: 15000 });
+				await expect(page.getByTestId(workspace.inputTestId)).toHaveCSS('text-align', 'center');
+				await expectComposerAnchoredOverShell(page, workspace.shellTestId, workspace.composerTestId);
+			}
+		});
 	});
 
-	// contract-test: direct surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,workspace-shell.start.shared-affordances
-	test('keeps top-level workspace tabs and composers aligned with the chat shell', async ({ page }) => {
-		test.setTimeout(180000);
-		test.skip(!getTestAccount().email, 'Test account credentials required.');
-		await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans', 'platform:workflows']);
+	test.describe('proof phone viewport', () => {
+		test.use({
+			viewport: PHONE_PROOF_VIEWPORT,
+			video: { mode: 'on', size: PHONE_PROOF_VIEWPORT }
+		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await loginToTestAccount(page);
+		// contract-test: direct surface=gui.web assertions=workspace-shell.kanban.scroll-containment
+		test('keeps boards horizontally scrollable on mobile', async ({ page }) => {
+			test.setTimeout(150000);
+			test.skip(!getTestAccount().email, 'Test account credentials required.');
+			await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-		for (const workspace of TOP_LEVEL_WORKSPACES) {
-			await expect(page.getByTestId(workspace.navTestId)).toBeVisible({ timeout: 30000 });
-		}
+			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+			await loginToTestAccount(page);
 
-		for (const workspace of TOP_LEVEL_WORKSPACES) {
-			await page.goto(getE2EDebugUrl(workspace.path), { waitUntil: 'domcontentloaded' });
-			await expect(page.getByTestId(workspace.shellTestId)).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId(workspace.backgroundIconTestId)).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId(workspace.composerTestId)).toBeVisible({ timeout: 15000 });
-			await expect(page.getByTestId(workspace.inputTestId)).toHaveCSS('text-align', 'center');
-			await expectComposerAnchoredOverShell(page, workspace.shellTestId, workspace.composerTestId);
-		}
-	});
+			await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30000 });
+			await expectHorizontalBoardScroll(page.getByTestId('task-board'));
 
-	// contract-test: direct surface=gui.web assertions=workspace-shell.kanban.scroll-containment
-	test('keeps boards horizontally scrollable on mobile', async ({ page }) => {
-		test.setTimeout(150000);
-		test.skip(!getTestAccount().email, 'Test account credentials required.');
-		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
-
-		await page.setViewportSize({ width: 390, height: 844 });
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await loginToTestAccount(page);
-
-		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30000 });
-		await expectHorizontalBoardScroll(page.getByTestId('task-board'));
-
-		await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
-		await expectHorizontalBoardScroll(page.getByTestId('plan-board'));
+			await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
+			await expectHorizontalBoardScroll(page.getByTestId('plan-board'));
+		});
 	});
 });
