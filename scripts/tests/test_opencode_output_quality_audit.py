@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for OpenCode output-quality and context-efficiency audits.
 
 Purpose: keep OpenCode's default repo context concise while preserving the
@@ -36,6 +37,13 @@ CLARIFYING_QUESTION_GUIDANCE = """
 Whenever asking a clarifying question, provide `Recommendation:` with the
 evidence-based preferred answer and `Examples:` with task-specific options. If
 uncertain, choose the safest reversible default.
+""".strip()
+SCAN_FIRST_GUIDANCE = """
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions. Use icons semantically and sparingly. Do not paste large YAML,
+JSON, contracts, or logs into blocker summaries unless the user asks.
 """.strip()
 
 
@@ -127,11 +135,12 @@ embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
 against `https://app.dev.openmates.org`.
 {CLARIFYING_QUESTION_GUIDANCE}
+{SCAN_FIRST_GUIDANCE}
         """.strip(),
     )
     write_runtime_instructions(
         tmp_path,
-        f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}",
+        f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{SCAN_FIRST_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}",
     )
     write_clarifying_guidance_files(tmp_path)
     config = {
@@ -169,6 +178,20 @@ def test_rejects_generic_or_optional_clarifying_question_guidance() -> None:
 
     assert issues
     assert "evidence-based" in issues[0].message
+
+
+def test_requires_scan_first_final_answer_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(tmp_path, CLARIFYING_QUESTION_GUIDANCE)
+    write_runtime_instructions(tmp_path, f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}")
+    write_clarifying_guidance_files(tmp_path)
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
+
+    assert any(
+        issue.path == "AGENTS.md" and "scan-first final-answer guidance" in issue.message
+        for issue in issues
+    )
 
 
 def test_rejects_duplicated_guidance_and_missing_final_answer_evidence(tmp_path: Path) -> None:

@@ -77,6 +77,16 @@ REQUIRED_CLARIFYING_GUIDANCE = (
     "task-specific",
     "safest reversible default",
 )
+REQUIRED_SCAN_FIRST_GUIDANCE = (
+    "scan-first layout",
+    "## ✅ Done",
+    "## 🚧 Blocked",
+    "## ❓ Decision Needed",
+    "## 🧠 Investigation",
+    "compact tables",
+    "Use icons semantically and sparingly",
+    "Do not paste large YAML, JSON, contracts, or logs",
+)
 REQUIRED_RETROSPECTIVE_PHRASES = (
     "task-closing",
     "agentic process",
@@ -213,6 +223,14 @@ def _audit_clarifying_question_guidance(path: str, text: str) -> list[AuditIssue
     return [AuditIssue(path, f"clarifying-question guidance missing: {missing[0]}")]
 
 
+def _audit_scan_first_guidance(path: str, text: str) -> list[AuditIssue]:
+    normalized = " ".join(text.split())
+    missing = [phrase for phrase in REQUIRED_SCAN_FIRST_GUIDANCE if phrase not in normalized]
+    if not missing:
+        return []
+    return [AuditIssue(path, f"scan-first final-answer guidance missing: {missing[0]}")]
+
+
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
     del root
     issues: list[AuditIssue] = []
@@ -305,6 +323,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
                 issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}: {missing[0]}"))
         if not (_contains_any(core, ("final response", "final responses")) and "evidence" in core.lower()):
             issues.append(AuditIssue(CORE_INSTRUCTION, "core instruction missing final-answer evidence guidance"))
+        issues.extend(_audit_scan_first_guidance(CORE_INSTRUCTION, core))
         issues.extend(_audit_retrospective_guidance(CORE_INSTRUCTION, core))
         if body := _retrospective_body(core):
             retrospective_bodies[CORE_INSTRUCTION] = body
@@ -316,6 +335,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         text = path.read_text(encoding="utf-8", errors="replace")
         issues.extend(_audit_retrospective_guidance(rel_path, text))
         issues.extend(_audit_clarifying_question_guidance(rel_path, text))
+        issues.extend(_audit_scan_first_guidance(rel_path, text))
         if body := _retrospective_body(text):
             retrospective_bodies[rel_path] = body
     for rel_path in sorted(CLARIFYING_GUIDANCE_PATHS - set(RUNTIME_INSTRUCTIONS)):

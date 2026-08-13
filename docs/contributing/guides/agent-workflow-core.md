@@ -84,6 +84,16 @@ web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
 
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions; use short bullets only when a table would be awkward. Keep
+narrative paragraphs under three lines. Use icons semantically and sparingly:
+`📁` files, `🧪` verification, `⚠️` risk or uncertainty, `➡️` next action, and
+`🔧` fix. Do not paste large YAML, JSON, contracts, or logs into blocker
+summaries unless the user asks; reference the path or hash and provide one
+copy-paste action when useful.
+
 Every new feature implementation, every new hardcoded example chat, and every
 nightly/daily/CI failed E2E that is actively debugged in a chat and turns green
 requires proof-video evidence before completion. A test report, screenshots, or

@@ -63,6 +63,18 @@ per message; the recommendation and examples are supporting context, not extra
 questions. If evidence is incomplete, recommend the safest reversible default
 and state the uncertainty.
 
+## Scan-First Final Answers
+
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions; use short bullets only when a table would be awkward. Keep
+narrative paragraphs under three lines. Use icons semantically and sparingly:
+`📁` files, `🧪` verification, `⚠️` risk or uncertainty, `➡️` next action, and
+`🔧` fix. Do not paste large YAML, JSON, contracts, or logs into blocker
+summaries unless the user asks; reference the path or hash and provide one
+copy-paste action when useful.
+
 ## Agent Workflow Retrospective
 
 For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
