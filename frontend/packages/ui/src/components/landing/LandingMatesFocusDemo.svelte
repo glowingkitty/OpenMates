@@ -23,8 +23,7 @@
   let mounted = $state(false);
 
   const SparklesIcon = getLucideIcon('sparkles');
-  const CheckIcon = getLucideIcon('check');
-  const selectedMateIds = ['software_development', 'marketing_sales', 'general_knowledge', 'medical_health'];
+  const selectedMateIds = ['software_development', 'medical_health', 'marketing_sales', 'general_knowledge'];
   const selectedMates = matesMetadata.filter((mate) => selectedMateIds.includes(mate.id));
   const focusModes = [
     { id: 'project-planner', labelKey: 'app_focus_modes.code.project_planner', icon: 'list-check' },
@@ -32,6 +31,11 @@
     { id: 'learn-by-building', labelKey: 'app_focus_modes.code.learn_by_building', icon: 'graduation-cap' },
   ];
   let activeStage = $derived<MatesFocusStoryStage>(MATES_FOCUS_STORY_STAGES[activeStageIndex]?.id ?? 'mates');
+  let activeScrollIndex = $derived(
+    activeStage === 'focus'
+      ? Math.min(activeItemIndex, focusModes.length - 1)
+      : Math.min(activeItemIndex, selectedMates.length - 1),
+  );
 
   onMount(() => { mounted = true; });
 
@@ -49,61 +53,89 @@
   });
 </script>
 
-<div class="mates-focus-demo" data-testid="landing-mates-focus-demo" data-active-stage={activeStage} data-reduced-motion={reducedMotion ? 'true' : 'false'} data-playing={playing ? 'true' : 'false'} aria-hidden="true">
+<div class="mates-focus-demo" style={`--scroll-index: ${activeScrollIndex}`} data-testid="landing-mates-focus-demo" data-active-stage={activeStage} data-reduced-motion={reducedMotion ? 'true' : 'false'} data-playing={playing ? 'true' : 'false'} aria-hidden="true">
   {#if activeStage === 'mates' || reducedMotion}
-    <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_experts')}</div>
-    <div class="scroll-list mates-list">
-      {#each selectedMates as mate, index}
-        <div class:active={reducedMotion || index === activeItemIndex} class="story-row" data-testid="landing-mate-profile" data-mate-id={mate.id}>
-          <span class="mate-profile {mate.profile_class}"></span>
-          <span><strong>{$text(mate.name_translation_key)}</strong><small>{$text(mate.description_translation_key)}</small></span>
+    <div class="story-stage">
+      <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_experts')}</div>
+      <div class="scroll-window mates-window">
+        <div class="scroll-track">
+          {#each selectedMates as mate, index}
+            <div class:active={reducedMotion || index === activeItemIndex} class="mate-row-demo" data-testid="landing-mate-profile" data-mate-id={mate.id}>
+              <span class="mate-profile {mate.profile_class} mate-profile-demo"></span>
+              <span class="mate-text-demo"><strong>{$text(mate.name_translation_key)}</strong><small>{$text(mate.description_translation_key)}</small></span>
+              <span class="mate-chevron-demo"></span>
+            </div>
+          {/each}
         </div>
-      {/each}
+      </div>
     </div>
   {/if}
   {#if activeStage === 'focus' || reducedMotion}
-    <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_focus_modes')}</div>
-    <div class="scroll-list focus-list">
-      {#each focusModes as mode, index}
-        {@const ModeIcon = getLucideIcon(mode.icon)}
-        <div class:active={index === activeItemIndex} class="story-row focus-row" data-testid="landing-focus-mode" data-focus-id={mode.id}>
-          <span class="focus-icon"><ModeIcon size={20} /></span>
-          <strong>{$text(mode.labelKey)}</strong>
-          {#if index === activeItemIndex}<span class="active-check"><CheckIcon size={16} /></span>{/if}
+    <div class="story-stage">
+      <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_focus_modes')}</div>
+      <div class="scroll-window focus-window">
+        <div class="scroll-track">
+          {#each focusModes as mode, index}
+            {@const ModeIcon = getLucideIcon(mode.icon)}
+            <div class:active={reducedMotion || index === activeItemIndex} class="focus-pill-demo" data-testid="landing-focus-mode" data-focus-id={mode.id}>
+              <span class="focus-pill-body-demo">
+                <span class="focus-pill-icon-demo"><ModeIcon size={15} /></span>
+                <span class="focus-pill-label-demo">{$text(mode.labelKey)}</span>
+                <span class="focus-pill-on-demo">Focus on</span>
+              </span>
+              <span class="focus-pill-toggle-demo" aria-hidden="true"><span></span></span>
+            </div>
+          {/each}
         </div>
-      {/each}
+      </div>
     </div>
   {/if}
 </div>
 
 <style>
-  .mates-focus-demo { display: grid; grid-template-columns: minmax(150px,.8fr) minmax(250px,1.2fr); align-items: center; gap: 22px; width: min(100%,680px); height: 100%; color: var(--color-font-button); pointer-events: none; }
+  .mates-focus-demo { --demo-row-step: 58px; display: grid; place-items: center; width: min(100%,680px); height: 100%; color: var(--color-font-button); pointer-events: none; }
+  .story-stage { display: grid; grid-template-columns: minmax(150px,.75fr) minmax(280px,1.25fr); align-items: center; gap: 22px; width: 100%; }
   .story-copy { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: clamp(.8rem,2cqi,1rem); font-weight: 800; text-align: center; }
-  .scroll-list { display: grid; gap: 7px; max-height: 150px; overflow: hidden; padding: 5px; mask-image: linear-gradient(transparent, black 12%, black 88%, transparent); }
-  .story-row { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 9px; min-height: 46px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.16); border-radius: 14px; background: rgba(255,255,255,.12); opacity: .42; transform: scale(.96); transition: opacity 260ms ease, transform 260ms ease, background 260ms ease; }
-  .story-row.active { background: rgba(255,255,255,.23); opacity: 1; transform: scale(1); box-shadow: var(--shadow-md); }
-  .story-row strong { display: block; font-size: .76rem; }
-  .story-row small { display: block; max-width: 280px; overflow: hidden; font-size: .61rem; opacity: .7; text-overflow: ellipsis; white-space: nowrap; }
-  .mate-profile { display: block; width: 34px !important; height: 34px !important; }
-  .focus-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.16); }
-  .active-check { display: grid; place-items: center; color: var(--color-font-button); }
+  .scroll-window { height: 176px; overflow: hidden; padding: 6px; mask-image: linear-gradient(transparent, black 12%, black 88%, transparent); }
+  .scroll-track { display: grid; gap: 8px; transform: translateY(calc(var(--scroll-index) * var(--demo-row-step) * -1)); transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .mate-row-demo { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; min-height: 50px; padding: 3px 10px 3px 0; border-radius: var(--radius-3); background: rgba(255,255,255,.9); opacity: .48; transform: scale(.96); transition: opacity 260ms ease, transform 260ms ease, background 260ms ease; }
+  .mate-row-demo.active { background: rgba(255,255,255,.98); opacity: 1; transform: scale(1); box-shadow: var(--shadow-md); }
+  .mate-profile-demo { width: 38px !important; height: 38px !important; margin: 6px 8px 6px 10px; }
+  .mate-profile-demo::before, .mate-profile-demo::after { display: none !important; }
+  .mate-text-demo { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
+  .mate-text-demo strong { overflow: hidden; color: var(--color-primary); font-size: .8rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+  .mate-text-demo small { overflow: hidden; color: var(--color-grey-60); font-size: .64rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+  .mate-chevron-demo { width: 7px; height: 7px; margin-left: 8px; border-right: 2px solid var(--color-grey-50); border-top: 2px solid var(--color-grey-50); transform: rotate(45deg); }
+  .focus-window { display: grid; align-content: center; }
+  .focus-pill-demo { display: flex; align-items: center; justify-self: center; height: 36px; max-width: min(100%,360px); overflow: hidden; border-radius: 20px; background: rgba(255,255,255,.24); opacity: .44; transform: scale(.96); box-shadow: var(--shadow-sm); transition: opacity 260ms ease, transform 260ms ease, background 260ms ease; }
+  .focus-pill-demo.active { background: var(--color-app-code, linear-gradient(135deg, #155d91, #42abf4)); opacity: 1; transform: scale(1); box-shadow: var(--shadow-md); }
+  .focus-pill-body-demo { display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; padding: 0 10px 0 12px; color: white; font-size: .78rem; font-weight: 700; }
+  .focus-pill-icon-demo { display: grid; flex-shrink: 0; place-items: center; width: 16px; height: 16px; }
+  .focus-pill-label-demo { overflow: hidden; max-width: 150px; text-overflow: ellipsis; white-space: nowrap; }
+  .focus-pill-on-demo { flex-shrink: 0; opacity: .8; font-weight: 500; }
+  .focus-pill-toggle-demo { display: grid; flex-shrink: 0; place-items: center; height: 100%; padding: 0 8px; border-left: 1px solid rgba(255,255,255,.25); }
+  .focus-pill-toggle-demo span { width: 16px; height: 16px; border-radius: var(--radius-full); background: rgba(255,255,255,.82); box-shadow: inset 0 0 0 3px rgba(255,255,255,.3); }
 
   @container chat-side (max-width: 560px) {
-    .mates-focus-demo { grid-template-columns: 1fr; gap: 7px; }
+    .mates-focus-demo { --demo-row-step: 48px; }
+    .story-stage { grid-template-columns: 1fr; gap: 7px; }
     .story-copy { font-size: .72rem; }
-    .scroll-list { width: min(100%,360px); max-height: none; margin: auto; overflow: visible; padding: 0 5px; }
-    .story-row:not(.active) { display: none; }
-    .story-row { min-height: 34px; padding: 3px 8px; grid-template-columns: 28px 1fr auto; }
-    .mate-profile, .focus-icon { width: 26px !important; height: 26px !important; }
-    .story-row small { display: none; }
+    .scroll-window { width: min(100%,360px); height: 100px; margin: auto; padding: 0 5px; }
+    .mate-row-demo { grid-template-columns: 34px 1fr auto; min-height: 40px; }
+    .mate-profile-demo { width: 28px !important; height: 28px !important; margin: 4px 5px; }
+    .mate-text-demo small { display: none; }
+    .focus-pill-demo { max-width: min(100%,330px); }
+    .focus-pill-label-demo { max-width: 120px; }
   }
 
-  @media (prefers-reduced-motion: reduce) { .story-row { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-track, .mate-row-demo, .focus-pill-demo { transition: none; } }
   @media (prefers-reduced-motion: reduce) {
     .mates-focus-demo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .story-stage { grid-template-columns: 1fr; gap: 6px; }
     .story-copy { display: none; }
-    .scroll-list { max-height: 138px; }
-    .story-row { min-height: 34px; padding: 3px 7px; }
-    .story-row small { display: none; }
+    .scroll-window { height: 138px; }
+    .scroll-track { transform: none; }
+    .mate-row-demo { min-height: 34px; }
+    .mate-text-demo small { display: none; }
   }
 </style>

@@ -11,7 +11,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const HEADING_SETTLE_MS = 3000;
-const HEADING_TRANSITION_MS = 1500 + 420 + 420;
+const HEADING_TRANSITION_MS = 2100 + 420;
 const PRIVACY_DURATION_MS = HEADING_TRANSITION_MS + 20000;
 const STORY_DURATION_MS = HEADING_TRANSITION_MS + 12000;
 const ADVANCE_GRACE_MS = 4000;
@@ -63,6 +63,7 @@ async function expectInsideBanner(page: any, testId: string): Promise<void> {
 }
 
 test.describe('Landing page header stories', () => {
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
 	test('intro advances promptly and every heading uses the shared motion lifecycle', async ({ page }: { page: any }) => {
 		test.setTimeout(30000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -96,6 +97,7 @@ test.describe('Landing page header stories', () => {
 		await expectInsideBanner(page, 'landing-actionable-event-demo');
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories,landing-onboarding.signup-cta
 	test('stories use coordinated timelines and one compact heading structure', async ({ page }: { page: any }) => {
 		test.setTimeout(100000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -106,6 +108,7 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
 			timeout: HEADING_SETTLE_MS
 		});
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', 'hidden');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-playing', 'true');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[0]);
 		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toContainText('Only your devices can decrypt all your data.');
@@ -165,7 +168,7 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-focus-mode')).toHaveCount(3);
 
 		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible({ timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Built for people & the best possible experience.');
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Build for the best possible user experience.');
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', { timeout: HEADING_SETTLE_MS });
 		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'providers');
 		await expect(page.getByTestId('landing-provider-logo')).toHaveCount(4);
@@ -175,12 +178,18 @@ test.describe('Landing page header stories', () => {
 		));
 		expect(durationMs).toBe(STORY_DURATION_MS);
 		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'access', { timeout: 7500 });
-		await expect(page.getByTestId('landing-platform-label')).toHaveText(['Web', 'CLI', 'SDK']);
+		await expect(page.getByTestId('landing-platform-label')).toHaveText('Web');
+		await expect(page.getByTestId('landing-platform-url')).toHaveText('OpenMates.org');
+		await expect(page.getByTestId('landing-platform-label')).toHaveText('CLI', { timeout: 3500 });
+		await expect(page.getByTestId('landing-platform-command')).toContainText('npm install -g openmates');
+		await expect(page.getByTestId('landing-platform-label')).toHaveText('SDK', { timeout: 3000 });
+		await expect(page.getByTestId('landing-platform-sdk')).toContainText('from openmates import OpenMates');
 
 		await expect(page.getByTestId('landing-signup-cta')).toBeVisible({ timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
 		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories
 	test('mobile stories preserve spacing, readable copy, complete headings, and contained permission UI', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -247,6 +256,7 @@ test.describe('Landing page header stories', () => {
 		await expectInsideBanner(page, 'app-settings-memories-permission-card');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories
 	test('tablet landscape keeps Actionable and Privacy animations inside the daily inspiration banner', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(75000);
 		await page.setViewportSize({ width: 1024, height: 576 });
@@ -284,6 +294,7 @@ test.describe('Landing page header stories', () => {
 		await expectInsideBanner(page, 'landing-people-experience-demo');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories
 	test('tablet portrait keeps every Privacy animation inside the daily inspiration banner', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 768, height: 1024 });
@@ -302,6 +313,7 @@ test.describe('Landing page header stories', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-sequence,landing-onboarding.manual-navigation
 	test('guest New chat from an example focuses a blank composer without replaying slide zero', async ({ page }: { page: any }) => {
 		test.setTimeout(30000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -314,6 +326,7 @@ test.describe('Landing page header stories', () => {
 		await expect.poll(async () => page.evaluate(() => window.location.hash)).not.toContain('chat-id=');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories,landing-onboarding.manual-navigation
 	test('reduced motion is static and manually navigable', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.emulateMedia({ reducedMotion: 'reduce' });

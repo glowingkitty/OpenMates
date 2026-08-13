@@ -60,7 +60,6 @@
   import {
     PRODUCT_STORY_HEADING_DELAY_MS,
     PRODUCT_STORY_HEADING_FADE_OUT_MS,
-    PRODUCT_STORY_HEADING_FADE_IN_MS,
     PRIVACY_STORY_CAROUSEL_DURATION_MS,
     MATES_FOCUS_STORY_CAROUSEL_DURATION_MS,
     PEOPLE_EXPERIENCE_STORY_CAROUSEL_DURATION_MS,
@@ -447,8 +446,9 @@
     onVisibleInspirationChange?.(current);
   });
 
-  // Mobile cards start with explanatory text. Guest landing slides then compact the
-  // heading after 1500ms once the expanded intro overlay is gone, matching the Figma flow.
+  // Guest product stories show the heading first, then the demo. The heading is
+  // intentionally hidden before the demo starts so text and animation never share
+  // the same screen.
   $effect(() => {
     if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
@@ -479,9 +479,6 @@
       const headingFadeOutMs = guestProductAnimationKind
         ? PRODUCT_STORY_HEADING_FADE_OUT_MS
         : ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS;
-      const headingFadeInMs = guestProductAnimationKind
-        ? PRODUCT_STORY_HEADING_FADE_IN_MS
-        : ACTIONABLE_MOBILE_HEADING_FADE_IN_MS;
       let headingFadeOutTimeout: number | undefined;
       let headingFadeInTimeout: number | undefined;
       let headingSwapAnimationFrame: number | undefined;
@@ -497,6 +494,10 @@
           guestHeadingMotionPhase = 'hidden';
           actionableMobileHeadingPhase = 'hidden';
           showMobileCard = true;
+          if (guestProductAnimationKind) {
+            actionableMobileHeadingReady = true;
+            return;
+          }
           headingSwapAnimationFrame = window.requestAnimationFrame(() => {
             actionableMobileHeadingPhase = 'fading-in';
             guestHeadingMotionPhase = 'entering';
@@ -506,7 +507,7 @@
             headingFadeInTimeout = window.setTimeout(() => {
               actionableMobileHeadingPhase = 'ready';
               actionableMobileHeadingReady = true;
-            }, headingFadeInMs);
+            }, ACTIONABLE_MOBILE_HEADING_FADE_IN_MS);
           });
         }, headingFadeOutMs);
       }, headingStartDelayMs);
@@ -583,6 +584,11 @@
     return '';
   });
   let isCoordinatedGuestStory = $derived(isGuestActionableSlide || !!guestProductAnimationKind);
+  let guestHeadingPhaseAttribute = $derived(
+    guestProductAnimationKind && showMobileCard && actionableMobileHeadingReady
+      ? 'ready'
+      : actionableMobileHeadingPhase,
+  );
   let guestFeatureHeadlineLines = $derived.by(() => {
     if (isGuestActionableSlide) {
       return [
@@ -1661,8 +1667,8 @@
           class:guest-slide-hidden={guestSlidePhase === 'hidden'}
           class:guest-slide-fading-in={guestSlidePhase === 'fading-in'}
           data-actionable-heading-phase={isGuestActionableSlide ? actionableMobileHeadingPhase : undefined}
-          data-guest-heading-phase={shouldCycleMobileCard ? actionableMobileHeadingPhase : undefined}
-          data-mobile-heading-phase={shouldCycleMobileCard ? actionableMobileHeadingPhase : undefined}
+          data-guest-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
+          data-mobile-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-testid="guest-slide-content"
           style={`--actionable-mobile-heading-fade-out: ${ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS}ms; --actionable-mobile-heading-fade-in: ${ACTIONABLE_MOBILE_HEADING_FADE_IN_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
         >
@@ -3746,8 +3752,8 @@
       inset: auto;
       top: 4px;
       left: 50%;
-      width: fit-content;
-      max-width: min(calc(100% - 48px), 360px);
+      width: min(calc(100% - 48px), 700px);
+      max-width: min(calc(100% - 48px), 700px);
       height: auto;
       padding-inline: 0;
       flex-direction: row;
@@ -3774,7 +3780,7 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-headline {
-      max-width: min(calc(100cqi - 72px), 360px);
+      max-width: min(calc(100cqi - 72px), 560px);
       margin-top: 0;
       margin-left: 0;
     }
@@ -3793,7 +3799,7 @@
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy-line,
     .banner-content.mobile-card-loop.show-mobile-card .guest-feature-headline {
       display: block;
-      max-width: min(100%, 330px);
+      max-width: min(100%, 560px);
       overflow: visible;
       color: rgba(255, 255, 255, 0.92);
       font-size: clamp(0.82rem, 3.4vw, 1rem);
