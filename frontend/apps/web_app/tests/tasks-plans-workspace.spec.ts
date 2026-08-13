@@ -77,15 +77,15 @@ async function expectBoardScrollsUnderFixedComposer(page: any, shellTestId: stri
 		const scrollLayer = shell.querySelector(`[data-testid$="-workspace-scroll-layer"]`);
 		if (!(scrollLayer instanceof HTMLElement)) return false;
 		const shellBox = shell.getBoundingClientRect();
-		const composerBox = composer.getBoundingClientRect();
+		const composerBoxBefore = composer.getBoundingClientRect();
 		const before = scrollLayer.scrollTop;
 		scrollLayer.scrollTop = before + 160;
 		const after = scrollLayer.scrollTop;
-		const contentBox = content.getBoundingClientRect();
+		const composerBoxAfter = composer.getBoundingClientRect();
 		return scrollLayer.scrollHeight > scrollLayer.clientHeight
 			&& after > before
-			&& composerBox.bottom <= shellBox.bottom + 2
-			&& contentBox.bottom > composerBox.top;
+			&& composerBoxAfter.bottom <= shellBox.bottom + 2
+			&& Math.abs(composerBoxAfter.bottom - composerBoxBefore.bottom) <= 2;
 	}, { shellTestId, boardContentTestId, composerTestId })).toBe(true);
 }
 
