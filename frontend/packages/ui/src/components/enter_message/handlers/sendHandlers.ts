@@ -44,6 +44,7 @@ import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
+import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -2352,6 +2353,8 @@ export async function executeDeferredSend(
     pii_mappings:
       piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
   };
+
+  notifyDeferredMessageFinalized(messagePayload);
 
   // -------------------------------------------------------------------------
   // 7. Send to backend
