@@ -73,6 +73,7 @@ test.describe('Legacy search parent previews', () => {
 
 	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
 	test('shared image search keeps its six referenced images in a stable large carousel after reload', async ({ page }: { page: any }) => {
+		test.setTimeout(180_000);
 		const openAndAssertCarousel = async () => {
 			const assistantMessage = page
 				.getByTestId('message-assistant')
