@@ -977,6 +977,31 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (staleCodeSegment >= 0 && !staleCodeReportControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: stale-code report generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/stale_code_daily.py --dry-run-notify with an optional numeric --limit.`);
     }
+    const improvementReviewSegment = commandSegments.findIndex((tokens) => (
+      ["python", "python3"].includes(shellUnescape(tokens[0]))
+      && shellUnescape(tokens[1]) === "scripts/opencode_chat_improvement_review.py"
+    ));
+    const improvementReviewTokens = improvementReviewSegment >= 0 ? commandSegments[improvementReviewSegment] : [];
+    const improvementReviewArgs = improvementReviewTokens.slice(2);
+    let improvementReviewArgsSafe = improvementReviewArgs.includes("--dry-run-notify");
+    for (let index = 0; index < improvementReviewArgs.length && improvementReviewArgsSafe; index += 1) {
+      if (improvementReviewArgs[index] === "--dry-run-notify") continue;
+      if (improvementReviewArgs[index] === "--hours" && /^\d+$/.test(improvementReviewArgs[index + 1] || "")) {
+        index += 1;
+        continue;
+      }
+      improvementReviewArgsSafe = false;
+    }
+    const improvementReviewControlPlane = improvementReviewTokens.length >= 3
+      && commandSegments.length === 1
+      && ["python", "python3"].includes(shellUnescape(improvementReviewTokens[0]))
+      && shellUnescape(improvementReviewTokens[1]) === "scripts/opencode_chat_improvement_review.py"
+      && improvementReviewArgsSafe
+      && !hasTopLevelSeparator
+      && !unsafeControlSyntax;
+    if (improvementReviewSegment >= 0 && !improvementReviewControlPlane) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
+    }
     const sessionsPySegment = commandSegments.findIndex((tokens) => (
       ["python", "python3"].includes(shellUnescape(tokens[0]))
       && shellUnescape(tokens[1]) === "scripts/sessions.py"
@@ -1008,7 +1033,7 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
+    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };

@@ -431,6 +431,47 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
     assert report["tool_error_counts"] == {"child_role": 1, "grep_output_too_large": 1}
 
 
+def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "conservative_batchable_turns": 81,
+            "standalone_todo_turns": 82,
+            "tool_error_counts": {
+                "child_role": 10,
+                "missing_session": 6,
+                "root_path_routing": 5,
+                "other": 999,
+            },
+        },
+        days=1,
+    )
+
+    messages = [issue.message for issue in issues]
+    assert any("conservative batchable" in message for message in messages)
+    assert any("standalone todo" in message for message in messages)
+    assert any("routing errors" in message for message in messages)
+    assert not any("other" in message for message in messages)
+
+
+def test_telemetry_audit_ignores_raw_singleton_rate() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "singleton_tool_turn_rate": 1.0,
+            "singleton_tool_turns": 10_000,
+            "conservative_batchable_turns": 0,
+            "standalone_todo_turns": 0,
+            "tool_error_counts": {},
+        },
+        days=1,
+    )
+
+    assert issues == []
+
+
 def test_tool_turn_telemetry_keeps_dependent_same_file_reads_sequential() -> None:
     audit = load_audit_module()
 

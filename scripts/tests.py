@@ -4291,6 +4291,55 @@ def command_run(runner_args: list[str]) -> int:
             release_docker_test_lease(docker_lease_id)
 
 
+def _registry_option_name(action: argparse.Action) -> str:
+    if action.option_strings:
+        return max(action.option_strings, key=len)
+    return action.dest
+
+
+_COMMAND_REGISTRY_DYNAMIC_DEFAULT_DESTS = {"session", "worker", "to_session"}
+
+
+def _parser_command_registry(parser: argparse.ArgumentParser) -> dict[str, Any]:
+    """Return a side-effect-free command registry from argparse definitions."""
+
+    registry: dict[str, Any] = {}
+
+    def visit(prefix: str, current: argparse.ArgumentParser) -> None:
+        options: list[dict[str, Any]] = []
+        subcommands: dict[str, argparse.ArgumentParser] = {}
+        for action in current._actions:  # noqa: SLF001 - argparse has no public traversal API.
+            if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+                for name, subparser in action.choices.items():
+                    subcommands[name] = subparser
+                continue
+            if action.dest == "help":
+                continue
+            entry: dict[str, Any] = {
+                "name": _registry_option_name(action),
+                "dest": action.dest,
+                "required": bool(getattr(action, "required", False)),
+            }
+            if action.option_strings:
+                entry["aliases"] = list(action.option_strings)
+            if action.choices is not None:
+                entry["choices"] = [str(choice) for choice in action.choices]
+            if action.default not in (None, argparse.SUPPRESS) and action.dest not in _COMMAND_REGISTRY_DYNAMIC_DEFAULT_DESTS:
+                entry["default"] = action.default
+            options.append(entry)
+        if prefix:
+            registry[prefix] = {
+                "help": current.description or "",
+                "options": options,
+                "subcommands": sorted(subcommands),
+            }
+        for name, subparser in subcommands.items():
+            visit(f"{prefix}.{name}" if prefix else name, subparser)
+
+    visit("", parser)
+    return registry
+
+
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     if raw_argv and raw_argv[0] == "run":
@@ -4301,6 +4350,9 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="OpenMates unified test control plane")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    commands_parser = sub.add_parser("commands", help="Show side-effect-free command registry")
+    commands_parser.add_argument("--json", action="store_true")
 
     status_parser = sub.add_parser("status", help="Show latest normalized test state")
     status_parser.add_argument("--json", action="store_true")
@@ -4445,6 +4497,14 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)
 
     args = parser.parse_args(raw_argv)
+    if args.command == "commands":
+        registry = _parser_command_registry(parser)
+        if args.json:
+            print(json.dumps(registry, indent=2, sort_keys=True))
+        else:
+            for name in sorted(registry):
+                print(name)
+        return 0
     if args.command == "status":
         state = load_state()
         if args.json:

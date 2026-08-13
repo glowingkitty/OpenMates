@@ -12,6 +12,7 @@ behavior before the production control-plane implementation changes.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -192,6 +193,23 @@ def test_campaign_start_repairs_campaign_left_without_groups(tmp_path, monkeypat
     assert control.debug_groups_for_campaign(campaign["campaign_key"])[0]["member_test_keys"] == [
         "playwright::first.spec.ts"
     ]
+
+
+def test_command_registry_exposes_campaign_attempt_choices(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_registry_should_not_leak")
+
+    assert tests_control.main(["commands", "--json"]) == 0
+    raw_output = capsys.readouterr().out
+    registry = json.loads(raw_output)
+
+    assert "campaign.attempt" in registry
+    attempt_options = {option["name"]: option for option in registry["campaign.attempt"]["options"]}
+    assert attempt_options["--outcome"]["required"] is True
+    assert attempt_options["--outcome"]["choices"] == ["failed", "blocked", "green", "rejected"]
+    assert "pending" not in attempt_options["--outcome"]["choices"]
+    assert "campaign.history" not in registry
+    assert "ses_registry_should_not_leak" not in raw_output
 
 
 def test_campaign_start_rejects_matching_scope_takeover_from_new_session(tmp_path, monkeypatch):

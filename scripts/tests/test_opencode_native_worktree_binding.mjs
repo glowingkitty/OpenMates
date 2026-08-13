@@ -180,6 +180,28 @@ test("stale-code report generation uses the current root control plane", () => {
   }
 });
 
+test("OpenCode improvement review generation uses the current root control plane", () => {
+  assert.equal(existsSync(join(ROOT, "scripts", "opencode_chat_improvement_review.py")), true);
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --hours 168",
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, ROOT);
+  }
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --output /tmp/report.json",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify > report.json",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify && true",
+    'python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify "$(touch injected)"',
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command }, WORKTREE),
+      /only the report-only dry-run form is allowed/,
+    );
+  }
+});
+
 test("root absolute paths in shell commands are rejected with an actionable alternative", () => {
   assert.throws(
     () => routeLocalToolArgsForTest("bash", { command: `git -C ${ROOT} status` }, WORKTREE),

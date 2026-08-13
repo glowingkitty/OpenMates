@@ -155,6 +155,9 @@ FIRECRAWL_TOOL_PERMISSIONS = {
     "firecrawl_firecrawl_search_feedback",
 }
 FIRECRAWL_SAFE_PERMISSION_ACTIONS = {"ask", "deny"}
+MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY = 80
+MAX_STANDALONE_TODO_TURNS_PER_DAY = 80
+MAX_ROUTING_ERROR_TURNS_PER_DAY = 20
 
 
 @dataclass(frozen=True)
@@ -528,6 +531,38 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[AuditIssue]:
+    """Flag conservative workflow-efficiency regressions from aggregate telemetry."""
+
+    if days <= 0:
+        return []
+    issues: list[AuditIssue] = []
+    batchable = int(telemetry.get("conservative_batchable_turns") or 0)
+    standalone_todos = int(telemetry.get("standalone_todo_turns") or 0)
+    error_counts = telemetry.get("tool_error_counts") if isinstance(telemetry.get("tool_error_counts"), dict) else {}
+    routing_errors = sum(int(error_counts.get(key) or 0) for key in ("child_role", "missing_session", "root_path_routing"))
+
+    batchable_budget = MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY * days
+    if batchable > batchable_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"conservative batchable tool turns {batchable} exceed {days}d budget {batchable_budget}; batch independent reads/searches/status calls in one turn",
+        ))
+    todo_budget = MAX_STANDALONE_TODO_TURNS_PER_DAY * days
+    if standalone_todos > todo_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"standalone todo turns {standalone_todos} exceed {days}d budget {todo_budget}; coalesce todowrite with the next independent tool call",
+        ))
+    routing_budget = MAX_ROUTING_ERROR_TURNS_PER_DAY * days
+    if routing_errors > routing_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role/missing_session/root_path_routing categories",
+        ))
+    return issues
+
+
 def _opencode_project_directory() -> Path:
     if REPO_ROOT.parent.name == ".openmates-agent-worktrees":
         return REPO_ROOT.parent.parent
@@ -598,6 +633,8 @@ def main(argv: list[str] | None = None) -> int:
 
     issues = audit(REPO_ROOT)
     telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 else None
+    if telemetry is not None:
+        issues.extend(audit_tool_turn_telemetry(telemetry, days=args.telemetry_days))
     if args.json:
         payload: Any = [issue.__dict__ for issue in issues]
         if telemetry is not None:

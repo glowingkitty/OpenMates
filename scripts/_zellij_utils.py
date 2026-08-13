@@ -590,7 +590,7 @@ def spawn_opencode_session(
 ) -> bool:
     """Spawn a persisted OpenCode chat through the already-running web server."""
     session_name = _sanitize_session_name(session_name)
-    if permission_mode not in {"plan", "execute"}:
+    if permission_mode not in {"plan", "execute", "execute-readonly"}:
         print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
         return False
     opencode_bin = _resolve_opencode_bin()

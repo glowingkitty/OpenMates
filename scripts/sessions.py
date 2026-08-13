@@ -10034,6 +10034,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"Commit: {commit_hash}")
             print("Files: 0 (resumed previous deploy push)")
             print("Branch: dev")
+            _maybe_start_verification_session(args, sid, commit_hash_full)
 
             if getattr(args, "end_session", False):
                 latest_data = _load_sessions()
@@ -10380,6 +10381,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     for f in sorted(to_commit):
         print(f"  {f}")
     print("Branch: dev")
+    _maybe_start_verification_session(args, sid, commit_hash_full)
 
     if worktree_metadata:
         _mark_worktree_deployed(sid, worktree_patch_id, commit_hash_full)
@@ -12405,6 +12407,79 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
+_READ_ONLY_PROMPT_MARKERS = (
+    "do not edit",
+    "do not modify",
+    "do not write",
+    "do not deploy",
+    "read-only",
+    "root-cause report, not a fix",
+    "produce a concise root-cause report",
+)
+
+_WRITE_PROMPT_MARKERS = (
+    "implement the fix",
+    "make the fix",
+    "you may edit files",
+    "may edit files",
+    "start editing",
+    "apply patches",
+    "deploy when done",
+    "use sessions.py deploy",
+    "commit and push",
+)
+
+
+def _prompt_contains_any(prompt: str, markers: tuple[str, ...]) -> bool:
+    normalized = " ".join(prompt.lower().split())
+    return any(marker in normalized for marker in markers)
+
+
+def _validate_spawn_prompt_contract(prompt: str, permission_mode: str) -> None:
+    """Reject worker prompts that combine contradictory mode/capability text."""
+
+    if permission_mode == "execute" and _prompt_contains_any(prompt, _READ_ONLY_PROMPT_MARKERS):
+        raise SystemExit(
+            "Error: --mode execute cannot be combined with read-only prompt instructions. "
+            "Use --mode execute-readonly for Bash-capable investigations, or remove the read-only prohibition."
+        )
+    if permission_mode == "execute-readonly" and _prompt_contains_any(prompt, _WRITE_PROMPT_MARKERS):
+        raise SystemExit(
+            "Error: --mode execute-readonly cannot be combined with implementation/deploy prompt instructions. "
+            "Use --mode execute for implementation workers."
+        )
+
+
+def _maybe_start_verification_session(args: argparse.Namespace, source_session_id: str, commit_sha: str) -> None:
+    """Start a fresh verification session after deploy when explicitly requested."""
+
+    if not getattr(args, "start_verification_session", False):
+        return
+    short_commit = commit_sha[:9] if commit_sha else "unknown"
+    task = f"Verify deploy {short_commit} from session {source_session_id}"
+    print()
+    print("== VERIFICATION HANDOFF ==")
+    print(f"Expected commit: {commit_sha or 'unknown'}")
+    print(f"Starting verification session for follow-up Docker/test evidence: {task}")
+    cmd_start(argparse.Namespace(
+        mode="testing",
+        task=task,
+        issue=None,
+        chat=None,
+        embed=None,
+        logs=None,
+        user=None,
+        debug_id=None,
+        vercel=False,
+        run_id=None,
+        since_last_deploy=False,
+        task_id=None,
+        linear_issue=None,
+        opencode_session=None,
+    ))
+    print(f"Next test commands should use --expected-commit {commit_sha or '<commit>'}.")
+
+
 def cmd_spawn_chat(args: argparse.Namespace) -> None:
     """Spawn a new persisted OpenCode chat visible in the existing Web sidebar."""
     # Resolve prompt text
@@ -12432,7 +12507,17 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Only read, search, and analyze code. "
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
+    elif permission_mode == "execute-readonly":
+        _validate_spawn_prompt_contract(prompt, permission_mode)
+        mode_prefix = (
+            "IMPORTANT: This is an EXECUTE-READONLY session. "
+            "You may run repository Bash/status commands and inspect files, but you MUST NOT edit, write, "
+            "create, delete, deploy, commit, apply patches, or modify files. "
+            "Produce findings, root-cause evidence, or a handoff only.\n\n"
+        )
     else:
+        if not getattr(args, "no_deploy_instructions", False):
+            _validate_spawn_prompt_contract(prompt, permission_mode)
         if getattr(args, "no_deploy_instructions", False):
             mode_prefix = (
                 "IMPORTANT: This is an EXECUTE session. "
@@ -12510,7 +12595,12 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     )
 
     if success:
-        mode_label = "execute (full access, auto-approved)" if permission_mode == "execute" else "plan (research only)"
+        if permission_mode == "execute":
+            mode_label = "execute (full access, auto-approved)"
+        elif permission_mode == "execute-readonly":
+            mode_label = "execute-readonly (Bash/status allowed, edits prohibited)"
+        else:
+            mode_label = "plan (research only)"
         opencode_session_id = find_opencode_session_id(
             session_name,
             str(CONTROL_PLANE_ROOT),
@@ -13451,6 +13541,12 @@ def main() -> None:
         dest="lock_poll",
         help="Seconds between dev deploy push lock checks (default: 30).",
     )
+    p_deploy.add_argument(
+        "--start-verification-session",
+        action="store_true",
+        dest="start_verification_session",
+        help="After a successful deploy, start a fresh testing session for commit-bound Docker/test evidence.",
+    )
 
     # lint (run linter on tracked files without deploying)
     p_lint = sub.add_parser(
@@ -13641,9 +13737,10 @@ def main() -> None:
     )
     p_spawn.add_argument(
         "--mode",
-        choices=["plan", "execute"],
+        choices=["plan", "execute", "execute-readonly"],
         default="plan",
-        help="Permission mode: 'plan' (read-only, default) or "
+        help="Permission mode: 'plan' (read-only, default), "
+        "'execute-readonly' (Bash/status allowed, edits prohibited), or "
         "'execute' (full edit access with auto-approved permissions)",
     )
     p_spawn.add_argument(

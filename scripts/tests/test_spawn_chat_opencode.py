@@ -312,3 +312,60 @@ def test_spawn_chat_execute_no_deploy_instructions_omits_deploy_prompt(tmp_path:
     assert "Use sessions.py deploy" not in captured["prompt"]
     assert "Do not deploy, commit, merge, or push" in captured["prompt"]
     assert captured["prompt"].endswith("Debug the leased group, then stop for coordinator harvest.")
+
+
+def test_spawn_chat_execute_readonly_has_consistent_prompt(tmp_path: Path, monkeypatch) -> None:
+    worktree = tmp_path / "worktree"
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    captured = {}
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", worktree)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: "ses_readonly")
+
+    sessions.cmd_spawn_chat(SimpleNamespace(
+        prompt="Read-only investigation. Do not edit files.",
+        prompt_file=None,
+        name="readonly-investigation",
+        mode="execute-readonly",
+        linear_issue=None,
+        no_deploy_instructions=False,
+    ))
+
+    assert captured["permission_mode"] == "execute-readonly"
+    assert "EXECUTE-READONLY" in captured["prompt"]
+    assert "MUST NOT edit" in captured["prompt"]
+    assert "Use sessions.py deploy" not in captured["prompt"]
+
+
+def test_spawn_chat_rejects_contradictory_execute_prompt(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
+
+    with pytest.raises(SystemExit, match="--mode execute cannot be combined"):
+        sessions.cmd_spawn_chat(SimpleNamespace(
+            prompt="Read-only investigation. Do not edit files.",
+            prompt_file=None,
+            name="bad-worker",
+            mode="execute",
+            linear_issue=None,
+            no_deploy_instructions=False,
+        ))
+
+
+def test_spawn_chat_rejects_contradictory_execute_readonly_prompt(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
+
+    with pytest.raises(SystemExit, match="--mode execute-readonly cannot be combined"):
+        sessions.cmd_spawn_chat(SimpleNamespace(
+            prompt="Implement the fix directly and use sessions.py deploy when done.",
+            prompt_file=None,
+            name="bad-readonly-worker",
+            mode="execute-readonly",
+            linear_issue=None,
+            no_deploy_instructions=False,
+        ))

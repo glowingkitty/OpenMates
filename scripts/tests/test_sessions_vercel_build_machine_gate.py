@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Regression tests for the sessions.py Vercel build-machine deploy gate."""
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import argparse
@@ -317,8 +319,8 @@ def test_deploy_blocks_before_commit_when_vercel_lock_is_held(monkeypatch, tmp_p
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
-    monkeypatch.setattr(sessions, "_get_staged_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: ["docs/test.md"])
     monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
@@ -379,8 +381,8 @@ def test_deploy_releases_vercel_lock_after_successful_push(monkeypatch, tmp_path
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
-    monkeypatch.setattr(sessions, "_get_staged_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: ["docs/test.md"])
     monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
@@ -409,6 +411,78 @@ def test_deploy_releases_vercel_lock_after_successful_push(monkeypatch, tmp_path
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert data["locks"]["vercel_deploy"]["status"] == "NONE"
     assert data["locks"]["vercel_deploy"]["released_by"] == "current"
+
+
+def test_deploy_can_start_verification_handoff_after_successful_push(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {"status": "NONE"}
+  },
+  "sessions": {
+    "current": {
+      "task": "test deploy handoff",
+      "modified_files": ["docs/test.md"]
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    started = {}
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        if cmd == ["git", "commit", "-m", "docs: test deploy handoff"]:
+            return 0, "[dev abc123] docs: test deploy handoff", ""
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return 0, "abc123def456", ""
+        return 0, "", ""
+
+    def fake_start(args):
+        started["mode"] = args.mode
+        started["task"] = args.task
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+    monkeypatch.setattr(sessions, "cmd_start", fake_start)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="docs: test deploy handoff",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=True,
+        skip_tests_reason="unit test",
+        require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
+        start_verification_session=True,
+    )
+
+    sessions.cmd_deploy(args)
+
+    assert started == {
+        "mode": "testing",
+        "task": "Verify deploy abc123def from session current",
+    }
+    output = capsys.readouterr().out
+    assert "== VERIFICATION HANDOFF ==" in output
+    assert "--expected-commit abc123def456" in output
 
 
 def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monkeypatch, tmp_path):
