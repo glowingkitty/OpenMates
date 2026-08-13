@@ -113,7 +113,7 @@ describe('chat settings downloadable files', () => {
       contentRef: `embed:${STATIC_AUDIO_EMBED_ID}`,
       title: 'audio-speak-openmates-welcome-message.mp3',
       subtitle: 'Audio',
-      metadata: 'Audio | 5.0s | 28 KB',
+      metadata: 'Audio | 4.6s | 73 KB',
       type: 'audio',
       nodeType: 'recording',
       iconName: 'audio',
@@ -172,8 +172,8 @@ files:
       'example-private-workspace-demo-video',
       'example-product-launch-synth-loop',
       'example-reference-image-3d-model',
-      'example-audio-generate-product-success-chime',
-      'example-audio-speak-friendly-welcome-message',
+      'example-audio-generate-openmates-success-chime',
+      'example-audio-speak-openmates-welcome-message',
     ]));
     expect(examplesWithFiles.length).toBeGreaterThan(20);
     for (const { chat, rows } of examplesWithFiles) {
