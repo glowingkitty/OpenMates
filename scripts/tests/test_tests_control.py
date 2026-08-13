@@ -686,6 +686,41 @@ def test_record_latest_run_artifact_expands_short_sha_for_proof_source(tmp_path,
     assert attestation["git_sha"] == commit
 
 
+def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"verified-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "run_id": "run-one",
+        "git_sha": commit[:9],
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "run-one",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "video_paths": ["frontend/test-results/example/video.webm"],
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["artifact_path"] == str(video.resolve())
+
+
 def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(

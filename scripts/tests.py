@@ -1152,6 +1152,22 @@ def _file_sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+def _downloaded_recording_paths(spec_name: str, run_id: str) -> list[Path]:
+    recordings_root = RESULTS_DIR / "recordings"
+    matches: list[Path] = []
+    for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
+        manifest = read_json(manifest_path, {})
+        if Path(str(manifest.get("spec") or "")).name != spec_name:
+            continue
+        if str(manifest.get("run_id") or "") != run_id:
+            continue
+        video_key = str((manifest.get("assets") or {}).get("video_key") or "")
+        video_path = (recordings_root / video_key).resolve()
+        if video_key and video_path.is_relative_to(recordings_root.resolve()) and video_path.is_file():
+            matches.append(video_path)
+    return matches
+
+
 def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
     if run_data.get("deployment_verified") is not True or run_data.get("gate_deploy") is not True:
         raise RuntimeError("Proof-source attestation requires a passed deploy gate")
@@ -1166,13 +1182,15 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         artifact_paths = list(test.get("artifact_paths") or [])
         if test.get("artifact_path"):
             artifact_paths.append(str(test["artifact_path"]))
+        spec_name = Path(test_label(suite, test)).name
+        run_id = str(test.get("run_id") or run_data.get("run_id") or "")
+        if not artifact_paths:
+            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_name, run_id)]
         if len(artifact_paths) != 1:
             continue
         artifact_path = Path(artifact_paths[0]).resolve()
         if not artifact_path.is_file():
             continue
-        spec_name = Path(test_label(suite, test)).name
-        run_id = str(test.get("run_id") or run_data.get("run_id") or "")
         identity = hashlib.sha256(f"{run_id}\0{git_sha}\0{spec_name}".encode("utf-8")).hexdigest()
         record = {
             "run_id": run_id,
