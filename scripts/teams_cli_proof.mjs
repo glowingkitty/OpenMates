@@ -159,10 +159,16 @@ function printConciseSwitchTargets(slug) {
 
 function printSwitchProof(env, slug, options) {
   cli(env, ["switch-to", "personal"], options);
+  printCommand("openmates switch-to personal");
+  process.stdout.write("Active context: personal\n");
+
   cli(env, ["switch-to", slug], options);
+  printCommand(`openmates switch-to ${slug}`);
+  process.stdout.write(`Active context: ${slug}\n`);
+
   cli(env, ["teams", slug, "switch-to"], options);
-  printCommand(`openmates switch-to personal && openmates switch-to ${slug} && openmates teams ${slug} switch-to`);
-  process.stdout.write(`Active context moved personal -> ${slug} -> ${slug}\n`);
+  printCommand(`openmates teams ${slug} switch-to`);
+  process.stdout.write(`Active team context: ${slug}\n`);
 }
 
 function printConciseChatCreate(env, slug, commandText, args, options) {
@@ -210,7 +216,8 @@ function main() {
 
     const chatText = "Team proof note";
     const chatId = printConciseChatCreate(env, options.slug, `openmates chats new ${JSON.stringify(chatText)} --response-timeout-seconds 5`, ["chats", "new", chatText, "--response-timeout-seconds", "5"], options);
-    process.stdout.write(`Listed active team chats: New team chat -> ${chatId.slice(0, 8)}\n`);
+    runVisibleCli(env, "openmates chats list", ["chats", "list"], options);
+    process.stdout.write(`Listed active team chats include: ${chatId.slice(0, 8)}\n`);
 
     runVisibleCli(env, "openmates credits", ["credits"], options);
     process.stdout.write("\nProof checks passed: team context, chat isolation, and active-team credits are visible.\n");

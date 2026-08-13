@@ -304,6 +304,19 @@ def test_cli_display_command_replaces_test_harness_and_dist_cli_paths() -> None:
     assert module.user_facing_cli_argv(["openmates", "teams", "list"]) == ["openmates", "teams", "list"]
 
 
+def test_teams_cli_proof_helper_prints_approved_visible_commands() -> None:
+    source = (ROOT / "scripts" / "teams_cli_proof.mjs").read_text(encoding="utf-8")
+
+    for command in (
+        "openmates switch-to personal",
+        "openmates switch-to ${slug}",
+        "openmates teams ${slug} switch-to",
+        "openmates chats list",
+    ):
+        assert command in source
+    assert "&& openmates switch-to" not in source
+
+
 def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "captions.srt"
