@@ -4020,6 +4020,7 @@ export async function handleSendEmbedDataImpl(
           new CustomEvent("embedUpdated", {
             detail: {
               embed_id: embedData.embed_id,
+              type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
