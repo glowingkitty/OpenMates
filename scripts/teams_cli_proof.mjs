@@ -179,6 +179,20 @@ function printConciseChatCreate(env, slug, commandText, args, options) {
   return chatId;
 }
 
+function listChatsForIsolation(env, chatId, slug, options) {
+  runVisibleCli(env, "openmates switch-to personal", ["switch-to", "personal"], options);
+  printCommand("openmates chats list");
+  const personalList = cli(env, ["chats", "list"], options);
+  if (personalList.includes(chatId.slice(0, 8))) throw new Error("Personal chat list unexpectedly included the team chat");
+  process.stdout.write(`Personal chats listed: created team chat ${chatId.slice(0, 8)} is absent\n`);
+
+  runVisibleCli(env, `openmates switch-to ${slug}`, ["switch-to", slug], options);
+  printCommand("openmates chats list");
+  const teamList = cli(env, ["chats", "list"], options);
+  if (!teamList.includes(chatId.slice(0, 8))) throw new Error("Team chat list did not include the created team chat");
+  process.stdout.write(`Team chats listed: created team chat ${chatId.slice(0, 8)} is present\n`);
+}
+
 function resolveTeamIdBySlug(env, slug, options) {
   const listed = cliJson(env, ["teams", "list"], options);
   const team = (listed.teams || listed).find((item) => item && item.slug === slug);
@@ -216,8 +230,7 @@ function main() {
 
     const chatText = "Team proof note";
     const chatId = printConciseChatCreate(env, options.slug, `openmates chats new ${JSON.stringify(chatText)} --response-timeout-seconds 5`, ["chats", "new", chatText, "--response-timeout-seconds", "5"], options);
-    runVisibleCli(env, "openmates chats list", ["chats", "list"], options);
-    process.stdout.write(`Listed active team chats include: ${chatId.slice(0, 8)}\n`);
+    listChatsForIsolation(env, chatId, options.slug, options);
 
     runVisibleCli(env, "openmates credits", ["credits"], options);
     process.stdout.write("\nProof checks passed: team context, chat isolation, and active-team credits are visible.\n");

@@ -326,6 +326,19 @@ def test_teams_cli_proof_helper_prints_approved_visible_commands() -> None:
     assert "&& openmates switch-to" not in source
 
 
+def test_teams_cli_proof_helper_validates_visible_chat_isolation() -> None:
+    source = (ROOT / "scripts" / "teams_cli_proof.mjs").read_text(encoding="utf-8")
+
+    assert "function listChatsForIsolation" in source
+    assert source.count('printCommand("openmates chats list")') >= 2
+    assert "Personal chat list unexpectedly included the team chat" in source
+    assert "Team chat list did not include the created team chat" in source
+    assert "Personal chats listed: created team chat" in source
+    assert "Team chats listed: created team chat" in source
+    assert "is absent" in source
+    assert "is present" in source
+
+
 def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "captions.srt"
