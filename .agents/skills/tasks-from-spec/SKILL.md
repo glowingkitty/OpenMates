@@ -44,12 +44,12 @@ Each task must include:
 - File ownership and shared-file ownership
 - Whether it is independently deployable
 
-For required proof videos, put capture, ElevenLabs `eleven_flash_v2_5` narration
-audio, exact burned-in captions, local privacy scan, frame-only review, repair
+For required proof videos, put capture, exact burned-in captions, optional narration audio,
+local privacy scan, frame-only review, repair
 routing, and configured Discord publication after applicable normal green gates.
 Keep `publication_pending` retryable but incomplete while a Discord destination is
 configured, and add a final evidence task that retains sanitized transcripts and
-audio provenance while applying the approved video cleanup policy.
+optional audio provenance while applying the approved video cleanup policy.
 
 For shared product surfaces, task dependencies must enforce this order: CLI
 implementation/testing against the dev server first, npm SDK and pip SDK

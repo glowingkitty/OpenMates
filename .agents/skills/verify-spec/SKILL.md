@@ -93,8 +93,8 @@ Pass only when:
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
-- Required proof videos have current-commit privacy, ElevenLabs `eleven_flash_v2_5`
-  audio, burned-in caption, frame-only review, and configured Discord delivery
+- Required proof videos have current-commit privacy, burned-in captions,
+  intentional audio status, frame-only review, and configured Discord delivery
   evidence. The review bundle contains captions and selected images but never the
   full video. `publication_pending` blocks configured completion without
   invalidating a passed implementation or review.
