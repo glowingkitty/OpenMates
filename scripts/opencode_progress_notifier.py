@@ -68,12 +68,6 @@ GEMINI_SYSTEM_PROMPT = (
     "Highlight important decisions, places the maintainer should watch, product/code issues, and agent workflow issues. "
     "Do not quote raw secrets, webhook URLs, API keys, reasoning traces, attachment content, or long tool outputs."
 )
-GEMINI_COMPLETION_SUMMARY_PROMPT = (
-    "You summarize one completed OpenCode assistant response for the OpenMates maintainer. "
-    "Return short, evidence-grounded JSON. Keep the summary under 240 characters. "
-    "Include at most three bullets for result, blocker, or next step. Do not quote secrets, "
-    "reasoning traces, webhook URLs, API keys, raw tool output, or attachment content."
-)
 STATE_SCHEMA_VERSION = 1
 OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
 
@@ -1377,114 +1371,38 @@ def build_task_event_payload(
     }
 
 
-def completion_summary_schema() -> dict[str, Any]:
-    return {
-        "type": "object",
-        "properties": {
-            "summary": {"type": "string"},
-            "bullets": {"type": "array", "items": {"type": "string"}},
-            "needs_attention": {"type": "boolean"},
-        },
-        "required": ["summary", "bullets", "needs_attention"],
-    }
-
-
-def completion_evidence_from_chat(chat: dict[str, Any]) -> dict[str, Any]:
+def completed_assistant_preview_from_chat(chat: dict[str, Any], *, message_id: str = "", max_lines: int = 5) -> list[str]:
     messages = chat.get("messages") if isinstance(chat.get("messages"), list) else []
     latest_assistant: dict[str, Any] | None = None
     for message in reversed(messages):
-        if isinstance(message, dict) and message.get("role") == "assistant":
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        current_message_id = str(message.get("message_id") or message.get("id") or "")
+        if message_id and current_message_id == message_id:
             latest_assistant = message
             break
-    text_parts: list[str] = []
-    tool_parts: list[dict[str, str]] = []
+        if latest_assistant is None:
+            latest_assistant = message
+    lines: list[str] = []
     if latest_assistant:
         for part in latest_assistant.get("parts") or []:
             if not isinstance(part, dict):
                 continue
             if part.get("type") == "text" and part.get("text"):
-                text_parts.append(_bounded_text(part.get("text"), 900))
-            if part.get("type") == "tool":
-                tool_parts.append({"tool": _bounded_text(part.get("tool") or "unknown", 80), "status": _bounded_text(part.get("status") or "unknown", 80)})
-    return {
-        "schema_version": 1,
-        "session_id": str(chat.get("session_id") or ""),
-        "title": _bounded_text(chat.get("title") or chat.get("session_id") or "Untitled chat", 160),
-        "url": str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or ""))),
-        "message_time_updated": latest_assistant.get("time_updated") if latest_assistant else "",
-        "assistant_text": text_parts[-3:],
-        "assistant_tools": tool_parts[-8:],
-        "task_items": chat.get("task_items") if isinstance(chat.get("task_items"), list) else [],
-        "privacy": "summarize only; do not quote secrets, reasoning, raw tool output, or attachment content",
-    }
+                for line in str(part.get("text") or "").splitlines():
+                    visible = _visible_text(line)
+                    if visible:
+                        lines.append(_bounded_text(visible, 280))
+                    if len(lines) >= max_lines:
+                        return lines
+    return lines
 
 
-def call_gemini_completion_summary(
-    *,
-    evidence: dict[str, Any],
-    api_key: str,
-    model: str = DEFAULT_GEMINI_MODEL,
-    opener: Callable[..., Any] = request.urlopen,
-) -> dict[str, Any]:
-    if model != DEFAULT_GEMINI_MODEL:
-        raise ProgressNotifierError(f"Completion summaries must use {DEFAULT_GEMINI_MODEL}")
-    user_message = "Summarize this completed OpenCode response:\n" + json.dumps(evidence, ensure_ascii=False, sort_keys=True)
-    tool = {
-        "function_declarations": [
-            {
-                "name": "return_completion_summary",
-                "description": "Return one short completed-response summary.",
-                "parameters": completion_summary_schema(),
-            }
-        ]
-    }
-    payload = {
-        "system_instruction": {"parts": [{"text": GEMINI_COMPLETION_SUMMARY_PROMPT}]},
-        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-        "tools": [tool],
-        "tool_config": {"function_calling_config": {"mode": "ANY"}},
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024},
-    }
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    body = json.dumps(payload).encode("utf-8")
-    req = request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with opener(req, timeout=45) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
-        raise ProgressNotifierError(f"Gemini API error {exc.code}: {detail}") from exc
-    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
-        raise ProgressNotifierError(f"Gemini request failed: {exc}") from exc
-    try:
-        parts = response_payload.get("candidates", [])[0].get("content", {}).get("parts", [])
-    except (AttributeError, IndexError) as exc:
-        raise ProgressNotifierError("Gemini response did not include candidates") from exc
-    for part in parts:
-        function_call = part.get("functionCall") if isinstance(part, dict) else None
-        if function_call and function_call.get("name") == "return_completion_summary":
-            summary = function_call.get("args") or {}
-            return summary if isinstance(summary, dict) else {}
-    text_response = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
-    if text_response:
-        try:
-            parsed = json.loads(text_response)
-        except json.JSONDecodeError as exc:
-            raise ProgressNotifierError("Gemini response was not valid JSON and did not include a function call") from exc
-        return parsed if isinstance(parsed, dict) else {}
-    raise ProgressNotifierError("Gemini response did not include a completion summary")
-
-
-def build_completion_event_payload(*, chat: dict[str, Any], summary: dict[str, Any], now: datetime) -> dict[str, Any]:
+def build_completion_event_payload(*, chat: dict[str, Any], preview_lines: list[str], now: datetime) -> dict[str, Any]:
     title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
     url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
-    lines = ["✅ OpenCode response completed", title, _visible_text(summary.get("summary") or "Response completed.")]
-    for bullet in _string_list(summary.get("bullets"), max_items=3, max_chars=260):
-        visible = _visible_text(bullet)
-        if visible:
-            lines.append(f"• {visible}")
-    if summary.get("needs_attention"):
-        lines.append("⚠️ Needs attention")
+    lines = ["✅ OpenCode assistant response", title]
+    lines.extend(preview_lines or ["Response completed."])
     lines.append(f"🔗 {url}")
     return {
         "username": "OpenMates Agent Updates",
@@ -1714,7 +1632,6 @@ def notify_response_completed(
     session_id: str,
     message_id: str = "",
     chat_reader: Callable[[str], dict[str, Any]] = read_chat_view,
-    summarizer: Callable[..., dict[str, Any]] = call_gemini_completion_summary,
     discord_sender: Callable[..., dict[str, str] | None] = post_message,
     state_path: Path = DEFAULT_STATE_FILE,
     api_key: str | None = None,
@@ -1738,18 +1655,12 @@ def notify_response_completed(
         previous = completion_events.get(root_session_id) if isinstance(completion_events.get(root_session_id), dict) else {}
         if message_id and previous.get("message_id") == message_id:
             return {"status": "skipped_duplicate_completion", "session_id": root_session_id, "message_id": message_id}
-        chat = project_chat_view(ActiveChatRoot(root_session_id, "completed_recently", root_session_id, _now_iso(current_time), []), chat_reader(root_session_id))
-        evidence = completion_evidence_from_chat(chat)
-        key = api_key or load_gemini_api_key()
-        summary = summarizer(evidence=evidence, api_key=key, model=model)
-        normalized_summary = {
-            "summary": _visible_text(summary.get("summary") or "Response completed."),
-            "bullets": [_visible_text(item) for item in _string_list(summary.get("bullets"), max_items=3, max_chars=260)],
-            "needs_attention": bool(summary.get("needs_attention")),
-        }
-        payload = build_completion_event_payload(chat=chat, summary=normalized_summary, now=current_time)
+        raw_chat = chat_reader(root_session_id)
+        chat = project_chat_view(ActiveChatRoot(root_session_id, "completed_recently", root_session_id, _now_iso(current_time), []), raw_chat)
+        preview_lines = completed_assistant_preview_from_chat(raw_chat, message_id=message_id)
+        payload = build_completion_event_payload(chat=chat, preview_lines=preview_lines, now=current_time)
         if dry_run:
-            return {"status": "dry_run", "session_id": root_session_id, "message_id": message_id, "payload": payload, "evidence": evidence}
+            return {"status": "dry_run", "session_id": root_session_id, "message_id": message_id, "payload": payload, "preview_lines": preview_lines}
         result = discord_sender(webhook_url=webhook_url, payload=payload)
         if not result:
             return {"status": "failed_discord", "session_id": root_session_id, "message_id": message_id}
@@ -1760,7 +1671,7 @@ def notify_response_completed(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Post Discord progress summaries for active OpenCode chats.")
+    parser = argparse.ArgumentParser(description="Post deterministic Discord notifications for OpenCode chat events.")
     parser.add_argument("--event", choices=["legacy-periodic", "task-list-changed", "response-completed"], default="legacy-periodic", help="Notification event to process.")
     parser.add_argument("--session-id", default="", help="OpenCode session id for event-triggered notifications.")
     parser.add_argument("--message-id", default="", help="Completed assistant message id for response-completed events.")
@@ -1769,8 +1680,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--watch", action="store_true", help="Legacy periodic compatibility path; now exits without sending unless --force is set.")
     parser.add_argument("--interval-minutes", type=int, default=DEFAULT_INTERVAL_MINUTES, help="Notification cadence and duplicate suppression window.")
     parser.add_argument("--daily-active-hours", type=float, default=DEFAULT_DAILY_ACTIVE_HOURS, help="Active notifier hours per day used for displayed cost projection.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Summary model. Default: gemini-3.5-flash-lite.")
-    parser.add_argument("--dry-run", action="store_true", help="Call the summary model and print the Discord payload without posting to Discord.")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Legacy periodic summary model. Event notifications do not call a model.")
+    parser.add_argument("--dry-run", action="store_true", help="Print the Discord payload without posting to Discord.")
     parser.add_argument("--force", action="store_true", help="Bypass duplicate suppression for this tick.")
     parser.add_argument("--no-state-update", action="store_true", help="Do not write .opencode/progress-notifier-state.json.")
     parser.add_argument("--max-chats", type=int, default=MAX_ACTIVE_CHATS, help="Maximum top-level active chats to summarize.")

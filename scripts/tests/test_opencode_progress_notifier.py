@@ -406,21 +406,26 @@ def test_task_list_changed_event_disabled_even_for_identical_snapshot(tmp_path: 
     assert result["status"] == "skipped_task_notifications_disabled"
 
 
-def test_response_completed_event_posts_short_gemini_summary(tmp_path: Path) -> None:
+def test_response_completed_event_posts_deterministic_assistant_preview(tmp_path: Path) -> None:
     notifier = load_module("progress_completion_event")
     captured: dict[str, object] = {}
-
-    def summarize(*, evidence: dict, api_key: str, model: str) -> dict:
-        captured["evidence"] = evidence
-        captured["api_key"] = api_key
-        captured["model"] = model
-        return {"summary": "Implemented the event-driven notifier and prepared verification.", "bullets": ["Task notifications are deterministic.", "Completion notifications are summarized."], "needs_attention": False}
+    view = fake_chat_view("ses-parent")
+    view["messages"][0]["message_id"] = "msg-assistant-1"
+    view["messages"][0]["parts"][0]["text"] = "\n".join(
+        [
+            "Implemented the event-driven notifier and prepared verification.",
+            "Task notifications are disabled.",
+            "Completion notifications are deterministic.",
+            "Secrets like sk-test123456789 are redacted.",
+            "This is the fifth visible line.",
+            "This sixth line should be omitted.",
+        ]
+    )
 
     result = notifier.notify_response_completed(
         session_id="ses-parent",
         message_id="msg-assistant-1",
-        chat_reader=fake_chat_view,
-        summarizer=summarize,
+        chat_reader=lambda _session_id: view,
         discord_sender=lambda **kwargs: captured.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
         state_path=tmp_path / "state.json",
         api_key="test-key",
@@ -429,16 +434,14 @@ def test_response_completed_event_posts_short_gemini_summary(tmp_path: Path) -> 
     )
 
     assert result["status"] == "sent"
-    assert captured["model"] == notifier.DEFAULT_MODEL
-    assert captured["api_key"] == "test-key"
-    encoded_evidence = json.dumps(captured["evidence"])
-    assert "attachment content omitted" not in encoded_evidence
-    assert "raw command output" not in encoded_evidence
     assert captured["payload"]["embeds"] == []
     content = captured["payload"]["content"]
-    assert "✅ OpenCode response completed" in content
+    assert "✅ OpenCode assistant response" in content
     assert "Implemented the event-driven notifier" in content
-    assert "Task notifications are deterministic." in content
+    assert "Completion notifications are deterministic." in content
+    assert "<API_KEY>" in content
+    assert "This is the fifth visible line." in content
+    assert "This sixth line should be omitted." not in content
     assert "Chose option 2" not in content
 
 
