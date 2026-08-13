@@ -1257,6 +1257,8 @@ def produce_cli_demonstration(
         output_dir=run_dir,
         test_account_provenance=test_account_provenance,
     )
+    if capture.get("exit_status") != 0:
+        raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
     terminal_events: list[dict[str, Any]] = []
     try:
         if anonymize_sensitive:

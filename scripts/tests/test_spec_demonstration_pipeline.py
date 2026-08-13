@@ -777,6 +777,44 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
     assert observed["acceptance_criteria"] == ["AC-1"]
 
 
+def test_cli_production_rejects_failed_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(
+        module,
+        "capture_pty",
+        lambda *_args, **_kwargs: {
+            "argv": ["openmates", "demo"],
+            "target_environment": "local fixture",
+            "run_id": "run-1",
+            "exit_status": 1,
+            "transcript_hash": "sha256:" + "1" * 64,
+            "event_hash": "sha256:" + "2" * 64,
+            "artifact_hash": "sha256:" + "2" * 64,
+            "test_account_provenance": "no account used",
+            "duration_seconds": 0.2,
+        },
+    )
+
+    with pytest.raises(module.DemonstrationError, match="exited with status 1"):
+        module.produce_cli_demonstration(
+            run_dir=tmp_path,
+            argv=["openmates", "demo"],
+            spec_id="example",
+            subject_commit="abc1234",
+            run_id="run-1",
+            target_environment="local fixture",
+            test_account_provenance="no account used",
+            narration_id="NARR-1",
+            caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
+            expected_proof="Safe output is visible.",
+            acceptance_criteria=["AC-1"],
+            narration_audio_path=None,
+        )
+
+
 def test_cli_production_renders_user_facing_openmates_command(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
