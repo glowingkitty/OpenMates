@@ -62,6 +62,7 @@ PLAYWRIGHT_SOURCE_FIELDS = {
 MAX_REVIEW_INTERVAL_SECONDS = 3.0
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
 END_FRAME_OFFSET_SECONDS = 0.1
+MEDIA_TIMESTAMP_DECIMALS = 3
 DEFAULT_NARRATION_PROVIDER = "elevenlabs"
 DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
 DEFAULT_NARRATION_VOICE = "warm_neutral"
@@ -1059,6 +1060,19 @@ def write_tutorial_captions(
     return segments
 
 
+def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds: float) -> list[dict[str, Any]]:
+    if duration_seconds <= 0:
+        raise DemonstrationError("Interval duration must be positive")
+    clamped: list[dict[str, Any]] = []
+    for item in items:
+        start = round(float(item["start"]), MEDIA_TIMESTAMP_DECIMALS)
+        end = round(min(float(item["end"]), duration_seconds), MEDIA_TIMESTAMP_DECIMALS)
+        if not 0 <= start < end <= duration_seconds:
+            raise DemonstrationError("Caption interval is outside the rendered video duration")
+        clamped.append({**item, "start": start, "end": end})
+    return clamped
+
+
 def assert_realistic_tutorial_narration(text: str) -> None:
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     words = re.findall(r"\b\w+\b", text)
@@ -1139,6 +1153,7 @@ def prepare_review_artifacts(
             "claim_ids": ["CLAIM-1"],
         }
     ]
+    captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     frame_dir = run_dir / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     frame_dir.chmod(0o700)
@@ -1164,7 +1179,7 @@ def prepare_review_artifacts(
             "claim_id": "CLAIM-1",
             "text": expected_proof,
             "acceptance_criteria": acceptance_criteria,
-            "evidence_intervals": [[0.0, metadata["duration_seconds"]]],
+            "evidence_intervals": [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]],
         }
     ]
     review_audio = {

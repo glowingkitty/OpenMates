@@ -323,6 +323,65 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
     assert path.read_text(encoding="utf-8").count(" --> ") == 3
 
 
+def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
+    monkeypatch.setattr(
+        module,
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 15.967,
+            "width": 1280,
+            "height": 720,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
+    )
+
+    def extract(_video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, object]:
+        return {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        }
+
+    monkeypatch.setattr(module, "extract_frame", extract)
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="teams-v1",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="First, the terminal shows team creation output. Next, visible context output confirms the selected team. Finally, credits output stays visible for review.",
+        expected_proof="The terminal shows team CLI output.",
+        acceptance_criteria=["AC-1"],
+        source={"kind": "cli", "argv": ["openmates", "teams", "create"]},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {
+                "id": "CAP-1",
+                "narration_id": "NARR-1",
+                "text": "First, the terminal shows team creation output.",
+                "start": 0.0,
+                "end": 15.978,
+                "claim_ids": ["CLAIM-1"],
+            }
+        ],
+    )
+
+    assert manifest["captions"][0]["end"] == 15.967
+    assert manifest["expected_proof"][0]["evidence_intervals"] == [[0.0, 15.967]]
+    request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
+    assert request["captions"][0]["end"] == 15.967
+
+
 def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:
     module = load_module()
 
