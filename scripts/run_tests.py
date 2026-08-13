@@ -5654,6 +5654,11 @@ class TestRecordingPublisher:
             _log(f"Test recording S3 upload skipped/failed: {e}", "WARN")
 
     async def _upload_latest_bundles_async(self) -> None:
+        # Direct script execution sets sys.path[0] to scripts/, not the repo
+        # root.  Keep the backend package importable in the nightly cron.
+        project_root_text = str(PROJECT_ROOT)
+        if project_root_text not in sys.path:
+            sys.path.insert(0, project_root_text)
         try:
             from backend.core.api.app.services.s3.service import S3UploadService
             from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -5667,21 +5672,51 @@ class TestRecordingPublisher:
         if not s3_service.client:
             raise RuntimeError("S3 service is unavailable")
 
-        uploaded = 0
-        for path in TEST_RECORDINGS_DIR.rglob("*"):
-            if not path.is_file():
-                continue
-            rel_path = path.relative_to(TEST_RECORDINGS_DIR).as_posix()
-            object_key = f"{TEST_RECORDINGS_S3_PREFIX}/{rel_path}"
-            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-            await s3_service.upload_file(
-                TEST_RECORDINGS_BUCKET_KEY,
-                object_key,
-                path.read_bytes(),
-                content_type,
-            )
-            uploaded += 1
+        uploaded, deleted = await _upload_recording_files(TEST_RECORDINGS_DIR, s3_service)
         _log(f"Uploaded {uploaded} test recording artifact(s) to S3")
+        _log(f"Removed {deleted} confirmed-upload local recording bundle(s)")
+
+
+async def _upload_recording_files(root: Path, s3_service: object) -> tuple[int, int]:
+    """Upload a complete snapshot, then delete its local bundle directories.
+
+    Any upload exception exits before cleanup, preserving the entire local
+    snapshot for the scheduled retry. This ordering is the deletion safety
+    boundary.
+    """
+    uploaded = 0
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        rel_path = path.relative_to(root).as_posix()
+        object_key = f"{TEST_RECORDINGS_S3_PREFIX}/{rel_path}"
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        await s3_service.upload_file(  # type: ignore[attr-defined]
+            TEST_RECORDINGS_BUCKET_KEY,
+            object_key,
+            path.read_bytes(),
+            content_type,
+        )
+        uploaded += 1
+    return uploaded, _delete_uploaded_recording_bundles(root)
+
+
+def _delete_uploaded_recording_bundles(root: Path) -> int:
+    """Remove only bundle directories after the complete upload loop succeeds.
+
+    The caller invokes this after every S3 upload has returned successfully.
+    The small index is retained for local diagnostics; source artifacts remain
+    available through GitHub Actions and uploaded bundles through S3.
+    """
+    if not root.is_dir():
+        return 0
+    deleted = 0
+    for path in root.iterdir():
+        if not path.is_dir():
+            continue
+        shutil.rmtree(path)
+        deleted += 1
+    return deleted
 
 
 def _seconds_between(first_iso: Optional[str], current_iso: Optional[str]) -> Optional[float]:

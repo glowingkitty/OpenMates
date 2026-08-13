@@ -1,121 +1,86 @@
 #!/bin/bash
-# Docker Cleanup Script for OpenMates
-# This script safely cleans up Docker resources without deleting volumes or containers
-# It removes: dangling images, unused images, build cache, and unused networks
+# Safe, bounded Docker cache cleanup for the OpenMates dev host.
 #
-# Runs weekly via cron. When disk usage exceeds 90%, applies aggressive cleanup
-# (removes images older than 24h instead of 7 days).
+# This script deliberately never prunes volumes, containers, or networks.
+# Every Docker call is time-bounded so a full/unhealthy daemon cannot prevent
+# later scheduled runs from trying again.
 
-set -e
+set -uo pipefail
 
-echo "=========================================="
-echo "Docker Cleanup Script"
-echo "=========================================="
-echo ""
+LOCK_FILE="${OPENMATES_DOCKER_CLEANUP_LOCK:-/tmp/openmates-docker-cleanup.lock}"
+DOCKER_TIMEOUT_SECONDS="${OPENMATES_DOCKER_CLEANUP_TIMEOUT_SECONDS:-300}"
+BUILD_CACHE_KEEP="${OPENMATES_DOCKER_BUILD_CACHE_KEEP:-8GB}"
+AGGRESSIVE_DISK_PERCENT="${OPENMATES_DOCKER_AGGRESSIVE_PERCENT:-85}"
+MAX_LOG_BYTES="${OPENMATES_DOCKER_CLEANUP_MAX_LOG_BYTES:-10485760}"
+CLEANUP_LOG="${OPENMATES_DOCKER_CLEANUP_LOG:-}"
 
-# Show current disk usage
-echo "Current Docker disk usage:"
-docker system df
-echo ""
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "Docker cleanup already running; skipping overlapping invocation."
+    exit 0
+fi
 
-# Show current disk space
-echo "Current disk space:"
-df -h / | tail -1
-echo ""
+# Cron opens its append target before starting this script. Truncating that
+# same inode is safe and bounds the log without breaking the active descriptor.
+if [ -n "$CLEANUP_LOG" ] && [ -f "$CLEANUP_LOG" ]; then
+    LOG_BYTES=$(stat -c '%s' "$CLEANUP_LOG" 2>/dev/null || echo 0)
+    if [ "$LOG_BYTES" -gt "$MAX_LOG_BYTES" ]; then
+        : > "$CLEANUP_LOG"
+    fi
+fi
 
-# Determine cleanup aggressiveness based on disk usage
-DISK_USE_PCT=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
-if [ "$DISK_USE_PCT" -ge 90 ]; then
-    echo "⚠️  Disk usage at ${DISK_USE_PCT}% — applying AGGRESSIVE cleanup (images >24h)"
-    IMAGE_AGE_FILTER="until=24h"
+run_docker() {
+    local label="$1"
+    shift
+    echo "$label"
+    if ! timeout "${DOCKER_TIMEOUT_SECONDS}s" docker "$@"; then
+        echo "WARNING: $label failed or timed out; the next scheduled run will retry."
+        return 1
+    fi
+}
+
+DISK_USE_PCT=$(df -P / | awk 'NR == 2 {gsub(/%/, "", $5); print $5}')
+DISK_FREE_BEFORE=$(df -hP / | awk 'NR == 2 {print $4}')
+echo "Docker cleanup starting: ${DISK_USE_PCT}% used, ${DISK_FREE_BEFORE} free."
+
+# Diagnostic only: never let accounting block cleanup.
+run_docker "Current Docker usage:" system df || true
+
+if [ "$DISK_USE_PCT" -ge "$AGGRESSIVE_DISK_PERCENT" ]; then
     AGGRESSIVE=true
+    IMAGE_AGE_FILTER="until=24h"
+    run_docker "Pruning all unused BuildKit cache (disk pressure mode):" builder prune -a -f || true
 else
-    echo "Disk usage at ${DISK_USE_PCT}% — applying standard cleanup (images >7d)"
-    IMAGE_AGE_FILTER="until=168h"
     AGGRESSIVE=false
-fi
-echo ""
-
-# 1. Remove dangling images (images with <none> tag)
-echo "Step 1: Removing dangling images..."
-DANGLING_COUNT=$(docker images --filter "dangling=true" -q | wc -l)
-if [ "$DANGLING_COUNT" -gt 0 ]; then
-    echo "Found $DANGLING_COUNT dangling images"
-    docker image prune -f
-    echo "✓ Dangling images removed"
-else
-    echo "No dangling images found"
-fi
-echo ""
-
-# 2. Remove unused images (not used by any container)
-echo "Step 2: Removing unused images..."
-echo "This will remove images that are not currently used by any container"
-docker image prune -a -f --filter "$IMAGE_AGE_FILTER"
-echo "✓ Unused images removed"
-echo ""
-
-# 3. Prune build cache
-echo "Step 3: Pruning build cache..."
-if [ "$AGGRESSIVE" = true ]; then
-    # Aggressive: remove all build cache
-    docker builder prune -a -f
-else
-    docker builder prune -f
-fi
-echo "✓ Build cache pruned"
-echo ""
-
-# 3b. Aggressive: also clean stopped containers and unused networks
-if [ "$AGGRESSIVE" = true ]; then
-    echo "Step 3b: Aggressive cleanup — removing stopped containers..."
-    docker container prune -f
-    echo "✓ Stopped containers removed"
-    echo ""
+    IMAGE_AGE_FILTER="until=168h"
+    run_docker "Capping unused BuildKit cache at ${BUILD_CACHE_KEEP}:" builder prune -a -f --keep-storage "$BUILD_CACHE_KEEP" || true
 fi
 
-# 4. Skip network pruning to avoid removing external networks required by docker-compose
-# Networks declared as "external: true" in docker-compose can appear unused when no containers
-# are running, but they're still required. Manual network cleanup is safer.
-echo "Step 4: Skipping network pruning"
-echo "Note: Networks are preserved to avoid removing external networks required by docker-compose"
-echo "If you need to clean up networks manually, use: docker network prune"
-echo ""
+# image prune -a removes only images unused by every container. A minimum age
+# avoids racing a just-finished build. No container or volume prune is allowed.
+run_docker "Pruning unused images older than ${IMAGE_AGE_FILTER#until=}:" image prune -a -f --filter "$IMAGE_AGE_FILTER" || true
 
-# Show final disk usage
-echo "=========================================="
-echo "Final Docker disk usage:"
-docker system df
-echo ""
+DISK_USE_AFTER=$(df -P / | awk 'NR == 2 {gsub(/%/, "", $5); print $5}')
+DISK_FREE_AFTER=$(df -hP / | awk 'NR == 2 {print $4}')
+echo "Docker cleanup complete: ${DISK_USE_AFTER}% used, ${DISK_FREE_AFTER} free."
+echo "Preserved all Docker volumes, containers, and networks."
 
-# Show final disk space
-echo "Final disk space:"
-df -h / | tail -1
-echo ""
-
-echo "=========================================="
-echo "Cleanup complete!"
-echo "=========================================="
-echo ""
-echo "Note: Volumes and containers were NOT touched."
-echo "If you need more space, you can manually review and remove specific unused images."
-
-# Write nightly report for daily meeting consumption
-DISK_AFTER=$(df -h / | tail -1 | awk '{print $4}')
-DISK_USE_AFTER=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
+# Keep the daily-meeting signal, but never turn a reporting problem into a
+# cleanup failure.
 PYTHONPATH="$(dirname "$0")" python3 -c "
 from _nightly_report import write_nightly_report
 write_nightly_report(
     job='docker-cleanup',
-    status='warning' if ${DISK_USE_AFTER} >= 85 else 'ok',
-    summary='Docker cleanup completed (${AGGRESSIVE:-false} mode). Removed dangling images, unused images, and build cache. Free disk: ${DISK_AFTER} (${DISK_USE_AFTER}% used).',
+    status='warning' if ${DISK_USE_AFTER} >= ${AGGRESSIVE_DISK_PERCENT} else 'ok',
+    summary='Safe Docker cleanup completed. Free disk: ${DISK_FREE_AFTER} (${DISK_USE_AFTER}% used).',
     details={
-        'dangling_images_found': ${DANGLING_COUNT},
-        'free_disk_after': '${DISK_AFTER}',
+        'free_disk_before': '${DISK_FREE_BEFORE}',
+        'free_disk_after': '${DISK_FREE_AFTER}',
         'disk_use_pct_before': ${DISK_USE_PCT},
         'disk_use_pct_after': ${DISK_USE_AFTER},
         'aggressive_mode': '${AGGRESSIVE}' == 'true',
+        'volumes_pruned': False,
+        'containers_pruned': False,
     },
 )
-"
-
+" || echo "WARNING: cleanup report write failed."
