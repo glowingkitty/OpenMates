@@ -103,7 +103,11 @@ def resolve_current_context(
             f"run `python3 scripts/tests.py run --spec {spec_name} --gate-deploy --expected-commit {subject_commit}`"
         )
     if len(passing_runs) > 1:
-        raise WorkflowError(f"multiple passing runs match {spec_name} at {subject_commit}; provide --run-id")
+        available_run_ids = ", ".join(sorted(str(record.get("run_id") or "") for record in passing_runs)[:10])
+        raise WorkflowError(
+            f"multiple passing runs match {spec_name} at {subject_commit}; provide --run-id. "
+            f"Available run IDs: {available_run_ids}"
+        )
     return ProofContext(session_id, subject_commit, str(passing_runs[0]["run_id"]), spec_name)
 
 

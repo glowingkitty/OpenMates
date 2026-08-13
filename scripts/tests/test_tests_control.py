@@ -798,7 +798,7 @@ def test_normalize_playwright_report_preserves_duplicate_video_attachments(tmp_p
     assert normalized["suites"]["playwright"]["tests"][0]["artifact_paths"] == [video, video]
 
 
-def test_duplicate_video_attachments_do_not_create_proof_source_attestation(tmp_path, monkeypatch):
+def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     commit = "a" * 40
     video = tmp_path / "video.webm"
@@ -816,8 +816,55 @@ def test_duplicate_video_attachments_do_not_create_proof_source_attestation(tmp_
         }]}},
     }
 
-    assert tests_control.record_proof_source_attestations(run_data) == []
-    assert not tests_control.PROOF_SOURCE_DIR.exists()
+    records = tests_control.record_proof_source_attestations(run_data)
+
+    assert len(records) == 1
+    attestation = json.loads(records[0].read_text(encoding="utf-8"))
+    assert attestation["run_id"] == "run-one"
+    assert attestation["source_run_id"] == "run-one"
+
+
+def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    first_video = recording_dir / "videos" / "first.webm"
+    second_video = recording_dir / "videos" / "second.webm"
+    first_video.parent.mkdir(parents=True)
+    first_video.write_bytes(b"first-video")
+    second_video.write_bytes(b"second-video")
+    for slug, video in (("flow-one", first_video), ("flow-two", second_video)):
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--{slug}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+            "video_paths": ["frontend/test-results/example-one/video.webm", "frontend/test-results/example-two/video.webm"],
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
+    assert len(attestations) == 2
+    assert {attestation["artifact_path"] for attestation in attestations} == {str(first_video.resolve()), str(second_video.resolve())}
+    assert all(attestation["source_run_id"] == "12345" for attestation in attestations)
+    assert all(attestation["run_id"].startswith("12345:") for attestation in attestations)
 
 
 def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):

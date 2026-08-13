@@ -1173,7 +1173,7 @@ def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str)
         video_path = (recordings_root / video_key).resolve()
         if video_key and video_path.is_relative_to(recordings_root.resolve()) and video_path.is_file():
             matches.append(video_path)
-    return matches
+    return sorted(matches, key=lambda path: path.as_posix())
 
 
 def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
@@ -1196,29 +1196,43 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         if not artifact_paths:
             candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
             artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_path, candidate_run_ids, git_sha)]
-        if len(artifact_paths) != 1:
+        unique_artifact_paths = []
+        seen_artifact_paths = set()
+        for artifact_path_text in artifact_paths:
+            artifact_path = Path(artifact_path_text).resolve()
+            if artifact_path in seen_artifact_paths or not artifact_path.is_file():
+                continue
+            seen_artifact_paths.add(artifact_path)
+            unique_artifact_paths.append(artifact_path)
+        if not unique_artifact_paths:
             continue
-        artifact_path = Path(artifact_paths[0]).resolve()
-        if not artifact_path.is_file():
-            continue
-        identity = hashlib.sha256(f"{run_id}\0{git_sha}\0{spec_name}".encode("utf-8")).hexdigest()
-        record = {
-            "run_id": run_id,
-            "git_sha": git_sha,
-            "spec": spec_name,
-            "status": "passed",
-            "source": "scripts_tests",
-            "deployment_reference": deployment_reference,
-            "deployment_verified": True,
-            "target": str(run_data.get("environment") or "https://app.dev.openmates.org"),
-            "artifact_path": str(artifact_path),
-            "artifact_sha256": _file_sha256(artifact_path),
-        }
-        record_path = PROOF_SOURCE_DIR / f"{identity}.json"
-        record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        write_json(record_path, record)
-        record_path.chmod(0o600)
-        records.append(record_path)
+        for artifact_path in unique_artifact_paths:
+            proof_run_id = run_id
+            if len(unique_artifact_paths) > 1:
+                suffix = re.sub(r"[^A-Za-z0-9._-]+", "-", artifact_path.stem).strip("-")
+                fingerprint = hashlib.sha1(str(artifact_path).encode("utf-8")).hexdigest()[:8]
+                proof_run_id = f"{run_id or spec_name}:{suffix or 'artifact'}-{fingerprint}"
+            identity = hashlib.sha256(
+                f"{proof_run_id}\0{git_sha}\0{spec_name}\0{artifact_path}".encode("utf-8")
+            ).hexdigest()
+            record = {
+                "run_id": proof_run_id,
+                "source_run_id": run_id,
+                "git_sha": git_sha,
+                "spec": spec_name,
+                "status": "passed",
+                "source": "scripts_tests",
+                "deployment_reference": deployment_reference,
+                "deployment_verified": True,
+                "target": str(run_data.get("environment") or "https://app.dev.openmates.org"),
+                "artifact_path": str(artifact_path),
+                "artifact_sha256": _file_sha256(artifact_path),
+            }
+            record_path = PROOF_SOURCE_DIR / f"{identity}.json"
+            record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            write_json(record_path, record)
+            record_path.chmod(0o600)
+            records.append(record_path)
     return records
 
 
