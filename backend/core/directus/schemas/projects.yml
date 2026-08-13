@@ -39,6 +39,16 @@ projects:
       type: text
       note: "[Encrypted] Project name encrypted with the project key."
 
+    encrypted_slug:
+      type: text
+      nullable: true
+      note: "[Client-encrypted, Nullable] Stable user-facing project slug. Plaintext slugs must never be stored server-side."
+
+    slug_lookup_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Owner/team-scoped keyed lookup hash for duplicate slug prevention."
+
     encrypted_description:
       type: text
       note: "[Encrypted] Optional project description encrypted with the project key."

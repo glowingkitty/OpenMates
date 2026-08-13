@@ -134,6 +134,8 @@ class SdkChatCreateRequest(BaseModel):
     expected_messages_v: int | None = Field(default=None)
     encrypted_user_message: dict[str, Any] | None = Field(default=None)
     encrypted_chat_metadata: dict[str, Any] | None = Field(default=None)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     inference_request: dict[str, Any] | None = Field(default=None)
     team_id: str | None = Field(default=None)
     team_id_hash: str | None = Field(default=None)

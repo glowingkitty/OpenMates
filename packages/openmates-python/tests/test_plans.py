@@ -60,6 +60,8 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         if url.endswith("/v1/sdk/chats/chat-1"):
             return FakeResponse({"chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}})
+        if url.endswith("/v1/sdk/chats?limit=0&offset=0"):
+            return FakeResponse({"chats": [{"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}]})
         if url.endswith("/v1/user-plans/plan-1"):
             return FakeResponse({"plan": plan})
         if url.endswith("/runs/run-1"):

@@ -10,6 +10,12 @@ import re
 import secrets
 from typing import Any
 
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
+
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
@@ -21,7 +27,7 @@ USER_TASK_FIELDS = (
     "plan_id,plan_step_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
-    "encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
+    "encrypted_slug,slug_lookup_hash,encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
 
@@ -81,6 +87,17 @@ def _coerce_priority(value: Any) -> int:
     if priority < 0 or priority > 4:
         raise ValueError("Task priority must be an integer from 0 to 4")
     return priority
+
+
+def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
+    terms: list[dict[str, Any]] = [
+        {"slug_lookup_hash": {"_eq": slug_lookup_hash}},
+        {"hashed_user_id": {"_eq": hash_id(user_id)}},
+        {"hashed_team_id": {"_null": True}},
+    ]
+    if exclude_row_id:
+        terms.append({"id": {"_neq": exclude_row_id}})
+    return {"_and": terms}
 
 
 def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -> bool:
@@ -338,6 +355,7 @@ class UserTaskMethods:
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         key_wrappers = payload.pop("key_wrappers", []) or []
         linked_project_ids = payload.pop("linked_project_ids", []) or []
+        validate_encrypted_slug_metadata(payload, record_label="Task")
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
         version = payload.get("version")
@@ -363,8 +381,11 @@ class UserTaskMethods:
             plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
         ):
             return None
+        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id)
         success, data = await self.directus_service.create_item("user_tasks", record)
         if not success:
+            if is_slug_unique_violation(data):
+                raise DuplicateObjectSlugError("Task slug already exists in this workspace")
             logger.error("Failed to create user task: %s", data)
             return None
         created_wrappers: list[dict[str, Any]] = []
@@ -586,6 +607,8 @@ class UserTaskMethods:
         if not existing:
             return None
         update = dict(patch)
+        validate_encrypted_slug_metadata(update, record_label="Task")
+        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, exclude_row_id=existing.get("id"))
         key_wrappers = update.pop("key_wrappers", None)
         existing_wrappers: list[dict[str, Any]] = []
         created_wrappers: list[dict[str, Any]] = []
@@ -667,6 +690,8 @@ class UserTaskMethods:
             if not updated:
                 updated = await self._committed_task_after_empty_update(task_id, user_id, next_version)
             if not updated:
+                if is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                    raise DuplicateObjectSlugError("Task slug already exists in this workspace")
                 if not await self._delete_key_wrappers(created_wrappers):
                     raise RuntimeError("Failed to clean up new user task key wrappers")
                 await self._restore_task_key_wrappers(user_id, task_id, existing_wrappers)
@@ -682,7 +707,21 @@ class UserTaskMethods:
             owner_hash_field="hashed_user_id",
             owner_hash=hash_id(user_id),
         )
+        if not updated and is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+            raise DuplicateObjectSlugError("Task slug already exists in this workspace")
         return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version)
+
+    async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None) -> None:
+        if not slug_lookup_hash:
+            return
+        params = {
+            "filter": _slug_lookup_filter(user_id, slug_lookup_hash, exclude_row_id=exclude_row_id),
+            "fields": "id",
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        if rows and isinstance(rows, list):
+            raise DuplicateObjectSlugError("Task slug already exists in this workspace")
 
     async def _committed_task_after_empty_update(self, task_id: str, user_id: str, expected_version: int) -> dict[str, Any] | None:
         current = await self.get_task(task_id, user_id)

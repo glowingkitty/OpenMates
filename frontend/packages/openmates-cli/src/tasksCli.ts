@@ -24,6 +24,11 @@ import {
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
 } from "./crypto.js";
+import {
+  buildEncryptedObjectSlugMetadata,
+  decryptObjectSlug,
+  objectSlugMatches,
+} from "./objectSlugs.js";
 
 const TASK_STATUSES: UserTaskStatus[] = ["backlog", "todo", "in_progress", "blocked", "done"];
 const DEFAULT_STANDALONE_PREFIX = "TASK";
@@ -42,6 +47,7 @@ export interface DecryptedUserTask {
   canCancel?: boolean;
   canDelete?: boolean;
   shortId: string;
+  slug: string;
   title: string;
   description: string;
   labels: string[];
@@ -77,6 +83,7 @@ export interface TaskCreateOptions {
   planId?: string | null;
   dueAt?: number | null;
   priority?: TaskPriorityLevel | number | null;
+  slug?: string;
 }
 
 export interface TaskUpdateOptions {
@@ -94,6 +101,7 @@ export interface TaskUpdateOptions {
   projectIds?: string[];
   planId?: string | null;
   priority?: TaskPriorityLevel | number | null;
+  slug?: string;
 }
 
 export function normalizeTaskStatus(value: string | undefined): UserTaskStatus | undefined {
@@ -168,11 +176,18 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
   const linkedProjectIds = input.projectIds ?? [];
   const labels = normalizeLabels(input.labels ?? input.tags ?? []);
   const status = input.status ?? (assignee.assigneeType === "ai" && !input.dueAt ? "in_progress" : "todo");
+  const slugMetadata = await buildEncryptedObjectSlugMetadata({
+    value: input.slug ?? input.title,
+    encryptionKey: taskKey,
+    lookupKey: masterKey,
+  });
   return {
     task_id: randomUUIDCompat(),
     short_id: undefined,
     version: 1,
     encrypted_task_key: encryptedTaskKey,
+    encrypted_slug: slugMetadata.encrypted_slug,
+    slug_lookup_hash: slugMetadata.slug_lookup_hash,
     encrypted_title: await encryptWithAesGcmCombined(input.title, taskKey),
     encrypted_description: await encryptWithAesGcmCombined(input.description ?? "", taskKey),
     encrypted_labels: await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey),
@@ -198,6 +213,15 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
   const patch: UserTaskUpdateInput = { version: task.version, updated_at: nowSeconds() };
   if (input.title !== undefined) patch.encrypted_title = await encryptWithAesGcmCombined(input.title, taskKey);
   if (input.description !== undefined) patch.encrypted_description = await encryptWithAesGcmCombined(input.description, taskKey);
+  if (input.slug !== undefined) {
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({
+      value: input.slug,
+      encryptionKey: taskKey,
+      lookupKey: masterKey,
+    });
+    patch.encrypted_slug = slugMetadata.encrypted_slug;
+    patch.slug_lookup_hash = slugMetadata.slug_lookup_hash;
+  }
   if (input.status !== undefined) patch.status = input.status;
   if (input.assign !== undefined) {
     const assignee = parseAssignee(input.assign);
@@ -233,6 +257,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
   return {
     taskId: record.task_id,
     shortId: record.short_id || deriveShortId(record),
+    slug: await decryptObjectSlug(record.encrypted_slug, taskKey),
     title: await decryptOptional(record.encrypted_title, taskKey) || "(untitled task)",
     description: await decryptOptional(record.encrypted_description, taskKey),
     labels,
@@ -268,6 +293,7 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     canCancel: Boolean(record.can_cancel),
     canDelete: Boolean(record.can_delete),
     shortId: record.short_id || workflowProjectionShortId(record),
+    slug: "",
     title: record.title || "Workflow run",
     description: record.blocked_message ?? "",
     labels: [],
@@ -306,6 +332,9 @@ export async function decryptUserTasks(records: UserTaskRecord[], masterKey: Uin
 export function findTask(tasks: DecryptedUserTask[], id: string): DecryptedUserTask {
   const taskIdMatch = tasks.find((candidate) => candidate.taskId === id);
   if (taskIdMatch) return taskIdMatch;
+  const slugMatches = tasks.filter((candidate) => objectSlugMatches(candidate.slug, id));
+  if (slugMatches.length > 1) throw new Error(`Task slug '${id}' is ambiguous in the current task list. Use the full task ID.`);
+  if (slugMatches.length === 1) return slugMatches[0];
   const shortIdMatches = tasks.filter((candidate) => candidate.shortId === id);
   if (shortIdMatches.length > 1) throw new Error(`Task '${id}' is ambiguous in the current task list. Use the full task ID.`);
   const task = shortIdMatches[0];
@@ -315,17 +344,18 @@ export function findTask(tasks: DecryptedUserTask[], id: string): DecryptedUserT
 
 export function renderTaskList(tasks: DecryptedUserTask[]): string {
   if (tasks.length === 0) return "No tasks found.";
-  const lines = ["Tasks", "ID        Status       Priority  Labels              Title"];
+  const lines = ["Tasks", "Handle              Status       Priority  Labels              Title"];
   for (const task of tasks) {
-    lines.push(`${pad(task.shortId, 9)} ${pad(task.status, 12)} ${pad(task.priorityLevel, 9)} ${pad(task.labels.join(","), 19)} ${task.title}`);
+    lines.push(`${pad(taskHandle(task), 19)} ${pad(task.status, 12)} ${pad(task.priorityLevel, 9)} ${pad(task.labels.join(","), 19)} ${task.title}`);
   }
   return lines.join("\n");
 }
 
 export function renderTaskDetail(task: DecryptedUserTask): string {
   const lines = [
-    `Task ${task.shortId}`,
+    `Task ${taskHandle(task)}`,
     `Title: ${task.title}`,
+    ...(task.slug ? [`Slug: ${task.slug}`] : []),
     `Status: ${task.status}`,
     `Priority: ${task.priorityLevel}`,
     `Assignee: ${assigneeLabel(task)}`,
@@ -368,11 +398,15 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], width = process.stdo
 function boardColumnLines(tasks: DecryptedUserTask[], limit: number): string[] {
   if (tasks.length === 0) return ["No tasks here."];
   const visible = tasks.slice(0, limit).flatMap((task) => [
-    `[${task.shortId}] ${task.title}`,
+    `[${taskHandle(task)}] ${task.title}`,
     ` ${assigneeLabel(task)} ${task.queueState === "none" ? "" : task.queueState}`.trimEnd(),
   ]);
   if (tasks.length > limit) visible.push(`... ${tasks.length - limit} more`);
   return visible;
+}
+
+function taskHandle(task: DecryptedUserTask): string {
+  return task.slug || task.shortId;
 }
 
 function compareTasks(a: DecryptedUserTask, b: DecryptedUserTask): number {
@@ -388,7 +422,7 @@ function assigneeLabel(task: DecryptedUserTask): string {
   return task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
 }
 
-async function taskKeyFromRecord(record: UserTaskRecord, masterKey: Uint8Array): Promise<Uint8Array> {
+export async function taskKeyFromRecord(record: UserTaskRecord, masterKey: Uint8Array): Promise<Uint8Array> {
   if (!record.encrypted_task_key) throw new Error(`Task ${record.task_id} is missing encrypted task key.`);
   const taskKey = await decryptBytesWithAesGcm(record.encrypted_task_key, masterKey);
   if (!taskKey) throw new Error(`Failed to decrypt task key for ${record.task_id}.`);

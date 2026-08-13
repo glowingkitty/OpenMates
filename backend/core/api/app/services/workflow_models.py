@@ -214,6 +214,8 @@ class WorkflowSummary(BaseModel):
     id: str
     version: int = 1
     title: str
+    encrypted_slug: str | None = None
+    slug_lookup_hash: str | None = None
     description: str | None = None
     status: WorkflowStatus
     enabled: bool

@@ -5,6 +5,7 @@ Architecture: docs/specs/sdk-packages-v1/spec.yml.
 Security: SDK must not require email or explicit connect before calls.
 Run: python3 -m pytest packages/openmates-python/tests/test_sdk.py
 """
+# contract-test-file: tooling
 
 import base64
 import hashlib
@@ -18,6 +19,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from openmates import OpenMates, OpenMatesConfigError
 from openmates.chat_completion_recovery import seal_recovery_payload
+
+CHAT_ID = "11111111-1111-4111-8111-111111111111"
+PROJECT_ID = "22222222-2222-4222-8222-222222222222"
+WORKFLOW_ID = "33333333-3333-4333-8333-333333333333"
 
 
 def _b64(value: bytes) -> str:
@@ -754,7 +759,7 @@ def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
     created = client.tasks.create({"title": "Draft launch plan", "description": "Use project context"})
     assert created["title"] == "Draft launch plan"
     assert "encrypted" not in created
-    assert client.tasks.list(status="todo", chat_id="chat-1", project_id="project-1")[0]["task_id"] == created["task_id"]
+    assert client.tasks.list(status="todo", chat_id=CHAT_ID, project_id=PROJECT_ID)[0]["task_id"] == created["task_id"]
     assert client.tasks.update("TASK-1", {"status": "done", "title": "Draft launch plan done"})["title"] == "Draft launch plan done"
     assert client.tasks.start_ai("TASK-1")["status"] == "in_progress"
     created_path = f"/v1/user-tasks/{created['task_id']}"
@@ -768,7 +773,7 @@ def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
         if request["method"] != "POST" or not request["url"].endswith("/v1/sdk/session")
     ] == [
         ("POST", "/v1/user-tasks"),
-        ("GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1"),
+        ("GET", f"/v1/user-tasks?status=todo&chat_id={CHAT_ID}&project_id={PROJECT_ID}"),
         ("GET", "/v1/user-tasks"),
         ("PATCH", created_path),
         ("GET", "/v1/user-tasks"),
@@ -797,7 +802,7 @@ def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
             return FakeResponse({"change_sets": [{"change_set_id": "cs-1"}]})
         if url.endswith("/v1/workspace/history/cs-1"):
             return FakeResponse({"change_set": {"change_set_id": "cs-1"}, "entries": []})
-        if url.endswith("/v1/projects/project-1/history?limit=3"):
+        if url.endswith(f"/v1/projects/{PROJECT_ID}/history?limit=3"):
             return FakeResponse({"entries": [{"entry_id": "che-project"}]})
         raise AssertionError(f"Unexpected GET request: {url}")
 
@@ -807,8 +812,8 @@ def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/workspace/history/cs-1/undo"):
             return FakeResponse({"undone": True, "change_set_id": "undo-1"})
-        if url.endswith("/v1/workflows/wf-1/restore"):
-            return FakeResponse({"workflow": {"id": "wf-1"}, "history": {"change_set": {"change_set_id": "cs-restore"}}})
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/restore"):
+            return FakeResponse({"workflow": {"id": WORKFLOW_ID}, "history": {"change_set": {"change_set_id": "cs-restore"}}})
         if url.endswith("/v1/workflows/ask"):
             return FakeResponse({"applied": True, "change_set_id": "chg-ask", "changed_entries": []})
         raise AssertionError(f"Unexpected POST request: {url}")
@@ -820,16 +825,16 @@ def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
     assert client.history.list(object_type="task", object_id="task-1", limit=5) == [{"change_set_id": "cs-1"}]
     assert client.history.show("cs-1") == {"change_set": {"change_set_id": "cs-1"}, "entries": []}
     assert client.history.undo("cs-1") == {"undone": True, "change_set_id": "undo-1"}
-    assert client.projects.history("project-1", limit=3) == [{"entry_id": "che-project"}]
-    assert client.workflows.restore("wf-1", entry_id="che-workflow", state="before") == {"workflow": {"id": "wf-1"}, "history": {"change_set": {"change_set_id": "cs-restore"}}}
+    assert client.projects.history(PROJECT_ID, limit=3, personal=True) == [{"entry_id": "che-project"}]
+    assert client.workflows.restore(WORKFLOW_ID, entry_id="che-workflow", state="before") == {"workflow": {"id": WORKFLOW_ID}, "history": {"change_set": {"change_set_id": "cs-restore"}}}
     assert client.workflows.ask("Rain alert", create={"title": "Rain alert"}) == {"applied": True, "change_set_id": "chg-ask", "changed_entries": []}
 
     assert [(request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests] == [
         ("GET", "/v1/workspace/history?object_type=task&object_id=task-1&limit=5"),
         ("GET", "/v1/workspace/history/cs-1"),
         ("POST", "/v1/workspace/history/cs-1/undo"),
-        ("GET", "/v1/projects/project-1/history?limit=3"),
-        ("POST", "/v1/workflows/wf-1/restore"),
+        ("GET", f"/v1/projects/{PROJECT_ID}/history?limit=3"),
+        ("POST", f"/v1/workflows/{WORKFLOW_ID}/restore"),
         ("POST", "/v1/workflows/ask"),
     ]
     assert requests[2]["json"] == {}
@@ -837,8 +842,12 @@ def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
     assert requests[5]["json"] == {"instruction": "Rain alert", "create": {"title": "Rain alert"}}
 
 
+# contract-test: direct surface=sdks.pip assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
 def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
     requests = []
+    api_key = "sk-api-test"
+    master_key = bytes([15]) * 32
+    key_wrapper = _wrap_master_key(api_key, master_key)
     graph = {
         "version": 1,
         "trigger_node_id": "trigger",
@@ -846,7 +855,7 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
         "edges": [],
     }
     workflow = {
-        "id": "wf-1",
+        "id": WORKFLOW_ID,
         "title": "Morning",
         "status": "active",
         "enabled": True,
@@ -858,7 +867,7 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
     }
     run = {
         "id": "run-1",
-        "workflow_id": "wf-1",
+        "workflow_id": WORKFLOW_ID,
         "version_id": "v1",
         "trigger_type": "manual",
         "status": "completed",
@@ -892,7 +901,7 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
         if "/v1/workflows/template-projections/" in url:
             assert "Authorization" not in headers
         else:
-            assert headers["Authorization"] == "Bearer sk-api-test"
+            assert headers["Authorization"] == f"Bearer {api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
 
     def fake_get(url, *, headers, timeout):
@@ -903,11 +912,11 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
             return FakeResponse({"workflows": [{**workflow, "id": "wf-temp", "lifecycle": "temporary"}]})
         if url.endswith("/v1/workflows/capabilities"):
             return FakeResponse({"capabilities": [{"id": "weather:forecast", "type": "app_skill", "title": "Weather forecast", "enabled": True}]})
-        if url.endswith("/v1/workflows/wf-1"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}"):
             return FakeResponse({"workflow": workflow})
-        if url.endswith("/v1/workflows/wf-1/runs"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/runs"):
             return FakeResponse({"runs": [run]})
-        if url.endswith("/v1/workflows/wf-1/runs/run-1"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/runs/run-1"):
             return FakeResponse({"run": {**run, "node_runs": [{"id": "node-run-1", "output_summary": {"forecast": "rain"}}]}})
         if url.endswith("/v1/workflows/template-projections/tpl-1"):
             return FakeResponse({"template_id": "tpl-1", "ciphertext": "opaque-ciphertext", "projection_schema_version": 1})
@@ -919,31 +928,33 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         record("POST", url, json, headers)
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": key_wrapper})
         if url.endswith("/v1/workflows/validate"):
             return FakeResponse({"validation": {"draft_valid": True, "enable_ready": False, "diagnostics": []}})
-        if url.endswith("/v1/workflows/yaml") or url.endswith("/v1/workflows/wf-1/yaml"):
+        if url.endswith("/v1/workflows/yaml") or url.endswith(f"/v1/workflows/{WORKFLOW_ID}/yaml"):
             return FakeResponse({"workflow": workflow, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}})
         if url.endswith("/v1/workflows"):
             return FakeResponse({"workflow": {**workflow, **json}})
-        if url.endswith("/v1/workflows/wf-1/enable"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/enable"):
             return FakeResponse({"workflow": {**workflow, "enabled": True}})
-        if url.endswith("/v1/workflows/wf-1/disable"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/disable"):
             return FakeResponse({"workflow": {**workflow, "enabled": False}})
-        if url.endswith("/v1/workflows/wf-1/keep"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/keep"):
             return FakeResponse({"workflow": workflow})
-        if url.endswith("/v1/workflows/wf-1/run"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/run"):
             assert headers["Idempotency-Key"] == "stable-run-1"
             return FakeResponse({"run": {**run, "trigger_type": json["mode"], "content_storage": "ephemeral"}})
-        if url.endswith("/v1/workflows/wf-1/runs/run-1/cancel"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/runs/run-1/cancel"):
             return FakeResponse({"run_id": "run-1", "status": "cancellation_requested"})
-        if url.endswith("/v1/workflows/wf-1/runs/run-1/respond"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/runs/run-1/respond"):
             return FakeResponse({"run": run})
-        if url.endswith("/v1/workflows/wf-1/template-projection/revoke"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/template-projection/revoke"):
             return FakeResponse({"template_id": "tpl-1", "revoked_at": 1000})
-        if url.endswith("/v1/workflows/wf-1/template-projection/unrevoke"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/template-projection/unrevoke"):
             return FakeResponse({"template_id": "tpl-1", "revoked_at": None})
-        if url.endswith("/v1/workflows/wf-1/binding-requirements/complete"):
-            return FakeResponse({"workflow_id": "wf-1", "completed": True})
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}/binding-requirements/complete"):
+            return FakeResponse({"workflow_id": WORKFLOW_ID, "completed": True})
         if url.endswith("/v1/share/short-url"):
             return FakeResponse({"success": True, "expires_at": 999})
         if url.endswith("/v1/workflows/template-import"):
@@ -970,7 +981,7 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
         record("DELETE", url, json, headers)
         if url.endswith("/v1/share/short-url/Abc123XY"):
             return FakeResponse({"success": True, "revoked_at": 1000})
-        if url.endswith("/v1/workflows/wf-1"):
+        if url.endswith(f"/v1/workflows/{WORKFLOW_ID}"):
             return FakeResponse({"deleted": True})
         raise AssertionError(f"Unexpected DELETE: {url}")
 
@@ -980,61 +991,60 @@ def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.put", fake_put)
     monkeypatch.setattr("openmates.sdk.requests.delete", fake_delete)
 
-    client = OpenMates(api_key="sk-api-test")
-    assert client.workflows.list()[0]["id"] == "wf-1"
+    client = OpenMates(api_key=api_key)
+    assert client.workflows.list()[0]["id"] == WORKFLOW_ID
     assert client.workflows.temporary()[0]["id"] == "wf-temp"
     assert client.workflows.capabilities()[0]["id"] == "weather:forecast"
     assert client.workflows.validate_yaml("title: Morning\n")["draft_valid"] is True
-    assert client.workflows.create_from_yaml("title: Morning\n")["workflow"]["id"] == "wf-1"
-    assert client.workflows.update_from_yaml("wf-1", "title: Updated\n")["workflow"]["id"] == "wf-1"
-    assert client.workflows.create(title="Morning", graph=graph, enabled=True, run_content_retention="none", lifecycle="temporary", source="chat", source_chat_id="chat-1", created_by_assistant=True)["source_chat_id"] == "chat-1"
-    assert client.workflows.get("wf-1")["id"] == "wf-1"
-    assert client.workflows.update("wf-1", description="Updated desc", enabled=False, run_content_retention="last_5")["description"] == "Updated desc"
-    assert client.workflows.enable("wf-1")["enabled"] is True
-    assert client.workflows.disable("wf-1")["enabled"] is False
-    assert client.workflows.keep("wf-1")["id"] == "wf-1"
-    assert client.workflows.run("wf-1", idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["content_storage"] == "ephemeral"
-    assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
-    assert client.workflows.run_detail("wf-1", "run-1")["node_runs"][0]["output_summary"]["forecast"] == "rain"
-    assert client.workflows.cancel_run("wf-1", "run-1")["status"] == "cancellation_requested"
-    assert client.workflows.respond("wf-1", "run-1", "ask", {"answer": "Berlin"})["status"] == "completed"
-    assert client.workflows.upsert_template_projection(workflow_id="wf-1", template_id="tpl-1", source_version=2, ciphertext="opaque-ciphertext", ciphertext_checksum="sha256:abc", owner_wrapped_key="wrapped-key", projection_schema_version=1)["updated_at"] == 123
+    assert client.workflows.create_from_yaml("title: Morning\n")["workflow"]["id"] == WORKFLOW_ID
+    assert client.workflows.update_from_yaml(WORKFLOW_ID, "title: Updated\n")["workflow"]["id"] == WORKFLOW_ID
+    assert client.workflows.create(title="Morning", graph=graph, enabled=True, run_content_retention="none", lifecycle="temporary", source="chat", source_chat_id=CHAT_ID, created_by_assistant=True)["source_chat_id"] == CHAT_ID
+    assert client.workflows.get(WORKFLOW_ID)["id"] == WORKFLOW_ID
+    assert client.workflows.update(WORKFLOW_ID, description="Updated desc", enabled=False, run_content_retention="last_5")["description"] == "Updated desc"
+    assert client.workflows.enable(WORKFLOW_ID)["enabled"] is True
+    assert client.workflows.disable(WORKFLOW_ID)["enabled"] is False
+    assert client.workflows.keep(WORKFLOW_ID)["id"] == WORKFLOW_ID
+    assert client.workflows.run(WORKFLOW_ID, idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["content_storage"] == "ephemeral"
+    assert client.workflows.runs(WORKFLOW_ID)[0]["id"] == "run-1"
+    assert client.workflows.run_detail(WORKFLOW_ID, "run-1")["node_runs"][0]["output_summary"]["forecast"] == "rain"
+    assert client.workflows.cancel_run(WORKFLOW_ID, "run-1")["status"] == "cancellation_requested"
+    assert client.workflows.respond(WORKFLOW_ID, "run-1", "ask", {"answer": "Berlin"})["status"] == "completed"
+    assert client.workflows.upsert_template_projection(workflow_id=WORKFLOW_ID, template_id="tpl-1", source_version=2, ciphertext="opaque-ciphertext", ciphertext_checksum="sha256:abc", owner_wrapped_key="wrapped-key", projection_schema_version=1)["updated_at"] == 123
     assert client.workflows.get_public_template_projection("tpl-1")["ciphertext"] == "opaque-ciphertext"
-    assert client.workflows.revoke_template_projection("wf-1")["revoked_at"] == 1000
-    assert client.workflows.unrevoke_template_projection("wf-1")["revoked_at"] is None
-    assert client.workflows.complete_imported_binding("wf-1", binding_type="connected_account", node_id="weather")["completed"] is True
+    assert client.workflows.revoke_template_projection(WORKFLOW_ID)["revoked_at"] == 1000
+    assert client.workflows.unrevoke_template_projection(WORKFLOW_ID)["revoked_at"] is None
+    assert client.workflows.complete_imported_binding(WORKFLOW_ID, binding_type="connected_account", node_id="weather")["completed"] is True
     assert client.workflows.create_template_short_url(token="Abc123XY", encrypted_url="opaque-url", template_id="tpl-1", ttl_seconds=3600)["expires_at"] == 999
     assert client.workflows.revoke_short_url("Abc123XY")["revoked_at"] == 1000
     assert client.workflows.import_template(template_payload)["id"] == "wf-imported"
-    assert client.workflows.delete("wf-1", confirmed=True)["deleted"] is True
-    assert client.workflows.start_input(text="alert me if it rains", selected_project_id="project-1")["session_id"] == "session-1"
+    assert client.workflows.delete(WORKFLOW_ID, confirmed=True)["deleted"] is True
+    assert client.workflows.start_input(text="alert me if it rains", selected_project_id=PROJECT_ID)["session_id"] == "session-1"
     assert client.workflows.input_session("session-1")["status"] == "executed"
     assert client.workflows.input_events("session-1", after_event_id=2)[0]["type"] == "validation_passed"
     assert client.workflows.follow_up_input("session-1", "weekdays only")["event_cursor"] == 7
     assert client.workflows.stop_input("session-1")["status"] == "stopped"
     assert client.workflows.undo_input("session-1")["status"] == "undone"
 
-    assert [(request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests[:8]] == [
+    endpoints = [(request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests]
+    for endpoint in [
         ("GET", "/v1/workflows"),
         ("GET", "/v1/workflows/temporary"),
         ("GET", "/v1/workflows/capabilities"),
         ("POST", "/v1/workflows/validate"),
         ("POST", "/v1/workflows/yaml"),
-        ("POST", "/v1/workflows/wf-1/yaml"),
+        ("POST", f"/v1/workflows/{WORKFLOW_ID}/yaml"),
+        ("POST", "/v1/sdk/session"),
         ("POST", "/v1/workflows"),
-        ("GET", "/v1/workflows/wf-1"),
-    ]
-    assert requests[6]["json"] == {
-        "title": "Morning",
-        "graph": graph,
-        "enabled": True,
-        "run_content_retention": "none",
-        "lifecycle": "temporary",
-        "source": "chat",
-        "created_by_assistant": True,
-        "source_chat_id": "chat-1",
-    }
-    assert requests[8]["json"] == {"description": "Updated desc", "enabled": False, "run_content_retention": "last_5"}
+        ("GET", f"/v1/workflows/{WORKFLOW_ID}"),
+    ]:
+        assert endpoint in endpoints
+    create_request = next(request for request in requests if request["method"] == "POST" and request["url"].endswith("/v1/workflows") and request["json"].get("title") == "Morning")
+    assert create_request["json"]["source_chat_id"] == CHAT_ID
+    assert isinstance(create_request["json"].get("encrypted_slug"), str)
+    assert isinstance(create_request["json"].get("slug_lookup_hash"), str)
+    assert "slug" not in create_request["json"]
+    update_request = next(request for request in requests if request["method"] == "PATCH" and request["url"].endswith(f"/v1/workflows/{WORKFLOW_ID}"))
+    assert update_request["json"] == {"description": "Updated desc", "enabled": False, "run_content_retention": "last_5"}
 
 
 def test_new_chat_defaults_to_non_persistent(monkeypatch):
@@ -1417,6 +1427,7 @@ def test_lists_latest_encrypted_account_chats(monkeypatch):
     assert requests_seen[0]["headers"]["X-OpenMates-SDK"] == "pip"
 
 
+# contract-test: direct surface=sdks.pip assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
 def test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata(monkeypatch):
     api_key = "sk-api-python-test"
     master_key = os.urandom(32)
@@ -1468,6 +1479,7 @@ def test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata(monkeypatch):
     ]
 
 
+# contract-test: direct surface=sdks.pip assertions=cli.slugs.local-resolution-id-transport,chats.persistence.client-encrypted,chats.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
 def test_searches_decrypted_chat_metadata_locally(monkeypatch):
     api_key = "sk-api-python-search"
     master_key = os.urandom(32)
@@ -1548,7 +1560,7 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     def fake_get(url, *, headers, timeout):
         requests_seen.append(("GET", url))
         return FakeResponse({
-            "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title},
+            "chat": {"id": CHAT_ID, "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title},
             "messages": [{"id": "message-1", "encrypted_content": encrypted_content, "encrypted_sender_name": encrypted_sender}],
             "embeds": [{
                 "embed_id": "embed-1",
@@ -1567,7 +1579,7 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
     client = OpenMates(api_key=api_key)
-    loaded = client.chats.load("chat-1")
+    loaded = client.chats.load(CHAT_ID)
 
     assert loaded["chat"]["title"] == "Loaded Python SDK chat"
     assert loaded["messages"][0]["content"] == "Hello from encrypted Python storage"
@@ -1577,7 +1589,7 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     assert loaded["embeds"][0]["content"] == {"result": 4}
     assert loaded["embeds"][0]["text_preview"] == "2 + 2 = 4"
     assert requests_seen == [
-        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
+        ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
     ]
 
@@ -1604,22 +1616,22 @@ def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monke
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append(("GET", url, None))
-        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/messages?direction=latest&limit=30":
+        if url == f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/messages?direction=latest&limit=30":
             return FakeResponse({
-                "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
+                "chat": {"id": CHAT_ID, "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
                 "messages": [
-                    {"client_message_id": "user-1", "chat_id": "chat-1", "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
-                    {"client_message_id": "assistant-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
+                    {"client_message_id": "user-1", "chat_id": CHAT_ID, "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
+                    {"client_message_id": "assistant-1", "chat_id": CHAT_ID, "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
                 ],
                 "has_more_before": True,
                 "server_message_count": 200,
             })
-        assert url == "https://api.openmates.org/v1/sdk/chats/chat-1"
+        assert url == f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"
         return FakeResponse({
-            "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
+            "chat": {"id": CHAT_ID, "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
             "messages": [
-                {"client_message_id": "user-1", "chat_id": "chat-1", "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
-                {"client_message_id": "assistant-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
+                {"client_message_id": "user-1", "chat_id": CHAT_ID, "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
+                {"client_message_id": "assistant-1", "chat_id": CHAT_ID, "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
             ],
         })
 
@@ -1627,12 +1639,12 @@ def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monke
         requests_seen.append(("POST", url, json))
         if url == "https://api.openmates.org/v1/sdk/session":
             return FakeResponse({"key_wrapper": key_wrapper})
-        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/fork":
+        if url == f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/fork":
             assert "First question" not in json_module.dumps(json)
             assert "First answer" not in json_module.dumps(json)
             assert len(json["encrypted_messages"]) == 2
             return FakeResponse({"success": True, "chat_id": json["new_chat_id"], "copied_message_count": 2, "messages_v": 2})
-        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/rewind":
+        if url == f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/rewind":
             assert json == {
                 "protocol_version": 1,
                 "to_message_id": "user-1",
@@ -1640,30 +1652,30 @@ def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monke
                 "dry_run": True,
                 "confirm_destructive": False,
             }
-            return FakeResponse({"success": True, "dry_run": True, "chat_id": "chat-1", "planned_deleted_message_count": 1, "messages_v": 2})
+            return FakeResponse({"success": True, "dry_run": True, "chat_id": CHAT_ID, "planned_deleted_message_count": 1, "messages_v": 2})
         raise AssertionError(f"unexpected POST {url}")
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
     client = OpenMates(api_key=api_key)
-    listed = client.chats.messages(chat_id="chat-1")
+    listed = client.chats.messages(chat_id=CHAT_ID)
     assert listed["messages"][0]["content"] == "First question"
     assert listed["messages"][1]["preview"] == "First answer"
     assert listed["has_more_before"] is True
     assert listed["server_message_count"] == 200
-    forked = client.chats.fork(chat_id="chat-1", from_message_id="assistant-1", title="Forked")
+    forked = client.chats.fork(chat_id=CHAT_ID, from_message_id="assistant-1", title="Forked")
     assert forked["copied_message_count"] == 2
-    rewind = client.chats.rewind(chat_id="chat-1", to_message_id="user-1", dry_run=True)
+    rewind = client.chats.rewind(chat_id=CHAT_ID, to_message_id="user-1", dry_run=True)
     assert rewind["dry_run"] is True
 
     assert [(method, url) for method, url, _body in requests_seen] == [
-        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1/messages?direction=latest&limit=30"),
+        ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/messages?direction=latest&limit=30"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
-        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
-        ("POST", "https://api.openmates.org/v1/sdk/chats/chat-1/fork"),
-        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
-        ("POST", "https://api.openmates.org/v1/sdk/chats/chat-1/rewind"),
+        ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
+        ("POST", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/fork"),
+        ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
+        ("POST", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/rewind"),
     ]
 
 
@@ -1712,10 +1724,10 @@ def test_chat_messages_all_true_uses_full_history_route(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append(("GET", url))
-        assert url == "https://api.openmates.org/v1/sdk/chats/chat-1"
+        assert url == f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"
         return FakeResponse({
-            "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key},
-            "messages": [{"client_message_id": "message-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_content, "created_at": 1}],
+            "chat": {"id": CHAT_ID, "encrypted_chat_key": encrypted_chat_key},
+            "messages": [{"client_message_id": "message-1", "chat_id": CHAT_ID, "role": "assistant", "encrypted_content": encrypted_content, "created_at": 1}],
         })
 
     def fake_post(url, *, json, headers, timeout):
@@ -1725,12 +1737,12 @@ def test_chat_messages_all_true_uses_full_history_route(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
-    result = OpenMates(api_key=api_key).chats.messages(chat_id="chat-1", all=True)
+    result = OpenMates(api_key=api_key).chats.messages(chat_id=CHAT_ID, all=True)
 
     assert result["messages"][0]["content"] == "Full history message"
     assert result["has_more_before"] is False
     assert requests_seen == [
-        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
+        ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
     ]
 
@@ -1764,7 +1776,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.account.info()
     client.account.set_timezone("Europe/Berlin")
     client.chats.search("Madrid", limit=5)
-    client.chats.load("chat-1")
+    client.chats.load(CHAT_ID)
     client.settings.set_dark_mode(True)
     client.billing.list_invoices()
     client.docs.search("sdk")
@@ -1781,7 +1793,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/account/timezone"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats?limit=0&offset=0"},
-        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats/chat-1"},
+        {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/settings/dark-mode"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/invoices"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/docs/search?q=sdk"},
@@ -1812,8 +1824,8 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
-        if url.endswith("/v1/sdk/chats/chat-1"):
-            return FakeResponse({"chat": {"id": "chat-1"}, "messages": []})
+        if url.endswith(f"/v1/sdk/chats/{CHAT_ID}"):
+            return FakeResponse({"chat": {"id": CHAT_ID}, "messages": []})
         return FakeResponse()
 
     def fake_post(url, *, json, headers, timeout):
@@ -1824,8 +1836,8 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
     client = OpenMates(api_key="sk-api-test")
-    client.chats.follow_ups("chat-1")
-    client.chats.export("chat-1")
+    client.chats.follow_ups(CHAT_ID)
+    client.chats.export(CHAT_ID)
     client.account.list_interests()
     client.memories.types(app_id="code")
     client.billing.usage_overview(granularity="monthly", months=2)
@@ -1842,9 +1854,9 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         client.settings.share_debug_logs(confirmed=True)
 
     assert requests_seen == [
-        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats/chat-1"},
-        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats/chat-1"},
-        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/chats/chat-1/export"},
+        {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
+        {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
+        {"method": "POST", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/export"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/overview?granularity=monthly&months=2"},

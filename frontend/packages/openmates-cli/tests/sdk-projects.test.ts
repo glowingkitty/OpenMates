@@ -16,6 +16,10 @@ import { createApiKeyCryptoMaterial, decryptWithAesGcmCombined, encryptBytesWith
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
+const WORKFLOW_ID = "33333333-3333-4333-8333-333333333333";
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -46,6 +50,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK Projects", () => {
+  // contract-test: direct surface=sdks.npm assertions=projects.access.explicit-context,projects.lifecycle.encrypted-crud,projects.keys.client-wrapped,projects.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("provides explicit Personal and Team encrypted CRUD without live file methods", async () => {
     const masterKey = Buffer.alloc(32, 3);
     const teamKey = Buffer.alloc(32, 4);
@@ -126,6 +131,7 @@ describe("OpenMates SDK Projects", () => {
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=projects.links.openmates-only-encrypted,projects.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("links and unlinks embeds, chats, and workflows as OpenMates-only Project items", async () => {
     const masterKey = Buffer.alloc(32, 9);
     const projectKey = Buffer.alloc(32, 8);
@@ -135,7 +141,7 @@ describe("OpenMates SDK Projects", () => {
     const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
     const encryptedTitle = await encryptWithAesGcmCombined("Planning Chat", chatKey);
     const workflow = {
-      id: "workflow-1",
+      id: WORKFLOW_ID,
       title: "Release Workflow",
       description: "Ship safely",
       status: "draft",
@@ -152,54 +158,57 @@ describe("OpenMates SDK Projects", () => {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
         }
         if (request.method === "GET" && request.url === "/v1/projects?include_archived=true") {
-          return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
+          return { projects: [{ project_id: PROJECT_ID, encrypted_project_key: encryptedProjectKey }] };
         }
-        if (request.method === "GET" && request.url === "/v1/projects/project-1") {
-          return { project: { project_id: "project-1", encrypted_project_key: encryptedProjectKey } };
+        if (request.method === "GET" && request.url === `/v1/projects/${PROJECT_ID}`) {
+          return { project: { project_id: PROJECT_ID, encrypted_project_key: encryptedProjectKey } };
         }
         if (request.method === "GET" && request.url === "/v1/projects?include_archived=false") {
-          return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
+          return { projects: [{ project_id: PROJECT_ID, encrypted_project_key: encryptedProjectKey }] };
         }
-        if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
-          return { chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, updated_at: 200 }, messages: [] };
+        if (request.method === "GET" && request.url === "/v1/sdk/chats?limit=0") {
+          return { chats: [{ id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, updated_at: 200 }] };
         }
-        if (request.method === "GET" && request.url === "/v1/workflows/workflow-1") return { workflow };
-        if (request.method === "POST" && request.url === "/v1/projects/project-1/items") return { item: { ...(body as Record<string, unknown>) } };
-        if (request.method === "DELETE" && request.url?.startsWith("/v1/projects/project-1/items?")) return { deleted: true, deleted_count: 1 };
+        if (request.method === "GET" && request.url === `/v1/sdk/chats/${CHAT_ID}`) {
+          return { chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, updated_at: 200 }, messages: [] };
+        }
+        if (request.method === "GET" && request.url === `/v1/workflows/${WORKFLOW_ID}`) return { workflow };
+        if (request.method === "POST" && request.url === `/v1/projects/${PROJECT_ID}/items`) return { item: { ...(body as Record<string, unknown>) } };
+        if (request.method === "DELETE" && request.url?.startsWith(`/v1/projects/${PROJECT_ID}/items?`)) return { deleted: true, deleted_count: 1 };
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
-        assert.equal((await client.projects.list({ includeArchived: false, personal: true }))[0]?.projectId, "project-1");
+        assert.equal((await client.projects.list({ includeArchived: false, personal: true }))[0]?.projectId, PROJECT_ID);
 
-        const chatLink = await client.chats.addToProject("chat-1", "project-1", { folder: "folder-1" });
+        const chatLink = await client.chats.addToProject(CHAT_ID, PROJECT_ID, { folder: "folder-1" });
         assert.equal(chatLink.item_type, "chat");
         assert.equal(chatLink.folder_id, "folder-1");
         assert.equal("targetMode" in chatLink, false);
         assert.equal("remoteCopyProposal" in chatLink, false);
 
-        const workflowLink = await client.workflows.addToProject("workflow-1", "project-1");
+        const workflowLink = await client.workflows.addToProject(WORKFLOW_ID, PROJECT_ID);
         assert.equal(workflowLink.item_type, "workflow");
         assert.equal("targetMode" in workflowLink, false);
         assert.equal("remoteCopyProposal" in workflowLink, false);
 
-        const embedLink = await client.embeds.addToProject("embed-1", "project-1");
+        const embedLink = await client.embeds.addToProject("embed-1", PROJECT_ID);
         assert.equal(embedLink.item_type, "embed");
         assert.equal("targetMode" in embedLink, false);
         assert.equal("remoteCopyProposal" in embedLink, false);
 
-        assert.deepEqual(await client.chats.removeFromProject("chat-1", "project-1"), { deleted: true, deletedCount: 1 });
-        assert.deepEqual(await client.workflows.removeFromProject("workflow-1", "project-1"), { deleted: true, deletedCount: 1 });
-        assert.deepEqual(await client.embeds.removeFromProject("embed-1", "project-1"), { deleted: true, deletedCount: 1 });
+        assert.deepEqual(await client.chats.removeFromProject(CHAT_ID, PROJECT_ID), { deleted: true, deletedCount: 1 });
+        assert.deepEqual(await client.workflows.removeFromProject(WORKFLOW_ID, PROJECT_ID), { deleted: true, deletedCount: 1 });
+        assert.deepEqual(await client.embeds.removeFromProject("embed-1", PROJECT_ID), { deleted: true, deletedCount: 1 });
 
         const itemBodies = seen
-          .filter((request) => request.method === "POST" && request.url === "/v1/projects/project-1/items")
+          .filter((request) => request.method === "POST" && request.url === `/v1/projects/${PROJECT_ID}/items`)
           .map((request) => request.body as Record<string, string>);
         const metadata = await decryptWithAesGcmCombined(itemBodies[0].encrypted_metadata, projectKey);
         assert.deepEqual(JSON.parse(metadata ?? "{}"), { storage: "save_only_in_openmates", source: "sdk_add_to_project" });
         const deleteUrls = seen.filter((request) => request.method === "DELETE").map((request) => request.url ?? "");
-        assert.ok(deleteUrls.some((url) => url.includes("item_type=chat") && url.includes("target_id=chat-1")));
-        assert.ok(deleteUrls.some((url) => url.includes("item_type=workflow") && url.includes("target_id=workflow-1")));
+        assert.ok(deleteUrls.some((url) => url.includes("item_type=chat") && url.includes(`target_id=${CHAT_ID}`)));
+        assert.ok(deleteUrls.some((url) => url.includes("item_type=workflow") && url.includes(`target_id=${WORKFLOW_ID}`)));
         assert.ok(deleteUrls.some((url) => url.includes("item_type=embed") && url.includes("target_id=embed-1")));
         assert.equal(seen.some((request) => request.url?.includes("/sources")), false);
       },

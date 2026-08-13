@@ -11,7 +11,7 @@ import hashlib
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -29,6 +29,7 @@ from backend.core.api.app.routes.sdk import (
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
 router = APIRouter(prefix="/v1", tags=["Chats"])
@@ -41,6 +42,8 @@ MAX_MESSAGE_WINDOW_LIMIT = 100
 class ChatMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
 
 
@@ -52,6 +55,8 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": chat.get("id"),
         "encrypted_title": chat.get("encrypted_title"),
+        "encrypted_slug": chat.get("encrypted_slug"),
+        "slug_lookup_hash": chat.get("slug_lookup_hash"),
         "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
@@ -267,6 +272,8 @@ async def fork_chat(
     chat_metadata = _validate_encrypted_fork_payload(body, len(source_slice), hashed_user_id)
     try:
         created_chat, existed = await request.app.state.directus_service.chat.create_chat_in_directus(chat_metadata)
+    except DuplicateObjectSlugError as exc:
+        raise HTTPException(status_code=409, detail={"error": "slug_already_exists"}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail={"error": "encrypted_history_required"}) from exc
     if existed:
@@ -391,8 +398,12 @@ async def move_chat_to_team(
             workspace_type="chat",
             object_id=chat_id,
             confirmed=body.confirmed,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
+    except DuplicateObjectSlugError as exc:
+        raise HTTPException(status_code=409, detail="CHAT_SLUG_CONFLICT") from exc
     except TeamPermissionError as exc:
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     except TeamWorkspaceMoveError as exc:

@@ -107,6 +107,22 @@ PROJECT_OWNER_CONTEXT_INDEXES = (
     'project_items_team_project_idx',
     'project_settings_team_project_idx',
 )
+ENCRYPTED_SLUG_MIGRATION_PATH = os.getenv(
+    'ENCRYPTED_SLUG_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql',
+)
+ENCRYPTED_SLUG_INDEXES = (
+    'workflows_personal_slug_hash_uq',
+    'workflows_team_slug_hash_uq',
+    'projects_personal_slug_hash_uq',
+    'projects_team_slug_hash_uq',
+    'user_tasks_personal_slug_hash_uq',
+    'user_tasks_team_slug_hash_uq',
+    'user_plans_personal_slug_hash_uq',
+    'user_plans_team_slug_hash_uq',
+    'chats_personal_slug_hash_uq',
+    'chats_team_slug_hash_uq',
+)
 SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
     'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
@@ -1211,6 +1227,38 @@ def apply_and_verify_project_owner_context():
     print(f"Verified {len(PROJECT_OWNER_CONTEXT_INDEXES)} Project owner-context indexes")
 
 
+def apply_and_verify_encrypted_slug_indexes():
+    """Apply and require owner/team scoped encrypted slug duplicate guards."""
+    if not os.path.isfile(ENCRYPTED_SLUG_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required encrypted slug migration is missing: {ENCRYPTED_SLUG_MIGRATION_PATH}"
+        )
+    with open(ENCRYPTED_SLUG_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(ENCRYPTED_SLUG_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(ENCRYPTED_SLUG_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Encrypted slug index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(ENCRYPTED_SLUG_INDEXES)} encrypted slug indexes")
+
+
 def apply_and_verify_sub_chat_orchestration_indexes():
     """Apply and require durable sub-chat orchestration identity indexes."""
     if not os.path.isfile(SUB_CHAT_ORCHESTRATION_MIGRATION_PATH):
@@ -1378,6 +1426,9 @@ def setup_schemas():
 
         print("\n--- Applying Project owner-context migration ---")
         apply_and_verify_project_owner_context()
+
+        print("\n--- Applying encrypted slug duplicate indexes ---")
+        apply_and_verify_encrypted_slug_indexes()
 
         print("\n--- Applying sub-chat orchestration database indexes ---")
         apply_and_verify_sub_chat_orchestration_indexes()

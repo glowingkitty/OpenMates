@@ -199,6 +199,17 @@ contracts:
     fingerprint: 5c4d4954d1714eb6d492b0da4f5d11ed199c0950631ed6ba6ea21d011e00bb11
     required_surfaces:
     - gui.web
+  surface.cli:
+    version: 1
+    status: draft
+    path: surfaces/cli
+    fingerprint: c81cf22357b99e260947304f2b0df39d9f1cb5654370831a4aced1aa6ea8007d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   surface.sdk:
     version: 1
     status: draft
@@ -1746,6 +1757,50 @@ assertions:
     type: behavior
     fingerprint: f95ed3f29dcb259118a530ad56646f2560f7b429ae017d98355b5a7e6dbfd187
     required_surfaces:
+    - gui.web
+  cli.slugs.encrypted-stable:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: privacy
+    fingerprint: 0e53a72dc329c50012b8f1acba8e2a8b0bce3859376678efaa0ce1220e2a5be7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.slugs.local-resolution-id-transport:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: security
+    fingerprint: bbe9f50f040a4424bf42653c8d5d97e6e0d9630cad7fe4e6ff149e32c502f224
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.output.actionable-readable:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: behavior
+    fingerprint: f83a1886aeb904c239067956264679438c2e4d234cf260ecb07686d80fbc1192
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.surface.semantic-parity:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: parity
+    fingerprint: 5a9531c70c46d311f83ec2658e9f7caa0c9fe140af5dcb5f6366679ff6be747b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
   sdk.auth.approved-api-key-device:
     contract: surface.sdk@1

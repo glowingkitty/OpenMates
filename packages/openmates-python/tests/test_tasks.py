@@ -7,12 +7,13 @@ Run: python3 -m pytest packages/openmates-python/tests/test_tasks.py
 """
 
 from openmates import OpenMates
-from openmates.sdk import _create_api_key_material
+from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
 def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     master_key = bytes([7]) * 32
+    project_key = bytes([8]) * 32
     api_key, material = _create_api_key_material("sdk task parity", master_key)
     requests_seen = []
     stored_task = None
@@ -29,6 +30,12 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     def fake_get(url, *, headers, timeout):
         assert headers["Authorization"] == f"Bearer {api_key}"
         requests_seen.append({"method": "GET", "url": url})
+        if url.endswith("/v1/projects?include_archived=true"):
+            return FakeResponse({"projects": [{
+                "project_id": "project-1",
+                "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key),
+                "encrypted_name": _encrypt_aes_gcm_text("Project", project_key),
+            }]})
         return FakeResponse({"tasks": [stored_task] if stored_task else []})
 
     def fake_post(url, *, json, headers, timeout):

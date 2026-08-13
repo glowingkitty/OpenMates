@@ -109,7 +109,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.chats.retry()` | `om.chats.retry()` | `id, dry_run, confirmed` | `id, dry_run, confirmed` | `object` |
 | `om.chats.rewind()` | `om.chats.rewind()` | `id, to_message_id, send, dry_run, confirmed` | `id, to_message_id, send, dry_run, confirmed` | `object` |
 | `om.chats.search()` | `om.chats.search()` | `input, limit, offset` | `input, limit, offset` | `list` |
-| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, title, goal, goal_title, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs` | `message, history, save_to_account, focus_mode, memory_ids, model, id, title, goal, goal_title, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
+| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, slug, title, goal, goal_title, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs` | `message, history, save_to_account, focus_mode, memory_ids, model, id, slug, title, goal, goal_title, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
 | `om.chats.share()` | `om.chats.share()` | `id, expires, password` | `id, expires, password` | `object` |
 
 ## `connected_accounts`
@@ -269,11 +269,11 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | --- | --- | --- | --- | --- |
 | `om.projects.archive()` | `om.projects.archive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.ask()` | `om.projects.ask()` | `instruction, create, update, updates, exact_delete, exact_deletes` | `instruction, create, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.projects.create()` | `om.projects.create()` | `name, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
+| `om.projects.create()` | `om.projects.create()` | `name, slug, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
 | `om.projects.delete()` | `om.projects.delete()` | `id, confirmed` | `id, confirmed, personal, team_id` | `object` |
-| `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit` | `list` |
+| `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit, personal, team_id` | `list` |
 | `om.projects.list()` | `om.projects.list()` | `include_archived` | `personal, team_id, include_archived` | `list` |
-| `om.projects.restore()` | `om.projects.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
+| `om.projects.restore()` | `om.projects.restore()` | `id, entry_id, state` | `id, entry_id, state, personal, team_id` | `object` |
 | `om.projects.show()` | `om.projects.show()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.unarchive()` | `om.projects.unarchive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.update()` | `om.projects.update()` | `id, input, context` | `id, input, personal, team_id` | `object` |
@@ -356,7 +356,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.cancelRun()` | `om.workflows.cancel_run()` | `id, run_id` | `id, run_id` | `object` |
 | `om.workflows.capabilities()` | `om.workflows.capabilities()` | `none` | `none` | `list` |
 | `om.workflows.completeImportedBinding()` | `om.workflows.complete_imported_binding()` | `id, input` | `id, binding_type, node_id` | `object` |
-| `om.workflows.create()` | `om.workflows.create()` | `title, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `title, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `object` |
+| `om.workflows.create()` | `om.workflows.create()` | `title, slug, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `title, description, graph, enabled, run_content_retention, lifecycle, source, slug, source_chat_id, created_by_assistant, auto_delete_at` | `object` |
 | `om.workflows.createFromYaml()` | `om.workflows.create_from_yaml()` | `source` | `source` | `object` |
 | `om.workflows.createTemplateShortUrl()` | `om.workflows.create_template_short_url()` | `input` | `token, encrypted_url, template_id, ttl_seconds, password_protected` | `object` |
 | `om.workflows.delete()` | `om.workflows.delete()` | `id, confirmed` | `id, confirmed` | `object` |
@@ -385,7 +385,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.temporary()` | `om.workflows.temporary()` | `none` | `none` | `list` |
 | `om.workflows.undoInput()` | `om.workflows.undo_input()` | `session_id` | `session_id` | `object` |
 | `om.workflows.unrevokeTemplateProjection()` | `om.workflows.unrevoke_template_projection()` | `id` | `id` | `object` |
-| `om.workflows.update()` | `om.workflows.update()` | `id, title, description, graph, enabled, run_content_retention` | `id, title, description, graph, enabled, run_content_retention` | `object` |
+| `om.workflows.update()` | `om.workflows.update()` | `id, title, slug, description, graph, enabled, run_content_retention` | `id, title, description, graph, enabled, run_content_retention, slug` | `object` |
 | `om.workflows.updateFromYaml()` | `om.workflows.update_from_yaml()` | `id, source` | `id, source` | `object` |
 | `om.workflows.upsertTemplateProjection()` | `om.workflows.upsert_template_projection()` | `id, input` | `id, template_id, source_version, ciphertext, ciphertext_checksum, owner_wrapped_key, projection_schema_version` | `object` |
 | `om.workflows.validateYaml()` | `om.workflows.validate_yaml()` | `source` | `source` | `object` |

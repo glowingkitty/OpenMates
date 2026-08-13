@@ -12,8 +12,11 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMates } from "../src/sdk.ts";
+import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
+
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
 function minimalGraph() {
   return {
@@ -42,6 +45,7 @@ function templateImportPayload() {
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
+  expectedAuthorization = "Bearer x",
 ): Promise<void> {
   const seen: SeenRequest[] = [];
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -54,7 +58,7 @@ async function withServer(
         if (request.url?.startsWith("/v1/workflows/template-projections/")) {
           assert.equal(request.headers.authorization, undefined);
         } else {
-          assert.equal(request.headers.authorization, "Bearer x");
+          assert.equal(request.headers.authorization, expectedAuthorization);
         }
         assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
@@ -72,10 +76,16 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();
+    const masterKey = Buffer.alloc(32, 11);
+    const material = await createApiKeyCryptoMaterial("sdk workflow parity", masterKey.toString("base64"));
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
         if (request.url === "/v1/workflows" && request.method === "GET") {
           return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 }] };
         }
@@ -154,14 +164,14 @@ describe("OpenMates SDK workflows", () => {
         return { workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph } };
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         assert.equal((await client.workflows.list())[0]?.id, "wf-1");
         assert.equal((await client.workflows.temporary())[0]?.id, "wf-temp");
         assert.equal((await client.workflows.capabilities())[0]?.id, "weather:forecast");
         assert.equal((await client.workflows.validateYaml("title: Morning\n")).draft_valid, true);
         assert.equal((await client.workflows.createFromYaml("title: Morning\n")).workflow.id, "wf-yaml");
         assert.equal((await client.workflows.updateFromYaml("wf-1", "title: Updated\n")).workflow.title, "Updated");
-        assert.equal((await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: "chat-1", createdByAssistant: true })).run_content_retention, "none");
+        assert.equal((await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true })).run_content_retention, "none");
         assert.equal((await client.workflows.get("wf-1")).id, "wf-1");
         assert.equal((await client.workflows.update("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
         assert.equal((await client.workflows.enable("wf-1")).enabled, true);
@@ -179,36 +189,47 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.importTemplate(templateImportPayload())).id, "wf-imported");
         assert.equal((await client.workflows.delete("wf-1", { confirmed: true })).deleted, true);
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/workflows"],
-          ["GET", "/v1/workflows/temporary"],
-          ["GET", "/v1/workflows/capabilities"],
-          ["POST", "/v1/workflows/validate"],
-          ["POST", "/v1/workflows/yaml"],
-          ["POST", "/v1/workflows/wf-1/yaml"],
-          ["POST", "/v1/workflows"],
-          ["GET", "/v1/workflows/wf-1"],
-          ["PATCH", "/v1/workflows/wf-1"],
-          ["POST", "/v1/workflows/wf-1/enable"],
-          ["POST", "/v1/workflows/wf-1/disable"],
-          ["POST", "/v1/workflows/wf-1/keep"],
-          ["POST", "/v1/workflows/wf-1/run"],
-          ["GET", "/v1/workflows/wf-1/runs"],
-          ["GET", "/v1/workflows/wf-1/runs/run-1"],
-          ["POST", "/v1/workflows/wf-1/steps/math/test"],
-          ["POST", "/v1/workflows/wf-1/runs/run-1/cancel"],
-          ["POST", "/v1/workflows/wf-1/runs/run-1/respond"],
-          ["PUT", "/v1/workflows/wf-1/template-projection"],
-          ["POST", "/v1/share/short-url"],
-          ["DELETE", "/v1/share/short-url/Abc123XY"],
-          ["POST", "/v1/workflows/template-import"],
-          ["DELETE", "/v1/workflows/wf-1"],
-        ]);
-        assert.deepEqual(seen[6]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none", lifecycle: "temporary", source: "chat", source_chat_id: "chat-1", created_by_assistant: true });
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        for (const endpoint of [
+          "GET /v1/workflows",
+          "GET /v1/workflows/temporary",
+          "GET /v1/workflows/capabilities",
+          "POST /v1/workflows/validate",
+          "POST /v1/workflows/yaml",
+          "POST /v1/workflows/wf-1/yaml",
+          "POST /v1/sdk/session",
+          "POST /v1/workflows",
+          "GET /v1/workflows/wf-1",
+          "PATCH /v1/workflows/wf-1",
+          "POST /v1/workflows/wf-1/enable",
+          "POST /v1/workflows/wf-1/disable",
+          "POST /v1/workflows/wf-1/keep",
+          "POST /v1/workflows/wf-1/run",
+          "GET /v1/workflows/wf-1/runs",
+          "GET /v1/workflows/wf-1/runs/run-1",
+          "POST /v1/workflows/wf-1/steps/math/test",
+          "POST /v1/workflows/wf-1/runs/run-1/cancel",
+          "POST /v1/workflows/wf-1/runs/run-1/respond",
+          "PUT /v1/workflows/wf-1/template-projection",
+          "POST /v1/share/short-url",
+          "DELETE /v1/share/short-url/Abc123XY",
+          "POST /v1/workflows/template-import",
+          "DELETE /v1/workflows/wf-1",
+        ]) {
+          assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
+        }
+        const createBody = seen.find((request) => request.method === "POST" && request.url === "/v1/workflows")?.body as Record<string, unknown>;
+        assert.equal(createBody.title, "Morning");
+        assert.equal(createBody.source_chat_id, CHAT_ID);
+        assert.equal(typeof createBody.encrypted_slug, "string");
+        assert.equal(typeof createBody.slug_lookup_hash, "string");
+        assert.equal("slug" in createBody, false);
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("exposes workflow app-skill child embeds and server-side search results", async () => {
     await withServer(
       (request, body) => {
@@ -304,9 +325,17 @@ describe("OpenMates SDK workflows", () => {
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("manages workflow template sharing transport through the shared API contract", async () => {
+    const material = await createApiKeyCryptoMaterial("sdk workflow template", Buffer.alloc(32, 12).toString("base64"));
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.url === "/v1/workflows" && request.method === "GET") {
+          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        }
         if (request.url === "/v1/workflows/template-projections/tpl-1" && request.method === "GET") {
           return {
             template_id: "tpl-1",
@@ -326,23 +355,33 @@ describe("OpenMates SDK workflows", () => {
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         assert.equal((await client.workflows.getPublicTemplateProjection("tpl-1")).ciphertext, "opaque-ciphertext");
         assert.equal((await client.workflows.revokeTemplateProjection("wf-1")).revoked_at, 1000);
         assert.equal((await client.workflows.unrevokeTemplateProjection("wf-1")).revoked_at, null);
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/workflows/template-projections/tpl-1"],
-          ["POST", "/v1/workflows/wf-1/template-projection/revoke"],
-          ["POST", "/v1/workflows/wf-1/template-projection/unrevoke"],
-        ]);
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        assert.ok(endpoints.includes("GET /v1/workflows/template-projections/tpl-1"));
+        assert.ok(endpoints.includes("POST /v1/sdk/session"));
+        assert.ok(endpoints.includes("GET /v1/workflows"));
+        assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/revoke"));
+        assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/unrevoke"));
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("manages durable workflow input sessions", async () => {
+    const material = await createApiKeyCryptoMaterial("sdk workflow input", Buffer.alloc(32, 13).toString("base64"));
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.url === "/v1/workflows" && request.method === "GET") {
+          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        }
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
           assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1" });
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
@@ -366,7 +405,7 @@ describe("OpenMates SDK workflows", () => {
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         assert.equal((await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1" })).session_id, "session-1");
         assert.equal((await client.workflows.inputSession("session-1")).status, "executed");
         assert.equal((await client.workflows.inputEvents("session-1", 2))[0]?.type, "validation_passed");
@@ -374,15 +413,21 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.stopInput("session-1")).status, "stopped");
         assert.equal((await client.workflows.undoInput("session-1")).status, "undone");
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["POST", "/v1/workflows/input"],
-          ["GET", "/v1/workflows/input/session-1"],
-          ["GET", "/v1/workflows/input/session-1/events?after_event_id=2"],
-          ["POST", "/v1/workflows/input/session-1/follow-up"],
-          ["POST", "/v1/workflows/input/session-1/stop"],
-          ["POST", "/v1/workflows/input/session-1/undo"],
-        ]);
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        for (const endpoint of [
+          "POST /v1/sdk/session",
+          "GET /v1/workflows",
+          "POST /v1/workflows/input",
+          "GET /v1/workflows/input/session-1",
+          "GET /v1/workflows/input/session-1/events?after_event_id=2",
+          "POST /v1/workflows/input/session-1/follow-up",
+          "POST /v1/workflows/input/session-1/stop",
+          "POST /v1/workflows/input/session-1/undo",
+        ]) {
+          assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
+        }
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 });

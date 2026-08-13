@@ -29,6 +29,7 @@ from backend.core.api.app.services.user_task_queue_service import UserTaskQueueS
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_task_projection_service import WorkflowTaskProjectionService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
@@ -51,6 +52,8 @@ class UserTaskCreateRequest(BaseModel):
     task_id: str = Field(min_length=1)
     encrypted_task_key: str | None = None
     encrypted_title: str = Field(min_length=1)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_description: str | None = None
     encrypted_labels: str | None = None
     encrypted_tags: str | None = None
@@ -79,6 +82,8 @@ class UserTaskCreateRequest(BaseModel):
 
 class UserTaskUpdateRequest(BaseModel):
     encrypted_title: str | None = None
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_task_key: str | None = None
     encrypted_description: str | None = None
     encrypted_labels: str | None = None
@@ -110,6 +115,8 @@ class UserTaskUpdateRequest(BaseModel):
 class UserTaskMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
 
 
@@ -226,6 +233,8 @@ def _handle_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     if isinstance(exc, UserTaskConflictError):
         raise HTTPException(status_code=409, detail="TASK_VERSION_CONFLICT") from exc
+    if isinstance(exc, DuplicateObjectSlugError):
+        raise HTTPException(status_code=409, detail="TASK_SLUG_CONFLICT") from exc
     if isinstance(exc, UserTaskNotFoundError):
         raise HTTPException(status_code=404, detail="Task not found") from exc
     if isinstance(exc, ValueError):
@@ -589,6 +598,8 @@ async def move_user_task_to_team(
             workspace_type="task",
             object_id=task_id,
             confirmed=body.confirmed,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
         return {"task": task}

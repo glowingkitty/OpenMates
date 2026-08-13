@@ -6,6 +6,7 @@
  * Security: tests cover API-key unwrap vectors and non-persistent default chats.
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
  */
+// contract-test-file: tooling
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -25,6 +26,9 @@ const {
   sealChatCompletionRecoveryPayload,
   generateSalt,
 } = await import("../src/crypto.ts");
+const { buildEncryptedObjectSlugMetadata } = await import("../src/objectSlugs.ts");
+
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
 async function withServer(
   handler: (request: IncomingMessage, response: ServerResponse) => void,
@@ -309,9 +313,9 @@ describe("OpenMates SDK", () => {
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
-      const started = await client.embeds.preview.start("embed-1", { chatId: "chat-1", requestedRuntime: "svelte" });
+      const started = await client.embeds.preview.start("embed-1", { chatId: CHAT_ID, requestedRuntime: "svelte" });
       assert.equal(started.status, "queued");
-      const waited = await client.embeds.preview.start("embed-1", { chatId: "chat-1", wait: true, timeoutMs: 5_000 });
+      const waited = await client.embeds.preview.start("embed-1", { chatId: CHAT_ID, wait: true, timeoutMs: 5_000 });
       assert.equal(waited.status, "running");
       await client.embeds.preview.status("session-1");
       await client.embeds.preview.open("session-1");
@@ -326,8 +330,8 @@ describe("OpenMates SDK", () => {
       "POST /v1/applications/preview/session-1/open",
       "POST /v1/applications/preview/session-1/stop",
     ]);
-    assert.deepEqual(requests[0].body, { chat_id: "chat-1", requested_runtime: "svelte" });
-    assert.deepEqual(requests[1].body, { chat_id: "chat-1" });
+    assert.deepEqual(requests[0].body, { chat_id: CHAT_ID, requested_runtime: "svelte" });
+    assert.deepEqual(requests[1].body, { chat_id: CHAT_ID });
   });
 
   it("exposes native models3d search skill methods", async () => {
@@ -817,14 +821,15 @@ describe("OpenMates SDK", () => {
       assert.equal(request.headers.authorization, "Bearer sk-api-test");
       assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ chats: [{ id: "chat-1", encrypted_title: "ciphertext" }] }));
+      response.end(JSON.stringify({ chats: [{ id: CHAT_ID, encrypted_title: "ciphertext" }] }));
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
       const chats = await client.chats.list({ limit: 3 });
-      assert.deepEqual(chats, [{ id: "chat-1", encrypted_title: "ciphertext" }]);
+      assert.deepEqual(chats, [{ id: CHAT_ID, encrypted_title: "ciphertext" }]);
     });
   });
 
+  // contract-test: direct surface=sdks.npm assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("lazily unwraps API-key session material and decrypts listed chat metadata", async () => {
     const masterKey = generateSalt(32);
     const chatKey = generateSalt(32);
@@ -851,7 +856,7 @@ describe("OpenMates SDK", () => {
       assert.equal(request.url, "/v1/sdk/chats?limit=1");
       response.end(JSON.stringify({
         chats: [{
-          id: "chat-1",
+          id: CHAT_ID,
           encrypted_chat_key: encryptedChatKey,
           encrypted_title: encryptedTitle,
           encrypted_chat_summary: encryptedSummary,
@@ -868,6 +873,7 @@ describe("OpenMates SDK", () => {
     assert.deepEqual(seenUrls, ["GET /v1/sdk/chats?limit=1", "POST /v1/sdk/session"]);
   });
 
+  // contract-test: direct surface=sdks.npm assertions=cli.slugs.local-resolution-id-transport,chats.persistence.client-encrypted,chats.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("searches decrypted chat metadata locally without a server plaintext search endpoint", async () => {
     const masterKey = generateSalt(32);
     const madridChatKey = generateSalt(32);
@@ -879,11 +885,13 @@ describe("OpenMates SDK", () => {
         id: "chat-madrid",
         encrypted_chat_key: await encryptBytesWithAesGcm(madridChatKey, masterKey),
         encrypted_title: await encryptWithAesGcmCombined("Madrid itinerary", madridChatKey),
+        ...(await buildEncryptedObjectSlugMetadata({ value: "Madrid itinerary", encryptionKey: madridChatKey, lookupKey: masterKey })),
       },
       {
         id: "chat-berlin",
         encrypted_chat_key: await encryptBytesWithAesGcm(berlinChatKey, masterKey),
         encrypted_title: await encryptWithAesGcmCombined("Berlin itinerary", berlinChatKey),
+        ...(await buildEncryptedObjectSlugMetadata({ value: "Berlin itinerary", encryptionKey: berlinChatKey, lookupKey: masterKey })),
       },
     ];
 
@@ -907,9 +915,48 @@ describe("OpenMates SDK", () => {
       const results = await client.chats.search("Madrid");
       assert.deepEqual(results.map((chat) => chat.id), ["chat-madrid"]);
       assert.equal(results[0].title, "Madrid itinerary");
+      assert.equal(results[0].slug, "madrid-itinerary");
     });
 
     assert.deepEqual(seenUrls, ["GET /v1/sdk/chats?limit=0", "POST /v1/sdk/session"]);
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=cli.slugs.local-resolution-id-transport,chats.persistence.client-encrypted,chats.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
+  it("resolves encrypted saved chat slugs locally before loading a chat", async () => {
+    const masterKey = generateSalt(32);
+    const chatKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("SDK chat slug key", bytesToBase64(masterKey));
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const encryptedTitle = await encryptWithAesGcmCombined("Berlin Trip Planning", chatKey);
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: "Berlin Trip Planning", encryptionKey: chatKey, lookupKey: masterKey });
+    const seenUrls: string[] = [];
+
+    await withServer((request, response) => {
+      seenUrls.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/sdk/session") {
+        response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
+        return;
+      }
+      if (request.url === "/v1/sdk/chats?limit=0") {
+        response.end(JSON.stringify({ chats: [{ id: "chat-berlin", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, encrypted_slug: slugMetadata.encrypted_slug }] }));
+        return;
+      }
+      assert.equal(request.url, "/v1/sdk/chats/chat-berlin");
+      response.end(JSON.stringify({ chat: { id: "chat-berlin", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, encrypted_slug: slugMetadata.encrypted_slug }, messages: [] }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+      const loaded = await client.chats.load("berlin-trip-planning") as { chat: { id?: string; slug?: string; title?: string } };
+      assert.equal(loaded.chat.id, "chat-berlin");
+      assert.equal(loaded.chat.title, "Berlin Trip Planning");
+      assert.equal(loaded.chat.slug, "berlin-trip-planning");
+    });
+
+    assert.deepEqual(seenUrls, [
+      "GET /v1/sdk/chats?limit=0",
+      "POST /v1/sdk/session",
+      "GET /v1/sdk/chats/chat-berlin",
+    ]);
   });
 
   it("loads a chat and decrypts encrypted messages client-side", async () => {
@@ -945,9 +992,9 @@ describe("OpenMates SDK", () => {
         }));
         return;
       }
-      assert.equal(request.url, "/v1/sdk/chats/chat-1");
+      assert.equal(request.url, `/v1/sdk/chats/${CHAT_ID}`);
       response.end(JSON.stringify({
-        chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle },
+        chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle },
         messages: [{ id: "message-1", encrypted_content: encryptedContent, encrypted_sender_name: encryptedSender }],
         embeds: [
           { embed_id: "embed-1", encrypted_type: encryptedEmbedType, encrypted_content: encryptedEmbedContent, encrypted_text_preview: encryptedEmbedPreview },
@@ -960,7 +1007,7 @@ describe("OpenMates SDK", () => {
       }));
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
-      const loaded = await client.chats.load("chat-1") as { chat: { title?: string }; messages: Array<Record<string, unknown>>; embeds: Array<Record<string, unknown>> };
+      const loaded = await client.chats.load(CHAT_ID) as { chat: { title?: string }; messages: Array<Record<string, unknown>>; embeds: Array<Record<string, unknown>> };
       assert.equal(loaded.chat.title, "Loaded SDK chat");
       assert.equal(loaded.messages[0].content, "Hello from encrypted storage");
       assert.equal(loaded.messages[0].senderName, "OpenMates");
@@ -973,7 +1020,7 @@ describe("OpenMates SDK", () => {
       assert.equal(loaded.embeds[1].textPreview, "src/App.jsx");
     });
 
-    assert.deepEqual(seenUrls, ["GET /v1/sdk/chats/chat-1", "POST /v1/sdk/session"]);
+    assert.deepEqual(seenUrls, [`GET /v1/sdk/chats/${CHAT_ID}`, "POST /v1/sdk/session"]);
   });
 
   it("supports chat messages, encrypted fork payloads, and rewind dry runs", async () => {
@@ -997,22 +1044,22 @@ describe("OpenMates SDK", () => {
           response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
           return;
         }
-        if (request.url === "/v1/sdk/chats/chat-1" && request.method === "GET") {
+        if (request.url === `/v1/sdk/chats/${CHAT_ID}` && request.method === "GET") {
           response.end(JSON.stringify({
-            chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
+            chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
             messages: [
-              { client_message_id: "user-1", chat_id: "chat-1", role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
-              { client_message_id: "assistant-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
+              { client_message_id: "user-1", chat_id: CHAT_ID, role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
+              { client_message_id: "assistant-1", chat_id: CHAT_ID, role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
             ],
           }));
           return;
         }
-        if (request.url === "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30" && request.method === "GET") {
+        if (request.url === `/v1/sdk/chats/${CHAT_ID}/messages?direction=latest&limit=30` && request.method === "GET") {
           response.end(JSON.stringify({
-            chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
+            chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
             messages: [
-              { client_message_id: "user-1", chat_id: "chat-1", role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
-              { client_message_id: "assistant-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
+              { client_message_id: "user-1", chat_id: CHAT_ID, role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
+              { client_message_id: "assistant-1", chat_id: CHAT_ID, role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
             ],
             has_more_before: true,
             has_more_after: false,
@@ -1023,14 +1070,14 @@ describe("OpenMates SDK", () => {
           }));
           return;
         }
-        if (request.url === "/v1/sdk/chats/chat-1/fork") {
+        if (request.url === `/v1/sdk/chats/${CHAT_ID}/fork`) {
           assert.equal(JSON.stringify(body).includes("First question"), false);
           assert.equal(JSON.stringify(body).includes("First answer"), false);
           assert.equal((body?.encrypted_messages as unknown[]).length, 2);
           response.end(JSON.stringify({ success: true, chat_id: body?.new_chat_id, copied_message_count: 2, messages_v: 2 }));
           return;
         }
-        if (request.url === "/v1/sdk/chats/chat-1/rewind") {
+        if (request.url === `/v1/sdk/chats/${CHAT_ID}/rewind`) {
           assert.deepEqual(body, {
             protocol_version: 1,
             to_message_id: "user-1",
@@ -1038,7 +1085,7 @@ describe("OpenMates SDK", () => {
             dry_run: true,
             confirm_destructive: false,
           });
-          response.end(JSON.stringify({ success: true, dry_run: true, chat_id: "chat-1", planned_deleted_message_count: 1, messages_v: 2 }));
+          response.end(JSON.stringify({ success: true, dry_run: true, chat_id: CHAT_ID, planned_deleted_message_count: 1, messages_v: 2 }));
           return;
         }
         response.writeHead(404);
@@ -1046,24 +1093,24 @@ describe("OpenMates SDK", () => {
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
-      const listed = await client.chats.messages({ chatId: "chat-1" });
+      const listed = await client.chats.messages({ chatId: CHAT_ID });
       assert.equal(listed.messages[0].content, "First question");
       assert.equal(listed.messages[1].preview, "First answer");
       assert.equal(listed.hasMoreBefore, true);
       assert.equal(listed.serverMessageCount, 200);
-      const forked = await client.chats.fork({ chatId: "chat-1", fromMessageId: "assistant-1", title: "Forked" });
+      const forked = await client.chats.fork({ chatId: CHAT_ID, fromMessageId: "assistant-1", title: "Forked" });
       assert.equal(forked.copied_message_count, 2);
-      const rewind = await client.chats.rewind({ chatId: "chat-1", toMessageId: "user-1", dryRun: true });
+      const rewind = await client.chats.rewind({ chatId: CHAT_ID, toMessageId: "user-1", dryRun: true });
       assert.equal(rewind.dry_run, true);
     });
 
     assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
-      "GET /v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+      `GET /v1/sdk/chats/${CHAT_ID}/messages?direction=latest&limit=30`,
       "POST /v1/sdk/session",
-      "GET /v1/sdk/chats/chat-1",
-      "POST /v1/sdk/chats/chat-1/fork",
-      "GET /v1/sdk/chats/chat-1",
-      "POST /v1/sdk/chats/chat-1/rewind",
+      `GET /v1/sdk/chats/${CHAT_ID}`,
+      `POST /v1/sdk/chats/${CHAT_ID}/fork`,
+      `GET /v1/sdk/chats/${CHAT_ID}`,
+      `POST /v1/sdk/chats/${CHAT_ID}/rewind`,
     ]);
   });
 
@@ -1096,19 +1143,19 @@ describe("OpenMates SDK", () => {
         response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
         return;
       }
-      assert.equal(request.url, "/v1/sdk/chats/chat-1");
+      assert.equal(request.url, `/v1/sdk/chats/${CHAT_ID}`);
       response.end(JSON.stringify({
-        chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey },
-        messages: [{ client_message_id: "message-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedContent, created_at: 1 }],
+        chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey },
+        messages: [{ client_message_id: "message-1", chat_id: CHAT_ID, role: "assistant", encrypted_content: encryptedContent, created_at: 1 }],
       }));
     }, async (apiUrl) => {
-      const result = await new OpenMates({ apiKey: material.apiKey, apiUrl }).chats.messages({ chatId: "chat-1", all: true });
+      const result = await new OpenMates({ apiKey: material.apiKey, apiUrl }).chats.messages({ chatId: CHAT_ID, all: true });
 
       assert.equal(result.messages[0].content, "Full history message");
       assert.equal(result.hasMoreBefore, false);
     });
 
-    assert.deepEqual(urls, ["GET /v1/sdk/chats/chat-1", "POST /v1/sdk/session"]);
+    assert.deepEqual(urls, [`GET /v1/sdk/chats/${CHAT_ID}`, "POST /v1/sdk/session"]);
   });
 
   it("exposes named CLI parity namespaces without generic passthroughs", async () => {
@@ -1128,7 +1175,7 @@ describe("OpenMates SDK", () => {
       await client.account.info();
       await client.account.setTimezone("Europe/Berlin");
       await client.chats.search("Madrid", { limit: 5 });
-      await client.chats.load("chat-1");
+      await client.chats.load(CHAT_ID);
       await client.settings.setDarkMode(true);
       await client.billing.listInvoices();
       await client.docs.search("sdk");
@@ -1146,7 +1193,7 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/account" },
       { method: "POST", url: "/v1/sdk/account/timezone" },
       { method: "GET", url: "/v1/sdk/chats?limit=0" },
-      { method: "GET", url: "/v1/sdk/chats/chat-1" },
+      { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
       { method: "POST", url: "/v1/sdk/settings/dark-mode" },
       { method: "GET", url: "/v1/sdk/billing/invoices" },
       { method: "GET", url: "/v1/sdk/docs/search?q=sdk" },
@@ -1166,21 +1213,21 @@ describe("OpenMates SDK", () => {
     await withServer((request, response) => {
       requests.push({ method: request.method, url: request.url });
       response.writeHead(200, { "content-type": "application/json" });
-      if (request.url === "/v1/sdk/chats/chat-1") {
-        response.end(JSON.stringify({ chat: { id: "chat-1" }, messages: [] }));
+      if (request.url === `/v1/sdk/chats/${CHAT_ID}`) {
+        response.end(JSON.stringify({ chat: { id: CHAT_ID }, messages: [] }));
         return;
       }
       response.end(JSON.stringify({ ok: true, memories: [], suggestions: [], embed_keys: [] }));
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
 
-      await client.chats.followUps("chat-1");
-      await client.chats.export("chat-1");
+      await client.chats.followUps(CHAT_ID);
+      await client.chats.export(CHAT_ID);
       await client.account.listInterests();
       await client.memories.types({ query: { app_id: "code" } });
       await client.billing.usageOverview({ query: { granularity: "monthly", months: 2 } });
-      await client.billing.usageDetails({ type: "chat", identifier: "chat-1", yearMonth: "2026-08" });
-      await client.billing.chatTotal("chat-1");
+      await client.billing.usageDetails({ type: "chat", identifier: CHAT_ID, yearMonth: "2026-08" });
+      await client.billing.chatTotal(CHAT_ID);
       await client.billing.usageExport();
       await client.billing.createBankTransferOrder(110000);
       await client.embeds.show("embed-1");
@@ -1191,14 +1238,14 @@ describe("OpenMates SDK", () => {
     });
 
     assert.deepEqual(requests, [
-      { method: "GET", url: "/v1/sdk/chats/chat-1" },
-      { method: "GET", url: "/v1/sdk/chats/chat-1" },
-      { method: "POST", url: "/v1/sdk/chats/chat-1/export" },
+      { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
+      { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
+      { method: "POST", url: `/v1/sdk/chats/${CHAT_ID}/export` },
       { method: "GET", url: "/v1/sdk/account/topic-preferences" },
       { method: "GET", url: "/v1/sdk/memories/types?app_id=code" },
       { method: "GET", url: "/v1/sdk/billing/usage/overview?granularity=monthly&months=2" },
-      { method: "GET", url: "/v1/sdk/billing/usage/details?type=chat&identifier=chat-1&year_month=2026-08" },
-      { method: "GET", url: "/v1/sdk/billing/usage/chat-total?chat_id=chat-1" },
+      { method: "GET", url: `/v1/sdk/billing/usage/details?type=chat&identifier=${CHAT_ID}&year_month=2026-08` },
+      { method: "GET", url: `/v1/sdk/billing/usage/chat-total?chat_id=${CHAT_ID}` },
       { method: "GET", url: "/v1/sdk/billing/usage/export" },
       { method: "POST", url: "/v1/sdk/billing/bank-transfer-orders" },
       { method: "GET", url: "/v1/sdk/embeds/embed-1" },
@@ -1211,15 +1258,15 @@ describe("OpenMates SDK", () => {
     const client = new OpenMates({ apiKey: "sk-api-test", apiUrl: "http://127.0.0.1" });
 
     await assert.rejects(
-      () => client.chats.delete("chat-1", {}),
+      () => client.chats.delete(CHAT_ID, {}),
       /requires confirmed: true/,
     );
     await assert.rejects(
-      () => client.chats.rewind({ chatId: "chat-1", toMessageId: "message-1" }),
+      () => client.chats.rewind({ chatId: CHAT_ID, toMessageId: "message-1" }),
       /requires confirmed: true/,
     );
     await assert.rejects(
-      () => client.chats.retry({ chatId: "chat-1" }),
+      () => client.chats.retry({ chatId: CHAT_ID }),
       /requires confirmed: true/,
     );
     await assert.rejects(

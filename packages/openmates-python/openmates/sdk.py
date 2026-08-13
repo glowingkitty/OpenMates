@@ -23,6 +23,7 @@ import secrets
 import string
 import time
 from typing import Any
+import unicodedata
 from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
 import zipfile
@@ -55,6 +56,8 @@ API_KEY_RANDOM_LENGTH = 32
 API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
+SLUG_LOOKUP_HASH_INFO = b"openmates-object-slug-index-v1"
+MAX_OBJECT_SLUG_LENGTH = 80
 DESIGN_ICON_PATH_PATTERN = re.compile(r"^/v1/apps/design/icons/iconify/([a-z0-9][a-z0-9._-]*)/([a-z0-9][a-z0-9._-]*)\.svg$", re.IGNORECASE)
 DESIGN_ICON_SEGMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
 DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
@@ -470,6 +473,8 @@ class OpenMates:
             decrypted["chat_summary"] = _decrypt_aes_gcm_text(chat["encrypted_chat_summary"], chat_key)
         if isinstance(chat.get("encrypted_category"), str):
             decrypted["category"] = _decrypt_aes_gcm_text(chat["encrypted_category"], chat_key)
+        if isinstance(chat.get("encrypted_slug"), str):
+            decrypted["slug"] = _decrypt_object_slug(chat["encrypted_slug"], chat_key)
         return decrypted
 
     def _decrypt_loaded_chat_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -619,17 +624,137 @@ def _project_key_from_record(record: dict[str, Any], wrapping_key: bytes, team_i
 
 def _resolve_project_key(client: OpenMates, project_id: str, *, personal: bool = True, team_id: str | None = None) -> bytes:
     context_team_id = _project_context(personal=personal, team_id=team_id)
-    response = client._get(_with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id))
+    resolved_project_id = _resolve_project_id(client, project_id, personal=personal, team_id=context_team_id)
+    response = client._get(_with_query(f"/v1/projects/{_quote(resolved_project_id)}", team_id=context_team_id))
     record = response.get("project")
     if not isinstance(record, dict):
         raise OpenMatesApiError(404, {"detail": "Project not found"})
     return _project_key_from_record(record, _project_wrapping_key(client, context_team_id), context_team_id)
 
 
+def _resolve_project_id(client: OpenMates, project_id: str, *, personal: bool = True, team_id: str | None = None) -> str:
+    if _is_uuid(project_id):
+        return project_id
+    context_team_id = _project_context(personal=personal, team_id=team_id)
+    projects = client.projects.list(personal=context_team_id is None, team_id=context_team_id, include_archived=True)
+    exact = next((project for project in projects if project.get("project_id") == project_id), None)
+    if exact:
+        return str(exact.get("project_id"))
+    lowered = project_id.lower()
+    prefix_matches = [project for project in projects if len(project_id) >= 8 and str(project.get("project_id") or "").lower().startswith(lowered)]
+    if len(prefix_matches) > 1:
+        raise OpenMatesConfigError(f"Project '{project_id}' is ambiguous. Use the full project ID.")
+    if prefix_matches:
+        return str(prefix_matches[0].get("project_id"))
+    slug_matches = [project for project in projects if _object_slug_matches(project.get("slug"), project_id)]
+    if len(slug_matches) > 1:
+        raise OpenMatesConfigError(f"Project slug '{project_id}' is ambiguous. Use the full project ID.")
+    if slug_matches:
+        return str(slug_matches[0].get("project_id"))
+    normalized_name = " ".join(project_id.strip().lower().split())
+    name_matches = [project for project in projects if " ".join(str(project.get("name") or "").strip().lower().split()) == normalized_name]
+    if len(name_matches) > 1:
+        raise OpenMatesConfigError(f"Project '{project_id}' is ambiguous. Use the full project ID.")
+    if name_matches:
+        return str(name_matches[0].get("project_id"))
+    raise OpenMatesConfigError(f"Project '{project_id}' was not found")
+
+
+def _resolve_chat_id(client: OpenMates, chat_id: str) -> str:
+    if _is_uuid(chat_id):
+        return chat_id
+    chats = client.chats.list(limit=0)
+    lowered = chat_id.lower()
+    exact = next((chat for chat in chats if chat.get("id") == chat_id), None)
+    if exact:
+        return str(exact.get("id"))
+    prefix_matches = [chat for chat in chats if len(chat_id) >= 8 and str(chat.get("id") or "").lower().startswith(lowered)]
+    if len(prefix_matches) > 1:
+        raise OpenMatesConfigError(f"Chat '{chat_id}' is ambiguous. Use the full chat ID.")
+    if prefix_matches:
+        return str(prefix_matches[0].get("id"))
+    slug_matches = [chat for chat in chats if _object_slug_matches(chat.get("slug"), chat_id)]
+    if len(slug_matches) > 1:
+        raise OpenMatesConfigError(f"Chat slug '{chat_id}' is ambiguous. Use the full chat ID.")
+    if slug_matches:
+        return str(slug_matches[0].get("id"))
+    normalized_title = " ".join(chat_id.strip().lower().split())
+    title_matches = [chat for chat in chats if " ".join(str(chat.get("title") or "").strip().lower().split()) == normalized_title]
+    if len(title_matches) > 1:
+        raise OpenMatesConfigError(f"Chat '{chat_id}' is ambiguous. Use the full chat ID.")
+    if title_matches:
+        return str(title_matches[0].get("id"))
+    raise OpenMatesConfigError(f"Chat '{chat_id}' was not found")
+
+
+def _resolve_workflow_id(client: OpenMates, workflow_id: str) -> str:
+    if _is_uuid(workflow_id):
+        return workflow_id
+    workflows = client.workflows.list()
+    exact = next((workflow for workflow in workflows if workflow.get("id") == workflow_id), None)
+    if exact:
+        return str(exact.get("id"))
+    lowered = workflow_id.lower()
+    prefix_matches = [workflow for workflow in workflows if len(workflow_id) >= 8 and str(workflow.get("id") or "").lower().startswith(lowered)]
+    if len(prefix_matches) > 1:
+        raise OpenMatesConfigError(f"Workflow '{workflow_id}' is ambiguous. Use the full workflow ID.")
+    if prefix_matches:
+        return str(prefix_matches[0].get("id"))
+    slug_matches = [workflow for workflow in workflows if _object_slug_matches(workflow.get("slug"), workflow_id)]
+    if len(slug_matches) > 1:
+        raise OpenMatesConfigError(f"Workflow slug '{workflow_id}' is ambiguous. Use the full workflow ID.")
+    if slug_matches:
+        return str(slug_matches[0].get("id"))
+    normalized_title = " ".join(workflow_id.strip().lower().split())
+    title_matches = [workflow for workflow in workflows if " ".join(str(workflow.get("title") or "").strip().lower().split()) == normalized_title]
+    if len(title_matches) > 1:
+        raise OpenMatesConfigError(f"Workflow '{workflow_id}' is ambiguous. Use the full workflow ID.")
+    if title_matches:
+        return str(title_matches[0].get("id"))
+    raise OpenMatesConfigError(f"Workflow '{workflow_id}' was not found")
+
+
+def _workflow_resource_request(
+    client: OpenMates,
+    method: str,
+    workflow_id: str,
+    suffix: str = "",
+    payload: dict[str, Any] | None = None,
+    *,
+    extra_headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    resolved_workflow_id = workflow_id if _is_uuid(workflow_id) else _resolve_workflow_id(client, workflow_id)
+
+    def request(target_workflow_id: str) -> dict[str, Any]:
+        path = f"/v1/workflows/{_quote(target_workflow_id)}{suffix}"
+        if method == "GET":
+            return client._get(path)
+        if method == "POST":
+            return client._post(path, payload or {}, extra_headers=extra_headers)
+        if method == "PATCH":
+            return client._patch(path, payload or {})
+        if method == "PUT":
+            return client._put(path, payload or {})
+        if method == "DELETE":
+            return client._delete(path)
+        raise OpenMatesConfigError(f"Unsupported workflow request method '{method}'")
+
+    return request(resolved_workflow_id)
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+        return True
+    except ValueError:
+        return False
+
+
 def _resolve_chat_key(client: OpenMates, chat_id: str) -> bytes:
-    payload = client._get(f"/v1/sdk/chats/{_quote(chat_id)}")
+    resolved_chat_id = _resolve_chat_id(client, chat_id)
+    payload = client._get(f"/v1/sdk/chats/{_quote(resolved_chat_id)}")
     chat = payload.get("chat") if isinstance(payload.get("chat"), dict) else {}
-    resolved_chat_id = str(chat.get("id") or chat_id)
+    resolved_chat_id = str(chat.get("id") or resolved_chat_id)
     hashed_chat_id = hashlib.sha256(resolved_chat_id.encode("utf-8")).hexdigest()
     chat_key_wrappers = payload.get("chat_key_wrappers") if isinstance(payload.get("chat_key_wrappers"), list) else chat.get("chat_key_wrappers")
     wrapper = next(
@@ -668,18 +793,20 @@ def _build_plan_key_wrappers(
         "created_at": created_at,
     }]
     if primary_chat_id:
-        chat_key = primary_chat_key or _resolve_chat_key(client, primary_chat_id)
+        resolved_chat_id = _resolve_chat_id(client, primary_chat_id)
+        chat_key = primary_chat_key or _resolve_chat_key(client, resolved_chat_id)
         wrappers.append({
             "key_type": "chat",
-            "hashed_chat_id": hashlib.sha256(primary_chat_id.encode("utf-8")).hexdigest(),
+            "hashed_chat_id": hashlib.sha256(resolved_chat_id.encode("utf-8")).hexdigest(),
             "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, chat_key),
             "created_at": created_at,
         })
     for project_id in linked_project_ids:
-        project_key = _resolve_project_key(client, project_id)
+        resolved_project_id = _resolve_project_id(client, project_id)
+        project_key = _resolve_project_key(client, resolved_project_id)
         wrappers.append({
             "key_type": "project",
-            "hashed_project_id": hashlib.sha256(project_id.encode("utf-8")).hexdigest(),
+            "hashed_project_id": hashlib.sha256(resolved_project_id.encode("utf-8")).hexdigest(),
             "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, project_key),
             "created_at": created_at,
         })
@@ -1143,6 +1270,49 @@ def _encrypt_aes_gcm_bytes(plaintext: bytes, key: bytes) -> str:
     return base64.b64encode(iv + AESGCM(key).encrypt(iv, plaintext, None)).decode("utf-8")
 
 
+def _normalize_object_slug(value: str) -> str:
+    ascii_value = "".join(
+        char
+        for char in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(char)
+    )
+    normalized = re.sub(r"[^a-z0-9]+", "-", ascii_value.strip().lower().replace("'", ""))
+    normalized = re.sub(r"-{2,}", "-", normalized).strip("-")
+    slug = normalized[:MAX_OBJECT_SLUG_LENGTH].rstrip("-")
+    if not slug:
+        raise OpenMatesConfigError("Object slug must contain at least one letter or number.")
+    return slug
+
+
+def _object_slug_lookup_hash(slug: str, lookup_key: bytes) -> str:
+    index_key = HKDF(algorithm=hashes.SHA256(), length=32, salt=b"", info=SLUG_LOOKUP_HASH_INFO).derive(lookup_key)
+    return hmac.new(index_key, slug.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _encrypted_object_slug_metadata(value: str, *, encryption_key: bytes, lookup_key: bytes) -> dict[str, str]:
+    slug = _normalize_object_slug(value)
+    return {
+        "slug": slug,
+        "encrypted_slug": _encrypt_aes_gcm_text(slug, encryption_key),
+        "slug_lookup_hash": _object_slug_lookup_hash(slug, lookup_key),
+    }
+
+
+def _decrypt_object_slug(encrypted_slug: Any, encryption_key: bytes) -> str:
+    if not isinstance(encrypted_slug, str):
+        return ""
+    return _decrypt_aes_gcm_text(encrypted_slug, encryption_key) or ""
+
+
+def _object_slug_matches(slug: Any, query: str) -> bool:
+    if not isinstance(slug, str) or not slug:
+        return False
+    try:
+        return _normalize_object_slug(slug) == _normalize_object_slug(query)
+    except OpenMatesConfigError:
+        return False
+
+
 def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
     title = str(payload.get("title") or "").strip()
     if not title:
@@ -1153,10 +1323,17 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
     labels = _normalize_task_labels(payload.get("labels") if "labels" in payload else payload.get("tags"))
     status = str(payload.get("status") or ("in_progress" if assignee_type == "ai" and not payload.get("due_at") else "todo"))
+    slug_metadata = _encrypted_object_slug_metadata(
+        str(payload.get("slug") or title),
+        encryption_key=task_key,
+        lookup_key=master_key,
+    )
     task: dict[str, Any] = {
         "task_id": str(payload.get("task_id") or uuid.uuid4()),
         "version": 1,
         "encrypted_task_key": _encrypt_aes_gcm_bytes(task_key, master_key),
+        "encrypted_slug": slug_metadata["encrypted_slug"],
+        "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_title": _encrypt_aes_gcm_text(title, task_key),
         "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), task_key),
         "encrypted_labels": _encrypt_aes_gcm_text(json.dumps(labels), task_key),
@@ -1178,6 +1355,28 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     return task
 
 
+def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any]) -> dict[str, Any]:
+    result = dict(payload)
+    chat_value = result.get("chat_id") if "chat_id" in result else result.get("primary_chat_id")
+    if isinstance(chat_value, str) and chat_value:
+        resolved_chat_id = _resolve_chat_id(client, chat_value)
+        if "chat_id" in result:
+            result["chat_id"] = resolved_chat_id
+        else:
+            result["primary_chat_id"] = resolved_chat_id
+    if "project_ids" in result or "linked_project_ids" in result:
+        key = "project_ids" if "project_ids" in result else "linked_project_ids"
+        result[key] = [_resolve_project_id(client, project_id) for project_id in _string_list(result.get(key) or [])]
+    plan_value = result.get("plan_id") if "plan_id" in result else result.get("plan")
+    if isinstance(plan_value, str) and plan_value:
+        resolved_plan_id = _resolve_plan_id(client, plan_value)
+        if "plan_id" in result:
+            result["plan_id"] = resolved_plan_id
+        else:
+            result["plan"] = resolved_plan_id
+    return result
+
+
 def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
     task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
     patch: dict[str, Any] = {"version": int(task["version"]), "updated_at": int(time.time())}
@@ -1185,6 +1384,10 @@ def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: d
         patch["encrypted_title"] = _encrypt_aes_gcm_text(str(payload.get("title") or ""), task_key)
     if "description" in payload:
         patch["encrypted_description"] = _encrypt_aes_gcm_text(str(payload.get("description") or ""), task_key)
+    if "slug" in payload:
+        slug_metadata = _encrypted_object_slug_metadata(str(payload.get("slug") or ""), encryption_key=task_key, lookup_key=master_key)
+        patch["encrypted_slug"] = slug_metadata["encrypted_slug"]
+        patch["slug_lookup_hash"] = slug_metadata["slug_lookup_hash"]
     if "status" in payload:
         patch["status"] = payload.get("status")
     if "assign" in payload or "assignee" in payload:
@@ -1221,6 +1424,7 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
     task = {
         "task_id": record["task_id"],
         "short_id": record.get("short_id") or _derive_task_short_id(record),
+        "slug": _decrypt_object_slug(record.get("encrypted_slug"), task_key),
         "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), task_key) or "(untitled task)",
         "description": _decrypt_aes_gcm_text(str(record.get("encrypted_description") or ""), task_key) or "",
         "labels": labels,
@@ -1272,13 +1476,21 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     master_key = client._get_master_key()
     plan_key = os.urandom(32)
     now = int(time.time())
-    linked_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
-    primary_chat_id = payload.get("primary_chat_id") or payload.get("primaryChatId") or None
+    linked_project_ids = [_resolve_project_id(client, project_id) for project_id in _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])]
+    primary_chat_raw = payload.get("primary_chat_id") or payload.get("primaryChatId") or None
+    primary_chat_id = _resolve_chat_id(client, primary_chat_raw) if isinstance(primary_chat_raw, str) and primary_chat_raw else None
     primary_chat_key = payload.get("_primary_chat_key") if isinstance(payload.get("_primary_chat_key"), bytes) else None
+    slug_metadata = _encrypted_object_slug_metadata(
+        str(payload.get("slug") or title),
+        encryption_key=plan_key,
+        lookup_key=master_key,
+    )
     return {
         "plan_id": str(payload.get("plan_id") or uuid.uuid4()),
         "version": 1,
         "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "encrypted_slug": slug_metadata["encrypted_slug"],
+        "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_title": _encrypt_aes_gcm_text(title, plan_key),
         "encrypted_summary": _encrypt_aes_gcm_text(str(payload.get("summary") or ""), plan_key),
         "encrypted_goal": _encrypt_aes_gcm_text(str(payload.get("goal") or ""), plan_key),
@@ -1313,6 +1525,7 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
     return {
         "plan_id": record.get("plan_id"),
         "short_id": _derive_plan_short_id(record),
+        "slug": _decrypt_object_slug(record.get("encrypted_slug"), plan_key),
         "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), plan_key) or "(untitled plan)",
         "summary": _decrypt_aes_gcm_text(str(record.get("encrypted_summary") or ""), plan_key) or "",
         "goal": _decrypt_aes_gcm_text(str(record.get("encrypted_goal") or ""), plan_key) or "",
@@ -1345,6 +1558,7 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
 def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
     source = plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan
     plan_key = _plan_key_from_record(source, master_key)
+    client = payload.get("_client") if isinstance(payload.get("_client"), OpenMates) else None
     patch: dict[str, Any] = {"version": int(plan.get("version") or source.get("version") or 1), "updated_at": int(time.time())}
     text_fields = {
         "title": "encrypted_title",
@@ -1371,15 +1585,28 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
     for public_name, storage_name in text_fields.items():
         if public_name in payload:
             patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    if "slug" in payload:
+        slug_metadata = _encrypted_object_slug_metadata(str(payload.get("slug") or ""), encryption_key=plan_key, lookup_key=master_key)
+        patch["encrypted_slug"] = slug_metadata["encrypted_slug"]
+        patch["slug_lookup_hash"] = slug_metadata["slug_lookup_hash"]
     if "status" in payload:
         patch["status"] = payload.get("status")
-    if "linked_project_ids" in payload or "linkedProjectIds" in payload:
+    linked_project_ids = _string_list(plan.get("linked_project_ids") or [])
+    primary_chat_id = plan.get("primary_chat_id") if isinstance(plan.get("primary_chat_id"), str) else None
+    linked_changed = "linked_project_ids" in payload or "linkedProjectIds" in payload
+    primary_changed = "primary_chat_id" in payload or "primaryChatId" in payload
+    if linked_changed:
         linked_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
+        if client is not None:
+            linked_project_ids = [_resolve_project_id(client, project_id) for project_id in linked_project_ids]
         patch["linked_project_ids"] = linked_project_ids
         patch["encrypted_linked_project_ids"] = _encrypt_aes_gcm_text(json.dumps(linked_project_ids), plan_key)
-        patch["key_wrappers"] = _build_plan_key_wrappers(client=payload.get("_client"), plan_key=plan_key, primary_chat_id=plan.get("primary_chat_id"), linked_project_ids=linked_project_ids, created_at=patch["updated_at"]) if isinstance(payload.get("_client"), OpenMates) else None
-    if "primary_chat_id" in payload or "primaryChatId" in payload:
-        patch["primary_chat_id"] = payload.get("primary_chat_id") if "primary_chat_id" in payload else payload.get("primaryChatId")
+    if primary_changed:
+        raw_primary_chat_id = payload.get("primary_chat_id") if "primary_chat_id" in payload else payload.get("primaryChatId")
+        primary_chat_id = _resolve_chat_id(client, raw_primary_chat_id) if client is not None and isinstance(raw_primary_chat_id, str) and raw_primary_chat_id else raw_primary_chat_id
+        patch["primary_chat_id"] = primary_chat_id
+    if client is not None and (linked_changed or primary_changed):
+        patch["key_wrappers"] = _build_plan_key_wrappers(client=client, plan_key=plan_key, primary_chat_id=primary_chat_id if isinstance(primary_chat_id, str) else None, linked_project_ids=linked_project_ids, created_at=patch["updated_at"])
     return {key: value for key, value in patch.items() if value is not None}
 
 
@@ -1729,9 +1956,16 @@ def _build_project_create_input(wrapping_key: bytes, payload: dict[str, Any], te
         raise OpenMatesConfigError("Project name is required")
     project_key = os.urandom(32)
     now = int(time.time())
+    slug_metadata = _encrypted_object_slug_metadata(
+        str(payload.get("slug") or name),
+        encryption_key=project_key,
+        lookup_key=wrapping_key,
+    )
     result = {
         "project_id": str(payload.get("project_id") or uuid.uuid4()),
         "encrypted_project_key": None if team_id else _encrypt_aes_gcm_bytes(project_key, wrapping_key),
+        "encrypted_slug": slug_metadata["encrypted_slug"],
+        "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_name": _encrypt_aes_gcm_text(name, project_key),
         "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), project_key),
         "encrypted_icon": _encrypt_aes_gcm_text(str(payload.get("icon") or "folder"), project_key),
@@ -1766,6 +2000,7 @@ def _decrypt_project_record(record: dict[str, Any], master_key: bytes) -> dict[s
 def _decrypt_project_record_with_key(record: dict[str, Any], project_key: bytes) -> dict[str, Any]:
     return {
         "project_id": record.get("project_id"),
+        "slug": _decrypt_object_slug(record.get("encrypted_slug"), project_key),
         "name": _decrypt_aes_gcm_text(str(record.get("encrypted_name") or ""), project_key) or "(untitled project)",
         "description": _decrypt_aes_gcm_text(str(record.get("encrypted_description") or ""), project_key) or "",
         "icon": _decrypt_aes_gcm_text(str(record.get("encrypted_icon") or ""), project_key) or "",
@@ -1792,7 +2027,8 @@ def _build_project_update_input(
     team_id: str | None = None,
 ) -> dict[str, Any]:
     project_id = str(update.get("project_id") or update.get("projectId") or "")
-    project_key = _resolve_project_key(client, project_id, personal=personal, team_id=team_id)
+    resolved_project_id = _resolve_project_id(client, project_id, personal=personal, team_id=team_id)
+    project_key = _resolve_project_key(client, resolved_project_id, personal=personal, team_id=team_id)
     patch_input = dict(update.get("patch") or {})
     patch: dict[str, Any] = {"updated_at": int(time.time())}
     if "name" in patch_input:
@@ -1803,11 +2039,16 @@ def _build_project_update_input(
         patch["encrypted_icon"] = _encrypt_aes_gcm_text(str(patch_input.get("icon") or ""), project_key)
     if "color" in patch_input:
         patch["encrypted_color"] = _encrypt_aes_gcm_text(str(patch_input.get("color") or ""), project_key)
+    if "slug" in patch_input:
+        wrapping_key = _project_wrapping_key(client, team_id)
+        slug_metadata = _encrypted_object_slug_metadata(str(patch_input.get("slug") or ""), encryption_key=project_key, lookup_key=wrapping_key)
+        patch["encrypted_slug"] = slug_metadata["encrypted_slug"]
+        patch["slug_lookup_hash"] = slug_metadata["slug_lookup_hash"]
     if "pinned" in patch_input:
         patch["pinned"] = patch_input.get("pinned") is True
     if "archived" in patch_input:
         patch["archived"] = patch_input.get("archived") is True
-    return {"project_id": project_id, "patch": patch}
+    return {"project_id": resolved_project_id, "patch": patch}
 
 
 def _append_unique_id(existing: list[str], item_id: str) -> list[str]:
@@ -1819,7 +2060,20 @@ def _remove_id(existing: list[str], item_id: str) -> list[str]:
 
 
 def _find_plan(plans: list[dict[str, Any]], plan_id: str) -> dict[str, Any]:
-    matches = [plan for plan in plans if plan.get("plan_id") == plan_id or str(plan.get("plan_id") or "").startswith(plan_id)]
+    for plan in plans:
+        if plan.get("plan_id") == plan_id:
+            return plan
+    slug_matches = [plan for plan in plans if _object_slug_matches(plan.get("slug"), plan_id)]
+    if len(slug_matches) > 1:
+        raise OpenMatesConfigError(f"Plan slug '{plan_id}' is ambiguous. Use the full plan ID")
+    if slug_matches:
+        return slug_matches[0]
+    short_id_matches = [plan for plan in plans if str(plan.get("short_id") or "").upper() == plan_id.upper()]
+    if len(short_id_matches) > 1:
+        raise OpenMatesConfigError(f"Plan '{plan_id}' is ambiguous. Use the full plan ID")
+    if short_id_matches:
+        return short_id_matches[0]
+    matches = [plan for plan in plans if str(plan.get("plan_id") or "").startswith(plan_id)]
     if len(matches) > 1:
         raise OpenMatesConfigError(f"Plan '{plan_id}' is ambiguous. Use the full plan ID")
     if not matches:
@@ -1827,10 +2081,21 @@ def _find_plan(plans: list[dict[str, Any]], plan_id: str) -> dict[str, Any]:
     return matches[0]
 
 
+def _resolve_plan_id(client: OpenMates, plan_id: str) -> str:
+    if _is_uuid(plan_id):
+        return plan_id
+    return str(_find_plan(client.plans.list(active_only=False), plan_id).get("plan_id"))
+
+
 def _find_task(tasks: list[dict[str, Any]], task_id: str) -> dict[str, Any]:
     for task in tasks:
         if task.get("task_id") == task_id:
             return task
+    slug_matches = [task for task in tasks if _object_slug_matches(task.get("slug"), task_id)]
+    if len(slug_matches) > 1:
+        raise OpenMatesConfigError(f"Task slug '{task_id}' is ambiguous. Use the full task ID.")
+    if slug_matches:
+        return slug_matches[0]
     matches = [task for task in tasks if task.get("short_id") == task_id]
     if len(matches) > 1:
         raise OpenMatesConfigError(f"Task '{task_id}' is ambiguous. Use the full task ID.")
@@ -2163,14 +2428,14 @@ class OpenMatesChats:
             if normalized
             in "\n".join(
                 str(value)
-                for value in [chat.get("title"), chat.get("chat_summary"), chat.get("category"), chat.get("id")]
+                for value in [chat.get("title"), chat.get("chat_summary"), chat.get("category"), chat.get("slug"), chat.get("id")]
                 if isinstance(value, str)
             ).lower()
         ]
         return matches[offset:] if limit == 0 else matches[offset : offset + limit]
 
     def load(self, chat_id: str) -> dict[str, Any]:
-        return self._client._decrypt_loaded_chat_payload(self._client._get(f"/v1/sdk/chats/{_quote(chat_id)}"))
+        return self._client._decrypt_loaded_chat_payload(self._client._get(f"/v1/sdk/chats/{_quote(_resolve_chat_id(self._client, chat_id))}"))
 
     def add_to_project(
         self,
@@ -2179,7 +2444,8 @@ class OpenMatesChats:
         *,
         folder: str | None = None,
     ) -> dict[str, Any]:
-        project_key = _resolve_project_key(self._client, project_id)
+        resolved_project_id = _resolve_project_id(self._client, project_id)
+        project_key = _resolve_project_key(self._client, resolved_project_id)
         loaded = self.load(chat_id)
         chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
         if not isinstance(chat, dict):
@@ -2188,7 +2454,7 @@ class OpenMatesChats:
         display_name = str(chat.get("title") or target_id)
         return _create_encrypted_project_item(
             self._client,
-            project_id,
+            resolved_project_id,
             project_key,
             item_type="chat",
             target_id=target_id,
@@ -2204,7 +2470,7 @@ class OpenMatesChats:
         loaded = self.load(chat_id)
         chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
         target_id = str(chat.get("id") if isinstance(chat, dict) and chat.get("id") else chat_id)
-        return _delete_project_item_by_target(self._client, project_id, "chat", target_id)
+        return _delete_project_item_by_target(self._client, _resolve_project_id(self._client, project_id), "chat", target_id)
 
     def messages(
         self,
@@ -2246,7 +2512,7 @@ class OpenMatesChats:
             "anchor_message_id": anchor_message_id,
             "respect_compression_boundary": False if respect_compression_boundary is False else None,
         }
-        path = f"/v1/sdk/chats/{_quote(chat_id)}/messages?{urlencode({key: value for key, value in query.items() if value is not None})}"
+        path = f"/v1/sdk/chats/{_quote(_resolve_chat_id(self._client, chat_id))}/messages?{urlencode({key: value for key, value in query.items() if value is not None})}"
         loaded = self._client._decrypt_loaded_chat_payload(self._client._get(path))
         chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
         if not isinstance(chat, dict):
@@ -2314,8 +2580,15 @@ class OpenMatesChats:
             if isinstance(message.get("model_name"), str):
                 encrypted_message["encrypted_model_name"] = _encrypt_aes_gcm_text(message["model_name"], new_chat_key)
             encrypted_messages.append(encrypted_message)
+        master_key = self._client._get_master_key()
+        slug_metadata = _encrypted_object_slug_metadata(
+            title or f"fork-of-{chat.get('slug') or chat.get('title') or chat.get('id')}",
+            encryption_key=new_chat_key,
+            lookup_key=master_key,
+        )
+        source_chat_id = str(chat.get("id") or _resolve_chat_id(self._client, chat_id))
         return self._client._post(
-            f"/v1/sdk/chats/{_quote(chat_id)}/fork",
+            f"/v1/sdk/chats/{_quote(source_chat_id)}/fork",
             {
                 "protocol_version": 1,
                 "from_message_id": from_message_id,
@@ -2324,7 +2597,9 @@ class OpenMatesChats:
                 "encrypted_chat_metadata": {
                     "id": new_chat_id,
                     "encrypted_title": _encrypt_aes_gcm_text(title or f"Fork of {chat.get('title') or chat.get('id')}", new_chat_key),
-                    "encrypted_chat_key": _encrypt_aes_gcm_bytes(new_chat_key, self._client._get_master_key()),
+                    "encrypted_slug": slug_metadata["encrypted_slug"],
+                    "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
+                    "encrypted_chat_key": _encrypt_aes_gcm_bytes(new_chat_key, master_key),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -2347,7 +2622,7 @@ class OpenMatesChats:
         messages = _normalize_loaded_chat_messages(loaded)
         _find_message_boundary_index(messages, to_message_id)
         result = self._client._post(
-            f"/v1/sdk/chats/{_quote(chat_id)}/rewind",
+            f"/v1/sdk/chats/{_quote(str(chat.get('id') or _resolve_chat_id(self._client, chat_id)))}/rewind",
             {
                 "protocol_version": 1,
                 "to_message_id": to_message_id,
@@ -2388,6 +2663,7 @@ class OpenMatesChats:
         memory_ids: list[str] | None = None,
         model: str | None = None,
         chat_id: str | None = None,
+        slug: str | None = None,
         title: str | None = None,
         goal: str | None = None,
         goal_title: str | None = None,
@@ -2409,6 +2685,7 @@ class OpenMatesChats:
                 memory_ids=memory_ids,
                 model=model,
                 chat_id=chat_id,
+                slug=slug,
                 title=title,
                 goal=normalized_goal,
                 goal_title=goal_title,
@@ -2442,6 +2719,7 @@ class OpenMatesChats:
         memory_ids: list[str] | None,
         model: str | None,
         chat_id: str | None,
+        slug: str | None,
         title: str | None,
         connected_account_directory: list[dict[str, Any]] | None,
         connected_account_token_ref_inputs: list[dict[str, Any]] | None,
@@ -2456,7 +2734,7 @@ class OpenMatesChats:
         if not user.get("id"):
             raise OpenMatesConfigError("SDK session did not include the authenticated user identity")
 
-        saved_chat_id = chat_id or str(uuid.uuid4())
+        saved_chat_id = _resolve_chat_id(self._client, chat_id) if chat_id else str(uuid.uuid4())
         turn_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
         created_at = int(time.time())
@@ -2464,7 +2742,7 @@ class OpenMatesChats:
         encrypted_chat_metadata = None
         loaded_messages: list[dict[str, Any]] = []
         if chat_id:
-            loaded = self.load(chat_id)
+            loaded = self.load(saved_chat_id)
             chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
             loaded_messages = _normalize_loaded_chat_messages(loaded)
             encrypted_chat_key = chat.get("encrypted_chat_key")
@@ -2477,8 +2755,11 @@ class OpenMatesChats:
         else:
             chat_key = os.urandom(32)
             encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
+            slug_metadata = _encrypted_object_slug_metadata(slug or title or message, encryption_key=chat_key, lookup_key=master_key)
             encrypted_chat_metadata = {
                 "encrypted_title": _encrypt_aes_gcm_text(title or message[:80], chat_key),
+                "encrypted_slug": slug_metadata["encrypted_slug"],
+                "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
                 "encrypted_chat_key": encrypted_chat_key,
                 "created_at": created_at,
                 "updated_at": created_at,
@@ -2679,11 +2960,12 @@ class OpenMatesChats:
         return recovered
 
     def export(self, chat_id: str, *, format: str | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/sdk/chats/{_quote(chat_id)}/export", {"format": format or "json", "payload": self.load(chat_id)})
+        resolved_chat_id = _resolve_chat_id(self._client, chat_id)
+        return self._client._post(f"/v1/sdk/chats/{_quote(resolved_chat_id)}/export", {"format": format or "json", "payload": self.load(resolved_chat_id)})
 
     def delete(self, chat_id: str, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Deleting a chat")
-        return self._client._delete(f"/v1/sdk/chats/{_quote(chat_id)}")
+        return self._client._delete(f"/v1/sdk/chats/{_quote(_resolve_chat_id(self._client, chat_id))}")
 
     def share(self, chat_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
         loaded = self.load(chat_id)
@@ -2694,8 +2976,9 @@ class OpenMatesChats:
         chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, self._client._get_master_key())
         if chat_key is None:
             raise OpenMatesConfigError("Unable to decrypt chat key for share link")
-        blob = _generate_share_blob("chat", chat_id, chat_key, expires=expires, password=password)
-        return {"url": f"{self._client._web_origin()}/share/chat/{chat_id}#key={blob}"}
+        resolved_chat_id = str(chat.get("id") or _resolve_chat_id(self._client, chat_id))
+        blob = _generate_share_blob("chat", resolved_chat_id, chat_key, expires=expires, password=password)
+        return {"url": f"{self._client._web_origin()}/share/chat/{resolved_chat_id}#key={blob}"}
 
     def follow_ups(self, chat_id: str) -> list[str]:
         loaded = self.load(chat_id)
@@ -3132,12 +3415,14 @@ class OpenMatesPlans:
         project_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[dict[str, Any]]:
+        resolved_chat_id = _resolve_chat_id(self._client, chat_id) if isinstance(chat_id, str) and chat_id else chat_id
+        resolved_project_id = _resolve_project_id(self._client, project_id) if isinstance(project_id, str) and project_id else project_id
         return self._client._get(
             _with_query(
                 "/v1/user-plans",
                 status=status,
-                chat_id=chat_id,
-                project_id=project_id,
+                chat_id=resolved_chat_id,
+                project_id=resolved_project_id,
                 active_only=active_only,
             )
         ).get("plans", [])
@@ -3150,6 +3435,8 @@ class OpenMatesPlans:
         return _public_plan(_decrypt_plan_record(self._get_raw_plan(plan_id), self._client._get_master_key()))
 
     def _get_raw_plan(self, plan_id: str) -> dict[str, Any]:
+        if not _is_uuid(plan_id):
+            return _find_plan(self._list_raw(active_only=False), plan_id)
         try:
             plan = self._client._get(f"/v1/user-plans/{_quote(plan_id)}").get("plan")
             if not isinstance(plan, dict):
@@ -3163,7 +3450,7 @@ class OpenMatesPlans:
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         existing = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        plan = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", _build_plan_update_input(existing, master_key, {**payload, "_client": self._client})).get("plan", {})
+        plan = self._client._patch(f"/v1/user-plans/{_quote(str(existing['plan_id']))}", _build_plan_update_input(existing, master_key, {**payload, "_client": self._client})).get("plan", {})
         return _public_plan(_decrypt_plan_record(plan, master_key))
 
     def add_to_project(
@@ -3175,7 +3462,7 @@ class OpenMatesPlans:
         master_key = self._client._get_master_key()
         plan_key = _plan_key_from_record(plan, master_key)
         linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
-        updated_project_ids = _append_unique_id(linked_project_ids, project_id)
+        updated_project_ids = _append_unique_id(linked_project_ids, _resolve_project_id(self._client, project_id))
         patch = {
             "version": plan.get("version"),
             "updated_at": int(time.time()),
@@ -3201,7 +3488,7 @@ class OpenMatesPlans:
         master_key = self._client._get_master_key()
         plan_key = _plan_key_from_record(plan, master_key)
         linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
-        updated_project_ids = _remove_id(linked_project_ids, project_id)
+        updated_project_ids = _remove_id(linked_project_ids, _resolve_project_id(self._client, project_id))
         patch = {
             "version": plan.get("version"),
             "updated_at": int(time.time()),
@@ -3219,12 +3506,13 @@ class OpenMatesPlans:
         return _public_plan(_decrypt_plan_record(updated, master_key))
 
     def history(self, plan_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+        resolved_plan_id = _resolve_plan_id(self._client, plan_id)
         query = f"?limit={limit}" if limit is not None else ""
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/history{query}").get("entries", [])
+        return self._client._get(f"/v1/user-plans/{_quote(resolved_plan_id)}/history{query}").get("entries", [])
 
     def restore(self, plan_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
         return self._client._post(
-            f"/v1/user-plans/{_quote(plan_id)}/restore",
+            f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/restore",
             {"entry_id": entry_id, "state": state},
         )
 
@@ -3262,7 +3550,7 @@ class OpenMatesPlans:
         return {**response, "plan": plans[0] if len(plans) == 1 else None, "plans": plans}
 
     def activate(self, plan_id: str, *, chat_id: str | None = None) -> dict[str, Any]:
-        request_payload = {"chat_id": chat_id} if chat_id is not None else {}
+        request_payload = {"chat_id": _resolve_chat_id(self._client, chat_id)} if chat_id is not None else {}
         if isinstance(request_payload.get("chat_id"), str):
             existing = self._get_raw_plan(plan_id)
             master_key = self._client._get_master_key()
@@ -3275,7 +3563,7 @@ class OpenMatesPlans:
                 linked_project_ids=linked_project_ids,
                 created_at=int(request_payload.get("updated_at") or time.time()),
             )
-        plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/activate", request_payload).get("plan", {})
+        plan = self._client._post(f"/v1/user-plans/{_quote(str(existing.get('plan_id')) if 'existing' in locals() else _resolve_plan_id(self._client, plan_id))}/activate", request_payload).get("plan", {})
         if "primary_chat_id" not in plan and isinstance(request_payload.get("chat_id"), str):
             plan = {**plan, "primary_chat_id": request_payload["chat_id"]}
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
@@ -3291,7 +3579,7 @@ class OpenMatesPlans:
 
     def complete(self, plan_id: str) -> dict[str, Any]:
         existing = self._get_raw_plan(plan_id)
-        plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", {"version": existing.get("version")}).get("plan", {})
+        plan = self._client._post(f"/v1/user-plans/{_quote(str(existing.get('plan_id')))}/complete", {"version": existing.get("version")}).get("plan", {})
         if not plan:
             plan = self._get_raw_plan(plan_id)
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
@@ -3299,122 +3587,122 @@ class OpenMatesPlans:
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        criterion = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", _build_plan_criterion_create_input(plan, master_key, payload)).get("criterion", {})
+        criterion = self._client._post(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/criteria", _build_plan_criterion_create_input(plan, master_key, payload)).get("criterion", {})
         return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
-        return [_public_plan_criterion(criterion, plan_key) for criterion in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])]
+        return [_public_plan_criterion(criterion, plan_key) for criterion in self._client._get(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/criteria").get("criteria", [])]
 
     def update_criterion(self, plan_id: str, criterion_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        criterion = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}", _build_plan_criterion_update_input(plan, master_key, payload)).get("criterion", {})
+        criterion = self._client._patch(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/criteria/{_quote(criterion_id)}", _build_plan_criterion_update_input(plan, master_key, payload)).get("criterion", {})
         return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_criterion(self, plan_id: str, criterion_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}")
+        return self._client._delete(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/criteria/{_quote(criterion_id)}")
 
     def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        verification = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", _build_plan_verification_create_input(plan, master_key, payload)).get("verification", {})
+        verification = self._client._post(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/verification", _build_plan_verification_create_input(plan, master_key, payload)).get("verification", {})
         return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
-        return [_public_plan_verification(verification, plan_key) for verification in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])]
+        return [_public_plan_verification(verification, plan_key) for verification in self._client._get(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/verification").get("verifications", [])]
 
     def update_verification(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        verification = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}", _build_plan_verification_update_input(plan, master_key, payload)).get("verification", {})
+        verification = self._client._patch(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/verification/{_quote(verification_id)}", _build_plan_verification_update_input(plan, master_key, payload)).get("verification", {})
         return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_verification(self, plan_id: str, verification_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}")
+        return self._client._delete(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/verification/{_quote(verification_id)}")
 
     def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        assumption = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", _build_plan_assumption_create_input(plan, master_key, payload)).get("assumption", {})
+        assumption = self._client._post(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/assumptions", _build_plan_assumption_create_input(plan, master_key, payload)).get("assumption", {})
         return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
-        return [_public_plan_assumption(assumption, plan_key) for assumption in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/assumptions").get("assumptions", [])]
+        return [_public_plan_assumption(assumption, plan_key) for assumption in self._client._get(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/assumptions").get("assumptions", [])]
 
     def update_assumption(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        assumption = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", _build_plan_assumption_update_input(plan, master_key, payload)).get("assumption", {})
+        assumption = self._client._patch(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/assumptions/{_quote(assumption_id)}", _build_plan_assumption_update_input(plan, master_key, payload)).get("assumption", {})
         return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_assumption(self, plan_id: str, assumption_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}")
+        return self._client._delete(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/assumptions/{_quote(assumption_id)}")
 
     def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        pattern = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", _build_plan_reference_pattern_create_input(plan, master_key, payload)).get("reference_pattern", {})
+        pattern = self._client._post(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/reference-patterns", _build_plan_reference_pattern_create_input(plan, master_key, payload)).get("reference_pattern", {})
         return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
-        return [_public_plan_reference_pattern(pattern, plan_key) for pattern in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])]
+        return [_public_plan_reference_pattern(pattern, plan_key) for pattern in self._client._get(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/reference-patterns").get("reference_patterns", [])]
 
     def update_reference_pattern(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        pattern = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}", _build_plan_reference_pattern_update_input(plan, master_key, payload)).get("reference_pattern", {})
+        pattern = self._client._patch(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/reference-patterns/{_quote(pattern_id)}", _build_plan_reference_pattern_update_input(plan, master_key, payload)).get("reference_pattern", {})
         return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_reference_pattern(self, plan_id: str, pattern_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}")
+        return self._client._delete(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/reference-patterns/{_quote(pattern_id)}")
 
     def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        learning = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", _build_plan_learning_create_input(plan, master_key, payload)).get("learning", {})
+        learning = self._client._post(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/learnings", _build_plan_learning_create_input(plan, master_key, payload)).get("learning", {})
         return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_learnings(self, plan_id: str) -> list[dict[str, Any]]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         plan_key = _plan_key_from_record(plan["encrypted"], master_key)
-        return [_public_plan_learning(learning, plan_key) for learning in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/learnings").get("learnings", [])]
+        return [_public_plan_learning(learning, plan_key) for learning in self._client._get(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/learnings").get("learnings", [])]
 
     def update_learning(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
-        learning = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", _build_plan_learning_update_input(plan, master_key, payload)).get("learning", {})
+        learning = self._client._patch(f"/v1/user-plans/{_quote(str(plan['plan_id']))}/learnings/{_quote(learning_id)}", _build_plan_learning_update_input(plan, master_key, payload)).get("learning", {})
         return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_learning(self, plan_id: str, learning_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}")
+        return self._client._delete(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/learnings/{_quote(learning_id)}")
 
     def create_learning_tasks(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings/create-tasks", payload)
+        return self._client._post(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/learnings/create-tasks", payload)
 
     def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
         verification = self._client._post(
-            f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",
+            f"/v1/user-plans/{_quote(str(plan['plan_id']))}/verification/{_quote(verification_id)}/evidence",
             _build_plan_verification_evidence_input(plan, master_key, payload),
         ).get("verification", {})
         return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def get_verification_run(self, plan_id: str, verification_id: str, run_id: str) -> dict[str, Any]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/runs/{_quote(run_id)}")
+        return self._client._get(f"/v1/user-plans/{_quote(_resolve_plan_id(self._client, plan_id))}/verification/{_quote(verification_id)}/runs/{_quote(run_id)}")
 
 
 class OpenMatesTasks:
@@ -3452,13 +3740,16 @@ class OpenMatesTasks:
     ) -> list[dict[str, Any]]:
         label_values = labels if labels is not None else tags
         label_hashes = _task_label_hashes(self._client._get_master_key(), _normalize_task_labels(label_values)) if label_values else None
+        resolved_chat_id = _resolve_chat_id(self._client, chat_id) if isinstance(chat_id, str) and chat_id else chat_id
+        resolved_project_id = _resolve_project_id(self._client, project_id) if isinstance(project_id, str) and project_id else project_id
+        resolved_plan_id = _resolve_plan_id(self._client, plan_id) if isinstance(plan_id, str) and plan_id else plan_id
         return self._client._get(
             _with_query(
                 "/v1/user-tasks",
                 status=status,
-                chat_id=chat_id,
-                project_id=project_id,
-                plan_id=plan_id,
+                chat_id=resolved_chat_id,
+                project_id=resolved_project_id,
+                plan_id=resolved_plan_id,
                 label_hash=label_hashes,
                 priority=_normalize_task_priority(priority),
             )
@@ -3495,7 +3786,7 @@ class OpenMatesTasks:
         if create is None and not creates and update is None and not updates and exact_delete is None and exact_deletes is None:
             planned_creates = self._client._post("/v1/user-tasks/ask/plan", {"instruction": instruction}).get("proposed_tasks", [])
         create_payloads = creates if creates is not None else [create] if create is not None else planned_creates
-        encrypted_creates = [_build_task_create_input(master_key, item) for item in create_payloads if isinstance(item, dict)]
+        encrypted_creates = [_build_task_create_input(master_key, _canonicalize_task_payload(self._client, item)) for item in create_payloads if isinstance(item, dict)]
         payload: dict[str, Any] = {"instruction": instruction}
         if create is not None and encrypted_creates:
             payload["encrypted_create"] = encrypted_creates[0]
@@ -3504,13 +3795,13 @@ class OpenMatesTasks:
         if update is not None:
             task_id = str(update.get("task_id") or update.get("taskId") or "")
             task = self._resolve(task_id, dict(update.get("filters") or {}))
-            payload["encrypted_update"] = {"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, dict(update.get("patch") or {}))}
+            payload["encrypted_update"] = {"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(update.get("patch") or {})))}
         if updates is not None:
             payload["encrypted_updates"] = []
             for item in updates:
                 task_id = str(item.get("task_id") or item.get("taskId") or "")
                 task = self._resolve(task_id, dict(item.get("filters") or {}))
-                payload["encrypted_updates"].append({"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, dict(item.get("patch") or {}))})
+                payload["encrypted_updates"].append({"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(item.get("patch") or {})))})
         if exact_delete is not None:
             payload["exact_delete"] = exact_delete
         if exact_deletes is not None:
@@ -3522,7 +3813,7 @@ class OpenMatesTasks:
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
-        created = self._create_raw(_build_task_create_input(master_key, payload))
+        created = self._create_raw(_build_task_create_input(master_key, _canonicalize_task_payload(self._client, payload)))
         return _public_task(_decrypt_task_record(created, master_key))
 
     def _create_raw(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -3539,7 +3830,7 @@ class OpenMatesTasks:
         master_key = self._client._get_master_key()
         for attempt in range(2):
             try:
-                updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, payload))
+                updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, payload)))
                 return _public_task(_decrypt_task_record(updated, master_key))
             except OpenMatesApiError as exc:
                 if attempt > 0 or not _is_task_version_conflict(exc):
@@ -3557,7 +3848,7 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         master_key = self._client._get_master_key()
         updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
-            "linked_project_ids": _append_unique_id(_string_list(task.get("linked_project_ids") or []), project_id),
+            "linked_project_ids": _append_unique_id(_string_list(task.get("linked_project_ids") or []), _resolve_project_id(self._client, project_id)),
         }))
         return _public_task(_decrypt_task_record(updated, master_key))
 
@@ -3570,7 +3861,7 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         master_key = self._client._get_master_key()
         updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
-            "linked_project_ids": _remove_id(_string_list(task.get("linked_project_ids") or []), project_id),
+            "linked_project_ids": _remove_id(_string_list(task.get("linked_project_ids") or []), _resolve_project_id(self._client, project_id)),
         }))
         return _public_task(_decrypt_task_record(updated, master_key))
 
@@ -3730,7 +4021,8 @@ class OpenMatesProjects:
 
     def show(self, project_id: str, *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
         context_team_id = _project_context(personal=personal, team_id=team_id)
-        response = self._client._get(_with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id))
+        resolved_project_id = _resolve_project_id(self._client, project_id, personal=personal, team_id=context_team_id)
+        response = self._client._get(_with_query(f"/v1/projects/{_quote(resolved_project_id)}", team_id=context_team_id))
         project = response.get("project")
         if not isinstance(project, dict):
             raise OpenMatesApiError(404, {"detail": "Project not found"})
@@ -3753,9 +4045,9 @@ class OpenMatesProjects:
             personal=personal,
             team_id=context_team_id,
         )
-        project_key = _resolve_project_key(self._client, project_id, personal=personal, team_id=context_team_id)
+        project_key = _resolve_project_key(self._client, built["project_id"], personal=personal, team_id=context_team_id)
         project = self._client._patch(
-            _with_query(f"/v1/projects/{_quote(project_id)}", team_id=context_team_id),
+            _with_query(f"/v1/projects/{_quote(built['project_id'])}", team_id=context_team_id),
             built["patch"],
         ).get("project", {})
         return _public_project(_decrypt_project_record_with_key(project, project_key))
@@ -3769,20 +4061,25 @@ class OpenMatesProjects:
     def delete(self, project_id: str, *, confirmed: bool, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
         _require_confirmed(confirmed, "Project delete")
         context_team_id = _project_context(personal=personal, team_id=team_id)
+        resolved_project_id = _resolve_project_id(self._client, project_id, personal=personal, team_id=context_team_id)
         response = self._client._delete(_with_query(
-            f"/v1/projects/{_quote(project_id)}",
-            confirmation_project_id=project_id,
+            f"/v1/projects/{_quote(resolved_project_id)}",
+            confirmation_project_id=resolved_project_id,
             team_id=context_team_id,
         ))
         return {"deleted": response.get("deleted") is True}
 
-    def history(self, project_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+    def history(self, project_id: str, *, limit: int | None = None, personal: bool = False, team_id: str | None = None) -> list[dict[str, Any]]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        resolved_project_id = _resolve_project_id(self._client, project_id, personal=personal, team_id=context_team_id)
         query = f"?limit={limit}" if limit is not None else ""
-        return self._client._get(f"/v1/projects/{_quote(project_id)}/history{query}").get("entries", [])
+        return self._client._get(_with_query(f"/v1/projects/{_quote(resolved_project_id)}/history{query}", team_id=context_team_id)).get("entries", [])
 
-    def restore(self, project_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
+    def restore(self, project_id: str, *, entry_id: str, state: str = "after", personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
+        context_team_id = _project_context(personal=personal, team_id=team_id)
+        resolved_project_id = _resolve_project_id(self._client, project_id, personal=personal, team_id=context_team_id)
         return self._client._post(
-            f"/v1/projects/{_quote(project_id)}/restore",
+            _with_query(f"/v1/projects/{_quote(resolved_project_id)}/restore", team_id=context_team_id),
             {"entry_id": entry_id, "state": state},
         )
 
@@ -3824,10 +4121,15 @@ class OpenMatesWorkflows:
         self._client = client
 
     def list(self) -> list[dict[str, Any]]:
-        return self._client._get("/v1/workflows").get("workflows", [])
+        return [self._decrypt_slug(workflow) for workflow in self._client._get("/v1/workflows").get("workflows", [])]
 
     def temporary(self) -> list[dict[str, Any]]:
-        return self._client._get("/v1/workflows/temporary").get("workflows", [])
+        return [self._decrypt_slug(workflow) for workflow in self._client._get("/v1/workflows/temporary").get("workflows", [])]
+
+    def _decrypt_slug(self, workflow: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(workflow, dict) and isinstance(workflow.get("encrypted_slug"), str):
+            return {**workflow, "slug": _decrypt_object_slug(workflow["encrypted_slug"], self._client._get_master_key())}
+        return workflow
 
     def capabilities(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
@@ -3847,7 +4149,7 @@ class OpenMatesWorkflows:
         return response
 
     def update_from_yaml(self, workflow_id: str, source: str) -> dict[str, Any]:
-        response = self._client._post(f"/v1/workflows/{_quote(workflow_id)}/yaml", {"source": source})
+        response = _workflow_resource_request(self._client, "POST", workflow_id, "/yaml", {"source": source})
         if not isinstance(response.get("workflow"), dict):
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing workflow"})
         if not isinstance(response.get("validation"), dict):
@@ -3856,13 +4158,10 @@ class OpenMatesWorkflows:
 
     def history(self, workflow_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
-        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/history{query}").get("entries", [])
+        return _workflow_resource_request(self._client, "GET", workflow_id, f"/history{query}").get("entries", [])
 
     def restore(self, workflow_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
-        return self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/restore",
-            {"entry_id": entry_id, "state": state},
-        )
+        return _workflow_resource_request(self._client, "POST", workflow_id, "/restore", {"entry_id": entry_id, "state": state})
 
     def ask(
         self,
@@ -3881,7 +4180,7 @@ class OpenMatesWorkflows:
         if exact_action is not None:
             payload["exact_action"] = exact_action
         if selected_object_id is not None:
-            payload["selected_object_id"] = selected_object_id
+            payload["selected_object_id"] = _resolve_workflow_id(self._client, selected_object_id)
         return self._client._post("/v1/workflows/ask", payload)
 
     def start_input(
@@ -3901,9 +4200,9 @@ class OpenMatesWorkflows:
         if audio_ref is not None:
             payload["audio_ref"] = audio_ref
         if selected_workflow_id is not None:
-            payload["selected_workflow_id"] = selected_workflow_id
+            payload["selected_workflow_id"] = _resolve_workflow_id(self._client, selected_workflow_id)
         if selected_project_id is not None:
-            payload["selected_project_id"] = selected_project_id
+            payload["selected_project_id"] = _resolve_project_id(self._client, selected_project_id)
         return self._client._post("/v1/workflows/input", payload).get("session", {})
 
     def input_session(self, session_id: str) -> dict[str, Any]:
@@ -3930,7 +4229,7 @@ class OpenMatesWorkflows:
         return self._client._post(f"/v1/workflows/input/{_quote(session_id)}/undo", {}).get("session", {})
 
     def get(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}").get("workflow", {})
+        return self._decrypt_slug(_workflow_resource_request(self._client, "GET", workflow_id).get("workflow", {}))
 
     def add_to_project(
         self,
@@ -3939,13 +4238,14 @@ class OpenMatesWorkflows:
         *,
         folder: str | None = None,
     ) -> dict[str, Any]:
-        project_key = _resolve_project_key(self._client, project_id)
+        resolved_project_id = _resolve_project_id(self._client, project_id)
+        project_key = _resolve_project_key(self._client, resolved_project_id)
         workflow = self.get(workflow_id)
         target_id = str(workflow.get("id") or workflow_id)
         display_name = str(workflow.get("title") or target_id)
         return _create_encrypted_project_item(
             self._client,
-            project_id,
+            resolved_project_id,
             project_key,
             item_type="workflow",
             target_id=target_id,
@@ -3960,7 +4260,7 @@ class OpenMatesWorkflows:
     def remove_from_project(self, workflow_id: str, project_id: str) -> dict[str, Any]:
         workflow = self.get(workflow_id)
         target_id = str(workflow.get("id") or workflow_id)
-        return _delete_project_item_by_target(self._client, project_id, "workflow", target_id)
+        return _delete_project_item_by_target(self._client, _resolve_project_id(self._client, project_id), "workflow", target_id)
 
     def create(
         self,
@@ -3972,12 +4272,17 @@ class OpenMatesWorkflows:
         run_content_retention: str = "last_5",
         lifecycle: str = "persisted",
         source: str = "manual",
+        slug: str | None = None,
         source_chat_id: str | None = None,
         created_by_assistant: bool = False,
         auto_delete_at: int | None = None,
     ) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        slug_metadata = _encrypted_object_slug_metadata(slug or title, encryption_key=master_key, lookup_key=master_key)
         payload = {
             "title": title,
+            "encrypted_slug": slug_metadata["encrypted_slug"],
+            "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
             "graph": graph,
             "enabled": enabled,
             "run_content_retention": run_content_retention,
@@ -3988,13 +4293,13 @@ class OpenMatesWorkflows:
         if description is not None:
             payload["description"] = description
         if source_chat_id is not None:
-            payload["source_chat_id"] = source_chat_id
+            payload["source_chat_id"] = _resolve_chat_id(self._client, source_chat_id)
         if auto_delete_at is not None:
             payload["auto_delete_at"] = auto_delete_at
-        return self._client._post(
+        return self._decrypt_slug(self._client._post(
             "/v1/workflows",
             payload,
-        ).get("workflow", {})
+        ).get("workflow", {}))
 
     def update(
         self,
@@ -4005,6 +4310,7 @@ class OpenMatesWorkflows:
         graph: dict[str, Any] | None = None,
         enabled: bool | None = None,
         run_content_retention: str | None = None,
+        slug: str | None = None,
     ) -> dict[str, Any]:
         payload = {
             key: value
@@ -4017,20 +4323,25 @@ class OpenMatesWorkflows:
             }.items()
             if value is not None
         }
-        return self._client._patch(f"/v1/workflows/{_quote(workflow_id)}", payload).get("workflow", {})
+        if slug is not None:
+            master_key = self._client._get_master_key()
+            slug_metadata = _encrypted_object_slug_metadata(slug, encryption_key=master_key, lookup_key=master_key)
+            payload["encrypted_slug"] = slug_metadata["encrypted_slug"]
+            payload["slug_lookup_hash"] = slug_metadata["slug_lookup_hash"]
+        return self._decrypt_slug(_workflow_resource_request(self._client, "PATCH", workflow_id, "", payload).get("workflow", {}))
 
     def enable(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/enable", {}).get("workflow", {})
+        return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/enable", {}).get("workflow", {}))
 
     def disable(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/disable", {}).get("workflow", {})
+        return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/disable", {}).get("workflow", {}))
 
     def delete(self, workflow_id: str, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Deleting a workflow")
-        return self._client._delete(f"/v1/workflows/{_quote(workflow_id)}")
+        return _workflow_resource_request(self._client, "DELETE", workflow_id)
 
     def keep(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/keep", {}).get("workflow", {})
+        return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/keep", {}).get("workflow", {}))
 
     def run(
         self,
@@ -4042,17 +4353,20 @@ class OpenMatesWorkflows:
     ) -> dict[str, Any]:
         if not idempotency_key.strip():
             raise OpenMatesConfigError("Workflow run requires a stable idempotency_key")
-        return self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/run",
+        return _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            "/run",
             {"mode": mode, "input": input_data or {}},
             extra_headers={"Idempotency-Key": idempotency_key},
         ).get("run", {})
 
     def runs(self, workflow_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs").get("runs", [])
+        return _workflow_resource_request(self._client, "GET", workflow_id, "/runs").get("runs", [])
 
     def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
-        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}").get("run", {})
+        return _workflow_resource_request(self._client, "GET", workflow_id, f"/runs/{_quote(run_id)}").get("run", {})
 
     def step_test(
         self,
@@ -4062,8 +4376,11 @@ class OpenMatesWorkflows:
         input_data: dict[str, Any] | None = None,
         confirmed: bool = False,
     ) -> dict[str, Any]:
-        response = self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/steps/{_quote(step_id)}/test",
+        response = _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            f"/steps/{_quote(step_id)}/test",
             {"input": input_data or {}, "confirmed": confirmed},
         )
         run = response.get("run")
@@ -4072,14 +4389,17 @@ class OpenMatesWorkflows:
         return run
 
     def cancel_run(self, workflow_id: str, run_id: str) -> dict[str, Any]:
-        result = self._client._post(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}/cancel", {})
+        result = _workflow_resource_request(self._client, "POST", workflow_id, f"/runs/{_quote(run_id)}/cancel", {})
         if result.get("status") not in {"cancellation_requested", "cancelled"}:
             raise OpenMatesApiError(500, {"detail": "Workflow response has invalid cancellation status"})
         return result
 
     def respond(self, workflow_id: str, run_id: str, step_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        response = self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}/respond",
+        response = _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            f"/runs/{_quote(run_id)}/respond",
             {"step_id": step_id, "input": input_data},
         )
         run = response.get("run")
@@ -4098,8 +4418,11 @@ class OpenMatesWorkflows:
         owner_wrapped_key: str,
         projection_schema_version: int,
     ) -> dict[str, Any]:
-        return self._client._put(
-            f"/v1/workflows/{_quote(workflow_id)}/template-projection",
+        return _workflow_resource_request(
+            self._client,
+            "PUT",
+            workflow_id,
+            "/template-projection",
             {
                 "template_id": template_id,
                 "source_version": source_version,
@@ -4114,16 +4437,10 @@ class OpenMatesWorkflows:
         return self._client._get_public(f"/v1/workflows/template-projections/{_quote(template_id)}")
 
     def revoke_template_projection(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/template-projection/revoke",
-            {},
-        )
+        return _workflow_resource_request(self._client, "POST", workflow_id, "/template-projection/revoke", {})
 
     def unrevoke_template_projection(self, workflow_id: str) -> dict[str, Any]:
-        return self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/template-projection/unrevoke",
-            {},
-        )
+        return _workflow_resource_request(self._client, "POST", workflow_id, "/template-projection/unrevoke", {})
 
     def complete_imported_binding(
         self,
@@ -4132,8 +4449,11 @@ class OpenMatesWorkflows:
         binding_type: str,
         node_id: str,
     ) -> dict[str, Any]:
-        return self._client._post(
-            f"/v1/workflows/{_quote(workflow_id)}/binding-requirements/complete",
+        return _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            "/binding-requirements/complete",
             {"type": binding_type, "node_id": node_id},
         )
 

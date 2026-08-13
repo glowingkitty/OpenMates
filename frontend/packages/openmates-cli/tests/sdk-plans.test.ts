@@ -21,13 +21,16 @@ function assertNoPlaintextMarker(value: unknown, marker: string): void {
 }
 
 const plan = {
-  plan_id: "plan-1",
+  plan_id: "33333333-3333-4333-8333-333333333333",
   encrypted_plan_key: "cipher-key",
   encrypted_title: "cipher-title",
   status: "draft" as const,
   created_at: 100,
   updated_at: 100,
 };
+
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
+const PLAN_ID = "33333333-3333-4333-8333-333333333333";
 
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
@@ -112,13 +115,13 @@ describe("OpenMates SDK user plans", () => {
         if (request.url === "/v1/sdk/session") {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
         }
-        if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
-          return { chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedChatTitle, updated_at: 200 }, messages: [] };
+        if (request.method === "GET" && request.url === `/v1/sdk/chats/${CHAT_ID}`) {
+          return { chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedChatTitle, updated_at: 200 }, messages: [] };
         }
         if (request.method === "DELETE") return { deleted: true };
         if (request.url?.includes("/runs/run-1")) return { run: { run_id: "run-1" }, artifacts: [] };
         if (request.url?.includes("/learnings/create-tasks")) return { tasks: [], skipped: [] };
-        if (request.url === "/v1/user-plans/plan-1" && request.method === "GET") return { plan: validPlan };
+        if (request.url === `/v1/user-plans/${PLAN_ID}` && request.method === "GET") return { plan: validPlan };
         if (request.url?.includes("/learnings") && request.method === "GET") return { learnings: [] };
         if (request.url?.includes("/learnings")) return { learning: body };
         if (request.method === "GET") return { plans: [validPlan] };
@@ -131,59 +134,59 @@ describe("OpenMates SDK user plans", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
-        assert.equal((await client.plans.list({ status: "draft", chatId: "chat-1" }))[0]?.planId, "plan-1");
-        assert.equal((await client.plans.show("plan-1")).planId, "plan-1");
+        assert.equal((await client.plans.list({ status: "draft", chatId: CHAT_ID }))[0]?.planId, PLAN_ID);
+        assert.equal((await client.plans.show(PLAN_ID)).planId, PLAN_ID);
         assert.equal((await client.plans.create({ title: "Created plan" })).title, "Created plan");
-        assert.equal((await client.plans.update("plan-1", { status: "active" })).status, "active");
-        assert.equal((await client.plans.attach("plan-1", { chatId: "chat-1" })).primaryChatId, "chat-1");
-        assert.equal((await client.plans.start("plan-1")).status, "executing");
-        assert.equal((await client.plans.resume("plan-1")).status, "active");
-        assert.equal((await client.plans.goal.set("plan-1", "Updated goal")).goal, "Updated goal");
-        assert.equal((await client.plans.currentFocus.clear("plan-1")).currentFocus, "");
-        assert.equal((await client.plans.scopeIn.add("plan-1", "Scope")).scopeIn, "Scope");
-        assert.equal((await client.plans.openQuestions.answer("plan-1", "Answered")).openQuestions, "Answered");
-        assert.equal((await client.plans.complete("plan-1")).planId, "plan-1");
-        const criterion = await client.plans.successCriteria.add("plan-1", { criterionId: "AC-1", text: "Plain AC" });
+        assert.equal((await client.plans.update(PLAN_ID, { status: "active" })).status, "active");
+        assert.equal((await client.plans.attach(PLAN_ID, { chatId: CHAT_ID })).primaryChatId, CHAT_ID);
+        assert.equal((await client.plans.start(PLAN_ID)).status, "executing");
+        assert.equal((await client.plans.resume(PLAN_ID)).status, "active");
+        assert.equal((await client.plans.goal.set(PLAN_ID, "Updated goal")).goal, "Updated goal");
+        assert.equal((await client.plans.currentFocus.clear(PLAN_ID)).currentFocus, "");
+        assert.equal((await client.plans.scopeIn.add(PLAN_ID, "Scope")).scopeIn, "Scope");
+        assert.equal((await client.plans.openQuestions.answer(PLAN_ID, "Answered")).openQuestions, "Answered");
+        assert.equal((await client.plans.complete(PLAN_ID)).planId, PLAN_ID);
+        const criterion = await client.plans.successCriteria.add(PLAN_ID, { criterionId: "AC-1", text: "Plain AC" });
         assert.equal(criterion.criterionId, "AC-1");
         assert.equal(criterion.text, "Plain AC");
-        assert.equal((await client.plans.successCriteria.update("plan-1", "AC-1", { status: "satisfied" })).status, "satisfied");
-        assert.deepEqual(await client.plans.successCriteria.remove("plan-1", "AC-1"), { deleted: true });
-        assert.equal((await client.plans.listCriteria("plan-1")).length, 0);
-        const check = await client.plans.checks.add("plan-1", { verificationId: "V-1", kind: "manual_check", command: "npm test" });
+        assert.equal((await client.plans.successCriteria.update(PLAN_ID, "AC-1", { status: "satisfied" })).status, "satisfied");
+        assert.deepEqual(await client.plans.successCriteria.remove(PLAN_ID, "AC-1"), { deleted: true });
+        assert.equal((await client.plans.listCriteria(PLAN_ID)).length, 0);
+        const check = await client.plans.checks.add(PLAN_ID, { verificationId: "V-1", kind: "manual_check", command: "npm test" });
         assert.equal(check.verificationId, "V-1");
         assert.equal(check.command, "npm test");
-        assert.equal((await client.plans.checks.update("plan-1", "V-1", { status: "passed" })).status, "passed");
-        assert.equal(((await client.plans.checks.getRun("plan-1", "V-1", "run-1")).run as Record<string, unknown>).run_id, "run-1");
-        assert.deepEqual(await client.plans.checks.remove("plan-1", "V-1"), { deleted: true });
-        assert.equal((await client.plans.listVerifications("plan-1")).length, 0);
-        const assumption = await client.plans.assumptions.add("plan-1", { assumptionId: "A-1", text: "Plain assumption" });
+        assert.equal((await client.plans.checks.update(PLAN_ID, "V-1", { status: "passed" })).status, "passed");
+        assert.equal(((await client.plans.checks.getRun(PLAN_ID, "V-1", "run-1")).run as Record<string, unknown>).run_id, "run-1");
+        assert.deepEqual(await client.plans.checks.remove(PLAN_ID, "V-1"), { deleted: true });
+        assert.equal((await client.plans.listVerifications(PLAN_ID)).length, 0);
+        const assumption = await client.plans.assumptions.add(PLAN_ID, { assumptionId: "A-1", text: "Plain assumption" });
         assert.equal(assumption.assumptionId, "A-1");
         assert.equal(assumption.text, "Plain assumption");
-        assert.equal((await client.plans.listAssumptions("plan-1")).length, 0);
-        assert.equal((await client.plans.assumptions.check("plan-1", "A-1")).status, "checking");
-        assert.equal((await client.plans.assumptions.waive("plan-1", "A-1", { waiverReason: "Known limitation" })).status, "waived");
-        assert.deepEqual(await client.plans.assumptions.remove("plan-1", "A-1"), { deleted: true });
-        const pattern = await client.plans.referencePatterns.add("plan-1", { patternId: "RP-1", title: "Plain pattern" });
+        assert.equal((await client.plans.listAssumptions(PLAN_ID)).length, 0);
+        assert.equal((await client.plans.assumptions.check(PLAN_ID, "A-1")).status, "checking");
+        assert.equal((await client.plans.assumptions.waive(PLAN_ID, "A-1", { waiverReason: "Known limitation" })).status, "waived");
+        assert.deepEqual(await client.plans.assumptions.remove(PLAN_ID, "A-1"), { deleted: true });
+        const pattern = await client.plans.referencePatterns.add(PLAN_ID, { patternId: "RP-1", title: "Plain pattern" });
         assert.equal(pattern.patternId, "RP-1");
         assert.equal(pattern.title, "Plain pattern");
-        assert.equal((await client.plans.listReferencePatterns("plan-1")).length, 0);
-        assert.equal((await client.plans.referencePatterns.inspect("plan-1", "RP-1")).status, "inspected");
-        assert.deepEqual(await client.plans.referencePatterns.remove("plan-1", "RP-1"), { deleted: true });
-        const learning = await client.plans.learnings.create("plan-1", { learningId: "LRN-1", type: "workflow_improvement", targetKind: "workflow", title: "Plain learning" });
+        assert.equal((await client.plans.listReferencePatterns(PLAN_ID)).length, 0);
+        assert.equal((await client.plans.referencePatterns.inspect(PLAN_ID, "RP-1")).status, "inspected");
+        assert.deepEqual(await client.plans.referencePatterns.remove(PLAN_ID, "RP-1"), { deleted: true });
+        const learning = await client.plans.learnings.create(PLAN_ID, { learningId: "LRN-1", type: "workflow_improvement", targetKind: "workflow", title: "Plain learning" });
         assert.equal(learning.learningId, "LRN-1");
         assert.equal(learning.title, "Plain learning");
-        assert.equal((await client.plans.learnings.list("plan-1")).length, 0);
-        assert.equal((await client.plans.learnings.update("plan-1", "LRN-1", { status: "accepted" })).status, "accepted");
-        assert.deepEqual(await client.plans.learnings.remove("plan-1", "LRN-1"), { deleted: true });
-        assert.deepEqual(await client.plans.learnings.createTasks("plan-1", { learning_ids: ["LRN-1"] }), { tasks: [], skipped: [] });
-        assert.equal((await client.plans.checks.addEvidence("plan-1", "V-1", { status: "passed", resultSummary: "Passed locally" })).status, "passed");
+        assert.equal((await client.plans.learnings.list(PLAN_ID)).length, 0);
+        assert.equal((await client.plans.learnings.update(PLAN_ID, "LRN-1", { status: "accepted" })).status, "accepted");
+        assert.deepEqual(await client.plans.learnings.remove(PLAN_ID, "LRN-1"), { deleted: true });
+        assert.deepEqual(await client.plans.learnings.createTasks(PLAN_ID, { learning_ids: ["LRN-1"] }), { tasks: [], skipped: [] });
+        assert.equal((await client.plans.checks.addEvidence(PLAN_ID, "V-1", { status: "passed", resultSummary: "Passed locally" })).status, "passed");
 
         const urls = seen.map((request) => request.url);
         assert.ok(urls.includes("/v1/sdk/session"));
         assert.ok(urls.includes("/v1/user-plans"));
-        assert.ok(urls.includes("/v1/user-plans/plan-1"));
-        assert.ok(urls.includes("/v1/user-plans/plan-1/activate"));
-        assert.ok(urls.includes("/v1/user-plans/plan-1/verification/V-1/evidence"));
+        assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}`));
+        assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}/activate`));
+        assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}/verification/V-1/evidence`));
         for (const marker of ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]) {
           assertNoPlaintextMarker(seen, marker);
         }

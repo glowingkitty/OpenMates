@@ -16,6 +16,8 @@ import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -219,8 +221,8 @@ describe("OpenMates SDK user tasks", () => {
         assert.equal((await client.tasks.skip("TASK-1")).queueState, "skipped");
         assert.equal((await client.tasks.done("TASK-1")).status, "done");
         assert.equal((await client.tasks.move("TASK-1", { position: 42, status: "todo" }))[0]?.position, 42);
-        assert.deepEqual((await client.tasks.addToProject("TASK-1", "project-1")).linkedProjectIds, ["project-1"]);
-        assert.deepEqual((await client.tasks.removeFromProject("TASK-1", "project-1")).linkedProjectIds, []);
+        assert.deepEqual((await client.tasks.addToProject("TASK-1", PROJECT_ID)).linkedProjectIds, [PROJECT_ID]);
+        assert.deepEqual((await client.tasks.removeFromProject("TASK-1", PROJECT_ID)).linkedProjectIds, []);
         assert.equal((await client.tasks.delete("TASK-1", { confirmed: true })).deleted, true);
       },
       `Bearer ${material.apiKey}`,

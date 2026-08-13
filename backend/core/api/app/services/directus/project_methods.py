@@ -8,6 +8,12 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
+
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 PROJECT_KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
@@ -15,7 +21,7 @@ PROJECT_KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 PROJECT_FIELDS = (
     "id,project_id,hashed_user_id,hashed_team_id,created_by_user_hash,encrypted_project_key,encrypted_name,"
-    "encrypted_description,encrypted_icon,encrypted_color,pinned,archived,"
+    "encrypted_slug,slug_lookup_hash,encrypted_description,encrypted_icon,encrypted_color,pinned,archived,"
     "is_private,is_shared,version,created_at,updated_at,last_opened_at,item_count"
 )
 FOLDER_FIELDS = (
@@ -100,6 +106,23 @@ def _owner_filter(user_id: str, team_id: str | None) -> dict[str, Any]:
     }
 
 
+def _slug_lookup_filter(user_id: str, team_id: str | None, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
+    terms: list[dict[str, Any]] = [{"slug_lookup_hash": {"_eq": slug_lookup_hash}}]
+    if team_id:
+        terms.extend([
+            {"hashed_team_id": {"_eq": hash_id(team_id)}},
+            {"hashed_user_id": {"_null": True}},
+        ])
+    else:
+        terms.extend([
+            {"hashed_user_id": {"_eq": hash_id(user_id)}},
+            {"hashed_team_id": {"_null": True}},
+        ])
+    if exclude_row_id:
+        terms.append({"id": {"_neq": exclude_row_id}})
+    return {"_and": terms}
+
+
 def _owner_record(user_id: str, team_id: str | None) -> dict[str, Any]:
     return {
         "hashed_user_id": None if team_id else hash_id(user_id),
@@ -147,6 +170,7 @@ class ProjectMethods:
         team_id: str | None = None,
     ) -> Optional[Dict[str, Any]]:
         key_wrappers = payload.pop("key_wrappers", []) or []
+        validate_encrypted_slug_metadata(payload, record_label="Project")
         now = payload.get("created_at") or payload.get("updated_at")
         record = {
             **payload,
@@ -162,10 +186,13 @@ class ProjectMethods:
             "last_opened_at": payload.get("last_opened_at", now),
             "item_count": payload.get("item_count", 0),
         }
+        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id, team_id=team_id)
         if key_wrappers and not all(_validate_project_key_wrapper(wrapper) for wrapper in key_wrappers):
             return None
         success, data = await self.directus_service.create_item("projects", record)
         if not success:
+            if is_slug_unique_violation(data):
+                raise DuplicateObjectSlugError("Project slug already exists in this workspace")
             logger.error("Failed to create project: %s", data)
             return None
         created_wrappers: list[dict[str, Any]] = []
@@ -242,8 +269,32 @@ class ProjectMethods:
         if not existing:
             return None
         update = dict(patch)
+        validate_encrypted_slug_metadata(update, record_label="Project")
+        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, team_id=team_id, exclude_row_id=existing.get("id"))
         update["version"] = int(existing.get("version") or 1) + 1
-        return await self.directus_service.update_item("projects", existing["id"], update)
+        updated = await self.directus_service.update_item("projects", existing["id"], update)
+        if not updated and is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+            raise DuplicateObjectSlugError("Project slug already exists in this workspace")
+        return updated
+
+    async def _ensure_slug_lookup_available(
+        self,
+        slug_lookup_hash: str | None,
+        user_id: str,
+        *,
+        team_id: str | None = None,
+        exclude_row_id: str | None = None,
+    ) -> None:
+        if not slug_lookup_hash:
+            return
+        params = {
+            "filter": _slug_lookup_filter(user_id, team_id, slug_lookup_hash, exclude_row_id=exclude_row_id),
+            "fields": "id",
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("projects", params=params, no_cache=True)
+        if rows and isinstance(rows, list):
+            raise DuplicateObjectSlugError("Project slug already exists in this workspace")
 
     async def list_sources(
         self,
@@ -441,6 +492,8 @@ class ProjectMethods:
         team_id: str,
         wrapper: Dict[str, Any],
         *,
+        encrypted_slug: str | None = None,
+        slug_lookup_hash: str | None = None,
         moved_at: int | None = None,
     ) -> Dict[str, Any]:
         project = await self.get_project(project_id, user_id)
@@ -454,6 +507,14 @@ class ProjectMethods:
             or wrapper.get("team_key_epoch") != 1
         ):
             raise ProjectMoveError("A matching Team epoch-1 Project key wrapper is required")
+        if project.get("encrypted_slug") or project.get("slug_lookup_hash"):
+            validate_encrypted_slug_metadata(
+                {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},
+                record_label="Project move",
+            )
+            if not encrypted_slug or not slug_lookup_hash:
+                raise ProjectMoveError("Moving a slugged Project requires team-scoped encrypted slug metadata")
+            await self._ensure_slug_lookup_available(slug_lookup_hash, user_id, team_id=team_id, exclude_row_id=project.get("id"))
 
         hashed_project_id = hash_id(project_id)
         actor_hash = hash_id(user_id)
@@ -508,20 +569,28 @@ class ProjectMethods:
                         actor_field: row.get(actor_field) or actor_hash,
                     },
                 )
+                if not updated and is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                    raise DuplicateObjectSlugError("Project slug already exists in this workspace")
                 if not updated:
                     raise ProjectMoveError("Failed to move Project child rows")
 
             parent_update_attempted = True
+            parent_patch = {
+                "hashed_user_id": None,
+                "hashed_team_id": expected_team_hash,
+                "created_by_user_hash": project.get("created_by_user_hash") or actor_hash,
+                "updated_at": moved_at if moved_at is not None else project.get("updated_at"),
+            }
+            if encrypted_slug and slug_lookup_hash:
+                parent_patch["encrypted_slug"] = encrypted_slug
+                parent_patch["slug_lookup_hash"] = slug_lookup_hash
             updated_project = await self.directus_service.update_item(
                 "projects",
                 project["id"],
-                {
-                    "hashed_user_id": None,
-                    "hashed_team_id": expected_team_hash,
-                    "created_by_user_hash": project.get("created_by_user_hash") or actor_hash,
-                    "updated_at": moved_at if moved_at is not None else project.get("updated_at"),
-                },
+                parent_patch,
             )
+            if not updated_project and is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                raise DuplicateObjectSlugError("Project slug already exists in this workspace")
             if not updated_project:
                 raise ProjectMoveError("Failed to move Project owner context")
             return updated_project
@@ -535,6 +604,8 @@ class ProjectMethods:
                         "hashed_user_id": project.get("hashed_user_id"),
                         "hashed_team_id": project.get("hashed_team_id"),
                         "created_by_user_hash": project.get("created_by_user_hash"),
+                        "encrypted_slug": project.get("encrypted_slug"),
+                        "slug_lookup_hash": project.get("slug_lookup_hash"),
                         "updated_at": project.get("updated_at"),
                     },
                 )

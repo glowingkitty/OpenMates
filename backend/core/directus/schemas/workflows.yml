@@ -25,6 +25,14 @@ workflows:
     encrypted_title:
       type: text
       note: "[Encrypted] Workflow title."
+    encrypted_slug:
+      type: text
+      nullable: true
+      note: "[Client-encrypted, Nullable] Stable user-facing workflow slug. Plaintext slugs must never be stored server-side."
+    slug_lookup_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Owner/team-scoped keyed lookup hash for duplicate slug prevention."
     encrypted_description:
       type: text
       note: "[Encrypted, Nullable] Workflow description."

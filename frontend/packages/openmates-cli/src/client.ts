@@ -104,12 +104,28 @@ import {
   buildUpdateUserTaskInput,
   decryptUserTasks,
   findTask,
+  taskKeyFromRecord,
   type DecryptedUserTask,
 } from "./tasksCli.js";
+import {
+  decryptUserPlans,
+  findPlan,
+  planKeyFromRecord,
+} from "./plansCli.js";
+import {
+  buildEncryptedObjectSlugMetadata,
+  decryptObjectSlug,
+  objectSlugMatches,
+} from "./objectSlugs.js";
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 
 const PROMPT_INJECTION_DISABLED = "disabled";
 const DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS = 20_000;
+const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizeObjectSelectorLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 function withAppSkillPromptInjectionOption(
   inputData: Record<string, unknown>,
@@ -385,6 +401,20 @@ export interface TeamBillingSummary {
 
 export type WorkspaceMoveType = "chat" | "project" | "task" | "plan" | "workflow";
 
+interface WorkspaceMovePayload {
+  team_id: string;
+  confirmed: true;
+  moved_at: number;
+  encrypted_slug?: string;
+  slug_lookup_hash?: string;
+  team_project_key_wrapper?: Record<string, unknown>;
+}
+
+interface WorkspaceMoveRequest {
+  objectId: string;
+  payload: WorkspaceMovePayload;
+}
+
 export interface TeamContextOptions {
   teamId?: string | null;
   personal?: boolean;
@@ -580,6 +610,9 @@ export type WorkflowLifecycle = "persisted" | "temporary";
 
 export interface WorkflowSummary {
   id: string;
+  slug?: string | null;
+  encrypted_slug?: string | null;
+  slug_lookup_hash?: string | null;
   title: string;
   description?: string | null;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
@@ -630,6 +663,8 @@ export type ProjectSourceStatus = "connected" | "offline" | "permission_required
 export interface ProjectRecord {
   project_id: string;
   encrypted_project_key?: string | null;
+  encrypted_slug?: string | null;
+  slug_lookup_hash?: string | null;
   encrypted_name?: string | null;
   encrypted_description?: string | null;
   encrypted_icon?: string | null;
@@ -750,6 +785,8 @@ export interface UserTaskRecord {
   short_id?: string | null;
   short_id_prefix?: string | null;
   encrypted_task_key?: string | null;
+  encrypted_slug?: string | null;
+  slug_lookup_hash?: string | null;
   encrypted_title: string;
   encrypted_description?: string | null;
   encrypted_labels?: string | null;
@@ -832,6 +869,8 @@ export type UserPlanLearningLevel = "low" | "medium" | "high";
 export interface UserPlanRecord {
   plan_id: string;
   encrypted_plan_key?: string | null;
+  encrypted_slug?: string | null;
+  slug_lookup_hash?: string | null;
   encrypted_title: string;
   encrypted_summary?: string | null;
   encrypted_goal?: string | null;
@@ -2097,6 +2136,7 @@ interface PairBundle {
 export interface ChatListItem {
   id: string;
   shortId: string;
+  slug?: string | null;
   title: string | null;
   summary: string | null;
   updatedAt: number | null;
@@ -3362,20 +3402,99 @@ export class OpenMatesClient {
 
   async moveWorkspaceToTeam(workspaceType: WorkspaceMoveType, objectId: string, teamId: string): Promise<Record<string, unknown>> {
     this.requireSession();
+    const moveRequest = await this.buildWorkspaceMovePayload(workspaceType, objectId, teamId);
     const routeByType: Record<WorkspaceMoveType, string> = {
-      chat: `/v1/chats/${encodeURIComponent(objectId)}/move`,
-      project: `/v1/projects/${encodeURIComponent(objectId)}/move`,
-      task: `/v1/user-tasks/${encodeURIComponent(objectId)}/move`,
-      plan: `/v1/user-plans/${encodeURIComponent(objectId)}/move`,
-      workflow: `/v1/workflows/${encodeURIComponent(objectId)}/move`,
+      chat: `/v1/chats/${encodeURIComponent(moveRequest.objectId)}/move`,
+      project: `/v1/projects/${encodeURIComponent(moveRequest.objectId)}/move`,
+      task: `/v1/user-tasks/${encodeURIComponent(moveRequest.objectId)}/move`,
+      plan: `/v1/user-plans/${encodeURIComponent(moveRequest.objectId)}/move`,
+      workflow: `/v1/workflows/${encodeURIComponent(moveRequest.objectId)}/move`,
     };
     const response = await this.http.post<Record<string, unknown>>(
       routeByType[workspaceType],
-      { team_id: teamId, confirmed: true, moved_at: Math.floor(Date.now() / 1000) },
+      moveRequest.payload,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`${workspaceType} move failed with HTTP ${response.status}`);
     return { success: true, ...response.data };
+  }
+
+  private async buildWorkspaceMovePayload(workspaceType: WorkspaceMoveType, objectId: string, teamId: string): Promise<WorkspaceMoveRequest> {
+    const movedAt = Math.floor(Date.now() / 1000);
+    const payload: WorkspaceMovePayload = { team_id: teamId, confirmed: true, moved_at: movedAt };
+    const masterKey = this.getMasterKeyBytes();
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error(`Team key not available locally for team '${teamId}'. Run 'openmates teams show ${teamId}' and try again.`);
+
+    if (workspaceType === "project") {
+      const project = await this.resolveRequiredPersonalProject(objectId);
+      const projectKey = await this.decryptProjectKey(project, { personal: true });
+      const slug = await decryptObjectSlug(project.encrypted_slug, projectKey);
+      if (slug) {
+        const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: slug, encryptionKey: projectKey, lookupKey: teamKey });
+        payload.encrypted_slug = slugMetadata.encrypted_slug;
+        payload.slug_lookup_hash = slugMetadata.slug_lookup_hash;
+      }
+      payload.team_project_key_wrapper = {
+        key_type: "team",
+        hashed_team_id: createHash("sha256").update(teamId).digest("hex"),
+        team_key_epoch: 1,
+        encrypted_project_key: await encryptBytesWithAesGcm(projectKey, teamKey),
+        wrapper_version: 1,
+        created_at: movedAt,
+      };
+      return { objectId: project.project_id, payload };
+    }
+
+    const moveMetadata = await this.personalWorkspaceMoveMetadata(workspaceType, objectId, masterKey, teamKey);
+    const slug = moveMetadata.slug;
+    if (slug) {
+      const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: slug, encryptionKey: moveMetadata.objectKey, lookupKey: teamKey });
+      payload.encrypted_slug = slugMetadata.encrypted_slug;
+      payload.slug_lookup_hash = slugMetadata.slug_lookup_hash;
+    }
+    return { objectId: moveMetadata.objectId, payload };
+  }
+
+  private async resolveRequiredPersonalProject(objectId: string): Promise<ProjectRecord> {
+    const projectId = await this.resolveRequiredProjectId(objectId, { personal: true });
+    return (await this.getProject(projectId, { personal: true })).project;
+  }
+
+  private async personalWorkspaceMoveMetadata(
+    workspaceType: Exclude<WorkspaceMoveType, "project">,
+    objectId: string,
+    masterKey: Uint8Array,
+    teamKey: Uint8Array,
+  ): Promise<{ objectId: string; slug: string; objectKey: Uint8Array }> {
+    if (workspaceType === "workflow") {
+      const workflowId = await this.resolveRequiredWorkflowId(objectId, { personal: true });
+      const workflow = await this.getWorkflow(workflowId, { personal: true });
+      return {
+        objectId: workflowId,
+        slug: await decryptObjectSlug(workflow.encrypted_slug, masterKey),
+        objectKey: teamKey,
+      };
+    }
+    if (workspaceType === "chat") {
+      const chatId = await this.resolveRequiredChatId(objectId, { personal: true });
+      const cache = await this.ensureSynced(false, [], { personal: true });
+      const cached = cache.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+      if (!cached) throw new Error(`Chat '${objectId}' not found.`);
+      const chatKey = await this.resolveChatKey(cache, cached, masterKey, null);
+      if (!chatKey) throw new Error(`Unable to decrypt chat key for '${objectId}'.`);
+      return {
+        objectId: chatId,
+        slug: await decryptObjectSlug(cached.details.encrypted_slug as string | undefined, chatKey),
+        objectKey: chatKey,
+      };
+    }
+    if (workspaceType === "task") {
+      const task = findTask(await decryptUserTasks(await this.listUserTasks({ limit: 1000, personal: true }), masterKey), objectId);
+      return { objectId: task.taskId, slug: task.slug, objectKey: await taskKeyFromRecord(task.encrypted, masterKey) };
+    }
+    const plan = findPlan(await decryptUserPlans(await this.listUserPlans({ activeOnly: false, personal: true }), masterKey), objectId);
+    return { objectId: plan.planId, slug: plan.slug, objectKey: await planKeyFromRecord(plan.encrypted, masterKey) };
   }
 
   async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
@@ -4415,10 +4534,15 @@ export class OpenMatesClient {
       typeof d.encrypted_category === "string" && chatKeyBytes
         ? await decryptWithAesGcmCombined(d.encrypted_category, chatKeyBytes)
         : null;
+    const slug =
+      typeof d.encrypted_slug === "string" && chatKeyBytes
+        ? await decryptObjectSlug(d.encrypted_slug, chatKeyBytes)
+        : null;
 
     return {
       id,
       shortId: id.slice(0, 8),
+      slug,
       title,
       summary,
       updatedAt:
@@ -5188,6 +5312,16 @@ export class OpenMatesClient {
     if (!found) {
       for (const cached of cache.chats) {
         const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
+        if (objectSlugMatches(item.slug, query)) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
         const title = (item.title ?? "").toLowerCase();
         if (title === normalized) {
           found = cached;
@@ -5767,6 +5901,8 @@ export class OpenMatesClient {
     // or the ID wasn't found (possibly a newly created chat).
     const staleCache = loadSyncCache(teamId);
     const lower = idOrShort.toLowerCase();
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
 
     if (staleCache) {
       for (const chat of staleCache.chats) {
@@ -5774,6 +5910,8 @@ export class OpenMatesClient {
         if (fullId === idOrShort) return fullId;
         if (fullId.toLowerCase().startsWith(lower)) return fullId;
       }
+      const slugMatch = await this.resolveChatIdFromCacheSlug(idOrShort, staleCache, wrappingKey, teamId);
+      if (slugMatch) return slugMatch;
     }
 
     // Not found in stale cache (or no cache) — force a fresh sync
@@ -5782,6 +5920,19 @@ export class OpenMatesClient {
       const fullId = String(chat.details.id ?? "");
       if (fullId === idOrShort) return fullId;
       if (fullId.toLowerCase().startsWith(lower)) return fullId;
+    }
+    return this.resolveChatIdFromCacheSlug(idOrShort, freshCache, wrappingKey, teamId);
+  }
+
+  private async resolveChatIdFromCacheSlug(
+    query: string,
+    cache: SyncCache,
+    wrappingKey: Uint8Array,
+    teamId: string | null,
+  ): Promise<string | undefined> {
+    for (const chat of cache.chats) {
+      const item = await this.decryptChatListItem(chat, wrappingKey, cache, teamId);
+      if (objectSlugMatches(item.slug, query)) return item.id;
     }
     return undefined;
   }
@@ -5892,6 +6043,7 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
+    slug?: string;
     teamId?: string | null;
     personal?: boolean;
     incognito?: boolean;
@@ -5967,12 +6119,12 @@ export class OpenMatesClient {
     let chatId: string;
     if (!params.chatId) {
       chatId = randomUUID();
-    } else if (params.chatId.length < 36) {
-      // Short ID — resolve from sync cache
+    } else if (!CANONICAL_UUID_PATTERN.test(params.chatId)) {
+      // Slug or short ID — resolve from sync cache before sending chat_id.
       const resolved = await this.resolveFullChatId(params.chatId, { teamId });
       if (!resolved) {
         throw new Error(
-          `Chat not found for '${params.chatId}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
+          `Chat not found for '${params.chatId}'. Use a slug, full UUID, or the first 8 characters of an existing chat ID.`,
         );
       }
       chatId = resolved;
@@ -6062,6 +6214,7 @@ export class OpenMatesClient {
     // inference request because preflight commits the matching encrypted row.
     let chatKeyBytes: Uint8Array | null = null;
     let encryptedChatKey: string | null = null;
+    let chatSlugLookupKey: Uint8Array | null = null;
     let baselineMessagesV = 0;
     let terminalExpectedMessagesV = 1;
     let savedTurnId: string | null = null;
@@ -6069,6 +6222,7 @@ export class OpenMatesClient {
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
       const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+      chatSlugLookupKey = wrappingKey;
 
       if (isNewChat) {
         chatKeyBytes = globalThis.crypto
@@ -6265,9 +6419,19 @@ export class OpenMatesClient {
         inference_request: messagePayload,
       };
       if (isNewChat) {
+        if (!chatSlugLookupKey) {
+          throw new Error("Encrypted chat slug lookup key was not initialized.");
+        }
         const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
+        const slugMetadata = await buildEncryptedObjectSlugMetadata({
+          value: params.slug ?? finalMessage,
+          encryptionKey: chatKeyBytes,
+          lookupKey: chatSlugLookupKey,
+        });
         preflightPayload.encrypted_chat_metadata = {
           encrypted_title: await encryptWithAesGcmCombined(initialTitle, chatKeyBytes),
+          encrypted_slug: slugMetadata.encrypted_slug,
+          slug_lookup_hash: slugMetadata.slug_lookup_hash,
           encrypted_chat_key: encryptedChatKey,
           created_at: createdAt,
           updated_at: createdAt,
@@ -8001,7 +8165,7 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Workflow list failed with HTTP ${response.status}`);
     }
-    return response.data.workflows ?? [];
+    return this.decryptWorkflowSlugs(response.data.workflows ?? [], options);
   }
 
   async listTemporaryWorkflows(): Promise<WorkflowSummary[]> {
@@ -8018,6 +8182,7 @@ export class OpenMatesClient {
 
   async createWorkflow(params: {
     title: string;
+    slug?: string;
     graph: WorkflowGraph;
     enabled?: boolean;
     runContentRetention?: WorkflowRunContentRetention;
@@ -8028,16 +8193,27 @@ export class OpenMatesClient {
     autoDeleteAt?: number | null;
   }): Promise<WorkflowDetail> {
     this.requireSession();
+    const sourceChatId = typeof params.sourceChatId === "string" && params.sourceChatId
+      ? await this.resolveRequiredChatId(params.sourceChatId)
+      : params.sourceChatId;
+    const masterKey = this.getMasterKeyBytes();
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({
+      value: params.slug ?? params.title,
+      encryptionKey: masterKey,
+      lookupKey: masterKey,
+    });
     const response = await this.http.post<{ workflow?: WorkflowDetail }>(
       "/v1/workflows",
       {
         title: params.title,
+        encrypted_slug: slugMetadata.encrypted_slug,
+        slug_lookup_hash: slugMetadata.slug_lookup_hash,
         graph: params.graph,
         enabled: params.enabled ?? false,
         ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
         ...(params.lifecycle ? { lifecycle: params.lifecycle } : {}),
         ...(params.source ? { source: params.source } : {}),
-        ...(params.sourceChatId !== undefined ? { source_chat_id: params.sourceChatId } : {}),
+        ...(params.sourceChatId !== undefined ? { source_chat_id: sourceChatId } : {}),
         ...(params.createdByAssistant !== undefined ? { created_by_assistant: params.createdByAssistant } : {}),
         ...(params.autoDeleteAt !== undefined ? { auto_delete_at: params.autoDeleteAt } : {}),
       },
@@ -8046,7 +8222,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow create failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
   async askWorkflow(input: {
@@ -8057,6 +8233,9 @@ export class OpenMatesClient {
     selectedObjectId?: string | null;
   }): Promise<Record<string, unknown>> {
     this.requireSession();
+    const selectedObjectId = typeof input.selectedObjectId === "string" && input.selectedObjectId
+      ? await this.resolveRequiredWorkflowId(input.selectedObjectId)
+      : input.selectedObjectId;
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/workflows/ask",
       {
@@ -8064,7 +8243,7 @@ export class OpenMatesClient {
         ...(input.create ? { create: input.create } : {}),
         ...(input.exactUpdate ? { exact_update: input.exactUpdate } : {}),
         ...(input.exactAction ? { exact_action: input.exactAction } : {}),
-        ...(input.selectedObjectId !== undefined ? { selected_object_id: input.selectedObjectId } : {}),
+        ...(input.selectedObjectId !== undefined ? { selected_object_id: selectedObjectId } : {}),
       },
       this.getCliRequestHeaders(),
     );
@@ -8139,19 +8318,32 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow get failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, options);
   }
 
   async updateWorkflow(
     workflowId: string,
-    params: { title?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
+    params: { title?: string; slug?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
   ): Promise<WorkflowDetail> {
     this.requireSession();
     const payload = {
       ...params,
       ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
     };
+    if (params.slug !== undefined) {
+      const masterKey = this.getMasterKeyBytes();
+      const slugMetadata = await buildEncryptedObjectSlugMetadata({
+        value: params.slug,
+        encryptionKey: masterKey,
+        lookupKey: masterKey,
+      });
+      Object.assign(payload, {
+        encrypted_slug: slugMetadata.encrypted_slug,
+        slug_lookup_hash: slugMetadata.slug_lookup_hash,
+      });
+    }
     delete payload.runContentRetention;
+    delete payload.slug;
     const response = await this.http.patch<{ workflow?: WorkflowDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}`,
       payload,
@@ -8160,7 +8352,87 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow update failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+  }
+
+  async resolveWorkflowId(query: string, options: TeamContextOptions = {}): Promise<string | undefined> {
+    const workflows = await this.listWorkflows(options);
+    const exactId = workflows.find((workflow) => workflow.id === query);
+    if (exactId) return exactId.id;
+    const lower = query.toLowerCase();
+    const prefixMatches = query.length >= 8 ? workflows.filter((workflow) => workflow.id.toLowerCase().startsWith(lower)) : [];
+    if (prefixMatches.length > 1) throw new Error(`Workflow '${query}' is ambiguous. Use the full workflow ID.`);
+    if (prefixMatches.length === 1) return prefixMatches[0].id;
+    const slugMatches = workflows.filter((workflow) => objectSlugMatches(workflow.slug, query));
+    if (slugMatches.length > 1) throw new Error(`Workflow slug '${query}' is ambiguous. Use the full workflow ID.`);
+    if (slugMatches.length === 1) return slugMatches[0].id;
+    const normalizedTitle = query.trim().toLowerCase().replace(/\s+/g, " ");
+    const titleMatches = workflows.filter((workflow) => workflow.title.trim().toLowerCase().replace(/\s+/g, " ") === normalizedTitle);
+    if (titleMatches.length > 1) throw new Error(`Workflow '${query}' is ambiguous. Use the full workflow ID.`);
+    return titleMatches[0]?.id;
+  }
+
+  private async resolveRequiredWorkflowId(query: string, options: TeamContextOptions = {}): Promise<string> {
+    if (CANONICAL_UUID_PATTERN.test(query)) return query;
+    const resolved = await this.resolveWorkflowId(query, options);
+    if (!resolved) throw new Error(`Workflow '${query}' not found.`);
+    return resolved;
+  }
+
+  private async resolveRequiredChatId(query: string, options: TeamContextOptions = {}): Promise<string> {
+    if (CANONICAL_UUID_PATTERN.test(query)) return query;
+    const resolved = await this.resolveFullChatId(query, options);
+    if (!resolved) throw new Error(`Chat '${query}' not found.`);
+    return resolved;
+  }
+
+  private async resolveRequiredProjectId(query: string, options: TeamContextOptions = {}): Promise<string> {
+    if (CANONICAL_UUID_PATTERN.test(query)) return query;
+    const projects = await this.listProjects({ includeArchived: true, teamId: options.teamId, personal: options.personal });
+    const exactId = projects.find((project) => project.project_id === query);
+    if (exactId) return exactId.project_id;
+    const lower = query.toLowerCase();
+    const prefixMatches = query.length >= 8 ? projects.filter((project) => project.project_id.toLowerCase().startsWith(lower)) : [];
+    if (prefixMatches.length > 1) throw new Error(`Project '${query}' is ambiguous. Use the full project ID.`);
+    if (prefixMatches.length === 1) return prefixMatches[0].project_id;
+
+    const decryptedProjects: Array<{ id: string; slug: string; name: string }> = [];
+    for (const project of projects) {
+      const projectKey = await this.decryptProjectKey(project, options);
+      decryptedProjects.push({
+        id: project.project_id,
+        slug: await decryptObjectSlug(project.encrypted_slug, projectKey),
+        name: project.encrypted_name ? (await decryptWithAesGcmCombined(project.encrypted_name, projectKey)) ?? "" : "",
+      });
+    }
+    const slugMatches = decryptedProjects.filter((project) => objectSlugMatches(project.slug, query));
+    if (slugMatches.length > 1) throw new Error(`Project slug '${query}' is ambiguous. Use the full project ID.`);
+    if (slugMatches.length === 1) return slugMatches[0].id;
+    const normalizedName = normalizeObjectSelectorLabel(query);
+    const nameMatches = decryptedProjects.filter((project) => normalizeObjectSelectorLabel(project.name) === normalizedName);
+    if (nameMatches.length > 1) throw new Error(`Project '${query}' is ambiguous. Use the full project ID.`);
+    if (nameMatches.length === 1) return nameMatches[0].id;
+    throw new Error(`Project '${query}' not found.`);
+  }
+
+  private async decryptWorkflowSlugs<T extends WorkflowSummary>(workflows: T[], options: TeamContextOptions = {}): Promise<T[]> {
+    if (workflows.length === 0) return workflows;
+    const teamId = this.resolveTeamContext(options);
+    const key = teamId ? await this.loadTeamKeyBytes(teamId) : this.getMasterKeyBytes();
+    if (!key) return workflows;
+    return Promise.all(workflows.map((workflow) => this.decryptWorkflowSlug(workflow, options, key)));
+  }
+
+  private async decryptWorkflowSlug<T extends WorkflowSummary>(
+    workflow: T,
+    options: TeamContextOptions = {},
+    resolvedKey?: Uint8Array,
+  ): Promise<T> {
+    if (!workflow.encrypted_slug) return workflow;
+    const teamId = this.resolveTeamContext(options);
+    const key = resolvedKey ?? (teamId ? await this.loadTeamKeyBytes(teamId) : this.getMasterKeyBytes());
+    if (!key) return workflow;
+    return { ...workflow, slug: await decryptObjectSlug(workflow.encrypted_slug, key) };
   }
 
   async deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
@@ -8424,14 +8696,20 @@ export class OpenMatesClient {
 
   async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
     this.requireSession();
+    const selectedWorkflowId = typeof params.selectedWorkflowId === "string" && params.selectedWorkflowId
+      ? await this.resolveRequiredWorkflowId(params.selectedWorkflowId)
+      : params.selectedWorkflowId;
+    const selectedProjectId = typeof params.selectedProjectId === "string" && params.selectedProjectId
+      ? await this.resolveRequiredProjectId(params.selectedProjectId)
+      : params.selectedProjectId;
     const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
       "/v1/workflows/input",
       {
         ...(params.text !== undefined ? { text: params.text } : {}),
         input_type: params.inputType ?? "text",
         ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
-        ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: params.selectedWorkflowId } : {}),
-        ...(params.selectedProjectId !== undefined ? { selected_project_id: params.selectedProjectId } : {}),
+        ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: selectedWorkflowId } : {}),
+        ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
       },
       this.getCliRequestHeaders(),
     );
@@ -8515,7 +8793,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow ${action} failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
   // -------------------------------------------------------------------------

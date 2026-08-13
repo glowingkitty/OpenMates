@@ -5,6 +5,12 @@ import hashlib
 import base64
 import binascii
 
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
+
 # Forward declaration for type hinting DirectusService
 if False: # TYPE_CHECKING
     from .directus import DirectusService
@@ -60,8 +66,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -70,11 +76,11 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
     for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
     if field != "metadata_v"
 )
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
     CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
@@ -91,6 +97,8 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
     "encrypted_title,"
+    "encrypted_slug,"
+    "slug_lookup_hash,"
     "encrypted_chat_key,"
     "created_at,"
     "updated_at,"
@@ -126,6 +134,8 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "hashed_user_id,"
     "encrypted_title,"
+    "encrypted_slug,"
+    "slug_lookup_hash,"
     "encrypted_chat_key,"  # Needed for decryption
     "created_at,"
     "updated_at,"
@@ -454,6 +464,7 @@ class ChatMethods:
         Increments the '_version' field on successful update.
         """
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id}", data)
+        validate_encrypted_slug_metadata(data, record_label="Chat")
         logger.info(
             f"Attempting to update chat metadata for chat_id: {chat_id} "
             f"with field_keys={sorted(data.keys()) if isinstance(data, dict) else []}"
@@ -475,6 +486,12 @@ class ChatMethods:
             if based_on_version != current_version:
                 logger.error(f"Version conflict for chat {chat_id}. Client: {based_on_version}, Server: {current_version}")
                 return None
+            await self._ensure_chat_slug_lookup_available(
+                data.get('slug_lookup_hash'),
+                hashed_user_id=current_metadata.get('hashed_user_id'),
+                hashed_team_id=current_metadata.get('hashed_team_id'),
+                exclude_chat_id=chat_id,
+            )
 
             update_payload = data.copy()
             update_payload['_version'] = current_version + 1
@@ -486,6 +503,8 @@ class ChatMethods:
                 logger.info(f"Successfully updated chat metadata for {chat_id}. New version: {updated_item_data.get('_version')}")
                 return updated_item_data
             else:
+                if is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                    raise DuplicateObjectSlugError("Chat slug already exists in this workspace")
                 logger.error(f"Failed to update chat metadata for {chat_id} after version check.")
                 return None
         except Exception as e:
@@ -510,6 +529,13 @@ class ChatMethods:
         """
         chat_id_val = chat_metadata.get('id')
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id_val or 'unknown'}", chat_metadata)
+        validate_encrypted_slug_metadata(chat_metadata, record_label="Chat")
+        await self._ensure_chat_slug_lookup_available(
+            chat_metadata.get('slug_lookup_hash'),
+            hashed_user_id=chat_metadata.get('hashed_user_id'),
+            hashed_team_id=chat_metadata.get('hashed_team_id'),
+            exclude_chat_id=chat_id_val,
+        )
         try:
             logger.info(f"Creating chat in Directus: {chat_id_val}")
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
@@ -527,6 +553,8 @@ class ChatMethods:
                     
                 return result_data, False
             else:
+                if is_slug_unique_violation(result_data):
+                    raise DuplicateObjectSlugError("Chat slug already exists in this workspace")
                 # Check if this is a duplicate key error (race condition - chat was created by another task)
                 # This happens when two tasks check "chat exists?" -> both get False -> both try to create
                 # Directus may return the error in different formats depending on the DB driver:
@@ -632,9 +660,45 @@ class ChatMethods:
                     logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
                 
                 return None, is_duplicate
+        except DuplicateObjectSlugError:
+            raise
         except Exception as e:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
             return None, False
+
+    async def _ensure_chat_slug_lookup_available(
+        self,
+        slug_lookup_hash: str | None,
+        *,
+        hashed_user_id: str | None,
+        hashed_team_id: str | None,
+        exclude_chat_id: str | None = None,
+    ) -> None:
+        if not slug_lookup_hash:
+            return
+        terms: list[dict[str, Any]] = [{"slug_lookup_hash": {"_eq": slug_lookup_hash}}]
+        if hashed_team_id:
+            terms.extend([
+                {"hashed_team_id": {"_eq": hashed_team_id}},
+                {"hashed_user_id": {"_null": True}},
+            ])
+        elif hashed_user_id:
+            terms.extend([
+                {"hashed_user_id": {"_eq": hashed_user_id}},
+                {"hashed_team_id": {"_null": True}},
+            ])
+        else:
+            raise ValueError("Chat slug lookup requires owner or team scope")
+        if exclude_chat_id:
+            terms.append({"id": {"_neq": exclude_chat_id}})
+        rows = await self.directus_service.get_items(
+            'chats',
+            params={"filter": {"_and": terms}, "fields": "id", "limit": 1},
+            no_cache=True,
+            admin_required=True,
+        )
+        if rows and isinstance(rows, list):
+            raise DuplicateObjectSlugError("Chat slug already exists in this workspace")
 
     async def _ensure_chat_key_wrapper_from_metadata(self, chat_metadata: Dict[str, Any]) -> None:
         encrypted_chat_key = chat_metadata.get("encrypted_chat_key")

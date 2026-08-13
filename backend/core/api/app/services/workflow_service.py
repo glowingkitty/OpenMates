@@ -44,6 +44,11 @@ from backend.core.api.app.services.workflow_models import (
 )
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
 
 
 WORKFLOW_PLATFORM_FEATURE = "platform:workflows"
@@ -197,6 +202,7 @@ class InMemoryWorkflowRepository:
         self.template_projections: dict[str, dict[str, Any]] = {}
 
     def save_workflow(self, record: dict[str, Any]) -> dict[str, Any]:
+        validate_encrypted_slug_metadata(record, record_label="Workflow")
         self.workflows[record["id"]] = deepcopy(record)
         return deepcopy(record)
 
@@ -406,6 +412,7 @@ class DirectusWorkflowRepository:
         self._client = httpx.Client(timeout=5.0)
 
     def save_workflow(self, record: dict[str, Any]) -> dict[str, Any]:
+        validate_encrypted_slug_metadata(record, record_label="Workflow")
         self._save_immutable_versions(record)
         payload = {
             "id": record["id"],
@@ -413,6 +420,8 @@ class DirectusWorkflowRepository:
             "hashed_user_id": record["owner_hash"],
             "hashed_team_id": record.get("hashed_team_id"),
             "encrypted_title": record["encrypted_title_ref"],
+            "encrypted_slug": record.get("encrypted_slug"),
+            "slug_lookup_hash": record.get("slug_lookup_hash"),
             "status": record["status"],
             "enabled": record["enabled"],
             "lifecycle": record.get("lifecycle", WorkflowLifecycle.PERSISTED.value),
@@ -925,6 +934,8 @@ class DirectusWorkflowRepository:
             if 200 <= response.status_code < 300:
                 return response
         logger.error("Directus workflow request failed: %s %s -> %s %s", method, path, response.status_code, response.text[:500])
+        if is_slug_unique_violation(response.text):
+            raise DuplicateObjectSlugError("Workflow slug already exists in this workspace")
         response.raise_for_status()
         return response
 
@@ -1142,8 +1153,15 @@ class WorkflowService:
         auto_delete_at: int | None = None,
         vault_key_id: str | None = None,
         description: str | None = None,
+        encrypted_slug: str | None = None,
+        slug_lookup_hash: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
+        validate_encrypted_slug_metadata(
+            {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},
+            record_label="Workflow",
+        )
+        self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
         retention = WorkflowRunContentRetention(run_content_retention)
@@ -1172,6 +1190,8 @@ class WorkflowService:
             "owner_hash": _hash_owner_id(user_id),
             "encrypted_title_ref": title_blob["ref"],
             "encrypted_title_checksum": title_blob["checksum"],
+            "encrypted_slug": encrypted_slug,
+            "slug_lookup_hash": slug_lookup_hash,
             "encrypted_description_ref": description_blob["ref"] if description_blob else None,
             "encrypted_description_checksum": description_blob["checksum"] if description_blob else None,
             "status": WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value,
@@ -1222,12 +1242,22 @@ class WorkflowService:
         vault_key_id: str | None = None,
         description: str | None = None,
         restored_from_version_id: str | None = None,
+        encrypted_slug: str | None = None,
+        slug_lookup_hash: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
+        validate_encrypted_slug_metadata(
+            {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},
+            record_label="Workflow",
+        )
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        if slug_lookup_hash is not None:
+            self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, exclude_workflow_id=workflow_id)
+            record["encrypted_slug"] = encrypted_slug
+            record["slug_lookup_hash"] = slug_lookup_hash
 
         if title is not None:
             title_blob = self._save_encrypted_blob(user_id, "workflow_title", title, vault_key_id=vault_key_id)
@@ -1596,6 +1626,8 @@ class WorkflowService:
                 if record.get("encrypted_description_ref")
                 else None
             ),
+            encrypted_slug=record.get("encrypted_slug"),
+            slug_lookup_hash=record.get("slug_lookup_hash"),
             status=WorkflowStatus(record["status"]),
             enabled=bool(record["enabled"]),
             lifecycle=WorkflowLifecycle(record.get("lifecycle", WorkflowLifecycle.PERSISTED.value)),
@@ -1616,6 +1648,22 @@ class WorkflowService:
     def _detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowDetail:
         graph_payload = self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
         return WorkflowDetail(**self._summary_from_record(record, vault_key_id).model_dump(), graph=WorkflowGraph.model_validate(graph_payload))
+
+    def _ensure_workflow_slug_lookup_available(
+        self,
+        user_id: str,
+        slug_lookup_hash: str | None,
+        *,
+        team_id: str | None = None,
+        exclude_workflow_id: str | None = None,
+    ) -> None:
+        if not slug_lookup_hash:
+            return
+        for record in self.repository.list_workflows(user_id, team_id=team_id):
+            if record.get("id") == exclude_workflow_id:
+                continue
+            if record.get("slug_lookup_hash") == slug_lookup_hash:
+                raise DuplicateObjectSlugError("Workflow slug already exists in this workspace")
 
     @staticmethod
     def _version_summary(version: dict[str, Any], current_version_id: str) -> WorkflowVersionSummary:

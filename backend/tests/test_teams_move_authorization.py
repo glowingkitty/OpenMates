@@ -28,6 +28,7 @@ async def _seed_team_with_member(role: str) -> tuple[FakeDirectus, TeamMethods]:
     return directus, methods
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 def test_workspace_context_filters_separate_personal_and_team_records() -> None:
     assert workspace_context_filters(user_id="alice") == {
         "filter[hashed_user_id][_eq]": hash_id("alice"),
@@ -36,6 +37,7 @@ def test_workspace_context_filters_separate_personal_and_team_records() -> None:
     assert workspace_context_filters(user_id="alice", team_id="team-1") == {"filter[hashed_team_id][_eq]": hash_id("team-1")}
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_member_can_move_owned_personal_record_into_team() -> None:
     directus, _methods = await _seed_team_with_member("member")
@@ -44,13 +46,15 @@ async def test_member_can_move_owned_personal_record_into_team() -> None:
         directus_service=directus,
         actor_user_id="bob",
         team_id="team-1",
+        workspace_type="task",
         record={"id": "record-1", "hashed_user_id": hash_id("bob"), "hashed_team_id": None},
         moved_at=200,
     )
 
-    assert patch == {"hashed_team_id": hash_id("team-1"), "updated_at": 200}
+    assert patch == {"hashed_user_id": None, "hashed_team_id": hash_id("team-1"), "updated_at": 200}
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_viewer_cannot_move_personal_record_into_team() -> None:
     directus, _methods = await _seed_team_with_member("viewer")
@@ -60,11 +64,13 @@ async def test_viewer_cannot_move_personal_record_into_team() -> None:
             directus_service=directus,
             actor_user_id="bob",
             team_id="team-1",
+            workspace_type="task",
             record={"id": "record-1", "hashed_user_id": hash_id("bob"), "hashed_team_id": None},
             moved_at=200,
         )
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_non_owner_cannot_move_someone_else_personal_record() -> None:
     directus, _methods = await _seed_team_with_member("member")
@@ -74,11 +80,13 @@ async def test_non_owner_cannot_move_someone_else_personal_record() -> None:
             directus_service=directus,
             actor_user_id="bob",
             team_id="team-1",
+            workspace_type="task",
             record={"id": "record-1", "hashed_user_id": hash_id("alice"), "hashed_team_id": None},
             moved_at=200,
         )
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_cannot_move_already_team_scoped_record_again() -> None:
     directus, _methods = await _seed_team_with_member("member")
@@ -88,6 +96,7 @@ async def test_cannot_move_already_team_scoped_record_again() -> None:
             directus_service=directus,
             actor_user_id="bob",
             team_id="team-1",
+            workspace_type="task",
             record={"id": "record-1", "hashed_user_id": hash_id("bob"), "hashed_team_id": hash_id("team-1")},
             moved_at=200,
         )
@@ -103,9 +112,11 @@ async def test_cannot_move_already_team_scoped_record_again() -> None:
         ("workflow", "workflows", "workflow_id", "workflow-1"),
     ],
 )
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.slugs.encrypted-stable,cli.surface.semantic-parity
 async def test_move_workspace_record_updates_supported_collection(workspace_type: str, collection: str, id_field: str, object_id: str) -> None:
     directus, _methods = await _seed_team_with_member("member")
-    directus.rows[collection].append({"id": "row-1", id_field: object_id, "hashed_user_id": hash_id("bob"), "hashed_team_id": None})
+    user_hash = f"user_sha256:{hash_id('bob')}" if workspace_type == "workflow" else hash_id("bob")
+    directus.rows[collection].append({"id": "row-1", id_field: object_id, "hashed_user_id": user_hash, "hashed_team_id": None})
 
     updated = await move_workspace_record_to_team(
         directus_service=directus,
@@ -118,9 +129,40 @@ async def test_move_workspace_record_updates_supported_collection(workspace_type
     )
 
     assert updated["hashed_team_id"] == hash_id("team-1")
+    assert updated["hashed_user_id"] is None
     assert updated["updated_at"] == 210
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.slugs.encrypted-stable,cli.surface.semantic-parity
+@pytest.mark.anyio
+async def test_workflow_move_updates_record_json_owner_context() -> None:
+    directus, _methods = await _seed_team_with_member("member")
+    directus.rows["workflows"].append(
+        {
+            "id": "row-1",
+            "workflow_id": "workflow-1",
+            "hashed_user_id": f"user_sha256:{hash_id('bob')}",
+            "hashed_team_id": None,
+            "record_json": {"id": "workflow-1", "owner_hash": f"user_sha256:{hash_id('bob')}", "hashed_team_id": None},
+        }
+    )
+
+    updated = await move_workspace_record_to_team(
+        directus_service=directus,
+        actor_user_id="bob",
+        team_id="team-1",
+        workspace_type="workflow",
+        object_id="workflow-1",
+        confirmed=True,
+        moved_at=210,
+    )
+
+    assert updated["hashed_user_id"] is None
+    assert updated["record_json"]["hashed_user_id"] is None
+    assert updated["record_json"]["hashed_team_id"] == hash_id("team-1")
+
+
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_move_workspace_record_requires_confirmation() -> None:
     directus, _methods = await _seed_team_with_member("member")
@@ -136,6 +178,7 @@ async def test_move_workspace_record_requires_confirmation() -> None:
         )
 
 
+# contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.surface.semantic-parity
 @pytest.mark.anyio
 async def test_generic_workspace_move_rejects_projects_without_wrapper_contract() -> None:
     directus, _methods = await _seed_team_with_member("member")

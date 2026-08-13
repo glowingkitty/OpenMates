@@ -161,6 +161,8 @@ import {
   renderTaskList,
   splitCsvFlag,
   type DecryptedUserTask,
+  type TaskCreateOptions,
+  type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
   buildCreatePlanCriterionInput,
@@ -193,6 +195,7 @@ import {
   type PlanProjectKey,
 } from "./plansCli.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
+import { buildEncryptedObjectSlugMetadata, objectSlugMatches } from "./objectSlugs.js";
 import {
   buildRevolutBusinessConsentUrl,
   exchangeRevolutBusinessAuthorizationCode,
@@ -693,7 +696,7 @@ async function handleTasks(
   }
 
   const masterKey = client.getMasterKeyBytes();
-  const scope = taskScopeFromFlags(flags, masterKey);
+  const scope = await resolveTaskScope(client, masterKey, flags, taskScopeFromFlags(flags, masterKey));
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -773,7 +776,7 @@ async function handleTasks(
     const proposals = await proposeTasksForAsk(client, instruction, flags);
     const encryptedCreates = [];
     for (const proposal of proposals) {
-      encryptedCreates.push(await buildCreateUserTaskInput(masterKey, {
+      encryptedCreates.push(await buildCreateUserTaskInput(masterKey, await resolveTaskCreateOptions(client, masterKey, flags, {
         title: proposal.title,
         description: proposal.description ?? "",
         labels: labelFlags(flags),
@@ -784,7 +787,8 @@ async function handleTasks(
         planId: typeof flags.plan === "string" ? flags.plan : null,
         dueAt: parseDueAt(flags.due),
         priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
-      }));
+        slug: typeof flags.slug === "string" ? flags.slug : undefined,
+      })));
     }
     const result = await client.askUserTasks({ instruction, encryptedCreates });
     if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
@@ -794,7 +798,7 @@ async function handleTasks(
 
   if (subcommand === "create") {
     const title = taskTitleFromFlagsOrRest(flags, rest);
-    const input = await buildCreateUserTaskInput(masterKey, {
+    const input = await buildCreateUserTaskInput(masterKey, await resolveTaskCreateOptions(client, masterKey, flags, {
       title,
       description: typeof flags.description === "string" ? flags.description : "",
       labels: labelFlags(flags),
@@ -805,7 +809,8 @@ async function handleTasks(
       planId: typeof flags.plan === "string" ? flags.plan : null,
       dueAt: parseDueAt(flags.due),
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
-    });
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
+    }));
     const created = await client.createUserTask(input);
     printTaskOutput(await decryptUserTask(created, masterKey), flags);
     return;
@@ -815,7 +820,7 @@ async function handleTasks(
     const id = rest[0];
     if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
     const task = await resolveTask(client, masterKey, id, scope);
-    const patch = await buildUpdateUserTaskInput(task, masterKey, {
+    const patch = await buildUpdateUserTaskInput(task, masterKey, await resolveTaskUpdateOptions(client, masterKey, flags, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
       labels: flags.label || flags.labels || flags.tag || flags.tags ? labelFlags(flags) : undefined,
@@ -827,7 +832,8 @@ async function handleTasks(
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
-    });
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
+    }));
     const updated = await client.updateUserTask(task.taskId, patch);
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
@@ -901,6 +907,53 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
     priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
     ...teamContextFromFlags(flags),
   };
+}
+
+async function resolveTaskScope(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<typeof scope> {
+  let chatId = scope.chatId;
+  if (chatId) {
+    const resolved = await client.resolveChatKeyForContext(chatId, teamContextFromFlags(flags));
+    chatId = resolved.chatId;
+  }
+  let projectId = scope.projectId;
+  if (projectId) projectId = (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId;
+  let planId = scope.planId;
+  if (planId) planId = (await requiredResolvedPlan(client, masterKey, planId, { teamId: scope.teamId, personal: scope.personal }, "scope")).planId;
+  return { ...scope, chatId, projectId, planId };
+}
+
+async function resolveTaskCreateOptions(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  input: TaskCreateOptions,
+): Promise<TaskCreateOptions> {
+  const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
+  const projectIds: string[] = [];
+  for (const projectId of input.projectIds ?? []) {
+    projectIds.push((await requiredResolvedProject(client, masterKey, projectId, flags)).projectId);
+  }
+  const planId = input.planId ? (await requiredResolvedPlan(client, masterKey, input.planId, teamContextFromFlags(flags), "task link")).planId : input.planId;
+  return { ...input, chatId, projectIds, planId };
+}
+
+async function resolveTaskUpdateOptions(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  input: TaskUpdateOptions,
+): Promise<TaskUpdateOptions> {
+  const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
+  const projectIds = input.projectIds
+    ? await Promise.all(input.projectIds.map(async (projectId) => (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId))
+    : input.projectIds;
+  const planId = input.planId ? (await requiredResolvedPlan(client, masterKey, input.planId, teamContextFromFlags(flags), "task link")).planId : input.planId;
+  return { ...input, chatId, projectIds, planId };
 }
 
 async function loadTasks(
@@ -1129,6 +1182,7 @@ type ExactWorkflowAskInput = {
 
 type DecryptedProject = {
   projectId: string;
+  slug: string;
   name: string;
   description: string;
   icon: string;
@@ -1327,6 +1381,9 @@ async function tryResolveProject(
   const shortMatches = target.length >= 8 ? projects.filter((project) => project.projectId.startsWith(target)) : [];
   if (shortMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
   if (shortMatches.length === 1) return shortMatches[0];
+  const slugMatches = projects.filter((project) => objectSlugMatches(project.slug, target));
+  if (slugMatches.length > 1) throw new CliContractError("ambiguous_project", `Project slug '${target}' is ambiguous.`);
+  if (slugMatches.length === 1) return slugMatches[0];
   const normalized = normalizeAskLookup(target);
   const nameMatches = projects.filter((project) => normalizeAskLookup(project.name) === normalized);
   if (nameMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
@@ -1341,7 +1398,25 @@ async function tryResolveWorkflow(
   const workflows = await client.listWorkflows(teamContextFromFlags(flags));
   const idMatch = workflows.find((workflow) => workflow.id === target);
   if (idMatch) return idMatch;
+  const lowerTarget = target.toLowerCase();
+  const shortMatches = target.length >= 8 ? workflows.filter((workflow) => workflow.id.toLowerCase().startsWith(lowerTarget)) : [];
+  if (shortMatches.length > 1) throw new CliContractError("ambiguous_workflow", `Workflow '${target}' is ambiguous.`);
+  if (shortMatches.length === 1) return shortMatches[0];
+  const slugMatches = workflows.filter((workflow) => objectSlugMatches(workflow.slug, target));
+  if (slugMatches.length > 1) throw new CliContractError("ambiguous_workflow", `Workflow slug '${target}' is ambiguous.`);
+  if (slugMatches.length === 1) return slugMatches[0];
   return singleExactNameMatch(workflows, target, (workflow) => workflow.title);
+}
+
+async function requiredResolvedWorkflowId(
+  client: OpenMatesClient,
+  target: string,
+  flags: Record<string, string | boolean>,
+  _action: string,
+): Promise<string> {
+  const workflow = await tryResolveWorkflow(client, target, flags);
+  if (!workflow) throw new Error(`Workflow '${target}' not found.`);
+  return workflow.id;
 }
 
 function singleExactNameMatch<T>(items: T[], target: string, label: (item: T) => string): T | null {
@@ -1380,6 +1455,7 @@ async function decryptProject(
   const projectKey = await client.decryptProjectKey(record, context);
   return {
     projectId: record.project_id,
+    slug: await decryptOptionalProjectField(record.encrypted_slug, projectKey),
     name: await decryptOptionalProjectField(record.encrypted_name, projectKey) || "(untitled project)",
     description: await decryptOptionalProjectField(record.encrypted_description, projectKey),
     icon: await decryptOptionalProjectField(record.encrypted_icon, projectKey),
@@ -1712,7 +1788,7 @@ async function handlePlans(
 
   const masterKey = client.getMasterKeyBytes();
   const statusBelongsToChild = ["tasks", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
-  const scope = planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild });
+  const scope = await resolvePlanScope(client, masterKey, flags, planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild }));
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -1817,6 +1893,7 @@ async function handlePlans(
       summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
       goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
       primaryChatId: linkContext.primaryChatId,
       primaryChatKey: linkContext.primaryChatKey,
       linkedProjectIds: linkContext.linkedProjectIds,
@@ -1850,6 +1927,7 @@ async function handlePlans(
       referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : "",
       context: typeof flags.context === "string" ? flags.context : "",
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
       primaryChatId: linkContext.primaryChatId,
       primaryChatKey: linkContext.primaryChatKey,
       linkedProjectIds: linkContext.linkedProjectIds,
@@ -1895,6 +1973,7 @@ async function handlePlans(
       referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : undefined,
       context: typeof flags.context === "string" ? flags.context : undefined,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
       primaryChatId: hasChatRelink ? linkContext?.primaryChatId ?? null : undefined,
       primaryChatKey: linkContext?.primaryChatKey ?? undefined,
       linkedProjectIds: hasProjectRelink ? linkContext?.linkedProjectIds ?? [] : undefined,
@@ -2222,6 +2301,22 @@ function planScopeFromFlags(
   };
 }
 
+async function resolvePlanScope(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<typeof scope> {
+  let chatId = scope.chatId;
+  if (chatId) {
+    const resolved = await client.resolveChatKeyForContext(chatId, teamContextFromFlags(flags));
+    chatId = resolved.chatId;
+  }
+  let projectId = scope.projectId;
+  if (projectId) projectId = (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId;
+  return { ...scope, chatId, projectId };
+}
+
 async function loadPlans(
   client: OpenMatesClient,
   masterKey: Uint8Array,
@@ -2436,9 +2531,16 @@ async function handleProjects(
     const wrapping = await client.projectWrappingKey(context);
     const projectId = randomUUID();
     const timestamp = nowSeconds();
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({
+      value: typeof flags.slug === "string" ? flags.slug : name,
+      encryptionKey: projectKey,
+      lookupKey: wrapping.key,
+    });
     const payload: Record<string, unknown> = {
       project_id: projectId,
       encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, wrapping.key),
+      encrypted_slug: slugMetadata.encrypted_slug,
+      slug_lookup_hash: slugMetadata.slug_lookup_hash,
       encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
       encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : "", projectKey),
       encrypted_icon: await encryptWithAesGcmCombined(typeof flags.icon === "string" ? flags.icon : "folder", projectKey),
@@ -2466,6 +2568,15 @@ async function handleProjects(
     const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
     const patch: Record<string, unknown> = { updated_at: nowSeconds(), ...(project.version !== null ? { version: project.version } : {}) };
     if (subcommand === "archive" || subcommand === "unarchive") patch.archived = subcommand === "archive";
+    if (typeof flags.slug === "string") {
+      const slugMetadata = await buildEncryptedObjectSlugMetadata({
+        value: flags.slug,
+        encryptionKey: project.projectKey,
+        lookupKey: (await client.projectWrappingKey(context)).key,
+      });
+      patch.encrypted_slug = slugMetadata.encrypted_slug;
+      patch.slug_lookup_hash = slugMetadata.slug_lookup_hash;
+    }
     if (typeof flags.name === "string") patch.encrypted_name = await encryptWithAesGcmCombined(flags.name, project.projectKey);
     if (typeof flags.description === "string") patch.encrypted_description = await encryptWithAesGcmCombined(flags.description, project.projectKey);
     if (typeof flags.icon === "string") patch.encrypted_icon = await encryptWithAesGcmCombined(flags.icon, project.projectKey);
@@ -2505,20 +2616,18 @@ async function handleProjects(
   }
 
   if (subcommand === "history") {
-    const projectId = rest[0];
-    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects history <project-id>");
-    printObjectHistory(await client.listObjectHistory("project", projectId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    printObjectHistory(await client.listObjectHistory("project", project.projectId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
     return;
   }
 
   if (subcommand === "restore") {
-    const projectId = rest[0];
-    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects restore <project-id> --entry <history-entry-id>");
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
     const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates projects restore <project-id> --entry <history-entry-id>");
-    const result = await client.restoreObjectHistory("project", projectId, entryId, parseHistoryRestoreState(flags.state));
+    const result = await client.restoreObjectHistory("project", project.projectId, entryId, parseHistoryRestoreState(flags.state));
     if (flags.json === true) printJson(result);
     else {
-      console.log(`Project restored: ${projectId}`);
+      console.log(`Project restored: ${project.name}`);
       printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
     }
     return;
@@ -2540,9 +2649,16 @@ async function handleProjects(
     const timestamp = Math.floor(Date.now() / 1000);
     const projectId = randomUUID();
     const name = requiredString(proposal, "name", instruction);
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({
+      value: typeof flags.slug === "string" ? flags.slug : name,
+      encryptionKey: projectKey,
+      lookupKey: masterKey,
+    });
     const encryptedCreate = {
       project_id: projectId,
       encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+      encrypted_slug: slugMetadata.encrypted_slug,
+      slug_lookup_hash: slugMetadata.slug_lookup_hash,
       encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
       encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : optionalString(proposal, "description") ?? "", projectKey),
       encrypted_icon: await encryptWithAesGcmCombined(optionalString(proposal, "icon") ?? "folder", projectKey),
@@ -2722,6 +2838,7 @@ function projectToJson(project: DecryptedProject): Record<string, unknown> {
   return {
     project_id: project.projectId,
     short_id: project.projectId.slice(0, 8),
+    slug: project.slug || null,
     name: project.name,
     description: project.description,
     icon: project.icon,
@@ -2743,7 +2860,7 @@ function printProjectsOutput(projects: DecryptedProject[], flags: Record<string,
     return;
   }
   for (const project of projects) {
-    console.log(`${project.projectId.slice(0, 8)}  ${project.name}${project.archived ? "  [archived]" : ""}`);
+    console.log(`${(project.slug || project.projectId.slice(0, 8)).padEnd(18)}  ${project.name}${project.archived ? "  [archived]" : ""}`);
   }
 }
 
@@ -2752,7 +2869,9 @@ function printProjectOutput(project: DecryptedProject | null, flags: Record<stri
   const value = projectToJson(project);
   if (flags.json === true) printJson({ project: value });
   else {
-    console.log(`${project.name} (${project.projectId})`);
+    console.log(`${project.name} (${project.slug || project.projectId})`);
+    if (project.slug) kv("slug", project.slug);
+    kv("project id", project.projectId);
     if (project.description) kv("description", project.description);
     kv("archived", String(project.archived));
     kv("pinned", String(project.pinned));
@@ -3367,6 +3486,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
   return {
     task_id: task.taskId,
     short_id: task.shortId,
+    slug: task.slug || null,
     title: task.title,
     description: task.description,
     labels: task.labels,
@@ -3393,6 +3513,7 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
   return {
     plan_id: plan.planId,
     short_id: plan.shortId,
+    slug: plan.slug || null,
     title: plan.title,
     summary: plan.summary,
     goal: plan.goal,
@@ -3725,6 +3846,7 @@ async function createEncryptedRemoteAccessProject(
   await client.createProject(payload, context);
   return {
     projectId,
+    slug: "",
     name,
     description: "",
     icon: "folder",
@@ -4141,6 +4263,7 @@ async function handleChats(
           {
             message,
             chatId: undefined,
+            slug: typeof flags.slug === "string" ? flags.slug : undefined,
             incognito: false,
             json: flags.json === true,
             autoApproveSubChats: flags["auto-approve"] === true,
@@ -4238,6 +4361,7 @@ async function handleChats(
       {
         message,
         chatId,
+        slug: chatId ? undefined : typeof flags.slug === "string" ? flags.slug : undefined,
         incognito: flags.incognito === true,
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
@@ -4773,7 +4897,7 @@ async function handleChats(
       }
 
       // Print summary
-      const label = chat.title ? `"${chat.title}"` : chat.shortId;
+      const label = chat.title ? `"${chat.title}"` : chatHandle(chat);
       process.stdout.write(
         `\x1b[1mDownloaded chat ${label}\x1b[0m → ${chatDir}\n\n`,
       );
@@ -4916,7 +5040,7 @@ async function handleChats(
     const url = `${appUrl}/#chat-id=${chat.id}`;
 
     if (!flags.json) {
-      const label = chat.title ? `"${chat.title}"` : chat.id.slice(0, 8);
+      const label = chat.title ? `"${chat.title}"` : chatHandle(chat);
       process.stderr.write(
         `\x1b[2mOpening chat #${n}: ${label}\x1b[0m\n`,
       );
@@ -4969,6 +5093,7 @@ function sdkChatsToChatListPage(
       return {
         id: chat.id,
         shortId: chat.id.slice(0, 8),
+        slug: typeof chat.slug === "string" && chat.slug ? chat.slug : null,
         title: typeof chat.title === "string" ? chat.title : null,
         summary: typeof chat.chat_summary === "string" ? chat.chat_summary : null,
         updatedAt: normalizeSdkTimestamp(chat.updated_at),
@@ -5150,6 +5275,7 @@ function normalizeApiKeyLoadedChat(payload: Record<string, unknown>): {
 	const chat: ChatListItem = {
 		id: chatId,
 		shortId: chatId.slice(0, 8),
+		slug: typeof rawChat.slug === "string" && rawChat.slug ? rawChat.slug : null,
 		title: typeof rawChat.title === "string" ? rawChat.title : null,
 		summary: typeof rawChat.chat_summary === "string"
 			? rawChat.chat_summary
@@ -5379,10 +5505,11 @@ async function handleWorkflows(
 
   if (rest[0] === "add-to-project") {
     const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const workflowId = await requiredResolvedWorkflowId(client, subcommand, flags, "add-to-project");
     const masterKey = client.getMasterKeyBytes();
     const project = await requiredResolvedProject(client, masterKey, projectId, flags);
     const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "workflow");
-    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
     const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
       ? null
       : buildRemoteCopyProposal({
@@ -5406,9 +5533,10 @@ async function handleWorkflows(
 
   if (rest[0] === "remove-from-project") {
     const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const workflowId = await requiredResolvedWorkflowId(client, subcommand, flags, "remove-from-project");
     const masterKey = client.getMasterKeyBytes();
     const project = await requiredResolvedProject(client, masterKey, projectId, flags);
-    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
     const removed = await client.deleteProjectItemByTarget(project.projectId, "workflow", workflow.id);
     printRemoveFromProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
     return;
@@ -5472,6 +5600,7 @@ async function handleWorkflows(
     if (!graphJson) throw new Error("Missing --graph JSON for workflow create.");
     const workflow = await client.createWorkflow({
       title,
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
       graph: parseJsonFlag<WorkflowGraph>(graphJson, "--graph"),
       enabled: flags.enabled === true,
       runContentRetention: parseWorkflowRunContentRetention(flags["run-content-retention"]),
@@ -5485,10 +5614,13 @@ async function handleWorkflows(
   }
 
   if (subcommand === "update") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "update") : undefined;
     const yamlFile = typeof flags.file === "string" ? flags.file : "";
     if (!workflowId || !yamlFile) throw new Error("Missing workflow ID or --file. Example: openmates workflows update <id> --file workflow.yml");
     const result = await client.updateWorkflowYaml(workflowId, readFileSync(yamlFile, "utf8"));
+    if (typeof flags.slug === "string") {
+      result.workflow = await client.updateWorkflow(result.workflow.id, { slug: flags.slug });
+    }
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -5502,14 +5634,14 @@ async function handleWorkflows(
   }
 
   if (subcommand === "history") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "history") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows history <workflow-id>");
     printObjectHistory(await client.listObjectHistory("workflow", workflowId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
     return;
   }
 
   if (subcommand === "restore") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "restore") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows restore <workflow-id> --entry <history-entry-id>");
     const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates workflows restore <workflow-id> --entry <history-entry-id>");
     const result = await client.restoreObjectHistory("workflow", workflowId, entryId, parseHistoryRestoreState(flags.state));
@@ -5625,7 +5757,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "show") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "show") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
     const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
     if (flags.json === true) {
@@ -5637,7 +5769,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "enable" || subcommand === "disable") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, subcommand) : undefined;
     if (!workflowId) throw new Error(`Missing workflow ID. Example: openmates workflows ${subcommand} <id>`);
     const workflow = subcommand === "enable"
       ? await client.enableWorkflow(workflowId)
@@ -5651,7 +5783,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "delete") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "delete") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows delete <id> --yes");
     if (flags.yes !== true) throw new Error("Refusing to delete workflow without --yes.");
     const result = await client.deleteWorkflow(workflowId);
@@ -5664,7 +5796,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "run") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
     const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
@@ -5680,7 +5812,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "runs") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "runs") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows runs <id>");
     const runs = await client.listWorkflowRuns(workflowId);
     if (flags.json === true) {
@@ -5692,7 +5824,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "run-show") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-show") : undefined;
     const runId = rest[1];
     if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-show <workflow-id> <run-id>");
     const run = await client.getWorkflowRun(workflowId, runId);
@@ -5705,7 +5837,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "run-cancel") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run-cancel") : undefined;
     const runId = rest[1];
     if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-cancel <workflow-id> <run-id>");
     const result = await client.cancelWorkflowRun(workflowId, runId);
@@ -5718,7 +5850,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "step-test") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "step-test") : undefined;
     const stepId = rest[1];
     if (!workflowId || !stepId) throw new Error("Missing workflow/step ID. Example: openmates workflows step-test <workflow-id> <step-id> --yes");
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
@@ -5732,7 +5864,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "respond") {
-    const workflowId = rest[0];
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "respond") : undefined;
     const runId = rest[1];
     const stepId = rest[2];
     if (!workflowId || !runId || !stepId) throw new Error("Missing workflow/run/step ID. Example: openmates workflows respond <workflow-id> <run-id> <step-id> --input '{\"answer\":\"Berlin\"}'");
@@ -5771,19 +5903,20 @@ function printWorkflowList(workflows: WorkflowSummary[]): void {
   }
   header(`Workflows  \x1b[2m(${workflows.length})\x1b[0m\n`);
   for (const workflow of workflows) {
-    kv(workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 10);
+    kv(workflow.slug || workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 18);
   }
 }
 
 function printWorkflowDetail(workflow: WorkflowDetail): void {
   header(`${workflow.title}\n`);
+  if (workflow.slug) kv("Slug", workflow.slug);
   kv("ID", workflow.id);
   kv("Status", workflow.status);
   kv("Enabled", String(workflow.enabled));
   kv("Run content", workflow.run_content_retention ?? "last_5");
   if (workflow.trigger_summary) kv("Trigger", workflow.trigger_summary);
   kv("Nodes", String(workflow.graph.nodes.length));
-  console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.id}\x1b[0m`);
+  console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.slug || workflow.id}\x1b[0m`);
 }
 
 function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
@@ -9944,7 +10077,7 @@ function printChatsTable(result: ChatListPage): void {
     const block = ansiColorBlock(chat.category);
     const time = formatTimestamp(chat.updatedAt);
     const title = chat.title ?? "(no title)";
-    const idStr = chat.shortId;
+    const idStr = chatHandle(chat);
     const sourceLabel = chat.source === "example" ? "  \x1b[33mEXAMPLE CHAT\x1b[0m" : "";
 
     // Line 1: colored block + timestamp
@@ -9966,6 +10099,10 @@ function printChatsTable(result: ChatListPage): void {
     const nextCmd = `chats list --page ${nextPage}${limit !== 10 ? ` --limit ${limit}` : ""}`;
     process.stdout.write(`\n\x1b[2mNext page: openmates ${nextCmd}\x1b[0m\n`);
   }
+}
+
+function chatHandle(chat: { slug?: string | null; shortId: string }): string {
+  return chat.slug || chat.shortId;
 }
 
 function printChatMessagesTable(
@@ -10016,6 +10153,7 @@ async function sendMessageStreaming(
   params: {
     message: string;
     chatId?: string;
+    slug?: string;
     teamId?: string | null;
     personal?: boolean;
     incognito?: boolean;
@@ -10458,9 +10596,10 @@ async function sendMessageStreaming(
   preparedEmbeds.push(...urlResult.embeds);
 
   const result = await client.sendMessage({
-    message: finalMessage,
-    chatId: params.chatId,
-    teamId: params.teamId,
+      message: finalMessage,
+      chatId: params.chatId,
+      slug: params.slug,
+      teamId: params.teamId,
     personal: params.personal,
     incognito: params.incognito,
     onStream,
@@ -10887,6 +11026,7 @@ async function printChatConversation(
   chat: {
     id: string;
     shortId: string;
+    slug?: string | null;
     title: string | null;
     category: string | null;
     mateName: string | null;
@@ -10906,7 +11046,8 @@ async function printChatConversation(
   }
 
   // Header: colored block + date + # Title
-  process.stdout.write(`${block}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
+  const handle = chatHandle(chat);
+  process.stdout.write(`${block}  \x1b[2m${handle}  ${ts}\x1b[0m\n`);
   process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m\n\n`);
 
   if (messages.length === 0) {
@@ -11001,7 +11142,7 @@ async function printChatConversation(
       const escapedSuggestion = suggestion.replace(/"/g, '\\"');
       process.stdout.write(
         `  \x1b[2m• ${suggestion}\x1b[0m\n` +
-          `    \x1b[2mopenmates chats send --chat ${chat.shortId} "${escapedSuggestion}"\x1b[0m\n`,
+          `    \x1b[2mopenmates chats send --chat ${handle} "${escapedSuggestion}"\x1b[0m\n`,
       );
     }
     process.stdout.write(`${SEP}\n`);
@@ -11009,8 +11150,8 @@ async function printChatConversation(
 
   process.stdout.write(
     options.example
-      ? `\x1b[2mOpen in browser: openmates chats open ${chat.shortId}\x1b[0m\n`
-      : `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
+      ? `\x1b[2mOpen in browser: openmates chats open ${handle}\x1b[0m\n`
+      : `\x1b[2mContinue: openmates chats send --chat ${handle} "your message"\x1b[0m\n`,
   );
 }
 
@@ -11023,6 +11164,7 @@ async function printChatConversationRaw(
   chat: {
     id: string;
     shortId: string;
+    slug?: string | null;
     title: string | null;
     category: string | null;
     mateName: string | null;
@@ -11039,7 +11181,7 @@ async function printChatConversationRaw(
     process.stdout.write("This is a public example chat. Log in to create and sync your own private chats.\n\n");
   }
 
-  process.stdout.write(`\x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
+  process.stdout.write(`\x1b[2m${chatHandle(chat)}  ${ts}\x1b[0m\n`);
   process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m  \x1b[2m(raw)\x1b[0m\n\n`);
 
   if (messages.length === 0) {
@@ -12741,8 +12883,8 @@ function printChatsHelp(): void {
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
+  openmates chats new <message> [--slug <slug>] [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
+  openmates chats send [--chat <id>] [--slug <slug>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
@@ -12781,7 +12923,8 @@ Options for 'open':
                 Opens the chat in your default browser.
 
 Options for 'send':
-  --chat <id>      Chat to continue (full UUID or 8-char short ID)
+  --chat <id>      Chat to continue (slug, full UUID, or 8-char short ID)
+  --slug <slug>    Private local handle for a newly created saved chat
   --followup <n>   Send the nth follow-up suggestion for this chat instead of
                    typing the full message (requires --chat)
   --incognito      Send without saving to chat history
