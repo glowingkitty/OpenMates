@@ -30,6 +30,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const {
+	fillMessageEditor,
 	loginToTestAccount,
 	startNewChat,
 	deleteActiveChat,
@@ -152,8 +153,7 @@ async function sendProofQuestionWithHiddenFixture(
 	const messageField = page.getByTestId('message-field').last();
 	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
-	await messageEditor.click();
-	await page.keyboard.insertText(VISIBLE_PROOF_QUESTION);
+	await fillMessageEditor(page, messageEditor, VISIBLE_PROOF_QUESTION);
 	await expect(messageEditor).toContainText(VISIBLE_PROOF_QUESTION, { timeout: 5000 });
 	logCheckpoint(`Typed visible proof question: "${VISIBLE_PROOF_QUESTION}"`);
 
