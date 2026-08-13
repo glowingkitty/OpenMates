@@ -467,6 +467,18 @@ export type ProjectPlainUpdateOptions = Partial<Omit<ProjectPlainCreateOptions, 
 export type ProjectContextOptions =
   | { personal: true; teamId?: never }
   | { teamId: string; personal?: never };
+export type TeamGeneratedProfileImageOptions = {
+  iconName?: string;
+  backgroundColor?: string;
+};
+export type TeamPlainCreateOptions = {
+  name: string;
+  description?: string | null;
+  slug?: string | null;
+  teamId?: string;
+  profile?: TeamGeneratedProfileImageOptions;
+  createdAt?: number;
+};
 export type ProjectRecordPlain = {
   projectId: string;
   slug: string;
@@ -1144,6 +1156,44 @@ function requireProjectContext(options: Partial<ProjectContextOptions>): { teamI
   const teamId = typeof options.teamId === "string" && options.teamId.length > 0 ? options.teamId : null;
   if (personal === Boolean(teamId)) throw new OpenMatesConfigError("Projects require explicit Personal or Team context");
   return { teamId };
+}
+
+function generatedTeamProfileImageMetadata(input: TeamGeneratedProfileImageOptions = {}): Record<string, unknown> {
+  return {
+    version: 1,
+    mode: "generated",
+    icon_name: input.iconName ?? "users",
+    icon_color: "#ffffff",
+    background_color: input.backgroundColor ?? "#4d73ff",
+  };
+}
+
+async function buildTeamPlainCreatePayload(client: OpenMates, input: TeamPlainCreateOptions): Promise<Record<string, unknown>> {
+  const name = input.name.trim();
+  if (!name) throw new OpenMatesConfigError("Team name is required");
+  const teamKey = randomBytes(32);
+  const now = Math.floor(Date.now() / 1000);
+  const createdAt = input.createdAt ?? now;
+  const payload = {
+    team_id: input.teamId ?? randomUUID(),
+    slug: input.slug ?? undefined,
+    encrypted_name: await encryptWithAesGcmCombined(name, teamKey),
+    encrypted_description: input.description ? await encryptWithAesGcmCombined(input.description, teamKey) : undefined,
+    encrypted_profile_image_metadata: await encryptWithAesGcmCombined(JSON.stringify(generatedTeamProfileImageMetadata(input.profile)), teamKey),
+    encrypted_team_key: await encryptBytesWithAesGcm(teamKey, await client.masterKey()),
+    encrypted_zero_balance: await encryptWithAesGcmCombined("0", teamKey),
+    created_at: createdAt,
+    updated_at: createdAt,
+  };
+  return payload;
+}
+
+async function teamKeyForRecord(client: OpenMates, team: Record<string, unknown>): Promise<Uint8Array> {
+  const encryptedTeamKey = team.encrypted_team_key;
+  if (typeof encryptedTeamKey !== "string") throw new OpenMatesConfigError("Team response is missing encrypted Team key");
+  const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, await client.masterKey());
+  if (!teamKey) throw new OpenMatesConfigError("Failed to decrypt Team key");
+  return teamKey;
 }
 
 async function projectWrappingKey(client: OpenMates, options: ProjectContextOptions): Promise<{ teamId: string | null; key: Uint8Array }> {
@@ -4728,9 +4778,31 @@ export class OpenMatesTeams {
     return result.team ?? result;
   }
 
+  async createPlain(input: TeamPlainCreateOptions): Promise<Record<string, unknown>> {
+    const generatedProfile = generatedTeamProfileImageMetadata(input.profile);
+    const created = await buildTeamPlainCreatePayload(this.client, input);
+    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", created);
+    return { ...(result.team ?? result), profile_image_metadata: generatedProfile };
+  }
+
   async update(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const result = await this.client.patch<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`, input);
     return result.team ?? result;
+  }
+
+  async updateGeneratedProfileImage(teamId: string, input: TeamGeneratedProfileImageOptions = {}): Promise<Record<string, unknown>> {
+    const profile = generatedTeamProfileImageMetadata(input);
+    const current = await this.get(teamId);
+    const teamKey = await teamKeyForRecord(this.client, current);
+    const result = await this.client.patch<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
+      encrypted_profile_image_metadata: await encryptWithAesGcmCombined(JSON.stringify(profile), teamKey),
+      updated_at: Math.floor(Date.now() / 1000),
+    });
+    return { ...(result.team ?? result), profile_image_metadata: profile };
+  }
+
+  async getProfileImage(teamId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> {
+    return this.client.getRaw(`/v1/teams/${encodeURIComponent(teamId)}/profile-image`);
   }
 
   async invite(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {

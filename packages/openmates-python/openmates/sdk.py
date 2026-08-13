@@ -63,6 +63,8 @@ DESIGN_ICON_SEGMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECAS
 DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 DEFAULT_ICON_PNG_SIZE = 256
 MAX_ICON_PNG_SIZE = 4096
+DEFAULT_TEAM_PROFILE_ICON_NAME = "users"
+DEFAULT_TEAM_PROFILE_BACKGROUND_COLOR = "#4d73ff"
 IDEABUCKET_DEFAULT_PROCESSING_PROMPT = "These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation."
 IDEABUCKET_APP_ID = "ideabucket"
 IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings"
@@ -586,6 +588,46 @@ def _project_context(*, personal: bool = False, team_id: str | None = None) -> s
     if personal == bool(normalized_team_id):
         raise OpenMatesConfigError("Projects require explicit Personal or Team context")
     return normalized_team_id or None
+
+
+def _generated_team_profile_image_metadata(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = payload or {}
+    return {
+        "version": 1,
+        "mode": "generated",
+        "icon_name": payload.get("icon_name") or payload.get("iconName") or DEFAULT_TEAM_PROFILE_ICON_NAME,
+        "icon_color": "#ffffff",
+        "background_color": payload.get("background_color") or payload.get("backgroundColor") or DEFAULT_TEAM_PROFILE_BACKGROUND_COLOR,
+    }
+
+
+def _team_key_from_record(client: OpenMates, team: dict[str, Any]) -> bytes:
+    encrypted_team_key = team.get("encrypted_team_key")
+    if not isinstance(encrypted_team_key, str):
+        raise OpenMatesConfigError("Team response is missing encrypted Team key")
+    team_key = _decrypt_aes_gcm_bytes(encrypted_team_key, client._get_master_key())
+    if team_key is None:
+        raise OpenMatesConfigError("Failed to decrypt Team key")
+    return team_key
+
+
+def _build_team_plain_create_payload(client: OpenMates, payload: dict[str, Any]) -> dict[str, Any]:
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise OpenMatesConfigError("Team name is required")
+    team_key = os.urandom(32)
+    created_at = int(payload.get("created_at") or payload.get("createdAt") or time.time())
+    return {
+        "team_id": str(payload.get("team_id") or payload.get("teamId") or uuid.uuid4()),
+        "slug": payload.get("slug"),
+        "encrypted_name": _encrypt_aes_gcm_text(name, team_key),
+        "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description")), team_key) if payload.get("description") else None,
+        "encrypted_profile_image_metadata": _encrypt_aes_gcm_text(json.dumps(_generated_team_profile_image_metadata(payload.get("profile") if isinstance(payload.get("profile"), dict) else None)), team_key),
+        "encrypted_team_key": _encrypt_aes_gcm_bytes(team_key, client._get_master_key()),
+        "encrypted_zero_balance": _encrypt_aes_gcm_text("0", team_key),
+        "created_at": created_at,
+        "updated_at": created_at,
+    }
 
 
 def _project_wrapping_key(client: OpenMates, team_id: str | None) -> bytes:
@@ -5402,9 +5444,33 @@ class OpenMatesTeams:
         result = self._client._post("/v1/teams", payload)
         return dict(result.get("team") or result)
 
+    def create_plain(self, payload: dict[str, Any] | None = None, *, team_id: str | None = None, **kwargs: Any) -> dict[str, Any]:
+        input_payload = {**(payload or {}), **kwargs}
+        if team_id is not None:
+            input_payload["team_id"] = team_id
+        profile = _generated_team_profile_image_metadata(input_payload.get("profile") if isinstance(input_payload.get("profile"), dict) else None)
+        result = self._client._post("/v1/teams", _build_team_plain_create_payload(self._client, input_payload))
+        return {**dict(result.get("team") or result), "profile_image_metadata": profile}
+
     def update(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         result = self._client._patch(f"/v1/teams/{_quote(team_id)}", payload)
         return dict(result.get("team") or result)
+
+    def update_generated_profile_image(self, team_id: str, payload: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        input_payload = {**(payload or {}), **kwargs}
+        profile = _generated_team_profile_image_metadata(input_payload)
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        result = self._client._patch(
+            f"/v1/teams/{_quote(team_id)}",
+            {
+                "encrypted_profile_image_metadata": _encrypt_aes_gcm_text(json.dumps(profile), team_key),
+                "updated_at": int(time.time()),
+            },
+        )
+        return {**dict(result.get("team") or result), "profile_image_metadata": profile}
+
+    def get_profile_image(self, team_id: str) -> dict[str, Any]:
+        return self._client._get_raw(f"/v1/teams/{_quote(team_id)}/profile-image")
 
     def invite(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         result = self._client._post(f"/v1/teams/{_quote(team_id)}/invites", payload)

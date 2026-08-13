@@ -3111,6 +3111,36 @@ async function handleTeams(
     return;
   }
 
+  if (subcommand === "profile-image") {
+    const action = requiredStringFlag(rest[0], "profile-image action <generated|upload|get>");
+    const teamId = requireTeamId(rest.slice(1), flags);
+    if (action === "generated") {
+      const team = await client.updateTeamGeneratedProfileImage(teamId, {
+        iconName: typeof flags.icon === "string" ? flags.icon : typeof flags["icon-name"] === "string" ? flags["icon-name"] : undefined,
+        backgroundColor: typeof flags.background === "string" ? flags.background : typeof flags["background-color"] === "string" ? flags["background-color"] : undefined,
+      });
+      if (flags.json === true) printJson({ team });
+      else printTeamRecord(team, client.getActiveTeamId());
+      return;
+    }
+    if (action === "upload") {
+      const file = requiredStringFlag(flags.file ?? flags.path ?? rest[2], "--file <path>");
+      const result = await client.updateTeamProfileImage(teamId, file);
+      if (flags.json === true) printJson(result);
+      else console.log(`Team profile image uploaded: ${result.url}`);
+      return;
+    }
+    if (action === "get") {
+      const output = requiredStringFlag(flags.output ?? flags.file ?? rest[2], "--output <path>");
+      const image = await client.getTeamProfileImage(teamId);
+      writeFileSync(output, image.data, { mode: 0o600 });
+      if (flags.json === true) printJson({ output, content_type: image.contentType, size_bytes: image.data.byteLength });
+      else console.log(`Team profile image written: ${output}`);
+      return;
+    }
+    throw new Error("Unknown team profile-image action. Use generated, upload, or get.");
+  }
+
   if (subcommand === "delete") {
     const teamId = requireTeamId(rest, flags);
     if (flags["email-code"] !== undefined || flags["totp-code"] !== undefined) {
@@ -13161,6 +13191,9 @@ function printTeamsHelp(): void {
   openmates teams show <team-id> [--json]
   openmates teams create --name <name> [--description <description>] [--slug <slug>] [--switch] [--json]
   openmates teams update <team-id> [--name <name>] [--description <description>] [--slug <slug>] [--json]
+  openmates teams profile-image generated <team-id> [--icon <name>] [--background-color <hex>] [--json]
+  openmates teams profile-image upload <team-id> --file <jpg-or-png> [--json]
+  openmates teams profile-image get <team-id> --output <path> [--json]
   openmates teams delete <team-id> --yes [--json]
   openmates teams invite <team-id> (--email <email>|--user <user-id>) [--role admin|member|viewer] [--json]
   openmates teams accept-invite <invite-id-or-url> [--email <recipient-email>] [--key <fragment-key>] [--json]

@@ -5,11 +5,15 @@ Security: monkeypatches requests; no API keys or team ciphertext leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_teams.py.
 """
 
+import json
+
 import pytest
 
 from openmates import OpenMates, OpenMatesConfigError
+from openmates.sdk import _create_api_key_material, _decrypt_aes_gcm_bytes, _decrypt_aes_gcm_text
 
 
+# contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
 def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
     requests_seen = []
 
@@ -113,12 +117,110 @@ def test_pip_sdk_teams_methods_use_shared_teams_api(monkeypatch):
     ]
 
 
+# contract-test: direct surface=sdks.pip assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity
+def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypatch):
+    master_key = bytes([11]) * 32
+    api_key, material = _create_api_key_material("pip teams profile", master_key)
+    requests_seen = []
+    stored_team = None
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload=None, *, content=b"", headers=None):
+            self._payload = payload or {}
+            self.content = content
+            self.headers = headers or {}
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append({"method": "GET", "url": url})
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if url.endswith("/v1/teams/team-1/profile-image"):
+            return FakeResponse(content=b"\x89PNG", headers={"content-type": "image/png", "content-disposition": 'attachment; filename="team.png"'})
+        if url.endswith("/v1/teams/team-1"):
+            assert stored_team is not None
+            return FakeResponse({"team": stored_team})
+        raise AssertionError(f"unexpected GET {url}")
+
+    def fake_post(url, *, json, headers, timeout):
+        nonlocal stored_team
+        requests_seen.append({"method": "POST", "url": url, "json": json})
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        if url.endswith("/v1/teams"):
+            stored_team = {"team_id": "team-1", **json}
+            return FakeResponse({"team": stored_team})
+        raise AssertionError(f"unexpected POST {url}")
+
+    def fake_patch(url, *, json, headers, timeout):
+        nonlocal stored_team
+        requests_seen.append({"method": "PATCH", "url": url, "json": json})
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if url.endswith("/v1/teams/team-1"):
+            stored_team = {**(stored_team or {}), **json}
+            return FakeResponse({"team": stored_team})
+        raise AssertionError(f"unexpected PATCH {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.patch", fake_patch)
+
+    client = OpenMates(api_key=api_key)
+    created = client.teams.create_plain({
+        "team_id": "team-1",
+        "name": "Pip Team",
+        "profile": {"icon_name": "users", "background_color": "#112233"},
+        "created_at": 100,
+    })
+    updated = client.teams.update_generated_profile_image("team-1", icon_name="sparkles", background_color="#445566")
+    image = client.teams.get_profile_image("team-1")
+
+    assert created["profile_image_metadata"]["background_color"] == "#112233"
+    assert updated["profile_image_metadata"]["icon_name"] == "sparkles"
+    assert image["content_type"] == "image/png"
+    assert image["filename"] == "team.png"
+    assert image["data"] == b"\x89PNG"
+
+    create_body = requests_seen[1]["json"]
+    team_key = _decrypt_aes_gcm_bytes(create_body["encrypted_team_key"], master_key)
+    assert team_key is not None
+    create_profile = json.loads(_decrypt_aes_gcm_text(create_body["encrypted_profile_image_metadata"], team_key))
+    assert create_profile["mode"] == "generated"
+    assert create_profile["icon_name"] == "users"
+    assert create_profile["background_color"] == "#112233"
+    assert "name" not in create_body
+    assert "profile" not in create_body
+
+    update_body = requests_seen[3]["json"]
+    update_profile = json.loads(_decrypt_aes_gcm_text(update_body["encrypted_profile_image_metadata"], team_key))
+    assert update_profile["mode"] == "generated"
+    assert update_profile["icon_name"] == "sparkles"
+    assert update_profile["background_color"] == "#445566"
+    assert "profile" not in update_body
+    assert [(entry["method"], entry["url"].replace("https://api.openmates.org", "")) for entry in requests_seen] == [
+        ("POST", "/v1/sdk/session"),
+        ("POST", "/v1/teams"),
+        ("GET", "/v1/teams/team-1"),
+        ("PATCH", "/v1/teams/team-1"),
+        ("GET", "/v1/teams/team-1/profile-image"),
+    ]
+
+
+# contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
 def test_pip_sdk_team_connected_accounts_are_disabled():
     client = OpenMates(api_key="x")
     with pytest.raises(OpenMatesConfigError, match="Team connected accounts are not supported yet"):
         client.connected_accounts.import_account(payload="OMCA1.disabled", passcode="x", team_id="team-1")
 
 
+# contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
 def test_pip_sdk_teams_do_not_expose_direct_credit_grants_or_destructive_methods():
     client = OpenMates(api_key="x")
 

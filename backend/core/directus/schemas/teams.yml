@@ -29,6 +29,29 @@ teams:
       type: text
       nullable: true
       note: "[Client-encrypted] Optional team description."
+    encrypted_profile_image_metadata:
+      type: text
+      note: "[Client-encrypted] Team profile image metadata. Generated defaults store icon/background details encrypted; uploaded images store encrypted authenticated media metadata."
+    profile_image_s3_key:
+      type: string
+      nullable: true
+      note: "Private encrypted S3 object key for an uploaded team profile image. Null when generated metadata is used."
+    encrypted_profile_image_aes_key:
+      type: text
+      nullable: true
+      note: "Vault-wrapped AES key for the encrypted team profile image blob."
+    profile_image_aes_nonce:
+      type: string
+      nullable: true
+      note: "AES-GCM nonce for the encrypted team profile image blob."
+    profile_image_vault_key_id:
+      type: string
+      nullable: true
+      note: "Vault Transit key id used to wrap the uploaded team profile image AES key."
+    profile_image_updated_at:
+      type: integer
+      nullable: true
+      note: "Timestamp for the latest uploaded or generated team profile image metadata update."
     encrypted_billing_profile:
       type: text
       nullable: true

@@ -1,0 +1,89 @@
+schema_version: 1
+contract: feature.teams@1
+
+team_lifecycle_profile:
+  - id: create-team-generates-default-profile
+    input: {operation: create, name: Acme Studio, image_mode: omitted}
+    durable_state:
+      contains: [team_id, encrypted_name, encrypted_profile_image_metadata, encrypted_team_key, encrypted_zero_balance]
+      forbidden: [plaintext_name, plaintext_icon_name, plaintext_background_color, raw_team_key]
+    expect: {creator_role: owner, default_profile_metadata_decrypts_locally: true}
+  - id: update-team-name-and-profile-metadata
+    input: {operation: update, name: Acme Research, generated_icon_name: team, background_color: '#3457d5'}
+    expect: {encrypted_name_changed: true, encrypted_profile_image_metadata_changed: true, role_required: owner_or_admin}
+  - id: delete-team-clears-local-active-context
+    input: {operation: delete, active_context_team_id: team-1}
+    expect: {team_deleted: true, active_context_after_delete: personal, personal_rows_deleted: false}
+
+team_profile_images:
+  - id: generated-avatar-is-renderable-on-every-surface
+    input: {mode: generated, icon_name: team, background_color: '#4d73ff'}
+    expect: {web_profile_overlay_visible: true, cli_json_contains_encrypted_metadata: true, sdk_plain_helper_returns_generated_profile: true}
+  - id: upload-team-image-uses-user-profile-safety-pipeline
+    input: {mode: uploaded, file_type: image/jpeg, image_size: 340x340}
+    expect: {client_crops_and_resizes: true, content_safety_scan_runs: true, authenticated_media_url_returned: true}
+  - id: rejected-team-image-matches-user-profile-policy
+    input: {mode: uploaded, safety_result: rejected}
+    expect_error: {code: image_rejected, profile_metadata_changed: false, policy_violation_count_applied: true}
+
+team_membership_permissions:
+  - id: owner-can-manage-team-and-billing
+    input: {role: owner, operation: invite_change_role_delete_buy_export}
+    expect: {allowed: true}
+  - id: admin-can-manage-without-owner-transfer-delete
+    input: {role: admin, operation: invite_change_member_role_buy_export_delete_team}
+    expect: {invite_allowed: true, role_change_allowed: true, billing_allowed: true, export_allowed: true, delete_team_allowed: false}
+  - id: member-can-write-and-use-credits
+    input: {role: member, operation: create_team_chat_send_openmates_message}
+    expect: {workspace_write_allowed: true, team_credit_charge_allowed: true, member_management_allowed: false}
+  - id: viewer-is-read-only
+    input: {role: viewer, operation: send_openmates_message_create_project_export}
+    expect_error: {code: TEAM_PERMISSION_DENIED, mutation: false, ai_triggered: false, export_created: false}
+
+team_invites:
+  - id: encrypted-invite-link-web-accept-after-login
+    input: {url: 'https://app.example/teams/invites/invite-1#key=<fragment>', auth_state: logged_out, recipient_email: bob@example.com}
+    expect:
+      login_handoff_preserves_fragment_client_side: true
+      server_receives_fragment_secret: false
+      encrypted_team_key_submitted_after_local_unwrap: true
+      final_state: pending_access_approval_or_joined
+  - id: invite-decline-visible
+    input: {operation: decline, invite_id: invite-1}
+    expect: {status: declined, team_key_cached: false}
+  - id: expired-or-wrong-recipient-fails-closed
+    input: {operation: accept, invite_status: expired, recipient_email: wrong@example.com}
+    expect_error: {code: invite_not_usable, raw_team_key_exposed: false, account_existence_leaked: false}
+
+team_context_switching:
+  - id: web-active-context-is-device-local
+    input: {web_context: team-1, cli_context_same_account: personal}
+    expect: {web_stays_team: true, cli_stays_personal: true, server_default_context_changed: false}
+  - id: team-context-filters-all-workspaces
+    input: {active_context: team-1, resources: [chats, tasks, plans, projects, workflows, memories]}
+    expect: {only_team_1_rows_visible: true, personal_rows_visible: false, new_resource_team_scoped: true}
+  - id: personal-context-filters-out-team-workspaces
+    input: {active_context: personal, user_memberships: [team-1]}
+    expect: {personal_rows_visible: true, team_rows_visible: false, new_resource_personal: true}
+
+team_chat_billing:
+  - id: team-chat-message-without-mention-does-not-trigger-ai
+    input: {active_context: team-1, message: 'Please review this async.', role: member}
+    expect: {human_message_saved: true, ai_triggered: false, credits_charged: 0}
+  - id: team-chat-openmates-mention-charges-team
+    input: {active_context: team-1, message: '@openmates summarize the plan', role: member, team_balance: sufficient}
+    expect: {ai_triggered: true, sender_attribution_in_context: true, team_balance_charged: true, personal_balance_untouched: true}
+  - id: insufficient-team-credit-blocks-before-personal-charge
+    input: {active_context: team-1, message: '@openmates run this', team_balance: insufficient, personal_balance: sufficient}
+    expect_error: {code: INSUFFICIENT_TEAM_CREDITS, personal_balance_charged: false, ai_triggered: false}
+
+team_surface_parity:
+  - id: rest-cli-sdk-web-lifecycle-parity
+    input: {operation: create_list_show_update_delete_switch_personal}
+    expect: {rest_contract_first: true, cli_green_before_sdk: true, sdk_green_before_web: true, web_spec_after_deploy: true}
+  - id: web-settings-full-cli-parity
+    input: {surface: gui.web, settings_sections: [overview, create, profile_image, members, invites, access_requests, billing, usage, export_import, delete]}
+    expect: {roles_and_failures_visible: true, owner_admin_actions_available: true, viewer_actions_disabled: true}
+  - id: apple-deferred-until-web-confirmed
+    input: {surface: gui.apple, web_user_confirmation: missing}
+    expect: {apple_implementation_blocked: true, stale_personal_only_assumptions_allowed: false}

@@ -183,6 +183,17 @@ contracts:
     - cli
     - sdks.npm
     - sdks.pip
+  feature.teams:
+    version: 1
+    status: approved
+    path: features/teams
+    fingerprint: 22150109d37379b076cd0ba56b3de68f88eb0f7e4d72fc154290f69a44fc480a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.workflows:
     version: 1
     status: approved
@@ -1683,6 +1694,83 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+  teams.lifecycle.encrypted-profiled:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: privacy
+    fingerprint: dc5245bc97e39ac84d9093dc88e0703f1b8fa1c8668a96fc39dd8659dbcf550d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.profile-image.safe-parity:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: security
+    fingerprint: 86a27be0efc23618a06c6881d275879c73fcd327d59ce02f75ba4e161c0f8eb6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.membership.role-gated:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: security
+    fingerprint: 347d8b31f1c311c86fa3af7ae1d0921c034096d95b6b79f6cd05b5e05d181cbe
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.invites.fragment-key-web-flow:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: behavior
+    fingerprint: 42ff02732a01828324cf7a68efe525c5c3a1192eb8ee7c0c5db3da5c01f58580
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.context.full-switch-local:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: invariant
+    fingerprint: aecc637c8009328f65630037abcabdb1d80b91e7773a619e64ec4306b723fd06
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.chat-billing.team-credit-boundary:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: invariant
+    fingerprint: 2378223f01b47358ab24d3ac2a4b9497173be5e6e8daeb141c71c50fc3843d06
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.workspace.surface-parity:
+    contract: feature.teams@1
+    contract_id: feature.teams
+    type: parity
+    fingerprint: 6e558045d191ffb4a816adb0ac47e1a30471e7e5f3cb2c7fe611a0c15ccbb5e1
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     contract_id: feature.workflows

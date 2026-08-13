@@ -228,6 +228,30 @@ function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
   return !teamId || message.toLowerCase().includes("@openmates");
 }
 
+const DEFAULT_TEAM_PROFILE_ICON_NAME = "users";
+const DEFAULT_TEAM_PROFILE_BACKGROUND_COLOR = "#4d73ff";
+
+function generatedTeamProfileImageMetadata(input: TeamGeneratedProfileImageInput = {}): Record<string, unknown> {
+  return {
+    version: 1,
+    mode: "generated",
+    icon_name: input.iconName ?? DEFAULT_TEAM_PROFILE_ICON_NAME,
+    icon_color: "#ffffff",
+    background_color: input.backgroundColor ?? DEFAULT_TEAM_PROFILE_BACKGROUND_COLOR,
+  };
+}
+
+function uploadedTeamProfileImageMetadata(teamId: string, url: string): Record<string, unknown> {
+  return {
+    version: 1,
+    mode: "uploaded",
+    image_url: url,
+    content_safety_status: "accepted",
+    updated_at: Math.floor(Date.now() / 1000),
+    team_id: teamId,
+  };
+}
+
 const CLI_MESSAGE_HISTORY_PAGE_LIMIT = 100;
 const CLI_MESSAGE_HISTORY_MAX_PAGES = 100;
 
@@ -533,9 +557,22 @@ export interface TeamCreateInput {
   teamId?: string;
   encryptedName?: string;
   encryptedDescription?: string | null;
+  encryptedProfileImageMetadata?: string;
+  profileImageMetadata?: Record<string, unknown>;
   encryptedTeamKey?: string;
   encryptedZeroBalance?: string;
   createdAt?: number;
+}
+
+export interface TeamGeneratedProfileImageInput {
+  iconName?: string;
+  backgroundColor?: string;
+}
+
+export interface TeamUploadedProfileImageResult {
+  status: string;
+  url: string;
+  team: TeamRecord;
 }
 
 export interface TeamInviteCreateInput extends Record<string, unknown> {
@@ -3131,6 +3168,10 @@ export class OpenMatesClient {
       slug: input.slug ?? undefined,
       encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
       encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
+      encrypted_profile_image_metadata: input.encryptedProfileImageMetadata ?? await encryptWithAesGcmCombined(
+        JSON.stringify(input.profileImageMetadata ?? generatedTeamProfileImageMetadata()),
+        teamKeyBytes,
+      ),
       encrypted_team_key: input.encryptedTeamKey ?? await encryptBytesWithAesGcm(teamKeyBytes, this.getMasterKeyBytes()),
       encrypted_zero_balance: input.encryptedZeroBalance ?? await encryptWithAesGcmCombined("0", teamKeyBytes),
       created_at: input.createdAt ?? now,
@@ -3168,6 +3209,7 @@ export class OpenMatesClient {
       ...input,
     };
     const teamKey = typeof input.name === "string" || typeof input.description === "string"
+      || input.profileImageMetadata !== undefined
       ? await this.loadTeamKeyBytes(teamId)
       : null;
     if (typeof input.name === "string") {
@@ -3180,11 +3222,54 @@ export class OpenMatesClient {
       payload.encrypted_description = await encryptWithAesGcmCombined(input.description, teamKey);
       delete payload.description;
     }
+    if (input.profileImageMetadata !== undefined) {
+      if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
+      payload.encrypted_profile_image_metadata = await encryptWithAesGcmCombined(JSON.stringify(input.profileImageMetadata), teamKey);
+      delete payload.profileImageMetadata;
+    }
     const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
       ...payload,
     }, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team update failed with HTTP ${response.status}`);
     return response.data.team;
+  }
+
+  async updateTeamGeneratedProfileImage(teamId: string, input: TeamGeneratedProfileImageInput = {}): Promise<TeamRecord> {
+    return this.updateTeam(teamId, {
+      profileImageMetadata: generatedTeamProfileImageMetadata(input),
+    });
+  }
+
+  async updateTeamProfileImage(teamId: string, filePath: string): Promise<TeamUploadedProfileImageResult> {
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error("Unable to load local team key for encrypted team profile image update.");
+    const proxyUrl = `/v1/teams/${teamId}/profile-image`;
+    const encryptedMetadata = await encryptWithAesGcmCombined(JSON.stringify(uploadedTeamProfileImageMetadata(teamId, proxyUrl)), teamKey);
+    const { uploadTeamProfileImage } = await import("./uploadService.js");
+    const result = await uploadTeamProfileImage(filePath, this.requireSession(), teamId, encryptedMetadata);
+    if (result.status === "rejected") {
+      throw new Error(result.detail ?? "Team profile image rejected by content safety checks.");
+    }
+    if (result.status === "account_deleted") {
+      throw new Error("Account deleted due to repeated profile image policy violations.");
+    }
+    if (result.status !== "ok" || typeof result.url !== "string" || !result.url) {
+      throw new Error(result.detail ?? `Team profile image upload failed with status '${result.status}'.`);
+    }
+    const team = await this.getTeam(teamId);
+    return { status: result.status, url: result.url, team };
+  }
+
+  async getTeamProfileImage(teamId: string): Promise<{ contentType: string; data: Uint8Array }> {
+    const response = await this.http.getBinary(`/v1/teams/${encodeURIComponent(teamId)}/profile-image`, {
+      ...this.getCliRequestHeaders(),
+      Accept: "image/jpeg,image/png,application/octet-stream",
+    });
+    if (!response.ok) throw new Error(`Team profile image download failed with HTTP ${response.status}`);
+    return {
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      data: response.data,
+    };
   }
 
   async deleteTeam(teamId: string): Promise<{ success: boolean }> {

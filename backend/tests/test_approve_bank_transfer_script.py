@@ -189,6 +189,7 @@ class FakeApprovalDirectus:
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
 async def test_fetch_order_uses_admin_access_for_pending_bank_transfers():
     directus = FakeDirectus()
 
@@ -206,6 +207,7 @@ async def test_fetch_order_uses_admin_access_for_pending_bank_transfers():
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
 async def test_fetch_order_matches_uppercase_operator_input_to_legacy_mixed_case_reference():
     directus = FakeCaseSensitiveDirectus("OM-93D2OGN-7b9c5cad")
 
@@ -219,6 +221,7 @@ async def test_fetch_order_matches_uppercase_operator_input_to_legacy_mixed_case
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
 async def test_update_order_uses_admin_access_for_pending_bank_transfers():
     directus = FakeDirectus()
 
@@ -235,6 +238,7 @@ async def test_update_order_uses_admin_access_for_pending_bank_transfers():
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
 async def test_decrypt_contact_email_uses_order_email_key():
     directus = FakeDirectus()
     encryption = FakeEncryption()
@@ -250,6 +254,7 @@ async def test_decrypt_contact_email_uses_order_email_key():
     assert encryption.decrypt_calls == [("encrypted-email", "email-key")]
 
 
+# contract-test: tooling
 def test_parse_args_allows_contact_lookup_without_received_cents(monkeypatch):
     monkeypatch.setattr(
         sys,
@@ -264,6 +269,7 @@ def test_parse_args_allows_contact_lookup_without_received_cents(monkeypatch):
     assert args.received_cents is None
 
 
+# contract-test: tooling
 def test_parse_args_requires_received_cents_for_approval(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["approve_bank_transfer.py", "--reference", "OM-TEST"])
 
@@ -271,6 +277,7 @@ def test_parse_args_requires_received_cents_for_approval(monkeypatch):
         approve_bank_transfer.parse_args()
 
 
+# contract-test: tooling
 def test_parse_args_rejects_contact_lookup_with_apply(monkeypatch):
     monkeypatch.setattr(
         sys,
@@ -289,6 +296,7 @@ def test_parse_args_rejects_contact_lookup_with_apply(monkeypatch):
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=teams.chat-billing.team-credit-boundary,billing.bank-transfer.pending-visible,billing.credits.idempotent-charge
 async def test_approve_team_bank_transfer_grants_team_credits_and_completes_order(monkeypatch):
     cache = FakeCache()
     directus = FakeApprovalDirectus()
@@ -298,6 +306,7 @@ async def test_approve_team_bank_transfer_grants_team_credits_and_completes_orde
         {
             "team_id": "team-1",
             "encrypted_name": "cipher-name",
+            "encrypted_profile_image_metadata": "cipher-profile-image-metadata",
             "encrypted_team_key": "cipher-team-key",
             "encrypted_zero_balance": "cipher-zero",
             "created_at": 100,

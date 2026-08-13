@@ -41,6 +41,9 @@ class TeamMethods:
         encrypted_team_key = payload.get("encrypted_team_key")
         if not encrypted_team_key:
             raise ValueError("encrypted_team_key is required")
+        encrypted_profile_image_metadata = payload.get("encrypted_profile_image_metadata")
+        if not encrypted_profile_image_metadata:
+            raise ValueError("encrypted_profile_image_metadata is required")
 
         team_record = {
             "team_id": team_id,
@@ -48,6 +51,12 @@ class TeamMethods:
             "slug": payload.get("slug") or team_id,
             "encrypted_name": payload["encrypted_name"],
             "encrypted_description": payload.get("encrypted_description"),
+            "encrypted_profile_image_metadata": encrypted_profile_image_metadata,
+            "profile_image_s3_key": payload.get("profile_image_s3_key"),
+            "encrypted_profile_image_aes_key": payload.get("encrypted_profile_image_aes_key"),
+            "profile_image_aes_nonce": payload.get("profile_image_aes_nonce"),
+            "profile_image_vault_key_id": payload.get("profile_image_vault_key_id"),
+            "profile_image_updated_at": payload.get("profile_image_updated_at"),
             "encrypted_billing_profile": payload.get("encrypted_billing_profile"),
             "created_by_user_hash": owner_hash,
             "status": ACTIVE_STATUS,
@@ -119,7 +128,7 @@ class TeamMethods:
                 params={
                     "filter[hashed_team_id][_eq]": team_hash,
                     "filter[status][_eq]": ACTIVE_STATUS,
-                    "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,status,created_at,updated_at",
+                    "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,status,created_at,updated_at",
                     "limit": 1,
                 },
                 no_cache=True,
@@ -139,7 +148,7 @@ class TeamMethods:
             params={
                 "filter[hashed_team_id][_eq]": hash_id(team_id),
                 "filter[status][_eq]": ACTIVE_STATUS,
-                "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_billing_profile,status,created_at,updated_at",
+                "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,encrypted_billing_profile,status,created_at,updated_at",
                 "limit": 1,
             },
             no_cache=True,
@@ -170,16 +179,65 @@ class TeamMethods:
             }
         return {}
 
+    async def get_team_profile_image_private_record(self, team_id: str, user_id: str) -> dict[str, Any] | None:
+        await self.require_team_role(team_id, user_id, {"owner", "admin", "member", "viewer"})
+        rows = await self.directus_service.get_items(
+            "teams",
+            params={
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[status][_eq]": ACTIVE_STATUS,
+                "fields": "id,team_id,profile_image_s3_key,encrypted_profile_image_aes_key,profile_image_aes_nonce,profile_image_vault_key_id",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if rows and isinstance(rows, list):
+            return rows[0]
+        return None
+
     async def update_team(self, team_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         await self.require_team_role(team_id, user_id, {"owner", "admin"})
         team = await self.get_team(team_id, user_id)
         if not team:
             return None
-        allowed_fields = {"slug", "encrypted_name", "encrypted_description", "encrypted_billing_profile", "updated_at"}
+        allowed_fields = {"slug", "encrypted_name", "encrypted_description", "encrypted_profile_image_metadata", "encrypted_billing_profile", "updated_at"}
         update = {key: value for key, value in patch.items() if key in allowed_fields}
         if not update:
             return team
         return await self.directus_service.update_item("teams", team["id"], update, admin_required=True)
+
+    async def process_team_profile_image(
+        self,
+        *,
+        team_id: str,
+        actor_user_id: str,
+        encrypted_profile_image_metadata: str,
+        s3_key: str,
+        encrypted_profile_image_aes_key: str,
+        profile_image_aes_nonce: str,
+        profile_image_vault_key_id: str,
+        updated_at: int | None = None,
+    ) -> dict[str, Any]:
+        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
+        team = await self.get_team(team_id, actor_user_id)
+        if not team:
+            raise TeamPermissionError("Team permission denied")
+        now = int(updated_at or time.time())
+        old_s3_key = team.get("profile_image_s3_key")
+        patch = {
+            "encrypted_profile_image_metadata": encrypted_profile_image_metadata,
+            "profile_image_s3_key": s3_key,
+            "encrypted_profile_image_aes_key": encrypted_profile_image_aes_key,
+            "profile_image_aes_nonce": profile_image_aes_nonce,
+            "profile_image_vault_key_id": profile_image_vault_key_id,
+            "profile_image_updated_at": now,
+            "updated_at": now,
+        }
+        updated = await self.directus_service.update_item("teams", team["id"], patch, admin_required=True)
+        if not updated:
+            raise RuntimeError("Failed to persist team profile image")
+        return {"team": updated, "old_s3_key": old_s3_key}
 
     async def delete_team(self, team_id: str, user_id: str, deleted_at: int | None = None) -> bool:
         await self.require_team_role(team_id, user_id, {"owner"})
