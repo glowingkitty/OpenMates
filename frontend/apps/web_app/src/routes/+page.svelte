@@ -2263,7 +2263,7 @@
 		}
 
 		// One-time language suggestion: if the visitor's browser language differs from English
-		// and they have no stored preference, show a persistent notification in English letting
+		// and they have no stored preference, show a notification in English letting
 		// them switch. Marked shown immediately so a page refresh doesn't re-show it.
 		if (browser) {
 			const hasPreference = !!localStorage.getItem("preferredLanguage");
@@ -2278,7 +2278,7 @@
 						const notificationId = notificationStore.addNotificationWithOptions("info", {
 							title: "Language Detected",
 							message: `Your browser language is ${language.nativeName}.`,
-							duration: 0,
+							duration: 7000,
 							dismissible: true,
 							actionLabel: `Switch to ${language.nativeName}`,
 							onAction: async () => {

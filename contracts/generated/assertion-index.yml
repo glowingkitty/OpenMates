@@ -5986,10 +5986,9 @@ assertions:
     fingerprint: 0f60c61dac10cc1f5ae84e6cbe2daeef24df3b1896192f0d2d9d4c2b28d2e6ee
     direct_tests:
     - &id647
-      path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-      line: 132
-      name: 'session revoke: revoking session B from session A does not log out session
-        A'
+      path: frontend/apps/web_app/tests/notification-mobile.spec.ts
+      line: 11
+      name: mobile notification stays inset and auto-dismisses with visible progress
       surface: gui.web
     supporting_tests: []
     tests:
@@ -6005,10 +6004,9 @@ assertions:
     fingerprint: 106cb0fa1880478773abb3fc55ae66887c62fea919607ceb2b189b04bf78f330
     direct_tests:
     - &id648
-      path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-      line: 132
-      name: 'session revoke: revoking session B from session A does not log out session
-        A'
+      path: frontend/apps/web_app/tests/notification-mobile.spec.ts
+      line: 11
+      name: mobile notification stays inset and auto-dismisses with visible progress
       surface: gui.web
     supporting_tests: []
     tests:

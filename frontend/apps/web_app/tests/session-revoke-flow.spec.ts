@@ -128,7 +128,7 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // Main test
 // ---------------------------------------------------------------------------
 
-// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,notifications.web.mobile-insets,notifications.web.timed-dismissal
+// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated
 test('session revoke: revoking session B from session A does not log out session A', async () => {
 	test.slow();
 	// Login × 2 + OTP window wait + settings navigation + revoke + assertions
@@ -155,7 +155,7 @@ test('session revoke: revoking session B from session A does not log out session
 	// Two separate browser contexts = two independent sessions (separate cookies,
 	// separate IndexedDB, separate WebSocket connections).
 	const contextA = await browser.newContext({ baseURL });
-	const contextB = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
+	const contextB = await browser.newContext({ baseURL });
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
 
@@ -249,21 +249,9 @@ test('session revoke: revoking session B from session A does not log out session
 		// Session B's chatSyncService handler calls logout() and redirects
 		// to the login screen (Login / Sign up button appears).
 		logB('Session B: waiting to receive force_logout and be logged out…');
-		const logoutNotificationB = pageB.getByTestId('notification').filter({ hasText: /logged out/i });
-		await expect(logoutNotificationB).toBeVisible({ timeout: 60000 });
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
 		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
 		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
-		const notificationBox = await logoutNotificationB.boundingBox();
-		expect(notificationBox, 'mobile logout notification should be measurable').not.toBeNull();
-		expect(notificationBox!.x, 'mobile notification inline-start inset').toBeCloseTo(10, 0);
-		expect(390 - notificationBox!.x - notificationBox!.width, 'mobile notification inline-end inset').toBeCloseTo(10, 0);
-		expect(notificationBox!.y, 'mobile notification top inset').toBeCloseTo(10, 0);
-		const notificationProgress = logoutNotificationB.getByTestId('notification-progress');
-		await expect(notificationProgress).toBeVisible();
-		await expect(notificationProgress).toHaveAttribute('data-duration-ms', '7000');
-		await expect(logoutNotificationB).not.toBeVisible({ timeout: 8000 });
-		logB('Session B: mobile notification insets and timed auto-dismiss verified.');
 		const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
 		await expect(guestBannerB).toBeVisible({ timeout: 10000 });
 		await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
