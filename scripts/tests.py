@@ -4324,7 +4324,7 @@ def command_run(runner_args: list[str]) -> int:
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
         result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
         recorded_commit = record_latest_run_artifact(
-            expected_commit=options.expected_commit,
+            expected_commit=subject_commit or options.expected_commit,
             since_mtime=artifact_start_mtime,
             requested_test_keys=selected_test_keys or None,
             campaign_key=options.campaign_key,
