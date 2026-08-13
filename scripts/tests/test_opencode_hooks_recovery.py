@@ -269,13 +269,17 @@ def test_opencode_notifier_hook_events_are_bounded() -> None:
         import { strict as assert } from 'node:assert';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
-        const { completedAssistantMessageID, notifierEventArgsForTest } = OpenMatesHooks.test;
+        const { completedAssistantMessageID, isTodoWriteTool, notifierEventArgsForTest } = OpenMatesHooks.test;
         const completed = {
           type: 'message.updated',
           properties: { info: { id: 'msg-1', role: 'assistant', time: { completed: 123 } }, sessionID: 'ses-parent' },
         };
         assert.equal(completedAssistantMessageID(completed), 'msg-1');
+        assert.equal(completedAssistantMessageID({ type: 'message.completed', properties: { role: 'assistant', messageID: 'msg-2', completed: true } }), 'msg-2');
+        assert.equal(completedAssistantMessageID({ type: 'assistant.completed', properties: { message: { id: 'msg-3', role: 'assistant', time: { completed: 123 } } } }), 'msg-3');
         assert.equal(completedAssistantMessageID({ type: 'message.updated', properties: { info: { id: 'msg-user', role: 'user', time: { completed: 123 } }, sessionID: 'ses-parent' } }), '');
+        for (const tool of ['todowrite', 'todo_write', 'todo.write', 'TodoWrite']) assert.equal(isTodoWriteTool(tool), true, tool);
+        assert.equal(isTodoWriteTool('task'), false);
 
         const taskArgs = notifierEventArgsForTest({
           eventType: 'task-list-changed',

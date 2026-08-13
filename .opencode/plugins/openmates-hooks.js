@@ -6,7 +6,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
@@ -43,6 +43,7 @@ const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const PRESENCE_FILE = `${PROJECT_ROOT}/.opencode/presence.json`;
 const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py`;
+const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
@@ -1475,16 +1476,24 @@ function toolNameMatches(tool, expected) {
   return String(tool || "").toLowerCase() === expected.toLowerCase();
 }
 
+function isTodoWriteTool(tool) {
+  return ["todowrite", "todo_write", "todo.write", "TodoWrite"].includes(String(tool || ""));
+}
+
 function todoListFromToolArgs(args) {
   const input = toolInput(args);
   return Array.isArray(input.todos) ? input.todos : [];
 }
 
 function completedAssistantMessageID(event) {
-  if (event?.type !== "message.updated") return "";
+  if (!["message.updated", "message.completed", "assistant.completed"].includes(event?.type)) return "";
   const info = event?.properties?.info || {};
-  if (info.role !== "assistant" || !info.time?.completed || info.error) return "";
-  return String(info.id || "");
+  const role = info.role || event?.properties?.role || event?.properties?.message?.role || "";
+  const messageID = info.id || event?.properties?.messageID || event?.properties?.id || event?.properties?.message?.id || "";
+  const completed = info.time?.completed || info.timeCompleted || event?.properties?.time?.completed || event?.properties?.completed || event?.properties?.message?.time?.completed;
+  const error = info.error || event?.properties?.error || event?.properties?.message?.error;
+  if (role !== "assistant" || !completed || error) return "";
+  return String(messageID || "");
 }
 
 function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = "", todos = [] } = {}) {
@@ -1501,11 +1510,16 @@ function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = 
 
 function scheduleNotifierEvent(args) {
   if (!args.length) return;
+  mkdirSync(`${PROJECT_ROOT}/logs`, { recursive: true });
+  const logFd = openSync(OPENCODE_NOTIFIER_LOG, "a");
   const child = spawn("python3", args, {
     cwd: PROJECT_ROOT,
     env: process.env,
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", logFd, logFd],
+  });
+  child.on("error", (error) => {
+    console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
   });
   child.unref();
 }
@@ -2002,7 +2016,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         recordTaskChildRole(input, output);
         return;
       }
-      if (toolNameMatches(tool, "todowrite")) {
+      if (isTodoWriteTool(tool)) {
         scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "task-list-changed", sessionID: input.sessionID, todos: todoListFromToolArgs(toolArgs(input, output)) }));
       }
       if (BASH_TOOLS.has(tool)) {
@@ -2054,6 +2068,7 @@ OpenMatesHooks.test = Object.freeze({
   editedFilesForBindingForTest,
   editedFilesForTest,
   initialPresenceForTest,
+  isTodoWriteTool,
   readConflictWarningForTest,
   completedAssistantMessageID,
   notifierEventArgsForTest,
