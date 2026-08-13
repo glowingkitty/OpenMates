@@ -31,6 +31,8 @@ import {
   type BankTransferOrderDetails,
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
+  type TeamBillingSummary,
+  type TeamRecord,
   type TopicPreferencesPayload,
   type WorkflowCapability,
   type WorkflowDetail,
@@ -317,6 +319,10 @@ async function main(): Promise<void> {
       printTeamsHelp();
       return;
     }
+    if (command === "switch-to") {
+      printSwitchToHelp();
+      return;
+    }
     if (command === "connected-accounts") {
       printConnectedAccountsHelp();
       return;
@@ -443,6 +449,16 @@ async function main(): Promise<void> {
     } else {
       printWhoAmI(user as Record<string, unknown>);
     }
+    return;
+  }
+
+  if (command === "switch-to") {
+    await handleSwitchTo(client, subcommand, parsed.flags);
+    return;
+  }
+
+  if (command === "credits") {
+    await handleCredits(client, parsed.flags);
     return;
   }
 
@@ -2918,6 +2934,11 @@ async function handleTeams(
     return;
   }
 
+  if (rest[0] === "switch-to") {
+    await handleSwitchTo(client, subcommand, flags);
+    return;
+  }
+
   if (subcommand === "list") {
     const teams = await client.listTeams();
     printTeamsOutput(teams, client.getActiveTeamId(), flags);
@@ -2925,17 +2946,12 @@ async function handleTeams(
   }
 
   if (subcommand === "switch") {
-    const teamId = requireTeamId(rest, flags);
-    client.setActiveTeamId(teamId);
-    if (flags.json === true) printJson({ active_team_id: teamId, context: "team" });
-    else console.log(`Active team: ${teamId}`);
+    await handleSwitchTo(client, requireTeamId(rest, flags), flags);
     return;
   }
 
   if (subcommand === "personal") {
-    client.setActiveTeamId(null);
-    if (flags.json === true) printJson({ active_team_id: null, context: "personal" });
-    else console.log("Active context: personal");
+    await handleSwitchTo(client, "personal", flags);
     return;
   }
 
@@ -3165,6 +3181,53 @@ async function handleTeams(
   throw new Error(`Unknown teams command '${subcommand}'. Run 'openmates teams --help'.`);
 }
 
+async function handleSwitchTo(
+  client: OpenMatesClient,
+  target: string | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (target === "help" || flags.help === true) {
+    printSwitchToHelp();
+    return;
+  }
+  if (!target) {
+    const teams = await client.listTeams();
+    printSwitchTargets(teams, client.getActiveTeamId(), flags);
+    return;
+  }
+
+  if (target.toLowerCase() === "personal") {
+    client.setActiveTeamId(null);
+    if (flags.json === true) printJson({ active_team_id: null, context: "personal", target: "personal" });
+    else console.log("Active context: personal");
+    return;
+  }
+
+  const team = resolveTeamTarget(await client.listTeams(), target);
+  const teamId = requiredTeamRecordId(team);
+  client.setActiveTeamId(teamId);
+  if (flags.json === true) {
+    printJson({ active_team_id: teamId, context: "team", target, team });
+  } else {
+    const label = typeof team.slug === "string" && team.slug ? team.slug : teamId;
+    console.log(`Active team: ${label}`);
+  }
+}
+
+async function handleCredits(client: OpenMatesClient, flags: Record<string, string | boolean>): Promise<void> {
+  const activeTeamId = client.getActiveTeamId();
+  if (activeTeamId) {
+    const billing = await client.getTeamBilling(activeTeamId);
+    if (flags.json === true) printJson({ context: "team", active_team_id: activeTeamId, billing });
+    else printCreditsSummary("team", activeTeamId, billing);
+    return;
+  }
+
+  const billing = await client.settingsGet("billing") as Record<string, unknown>;
+  if (flags.json === true) printJson({ context: "personal", active_team_id: null, billing });
+  else printCreditsSummary("personal", null, billing);
+}
+
 function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: string | null } {
   try {
     const url = new URL(value);
@@ -3179,6 +3242,68 @@ function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: 
 
 function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
   return requiredStringFlag(flags.team ?? flags["team-id"] ?? rest[0], "--team <team-id>");
+}
+
+function requiredTeamRecordId(team: TeamRecord): string {
+  const teamId = typeof team.team_id === "string" ? team.team_id : typeof team.id === "string" ? team.id : "";
+  if (!teamId) throw new Error("Team record is missing a team ID.");
+  return teamId;
+}
+
+function resolveTeamTarget(teams: TeamRecord[], target: string): TeamRecord {
+  const matches = [
+    ...new Map(
+      teams
+        .filter((team) => team.team_id === target || team.id === target || team.slug === target)
+        .map((team) => [requiredTeamRecordId(team), team]),
+    ).values(),
+  ];
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) throw new Error(`Team '${target}' is ambiguous.`);
+  throw new Error(`Team '${target}' was not found. Run 'openmates switch-to' to see available targets.`);
+}
+
+function printSwitchTargets(
+  teams: TeamRecord[],
+  activeTeamId: string | null,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson({
+      active_team_id: activeTeamId,
+      targets: [
+        { context: "personal", target: "personal", active: activeTeamId === null },
+        ...teams.map((team) => ({
+          context: "team",
+          target: typeof team.slug === "string" && team.slug ? team.slug : requiredTeamRecordId(team),
+          team_id: requiredTeamRecordId(team),
+          slug: team.slug ?? null,
+          active: activeTeamId === requiredTeamRecordId(team),
+        })),
+      ],
+    });
+    return;
+  }
+
+  header("Available Contexts\n");
+  console.log(`${activeTeamId === null ? "*" : " "} personal`);
+  for (const team of teams) {
+    const teamId = requiredTeamRecordId(team);
+    const target = typeof team.slug === "string" && team.slug ? team.slug : teamId;
+    const suffix = target === teamId ? "" : ` (${teamId})`;
+    console.log(`${activeTeamId === teamId ? "*" : " "} ${target}${suffix}`);
+  }
+  console.log("\nSwitch with: openmates switch-to <context>");
+}
+
+function printCreditsSummary(context: "personal" | "team", teamId: string | null, billing: TeamBillingSummary | Record<string, unknown>): void {
+  header("Credits\n");
+  kv("Context", context === "personal" ? "personal" : `team ${teamId ?? "unknown"}`);
+  const credits = billing.balance_credits ?? billing.credits ?? billing.current_credits;
+  if (credits !== undefined) kv("Available", `${credits} credits`);
+  else console.log("  Available credits were not included in the API response.");
+  const tier = billing.payment_tier ?? billing.tier;
+  if (tier !== undefined) kv("Payment tier", String(tier));
 }
 
 function requiredStringFlag(value: string | boolean | undefined, label: string): string {
@@ -12362,6 +12487,8 @@ Commands:
   openmates signup                           Create an account from the terminal
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
+  openmates switch-to [personal|team]        List or switch Personal/Team context
+  openmates credits [--json]                 Show credits for the active context
   openmates chat --goal <goal>               Start a saved chat with an attached draft plan
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates tasks [--help]                   Task commands (list, create, board, ...)
@@ -12887,6 +13014,7 @@ function printTeamsHelp(): void {
   openmates teams list [--json]
   openmates teams switch <team-id> [--json]
   openmates teams personal [--json]
+  openmates teams <team-slug-or-id> switch-to [--json]
   openmates teams show <team-id> [--json]
   openmates teams create --name <name> [--description <description>] [--slug <slug>] [--switch] [--json]
   openmates teams update <team-id> [--name <name>] [--description <description>] [--slug <slug>] [--json]
@@ -12909,10 +13037,25 @@ function printTeamsHelp(): void {
   openmates teams import --file <path> (--team <team-id>|--new-team-name <name>) [--json]
 
 Context:
-  openmates teams switch <team-id> persists the active team for team-aware commands.
-  openmates teams personal clears the active team and returns commands to personal context.
+  openmates switch-to lists personal and team contexts.
+  openmates switch-to personal returns commands to personal context.
+  openmates switch-to <team-slug-or-id> persists the active team for team-aware commands.
+  openmates teams <team-slug-or-id> switch-to is an alias for team switching.
   Team deletion always prompts for interactive 2FA or email verification; codes cannot be passed as flags.
   Team V1 only supports team-wide workspace visibility.`);
+}
+
+function printSwitchToHelp(): void {
+  console.log(`Switch context command:
+  openmates switch-to
+  openmates switch-to personal [--json]
+  openmates switch-to <team-slug-or-id> [--json]
+  openmates teams <team-slug-or-id> switch-to [--json]
+
+Lists or changes the active Personal/Team context used by team-aware CLI commands.
+
+Options:
+  --json  Output available targets or the selected context as JSON`);
 }
 
 function printDraftsHelp(): void {

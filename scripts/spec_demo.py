@@ -39,6 +39,9 @@ TERMINAL_COLUMNS = 72
 TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
+CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
+OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
+TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
 PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 8
 PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 20
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
@@ -282,6 +285,34 @@ def capture_pty(
         "test_account_provenance": test_account_provenance,
         "duration_seconds": round(time.monotonic() - started, 6),
     }
+
+
+def user_facing_cli_argv(argv: list[str]) -> list[str]:
+    """Return the command a CLI user should see for test-account harness runs."""
+    if len(argv) >= 2 and Path(argv[0]).name == "node":
+        script_path = Path(argv[1]).as_posix().lstrip("./")
+        if script_path == TEAMS_CLI_PROOF_HELPER_PATH or script_path.endswith(f"/{TEAMS_CLI_PROOF_HELPER_PATH}"):
+            slug = ""
+            name = ""
+            for index, value in enumerate(argv[2:]):
+                if value == "--slug" and index + 3 < len(argv):
+                    slug = argv[index + 3]
+                if value == "--name" and index + 3 < len(argv):
+                    name = argv[index + 3]
+            visible = ["openmates", "teams", "create"]
+            if name:
+                visible.extend(["--name", name])
+            if slug:
+                visible.extend(["--slug", slug])
+            visible.append("--switch")
+            return visible
+    if argv[: len(CLI_TEST_ACCOUNT_HARNESS)] == list(CLI_TEST_ACCOUNT_HARNESS):
+        return ["openmates", *argv[len(CLI_TEST_ACCOUNT_HARNESS) :]]
+    if len(argv) >= 2 and Path(argv[0]).name == "node":
+        script_path = Path(argv[1]).as_posix().lstrip("./")
+        if script_path in {"dist/cli.js", OPENMATES_CLI_DIST_PATH} or script_path.endswith(f"/{OPENMATES_CLI_DIST_PATH}"):
+            return ["openmates", *argv[2:]]
+    return list(argv)
 
 
 def mark_reconstructed(source: dict[str, Any], *, displayed_transcript_hash: str) -> dict[str, Any]:
@@ -1212,6 +1243,7 @@ def produce_cli_demonstration(
     try:
         if anonymize_sensitive:
             capture = anonymize_cli_capture(run_dir, capture)
+        display_argv = user_facing_cli_argv(list(capture["argv"]))
         for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
             event = json.loads(line)
             if event.get("stream") == "output" and anonymize_sensitive:
@@ -1219,7 +1251,7 @@ def produce_cli_demonstration(
             terminal_events.append(event)
         pre_render_privacy = scan_text_sources(
             {
-                "argv": json.dumps(capture["argv"]),
+                "display_argv": json.dumps(display_argv),
                 "transcript": (run_dir / "transcript.txt").read_text(encoding="utf-8"),
                 "caption_text": caption_text,
                 "expected_proof": expected_proof,
@@ -1235,7 +1267,7 @@ def produce_cli_demonstration(
         raise
     finally:
         (run_dir / "events.jsonl").unlink(missing_ok=True)
-    timeline = build_cli_terminal_timeline(argv=list(capture["argv"]), events=terminal_events)
+    timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
     duration = float(timeline["duration_seconds"])
     captions_path = run_dir / "captions.srt"
     video_path = run_dir / "demo.mp4"
@@ -1273,7 +1305,7 @@ def produce_cli_demonstration(
         caption_text=caption_text,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
-        source={"kind": "cli", **capture},
+        source={"kind": "cli", **capture, "display_argv": display_argv},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
     )

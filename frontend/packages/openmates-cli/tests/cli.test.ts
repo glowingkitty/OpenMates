@@ -710,6 +710,75 @@ async function withUsageMockApi<T>(
   }
 }
 
+async function withTeamsContextMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-teams-context-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url) requests.push({ method: request.method ?? "GET", url: request.url });
+      if (request.method === "GET" && request.url === "/v1/teams") {
+        writeJson(response, {
+          teams: [
+            { team_id: "team-design", slug: "design", role: "admin", status: "active" },
+            { team_id: "team-engineering", slug: "engineering", role: "member", status: "active" },
+          ],
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/teams/team-design/billing") {
+        writeJson(response, { billing: { balance_credits: 1200, payment_tier: "team" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/billing") {
+        writeJson(response, { credits: 75, payment_tier: "free" });
+        return;
+      }
+      writeJsonStatus(response, 404, { detail: "not found" });
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+    activeTeamId: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
@@ -3662,6 +3731,98 @@ describe("getExtForLang", () => {
 // ---------------------------------------------------------------------------
 
 describe("settings command surface", () => {
+  it("lists and switches Teams contexts with the top-level switch-to command", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const targetsOutput = await runCliAsync(["switch-to", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(targetsOutput, /Available Contexts/);
+      assert.match(targetsOutput, /personal/);
+      assert.match(targetsOutput, /design \(team-design\)/);
+      assert.match(targetsOutput, /engineering \(team-engineering\)/);
+
+      const switchOutput = await runCliAsync(["switch-to", "design", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(switchOutput, /Active team: design/);
+
+      const jsonOutput = await runCliAsync(["switch-to", "--json", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const parsed = JSON.parse(jsonOutput) as { active_team_id?: string; targets?: Array<{ target?: string; active?: boolean }> };
+      assert.equal(parsed.active_team_id, "team-design");
+      assert.equal(parsed.targets?.find((target) => target.target === "design")?.active, true);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/teams",
+        "GET /v1/teams",
+        "GET /v1/teams",
+      ]);
+    });
+  });
+
+  it("supports the team-slug switch-to alias under teams", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(["teams", "design", "switch-to", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(output, /Active team: design/);
+
+      const personalOutput = await runCliAsync(["switch-to", "personal", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(personalOutput, /Active context: personal/);
+
+      const jsonOutput = await runCliAsync(["switch-to", "--json", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.equal((JSON.parse(jsonOutput) as { active_team_id?: string | null }).active_team_id, null);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/teams",
+        "GET /v1/teams",
+      ]);
+    });
+  });
+
+  it("prints credits for the active personal or team context", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const personalCredits = await runCliAsync(["credits", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(personalCredits, /Context/);
+      assert.match(personalCredits, /personal/);
+      assert.match(personalCredits, /Available/);
+      assert.match(personalCredits, /75 credits/);
+
+      await runCliAsync(["switch-to", "design", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const teamCredits = await runCliAsync(["credits", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(teamCredits, /Context/);
+      assert.match(teamCredits, /team team-design/);
+      assert.match(teamCredits, /Available/);
+      assert.match(teamCredits, /1200 credits/);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/billing",
+        "GET /v1/teams",
+        "GET /v1/teams/team-design/billing",
+      ]);
+    });
+  });
+
   it("lists predefined settings commands instead of raw passthrough", () => {
     const output = runCli(["settings", "--help"]);
     docAssert("cli-settings-lists-predefined-commands", () => {

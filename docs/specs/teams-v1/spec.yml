@@ -797,6 +797,12 @@ contracts:
       default: personal
       cli_persistence: per authenticated local account
       sdk_persistence: caller-managed in client instance
+      cli_primary_commands:
+        list_contexts: openmates switch-to
+        switch_personal: openmates switch-to personal
+        switch_team: openmates switch-to <team_slug_or_id>
+        switch_team_alias: openmates teams <team_slug_or_id> switch-to
+        show_active_credits: openmates credits
       override_flags:
         - --personal
         - --team <team_id_or_slug>
@@ -2050,6 +2056,96 @@ tests:
         run_id: teams-task1-backend-green-2026-07-18
         subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
         timestamp: "2026-07-18"
+  - id: T-CLI-TEAMS-PROOF-VIDEO
+    type: manual
+    file: scripts/proof_video_workflow.py
+    command: python3 scripts/proof_video_workflow.py approve --session 95c9 --spec docs/specs/teams-v1/spec.yml --contract <contract.json>
+    target: CLI proof video at 1280x720 using real OpenMates CLI commands
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-7
+    assertions:
+      - The first visible terminal command is openmates teams create --name <team name> --slug <team slug> --switch.
+      - Visible terminal commands then use openmates switch-to, openmates switch-to personal, openmates switch-to <team slug>, openmates teams <team slug> switch-to, and openmates credits.
+      - Visible proof output is human-readable and does not use --json.
+      - The terminal shows separate personal and team contexts, team chat creation or isolation, and credits for the active context.
+      - The proof is reviewed through bounded frames plus transcript, not by placing the full video in model context.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+        run_id: cli-teams-proof-video-red-not-required
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_user_approval
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+demonstration:
+  eligibility:
+    status: required
+    surface: cli
+    reason: Teams V1 is user-visible in the CLI and needs a captioned terminal proof showing context switching, team chat isolation, and credit context without machine-only JSON output.
+    classified_at: "2026-08-13T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Create a new team before any other visible proof step.
+      expected_proof: The first visible terminal command is openmates teams create --name <team name> --slug <team slug> --switch, followed by the created team slug in human-readable output.
+      scenario_ids:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+    - id: NARR-2
+      purpose: Show intuitive team switching and the Teams alias.
+      expected_proof: The terminal shows openmates switch-to listing personal and team contexts, then openmates switch-to <team slug>, openmates teams <team slug> switch-to, and openmates switch-to personal changing the active context.
+      scenario_ids:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+    - id: NARR-3
+      purpose: Show that team chat and credits are tied to the active team context.
+      expected_proof: The terminal shows openmates chats new followed by openmates chats list in the active team context, plus openmates credits reporting the active team balance separately from personal credits.
+      scenario_ids:
+        - S-3
+        - S-7
+      acceptance_criteria:
+        - AC-3
+        - AC-7
+    - id: NARR-4
+      purpose: Confirm the proof is user-readable terminal output.
+      expected_proof: The captured commands and output are human-readable and contain no visible --json command or raw JSON response.
+      scenario_ids:
+        - S-1
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+  evidence:
+    status: pending
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    review_run_id: ""
+    review_attempts: 0
+    timestamp: ""
+    publication_status: pending
+    command: ""
+    run_id: ""
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -2165,6 +2261,7 @@ implementation_plan:
     - Backend pytest contract tests for lifecycle, membership, invite email links, data portability, permissions, billing, offboarding, team chat, and move behavior.
     - Backend pytest contract tests for team memory isolation and team connected-account isolation.
     - Real CLI dev-server scripts against api.dev.openmates.org with real test-account auth.
+    - Captioned CLI proof video using human-readable OpenMates commands, not --json output.
     - Wire real CLI proof into daily tests after dev pass.
     - npm and pip SDK tests plus python3 scripts/audit_sdk_cli_parity.py.
     - Web Playwright against app.dev.openmates.org after deploy.
@@ -2177,6 +2274,7 @@ implementation_plan:
     - Real CLI dev memory and connected-account isolation.
     - Real CLI dev invite email-link and team data export/import proof.
     - Real CLI dev team chat, billing, workspace context, move, and offboarding.
+    - User-approved CLI proof-video contract, capture, bounded frame review, and Discord publication.
     - Daily-test wiring for the CLI dev coverage.
     - npm SDK parity.
     - pip SDK parity.

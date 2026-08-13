@@ -249,6 +249,42 @@ def test_cli_terminal_timeline_types_command_then_replays_real_output_delay() ->
     assert all("run_id" not in state["text"] for state in states)
 
 
+def test_cli_display_command_replaces_test_harness_and_dist_cli_paths() -> None:
+    module = load_module()
+
+    assert module.user_facing_cli_argv([
+        "node",
+        "scripts/openmates_cli_test_account.mjs",
+        "chat",
+        "Explain teams",
+        "--api-url",
+        "https://api.dev.openmates.org",
+    ]) == [
+        "openmates",
+        "chat",
+        "Explain teams",
+        "--api-url",
+        "https://api.dev.openmates.org",
+    ]
+    assert module.user_facing_cli_argv(["node", "dist/cli.js", "teams", "list"]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv(["node", "./dist/cli.js", "teams", "list"]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv([
+        "node",
+        "frontend/packages/openmates-cli/dist/cli.js",
+        "teams",
+        "list",
+    ]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv([
+        "node",
+        "scripts/teams_cli_proof.mjs",
+        "--name",
+        "CLI Proof Team",
+        "--slug",
+        "cli-proof-team",
+    ]) == ["openmates", "teams", "create", "--name", "CLI Proof Team", "--slug", "cli-proof-team", "--switch"]
+    assert module.user_facing_cli_argv(["openmates", "teams", "list"]) == ["openmates", "teams", "list"]
+
+
 def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "captions.srt"
@@ -639,6 +675,78 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
 
     assert result["status"] == "review_ready"
     assert observed["acceptance_criteria"] == ["AC-1"]
+
+
+def test_cli_production_renders_user_facing_openmates_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    observed: dict[str, object] = {}
+    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
+    monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
+
+    def capture(captured_argv: list[str], **kwargs: object) -> dict[str, object]:
+        run_dir = Path(kwargs["output_dir"])
+        (run_dir / "events.jsonl").write_text(
+            json.dumps({"time_seconds": 0.0, "stream": "input", "argv": captured_argv}) + "\n"
+            + json.dumps({"time_seconds": 0.2, "stream": "output", "text": "visible team output\n"}) + "\n",
+            encoding="utf-8",
+        )
+        (run_dir / "transcript.txt").write_text("raw harness transcript\n", encoding="utf-8")
+        return {
+            "argv": captured_argv,
+            "target_environment": kwargs["target_environment"],
+            "run_id": kwargs["run_id"],
+            "exit_status": 0,
+            "transcript_hash": "sha256:" + "1" * 64,
+            "event_hash": "sha256:" + "2" * 64,
+            "artifact_hash": "sha256:" + "2" * 64,
+            "test_account_provenance": kwargs["test_account_provenance"],
+            "duration_seconds": 0.2,
+        }
+
+    def timeline(**kwargs: object) -> dict[str, object]:
+        observed["timeline_argv"] = kwargs["argv"]
+        return {
+            "states": [{"start": 0.0, "end": 15.0, "text": "$ openmates teams list\nvisible team output\n"}],
+            "typing_completed_at": 1.0,
+            "first_output_at": 1.2,
+            "duration_seconds": 15.0,
+        }
+
+    def prepare(**kwargs: object) -> dict[str, str]:
+        observed.update(kwargs)
+        return {"status": "review_ready"}
+
+    monkeypatch.setattr(module, "capture_pty", capture)
+    monkeypatch.setattr(module, "build_cli_terminal_timeline", timeline)
+    monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
+
+    result = module.produce_cli_demonstration(
+        run_dir=tmp_path,
+        argv=["node", "scripts/openmates_cli_test_account.mjs", "teams", "list", "--json"],
+        spec_id="teams-cli",
+        subject_commit="abc1234",
+        run_id="run-1",
+        target_environment="local fixture",
+        test_account_provenance="synthetic account",
+        narration_id="NARR-1",
+        caption_text="First, the terminal shows the teams list command as a normal openmates command. Next, the visible output confirms the team result in the terminal. The final caption keeps review focused on realistic user-facing CLI output.",
+        expected_proof="The regular openmates teams command is visible.",
+        acceptance_criteria=["AC-1"],
+        narration_audio_path=tmp_path / "narration.wav",
+    )
+
+    assert result["status"] == "review_ready"
+    assert observed["timeline_argv"] == ["openmates", "teams", "list", "--json"]
+    assert observed["source"]["argv"] == ["node", "scripts/openmates_cli_test_account.mjs", "teams", "list", "--json"]
+    assert observed["source"]["display_argv"] == ["openmates", "teams", "list", "--json"]
 
 
 def test_cli_production_anonymizes_sensitive_argv_before_review(
