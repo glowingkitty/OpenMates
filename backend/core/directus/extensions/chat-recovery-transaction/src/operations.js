@@ -41,7 +41,8 @@ const CHAT_METADATA_FIELDS = new Set([
   'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
   'encrypted_follow_up_request_suggestions', 'encrypted_top_recommended_apps_for_chat',
   'encrypted_quick_tip_slugs', 'encrypted_icon', 'encrypted_category',
-  'encrypted_settings_memories_suggestions', 'created_at', 'updated_at',
+  'encrypted_settings_memories_suggestions', 'encrypted_slug', 'slug_lookup_hash',
+  'created_at', 'updated_at',
 ]);
 const OPERATION_FIELDS = Object.freeze({
   prepare_preflight: new Set([

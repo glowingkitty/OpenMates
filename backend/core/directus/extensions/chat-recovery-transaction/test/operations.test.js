@@ -1,4 +1,5 @@
 /* Focused security and validation tests for the recovery extension. */
+// contract-test-file: tooling
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isAuthorized } from '../src/index.js';
@@ -247,6 +248,8 @@ test('encrypted message validation rejects unknown plaintext fields', () => {
 test('new-chat metadata is strict, encrypted, and private by construction', () => {
   const metadata = {
     encrypted_title: 'encrypted-title',
+    encrypted_slug: 'encrypted-slug',
+    slug_lookup_hash: 'a'.repeat(64),
     encrypted_chat_key: 'wrapped-chat-key',
     created_at: 100,
     updated_at: 100,
