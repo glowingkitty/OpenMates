@@ -11,10 +11,15 @@ exec 9>"$LOCK_FILE"
 flock -n 9 || exit 0
 
 if [ -f "$REPO_ROOT/.env" ]; then
+    # Some existing values intentionally contain shell-style dollar text.
+    # Match the other host cron wrappers by allowing unset expansion only
+    # while loading the trusted local environment file.
+    set +u
     set -a
     # shellcheck disable=SC1091
     . "$REPO_ROOT/.env"
     set +a
+    set -u
 fi
 
 # sessions.py publishes proof videos to the dev-smoke destination. spec_demo's
