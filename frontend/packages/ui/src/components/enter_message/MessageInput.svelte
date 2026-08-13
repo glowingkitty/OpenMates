@@ -5776,7 +5776,7 @@
     {/if}
 
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
