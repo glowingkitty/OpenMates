@@ -21,13 +21,17 @@ export const PRIVACY_STORY_STAGES = [
 ] as const;
 
 export const MATES_FOCUS_STORY_STAGES = [
-  { id: 'mates', durationMs: 6000 },
-  { id: 'focus', durationMs: 6000 },
+  { id: 'mates-copy', durationMs: 1800 },
+  { id: 'mates', durationMs: 4200 },
+  { id: 'focus-copy', durationMs: 1800 },
+  { id: 'focus', durationMs: 4200 },
 ] as const;
 
 export const PEOPLE_EXPERIENCE_STORY_STAGES = [
-  { id: 'providers', durationMs: 6000 },
-  { id: 'access', durationMs: 6000 },
+  { id: 'providers-copy', durationMs: 1800 },
+  { id: 'providers', durationMs: 4200 },
+  { id: 'access-copy', durationMs: 1800 },
+  { id: 'access', durationMs: 4200 },
 ] as const;
 
 export type PrivacyStoryStage = (typeof PRIVACY_STORY_STAGES)[number]['id'];

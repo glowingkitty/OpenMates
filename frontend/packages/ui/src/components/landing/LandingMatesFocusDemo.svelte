@@ -10,6 +10,7 @@
   import { text } from '@repo/ui';
   import { matesMetadata } from '../../data/matesMetadata';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import LandingSubslideMotion from './LandingSubslideMotion.svelte';
   import {
     MATES_FOCUS_STORY_DURATION_MS,
     MATES_FOCUS_STORY_STAGES,
@@ -22,7 +23,6 @@
   let activeItemIndex = $state(0);
   let mounted = $state(false);
 
-  const SparklesIcon = getLucideIcon('sparkles');
   const selectedMateIds = ['software_development', 'medical_health', 'marketing_sales', 'general_knowledge'];
   const selectedMates = matesMetadata.filter((mate) => selectedMateIds.includes(mate.id));
   const focusModes = [
@@ -30,7 +30,8 @@
     { id: 'research-solutions', labelKey: 'app_focus_modes.code.research_solutions', icon: 'search' },
     { id: 'learn-by-building', labelKey: 'app_focus_modes.code.learn_by_building', icon: 'graduation-cap' },
   ];
-  let activeStage = $derived<MatesFocusStoryStage>(MATES_FOCUS_STORY_STAGES[activeStageIndex]?.id ?? 'mates');
+  let activeStage = $derived<MatesFocusStoryStage>(MATES_FOCUS_STORY_STAGES[activeStageIndex]?.id ?? 'mates-copy');
+  let activeStageDurationMs = $derived(MATES_FOCUS_STORY_STAGES[activeStageIndex]?.durationMs ?? MATES_FOCUS_STORY_STAGES[0].durationMs);
   let activeScrollIndex = $derived(
     activeStage === 'focus'
       ? Math.min(activeItemIndex, focusModes.length - 1)
@@ -44,23 +45,29 @@
     activeStageIndex = 0;
     activeItemIndex = 0;
     const timeouts: number[] = [];
-    [1, 2, 3].forEach((index) => timeouts.push(window.setTimeout(() => { activeItemIndex = index; }, 900 + index * 1100)));
-    const focusStartMs = MATES_FOCUS_STORY_STAGES[0].durationMs;
-    timeouts.push(window.setTimeout(() => { activeStageIndex = 1; activeItemIndex = 0; }, focusStartMs));
-    [1, 2].forEach((index) => timeouts.push(window.setTimeout(() => { activeItemIndex = index; }, focusStartMs + 900 + index * 1400)));
+    let elapsedMs = 0;
+    MATES_FOCUS_STORY_STAGES.forEach((stage, index) => {
+      const stageStartMs = elapsedMs;
+      if (index > 0) timeouts.push(window.setTimeout(() => { activeStageIndex = index; activeItemIndex = 0; }, stageStartMs));
+      if (stage.id === 'mates') {
+        [1, 2, 3].forEach((itemIndex) => timeouts.push(window.setTimeout(() => { activeItemIndex = itemIndex; }, stageStartMs + 500 + itemIndex * 800)));
+      } else if (stage.id === 'focus') {
+        [1, 2].forEach((itemIndex) => timeouts.push(window.setTimeout(() => { activeItemIndex = itemIndex; }, stageStartMs + 600 + itemIndex * 1100)));
+      }
+      elapsedMs += stage.durationMs;
+    });
     timeouts.push(window.setTimeout(onComplete, MATES_FOCUS_STORY_DURATION_MS));
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
   });
 </script>
 
 <div class="mates-focus-demo" style={`--scroll-index: ${activeScrollIndex}`} data-testid="landing-mates-focus-demo" data-active-stage={activeStage} data-reduced-motion={reducedMotion ? 'true' : 'false'} data-playing={playing ? 'true' : 'false'} aria-hidden="true">
-  {#if activeStage === 'mates' || reducedMotion}
-    <div class="story-stage">
-      <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_experts')}</div>
+  {#if reducedMotion}
+    <div class="reduced-summary">
       <div class="scroll-window mates-window">
         <div class="scroll-track">
-          {#each selectedMates as mate, index}
-            <div class:active={reducedMotion || index === activeItemIndex} class="mate-row-demo" data-testid="landing-mate-profile" data-mate-id={mate.id}>
+          {#each selectedMates as mate}
+            <div class="mate-row-demo active" data-testid="landing-mate-profile" data-mate-id={mate.id}>
               <span class="mate-profile {mate.profile_class} mate-profile-demo"></span>
               <span class="mate-text-demo"><strong>{$text(mate.name_translation_key)}</strong><small>{$text(mate.description_translation_key)}</small></span>
               <span class="mate-chevron-demo"></span>
@@ -68,16 +75,11 @@
           {/each}
         </div>
       </div>
-    </div>
-  {/if}
-  {#if activeStage === 'focus' || reducedMotion}
-    <div class="story-stage">
-      <div class="story-copy"><SparklesIcon size={18} /> {$text('demo_chats.for_everyone.landing_mates_focus_modes')}</div>
       <div class="scroll-window focus-window">
         <div class="scroll-track">
-          {#each focusModes as mode, index}
+          {#each focusModes as mode}
             {@const ModeIcon = getLucideIcon(mode.icon)}
-            <div class:active={reducedMotion || index === activeItemIndex} class="focus-pill-demo" data-testid="landing-focus-mode" data-focus-id={mode.id}>
+            <div class="focus-pill-demo active" data-testid="landing-focus-mode" data-focus-id={mode.id}>
               <span class="focus-pill-body-demo">
                 <span class="focus-pill-icon-demo"><ModeIcon size={15} /></span>
                 <span class="focus-pill-label-demo">{$text(mode.labelKey)}</span>
@@ -89,13 +91,56 @@
         </div>
       </div>
     </div>
+  {:else}
+    {#key activeStage}
+    <LandingSubslideMotion {playing} durationMs={activeStageDurationMs} stage={activeStage}>
+      {#if activeStage === 'mates-copy'}
+        <p class="story-copy" data-testid="landing-mates-copy">{$text('demo_chats.for_everyone.landing_mates_experts')}</p>
+      {:else if activeStage === 'mates' || reducedMotion}
+        <div class="story-stage">
+          <div class="scroll-window mates-window">
+            <div class="scroll-track">
+              {#each selectedMates as mate, index}
+                <div class:active={reducedMotion || index === activeItemIndex} class="mate-row-demo" data-testid="landing-mate-profile" data-mate-id={mate.id}>
+                  <span class="mate-profile {mate.profile_class} mate-profile-demo"></span>
+                  <span class="mate-text-demo"><strong>{$text(mate.name_translation_key)}</strong><small>{$text(mate.description_translation_key)}</small></span>
+                  <span class="mate-chevron-demo"></span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      {:else if activeStage === 'focus-copy'}
+        <p class="story-copy" data-testid="landing-focus-copy">{$text('demo_chats.for_everyone.landing_mates_focus_modes')}</p>
+      {:else}
+        <div class="story-stage">
+          <div class="scroll-window focus-window">
+            <div class="scroll-track">
+              {#each focusModes as mode, index}
+                {@const ModeIcon = getLucideIcon(mode.icon)}
+                <div class:active={reducedMotion || index === activeItemIndex} class="focus-pill-demo" data-testid="landing-focus-mode" data-focus-id={mode.id}>
+                  <span class="focus-pill-body-demo">
+                    <span class="focus-pill-icon-demo"><ModeIcon size={15} /></span>
+                    <span class="focus-pill-label-demo">{$text(mode.labelKey)}</span>
+                    <span class="focus-pill-on-demo">Focus on</span>
+                  </span>
+                  <span class="focus-pill-toggle-demo" aria-hidden="true"><span></span></span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      {/if}
+      </LandingSubslideMotion>
+    {/key}
   {/if}
 </div>
 
 <style>
   .mates-focus-demo { --demo-row-step: 58px; display: grid; place-items: center; width: min(100%,680px); height: 100%; color: var(--color-font-button); pointer-events: none; }
-  .story-stage { display: grid; grid-template-columns: minmax(150px,.75fr) minmax(280px,1.25fr); align-items: center; gap: 22px; width: 100%; }
-  .story-copy { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: clamp(.8rem,2cqi,1rem); font-weight: 800; text-align: center; }
+  .reduced-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; width: 100%; }
+  .story-stage { display: grid; place-items: center; width: 100%; height: 100%; }
+  .story-copy { max-width: 30rem; margin: 0; font-size: clamp(1.3rem,3.8cqi,1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
   .scroll-window { height: 176px; overflow: hidden; padding: 6px; mask-image: linear-gradient(transparent, black 12%, black 88%, transparent); }
   .scroll-track { display: grid; gap: 8px; transform: translateY(calc(var(--scroll-index) * var(--demo-row-step) * -1)); transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1); }
   .mate-row-demo { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; min-height: 50px; padding: 3px 10px 3px 0; border-radius: var(--radius-3); background: rgba(255,255,255,.9); opacity: .48; transform: scale(.96); transition: opacity 260ms ease, transform 260ms ease, background 260ms ease; }
@@ -118,8 +163,7 @@
 
   @container chat-side (max-width: 560px) {
     .mates-focus-demo { --demo-row-step: 48px; }
-    .story-stage { grid-template-columns: 1fr; gap: 7px; }
-    .story-copy { font-size: .72rem; }
+    .story-copy { font-size: 1.25rem; }
     .scroll-window { width: min(100%,360px); height: 100px; margin: auto; padding: 0 5px; }
     .mate-row-demo { grid-template-columns: 34px 1fr auto; min-height: 40px; }
     .mate-profile-demo { width: 28px !important; height: 28px !important; margin: 4px 5px; }
@@ -130,7 +174,7 @@
 
   @media (prefers-reduced-motion: reduce) { .scroll-track, .mate-row-demo, .focus-pill-demo { transition: none; } }
   @media (prefers-reduced-motion: reduce) {
-    .mates-focus-demo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .mates-focus-demo { gap: 8px; }
     .story-stage { grid-template-columns: 1fr; gap: 6px; }
     .story-copy { display: none; }
     .scroll-window { height: 138px; }

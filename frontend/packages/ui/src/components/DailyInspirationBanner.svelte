@@ -52,14 +52,11 @@
   import LandingHeadingMotion, { type LandingHeadingMotionPhase } from './landing/LandingHeadingMotion.svelte';
   import {
     ACTIONABLE_DEMO_DURATION_MS,
-    ACTIONABLE_MOBILE_HEADING_FADE_IN_MS,
-    ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS,
-    ACTIONABLE_MOBILE_HEADING_SWAP_MS,
-    ACTIONABLE_MOBILE_START_DELAY_MS,
   } from './landing/landingActionableEventTimeline';
   import {
     PRODUCT_STORY_HEADING_DELAY_MS,
     PRODUCT_STORY_HEADING_FADE_OUT_MS,
+    PRODUCT_STORY_HEADING_SWAP_MS,
     PRIVACY_STORY_CAROUSEL_DURATION_MS,
     MATES_FOCUS_STORY_CAROUSEL_DURATION_MS,
     PEOPLE_EXPERIENCE_STORY_CAROUSEL_DURATION_MS,
@@ -126,7 +123,7 @@
   }
 
   type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
-  type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden' | 'fading-in' | 'ready';
+  type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden';
   type GuestSlidePhase = 'idle' | 'fading-out' | 'hidden' | 'fading-in';
   type SignupSlidePhase = 'idle' | 'benefits-in' | 'benefits' | 'benefits-out' | 'cta-in' | 'cta';
 
@@ -469,21 +466,12 @@
       if (prefersReducedMotion) {
         showMobileCard = true;
         actionableMobileHeadingReady = true;
-        actionableMobileHeadingPhase = 'ready';
-        guestHeadingMotionPhase = 'visible';
+        actionableMobileHeadingPhase = 'hidden';
+        guestHeadingMotionPhase = 'hidden';
         return;
       }
-      const headingStartDelayMs = guestProductAnimationKind
-        ? PRODUCT_STORY_HEADING_DELAY_MS
-        : ACTIONABLE_MOBILE_START_DELAY_MS;
-      const headingFadeOutMs = guestProductAnimationKind
-        ? PRODUCT_STORY_HEADING_FADE_OUT_MS
-        : ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS;
       let headingFadeOutTimeout: number | undefined;
-      let headingFadeInTimeout: number | undefined;
-      let headingSwapAnimationFrame: number | undefined;
       let headingEntryTimeout: number | undefined;
-      let headingVisibleTimeout: number | undefined;
       headingEntryTimeout = window.setTimeout(() => {
         guestHeadingMotionPhase = 'visible';
       }, HEADING_ENTRY_PAINT_DELAY_MS);
@@ -494,31 +482,14 @@
           guestHeadingMotionPhase = 'hidden';
           actionableMobileHeadingPhase = 'hidden';
           showMobileCard = true;
-          if (guestProductAnimationKind) {
-            actionableMobileHeadingReady = true;
-            return;
-          }
-          headingSwapAnimationFrame = window.requestAnimationFrame(() => {
-            actionableMobileHeadingPhase = 'fading-in';
-            guestHeadingMotionPhase = 'entering';
-            headingVisibleTimeout = window.setTimeout(() => {
-              guestHeadingMotionPhase = 'visible';
-            }, HEADING_ENTRY_PAINT_DELAY_MS);
-            headingFadeInTimeout = window.setTimeout(() => {
-              actionableMobileHeadingPhase = 'ready';
-              actionableMobileHeadingReady = true;
-            }, ACTIONABLE_MOBILE_HEADING_FADE_IN_MS);
-          });
-        }, headingFadeOutMs);
-      }, headingStartDelayMs);
+          actionableMobileHeadingReady = true;
+        }, PRODUCT_STORY_HEADING_FADE_OUT_MS);
+      }, PRODUCT_STORY_HEADING_DELAY_MS);
 
       return () => {
         window.clearTimeout(headingStartTimeout);
         window.clearTimeout(headingFadeOutTimeout);
-        window.clearTimeout(headingFadeInTimeout);
         window.clearTimeout(headingEntryTimeout);
-        window.clearTimeout(headingVisibleTimeout);
-        window.cancelAnimationFrame(headingSwapAnimationFrame ?? 0);
       };
     }
 
@@ -584,11 +555,7 @@
     return '';
   });
   let isCoordinatedGuestStory = $derived(isGuestActionableSlide || !!guestProductAnimationKind);
-  let guestHeadingPhaseAttribute = $derived(
-    guestProductAnimationKind && showMobileCard && actionableMobileHeadingReady
-      ? 'ready'
-      : actionableMobileHeadingPhase,
-  );
+  let guestHeadingPhaseAttribute = $derived(actionableMobileHeadingReady ? 'demo' : actionableMobileHeadingPhase);
   let guestFeatureHeadlineLines = $derived.by(() => {
     if (isGuestActionableSlide) {
       return [
@@ -839,7 +806,7 @@
     landingIntroOverlayActive
       ? LANDING_INTRO_TOTAL_MS
       : isGuestActionableSlide
-        ? ACTIONABLE_DEMO_DURATION_MS + ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS
+        ? ACTIONABLE_DEMO_DURATION_MS + PRODUCT_STORY_HEADING_DELAY_MS + PRODUCT_STORY_HEADING_SWAP_MS
         : guestProductAnimationKind === 'privacy'
           ? PRIVACY_STORY_CAROUSEL_DURATION_MS
           : guestProductAnimationKind === 'mates'
@@ -1662,7 +1629,6 @@
           class:guest-actionable-slide={isGuestActionableSlide}
           class:actionable-heading-fading-out={actionableMobileHeadingPhase === 'fading-out'}
           class:actionable-heading-hidden={actionableMobileHeadingPhase === 'hidden'}
-          class:actionable-heading-fading-in={actionableMobileHeadingPhase === 'fading-in'}
           class:guest-slide-fading-out={guestSlidePhase === 'fading-out'}
           class:guest-slide-hidden={guestSlidePhase === 'hidden'}
           class:guest-slide-fading-in={guestSlidePhase === 'fading-in'}
@@ -1670,7 +1636,7 @@
           data-guest-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-mobile-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-testid="guest-slide-content"
-          style={`--actionable-mobile-heading-fade-out: ${ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS}ms; --actionable-mobile-heading-fade-in: ${ACTIONABLE_MOBILE_HEADING_FADE_IN_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
+          style={`--actionable-mobile-heading-fade-out: ${PRODUCT_STORY_HEADING_FADE_OUT_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
         >
 
           {#if isGuestIntroVariant}
@@ -1776,7 +1742,7 @@
                   </button>
                 </div>
               </div>
-            {:else}
+            {:else if !isCoordinatedGuestStory || !actionableMobileHeadingReady}
               {#key current.inspiration_id}
                 <div
                   class="guest-intro-copy"
@@ -1787,7 +1753,7 @@
                   in:fade={{ duration: 320 }}
                 >
                   <LandingHeadingMotion phase={guestHeadingMotionPhase} testId="landing-guest-heading-motion">
-                    {#if InfoCardIconComponent}
+                    {#if InfoCardIconComponent && !isCoordinatedGuestStory}
                       <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
                         <InfoCardIconComponent size={44} color="white" />
                       </span>
@@ -1839,7 +1805,7 @@
                and prevent the banner's onclick from firing. -->
           {#if isGuestIntroVariant && landingIntroOverlayActive}
             <!-- The expanded intro owns the full banner; no side preview is rendered. -->
-          {:else if isGuestIntroVariant}
+          {:else if isGuestIntroVariant && (!isCoordinatedGuestStory || actionableMobileHeadingReady)}
             {#key current.inspiration_id}
               {#if isGuestSignupCtaSlide}
                 <!-- The final slide sequence owns the full banner content area. -->
@@ -2694,9 +2660,9 @@
     z-index: 1;
     display: block;
     max-width: 700px;
-    font-size: clamp(1.35rem, 2vw, 2.7rem);
-    line-height: 1.12;
-    font-weight: 700;
+    font-size: clamp(2rem, 4.4cqi, 3.5rem);
+    line-height: 1.06;
+    font-weight: 800;
     letter-spacing: -0.03em;
     color: rgba(255, 255, 255, 0.96);
     text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
@@ -3604,8 +3570,8 @@
     }
 
     .guest-feature-headline {
-      font-size: clamp(1.45rem, 7.2vw, 2rem);
-      line-height: 1.08;
+      font-size: clamp(2rem, 9vw, 2.75rem);
+      line-height: 1.05;
       -webkit-line-clamp: 5;
       line-clamp: 5;
       display: -webkit-box;
@@ -3833,11 +3799,6 @@
       transition: none;
     }
 
-    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
-      opacity: 1;
-      transition: opacity var(--actionable-mobile-heading-fade-in) ease;
-    }
-
   @container chat-side (max-width: 730px) {
 
     .banner-embed-wrapper {
@@ -3981,8 +3942,7 @@
   @media (prefers-reduced-motion: reduce) {
     .banner-content.guest-slide-fading-out,
     .banner-content.guest-slide-fading-in,
-    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy,
-    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
+    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy {
       transition-duration: 1ms !important;
     }
   }

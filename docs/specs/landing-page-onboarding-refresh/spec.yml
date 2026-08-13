@@ -22,7 +22,7 @@ scope:
     - The current slide progress bar remains visible at the bottom of the intro/header.
     - Later logged-out slides explain actionable embeds, privacy/safety, mates/focus modes, and provider/cross-platform independence.
     - Privacy, mates/focus, and provider/platform stories use coordinated one-shot timelines whose progress and completion are owned by the same timing constants.
-    - Every explanatory slide uses the mobile-style full-width heading transition at all viewport sizes: large centered heading, hidden-state swap, then compact centered heading above the animation.
+    - Every explanatory slide uses one full-width text-only heading transition at all viewport sizes, followed by an animation-only phase after the heading is fully hidden.
     - The signup slide remains the final non-advancing slide.
   out:
     - Replacing the chat app shell with a separate static marketing page.
@@ -36,7 +36,7 @@ current_milestone:
   id: phase-3-header-product-stories
   goal: >
     Replace the generic privacy, mates/focus, and provider/platform illustrations
-    with coordinated localized header stories, apply the compact-heading structure
+    with coordinated localized header stories, apply the exclusive heading-then-animation structure
     at every viewport width, and preserve signup as the terminal slide.
   in:
     - Full-container intro for the first guest slide only.
@@ -162,12 +162,12 @@ decisions:
     reason: User explicitly rejected a static top row and asked to remove filler app placeholders between the highlighted apps while preserving near-center highlighted visibility.
     decided_at: "2026-08-02"
   - id: D-7
-    status: active
+    status: superseded
     decision: The Actionable animation is a one-shot timeline whose completion advances to the privacy slide, with a mobile-only same-node headline/icon morph and progress derived from the same duration.
     reason: The user rejected the repeating animation, abrupt compact heading replacement, and inaccurate fixed-duration progress behavior.
     decided_at: "2026-08-03"
   - id: D-8
-    status: active
+    status: superseded
     decision: All regular explanatory slides use the mobile-style large-to-compact centered heading structure at every viewport width; the earlier desktop side-by-side Figma frame is outdated.
     reason: The user found the split headline and animation difficult to read and explicitly approved one full-width structure for desktop and mobile.
     decided_at: "2026-08-04"
@@ -183,8 +183,8 @@ decisions:
     decided_at: "2026-08-04"
   - id: D-11
     status: active
-    decision: Every landing heading uses one reusable enter/visible/exit motion contract for both slide changes and the large-to-compact heading transition.
-    reason: The user rejected static and inconsistent heading changes and specified opacity plus vertical motion for every slide, including slide 0.
+    decision: Every landing heading uses one reusable enter/continuously-moving/exit motion contract for slide changes, with no compact re-entry over the animation.
+    reason: The user rejected static and overlapping headings and specified bottom-to-center motion, continuous eased movement, and an upward fade before the animation begins.
     decided_at: "2026-08-04"
   - id: D-12
     status: active
@@ -202,10 +202,15 @@ decisions:
     reason: The user's intent is to start typing immediately; the prior guest intro reset prevents that flow.
     decided_at: "2026-08-04"
   - id: D-15
-    status: active
+    status: superseded
     decision: Compact landing stories keep their heading and animation close together, enter headings from below and exit them upward, and present the PII exchange as a product-faithful user-to-Burton conversation without decorative icons on copy-only scenes.
     reason: The user rejected the deployed spacing, clipped compact heading, reversed-feeling motion, generic privacy copy, and fixed-size mobile permission preview after reviewing screenshots.
     decided_at: "2026-08-04"
+  - id: D-16
+    status: active
+    decision: Coordinated landing stories show a large icon-free heading first and mount the existing animation only after that heading has fully exited.
+    reason: The user explicitly rejected category icons, small compact captions, static heading dwell, and any frame that shows heading text together with the product animation.
+    decided_at: "2026-08-13"
 
 attempts:
   - id: ATTEMPT-1
@@ -691,8 +696,9 @@ scenarios:
       - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
       - Every user-visible demo string comes from the translation sources for every supported locale.
       - Each content stage enters quickly from below at reduced scale, continues drifting upward very slowly through the center without stopping, then accelerates upward while scaling and fading down.
-      - At every viewport width, the existing headline and category icon nodes fade out at full size, switch while hidden into a centered compact top caption with the icon on the left, then fade back in at approximately 0.5 opacity.
-      - The first user-message stage starts only after the compact heading has completed its fade-in, and both chat message containers render wider and larger than the previous compact treatment.
+      - At every viewport width, the large icon-free headline enters from below, keeps moving subtly through center with eased deceleration and acceleration, then fades and exits upward.
+      - The first user-message stage starts only after the heading is fully hidden and unmounted; no frame shows heading text together with the animation.
+      - The chat messages and CTA use readable presentation-scale text rather than compact metadata sizing.
       - The preview is fully visible and centered during its center dwell at desktop and mobile sizes.
       - The event title appears only inside the real event preview; no separate title overlays its date or metadata.
       - The animation plays once, the progress bar reaches 100% at the final clicked state, and the carousel advances to the privacy slide without repeating.
@@ -730,7 +736,7 @@ scenarios:
     when:
       - The coordinated privacy header timeline plays.
     then:
-      - The full-width heading uses the shared enter/visible/exit motion, then exits and re-enters in compact form above the animation at every viewport width.
+      - The full-width icon-free heading uses the shared enter/continuous-motion/exit envelope and is fully removed before the nine animation scenes begin.
       - Scene 1 reads `Only your devices can decrypt all your data.`.
       - Scene 2 floats chat, files, tasks, and memory icons, reveals an unlocked lock, animates it closed and larger, and fades the surrounding icons to 0.5 opacity.
       - Scene 3 reads `Personal details are replaced, before the AI sees them.`.
@@ -750,7 +756,7 @@ scenarios:
     when:
       - The 12000ms header timeline plays.
     then:
-      - The headline reads `No deep tech knowledge needed.` and uses the shared full-width heading motion and compaction behavior.
+      - The headline reads `No deep tech knowledge needed.` and uses the shared full-width heading-only motion before the animation.
       - The first 6000ms segment scrolls real metadata-backed mates and highlights their localized specialties one at a time.
       - The second 6000ms segment scrolls real focus-mode entries and ends with one visibly active.
       - The progress bar reaches 100% when the timeline completes and advances once to the people-first slide.
@@ -762,7 +768,7 @@ scenarios:
     when:
       - The 12000ms header timeline plays.
     then:
-      - The headline reads `Built for people & the best possible experience.` and uses the shared full-width compaction behavior.
+      - The headline reads `Built for people & the best possible experience.` and uses the shared full-width heading-only motion before the animation.
       - The first 6000ms segment highlights Google Gemini, Anthropic Claude, OpenAI, and Mistral around OpenMates using current provider identities.
       - The second 6000ms segment transitions through a web chat, the real CLI chat-list command, and a concise TypeScript SDK example before ending on Web, CLI, and SDK together.
       - The progress bar reaches 100% when the timeline completes and advances once to signup.
@@ -775,7 +781,7 @@ scenarios:
     when:
       - They navigate among the explanatory slides.
     then:
-      - Each slide immediately shows its compact heading and a static summary of every concept.
+      - Each slide immediately shows its static summary without autoplay; heading and animation content remain readable and do not overlap.
       - Automatic slide advancement and decorative infinite motion are disabled.
       - Previous and next controls remain usable.
 
@@ -823,7 +829,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The `Actionable` slide uses localized real chat bubble/profile styling, a mobile-only same-node headline/icon hidden-state morph, scaled center-dwell stage motion, a centered real-image Luma event preview, and visible cursor clicks through the pressed `Open on Luma` CTA; it then advances once with duration-accurate progress through a fully hidden mobile slide swap without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
+    text: The `Actionable` slide shows one large continuously moving icon-free heading, removes it before mounting localized real chat bubble/profile animation, then presents a centered real-image Luma event preview and visible cursor clicks through the readable `Open on Luma` CTA before advancing once with duration-accurate progress.
     required: true
     status: pending
     coverage_status: covered
@@ -860,7 +866,7 @@ acceptance_criteria:
       - V-UI-VISUAL-SMOKE
   - id: AC-8
     scenario: S-8
-    text: The AI accessibility header uses one 12000ms timeline to show real mates and focus modes beneath the shared compact heading and advances exactly once on completion.
+    text: The AI accessibility header shows its large moving heading first, then uses one 12000ms animation-only timeline for real mates and focus modes and advances exactly once on completion.
     required: true
     status: pending
     coverage_status: covered
@@ -1015,7 +1021,8 @@ tests:
       - event preview uses a real Luma cover image and provider label
       - no simplified fullscreen/map surface is rendered
       - visible cursor animation presses the preview, reveals the translated `Open on Luma` CTA, and presses that CTA
-      - mobile compaction preserves and animates the same headline and icon nodes to the centered top caption at approximately 0.5 opacity
+      - large icon-free heading keeps moving through center, exits fully, and is absent before the demo mounts
+      - user/assistant/CTA text uses readable presentation sizing on phone and desktop
       - mobile post-intro navigation keeps the old content mounted through fade-out, swaps content only at zero opacity, and fades the new slide in
       - mobile previous navigation from `Actionable` restores the full-height app-wheel intro and never exposes the stale compact intro copy
       - the preview is centered and fully visible during its center dwell
@@ -1105,9 +1112,9 @@ tests:
       - AC-11
     assertions:
       - slide 0 keeps its heading close to the message and app rails at mobile and desktop widths
-      - compact headings remain fully visible and enter from below before exiting upward
+      - large icon-free headings remain fully visible, enter from below, move continuously through center, and exit upward before animation starts
       - slide 1 content appears during intro collapse instead of after the collapse delay
-      - every large and compact heading exposes the shared enter/visible/exit motion lifecycle
+      - every coordinated heading exposes the shared enter/continuous-motion/exit lifecycle without re-entering over the animation
       - Actionable and privacy stages render through the same reusable sub-slide motion wrapper
       - privacy exposes all nine ordered encryption, PII, Burton response, and responsive real memory-permission scenes
       - privacy copy-only scenes use larger icon-free text and the trip request has no leading icon
@@ -1266,22 +1273,22 @@ implementation_plan:
     icon rails, deterministic request timing, and immediate skip/collapse behavior.
     The Actionable subcomponent owns one deterministic phase schedule and reports
     completion to DailyInspirationBanner. The parent delays playback until the
-    mobile headline is compact, derives progress from the same shared duration,
+    large text-only heading has exited, derives progress from the same shared duration,
     and advances exactly once without mounting the full chat runtime. Explicit
     heading and slide phases ensure geometry and content change only at zero
     opacity. Dedicated privacy, mates/focus, and people-first components own
     deterministic one-shot timelines and report completion to the parent. The
-    same full-width large-to-compact heading structure is used at every viewport.
+    same full-width heading-only then animation-only structure is used at every viewport.
   data_flow:
     - ActiveChat renders DailyInspirationBanner with `variant='guest-intro'` for logged-out welcome state.
     - DailyInspirationBanner detects first guest intro slide and starts expanded on mount for logged-out users.
     - Intro request timing drives current request text, highlighted app id, icon-rail alignment, and progress.
     - Manual next/previous updates the carousel immediately and disables the expanded intro state for the current component instance.
     - Auto completion collapses and advances to slide 2.
-    - Every regular explanatory slide compacts its centered heading before the main animation at every viewport width.
+    - Every regular explanatory slide continuously moves its centered icon-free heading, removes it, then mounts the main animation at every viewport width.
     - Actionable completion advances to the privacy slide and its progress bar uses the same desktop/mobile total duration.
     - Post-intro mobile navigation delays the current slide index update until content opacity reaches zero, then fades the newly mounted slide in.
-    - After heading compaction, privacy runs for 15000ms and mates/focus and people-first each run for 12000ms; the parent progress includes the shared heading transition plus the exact story duration.
+    - After heading exit, privacy runs its nine-stage timeline and mates/focus and people-first each run for 12000ms; parent progress includes the shared heading transition plus the exact story duration.
     - Reduced motion skips timed playback, shows static summaries, and prevents automatic advancement.
   affected_files:
     - path: docs/specs/landing-page-onboarding-refresh/spec.yml

@@ -5315,47 +5315,47 @@ assertions:
       surface: gui.apple
     - &id592
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 67
+      line: 70
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id593
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 317
+      line: 334
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
     - &id594
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 579
+      line: 562
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id595
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 680
+      line: 663
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     supporting_tests:
     - &id596
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 738
+      line: 721
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
     - &id597
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 771
+      line: 754
       name: settings panel keeps active chat fixed inside the viewport
       surface: gui.web
     - &id598
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1198
+      line: 1161
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
     - &id599
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1461
+      line: 1424
       name: guest example chat follow-up input matches the adjacent new-chat CTA height
       surface: gui.web
     tests:
@@ -5396,25 +5396,25 @@ assertions:
       surface: gui.apple
     - &id601
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 317
+      line: 334
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
     - &id602
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 680
+      line: 663
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     - &id604
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1318
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id603
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1198
+      line: 1161
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
@@ -5448,17 +5448,17 @@ assertions:
       surface: gui.apple
     - &id606
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 579
+      line: 562
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id607
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 646
+      line: 629
       name: expanded intro app rails keep moving with a slower primary row
       surface: gui.web
     - &id608
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 662
+      line: 645
       name: expanded intro top app rail stays continuous when the highlighted app
         switches
       surface: gui.web
@@ -5491,70 +5491,69 @@ assertions:
       surface: gui.apple
     - &id610
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 67
+      line: 70
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id611
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 101
-      name: stories use coordinated timelines and one compact heading structure
+      line: 106
+      name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     - &id616
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 579
+      line: 562
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id617
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 646
+      line: 629
       name: expanded intro app rails keep moving with a slower primary row
       surface: gui.web
     - &id618
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 662
+      line: 645
       name: expanded intro top app rail stays continuous when the highlighted app
         switches
       surface: gui.web
     - &id619
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 797
+      line: 780
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id621
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1007
-      name: mobile actionable slide compacts copy above the animation
+      line: 987
+      name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
     - &id612
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 193
+      line: 212
       name: mobile stories preserve spacing, readable copy, complete headings, and
         contained permission UI
       surface: gui.web
     - &id613
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 260
+      line: 277
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id614
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 298
+      line: 315
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id615
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 330
+      line: 347
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id620
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 943
-      name: collapsed guest inspirations scale proportionally and keep the heading
-        above the animation
+      line: 923
+      name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
     - *id609
@@ -5602,46 +5601,46 @@ assertions:
       surface: gui.apple
     - &id623
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 67
+      line: 70
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id624
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 317
+      line: 334
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
     - &id626
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 680
+      line: 663
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     - &id628
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 797
+      line: 780
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id629
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1007
-      name: mobile actionable slide compacts copy above the animation
+      line: 987
+      name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     - &id630
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1318
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id625
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 330
+      line: 347
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id627
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 738
+      line: 721
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
@@ -5683,19 +5682,19 @@ assertions:
       surface: gui.apple
     - &id633
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 797
+      line: 780
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id634
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1007
-      name: mobile actionable slide compacts copy above the animation
+      line: 987
+      name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
     - &id632
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 260
+      line: 277
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
@@ -5727,38 +5726,37 @@ assertions:
       surface: gui.apple
     - &id636
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 101
-      name: stories use coordinated timelines and one compact heading structure
+      line: 106
+      name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     supporting_tests:
     - &id637
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 193
+      line: 212
       name: mobile stories preserve spacing, readable copy, complete headings, and
         contained permission UI
       surface: gui.web
     - &id638
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 260
+      line: 277
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id639
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 298
+      line: 315
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id640
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 330
+      line: 347
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id641
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 943
-      name: collapsed guest inspirations scale proportionally and keep the heading
-        above the animation
+      line: 923
+      name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
     - *id635
@@ -5794,12 +5792,12 @@ assertions:
       surface: gui.apple
     - &id643
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 101
-      name: stories use coordinated timelines and one compact heading structure
+      line: 106
+      name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     - &id644
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1318
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests: []

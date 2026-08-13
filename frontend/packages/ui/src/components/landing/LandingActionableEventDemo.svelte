@@ -291,8 +291,8 @@
     padding: 10px 12px;
     margin-top: 0;
     margin-bottom: 0;
-    font-size: clamp(0.74rem, 1vw, 0.92rem);
-    line-height: 1.25;
+    font-size: clamp(1rem, 2.6cqi, 1.35rem);
+    line-height: 1.35;
     font-weight: 700;
   }
 
@@ -336,6 +336,7 @@
     color: white !important;
     box-shadow: var(--shadow-md) !important;
     font: inherit;
+    font-size: clamp(1rem, 2.8cqi, 1.3rem);
     font-weight: 800 !important;
     white-space: nowrap;
     transition:
@@ -459,7 +460,7 @@
     .landing-actionable-message-stage :global(.user-message-content),
     .landing-actionable-message-stage :global(.mate-message-content) {
       padding: 12px 14px;
-      font-size: 0.82rem;
+      font-size: clamp(1rem, 4.2cqi, 1.2rem);
     }
 
     .landing-actionable-stage-content[data-stage='luma-cta'] {

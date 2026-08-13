@@ -48,7 +48,10 @@ async function openPrivacySlide(page: any): Promise<void> {
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 	await page.getByTestId('daily-inspiration-next').click();
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 	await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+	await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
+	await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveCount(0);
 }
 
 async function expectInsideBanner(page: any, testId: string): Promise<void> {
@@ -89,26 +92,28 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', /entering|visible/);
 		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-enter-direction', 'from-below');
 		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-exit-direction', 'to-above');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
 		await expect(page.getByTestId('landing-subslide-motion')).toHaveAttribute('data-stage', 'user-request');
 		await expect(page.getByTestId('landing-subslide-motion')).toHaveCSS('animation-name', /landingSubslideFlow$/);
 		await expectInsideBanner(page, 'landing-actionable-event-demo');
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories,landing-onboarding.signup-cta
-	test('stories use coordinated timelines and one compact heading structure', async ({ page }: { page: any }) => {
+	test('stories use coordinated heading-only and animation-only timelines', async ({ page }: { page: any }) => {
 		test.setTimeout(100000);
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await openPrivacySlide(page);
 
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-playing', 'false');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
-		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', 'hidden');
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('landing-privacy-safety-demo')).toBeVisible();
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-playing', 'true');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-active-stage', PRIVACY_STAGES[0]);
 		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toContainText('Only your devices can decrypt all your data.');
@@ -154,9 +159,16 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-memory-category-name')).toContainText(/Trips|Reisen/);
 		await expectInsideBanner(page, 'app-settings-memories-permission-card');
 
-		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible({ timeout: PRIVACY_DURATION_MS + ADVANCE_GRACE_MS });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-mates-focus', { timeout: PRIVACY_DURATION_MS + ADVANCE_GRACE_MS });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('No deep tech knowledge needed.');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', { timeout: HEADING_SETTLE_MS });
+		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveCount(0);
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: HEADING_SETTLE_MS });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible();
+		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'mates-copy');
+		await expect(page.getByTestId('landing-mates-copy')).toContainText('Your AI experts, specialized for different topics.');
+		await expect(page.getByTestId('landing-mate-profile')).toHaveCount(0);
+		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'mates', { timeout: 3000 });
 		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'mates');
 		await expect(page.getByTestId('landing-mate-profile')).toHaveCount(4);
 		await expectInsideBanner(page, 'landing-mates-focus-demo');
@@ -167,9 +179,16 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-mates-focus-demo')).toHaveAttribute('data-active-stage', 'focus', { timeout: 7500 });
 		await expect(page.getByTestId('landing-focus-mode')).toHaveCount(3);
 
-		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible({ timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-provider-cross-platform', { timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Build for the best possible user experience.');
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', { timeout: HEADING_SETTLE_MS });
+		await expect(page.getByTestId('landing-people-experience-demo')).toHaveCount(0);
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: HEADING_SETTLE_MS });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible();
+		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'providers-copy');
+		await expect(page.getByTestId('landing-providers-copy')).toContainText('All the best AI models, in one place.');
+		await expect(page.getByTestId('landing-provider-logo')).toHaveCount(0);
+		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'providers', { timeout: 3000 });
 		await expect(page.getByTestId('landing-people-experience-demo')).toHaveAttribute('data-active-stage', 'providers');
 		await expect(page.getByTestId('landing-provider-logo')).toHaveCount(4);
 		await expectInsideBanner(page, 'landing-people-experience-demo');
@@ -205,17 +224,15 @@ test.describe('Landing page header stories', () => {
 		expect(introGap).toBeLessThanOrEqual(96);
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
+		await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
+		const actionableHeadingFontSize = await page.getByTestId('daily-inspiration-phrase').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).fontSize));
+		expect(actionableHeadingFontSize).toBeGreaterThanOrEqual(32);
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
-		const actionableHeadingFits = await page.getByTestId('daily-inspiration-phrase').evaluate((heading: HTMLElement) => {
-			const headingRect = heading.getBoundingClientRect();
-			const range = document.createRange();
-			range.selectNodeContents(heading);
-			const textRect = range.getBoundingClientRect();
-			return textRect.right <= headingRect.right + 1 && textRect.bottom <= headingRect.bottom + 1;
-		});
-		expect(actionableHeadingFits).toBe(true);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(page.getByTestId('landing-privacy-saved-data-copy')).toBeVisible({ timeout: 8000 });
@@ -265,14 +282,14 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
 		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 		await expectInsideBanner(page, 'landing-actionable-event-demo');
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
 		await expectInsideBanner(page, 'landing-privacy-safety-demo');
@@ -299,7 +316,7 @@ test.describe('Landing page header stories', () => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 768, height: 1024 });
 		await openPrivacySlide(page);
-		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'ready', {
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
 		await expectInsideBanner(page, 'landing-privacy-safety-demo');

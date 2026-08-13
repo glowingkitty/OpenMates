@@ -20,7 +20,6 @@ const LANDING_INTRO_VIEWPORTS = [
 	{ name: 'full-hd', width: 1920, height: 1080, minAiIconWidth: 74, maxHeadlineRequestGap: 64, minHeadlineRequestGap: 4, minRequestFontSize: 18, minHighlightedIconWidth: 100, maxHighlightedCenterDelta: 90 }
 ];
 const ACTIONABLE_STAGE_SETTLE_MS = 260;
-const MOBILE_HEADING_COMPACT_SETTLE_MS = 2100;
 const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 8000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
@@ -499,20 +498,13 @@ async function mobileActionableSlideState(page: any): Promise<{
 	bannerHeight: number;
 	bannerTop: number;
 	bannerBottom: number;
+	headingCount: number;
 	headlineFontSize: number;
-	headlineOpacity: number;
-	headlineStableNode: boolean;
-	iconStableNode: boolean;
-	headlineBottom: number;
-	copyCenterDeltaX: number;
 	copyTop: number;
 	headlineLeftGap: number;
-	iconWidth: number;
-	iconOpacity: number;
-	iconHeadlineGap: number;
-	iconHeadlineCenterDeltaY: number;
+	iconCount: number;
+	demoCount: number;
 	demoOpacity: number;
-	demoTop: number;
 	demoBottom: number;
 	demoHeight: number;
 	demoBackground: string;
@@ -526,47 +518,38 @@ async function mobileActionableSlideState(page: any): Promise<{
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 		const copy = document.querySelector<HTMLElement>('[data-testid="guest-intro-copy"]');
-		const icon = document.querySelector<HTMLElement>('[data-testid="guest-feature-inline-icon"]');
 		const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
 		const stage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-stage"]');
 		const reportButton = document.querySelector<HTMLElement>('[data-testid="report-issue-button"]');
-		if (!banner || !headline || !copy || !icon || !demo || !stage || !reportButton) throw new Error('mobile actionable slide elements missing');
+		if (!banner || !reportButton) throw new Error('mobile actionable slide elements missing');
 
 		const bannerRect = banner.getBoundingClientRect();
-		const headlineRect = headline.getBoundingClientRect();
-		const copyRect = copy.getBoundingClientRect();
-		const iconRect = icon.getBoundingClientRect();
-		const demoRect = demo.getBoundingClientRect();
-		const stageContentRect = stage.querySelector<HTMLElement>('[data-testid="landing-actionable-stage-content"]')
+		const headlineRect = headline?.getBoundingClientRect();
+		const copyRect = copy?.getBoundingClientRect();
+		const demoRect = demo?.getBoundingClientRect();
+		const stageContentRect = stage?.querySelector<HTMLElement>('[data-testid="landing-actionable-stage-content"]')
 			?.firstElementChild?.getBoundingClientRect();
-		const demoCenterX = demoRect.left + demoRect.width / 2;
-		const demoCenterY = demoRect.top + demoRect.height / 2;
+		const demoCenterX = demoRect ? demoRect.left + demoRect.width / 2 : bannerRect.left + bannerRect.width / 2;
+		const demoCenterY = demoRect ? demoRect.top + demoRect.height / 2 : bannerRect.top + bannerRect.height / 2;
 		const contentCenterX = stageContentRect ? stageContentRect.left + stageContentRect.width / 2 : demoCenterX;
 		const contentCenterY = stageContentRect ? stageContentRect.top + stageContentRect.height / 2 : demoCenterY;
-		const demoStyle = getComputedStyle(demo);
+		const demoStyle = demo ? getComputedStyle(demo) : null;
 		return {
 			bannerHeight: bannerRect.height,
 			bannerTop: bannerRect.top,
 			bannerBottom: bannerRect.bottom,
-			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
-			headlineOpacity: Number.parseFloat(getComputedStyle(headline).opacity),
-			headlineStableNode: (headline as HTMLElement & { __landingPhraseNodeToken?: string }).__landingPhraseNodeToken === 'mobile-actionable',
-			iconStableNode: (icon as HTMLElement & { __landingIconNodeToken?: string }).__landingIconNodeToken === 'mobile-actionable',
-			headlineBottom: headlineRect.bottom,
-			copyCenterDeltaX: Math.abs((copyRect.left + copyRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
-			copyTop: copyRect.top,
-			headlineLeftGap: headlineRect.left - bannerRect.left,
-			iconWidth: iconRect.width,
-			iconOpacity: Number.parseFloat(getComputedStyle(icon).opacity),
-			iconHeadlineGap: headlineRect.left - iconRect.right,
-			iconHeadlineCenterDeltaY: Math.abs((iconRect.top + iconRect.height / 2) - (headlineRect.top + headlineRect.height / 2)),
-			demoOpacity: Number.parseFloat(getComputedStyle(demo).opacity),
-			demoTop: demoRect.top,
-			demoBottom: demoRect.bottom,
-			demoHeight: demoRect.height,
-			demoBackground: demoStyle.backgroundColor,
-			demoBorderWidth: demoStyle.borderTopWidth,
-			demoBoxShadow: demoStyle.boxShadow,
+			headingCount: headline ? 1 : 0,
+			headlineFontSize: headline ? Number.parseFloat(getComputedStyle(headline).fontSize) : 0,
+			copyTop: copyRect?.top ?? 0,
+			headlineLeftGap: headlineRect ? headlineRect.left - bannerRect.left : 0,
+			iconCount: document.querySelectorAll('[data-testid="guest-feature-inline-icon"]').length,
+			demoCount: demo ? 1 : 0,
+			demoOpacity: demoStyle ? Number.parseFloat(demoStyle.opacity) : 0,
+			demoBottom: demoRect?.bottom ?? 0,
+			demoHeight: demoRect?.height ?? 0,
+			demoBackground: demoStyle?.backgroundColor ?? '',
+			demoBorderWidth: demoStyle?.borderTopWidth ?? '',
+			demoBoxShadow: demoStyle?.boxShadow ?? '',
 			demoContentCenterDeltaX: Math.abs(contentCenterX - demoCenterX),
 			demoContentCenterDeltaY: Math.abs(contentCenterY - demoCenterY),
 			reportButtonTop: reportButton.getBoundingClientRect().top
@@ -899,16 +882,14 @@ test.describe('Landing page onboarding refresh', () => {
 
 		const metrics = await page.evaluate(() => {
 			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-			const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 			const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
 			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
 			const ctaButton = document.querySelector<HTMLElement>('[data-testid="landing-actionable-luma-button"]');
-			if (!banner || !headline || !demo || !scene || !ctaButton) {
+			if (!banner || !demo || !scene || !ctaButton) {
 				throw new Error('Actionable slide elements missing');
 			}
 
 			const bannerRect = banner.getBoundingClientRect();
-			const headlineRect = headline.getBoundingClientRect();
 			const demoRect = demo.getBoundingClientRect();
 			return {
 				bannerHeight: bannerRect.height,
@@ -916,7 +897,6 @@ test.describe('Landing page onboarding refresh', () => {
 				demoHeight: demoRect.height,
 				demoLeftGap: demoRect.left - bannerRect.left,
 				demoRightGap: bannerRect.right - demoRect.right,
-				demoBelowHeadline: demoRect.top > headlineRect.bottom,
 				sceneAnimation: getComputedStyle(scene).animationName,
 				activeStage: demo.dataset.activeStage,
 				buttonText: ctaButton.textContent?.trim() || ''
@@ -928,19 +908,19 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.demoHeight).toBeLessThanOrEqual(metrics.bannerHeight);
 		expect(metrics.demoLeftGap).toBeGreaterThanOrEqual(40);
 		expect(metrics.demoRightGap).toBeGreaterThanOrEqual(40);
-		expect(metrics.demoBelowHeadline, 'Actionable demo should sit below the compact heading').toBe(true);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 		expect(metrics.sceneAnimation).toBe('none');
 		expect(metrics.activeStage).toBe('luma-cta');
 		expect(metrics.buttonText).toBe('Open on Luma');
 
 		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0, { timeout: 5000 });
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 		await page.waitForTimeout(1200);
 		await expect(page.getByTestId('landing-actionable-user-message')).toHaveCount(0);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.coordinated-story-progress,landing-onboarding.privacy-mates-platform-stories
-	test('collapsed guest inspirations scale proportionally and keep the heading above the animation', async ({ page }: { page: any }) => {
+	test('collapsed guest inspirations show a moving heading before a centered animation', async ({ page }: { page: any }) => {
 		test.setTimeout(180000);
 		const viewports = [
 			{ width: 393, height: 852 },
@@ -958,30 +938,32 @@ test.describe('Landing page onboarding refresh', () => {
 			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 			await skipExpandedLandingIntro(page);
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
-			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-actionable-heading-phase', 'ready', {
-				timeout: MOBILE_HEADING_COMPACT_SETTLE_MS + 1500
-			});
+			await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
+			await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
+			await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', 'visible');
+			await expect(page.getByTestId('landing-guest-heading-motion')).toHaveCSS('animation-name', /landingHeadingCenterDrift$/);
+			await expect(page.getByTestId('landing-guest-heading-motion')).toHaveCSS('animation-iteration-count', 'infinite');
+			const headingStartY = await page.getByTestId('landing-guest-heading-motion').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).translate.split(' ')[1] || '0'));
+			await page.waitForTimeout(420);
+			const headingEndY = await page.getByTestId('landing-guest-heading-motion').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).translate.split(' ')[1] || '0'));
+			expect(Math.abs(headingEndY - headingStartY), `${viewport.width}px: visible heading should keep moving`).toBeGreaterThan(0.25);
+			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: 4000 });
+			await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 			await waitForActionableStage(page, 'user-request');
 
 			const metrics = await page.evaluate(() => {
 				const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
 				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-				const copy = document.querySelector<HTMLElement>('[data-testid="guest-intro-copy"]');
-				const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 				const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
-				if (!area || !banner || !copy || !headline || !demo) throw new Error('Collapsed guest inspiration elements missing');
+				if (!area || !banner || !demo) throw new Error('Collapsed guest inspiration elements missing');
 				const areaRect = area.getBoundingClientRect();
 				const bannerRect = banner.getBoundingClientRect();
-				const copyRect = copy.getBoundingClientRect();
-				const headlineRect = headline.getBoundingClientRect();
 				const demoRect = demo.getBoundingClientRect();
 				return {
 					areaHeight: areaRect.height,
 					bannerWidth: bannerRect.width,
 					bannerHeight: bannerRect.height,
-					headingGroupCenterDeltaX: Math.abs((copyRect.left + copyRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
 					demoCenterDeltaX: Math.abs((demoRect.left + demoRect.width / 2) - (bannerRect.left + bannerRect.width / 2)),
-					demoBelowHeading: demoRect.top > headlineRect.bottom,
 					demoOverflowY: Math.max(0, bannerRect.top - demoRect.top, demoRect.bottom - bannerRect.bottom)
 				};
 			});
@@ -996,15 +978,13 @@ test.describe('Landing page onboarding refresh', () => {
 
 			expect(metrics.bannerHeight, `${viewport.width}px: banner should preserve the mobile aspect ratio until capped`).toBeCloseTo(expectedHeight, 0);
 			expect(metrics.areaHeight, `${viewport.width}px: reserved area should match the banner`).toBeCloseTo(metrics.bannerHeight, 0);
-			expect(metrics.headingGroupCenterDeltaX, `${viewport.width}px: compact heading group should be centered`).toBeLessThanOrEqual(3);
 			expect(metrics.demoCenterDeltaX, `${viewport.width}px: animation should be centered`).toBeLessThanOrEqual(3);
-			expect(metrics.demoBelowHeading, `${viewport.width}px: animation should sit below the heading`).toBe(true);
 			expect(metrics.demoOverflowY, `${viewport.width}px: animation should stay visually attached to the banner`).toBeLessThanOrEqual(ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX);
 		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
-	test('mobile actionable slide compacts copy above the animation', async ({ page }: { page: any }) => {
+	test('mobile actionable slide moves large copy out before showing readable animation', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
@@ -1017,36 +997,34 @@ test.describe('Landing page onboarding refresh', () => {
 
 		const initialActionable = await mobileActionableSlideState(page);
 		expect(initialActionable.bannerHeight, 'regular mobile guest banner should be 20px taller').toBeGreaterThanOrEqual(190);
-		expect(initialActionable.headlineFontSize, 'mobile headline should be large before the demo appears').toBeGreaterThanOrEqual(24);
-		expect(initialActionable.demoOpacity, 'demo should not be visible during the large-heading phase').toBeLessThanOrEqual(0.15);
+		expect(initialActionable.headingCount).toBe(1);
+		expect(initialActionable.headlineFontSize, 'mobile headline should use display type before the demo appears').toBeGreaterThanOrEqual(32);
+		expect(initialActionable.iconCount, 'coordinated story headings must not include category icons').toBe(0);
+		expect(initialActionable.demoCount, 'demo must not be mounted during the heading phase').toBe(0);
 		expect(initialActionable.headlineLeftGap, 'large mobile headline should remain inside the banner content bounds').toBeLessThanOrEqual(MOBILE_ACTIONABLE_HEADLINE_MAX_LEFT_GAP);
-		await page.getByTestId('daily-inspiration-phrase').evaluate((headline: HTMLElement & { __landingPhraseNodeToken?: string }) => {
-			headline.__landingPhraseNodeToken = 'mobile-actionable';
-		});
-		await page.getByTestId('guest-feature-inline-icon').evaluate((icon: HTMLElement & { __landingIconNodeToken?: string }) => {
-			icon.__landingIconNodeToken = 'mobile-actionable';
-		});
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveAttribute('data-motion-phase', 'visible');
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveCSS('animation-name', /landingHeadingCenterDrift$/);
+		await expect(page.getByTestId('landing-guest-heading-motion')).toHaveCSS('animation-iteration-count', 'infinite');
+		const headingStartY = await page.getByTestId('landing-guest-heading-motion').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).translate.split(' ')[1] || '0'));
+		await page.waitForTimeout(420);
+		const headingEndY = await page.getByTestId('landing-guest-heading-motion').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).translate.split(' ')[1] || '0'));
+		expect(Math.abs(headingEndY - headingStartY), 'heading should continuously slow and accelerate around center').toBeGreaterThan(0.25);
 
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-actionable-heading-phase', 'fading-out', {
-			timeout: MOBILE_HEADING_COMPACT_SETTLE_MS
+			timeout: 3000
 		});
 		const fadingOutActionable = await mobileActionableSlideState(page);
 		expect(fadingOutActionable.headlineFontSize, 'heading geometry must remain large throughout fade-out').toBe(initialActionable.headlineFontSize);
 		expect(fadingOutActionable.copyTop, 'heading position must not change before fade-out completes').toBeCloseTo(initialActionable.copyTop, 0);
 		await expect.poll(
 			async () => page.getByTestId('guest-intro-copy').evaluate((copy: HTMLElement) => Number.parseFloat(getComputedStyle(copy).opacity)),
-			{ timeout: MOBILE_HEADING_COMPACT_SETTLE_MS }
+			{ timeout: 3000 }
 		).toBeLessThanOrEqual(0.1);
-		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveAttribute('data-playing', 'false');
-		await expect(page.getByTestId('guest-intro-copy')).toHaveAttribute('data-actionable-heading-ready', 'false');
-		await expect.poll(
-			async () => page.getByTestId('guest-intro-copy').getAttribute('data-actionable-heading-ready'),
-			{ timeout: 1500 }
-		).toBe('true');
-		await expect.poll(
-			async () => page.getByTestId('guest-intro-copy').evaluate((copy: HTMLElement) => Number.parseFloat(getComputedStyle(copy).opacity)),
-			{ timeout: 1000 }
-		).toBeGreaterThanOrEqual(0.95);
+		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: 1500 });
+		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveAttribute('data-playing', 'true');
 
 		await waitForActionableStage(page, 'user-request');
 		await page.waitForTimeout(700);
@@ -1066,7 +1044,7 @@ test.describe('Landing page onboarding refresh', () => {
 
 		await waitForActionableStage(page, 'assistant-response');
 		await page.waitForTimeout(700);
-		const compactActionable = await mobileActionableSlideState(page);
+		const demoActionable = await mobileActionableSlideState(page);
 		const assistantMessageGeometry = await page.evaluate(() => {
 			const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
 			const row = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-row"]');
@@ -1080,31 +1058,18 @@ test.describe('Landing page onboarding refresh', () => {
 		});
 		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 8);
 		expect(assistantMessageGeometry.fontSize, 'mobile assistant message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
-		expect(compactActionable.headlineStableNode, 'mobile compaction should resize the same headline node instead of replacing it').toBe(true);
-		expect(compactActionable.iconStableNode, 'mobile compaction should preserve the same category icon node').toBe(true);
-		expect(compactActionable.headlineFontSize, 'headline should shrink into the compact top caption').toBeLessThanOrEqual(initialActionable.headlineFontSize * 0.72);
-		expect(compactActionable.headlineOpacity, 'compact headline should settle near half opacity').toBeGreaterThanOrEqual(0.45);
-		expect(compactActionable.headlineOpacity, 'compact headline should settle near half opacity').toBeLessThanOrEqual(0.58);
-		expect(compactActionable.iconWidth, 'the category icon should shrink but remain visible').toBeGreaterThan(12);
-		expect(compactActionable.iconWidth, 'the category icon should shrink with the caption').toBeLessThan(initialActionable.iconWidth * 0.72);
-		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeGreaterThanOrEqual(0.45);
-		expect(compactActionable.iconOpacity, 'the compact category icon should share the half-opacity treatment').toBeLessThanOrEqual(0.58);
-		expect(compactActionable.copyCenterDeltaX, 'the compact headline/icon group should be horizontally centered').toBeLessThanOrEqual(3);
-		expect(compactActionable.copyTop - compactActionable.bannerTop, 'the compact headline/icon group should sit at the banner top').toBeLessThanOrEqual(24);
-		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeGreaterThanOrEqual(4);
-		expect(compactActionable.iconHeadlineGap, 'compact category icon should sit immediately left of the headline').toBeLessThanOrEqual(20);
-		expect(compactActionable.iconHeadlineCenterDeltaY, 'compact category icon and headline should share a vertical center').toBeLessThanOrEqual(3);
-		expect(compactActionable.demoOpacity, 'demo should be visible below the compact headline').toBeGreaterThanOrEqual(0.85);
-		expect(compactActionable.demoTop, 'demo must sit below the compact headline').toBeGreaterThan(compactActionable.headlineBottom);
-		const compactDemoOverflowY = Math.max(0, compactActionable.demoBottom - compactActionable.bannerBottom);
+		expect(demoActionable.headingCount, 'heading must stay unmounted while the demo plays').toBe(0);
+		expect(demoActionable.iconCount).toBe(0);
+		expect(demoActionable.demoOpacity, 'demo should be visible after the heading exits').toBeGreaterThanOrEqual(0.85);
+		const compactDemoOverflowY = Math.max(0, demoActionable.demoBottom - demoActionable.bannerBottom);
 		expect(compactDemoOverflowY, 'demo should stay visually attached to the banner after compacting').toBeLessThanOrEqual(ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX);
-		expect(compactActionable.demoHeight, 'demo should keep useful vertical space').toBeGreaterThanOrEqual(80);
-		expect(compactActionable.reportButtonTop, 'report issue button should sit below the mobile banner, not behind it').toBeGreaterThanOrEqual(compactActionable.bannerBottom + 4);
-		expect(compactActionable.demoBackground, 'actionable demo should be transparent inside the gradient banner').toBe('rgba(0, 0, 0, 0)');
-		expect(compactActionable.demoBorderWidth, 'actionable demo should not render a dark boxed border').toBe('0px');
-		expect(compactActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
-		expect(compactActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X);
-		expect(compactActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_Y);
+		expect(demoActionable.demoHeight, 'demo should keep useful vertical space').toBeGreaterThanOrEqual(80);
+		expect(demoActionable.reportButtonTop, 'report issue button should sit below the mobile banner, not behind it').toBeGreaterThanOrEqual(demoActionable.bannerBottom + 4);
+		expect(demoActionable.demoBackground, 'actionable demo should be transparent inside the gradient banner').toBe('rgba(0, 0, 0, 0)');
+		expect(demoActionable.demoBorderWidth, 'actionable demo should not render a dark boxed border').toBe('0px');
+		expect(demoActionable.demoBoxShadow, 'actionable demo should not render a boxed shadow').toBe('none');
+		expect(demoActionable.demoContentCenterDeltaX, 'actionable demo content should be horizontally centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_X);
+		expect(demoActionable.demoContentCenterDeltaY, 'actionable demo content should be vertically centered').toBeLessThanOrEqual(MOBILE_ACTIONABLE_CONTENT_CENTER_MAX_DELTA_Y);
 
 		await waitForActionableStage(page, 'event-preview');
 		await expect.poll(
@@ -1113,13 +1078,11 @@ test.describe('Landing page onboarding refresh', () => {
 		).toBe('preview-clicked');
 		const mobilePreviewGeometry = await page.evaluate(() => {
 			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-			const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 			const preview = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"]');
 			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
 			const infoBar = preview?.querySelector<HTMLElement>('[data-testid="embed-basic-infos-bar"]');
-			if (!banner || !headline || !preview || !scene || !infoBar) throw new Error('Mobile Actionable preview geometry elements missing');
+			if (!banner || !preview || !scene || !infoBar) throw new Error('Mobile Actionable preview geometry elements missing');
 			const bannerRect = banner.getBoundingClientRect();
-			const headlineRect = headline.getBoundingClientRect();
 			const previewRect = preview.getBoundingClientRect();
 			const sceneRect = scene.getBoundingClientRect();
 			const infoBarRect = infoBar.getBoundingClientRect();
@@ -1129,27 +1092,27 @@ test.describe('Landing page onboarding refresh', () => {
 				infoBarVisible: infoBarRect.top >= previewRect.top && infoBarRect.bottom <= previewRect.bottom + 1,
 				fullyVisible: previewRect.left >= bannerRect.left - 1
 					&& previewRect.right <= bannerRect.right + 1
-					&& previewRect.top > headlineRect.bottom
+					&& previewRect.top >= bannerRect.top - 1
 					&& previewRect.bottom <= bannerRect.bottom + 1
 			};
 		});
 		expect(mobilePreviewGeometry.centerDeltaX, 'mobile event preview should remain horizontally centered').toBeLessThanOrEqual(2);
 		expect(mobilePreviewGeometry.infoBarHeight, 'mobile event preview should render its complete bottom info bar').toBeGreaterThanOrEqual(28);
 		expect(mobilePreviewGeometry.infoBarVisible, 'mobile event preview bottom info bar should remain inside the rounded card').toBe(true);
-		expect(mobilePreviewGeometry.fullyVisible, 'mobile event preview should be fully visible below the compact headline').toBe(true);
+		expect(mobilePreviewGeometry.fullyVisible, 'mobile event preview should be fully visible during the demo-only phase').toBe(true);
 
 		await page.evaluate((fadeSettleMs: number) => {
 			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 			const content = document.querySelector<HTMLElement>('[data-testid="guest-slide-content"]');
 			if (!banner || !content) throw new Error('Guest slide transition elements missing');
 			const transitionWindow = window as typeof window & {
-				__guestSlideTransitionSamples?: Array<{ phase: string; phrase: string; opacity: number }>;
+				__guestSlideTransitionSamples?: Array<{ phase: string; inspirationId: string; opacity: number }>;
 			};
 			transitionWindow.__guestSlideTransitionSamples = [];
 			const observer = new MutationObserver(() => {
 				transitionWindow.__guestSlideTransitionSamples?.push({
 					phase: banner.dataset.guestSlidePhase ?? '',
-					phrase: document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]')?.textContent?.trim() ?? '',
+					inspirationId: banner.dataset.currentInspirationId ?? '',
 					opacity: Number.parseFloat(getComputedStyle(content).opacity)
 				});
 			});
@@ -1158,7 +1121,7 @@ test.describe('Landing page onboarding refresh', () => {
 		}, MOBILE_SLIDE_FADE_SETTLE_MS);
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'fading-out');
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-actionable-events');
 		await expect.poll(
 			async () => page.getByTestId('guest-slide-content').evaluate((content: HTMLElement) => Number.parseFloat(getComputedStyle(content).opacity)),
 			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
@@ -1168,15 +1131,15 @@ test.describe('Landing page onboarding refresh', () => {
 			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
 		).toBeGreaterThanOrEqual(0.95);
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle');
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 		const transitionSamples = await page.evaluate(() => (
 			(window as typeof window & {
-				__guestSlideTransitionSamples?: Array<{ phase: string; phrase: string; opacity: number }>;
+				__guestSlideTransitionSamples?: Array<{ phase: string; inspirationId: string; opacity: number }>;
 			}).__guestSlideTransitionSamples ?? []
 		));
 		expect(transitionSamples.some((sample) => sample.phase === 'hidden'), 'slide transition should include an explicit hidden phase').toBe(true);
 		expect(
-			transitionSamples.some((sample) => sample.phrase.includes('Privacy & safety by design.') && sample.opacity <= 0.05),
+			transitionSamples.some((sample) => sample.inspirationId === 'openmates-privacy-safety' && sample.opacity <= 0.05),
 			'new slide content must be swapped only while the previous content is fully transparent'
 		).toBe(true);
 
@@ -1185,7 +1148,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle', {
 			timeout: MOBILE_SLIDE_FADE_SETTLE_MS
 		});
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-actionable-events');
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 2000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-landing-intro-phase', 'expanded');
