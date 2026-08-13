@@ -240,8 +240,7 @@ def test_cli_terminal_timeline_types_command_then_replays_real_output_delay() ->
     )
 
     states = timeline["states"]
-    assert states[0]["text"] == "$ "
-    assert states[1]["text"].startswith("$ o")
+    assert states[0]["text"] == "$ openmates plans create --title 'Tutorial plan'"
     assert states[-1]["text"].endswith("Status: draft\n")
     assert timeline["first_output_at"] == pytest.approx(
         timeline["typing_completed_at"] + module.TERMINAL_MAX_OUTPUT_GAP_SECONDS,
@@ -266,6 +265,16 @@ def test_cli_terminal_timeline_caps_slow_network_gaps() -> None:
     )
     assert timeline["duration_seconds"] < 20
     assert timeline["states"][-1]["text"].endswith("credits visible\n")
+
+
+def test_terminal_ass_text_tails_latest_visible_lines() -> None:
+    module = load_module()
+    text = "\n".join(f"line {index}" for index in range(module.TERMINAL_VISIBLE_LINES + 3))
+
+    rendered = module._terminal_ass_text(text)
+
+    assert "line 0" not in rendered
+    assert f"line {module.TERMINAL_VISIBLE_LINES + 2}" in rendered
 
 
 def test_cli_display_command_replaces_test_harness_and_dist_cli_paths() -> None:

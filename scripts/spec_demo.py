@@ -36,6 +36,7 @@ TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
 TERMINAL_COLUMNS = 72
+TERMINAL_VISIBLE_LINES = 14
 TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
@@ -481,15 +482,9 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
 def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]) -> dict[str, Any]:
     """Build visible typing and output states with bounded network waits."""
     command = f"$ {shlex.join(argv)}"
-    states: list[dict[str, Any]] = []
-    visible = "$ "
-    for character in command[2:]:
-        states.append({"start": len(states) * TERMINAL_TYPING_INTERVAL_SECONDS, "text": visible})
-        visible += character
-    typing_completed_at = len(states) * TERMINAL_TYPING_INTERVAL_SECONDS
-    if not states:
-        states.append({"start": 0.0, "text": visible})
-    states.append({"start": typing_completed_at, "text": visible})
+    visible = command
+    typing_completed_at = 0.0
+    states: list[dict[str, Any]] = [{"start": 0.0, "text": visible}]
     first_output_at: float | None = None
     output_cursor = typing_completed_at
     previous_event_time: float | None = None
@@ -532,7 +527,7 @@ def _terminal_ass_text(text: str) -> str:
     wrapped: list[str] = []
     for line in text.splitlines():
         wrapped.extend(textwrap.wrap(line, width=TERMINAL_COLUMNS, replace_whitespace=False) or [""])
-    escaped = "\n".join(wrapped).replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
+    escaped = "\n".join(wrapped[-TERMINAL_VISIBLE_LINES:]).replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
     return escaped.replace("\n", r"\N")
 
 
