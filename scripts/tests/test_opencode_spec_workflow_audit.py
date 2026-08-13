@@ -189,7 +189,7 @@ def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
         "narration outline",
         "frame-only review",
         "proof-video",
-        "ElevenLabs",
+        "narration audio is optional",
         "Discord delivery",
     }.issubset(audit.PLAN_PROMPT_TERMS)
 
@@ -197,21 +197,38 @@ def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
 def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
     audit = load_audit_module()
     expected = {
+        ".claude/skills/create-demo-video/SKILL.md": {
+            "proof_video_workflow.py start --current",
+            "audio is off by default",
+            "bottom-centered",
+        },
         ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
         ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
-        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "configured Discord publication", "ElevenLabs"},
-        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending", "ElevenLabs", "configured Discord delivery"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "configured Discord publication", "optional narration audio"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending", "intentional audio status", "configured Discord delivery"},
     }
 
     for path, terms in expected.items():
         assert terms.issubset(audit.SKILL_TERMS[path])
 
 
+def test_opencode_spec_workflow_audit_requires_bounded_proof_reviewer(tmp_path):
+    audit = load_audit_module()
+    reviewer = tmp_path / ".claude" / "agents" / "proof-video-reviewer.md"
+    reviewer.parent.mkdir(parents=True)
+    reviewer.write_text("incomplete", encoding="utf-8")
+
+    failures = audit.audit_proof_video_reviewer(tmp_path)
+
+    assert any("full video" in failure for failure in failures)
+    assert any("product_defect" in failure for failure in failures)
+
+
 def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms():
     audit = load_audit_module()
 
     assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
-    assert "ElevenLabs" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "narration audio is optional" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
     assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
     assert "proof-video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
 

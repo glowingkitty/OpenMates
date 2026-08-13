@@ -1,0 +1,436 @@
+schema_version: 2
+id: focused-proof-video-workflow
+title: Focused OpenCode Proof Video Workflow
+status: approved
+
+goal: >
+  Replace manual proof-video assembly with one focused OpenCode command that
+  infers current evidence, preserves an approved caption/assertion contract,
+  performs bounded mechanical media processing, and prepares a small frame-only
+  review bundle without mandatory audio or CPU-heavy video analysis.
+
+scope:
+  in:
+    - Add one repository-local `proof_video_workflow.py start --current` entry point.
+    - Infer the current sessions.py session, subject commit, and matching passing test run when unambiguous.
+    - Store an LLM-authored tutorial transcript plus one to five visible assertions as an approved hash-addressed proof contract.
+    - Require an explicit capture-ready timestamp for browser and native recordings and trim from that marker with a small fixed lead.
+    - Default to caption-only proof videos; retain existing narration audio only as explicit opt-in behavior.
+    - Render sentence-level captions at bottom center with bounded whole-video slowdown and final-frame hold.
+    - Enforce fixed duration, frame-count, concurrency, analysis, and automatic-rerender limits.
+    - Build a bounded frame bundle for semantic review and classify failures as capture, render, product, or uncertain.
+    - Update the create-demo-video skill and completion hint to use the focused entry point.
+  out:
+    - Product REST API, WebSocket, SDK, web UI, Apple app, CLI product command, or Directus changes.
+    - Marketing video creation or promotional editing.
+    - OCR, generic pixel-based UI understanding, full-video model input, scene-by-scene retiming, or automatic product-code repair.
+    - Automatic scrolling inferred from video pixels.
+    - Requiring audio by default or removing existing opt-in audio support.
+
+context_discovery:
+  github_issues:
+    - No tracker issue was supplied; this is an explicitly requested OpenCode workflow improvement.
+  docs:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - .claude/skills/create-demo-video/SKILL.md
+  code_patterns:
+    - scripts/spec_demo.py already owns FFmpeg rendering, device profiles, frame extraction, privacy scanning, and Discord publication.
+    - scripts/sessions.py already owns proof-video session evidence and the completion gate.
+    - scripts/tests.py stores passing run IDs, subject commits, and GitHub run URLs.
+    - Recent OpenCode sessions repeatedly rediscovered 800x450 source incompatibility, audio setup, blank opening frames, manual trimming, and narration pacing.
+  tests:
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+
+clarification:
+  rounds:
+    - question: Should proof narration audio remain mandatory?
+      answer: No. Transcript captions are sufficient by default; audio creation is off unless explicitly requested.
+    - question: Should the workflow automatically understand video frames?
+      answer: No. Deterministic tooling handles only objective provenance and media mechanics; semantic judgment belongs to bounded frame review.
+    - question: How much automation is appropriate?
+      answer: Use one start command, an explicit ready marker, bounded slowdown/final hold, fixed frame limits, and at most one mechanical rerender.
+    - question: Should product defects be fixed automatically by the video workflow?
+      answer: No. Product defects return to the responsible failing-test and implementation workflow and must never be hidden by editing.
+  vision_summary: >
+    Proof creation should consume few agent turns and predictable CPU. An LLM
+    writes the short tutorial transcript and assertions; the user approves new
+    visible claims; deterministic tooling performs bounded capture/render work;
+    a narrowly instructed reviewer sees only selected frames and routes real
+    defects back to the correct workflow.
+  approved_by_user: true
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Apple recordings may use the focused tooling later, but this implementation changes no Apple product behavior.
+  verification:
+    - Apple not affected.
+  intentional_native_differences: [none]
+
+implementation_state:
+  subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+
+approvals:
+  product_contract:
+    status: not_required
+    reason: The user explicitly classified this as repository-local OpenCode workflow tooling rather than an OpenMates product feature.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-08-12T00:00:00Z"
+    reason: The user approved the focused one-command, caption-first, bounded-processing plan and requested implementation and tests.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Audio is off by default and remains opt-in.
+    reason: Captioned transcripts provide the review contract without provider cost, latency, or safety-classifier friction.
+    decided_at: "2026-08-12T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Explicit readiness markers are authoritative for trimming; only a bounded low-resolution first-frame check is allowed as fallback validation.
+    reason: Markers are cheaper and more reliable than generic frame scanning.
+    decided_at: "2026-08-12T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Pacing uses only whole-video slowdown down to 0.75x and a final-frame hold, with no per-scene retiming.
+    reason: Existing renderer support is predictable and avoids a fragile editing engine.
+    decided_at: "2026-08-12T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Semantic review receives three to eight frames per device and returns a classified frame-grounded verdict.
+    reason: A bounded reviewer is more reliable than pixel heuristics and cheaper than repeated main-agent frame exploration.
+    decided_at: "2026-08-12T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Mechanical defects may rerender once; product defects must return to implementation.
+    reason: Video editing must not conceal broken product behavior.
+    decided_at: "2026-08-12T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft a product contract bundle before specification.
+    outcome: rejected
+    recorded_at: "2026-08-12T00:00:00Z"
+    reason: User clarified that this is OpenCode workflow tooling and must not create an OpenMates product contract.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Use a Schema V2 tooling spec with an explicit no-product-contract classification.
+    outcome: succeeded
+    recorded_at: "2026-08-12T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy the verified focused proof-video workflow tooling.
+  command: python3 scripts/sessions.py deploy --session 59a3 --title "Focus proof-video workflow" --message "Focus proof-video workflow"
+  expected_outcome: Verified workflow tooling is committed and pushed through the session deploy path.
+  blocker: null
+  last_verified_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+
+scenarios:
+  - id: S-1
+    title: One command resolves current proof context
+    given:
+      - An active OpenCode chat is mapped to a sessions.py session.
+      - A named spec has a passing test result for the current deployed commit.
+    when:
+      - The agent runs `python3 scripts/proof_video_workflow.py start --current --spec example.spec.ts`.
+    then:
+      - The script infers the short session ID, full subject commit, and matching passing source run ID.
+      - Ambiguous or missing state returns one precise next action rather than guessing.
+      - Generic 800x450 Playwright video is rejected before rendering when an exact phone or laptop profile is required.
+  - id: S-2
+    title: Approved transcript contract gates capture
+    given:
+      - New user-visible proof claims require a short tutorial transcript and one to five visible assertions.
+    when:
+      - The script receives a draft contract without an approval hash.
+    then:
+      - It writes a canonical contract file, prints its complete content and hash, and stops before capture.
+      - A later invocation accepts only an unchanged approved contract hash.
+  - id: S-3
+    title: Marker-based caption-only rendering remains bounded
+    given:
+      - An exact-dimension recording has a capture-ready marker and an approved transcript.
+    when:
+      - The workflow prepares the render.
+    then:
+      - The source is trimmed to the marker minus a fixed small lead.
+      - Audio is omitted unless explicitly requested.
+      - Sentence captions render bottom-center.
+      - The workflow calculates at most 0.75x slowdown plus a final hold and caps output at 35 seconds.
+      - Only one device renders at a time and at most one mechanical rerender is allowed.
+  - id: S-4
+    title: Bounded frame review routes defects
+    given:
+      - Deterministic provenance and render checks pass.
+    when:
+      - The review bundle is prepared.
+    then:
+      - It contains the approved contract, deterministic metadata, and three to eight frames per device, never the full video.
+      - The reviewer returns passed, capture_defect, render_defect, product_defect, or uncertain with frame-grounded observations.
+      - Product defects return to implementation and cannot be hidden by cropping, trimming, captions, or transcript changes.
+
+acceptance_criteria:
+  - { id: AC-1, scenario: S-1, text: "The single start command infers current session, subject commit, and matching passing run when unambiguous and emits one actionable blocker otherwise.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
+  - { id: AC-2, scenario: S-2, text: "New visible claims stop before capture until the canonical transcript and one-to-five assertion contract hash is approved; unchanged approved hashes are reusable.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
+  - { id: AC-3, scenario: S-3, text: "Caption-only is the default, Playwright captions are bottom-centered, and existing audio support requires explicit opt-in.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
+  - { id: AC-4, scenario: S-3, text: "Marker trim, simple pacing, 35-second output, bounded frame analysis, serial device processing, caching, and one-rerender limits are deterministic and tested.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PROOF-WORKFLOW] }
+  - { id: AC-5, scenario: S-4, text: "The review request contains three-to-eight frames per device plus the approved contract and metadata but no full video content.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
+  - { id: AC-6, scenario: S-4, text: "Mechanical defects permit at most one automated correction while product defects produce a classified return-to-implementation result.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
+
+assumptions:
+  - id: A-1
+    text: Existing sessions.py and tests.py metadata can resolve current session, test commit, and passing run without adding a new datastore.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/sessions.py and scripts/tests.py
+        summary: Session mappings, proof records, test git_sha, external run IDs, and GitHub run URLs already exist.
+  - id: A-2
+    text: Existing spec_demo.py FFmpeg paths can render caption-only media after making audio optional.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/spec_demo.py
+        summary: Video and subtitle rendering are already separate FFmpeg filter inputs; audio can be conditionally omitted without replacing the pipeline.
+
+contracts:
+  api:
+    - surface: Repository-local OpenCode workflow only; no endpoint changes.
+      access_model: internal-only
+      auth: Existing local filesystem, GitHub CLI, and configured test tooling access only.
+      rate_limits: No product rate limit; fixed local CPU and frame limits apply.
+      credit_budget: No product credits; audio provider use is disabled by default.
+      encryption_boundary: No client-encrypted product content contract changes; existing proof privacy scanning remains fail-closed.
+  data:
+    - Proof contracts and workflow manifests are local gitignored evidence; only the executable spec and tooling are tracked.
+    - Full videos never enter agent/model context.
+    - Source and contract hashes make cached processing reusable and detect stale approval.
+  privacy_security:
+    - Existing secret scanner and owner-only artifact permissions remain required.
+    - The workflow never prints webhook URLs, credentials, raw private test data, or unsanitized source metadata.
+
+phase_gates:
+  api_websocket: { status: not_applicable, reason: "No product API or WebSocket behavior changes." }
+  cli: { status: not_applicable, reason: "No OpenMates product CLI command changes; this is a repository script." }
+  sdk: { status: not_applicable, reason: "No npm or pip SDK behavior changes." }
+  web: { status: not_applicable, reason: "No web product source changes." }
+  visual_smoke: { status: not_applicable, reason: "The implementation is non-visual repository tooling; synthetic media fixtures verify rendering." }
+  user_confirmation: { status: not_applicable, reason: "The user approved the tooling behavior in this chat; no deployed product UI is changed." }
+  apple: { status: not_applicable, reason: "Apple product behavior is unaffected." }
+
+tests:
+  - id: T-PROOF-WORKFLOW
+    type: pytest
+    file: scripts/tests/test_proof_video_workflow.py
+    command: python3 -m pytest scripts/tests/test_proof_video_workflow.py -q
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - current session, commit, and passing run resolution is deterministic and ambiguity is explicit
+      - canonical contract hashes gate capture and remain stable
+      - marker trim and simple pacing calculations obey fixed limits
+      - caption-only defaults, caching, frame budgets, and defect routing are enforced
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_proof_video_workflow.py -q
+        run_id: local-2026-08-12-focused-proof-workflow-red
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-12T14:52:17Z"
+        summary: Test collection failed because the focused proof_video_workflow module did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate -q
+        run_id: local-2026-08-13-focused-proof-workflow-green
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-13T10:51:12Z"
+        summary: Focused workflow, approval, attestation, and session provenance tests passed.
+  - id: T-PROOF-RENDER
+    type: pytest
+    file: scripts/tests/test_sessions_proof_video.py
+    command: python3 -m pytest scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_demonstration_pipeline.py -q
+    covers: [AC-3, AC-5]
+    assertions:
+      - Playwright captions use bottom-center alignment
+      - caption-only rendering produces video without requiring narration audio
+      - opt-in audio and existing privacy, provenance, frame-only, and device-profile guards remain valid
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_sessions_proof_video.py -q
+        run_id: local-2026-08-12-focused-proof-render-red
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-12T14:52:17Z"
+        summary: Seven existing checks passed and the new caption check failed because Playwright captions still used top-center Alignment=8.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_demonstration_pipeline.py -q
+        run_id: local-2026-08-13-focused-proof-render-green
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-13T10:51:12Z"
+        summary: Caption-only, bottom-centered captions, output bounds, audio provenance, and artifact-hash render checks passed.
+  - id: T-PROOF-AUDIT
+    type: pytest
+    file: scripts/tests/test_opencode_spec_workflow_audit.py
+    command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py -q && python3 scripts/audit_opencode_spec_workflow.py
+    covers: [AC-1, AC-2]
+    assertions:
+      - canonical create-demo-video skill and workflow instructions point to the single focused entry point
+      - skill mirrors remain synchronized
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py -q
+        run_id: local-2026-08-12-focused-proof-audit-baseline
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-12T14:52:17Z"
+        summary: Existing workflow audit tests passed before the focused entry-point assertions are added.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py -q && python3 scripts/audit_opencode_spec_workflow.py && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/sync_agent_parity.py --check
+        run_id: local-2026-08-13-focused-proof-audit-green
+        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+        timestamp: "2026-08-13T10:51:12Z"
+        summary: Workflow instruction audits, output quality audit, tooling parity audit, and agent parity check passed.
+
+verifications:
+  - id: V-FOCUSED-TESTS
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    status: passed
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    evidence:
+      status: passed
+      command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_spec_demonstration_review.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py scripts/tests/test_tests_control.py::test_normalize_playwright_report_retains_one_terminal_video_artifact scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_skipped_deploy_gate_is_not_verified scripts/tests/test_tests_control.py::test_normalize_playwright_report_preserves_duplicate_video_attachments scripts/tests/test_tests_control.py::test_duplicate_video_attachments_do_not_create_proof_source_attestation scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate scripts/tests/test_tests_control.py::test_e2e_deploy_gate_checks_playwright_targets scripts/tests/test_tests_control.py::test_e2e_deploy_gate_skips_non_playwright_targets -q
+      run_id: local-2026-08-13-focused-proof-final
+      subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+      timestamp: "2026-08-13T10:51:12Z"
+      summary: 200 affected pytest checks passed with pytest cache disabled, plus workflow audits and parity checks passed separately.
+
+implementation_plan:
+  spec_path: docs/specs/focused-proof-video-workflow/spec.yml
+  architecture: >
+    Add a small orchestration module that computes context, contract hashes,
+    marker trims, pacing, frame budgets, cache keys, and classified next actions.
+    Keep FFmpeg and publication mechanics in spec_demo.py and sessions.py.
+  existing_patterns:
+    - Reuse sessions.py session/test evidence instead of creating a new state store.
+    - Reuse spec_demo.py media, privacy, frame, and publication helpers.
+    - Keep create-demo-video as concise agent guidance around one script command.
+  data_flow:
+    - Start resolves session, commit, spec, and passing run metadata.
+    - A canonical YAML proof contract is hashed and checked for approval.
+    - Capture records an explicit ready marker; orchestration computes trim and pacing.
+    - spec_demo renders caption-only media and extracts bounded frames.
+    - A frame-only reviewer records a classified verdict; sessions.py persists completion state.
+  affected_files:
+    - { path: scripts/proof_video_workflow.py, reason: "Add the focused single-command orchestrator and bounded calculations." }
+    - { path: scripts/spec_demo.py, reason: "Make audio optional and fix bottom-center Playwright captions." }
+    - { path: scripts/sessions.py, reason: "Expose caption-only production and point completion hints to the orchestrator." }
+    - { path: .claude/skills/create-demo-video/SKILL.md, reason: "Replace manual recipes with the focused workflow." }
+    - { path: scripts/audit_opencode_spec_workflow.py, reason: "Audit the focused entry point and caption-first contract." }
+    - { path: scripts/tests/test_proof_video_workflow.py, reason: "Test orchestration and resource bounds." }
+    - { path: scripts/tests/test_sessions_proof_video.py, reason: "Test caption-only session rendering and completion." }
+  verification_strategy:
+    - Run the new focused pytest file red before implementation.
+    - Run existing proof-video tests to preserve privacy, provenance, device, and publication guards.
+    - Run the workflow audit and agent parity sync check after skill edits.
+    - Use synthetic short media fixtures only; no deployed product proof or proof video is required for this non-product tooling change.
+  verification_order:
+    - Validate this executable spec.
+    - Add and record failing focused tests.
+    - Implement orchestration and caption-only rendering.
+    - Update skill, completion hint, and audit.
+    - Run focused regressions, workflow audit, parity checks, and spec verification.
+
+tasks:
+  - id: TASK-1
+    title: Specify focused proof-video workflow
+    status: done
+    phase: complete
+    covers: { scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6] }
+    expected_files: [docs/specs/focused-proof-video-workflow/spec.yml]
+    verification_ids: [T-PROOF-WORKFLOW]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
+  - id: TASK-2
+    title: Add focused red tests
+    status: done
+    phase: complete
+    covers: { scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6] }
+    expected_files: [scripts/tests/test_proof_video_workflow.py, scripts/tests/test_sessions_proof_video.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership: { files: [scripts/tests/test_proof_video_workflow.py, scripts/tests/test_sessions_proof_video.py], shared_files: [] }
+  - id: TASK-3
+    title: Implement focused orchestration and caption-only rendering
+    status: done
+    phase: complete
+    covers: { scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6] }
+    expected_files: [scripts/proof_video_workflow.py, scripts/spec_demo.py, scripts/sessions.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    ownership: { files: [scripts/proof_video_workflow.py, scripts/spec_demo.py, scripts/sessions.py], shared_files: [] }
+  - id: TASK-4
+    title: Update agent guidance and deterministic audit
+    status: done
+    phase: complete
+    covers: { scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2] }
+    expected_files: [.claude/skills/create-demo-video/SKILL.md, .agents/skills/create-demo-video/SKILL.md, scripts/audit_opencode_spec_workflow.py]
+    verification_ids: [T-PROOF-AUDIT]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    ownership: { files: [.claude/skills/create-demo-video/SKILL.md, .agents/skills/create-demo-video/SKILL.md, scripts/audit_opencode_spec_workflow.py], shared_files: [] }
+  - id: TASK-5
+    title: Verify and deploy workflow tooling
+    status: done
+    phase: complete
+    covers: { scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6] }
+    expected_files: [docs/specs/focused-proof-video-workflow/spec.yml]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT, V-FOCUSED-TESTS]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: []
+    ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
+
+risks:
+  - risk: Metadata inference may select stale or ambiguous test evidence.
+    mitigation: Require exact commit/status/spec matching and fail with one actionable next command when multiple candidates remain.
+  - risk: Caption-only media changes could weaken existing proof completion checks.
+    mitigation: Preserve privacy, provenance, frame review, device, and publication requirements while making only audio optional.
+  - risk: Media processing may consume excessive CPU.
+    mitigation: Process one device at a time, cap output and frame counts, avoid OCR/full scans, cache by source and contract hash, and allow one rerender.
+  - risk: Trimming could hide a product defect.
+    mitigation: Trim only to an explicit ready marker with a small fixed lead; semantic product defects return to implementation.
+
+open_questions: []

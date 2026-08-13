@@ -88,18 +88,19 @@ Every new feature implementation, every new hardcoded example chat, and every
 nightly/daily/CI failed E2E that is actively debugged in a chat and turns green
 requires proof-video evidence before completion. A test report, screenshots, or
 visual-smoke evidence alone never satisfies this gate. Use `create-demo-video`
-with passing real CLI or deployed Playwright evidence, ElevenLabs
-`eleven_flash_v2_5` narration audio, and burned-in captions. Web/spec/example
+and `python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts`
+with passing real CLI or deployed Playwright evidence and burned-in captions;
+narration audio is optional. Web/spec/example
 chat proof uses separate phone and laptop videos, Apple proof uses separate
 iPhone portrait and iPad landscape videos, and CLI proof uses one terminal video.
 Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
 iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
 `1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device
-captures wrapped in a generic 16:9/16:10 canvas. Narration must describe the
+captures wrapped in a generic 16:9/16:10 canvas. The transcript must describe the
 specific visible UI/action/result, not generic success claims; use retiming or a
-last-frame hold when the source flow moves too quickly, and mix product audio
-under narration when playback is part of the claim. Give the active agent the
-canonical narration and bounded image frames, never the full video. Use a default
+last-frame hold when the source flow moves too quickly, and preserve product audio
+when playback is part of the claim. Give the active agent the canonical transcript
+and bounded image frames, never the full video. Use a default
 three-second interval plus event boundaries, request exact-timestamp frames only
 when needed, and require confirmed Discord delivery before completion when the
 proof destination is configured. If any reviewed frame shows an objective product

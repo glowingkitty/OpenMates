@@ -119,8 +119,8 @@ For full specs:
     debugged nightly/daily/CI failed E2E work that turns green require proof-video
     evidence after all applicable normal green gates. Write tutorial-style
     narration that explains the feature, the action, and what the viewer should
-    verify; render real Playwright or PTY evidence with ElevenLabs
-    `eleven_flash_v2_5` audio and burned-in captions, scan all text entering the
+    verify; render real Playwright or PTY evidence with burned-in captions;
+    narration audio is optional. Scan all text entering the
     rendered artifact, and perform a demonstration review from captions plus
     bounded frames. Never place the full video in agent/model context. Default to
     frames every three seconds plus action, scene, state-change, and caption
@@ -166,8 +166,8 @@ classification.
     Apple verification follows user confirmation. The narration should work as a
     short tutorial: explain the feature, describe the action being shown, and tell
     the viewer what visible result confirms success so review can detect obvious
-    mismatches. Caption text is canonical, captions are burned in, and ElevenLabs
-    `eleven_flash_v2_5` audio is required. Raw evidence and edited demonstration
+    mismatches. Caption text is canonical and captions are burned in; narration
+    audio is optional. Raw evidence and edited demonstration
     media remain distinct, and reconstructed terminal segments must match a real
     sanitized transcript hash and show a reconstruction label.
 

@@ -33,6 +33,7 @@ def load_tests_control(tmp_path, monkeypatch):
 
     results_dir = tmp_path / "test-results"
     monkeypatch.setattr(module, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(module, "PROOF_SOURCE_DIR", results_dir / "proof-video-sources")
     monkeypatch.setattr(module, "STATE_FILE", results_dir / "tests-state.json")
     monkeypatch.setattr(module, "HISTORY_FILE", results_dir / "tests-history.jsonl")
     monkeypatch.setattr(module, "LEASES_FILE", results_dir / "failed-test-leases.json")
@@ -592,6 +593,140 @@ def test_import_run_accepts_raw_pytest_json_report(tmp_path, monkeypatch):
     assert failed["status"] == "failed"
     assert failed["error"] == "assert False"
     assert tests_control.get_store().test_runs["29613991033"]["workflow"] == "pytest-unit.yml"
+
+
+def test_normalize_playwright_report_retains_one_terminal_video_artifact(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = tmp_path / "video.webm"
+    report = {
+        "config": {},
+        "metadata": {"gitCommit": {"hash": "abc1234", "branch": "dev"}},
+        "suites": [
+            {
+                "file": "example.spec.ts",
+                "specs": [
+                    {
+                        "file": "example.spec.ts",
+                        "tests": [
+                            {
+                                "results": [
+                                    {
+                                        "status": "passed",
+                                        "duration": 1000,
+                                        "attachments": [{"name": "video", "contentType": "video/webm", "path": str(video)}],
+                                    }
+                                ]
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    test = normalized["suites"]["playwright"]["tests"][0]
+    assert test["artifact_path"] == str(video)
+
+
+def test_record_latest_run_artifact_persists_deploy_gate_metadata(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"verified-video")
+    artifact.write_text(json.dumps({
+        "run_id": "run-one",
+        "git_sha": commit,
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts", "status": "passed", "artifact_path": str(video),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    persisted = json.loads(artifact.read_text(encoding="utf-8"))
+    assert recorded == commit
+    assert persisted["deployment_verified"] is True
+    assert persisted["deployment_reference"] == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["artifact_sha256"].startswith("sha256:")
+
+
+def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "example.spec.ts"],
+        expected_commit="abc1234",
+        gate_deploy=True,
+    )
+    monkeypatch.setenv("OPENMATES_SKIP_E2E_DEPLOY_GATE", "true")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abc1234")
+
+    assert tests_control.run_e2e_deploy_gate(options) is False
+    assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_normalize_playwright_report_preserves_duplicate_video_attachments(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = str(tmp_path / "video.webm")
+    result = {
+        "status": "passed",
+        "duration": 1000,
+        "attachments": [
+            {"contentType": "video/webm", "path": video},
+            {"contentType": "video/webm", "path": video},
+        ],
+    }
+    report = {
+        "config": {},
+        "suites": [{"file": "example.spec.ts", "specs": [{"tests": [{"results": [result]}]}]}],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    assert normalized["suites"]["playwright"]["tests"][0]["artifact_paths"] == [video, video]
+
+
+def test_duplicate_video_attachments_do_not_create_proof_source_attestation(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"video")
+    run_data = {
+        "run_id": "run-one",
+        "git_sha": commit,
+        "deployment_reference": commit,
+        "deployment_verified": True,
+        "gate_deploy": True,
+        "suites": {"playwright": {"tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "artifact_paths": [str(video), str(video)],
+        }]}},
+    }
+
+    assert tests_control.record_proof_source_attestations(run_data) == []
+    assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+
+    with pytest.raises(RuntimeError, match="passed deploy gate"):
+        tests_control.record_proof_source_attestations({
+            "run_id": "run-one",
+            "git_sha": commit,
+            "deployment_reference": commit,
+            "deployment_verified": True,
+            "suites": {"playwright": {"tests": []}},
+        })
 
 
 def test_full_unit_suite_retires_absent_stale_failures(tmp_path, monkeypatch):

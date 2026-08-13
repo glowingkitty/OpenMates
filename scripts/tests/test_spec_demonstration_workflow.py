@@ -141,6 +141,16 @@ def test_validator_accepts_required_demonstration_outline(tmp_path: Path) -> Non
     assert data["demonstration"]["narration_outline"][0]["id"] == "NARR-1"
 
 
+def test_validator_accepts_caption_only_demonstration_audio_status(tmp_path: Path) -> None:
+    spec_validate = load_module("spec_validate")
+    demonstration = required_demonstration().replace("audio_status: pending", "audio_status: not_required")
+    path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), demonstration))
+
+    data = spec_validate.validate_spec(path)
+
+    assert data["demonstration"]["evidence"]["audio_status"] == "not_required"
+
+
 def test_validator_rejects_required_demonstration_without_outline(tmp_path: Path) -> None:
     spec_validate = load_module("spec_validate")
     demonstration = required_demonstration().replace(

@@ -205,8 +205,8 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
         failures.append("demonstration: missing required passing evidence")
     if evidence.get("privacy_status") != "passed":
         failures.append("demonstration: privacy review has not passed")
-    if evidence.get("audio_status") != "passed":
-        failures.append("demonstration: ElevenLabs narration audio has not passed")
+    if evidence.get("audio_status") not in {"passed", "not_required"}:
+        failures.append("demonstration: narration audio is neither passed nor intentionally disabled")
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
     if evidence.get("publication_status") != "delivered":
@@ -245,10 +245,11 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
                 review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
                 audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
                 publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
-                if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
-                    failures.append("demonstration: narration audio must use ElevenLabs eleven_flash_v2_5")
-                if manifest.get("video_metadata", {}).get("has_audio") is not True:
-                    failures.append("demonstration: rendered video is missing an audio track")
+                if audio.get("status") == "passed":
+                    if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
+                        failures.append("demonstration: narration audio must use ElevenLabs eleven_flash_v2_5")
+                    if manifest.get("video_metadata", {}).get("has_audio") is not True:
+                        failures.append("demonstration: rendered video is missing requested narration audio")
                 expected = {
                     "subject_commit": manifest.get("subject_commit"),
                     "privacy_status": privacy.get("status"),

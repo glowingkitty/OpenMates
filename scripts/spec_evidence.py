@@ -111,11 +111,11 @@ def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: ar
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
     if payload["status"] == "passed" and (
         privacy.get("status") != "passed"
-        or audio.get("status") != "passed"
+        or audio.get("status") not in {"passed", "not_required"}
         or review.get("status") != "passed"
         or publication.get("status") != "delivered"
     ):
-        raise RuntimeError("Passing demonstration evidence requires passed privacy, audio, review, and Discord delivery states")
+        raise RuntimeError("Passing demonstration evidence requires privacy, audio intent, review, and Discord delivery states")
     manifest_commit = manifest.get("subject_commit")
     if manifest_commit != payload["subject_commit"]:
         raise RuntimeError("Demonstration manifest subject commit does not match recorded evidence")

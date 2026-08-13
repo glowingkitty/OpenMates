@@ -44,7 +44,7 @@ PLAN_PROMPT_TERMS = {
     "narration outline",
     "frame-only review",
     "proof-video",
-    "ElevenLabs",
+    "narration audio is optional",
     "Discord delivery",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
@@ -52,6 +52,13 @@ PLAN_EDIT_PERMISSION_ITEMS = (
     ("docs/specs/**/spec.yml", "allow"),
 )
 SKILL_TERMS = {
+    ".claude/skills/create-demo-video/SKILL.md": {
+        "proof_video_workflow.py start --current",
+        "audio is off by default",
+        "bottom-centered",
+        "three to eight",
+        "product_defect",
+    },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",
         "coverage_status",
@@ -84,7 +91,7 @@ SKILL_TERMS = {
         "handoff",
         "frame-only review",
         "configured Discord publication",
-        "ElevenLabs",
+        "optional narration audio",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "Continue On Failure",
@@ -97,20 +104,28 @@ SKILL_TERMS = {
         "material",
         "frame-only",
         "publication_pending",
-        "ElevenLabs",
+        "intentional audio status",
         "configured Discord delivery",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
+PROOF_REVIEWER_TERMS = {
+    "three to eight image frames",
+    "Never request or read the\nfull video",
+    "capture_defect",
+    "render_defect",
+    "product_defect",
+    "uncertain",
+}
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "ElevenLabs", "Discord delivery", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "Discord delivery", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "ElevenLabs", "publication_pending"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",
@@ -154,7 +169,7 @@ def audit_config(config: dict[str, Any]) -> list[str]:
         failures.append("agent.plan.mode must be primary")
 
     prompt = plan_agent.get("prompt", "")
-    documented_plan_terms = {"narration outline", "frame-only review", "proof-video", "ElevenLabs", "Discord delivery"}
+    documented_plan_terms = PLAN_PROMPT_TERMS - {"schema_version"}
     instruction_text = "\n".join(
         (REPO_ROOT / path).read_text(encoding="utf-8")
         for path in instructions
@@ -178,6 +193,14 @@ def audit_skills(root: Path = REPO_ROOT) -> list[str]:
             if term not in text:
                 failures.append(f"{rel_path} missing required term: {term}")
     return failures
+
+
+def audit_proof_video_reviewer(root: Path = REPO_ROOT) -> list[str]:
+    path = root / ".claude/agents/proof-video-reviewer.md"
+    if not path.exists():
+        return ["missing canonical proof-video reviewer"]
+    text = path.read_text(encoding="utf-8")
+    return [f"proof-video reviewer missing required term: {term}" for term in sorted(PROOF_REVIEWER_TERMS) if term not in text]
 
 
 def audit_skill_mirrors(root: Path = REPO_ROOT) -> list[str]:
@@ -243,6 +266,7 @@ def audit() -> list[str]:
     return (
         audit_config(_load_opencode_config())
         + audit_skills()
+        + audit_proof_video_reviewer()
         + audit_skill_mirrors()
         + audit_instructions()
         + audit_opencode_coordination()

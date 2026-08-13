@@ -52,6 +52,7 @@ PLAYWRIGHT_SOURCE_FIELDS = {
     "run_id",
     "subject_commit",
     "artifact_path",
+    "artifact_sha256",
     "test_account_provenance",
 }
 MAX_REVIEW_INTERVAL_SECONDS = 3.0
@@ -109,6 +110,7 @@ DEVICE_PROFILE_ALIASES = {
     "ipad-landscape": "apple-ipad-landscape",
 }
 DEVICE_ASPECT_RATIO_TOLERANCE = 0.01
+CAPTURE_READY_TRIM_LEAD_SECONDS = 0.15
 BLACK_BAR_DARK_LUMA_MAX = 16
 BLACK_BAR_DARK_PIXEL_RATIO = 0.98
 BLACK_BAR_CENTER_DARK_PIXEL_RATIO = 0.80
@@ -117,6 +119,8 @@ BLACK_BAR_MIN_FRACTION = 0.025
 BLACK_BAR_MAX_EDGE_FRACTION = 0.25
 MIN_TUTORIAL_NARRATION_SENTENCES = 3
 MIN_TUTORIAL_NARRATION_WORDS = 24
+MIN_PROOF_PLAYBACK_RATE = 0.75
+MAX_PROOF_OUTPUT_SECONDS = 35.0
 GENERIC_NARRATION_RE = re.compile(
     r"\b(?:it works|works correctly|feature works|successfully demonstrates|as you can see|proof video|demo video)\b",
     re.IGNORECASE,
@@ -164,7 +168,10 @@ def select_playwright_source(
         artifact_path = Path(str(candidate["artifact_path"]))
         if not artifact_path.is_file():
             raise DemonstrationError(f"Playwright artifact does not exist: {artifact_path}")
-        return {**candidate, "artifact_hash": sha256_file(artifact_path)}
+        actual_hash = sha256_file(artifact_path)
+        if candidate.get("artifact_sha256") != actual_hash:
+            raise DemonstrationError("Playwright artifact hash no longer matches deployed proof-source attestation")
+        return {**candidate, "artifact_hash": actual_hash}
     raise DemonstrationError(f"No Playwright recording matches run {run_id} and commit {subject_commit}")
 
 
@@ -510,14 +517,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     _write_private(path, header + dialogues)
 
 
-def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_path: Path, output_path: Path) -> None:
+def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_path: Path | None, output_path: Path) -> None:
     """Render a readable timed terminal tutorial with canonical captions."""
-    for path in (captions_path, audio_path, TERMINAL_FONT):
+    for path in (captions_path, TERMINAL_FONT, *((audio_path,) if audio_path else ())):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     duration_seconds = float(timeline.get("duration_seconds", 0))
     if duration_seconds <= 0:
         raise DemonstrationError("Video duration must be positive")
+    if duration_seconds > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     timeline_path = output_path.with_suffix(".terminal.ass")
     _write_terminal_timeline(timeline_path, timeline)
@@ -528,6 +537,8 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
         f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=22,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"
     )
+    audio_args = ["-i", str(audio_path)] if audio_path else []
+    audio_output = ["-af", "apad", "-c:a", "aac", "-b:a", "128k"] if audio_path else ["-an"]
     result = subprocess.run(
         [
             "ffmpeg",
@@ -536,8 +547,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
             "lavfi",
             "-i",
             f"color=c=#111827:s={TERMINAL_VIDEO_SIZE}:r=30",
-            "-i",
-            str(audio_path),
+            *audio_args,
             "-t",
             str(duration_seconds),
             "-vf",
@@ -546,12 +556,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
             "libx264",
             "-pix_fmt",
             "yuv420p",
-            "-af",
-            "apad",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
+            *audio_output,
             "-map_metadata",
             "-1",
             "-map_chapters",
@@ -572,7 +577,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
 def render_captioned_video(
     source_path: Path,
     captions_path: Path,
-    audio_path: Path,
+    audio_path: Path | None,
     output_path: Path,
     *,
     playback_rate: float = 1.0,
@@ -581,34 +586,48 @@ def render_captioned_video(
 ) -> None:
     """Burn canonical captions into a copy without mutating the raw recording."""
     optional_paths = (demo_audio_path,) if demo_audio_path else ()
-    for path in (source_path, captions_path, audio_path, *optional_paths):
+    for path in (source_path, captions_path, *((audio_path,) if audio_path else ()), *optional_paths):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
         raise DemonstrationError("Caption output must not replace the raw recording")
-    if not 0.25 <= playback_rate <= 4.0:
-        raise DemonstrationError("Playback rate must be between 0.25 and 4.0")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    if demo_audio_path is not None and audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     captions = _ffmpeg_filter_path(captions_path)
     source_duration = media_duration_seconds(source_path)
     source_metadata = video_metadata(source_path)
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     video_filters = [f"setpts=PTS/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
     video_filters.append(f"subtitles='{captions}':force_style='{_playwright_caption_force_style(source_metadata)}'")
-    audio_inputs = [f"[1:a:0]volume=1.0,apad,atrim=0:{output_duration:g}[narr]"]
-    input_args = ["-i", str(source_path), "-i", str(audio_path)]
+    audio_inputs: list[str] = []
+    input_args = ["-i", str(source_path)]
+    audio_map: list[str] = []
+    if audio_path is not None:
+        input_args.extend(["-i", str(audio_path)])
+        audio_inputs.append(f"[1:a:0]volume=1.0,apad,atrim=0:{output_duration:g}[narr]")
+        audio_map = ["-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
     if demo_audio_path is not None:
+        demo_index = 2 if audio_path is not None else 1
         input_args.extend(["-stream_loop", "-1", "-i", str(demo_audio_path)])
-        audio_inputs.append(f"[2:a:0]volume=0.30,atrim=0:{output_duration:g}[demo]")
-        audio_inputs.append(
-            "[narr][demo]amix=inputs=2:duration=longest:dropout_transition=0,"
-            "aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
-        )
-    else:
+        audio_inputs.append(f"[{demo_index}:a:0]volume=0.30,atrim=0:{output_duration:g}[demo]")
+        if audio_path is not None:
+            audio_inputs.append(
+                "[narr][demo]amix=inputs=2:duration=longest:dropout_transition=0,"
+                "aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
+            )
+        else:
+            audio_inputs.append("[demo]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]")
+            audio_map = ["-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
+    elif audio_path is not None:
         audio_inputs.append("[narr]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]")
     filter_complex = ";".join([f"[0:v:0]{','.join(video_filters)}[vout]", *audio_inputs])
     result = subprocess.run(
@@ -620,16 +639,12 @@ def render_captioned_video(
             filter_complex,
             "-map",
             "[vout]",
-            "-map",
-            "[aout]",
+            *audio_map,
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
+            *([] if audio_map else ["-an"]),
             "-t",
             str(output_duration),
             "-map_metadata",
@@ -829,6 +844,59 @@ def media_duration_seconds(path: Path) -> float:
         raise DemonstrationError("ffprobe did not return complete audio metadata") from exc
 
 
+def trim_source_to_ready_marker(
+    source_path: Path,
+    output_path: Path,
+    *,
+    ready_timestamp_seconds: float,
+    lead_seconds: float = CAPTURE_READY_TRIM_LEAD_SECONDS,
+) -> dict[str, Any]:
+    """Accurately trim loading/setup frames using an explicit capture marker."""
+    if not source_path.is_file():
+        raise DemonstrationError(f"Proof source does not exist: {source_path}")
+    if ready_timestamp_seconds < 0 or lead_seconds < 0:
+        raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
+    trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
+    duration = media_duration_seconds(source_path)
+    if trim_start >= duration:
+        raise DemonstrationError("Capture-ready marker is outside the source video")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(trim_start),
+            "-i",
+            str(source_path),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"FFmpeg marker trim failed: {result.stderr.strip()[-1000:]}")
+    return {
+        "ready_timestamp_seconds": round(ready_timestamp_seconds, 3),
+        "trim_start_seconds": trim_start,
+        "source_duration_seconds": duration,
+        "trimmed_duration_seconds": video_metadata(output_path)["duration_seconds"],
+    }
+
+
 def _narration_audio_mime_type(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix == ".mp3":
@@ -875,6 +943,20 @@ def prepare_narration_audio(
         "mime_type": _narration_audio_mime_type(target),
         "duration_seconds": media_duration_seconds(target),
         "reused_from": reused_from,
+    }
+
+
+def narration_audio_not_required() -> dict[str, Any]:
+    return {
+        "status": "not_required",
+        "provider": "",
+        "model": "",
+        "voice": "",
+        "path": "",
+        "sha256": "",
+        "mime_type": "",
+        "duration_seconds": 0.0,
+        "reused_from": "",
     }
 
 
@@ -980,13 +1062,13 @@ def prepare_review_artifacts(
         )
     if render_metadata:
         metadata.update(render_metadata)
-    if not metadata.get("has_audio"):
-        raise DemonstrationError("Rendered demonstration video must contain a narration audio track")
-    if not isinstance(narration_audio, dict) or narration_audio.get("status") != "passed":
-        raise DemonstrationError("Narration audio metadata must be present and passed")
+    if not isinstance(narration_audio, dict) or narration_audio.get("status") not in {"passed", "not_required"}:
+        raise DemonstrationError("Narration audio metadata must be passed or not_required")
     missing_audio_fields = NARRATION_AUDIO_FIELDS - set(narration_audio)
     if missing_audio_fields:
         raise DemonstrationError(f"Narration audio metadata missing {sorted(missing_audio_fields)[0]}")
+    if narration_audio.get("status") == "passed" and not metadata.get("has_audio"):
+        raise DemonstrationError("Rendered demonstration video must contain the requested narration audio track")
     source_metadata = (
         playwright_source_privacy_payload(source)
         if source.get("kind") == "playwright"
@@ -1046,7 +1128,10 @@ def prepare_review_artifacts(
             "evidence_intervals": [[0.0, metadata["duration_seconds"]]],
         }
     ]
-    review_audio = {**narration_audio, "path": Path(str(narration_audio["path"])).name}
+    review_audio = {
+        **narration_audio,
+        "path": Path(str(narration_audio["path"])).name if narration_audio.get("path") else "",
+    }
     request = build_review_request(
         spec_id=spec_id,
         subject_commit=subject_commit,
@@ -1074,7 +1159,11 @@ def prepare_review_artifacts(
             "additional_frame_requests": [],
         },
         "publication": {"status": "pending"},
-        "retained_paths": [str(run_dir / "transcript.txt"), str(run_dir / "captions.srt"), str(narration_audio["path"])],
+        "retained_paths": [
+            str(run_dir / "transcript.txt"),
+            str(run_dir / "captions.srt"),
+            *([str(narration_audio["path"])] if narration_audio.get("path") else []),
+        ],
         "disposable_artifacts": [
             {"path": str(video_path), "kind": "derived_video", "sha256": metadata["sha256"]},
             *[
@@ -1105,7 +1194,7 @@ def produce_cli_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
-    narration_audio_path: Path,
+    narration_audio_path: Path | None,
     narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
     narration_audio_model: str = DEFAULT_NARRATION_MODEL,
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
@@ -1150,13 +1239,17 @@ def produce_cli_demonstration(
     duration = float(timeline["duration_seconds"])
     captions_path = run_dir / "captions.srt"
     video_path = run_dir / "demo.mp4"
-    narration_audio = prepare_narration_audio(
-        run_dir=run_dir,
-        audio_path=narration_audio_path,
-        provider=narration_audio_provider,
-        model=narration_audio_model,
-        voice=narration_audio_voice,
-        reused_from=narration_audio_reused_from,
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
     )
     caption_segments = write_tutorial_captions(
         captions_path,
@@ -1165,7 +1258,12 @@ def produce_cli_demonstration(
         narration_id=narration_id,
         first_transition_at=timeline["first_output_at"],
     )
-    render_terminal_video(timeline, captions_path, Path(str(narration_audio["path"])), video_path)
+    render_terminal_video(
+        timeline,
+        captions_path,
+        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+        video_path,
+    )
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1192,7 +1290,7 @@ def produce_playwright_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
-    narration_audio_path: Path,
+    narration_audio_path: Path | None,
     narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
     narration_audio_model: str = DEFAULT_NARRATION_MODEL,
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
@@ -1209,10 +1307,15 @@ def produce_playwright_demonstration(
     if device_profile is None:
         raise DemonstrationError("Playwright proof videos require --device-profile")
     assert_device_profile_dimensions(source_metadata, device_profile)
-    if not 0.25 <= playback_rate <= 4.0:
-        raise DemonstrationError("Playback rate must be between 0.25 and 4.0")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+    if demo_audio_path is not None and narration_audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     pre_render_privacy = scan_text_sources(
         {
             "source_filename": source_video.name,
@@ -1231,25 +1334,29 @@ def produce_playwright_demonstration(
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
     captions_path = run_dir / "captions.srt"
-    narration_audio = prepare_narration_audio(
-        run_dir=run_dir,
-        audio_path=narration_audio_path,
-        provider=narration_audio_provider,
-        model=narration_audio_model,
-        voice=narration_audio_voice,
-        reused_from=narration_audio_reused_from,
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
     )
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
-        duration_seconds=round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3),
+        duration_seconds=output_duration,
         narration_id=narration_id,
     )
     video_path = run_dir / "demo.mp4"
     render_captioned_video(
         source_video,
         captions_path,
-        Path(str(narration_audio["path"])),
+        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
         playback_rate=playback_rate,
         hold_last_frame_seconds=hold_last_frame_seconds,
@@ -1401,7 +1508,10 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
     require_fields(audio, NARRATION_AUDIO_FIELDS, "narration_audio")
     if NARRATION_AUDIO_FIELDS - set(audio):
         raise DemonstrationError("Review request narration_audio is missing required fields")
-    if (
+    if audio.get("status") == "not_required":
+        if any(audio.get(field) for field in ("provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from")):
+            raise DemonstrationError("Review request not_required narration_audio must not contain audio provenance")
+    elif (
         audio.get("status") != "passed"
         or audio.get("provider") != DEFAULT_NARRATION_PROVIDER
         or audio.get("model") != DEFAULT_NARRATION_MODEL
@@ -1655,10 +1765,11 @@ def publish_reviewed_video(
 ) -> dict[str, Any]:
     if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
         raise DemonstrationError("Discord publication requires passed privacy and demonstration review")
-    if manifest.get("narration_audio", {}).get("status") != "passed":
-        raise DemonstrationError("Discord publication requires passed ElevenLabs narration audio")
-    if manifest.get("video_metadata", {}).get("has_audio") is not True:
-        raise DemonstrationError("Discord publication requires a rendered video with an audio track")
+    audio_status = manifest.get("narration_audio", {}).get("status")
+    if audio_status not in {"passed", "not_required"}:
+        raise DemonstrationError("Discord publication requires passed or intentionally disabled narration audio")
+    if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
+        raise DemonstrationError("Discord publication requires the requested narration audio track")
     video_path = Path(str(manifest.get("video_path", "")))
     if not video_path.is_file():
         raise DemonstrationError("Reviewed demonstration video does not exist")

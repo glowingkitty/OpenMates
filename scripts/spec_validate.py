@@ -64,7 +64,7 @@ VALID_DEMONSTRATION_SURFACES = {"visual", "cli", "native", "mixed", "non_visual"
 VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked"}
 VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked"}
 VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked"}
-VALID_DEMONSTRATION_AUDIO_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_AUDIO_STATUSES = {"pending", "passed", "not_required", "failed", "blocked"}
 VALID_DEMONSTRATION_PUBLICATION_STATUSES = {
     "pending",
     "not_configured",

@@ -45,6 +45,7 @@ except ModuleNotFoundError:
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
+PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
 STATE_FILE = RESULTS_DIR / "tests-state.json"
 HISTORY_FILE = RESULTS_DIR / "tests-history.jsonl"
 LEASES_FILE = RESULTS_DIR / "failed-test-leases.json"
@@ -1143,6 +1144,56 @@ def write_json(path: Path, data: Any) -> None:
         tmp_path.unlink(missing_ok=True)
 
 
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
+    if run_data.get("deployment_verified") is not True or run_data.get("gate_deploy") is not True:
+        raise RuntimeError("Proof-source attestation requires a passed deploy gate")
+    git_sha = str(run_data.get("git_sha") or "")
+    deployment_reference = str(run_data.get("deployment_reference") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", git_sha) or deployment_reference != git_sha:
+        raise RuntimeError("Proof-source attestation requires one exact full deployed commit")
+    records: list[Path] = []
+    for suite, test in iter_tests(run_data):
+        if suite != "playwright" or test.get("status") != "passed":
+            continue
+        artifact_paths = list(test.get("artifact_paths") or [])
+        if test.get("artifact_path"):
+            artifact_paths.append(str(test["artifact_path"]))
+        if len(artifact_paths) != 1:
+            continue
+        artifact_path = Path(artifact_paths[0]).resolve()
+        if not artifact_path.is_file():
+            continue
+        spec_name = Path(test_label(suite, test)).name
+        run_id = str(test.get("run_id") or run_data.get("run_id") or "")
+        identity = hashlib.sha256(f"{run_id}\0{git_sha}\0{spec_name}".encode("utf-8")).hexdigest()
+        record = {
+            "run_id": run_id,
+            "git_sha": git_sha,
+            "spec": spec_name,
+            "status": "passed",
+            "source": "scripts_tests",
+            "deployment_reference": deployment_reference,
+            "deployment_verified": True,
+            "target": str(run_data.get("environment") or "https://app.dev.openmates.org"),
+            "artifact_path": str(artifact_path),
+            "artifact_sha256": _file_sha256(artifact_path),
+        }
+        record_path = PROOF_SOURCE_DIR / f"{identity}.json"
+        record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        write_json(record_path, record)
+        record_path.chmod(0o600)
+        records.append(record_path)
+    return records
+
+
 def append_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     if not records:
         return
@@ -1275,6 +1326,7 @@ def _normalize_playwright_file_result(
     retries = 0
     flaky = False
     first_error = ""
+    video_paths: list[str] = []
 
     for spec in specs:
         for test in spec.get("tests") or []:
@@ -1301,6 +1353,12 @@ def _normalize_playwright_file_result(
                     first_error = _playwright_result_error(result)
                     if first_error:
                         break
+            for attachment in results[terminal_index].get("attachments") or []:
+                if not isinstance(attachment, dict) or not str(attachment.get("contentType") or "").startswith("video/"):
+                    continue
+                path = str(attachment.get("path") or "")
+                if path:
+                    video_paths.append(path)
 
     status = _aggregate_playwright_status(terminal_statuses)
     entry: dict[str, Any] = {
@@ -1317,6 +1375,10 @@ def _normalize_playwright_file_result(
         entry["github_run_url"] = f"https://github.com/glowingkitty/OpenMates/actions/runs/{external_run_id}"
     if first_error and is_problem(status):
         entry["error"] = first_error[:MAX_IMPORTED_ERROR_CHARS]
+    if len(video_paths) == 1:
+        entry["artifact_path"] = video_paths[0]
+    elif len(video_paths) > 1:
+        entry["artifact_paths"] = video_paths
     return entry
 
 
@@ -3932,20 +3994,21 @@ def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
     return [] if ok else [reason or f"Vercel deployment is not Ready for {git_sha}"]
 
 
-def run_e2e_deploy_gate(options: ControlRunOptions) -> None:
+def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
     """Preflight E2E dispatch so agents do not test a stale or unreachable dev app."""
     if not run_targets_playwright(options.forwarded_args):
         print("E2E deploy gate: SKIPPED (run does not target Playwright)")
-        return
+        return False
     expected_commit = options.expected_commit or current_git_sha()
     subject_commit = resolve_test_subject_commit(expected_commit)
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
         print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
-        return
+        return False
     failures = [*check_vercel_ready_for_commit(expected_commit), *check_dev_health_urls()]
     if failures:
         raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
     print(f"E2E deploy gate: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
+    return True
 
 
 def latest_timestamped_run_artifact(since_mtime: float = 0.0) -> Path | None:
@@ -3979,6 +4042,7 @@ def record_latest_run_artifact(
     requested_test_keys: list[str] | None = None,
     campaign_key: str = "",
     debug_group_key: str = "",
+    deployment_verified: bool = False,
 ) -> str:
     artifacts = run_recording_artifacts(since_mtime=since_mtime)
     if not artifacts:
@@ -3994,6 +4058,11 @@ def record_latest_run_artifact(
                 run_data["campaign_key"] = campaign_key
             if debug_group_key:
                 run_data["debug_group_key"] = debug_group_key
+            if deployment_verified:
+                run_data["gate_deploy"] = True
+                run_data["deployment_verified"] = True
+                run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
+            write_json(artifact, run_data)
             run_git_sha = str(run_data.get("git_sha") or "")
             if expected_commit and not _matches_commit_prefix(run_git_sha, expected_commit):
                 print(
@@ -4003,6 +4072,8 @@ def record_latest_run_artifact(
                 )
                 return ""
             record_run_result(run_data)
+            if deployment_verified:
+                record_proof_source_attestations(run_data)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
             return run_git_sha or expected_commit
@@ -4098,9 +4169,10 @@ def command_run(runner_args: list[str]) -> int:
         except RuntimeError as exc:
             print(f"Test dispatch blocked by Docker restart coordination: {exc}", file=sys.stderr)
             return 2
+    deployment_verified = False
     if options.gate_deploy:
         try:
-            run_e2e_deploy_gate(options)
+            deployment_verified = run_e2e_deploy_gate(options)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             if docker_lease_id:
@@ -4145,6 +4217,7 @@ def command_run(runner_args: list[str]) -> int:
             requested_test_keys=selected_test_keys or None,
             campaign_key=options.campaign_key,
             debug_group_key=options.debug_group_key,
+            deployment_verified=deployment_verified,
         )
         if not recorded_commit:
             return 2 if options.expected_commit else result.returncode

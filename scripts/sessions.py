@@ -7099,7 +7099,6 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         publish_reviewed_video,
         record_review,
     )
-
     data = _load_sessions()
     session = data.get("sessions", {}).get(args.session)
     if session is None:
@@ -7138,19 +7137,48 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             print(json.dumps({"proof_video_pending": record["problems"]}, sort_keys=True))
         return
     if args.proof_action == "produce-playwright":
-        if args.source_status != "passed":
-            raise DemonstrationError("proof-video produce-playwright requires a passing Playwright test result")
+        try:
+            from scripts.proof_video_workflow import (
+                WorkflowError,
+                approved_render_claims,
+                require_clean_worktree,
+                require_recorded_approval,
+                resolve_deployed_run,
+            )
+        except ModuleNotFoundError:
+            from proof_video_workflow import (
+                WorkflowError,
+                approved_render_claims,
+                require_clean_worktree,
+                require_recorded_approval,
+                resolve_deployed_run,
+            )
+        try:
+            require_clean_worktree()
+            approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=args.contract_path)
+            approved_claims = approved_render_claims(approved_contract)
+            deployed_run = resolve_deployed_run(
+                subject_commit=args.subject_commit,
+                spec_name=args.spec_name,
+                run_id=args.run_id,
+            )
+        except WorkflowError as exc:
+            raise DemonstrationError(str(exc)) from exc
+        persisted_artifact = str(deployed_run.get("artifact_path") or "")
+        if not persisted_artifact or Path(persisted_artifact).resolve() != args.source_video.resolve():
+            raise DemonstrationError("Playwright source video does not match the persisted deployed run artifact")
         run_dir = args.run_dir or (
             PROJECT_ROOT / "test-results" / "proof-videos" / args.session / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         )
         source = {
-            "status": args.source_status,
+            "status": "passed",
             "command_or_spec": args.spec_name,
-            "target": args.target_environment,
-            "deployment_reference": args.deployment_reference,
+            "target": str(deployed_run.get("target") or args.target_environment),
+            "deployment_reference": str(deployed_run.get("deployment_reference") or args.subject_commit),
             "run_id": args.run_id,
             "subject_commit": args.subject_commit,
             "artifact_path": str(args.source_video),
+            "artifact_sha256": str(deployed_run.get("artifact_sha256") or ""),
             "test_account_provenance": args.test_account_provenance,
         }
         result = produce_playwright_demonstration(
@@ -7160,9 +7188,9 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             spec_id=args.proof_id,
             subject_commit=args.subject_commit,
             narration_id=args.narration_id,
-            caption_text=args.caption,
-            expected_proof=args.expected_proof,
-            acceptance_criteria=args.acceptance_criterion,
+            caption_text=approved_claims["caption_text"],
+            expected_proof=approved_claims["expected_proof"],
+            acceptance_criteria=approved_claims["acceptance_criteria"],
             narration_audio_path=args.audio_path,
             narration_audio_provider=args.audio_provider,
             narration_audio_model=args.audio_model,
@@ -8778,15 +8806,17 @@ def _proof_video_manifest_problems(manifest: dict, *, delivery_required: bool) -
     if not isinstance(review.get("attempt_count"), int) or review.get("attempt_count", 0) < 1:
         problems.append("missing review attempt count")
     audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
-    if audio.get("status") != "passed":
-        problems.append("ElevenLabs narration audio has not passed")
-    if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
-        problems.append("narration audio must use ElevenLabs eleven_flash_v2_5")
-    if not str(audio.get("path") or "").strip() or not str(audio.get("sha256") or "").startswith("sha256:"):
-        problems.append("narration audio provenance is incomplete")
     video_metadata = manifest.get("video_metadata") if isinstance(manifest.get("video_metadata"), dict) else {}
-    if video_metadata.get("has_audio") is not True:
-        problems.append("rendered video has no audio track")
+    audio_status = audio.get("status")
+    if audio_status not in {"passed", "not_required"}:
+        problems.append("narration audio must be passed or intentionally disabled")
+    if audio_status == "passed":
+        if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
+            problems.append("narration audio must use ElevenLabs eleven_flash_v2_5")
+        if not str(audio.get("path") or "").strip() or not str(audio.get("sha256") or "").startswith("sha256:"):
+            problems.append("narration audio provenance is incomplete")
+        if video_metadata.get("has_audio") is not True:
+            problems.append("rendered video is missing requested narration audio")
     device_profile = str(video_metadata.get("device_profile") or "")
     if device_profile:
         expected_size = PROOF_VIDEO_DEVICE_PROFILES.get(device_profile)
@@ -8900,11 +8930,8 @@ def _enforce_proof_video_end_gate(
     delivery_hint = " and published to Discord" if _proof_video_delivery_required() else ""
     print("PROOF VIDEO REQUIRED — session cannot be ended yet.", file=sys.stderr)
     print("This session changed a product feature, example chat, or actively-debugged E2E proof surface.", file=sys.stderr)
-    print(f"Create a narrated proof video with burned-in captions, ElevenLabs audio, frame review{delivery_hint}:", file=sys.stderr)
-    print(f"  python3 scripts/sessions.py proof-video produce --session {sid} --audio-path <elevenlabs-audio.mp3> --caption \"...\" --expected-proof \"...\" --acceptance-criterion AC-1 -- <command>", file=sys.stderr)
-    print(f"  python3 scripts/sessions.py proof-video review --session {sid} --run-dir <run-dir> --claims-json '[{{\"claim_id\":\"CLAIM-1\",\"verdict\":\"supported\",\"observation\":\"Visible in frame 0001.\"}}]'", file=sys.stderr)
-    if _proof_video_delivery_required():
-        print(f"  python3 scripts/sessions.py proof-video publish --session {sid} --run-dir <run-dir>", file=sys.stderr)
+    print(f"Create a captioned proof video with bounded frame review{delivery_hint}:", file=sys.stderr)
+    print("  python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts", file=sys.stderr)
     sys.exit(1)
 
 
@@ -12876,7 +12903,7 @@ def main() -> None:
     p_proof_produce.add_argument("--caption", required=True)
     p_proof_produce.add_argument("--expected-proof", required=True)
     p_proof_produce.add_argument("--acceptance-criterion", action="append", required=True)
-    p_proof_produce.add_argument("--audio-path", type=Path, required=True, help="ElevenLabs narration audio file")
+    p_proof_produce.add_argument("--audio-path", type=Path, help="Optional ElevenLabs narration audio file")
     p_proof_produce.add_argument("--audio-provider", default="elevenlabs")
     p_proof_produce.add_argument("--audio-model", default="eleven_flash_v2_5")
     p_proof_produce.add_argument("--audio-voice", default="warm_neutral")
@@ -12893,15 +12920,14 @@ def main() -> None:
     p_proof_playwright.add_argument("--subject-commit", required=True)
     p_proof_playwright.add_argument("--run-id", required=True)
     p_proof_playwright.add_argument("--spec-name", required=True)
-    p_proof_playwright.add_argument("--source-status", choices=["passed", "failed", "timed_out", "skipped"], required=True)
+    p_proof_playwright.add_argument("--contract-path", type=Path, required=True)
     p_proof_playwright.add_argument("--target-environment", required=True)
-    p_proof_playwright.add_argument("--deployment-reference", required=True)
     p_proof_playwright.add_argument("--test-account-provenance", required=True)
     p_proof_playwright.add_argument("--narration-id", default="NARR-1")
     p_proof_playwright.add_argument("--caption", required=True)
     p_proof_playwright.add_argument("--expected-proof", required=True)
     p_proof_playwright.add_argument("--acceptance-criterion", action="append", required=True)
-    p_proof_playwright.add_argument("--audio-path", type=Path, required=True, help="ElevenLabs narration audio file")
+    p_proof_playwright.add_argument("--audio-path", type=Path, help="Optional ElevenLabs narration audio file")
     p_proof_playwright.add_argument("--audio-provider", default="elevenlabs")
     p_proof_playwright.add_argument("--audio-model", default="eleven_flash_v2_5")
     p_proof_playwright.add_argument("--audio-voice", default="warm_neutral")
@@ -12926,7 +12952,7 @@ def main() -> None:
     p_proof_playwright.add_argument(
         "--demo-audio-path",
         type=Path,
-        help="Optional product audio fixture to mix quietly under the ElevenLabs narration when playback itself is part of the proof.",
+        help="Optional product audio fixture to preserve playback audio when it is part of the proof.",
     )
     p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
     p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")

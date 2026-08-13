@@ -39,6 +39,7 @@ OPENCODE_AGENT_MODELS = {
     "issue-forensics": "openai/gpt-5.6-sol",
     "legal-compliance-auditor": "openai/gpt-5.6-sol",
     "main-processor-guru": "openai/gpt-5.6-sol",
+    "proof-video-reviewer": "openai/gpt-5.6-terra",
     "seo-auditor": "openai/gpt-5.6-luna",
     "settings-ui-consistency-checker": "openai/gpt-5.6-luna",
     "skill-integration-doctor": "openai/gpt-5.6-terra",

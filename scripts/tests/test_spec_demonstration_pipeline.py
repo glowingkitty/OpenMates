@@ -76,6 +76,7 @@ def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Pa
             "run_id": "run-old",
             "subject_commit": "old1234",
             "artifact_path": str(video),
+            "artifact_sha256": module.sha256_file(video),
             "test_account_provenance": "synthetic fixture account",
         },
         {
@@ -85,6 +86,7 @@ def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Pa
             "run_id": "run-1",
             "subject_commit": "abc1234",
             "artifact_path": str(video),
+            "artifact_sha256": module.sha256_file(video),
             "test_account_provenance": "synthetic fixture account",
         },
     ]
@@ -460,6 +462,115 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
 
     assert "comment" not in module.video_metadata(output)["tags"]
     assert module.video_metadata(output)["has_audio"] is True
+
+
+def test_caption_render_defaults_to_video_without_audio(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    captions = tmp_path / "captions.srt"
+    output = tmp_path / "output.mp4"
+    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    module.render_captioned_video(source, captions, None, output)
+
+    assert output.is_file()
+    assert module.video_metadata(output)["has_audio"] is False
+
+
+def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "trimmed.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "2", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    result = module.trim_source_to_ready_marker(
+        source,
+        output,
+        ready_timestamp_seconds=1.0,
+        lead_seconds=0.15,
+    )
+
+    assert result["trim_start_seconds"] == pytest.approx(0.85)
+    assert result["ready_timestamp_seconds"] == 1.0
+    assert module.video_metadata(output)["duration_seconds"] == pytest.approx(1.15, abs=0.15)
+    assert (module.video_metadata(output)["width"], module.video_metadata(output)["height"]) == (320, 240)
+
+
+def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844:r=10", "-t", "5", str(source)],
+        check=True,
+        capture_output=True,
+    )
+    source_record = {
+        "command_or_spec": "example.spec.ts",
+        "target": "https://app.dev.openmates.org",
+        "deployment_reference": "abc1234",
+        "run_id": "run-one",
+        "subject_commit": "abc1234",
+        "artifact_path": str(source),
+        "artifact_sha256": module.sha256_file(source),
+        "test_account_provenance": "synthetic fixture account",
+    }
+    kwargs = {
+        "run_dir": tmp_path / "proof",
+        "source_video": source,
+        "source": source_record,
+        "spec_id": "example",
+        "subject_commit": "abc1234",
+        "narration_id": "NARR-1",
+        "caption_text": "The screen shows the first visible action. The selected result remains visible for review. The final screen confirms the expected state.",
+        "expected_proof": "The expected state is visible.",
+        "acceptance_criteria": ["AC-1"],
+        "narration_audio_path": None,
+        "device_profile_name": "web-phone",
+    }
+
+    with pytest.raises(module.DemonstrationError, match="0.75"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=0.5)
+    with pytest.raises(module.DemonstrationError, match="35 seconds"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=0.75, hold_last_frame_seconds=30)
+
+
+def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    captions = tmp_path / "captions.srt"
+    product_audio = write_synthetic_audio(tmp_path / "product.wav")
+    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(module.DemonstrationError, match="Product audio requires explicit narration audio"):
+        module.render_captioned_video(source, captions, None, tmp_path / "output.mp4", demo_audio_path=product_audio)
+
+
+def test_terminal_render_rejects_output_over_35_seconds(tmp_path: Path) -> None:
+    module = load_module()
+    captions = tmp_path / "captions.srt"
+    captions.write_text("1\n00:00:00,000 --> 00:00:01,000\nSafe caption.\n", encoding="utf-8")
+
+    with pytest.raises(module.DemonstrationError, match="35 seconds"):
+        module.render_terminal_video(
+            {"duration_seconds": 35.1, "states": [{"start": 0.0, "end": 35.1, "text": "$ safe"}]},
+            captions,
+            None,
+            tmp_path / "output.mp4",
+        )
 
 
 def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
