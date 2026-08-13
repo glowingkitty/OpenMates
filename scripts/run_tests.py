@@ -118,6 +118,7 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
+PROOF_VIDEO_PROFILES = {"web-laptop"}
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 PROD_SMOKE_SUITE_FREE_HOURLY = "free-hourly"
@@ -1515,6 +1516,7 @@ class GitHubActionsClient:
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
         seeded_gift_card_code: Optional[str] = None,
+        proof_video_profile: str = "",
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -1542,6 +1544,8 @@ class GitHubActionsClient:
             command.extend(["-f", f"create_account_slot={create_account_slot}"])
         if seeded_gift_card_code:
             command.extend(["-f", f"seeded_gift_card_code={seeded_gift_card_code}"])
+        if proof_video_profile:
+            command.extend(["-f", f"proof_video_profile={proof_video_profile}"])
 
         rc = subprocess.run(
             command,
@@ -1873,6 +1877,7 @@ class BatchRunner:
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
+        proof_video_profile: str = "",
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1884,6 +1889,7 @@ class BatchRunner:
         self.create_account_slot = create_account_slot
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
+        self.proof_video_profile = proof_video_profile
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1968,6 +1974,7 @@ class BatchRunner:
                 create_account_slot=create_account_slot,
                 allow_credential_updates=self.allow_credential_updates,
                 seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                proof_video_profile=self.proof_video_profile,
             )
             if run_id is None:
                 # Retry once
@@ -1980,6 +1987,7 @@ class BatchRunner:
                     create_account_slot=create_account_slot,
                     allow_credential_updates=self.allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                    proof_video_profile=self.proof_video_profile,
                 )
 
             if run_id is None:
@@ -5974,6 +5982,7 @@ class TestOrchestrator:
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.record_live_fixtures = args.record_live_fixtures
+        self.proof_video_profile = args.proof_video_profile
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
         self.only_failed_synthetic_files: tuple[str, ...] = ()
@@ -6655,6 +6664,7 @@ class TestOrchestrator:
             create_account_slot=self.create_account_slot,
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
+            proof_video_profile=self.proof_video_profile,
         )
         try:
             result = runner.run_all_batches()
@@ -7209,6 +7219,8 @@ def main() -> int:
                         help="Run with real LLM calls instead of mocks")
     parser.add_argument("--record-live-fixtures", action="store_true",
                         help="Dispatch Playwright with TEST_LIVE_RECORD markers instead of replaying live-mock fixtures")
+    parser.add_argument("--proof-video-profile", choices=sorted(PROOF_VIDEO_PROFILES), default="",
+                        help="Capture Playwright video at an exact proof-video device profile size")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would run without executing")
     parser.add_argument("--flaky-report", action="store_true",

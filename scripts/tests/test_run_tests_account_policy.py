@@ -862,6 +862,40 @@ def test_dispatch_can_record_live_fixtures(monkeypatch):
     assert "record_live_fixtures=true" in commands[0]
 
 
+def test_dispatch_can_request_exact_proof_video_profile(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient()
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        "audio-recording.spec.ts",
+        account=1,
+        proof_video_profile="web-laptop",
+    ) == 123
+    assert "proof_video_profile=web-laptop" in commands[0]
+
+
 def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
     run_tests = load_run_tests_module()
     commands: list[list[str]] = []

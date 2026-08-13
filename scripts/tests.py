@@ -1007,6 +1007,7 @@ class ControlRunOptions:
     lease_id: str = ""
     campaign_key: str = ""
     debug_group_key: str = ""
+    proof_video_profile: str = ""
 
 
 def parse_control_run_options(args: list[str]) -> ControlRunOptions:
@@ -1019,6 +1020,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     lease_id = ""
     campaign_key = ""
     debug_group_key = ""
+    proof_video_profile = ""
     index = 0
     while index < len(args):
         arg = args[index]
@@ -1038,6 +1040,18 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
             continue
         if arg == "--gate-deploy":
             gate_deploy = True
+            index += 1
+            continue
+        if arg == "--proof-video-profile":
+            if index + 1 >= len(args):
+                raise RuntimeError("--proof-video-profile requires a profile name")
+            proof_video_profile = args[index + 1]
+            forwarded.extend([arg, proof_video_profile])
+            index += 2
+            continue
+        if arg.startswith("--proof-video-profile="):
+            proof_video_profile = arg.split("=", 1)[1]
+            forwarded.append(arg)
             index += 1
             continue
         if arg == "--detach":
@@ -1088,6 +1102,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
         lease_id=lease_id,
         campaign_key=campaign_key,
         debug_group_key=debug_group_key,
+        proof_video_profile=proof_video_profile,
     )
 
 

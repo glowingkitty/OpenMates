@@ -275,6 +275,22 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
     assert options.expected_commit == "abc123"
 
 
+def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "audio-recording.spec.ts",
+        "--proof-video-profile",
+        "web-laptop",
+        "--expected-commit=abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "audio-recording.spec.ts", "--proof-video-profile", "web-laptop"]
+    assert options.proof_video_profile == "web-laptop"
+    assert options.expected_commit == "abc123"
+
+
 def test_run_options_consume_detach_before_forwarding(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
