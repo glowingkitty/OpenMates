@@ -1427,6 +1427,18 @@ def has_user_response_after(chat: dict[str, Any], completed_at: datetime | None)
     return False
 
 
+def session_is_still_working(status: dict[str, Any], root_session_id: str) -> bool:
+    live = status.get("live") if isinstance(status.get("live"), dict) else {}
+    for item in live.get("working") or []:
+        if not isinstance(item, dict):
+            continue
+        item_session_id = str(item.get("opencode_session_id") or item.get("session_id") or "")
+        item_top_level_id = str(item.get("top_level_session_id") or item.get("parent_id") or item_session_id)
+        if root_session_id in {item_session_id, item_top_level_id}:
+            return True
+    return False
+
+
 def build_completion_event_payload(*, chat: dict[str, Any], preview_lines: list[str], now: datetime) -> dict[str, Any]:
     title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
     url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
@@ -1670,6 +1682,7 @@ def notify_response_completed(
     update_state: bool = True,
     delay_seconds: int = DEFAULT_RESPONSE_NOTIFICATION_DELAY_SECONDS,
     sleeper: Callable[[float], None] = time.sleep,
+    status_loader: Callable[[], dict[str, Any]] = load_status,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     current_time = now or datetime.now(timezone.utc)
@@ -1696,6 +1709,11 @@ def notify_response_completed(
                 completion_events[root_session_id] = {"message_id": event_key, "skipped_at": _now_iso(current_time), "reason": "user_responded_within_delay"}
                 save_state(state_path, state)
             return {"status": "skipped_user_responded", "session_id": root_session_id, "message_id": message_id}
+        if not dry_run and session_is_still_working(status_loader(), root_session_id):
+            if update_state:
+                completion_events[root_session_id] = {"message_id": event_key, "skipped_at": _now_iso(current_time), "reason": "chat_still_running_after_delay"}
+                save_state(state_path, state)
+            return {"status": "skipped_still_running", "session_id": root_session_id, "message_id": message_id}
         chat = project_chat_view(ActiveChatRoot(root_session_id, "completed_recently", root_session_id, _now_iso(current_time), []), raw_chat)
         preview_lines = completed_assistant_preview_from_chat(raw_chat, message_id=message_id)
         payload = build_completion_event_payload(chat=chat, preview_lines=preview_lines, now=current_time)

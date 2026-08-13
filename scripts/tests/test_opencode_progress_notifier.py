@@ -483,6 +483,38 @@ def test_response_completed_event_skips_when_user_replies_during_delay(tmp_path:
     assert sent == []
 
 
+def test_response_completed_event_skips_when_chat_still_running_after_delay(tmp_path: Path) -> None:
+    notifier = load_module("progress_completion_event_still_running")
+    view = fake_chat_view("ses-parent")
+    view["messages"][0]["message_id"] = "msg-assistant-1"
+    view["messages"][0]["time_updated"] = "2026-08-10T13:05:00Z"
+    sent: list[object] = []
+
+    result = notifier.notify_response_completed(
+        session_id="ses-parent",
+        message_id="msg-assistant-1",
+        chat_reader=lambda _session_id: view,
+        discord_sender=lambda **kwargs: sent.append(kwargs) or {"message_id": "discord-1"},
+        state_path=tmp_path / "state.json",
+        webhook_url="https://example.invalid/webhook",
+        delay_seconds=0,
+        status_loader=lambda: {
+            "live": {
+                "working": [
+                    {
+                        "opencode_session_id": "ses-parent",
+                        "top_level_session_id": "ses-parent",
+                    }
+                ]
+            }
+        },
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "skipped_still_running"
+    assert sent == []
+
+
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:
     notifier = load_module("progress_no_tool_output_tasks")
     view = fake_chat_view("ses-parent")
