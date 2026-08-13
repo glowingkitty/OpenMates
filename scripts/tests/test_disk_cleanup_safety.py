@@ -94,3 +94,13 @@ def test_docker_cleanup_is_bounded_and_never_prunes_data_containers_or_volumes()
     assert "docker volume prune" not in script
     assert "docker container prune" not in script
     assert "docker system prune" not in script
+
+
+def test_proof_cleanup_retries_then_expires_only_manifest_owned_media() -> None:
+    script = (ROOT / "scripts" / "cleanup-proof-videos.sh").read_text(encoding="utf-8")
+
+    assert "sweep-publications" in script
+    assert "DISCORD_WEBHOOK_DEV_SMOKE" in script
+    assert "test-results/proof-videos" in script
+    assert "rm " not in script
+    assert "docker" not in script
