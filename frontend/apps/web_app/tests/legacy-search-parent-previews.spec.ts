@@ -115,4 +115,47 @@ test.describe('Legacy search parent previews', () => {
 		await page.reload({ waitUntil: 'networkidle' });
 		await openAndAssertCarousel();
 	});
+
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+	test('shared image carousel fills mobile messages with visible navigation controls', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		const response = await page.goto(SHARED_CHAT_WITH_IMAGE_CAROUSEL, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'Here are some incredible captures' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
+
+		const messageContent = assistantMessage.getByTestId('mate-message-content');
+		const carousel = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(carousel).toBeVisible({ timeout: 45_000 });
+		await expect(carousel.getByRole('tab')).toHaveCount(6);
+
+		const previous = carousel.getByRole('button', { name: 'Previous' });
+		const next = carousel.getByRole('button', { name: 'Next' });
+		await expect(previous).toBeVisible();
+		await expect(next).toBeVisible();
+		expect(await previous.evaluate((element: HTMLElement) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+		expect(await next.evaluate((element: HTMLElement) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
+		const messageBox = await messageContent.boundingBox();
+		const carouselBox = await carousel.boundingBox();
+		expect(messageBox).not.toBeNull();
+		expect(carouselBox).not.toBeNull();
+		const leftInset = carouselBox.x - messageBox.x;
+		const rightInset = messageBox.x + messageBox.width - carouselBox.x - carouselBox.width;
+		expect(Math.abs(leftInset - rightInset)).toBeLessThanOrEqual(2);
+		expect(carouselBox.width).toBeGreaterThan(messageBox.width - 32);
+
+		for (const control of [previous, next]) {
+			const controlBox = await control.boundingBox();
+			expect(controlBox).not.toBeNull();
+			expect(controlBox.x).toBeGreaterThanOrEqual(carouselBox.x);
+			expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(carouselBox.x + carouselBox.width);
+		}
+	});
 });
