@@ -839,6 +839,7 @@
 
   .tasks-page.figma-layout {
     background: var(--color-grey-0);
+    overflow: hidden;
     padding: 0;
   }
 
@@ -873,7 +874,8 @@
   .tasks-figma-workspace {
     position: relative;
     display: flex;
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     min-width: 0;
     flex-direction: column;
     gap: 18px;
