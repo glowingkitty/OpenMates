@@ -95,6 +95,16 @@ describe("activeChatStore", () => {
       activeChatStore.clearActiveChat();
       expect(activeChatStore.get()).toBeNull();
     });
+
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
+    it("clears only chat navigation parameters from URL hash", () => {
+      locationMock.hash = "#chat-id=example-privacy-first-local-ai&e2e-debug=run-1&e2e-token=test-token&settings=privacy/pii";
+      activeChatStore.clearActiveChat();
+      expect(locationMock.hash).not.toContain("chat-id=");
+      expect(locationMock.hash).toContain("e2e-debug=run-1");
+      expect(locationMock.hash).toContain("e2e-token=test-token");
+      expect(locationMock.hash).toContain("settings=privacy/hide-personal-data");
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────

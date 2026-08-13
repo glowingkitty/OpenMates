@@ -19,7 +19,7 @@ import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
-import { updateHashParams } from "../utils/settingsHashUtils";
+import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
 
 /**
  * Store to track when deep link processing is happening
@@ -87,7 +87,15 @@ function updateUrlHash(chatId: string | null) {
     embed_id: null,
   });
   if (window.location.hash !== nextHash) {
+    lastProgrammaticHashUpdate = Date.now();
     replaceState(window.location.pathname + window.location.search + nextHash, {});
+    if (getHashParam(window.location.hash, "chat-id")) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname + window.location.search + nextHash,
+      );
+    }
   }
 }
 
@@ -107,9 +115,7 @@ export function isProgrammaticHashUpdate(): boolean {
  */
 function readChatIdFromHash(): string | null {
   if (!browser) return null;
-
-  const hash = window.location.hash;
-  return new URLSearchParams(hash.substring(1)).get("chat-id") || null;
+  return getHashParam(window.location.hash, "chat-id") || null;
 }
 
 /**

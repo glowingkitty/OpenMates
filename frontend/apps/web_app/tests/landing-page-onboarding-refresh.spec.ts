@@ -702,7 +702,10 @@ test.describe('Landing page onboarding refresh', () => {
 			const phase = (await landingIntroOverlayMetrics(page)).phase;
 			return phase === 'fading-out' || phase === 'collapsing';
 		}, { timeout: 1000 }).toBe(true);
-		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).introContentOpacity ?? 1, { timeout: 1500 }).toBeLessThan(0.2);
+		await expect.poll(async () => {
+			const opacity = (await landingIntroOverlayMetrics(page)).introContentOpacity;
+			return opacity === null || opacity < 0.2;
+		}, { timeout: 1500 }).toBe(true);
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('collapsing');
 		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
