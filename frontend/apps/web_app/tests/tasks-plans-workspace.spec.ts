@@ -9,9 +9,10 @@ export {};
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -20,6 +21,10 @@ const PLAN_COLUMNS = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
 const PROOF_RECORDING_DIR = 'test-results/proof-video-source/tasks-plans-workspace';
 const LAPTOP_PROOF_VIEWPORT = { name: 'web-laptop', width: 1440, height: 900 };
 const PHONE_PROOF_VIEWPORT = { name: 'web-phone', width: 390, height: 844 };
+const PROOF_STATE_SETTLE_MS = 2500;
+const PROOF_SCROLL_STEP_SETTLE_MS = 900;
+const PROOF_SCROLL_SETTLE_MS = 2200;
+const PROOF_READY_TRIM_LEAD_SECONDS = 0.15;
 const TOP_LEVEL_WORKSPACES = [
 	{
 		path: '/projects',
@@ -57,6 +62,38 @@ const TOP_LEVEL_WORKSPACES = [
 
 async function expectHorizontalBoardScroll(board: any): Promise<void> {
 	await expect.poll(async () => board.evaluate((element: HTMLElement) => element.scrollWidth > element.clientWidth)).toBe(true);
+}
+
+async function moveBoardHorizontalScroll(page: any, board: any): Promise<void> {
+	await expectHorizontalBoardScroll(board);
+	await board.evaluate((element: HTMLElement) => {
+		element.scrollLeft = 0;
+	});
+	await page.waitForTimeout(PROOF_SCROLL_STEP_SETTLE_MS);
+	await board.evaluate((element: HTMLElement) => {
+		element.scrollLeft = Math.min(element.scrollWidth - element.clientWidth, 260);
+	});
+	await page.waitForTimeout(PROOF_SCROLL_STEP_SETTLE_MS);
+	await board.evaluate((element: HTMLElement) => {
+		element.scrollLeft = Math.min(element.scrollWidth - element.clientWidth, 520);
+	});
+	await expect.poll(async () => board.evaluate((element: HTMLElement) => element.scrollLeft > 0)).toBe(true);
+}
+
+async function expectTaskBoardReady(page: any): Promise<void> {
+	await expect(page.getByTestId('tasks-loading')).toHaveCount(0, { timeout: 30000 });
+	await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30000 });
+	for (const column of TASK_COLUMNS) {
+		await expect(page.getByTestId(`task-column-${column}`)).toBeVisible({ timeout: 15000 });
+	}
+}
+
+async function expectPlanBoardReady(page: any): Promise<void> {
+	await expect(page.getByTestId('plans-loading')).toHaveCount(0, { timeout: 30000 });
+	await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
+	for (const column of PLAN_COLUMNS) {
+		await expect(page.getByTestId(`plan-column-${column}`)).toBeVisible({ timeout: 15000 });
+	}
 }
 
 async function expectComposerAnchoredOverShell(page: any, shellTestId: string, composerTestId: string): Promise<void> {
@@ -102,16 +139,53 @@ function proofVideoPath(testInfo: any, viewport: { name: string; width: number; 
 	return path.resolve(PROOF_RECORDING_DIR, `${viewport.name}-${safeTitle || 'proof'}.webm`);
 }
 
+function trimProofVideoToReadyMarker(rawPath: string, outputPath: string, readyTimestampMs: number): void {
+	const trimStartSeconds = Math.max(0, readyTimestampMs / 1000 - PROOF_READY_TRIM_LEAD_SECONDS);
+	const result = spawnSync('ffmpeg', [
+		'-y',
+		'-ss', trimStartSeconds.toFixed(3),
+		'-i', rawPath,
+		'-map', '0:v:0',
+		'-c:v', 'libvpx-vp9',
+		'-deadline', 'realtime',
+		'-cpu-used', '4',
+		'-b:v', '0',
+		'-crf', '32',
+		'-an',
+		outputPath
+	], { encoding: 'utf8' });
+	if (result.error || result.status !== 0 || !fs.existsSync(outputPath)) {
+		const detail = result.error?.message || result.stderr || result.stdout || 'unknown ffmpeg failure';
+		throw new Error(`Proof video trim failed: ${String(detail).slice(-1000)}`);
+	}
+	fs.rmSync(rawPath, { force: true });
+}
+
+async function createAuthenticatedStorageState(browser: any, baseURL: string): Promise<Record<string, unknown>> {
+	const context = await browser.newContext({ baseURL });
+	const page = await context.newPage();
+	try {
+		await loginToTestAccount(page);
+		await waitForChatReady(page, () => undefined, 30000);
+		return await context.storageState({ indexedDB: true });
+	} finally {
+		await context.close();
+	}
+}
+
 async function runWithProofPage(
 	browser: any,
 	baseURL: string,
 	testInfo: any,
 	viewport: { name: string; width: number; height: number },
-	callback: (page: any) => Promise<void>
+	callback: (page: any, markReady: () => void) => Promise<void>
 ): Promise<void> {
 	fs.mkdirSync(PROOF_RECORDING_DIR, { recursive: true });
 	const outputPath = proofVideoPath(testInfo, viewport);
+	const rawOutputPath = `${outputPath}.raw.webm`;
 	fs.rmSync(outputPath, { force: true });
+	fs.rmSync(rawOutputPath, { force: true });
+	const storageState = await createAuthenticatedStorageState(browser, baseURL);
 
 	const context = await browser.newContext({
 		baseURL,
@@ -119,14 +193,20 @@ async function runWithProofPage(
 			dir: PROOF_RECORDING_DIR,
 			size: { width: viewport.width, height: viewport.height }
 		},
+		storageState,
 		viewport: { width: viewport.width, height: viewport.height }
 	});
 	const page = await context.newPage();
 	const video = page.video();
+	const recordingStartedAt = Date.now();
+	let readyTimestampMs: number | null = null;
 	let thrown: unknown;
+	const markReady = () => {
+		if (readyTimestampMs === null) readyTimestampMs = Date.now() - recordingStartedAt;
+	};
 
 	try {
-		await callback(page);
+		await callback(page, markReady);
 	} catch (error) {
 		thrown = error;
 	} finally {
@@ -136,9 +216,21 @@ async function runWithProofPage(
 
 	if (video) {
 		const generatedPath = await video.path();
-		await video.saveAs(outputPath);
-		if (path.resolve(generatedPath) !== outputPath) {
+		await video.saveAs(rawOutputPath);
+		if (path.resolve(generatedPath) !== path.resolve(rawOutputPath)) {
 			fs.rmSync(generatedPath, { force: true });
+		}
+		if (readyTimestampMs === null && !thrown) {
+			throw new Error(`Proof video for ${viewport.name} did not record a loaded ready marker`);
+		}
+		if (readyTimestampMs !== null && !thrown) {
+			trimProofVideoToReadyMarker(rawOutputPath, outputPath, readyTimestampMs);
+		} else {
+			fs.renameSync(rawOutputPath, outputPath);
+		}
+		const stats = fs.statSync(outputPath);
+		if (stats.size <= 0) {
+			throw new Error(`Proof video for ${viewport.name} was empty`);
 		}
 		await testInfo.attach(`${viewport.name}-proof-video`, {
 			path: outputPath,
@@ -157,13 +249,10 @@ test.describe('Tasks and Plans workspace transition', () => {
 	test.describe('proof laptop viewport', () => {
 		// contract-test: direct surface=gui.web assertions=workspace-shell.start.shared-affordances,workspace-shell.kanban.scroll-containment
 		test('renders route-specific shared workspace shells', async ({ browser, baseURL }: { browser: any; baseURL: string }, testInfo: any) => {
-			test.setTimeout(150000);
+			test.setTimeout(240000);
 			test.skip(!getTestAccount().email, 'Test account credentials required.');
-			await runWithProofPage(browser, baseURL, testInfo, LAPTOP_PROOF_VIEWPORT, async (page) => {
+			await runWithProofPage(browser, baseURL, testInfo, LAPTOP_PROOF_VIEWPORT, async (page, markReady) => {
 				await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
-
-				await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-				await loginToTestAccount(page);
 
 				await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 				await expect(page.getByTestId('tasks-workspace-home')).toBeVisible({ timeout: 30000 });
@@ -173,9 +262,9 @@ test.describe('Tasks and Plans workspace transition', () => {
 				await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15000 });
 				await expect(page.getByTestId('tasks-board-workspace')).toBeVisible({ timeout: 15000 });
 				await expectBoardScrollsUnderFixedComposer(page, 'tasks-workspace-home', 'tasks-board-scroll-content', 'task-workspace-composer');
-				for (const column of TASK_COLUMNS) {
-					await expect(page.getByTestId(`task-column-${column}`)).toBeVisible({ timeout: 15000 });
-				}
+				await expectTaskBoardReady(page);
+				markReady();
+				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
 				await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
 				await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
@@ -187,23 +276,20 @@ test.describe('Tasks and Plans workspace transition', () => {
 				await expectBoardScrollsUnderFixedComposer(page, 'plans-workspace-home', 'plans-board-scroll-content', 'plan-workspace-composer');
 				await expect(page.getByTestId('task-create-form')).toHaveCount(0);
 				await expect(page.getByTestId('task-extract-card')).toHaveCount(0);
-				for (const column of PLAN_COLUMNS) {
-					await expect(page.getByTestId(`plan-column-${column}`)).toBeVisible({ timeout: 15000 });
-				}
+				await expectPlanBoardReady(page);
+				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 			});
 		});
 
 		// contract-test: direct surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,workspace-shell.start.shared-affordances
 		test('keeps top-level workspace tabs and composers aligned with the chat shell', async ({ browser, baseURL }: { browser: any; baseURL: string }, testInfo: any) => {
-			test.setTimeout(180000);
+			test.setTimeout(240000);
 			test.skip(!getTestAccount().email, 'Test account credentials required.');
-			await runWithProofPage(browser, baseURL, testInfo, LAPTOP_PROOF_VIEWPORT, async (page) => {
+			await runWithProofPage(browser, baseURL, testInfo, LAPTOP_PROOF_VIEWPORT, async (page, markReady) => {
 				await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans', 'platform:workflows']);
 
-				await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-				await loginToTestAccount(page);
-
 				for (const workspace of TOP_LEVEL_WORKSPACES) {
+					await page.goto(getE2EDebugUrl(workspace.path), { waitUntil: 'domcontentloaded' });
 					await expect(page.getByTestId(workspace.navTestId)).toBeVisible({ timeout: 30000 });
 				}
 
@@ -214,6 +300,10 @@ test.describe('Tasks and Plans workspace transition', () => {
 					await expect(page.getByTestId(workspace.composerTestId)).toBeVisible({ timeout: 15000 });
 					await expect(page.getByTestId(workspace.inputTestId)).toHaveCSS('text-align', 'center');
 					await expectComposerAnchoredOverShell(page, workspace.shellTestId, workspace.composerTestId);
+					if (workspace.path === '/tasks') await expectTaskBoardReady(page);
+					if (workspace.path === '/plans') await expectPlanBoardReady(page);
+					markReady();
+					await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 				}
 			});
 		});
@@ -222,21 +312,31 @@ test.describe('Tasks and Plans workspace transition', () => {
 	test.describe('proof phone viewport', () => {
 		// contract-test: direct surface=gui.web assertions=workspace-shell.kanban.scroll-containment
 		test('keeps boards horizontally scrollable on mobile', async ({ browser, baseURL }: { browser: any; baseURL: string }, testInfo: any) => {
-			test.setTimeout(150000);
+			test.setTimeout(240000);
 			test.skip(!getTestAccount().email, 'Test account credentials required.');
-			await runWithProofPage(browser, baseURL, testInfo, PHONE_PROOF_VIEWPORT, async (page) => {
+			await runWithProofPage(browser, baseURL, testInfo, PHONE_PROOF_VIEWPORT, async (page, markReady) => {
 				await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-				await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-				await loginToTestAccount(page);
-
 				await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-				await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30000 });
-				await expectHorizontalBoardScroll(page.getByTestId('task-board'));
+				await expectTaskBoardReady(page);
+				await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15000 });
+				for (const column of TASK_COLUMNS.slice(0, 2)) {
+					await expect(page.getByTestId(`task-column-${column}`)).toBeVisible({ timeout: 15000 });
+				}
+				markReady();
+				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
+				await moveBoardHorizontalScroll(page, page.getByTestId('task-board'));
+				await page.waitForTimeout(PROOF_SCROLL_SETTLE_MS);
 
 				await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-				await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
-				await expectHorizontalBoardScroll(page.getByTestId('plan-board'));
+				await expectPlanBoardReady(page);
+				await expect(page.getByTestId('plan-workspace-composer')).toBeVisible({ timeout: 15000 });
+				for (const column of PLAN_COLUMNS.slice(0, 2)) {
+					await expect(page.getByTestId(`plan-column-${column}`)).toBeVisible({ timeout: 15000 });
+				}
+				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
+				await moveBoardHorizontalScroll(page, page.getByTestId('plan-board'));
+				await page.waitForTimeout(PROOF_SCROLL_SETTLE_MS);
 			});
 		});
 	});

@@ -8655,7 +8655,7 @@ assertions:
       surface: gui.web
     - &id947
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 197
+      line: 285
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
@@ -8717,12 +8717,12 @@ assertions:
     direct_tests:
     - &id954
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 159
+      line: 251
       name: renders route-specific shared workspace shells
       surface: gui.web
     - &id955
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 197
+      line: 285
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
@@ -8749,12 +8749,12 @@ assertions:
     direct_tests:
     - &id956
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 159
+      line: 251
       name: renders route-specific shared workspace shells
       surface: gui.web
     - &id957
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 224
+      line: 314
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
