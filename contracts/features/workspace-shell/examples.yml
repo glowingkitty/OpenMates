@@ -1,0 +1,38 @@
+schema_version: 1
+contract: feature.workspace-shell@1
+
+released_navigation:
+  - id: released-desktop-tabs-visible
+    given: {viewport: desktop, authenticated: true, disabled_feature_ids: [platform:teams, platform:ios]}
+    expect:
+      visible_workspace_tabs: [chats, projects, plans, workflows, tasks]
+      hidden_workspace_tabs: [teams, ios]
+      mobile_selector_visible: false
+  - id: mobile-navigation-equivalent
+    given: {viewport: mobile, authenticated: true, released_workspaces: [chats, projects, plans, workflows, tasks]}
+    expect: {workspace_selector_available: true, selectable_workspaces: [chats, projects, plans, workflows, tasks]}
+
+start_shells:
+  - id: projects-start-shell
+    given: {route: /projects, authenticated: true}
+    expect: {daily_inspiration_area_visible: true, background_identity_icon: projects, composer: project_input}
+  - id: workflows-start-shell
+    given: {route: /workflows, authenticated: true}
+    expect: {daily_inspiration_area_visible: true, background_identity_icon: workflows, composer: workflow_input}
+  - id: tasks-start-shell
+    given: {route: /tasks, authenticated: true}
+    expect: {daily_inspiration_area_visible: true, background_identity_icon: tasks, composer: task_input, kanban_board_visible: true}
+  - id: plans-start-shell
+    given: {route: /plans, authenticated: true}
+    expect: {daily_inspiration_area_visible: true, background_identity_icon: plans, composer: plan_input, kanban_board_visible: true}
+
+kanban_scroll:
+  - id: tasks-board-scrolls-under-composer
+    given: {route: /tasks, viewport: desktop, content_taller_than_shell: true}
+    expect: {columns_visible: [backlog, todo, in_progress, blocked, done], vertical_scroll_layer_scrolls: true, composer_remains_bottom_mounted: true}
+  - id: plans-board-scrolls-under-composer
+    given: {route: /plans, viewport: desktop, content_taller_than_shell: true}
+    expect: {columns_visible: [backlog, todo, in_progress, blocked, done], vertical_scroll_layer_scrolls: true, composer_remains_bottom_mounted: true}
+  - id: narrow-boards-remain-horizontal-kanban
+    given: {routes: [/tasks, /plans], viewport: mobile}
+    expect: {horizontal_board_scroll: true, columns_reachable: true, kanban_replaced_by_list: false}

@@ -577,43 +577,17 @@
 
   {#if isCentralTasksWorkspace}
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
-      <div class="tasks-shell-frame">
-        <WorkspaceHomeShell
+      <WorkspaceHomeShell
           surface="tasks"
           testId="tasks-workspace-home"
           centerTestId="task-greeting"
+          contentSlotVisible
+          contentSlotTestId="tasks-board-scroll-content"
           heading={`Hey ${greetingName}!`}
           subtitle="What task is next?"
           showReportIssue
           onStartInspiration={handleStartTaskInspiration}
         >
-          <svelte:fragment slot="composer">
-            <WorkspacePromptComposer
-              surface="tasks"
-              bind:value={taskPromptValue}
-              placeholder="Click to add or update tasks"
-              submitLabel="Send"
-              submittingLabel="Saving..."
-              disabled={!tasksEnabled || isSaving}
-              submitting={isSaving}
-              testId="task-workspace-composer"
-              inputTestId="task-workspace-input"
-              submitTestId="task-workspace-submit"
-              micTestId="task-workspace-mic"
-              onSubmit={handleTaskPromptSubmit}
-              onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
-            />
-            {#if pendingTaskDelete}
-              <div class="task-confirmation" data-testid="task-delete-confirmation">
-                <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
-                <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
-                <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
-              </div>
-            {/if}
-          </svelte:fragment>
-        </WorkspaceHomeShell>
-      </div>
-
       <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
         <div class="task-workspace-toolbar">
           <div class="task-board-summary">
@@ -659,6 +633,31 @@
           </div>
         {/if}
       </section>
+      <svelte:fragment slot="composer">
+        <WorkspacePromptComposer
+          surface="tasks"
+          bind:value={taskPromptValue}
+          placeholder="Click to add or update tasks"
+          submitLabel="Send"
+          submittingLabel="Saving..."
+          disabled={!tasksEnabled || isSaving}
+          submitting={isSaving}
+          testId="task-workspace-composer"
+          inputTestId="task-workspace-input"
+          submitTestId="task-workspace-submit"
+          micTestId="task-workspace-mic"
+          onSubmit={handleTaskPromptSubmit}
+          onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
+        />
+        {#if pendingTaskDelete}
+          <div class="task-confirmation" data-testid="task-delete-confirmation">
+            <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
+            <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
+            <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
+          </div>
+        {/if}
+      </svelte:fragment>
+      </WorkspaceHomeShell>
     </section>
   {:else}
   {#if plansEnabled}
@@ -827,6 +826,12 @@
     color: var(--color-font-primary);
   }
 
+  .tasks-page > .tasks-figma-workspace,
+  .tasks-page > .tasks-figma-workspace :global(.workspace-home-shell) {
+    flex: 1;
+    min-height: 0;
+  }
+
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
@@ -834,7 +839,7 @@
 
   .tasks-page.figma-layout {
     background: var(--color-grey-0);
-    padding: clamp(12px, 2.6vw, 30px);
+    padding: 0;
   }
 
   .tasks-hero,
@@ -872,35 +877,9 @@
     min-width: 0;
     flex-direction: column;
     gap: 18px;
-    overflow: auto;
-    border-radius: 28px;
-    border: 1px solid var(--color-grey-20);
-    background: var(--color-grey-0);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
-    padding: clamp(12px, 2.4vw, 28px);
-  }
-
-  .tasks-shell-frame {
-    min-height: clamp(330px, 42vh, 470px);
-    flex-shrink: 0;
-    position: relative;
     overflow: hidden;
     border-radius: 17px;
     background: var(--color-grey-0);
-  }
-
-  .tasks-shell-frame :global(.daily-inspiration-banner) {
-    --daily-inspiration-regular-height: clamp(112px, 14vh, 135px);
-    min-height: 0;
-  }
-
-  .tasks-shell-frame :global(.workspace-center-content.center-content) {
-    top: calc(50% + 8vh);
-  }
-
-  .tasks-shell-frame :global(.workspace-composer-slot) {
-    bottom: 10px;
-    z-index: var(--z-index-dropdown);
   }
 
   .task-board-panel {
@@ -908,7 +887,7 @@
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--spacing-8);
   }
 
   .task-workspace-toolbar {
@@ -1026,7 +1005,7 @@
     gap: 14px;
     width: 100%;
     min-width: 0;
-    max-height: min(62vh, 720px);
+    max-height: none;
     overflow: auto;
     padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
@@ -1378,7 +1357,6 @@
 
     .tasks-figma-workspace {
       min-height: 0;
-      padding: 18px;
     }
 
     .task-workspace-toolbar {
@@ -1398,7 +1376,6 @@
 
     .task-board-stage :global(.task-board) {
       grid-template-columns: repeat(5, minmax(252px, 270px));
-      max-height: 58vh;
     }
 
     .task-board-stage :global(.task-column) {
