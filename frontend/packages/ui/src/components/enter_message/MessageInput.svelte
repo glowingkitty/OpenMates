@@ -367,6 +367,7 @@
     const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
     const MESSAGE_FIELD_MAX_HEIGHT = 350;
     const MESSAGE_FIELD_MAPS_HEIGHT = 400;
+    const MESSAGE_FIELD_RECORDING_HEIGHT = 220;
     const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
     const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
     const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
@@ -1919,6 +1920,9 @@
         // which correctly restores `height: auto` without affecting fullscreen state.
         if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
+        }
+        if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
+            return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
         }
         if (inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI) {
             return 'height: 48px; max-height: 48px;';
