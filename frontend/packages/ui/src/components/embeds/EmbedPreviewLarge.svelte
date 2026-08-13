@@ -406,6 +406,12 @@
     width: 100%;
   }
 
+  .embed-preview-large-container :global(.unified-embed-preview.desktop) {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
 
   .embed-preview-large-content {
     width: 100%;
@@ -496,14 +502,15 @@
   /* ── Navigation arrows (matches ChatHeader .nav-arrow style) ────────────── */
   .nav-arrow {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 50%;
     padding: 0 !important;
     min-width: unset !important;
-    width: 40px !important;
-    height: 100% !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background-color: rgba(0, 0, 0, 0.48) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -511,6 +518,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transform: translateY(-50%);
     transition: background-color var(--duration-fast) var(--easing-default);
     z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
@@ -518,23 +526,21 @@
   }
 
   .nav-arrow:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(0, 0, 0, 0.65) !important;
     scale: none !important;
   }
 
   .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(0, 0, 0, 0.75) !important;
     scale: none !important;
     filter: none !important;
   }
 
   .nav-arrow-left {
-    left: 0;
-    border-radius: 0 10px 10px 0 !important;
+    left: 8px;
   }
 
   .nav-arrow-right {
-    right: 0;
-    border-radius: var(--radius-4) 0 0 10px !important;
+    right: 8px;
   }
 </style>
