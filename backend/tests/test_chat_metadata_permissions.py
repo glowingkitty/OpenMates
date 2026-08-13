@@ -7,6 +7,10 @@ field-level 403 must degrade to the minimal safe field set, not look like a
 missing chat.
 """
 
+# contract-test-file: infrastructure
+
+import hashlib
+
 import pytest
 
 from backend.core.api.app.services.directus.chat_methods import (
@@ -58,6 +62,19 @@ class UserChatListDirectus:
     async def get_items(self, _collection, params, **kwargs):
         self.calls.append({"params": params, "kwargs": kwargs})
         return [{"id": "chat-owned", "hashed_user_id": params["filter[hashed_user_id][_eq]"]}]
+
+
+class TeamChatSyncDirectus:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    async def get_items(self, collection, params, **kwargs):
+        self.calls.append({"collection": collection, "params": params, "kwargs": kwargs})
+        if params.get("aggregate[count]") == "*":
+            return [{"count": 1}]
+        if collection == "drafts":
+            return []
+        return [{"id": "team-chat", "hashed_team_id": params["filter[hashed_team_id][_eq]"]}]
 
 
 @pytest.mark.anyio
@@ -138,3 +155,32 @@ async def test_user_chat_metadata_can_use_admin_access_with_hashed_owner_filter(
     assert call["params"]["filter[hashed_user_id][_eq]"]
     assert "filter[user_created][_eq]" not in call["params"]
     assert call["kwargs"]["admin_required"] is True
+
+
+@pytest.mark.anyio
+async def test_team_chat_count_uses_admin_access_with_hashed_team_filter():
+    directus = TeamChatSyncDirectus()
+    chat_methods = ChatMethods(directus)
+
+    count = await chat_methods.get_user_chat_count("user-1", team_id="team-1")
+
+    assert count == 1
+    call = directus.calls[0]
+    assert call["collection"] == "chats"
+    assert call["params"]["filter[hashed_team_id][_eq]"] == hashlib.sha256("team-1".encode()).hexdigest()
+    assert "filter[hashed_user_id][_eq]" not in call["params"]
+    assert call["kwargs"]["admin_required"] is True
+
+
+@pytest.mark.anyio
+async def test_team_chat_cache_warming_uses_admin_access_with_hashed_team_filter():
+    directus = TeamChatSyncDirectus()
+    chat_methods = ChatMethods(directus)
+
+    rows = await chat_methods.get_core_chats_and_user_drafts_for_cache_warming("user-1", team_id="team-1")
+
+    assert rows[0]["chat_details"]["id"] == "team-chat"
+    chat_call = next(call for call in directus.calls if call["collection"] == "chats")
+    assert chat_call["params"]["filter[hashed_team_id][_eq]"] == hashlib.sha256("team-1".encode()).hexdigest()
+    assert "filter[hashed_user_id][_eq]" not in chat_call["params"]
+    assert chat_call["kwargs"]["admin_required"] is True

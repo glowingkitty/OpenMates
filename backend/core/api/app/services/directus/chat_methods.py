@@ -235,7 +235,7 @@ class ChatMethods:
             params['filter[hashed_user_id][_eq]'] = hashed_user_id
             params['filter[hashed_team_id][_null]'] = True
         try:
-            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            response = await self.directus_service.get_items('chats', params=params, no_cache=True, admin_required=True)
             if response and isinstance(response, list) and len(response) > 0:
                 count = response[0].get('count', 0)
                 return int(count)
@@ -1409,7 +1409,7 @@ class ChatMethods:
         results_list = []
         try:
             # 1. Fetch all core chat metadata in one request
-            core_chats_list = await self.directus_service.get_items('chats', params=chat_params)
+            core_chats_list = await self.directus_service.get_items('chats', params=chat_params, admin_required=True)
             if not core_chats_list or not isinstance(core_chats_list, list):
                 logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")
                 return []
