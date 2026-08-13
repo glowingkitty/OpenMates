@@ -697,17 +697,19 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     video.write_bytes(b"verified-video")
     (recording_dir / "manifest.json").write_text(json.dumps({
         "spec": "example.spec.ts",
-        "run_id": "run-one",
+        "run_id": "parent-run",
         "git_sha": commit[:9],
+        "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
         "assets": {"video_key": "latest/example/videos/example.webm"},
     }), encoding="utf-8")
     artifact.write_text(json.dumps({
-        "run_id": "run-one",
+        "run_id": "parent-run",
         "git_sha": commit[:9],
         "environment": "https://app.dev.openmates.org",
         "suites": {"playwright": {"status": "passed", "tests": [{
             "file": "example.spec.ts",
             "status": "passed",
+            "run_id": 12345,
             "video_paths": ["frontend/test-results/example/video.webm"],
         }]}},
     }), encoding="utf-8")

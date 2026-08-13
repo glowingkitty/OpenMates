@@ -1152,14 +1152,15 @@ def _file_sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def _downloaded_recording_paths(spec_name: str, run_id: str) -> list[Path]:
+def _downloaded_recording_paths(spec_name: str, run_ids: set[str]) -> list[Path]:
     recordings_root = RESULTS_DIR / "recordings"
     matches: list[Path] = []
     for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
         manifest = read_json(manifest_path, {})
         if Path(str(manifest.get("spec") or "")).name != spec_name:
             continue
-        if str(manifest.get("run_id") or "") != run_id:
+        github_run_id = str(manifest.get("github_run_url") or "").rstrip("/").rsplit("/", 1)[-1]
+        if not run_ids.intersection({str(manifest.get("run_id") or ""), github_run_id}):
             continue
         video_key = str((manifest.get("assets") or {}).get("video_key") or "")
         video_path = (recordings_root / video_key).resolve()
@@ -1185,7 +1186,8 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         spec_name = Path(test_label(suite, test)).name
         run_id = str(test.get("run_id") or run_data.get("run_id") or "")
         if not artifact_paths:
-            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_name, run_id)]
+            candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
+            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_name, candidate_run_ids)]
         if len(artifact_paths) != 1:
             continue
         artifact_path = Path(artifact_paths[0]).resolve()
