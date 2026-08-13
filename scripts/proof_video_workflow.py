@@ -102,13 +102,14 @@ def resolve_current_context(
             f"no deployed passing run matches {spec_name} at {subject_commit}; "
             f"run `python3 scripts/tests.py run --spec {spec_name} --gate-deploy --expected-commit {subject_commit}`"
         )
-    if len(passing_runs) > 1:
-        available_run_ids = ", ".join(sorted(str(record.get("run_id") or "") for record in passing_runs)[:10])
+    unique_run_ids = {str(record.get("source_run_id") or record.get("run_id") or "") for record in passing_runs}
+    if len(unique_run_ids) > 1:
+        available_run_ids = ", ".join(sorted(unique_run_ids)[:10])
         raise WorkflowError(
             f"multiple passing runs match {spec_name} at {subject_commit}; provide --run-id. "
             f"Available run IDs: {available_run_ids}"
         )
-    return ProofContext(session_id, subject_commit, str(passing_runs[0]["run_id"]), spec_name)
+    return ProofContext(session_id, subject_commit, str(passing_runs[0].get("source_run_id") or passing_runs[0]["run_id"]), spec_name)
 
 
 def resolve_current_session(sessions: dict[str, Any], *, opencode_session_id: str) -> tuple[str, dict[str, Any]]:
@@ -365,11 +366,11 @@ def _local_test_runs() -> list[dict[str, Any]]:
     return [data for path in sorted(PROOF_SOURCE_DIR.glob("*.json"), reverse=True) if (data := _load_json(path))]
 
 
-def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str) -> dict[str, Any]:
+def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, source_video: Path | None = None) -> dict[str, Any]:
     matches = [
         run
         for run in _local_test_runs()
-        if run.get("run_id") == run_id
+        if run_id in {str(run.get("run_id") or ""), str(run.get("source_run_id") or "")}
         and run.get("spec") == Path(spec_name).name
         and run.get("status") == "passed"
         and run.get("source") == "scripts_tests"
@@ -378,6 +379,13 @@ def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str) ->
         and str(run.get("deployment_reference") or "") == subject_commit
         and len(subject_commit) == 40
     ]
+    if source_video is not None:
+        expected_source = source_video.resolve()
+        matches = [
+            run
+            for run in matches
+            if Path(str(run.get("artifact_path") or "")).resolve() == expected_source
+        ]
     if len(matches) != 1:
         raise WorkflowError(
             f"expected one deployed passing run for {spec_name} at {subject_commit} with run ID {run_id}, found {len(matches)}"

@@ -999,7 +999,7 @@ def test_complete_lease_require_passing_blocks_active_failure_group(tmp_path, mo
 def test_complete_debug_group_requires_member_test_keys(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     store = tests_control.get_store()
-    store.create_debug_campaign({"campaign_key": "campaign", "status": "active"})
+    store.create_debug_campaign({"campaign_key": "campaign", "status": "active", "session_id": tests_control.os.environ["OPENCODE_SESSION_ID"]})
     store.create_debug_group({"group_key": "group-empty", "campaign_key": "campaign", "member_test_keys": []})
 
     def fail_list_test_results(test_keys=None):

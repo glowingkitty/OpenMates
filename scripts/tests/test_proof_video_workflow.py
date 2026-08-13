@@ -151,6 +151,24 @@ def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
         )
 
 
+def test_resolve_current_context_accepts_same_run_with_multiple_video_sources() -> None:
+    commit = "a" * 40
+    runs = [
+        {"run_id": "run-1:phone-1234", "source_run_id": "run-1", "git_sha": commit, "status": "passed", "spec": "example.spec.ts", "source": "scripts_tests", "deployment_verified": True},
+        {"run_id": "run-1:laptop-5678", "source_run_id": "run-1", "git_sha": commit, "status": "passed", "spec": "example.spec.ts", "source": "scripts_tests", "deployment_verified": True},
+    ]
+
+    context = workflow.resolve_current_context(
+        {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}},
+        opencode_session_id="ses_current",
+        subject_commit=commit,
+        spec_name="example.spec.ts",
+        test_runs=runs,
+    )
+
+    assert context.source_run_id == "run-1"
+
+
 def test_contract_hash_is_canonical_and_approval_is_exact(tmp_path: Path) -> None:
     contract = {
         "title": "Maps Search fullscreen",
@@ -272,6 +290,38 @@ def test_deployed_run_rejects_duplicate_attestations(tmp_path: Path, monkeypatch
 
     with pytest.raises(workflow.WorkflowError, match="found 2"):
         workflow.resolve_deployed_run(subject_commit=commit, spec_name="example.spec.ts", run_id="run-one")
+
+
+def test_deployed_run_can_select_exact_source_video_from_multi_video_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    commit = "a" * 40
+    phone_video = tmp_path / "phone.webm"
+    laptop_video = tmp_path / "laptop.webm"
+    phone_video.write_bytes(b"phone")
+    laptop_video.write_bytes(b"laptop")
+    records = []
+    for label, video in (("phone", phone_video), ("laptop", laptop_video)):
+        records.append({
+            "run_id": f"run-one:{label}",
+            "source_run_id": "run-one",
+            "git_sha": commit,
+            "deployment_reference": commit,
+            "status": "passed",
+            "spec": "example.spec.ts",
+            "source": "scripts_tests",
+            "deployment_verified": True,
+            "artifact_path": str(video),
+            "artifact_sha256": workflow._file_sha256(video),
+        })
+    monkeypatch.setattr(workflow, "_local_test_runs", lambda: records)
+
+    selected = workflow.resolve_deployed_run(
+        subject_commit=commit,
+        spec_name="example.spec.ts",
+        run_id="run-one",
+        source_video=laptop_video,
+    )
+
+    assert selected["artifact_path"] == str(laptop_video)
 
 
 def test_deployed_run_requires_exact_full_commit(monkeypatch: pytest.MonkeyPatch) -> None:

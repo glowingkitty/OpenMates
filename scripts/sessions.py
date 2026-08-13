@@ -7161,6 +7161,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
                 subject_commit=args.subject_commit,
                 spec_name=args.spec_name,
                 run_id=args.run_id,
+                source_video=args.source_video,
             )
         except WorkflowError as exc:
             raise DemonstrationError(str(exc)) from exc
