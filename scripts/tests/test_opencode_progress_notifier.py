@@ -382,13 +382,12 @@ def test_task_list_changed_event_posts_deterministic_diff_without_model(tmp_path
     )
 
     assert result["status"] == "sent"
-    combined = sent["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in sent["payload"]["embeds"])
-    assert "OpenCode Tasks Changed" in combined
-    assert "Status changed:" in combined
-    assert "Implement notifier format -> completed" in combined
-    assert "Added:" in combined
-    assert "Wire hook trigger" in combined
-    assert "Overview:" not in combined
+    assert sent["payload"]["embeds"] == []
+    content = sent["payload"]["content"]
+    assert "🧭 OpenCode tasks updated" in content
+    assert "✅ Implement notifier format -> completed" in content
+    assert "🔵 Wire hook trigger" in content
+    assert "Overview:" not in content
 
 
 def test_task_list_changed_event_skips_identical_snapshot(tmp_path: Path) -> None:
@@ -440,11 +439,12 @@ def test_response_completed_event_posts_short_gemini_summary(tmp_path: Path) -> 
     encoded_evidence = json.dumps(captured["evidence"])
     assert "attachment content omitted" not in encoded_evidence
     assert "raw command output" not in encoded_evidence
-    combined = captured["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in captured["payload"]["embeds"])
-    assert "OpenCode Response Completed" in combined
-    assert "Implemented the event-driven notifier" in combined
-    assert "Task notifications are deterministic." in combined
-    assert "Chose option 2" not in combined
+    assert captured["payload"]["embeds"] == []
+    content = captured["payload"]["content"]
+    assert "✅ OpenCode response completed" in content
+    assert "Implemented the event-driven notifier" in content
+    assert "Task notifications are deterministic." in content
+    assert "Chose option 2" not in content
 
 
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:

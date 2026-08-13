@@ -1352,21 +1352,28 @@ def build_task_event_payload(
     title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
     url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
     lines = [
-        "**OpenCode Tasks Changed**",
-        f"[{title}]({url}) · `{_now_iso(now)}`",
+        "🧭 OpenCode tasks updated",
+        f"{title}",
     ]
-    details: list[str] = []
-    details.extend(_change_lines("Added", _task_contents(added)))
-    details.extend(_change_lines("Status changed", [f"{task.get('content')} -> {task.get('status')}" for task in status_changed]))
-    details.extend(_change_lines("Removed", _task_contents(removed)))
-    if not details:
-        details.append("Task list changed, but the compact diff contained no renderable item details.")
+    for task in status_changed[:5]:
+        status = _normalize_task_status(task.get("status"))
+        icon = "✅" if status == "completed" else "🔵" if status == "in_progress" else "⏭️" if status == "pending" else "🚫"
+        lines.append(f"{icon} {task.get('content')} -> {status.replace('_', ' ')}")
+    for task in added[:5]:
+        status = _normalize_task_status(task.get("status"))
+        icon = "✅" if status == "completed" else "🔵" if status == "in_progress" else "⏭️" if status == "pending" else "➕"
+        lines.append(f"{icon} {task.get('content')}")
+    for task in removed[:3]:
+        lines.append(f"🗑️ Removed: {task.get('content')}")
+    if len(status_changed) + len(added) + len(removed) == 0:
+        lines.append("Task list changed.")
+    lines.append(f"🔗 {url}")
     return {
         "username": "OpenMates Agent Updates",
         "avatar_url": "https://openmates.org/favicon.png",
         "allowed_mentions": {"parse": []},
         "content": _fit_discord_content("\n".join(lines)),
-        "embeds": [{"title": TASK_EVENT_EMBED_TITLE, "description": _fit_discord_embed_description("\n".join(details)), "color": 0x10B981}],
+        "embeds": [],
     }
 
 
@@ -1471,20 +1478,20 @@ def call_gemini_completion_summary(
 def build_completion_event_payload(*, chat: dict[str, Any], summary: dict[str, Any], now: datetime) -> dict[str, Any]:
     title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
     url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
-    content = "\n".join(["**OpenCode Response Completed**", f"[{title}]({url}) · `{_now_iso(now)}`"])
-    lines = [_visible_text(summary.get("summary") or "Response completed.")]
+    lines = ["✅ OpenCode response completed", title, _visible_text(summary.get("summary") or "Response completed.")]
     for bullet in _string_list(summary.get("bullets"), max_items=3, max_chars=260):
         visible = _visible_text(bullet)
         if visible:
             lines.append(f"• {visible}")
     if summary.get("needs_attention"):
-        lines.append("Needs attention: yes")
+        lines.append("⚠️ Needs attention")
+    lines.append(f"🔗 {url}")
     return {
         "username": "OpenMates Agent Updates",
         "avatar_url": "https://openmates.org/favicon.png",
         "allowed_mentions": {"parse": []},
-        "content": _fit_discord_content(content),
-        "embeds": [{"title": COMPLETION_EVENT_EMBED_TITLE, "description": _fit_discord_embed_description("\n".join(lines)), "color": 0x6366F1}],
+        "content": _fit_discord_content("\n".join(lines)),
+        "embeds": [],
     }
 
 
