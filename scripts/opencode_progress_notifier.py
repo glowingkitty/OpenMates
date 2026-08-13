@@ -1679,6 +1679,7 @@ def notify_task_list_changed(
     update_state: bool = True,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    return {"status": "skipped_task_notifications_disabled", "session_id": top_level_session_id_for(session_id) or session_id}
     current_time = now or datetime.now(timezone.utc)
     root_session_id = top_level_session_id_for(session_id)
     current_tasks = _normalize_task_items(todos, max_items=40)

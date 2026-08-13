@@ -1480,6 +1480,10 @@ function isTodoWriteTool(tool) {
   return ["todowrite", "todo_write", "todo.write", "TodoWrite"].includes(String(tool || ""));
 }
 
+function presenceIsLive(state) {
+  return PRESENCE_LIVE_EXECUTION.has(state?.execution) || state?.turn === "streaming";
+}
+
 function todoListFromToolArgs(args) {
   const input = toolInput(args);
   return Array.isArray(input.todos) ? input.todos : [];
@@ -1498,10 +1502,6 @@ function completedAssistantMessageID(event) {
 
 function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = "", todos = [] } = {}) {
   if (!sessionID) return [];
-  if (eventType === "task-list-changed") {
-    if (!Array.isArray(todos) || todos.length === 0) return [];
-    return [OPENCODE_NOTIFIER, "--event", "task-list-changed", "--session-id", sessionID, "--todos-json", JSON.stringify(todos)];
-  }
   if (eventType === "response-completed") {
     return [OPENCODE_NOTIFIER, "--event", "response-completed", "--session-id", sessionID, "--message-id", messageID || ""];
   }
@@ -1861,6 +1861,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
   const presenceStates = new Map();
+  const notifierLiveSessions = new Set();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
   let presenceSequence = 0;
@@ -1888,6 +1889,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       updated_at: state.updated_at || isoNow(),
     };
     presenceStates.set(state.session_id, record);
+    const notifierSessionID = record.top_level_session_id || record.parent_id || record.session_id;
+    if (notifierSessionID && presenceIsLive(record)) notifierLiveSessions.add(notifierSessionID);
     presenceScheduler.schedule(record);
   };
   const currentPresence = (sessionID) => {
@@ -1943,7 +1946,13 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
       const completedMessageID = completedAssistantMessageID(event);
       if (completedMessageID) {
-        scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "response-completed", sessionID: eventSessionID(event), messageID: completedMessageID }));
+        const completedSessionID = eventSessionID(event);
+        const current = currentPresence(completedSessionID);
+        const notifierSessionID = current.top_level_session_id || current.parent_id || completedSessionID;
+        if (notifierLiveSessions.has(notifierSessionID)) {
+          notifierLiveSessions.delete(notifierSessionID);
+          scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "response-completed", sessionID: completedSessionID, messageID: completedMessageID }));
+        }
       }
     },
     "shell.env": async (input, output) => {
@@ -2016,9 +2025,6 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         recordTaskChildRole(input, output);
         return;
       }
-      if (isTodoWriteTool(tool)) {
-        scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "task-list-changed", sessionID: input.sessionID, todos: todoListFromToolArgs(toolArgs(input, output)) }));
-      }
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
         if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
@@ -2069,6 +2075,7 @@ OpenMatesHooks.test = Object.freeze({
   editedFilesForTest,
   initialPresenceForTest,
   isTodoWriteTool,
+  presenceIsLive,
   readConflictWarningForTest,
   completedAssistantMessageID,
   notifierEventArgsForTest,

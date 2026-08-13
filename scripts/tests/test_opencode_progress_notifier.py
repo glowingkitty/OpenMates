@@ -352,7 +352,7 @@ def test_known_chat_followup_is_deterministic_task_delta_without_model(tmp_path:
     assert "Overview:" not in combined
 
 
-def test_task_list_changed_event_posts_deterministic_diff_without_model(tmp_path: Path) -> None:
+def test_task_list_changed_event_is_disabled(tmp_path: Path) -> None:
     notifier = load_module("progress_task_event")
     state_path = tmp_path / "state.json"
     state = notifier.load_state(state_path)
@@ -365,7 +365,7 @@ def test_task_list_changed_event_posts_deterministic_diff_without_model(tmp_path
         }
     }
     notifier.save_state(state_path, state)
-    sent: dict[str, object] = {}
+    sent: list[object] = []
 
     result = notifier.notify_task_list_changed(
         session_id="ses-parent",
@@ -375,22 +375,17 @@ def test_task_list_changed_event_posts_deterministic_diff_without_model(tmp_path
             {"content": "Wire hook trigger", "status": "in_progress", "priority": "high"},
         ],
         chat_reader=fake_chat_view,
-        discord_sender=lambda **kwargs: sent.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
+        discord_sender=lambda **kwargs: sent.append(kwargs) or {"message_id": "discord-1"},
         state_path=state_path,
         webhook_url="https://example.invalid/webhook",
         now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
     )
 
-    assert result["status"] == "sent"
-    assert sent["payload"]["embeds"] == []
-    content = sent["payload"]["content"]
-    assert "🧭 OpenCode tasks updated" in content
-    assert "✅ Implement notifier format -> completed" in content
-    assert "🔵 Wire hook trigger" in content
-    assert "Overview:" not in content
+    assert result["status"] == "skipped_task_notifications_disabled"
+    assert sent == []
 
 
-def test_task_list_changed_event_skips_identical_snapshot(tmp_path: Path) -> None:
+def test_task_list_changed_event_disabled_even_for_identical_snapshot(tmp_path: Path) -> None:
     notifier = load_module("progress_task_event_dedupe")
     state_path = tmp_path / "state.json"
     todos = [{"content": "Create executable spec", "status": "completed", "priority": "high"}]
@@ -408,7 +403,7 @@ def test_task_list_changed_event_skips_identical_snapshot(tmp_path: Path) -> Non
         now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
     )
 
-    assert result["status"] == "skipped_no_changes"
+    assert result["status"] == "skipped_task_notifications_disabled"
 
 
 def test_response_completed_event_posts_short_gemini_summary(tmp_path: Path) -> None:

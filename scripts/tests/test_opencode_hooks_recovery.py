@@ -269,7 +269,7 @@ def test_opencode_notifier_hook_events_are_bounded() -> None:
         import { strict as assert } from 'node:assert';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
-        const { completedAssistantMessageID, isTodoWriteTool, notifierEventArgsForTest } = OpenMatesHooks.test;
+        const { completedAssistantMessageID, isTodoWriteTool, notifierEventArgsForTest, presenceIsLive } = OpenMatesHooks.test;
         const completed = {
           type: 'message.updated',
           properties: { info: { id: 'msg-1', role: 'assistant', time: { completed: 123 } }, sessionID: 'ses-parent' },
@@ -286,12 +286,13 @@ def test_opencode_notifier_hook_events_are_bounded() -> None:
           sessionID: 'ses-parent',
           todos: [{ content: 'Update tests', status: 'in_progress', priority: 'high' }],
         });
-        assert.deepEqual(taskArgs.slice(1, 5), ['--event', 'task-list-changed', '--session-id', 'ses-parent']);
-        assert.equal(taskArgs[5], '--todos-json');
-        assert.match(taskArgs[6], /Update tests/);
+        assert.deepEqual(taskArgs, []);
 
         const completionArgs = notifierEventArgsForTest({ eventType: 'response-completed', sessionID: 'ses-parent', messageID: 'msg-1' });
         assert.deepEqual(completionArgs.slice(1), ['--event', 'response-completed', '--session-id', 'ses-parent', '--message-id', 'msg-1']);
+        assert.equal(presenceIsLive({ execution: 'busy', turn: 'none' }), true);
+        assert.equal(presenceIsLive({ execution: 'idle', turn: 'streaming' }), true);
+        assert.equal(presenceIsLive({ execution: 'idle', turn: 'completed' }), false);
         """
     )
 
