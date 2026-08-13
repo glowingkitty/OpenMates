@@ -20,6 +20,8 @@ const CLI_DIR = join(ROOT, "frontend/packages/openmates-cli");
 const CLI_PATH = join(CLI_DIR, "dist/cli.js");
 const LOGIN_HELPER = join(ROOT, "scripts/openmates_cli_test_account.mjs");
 const DEFAULT_API_URL = "https://api.dev.openmates.org";
+const CHAT_LIST_RETRY_ATTEMPTS = 6;
+const CHAT_LIST_RETRY_DELAY_MS = 1000;
 
 function parseArgs(argv) {
   const options = {
@@ -132,6 +134,10 @@ function printOutput(output) {
   process.stdout.write(`${output.trim()}\n`);
 }
 
+function sleep(ms) {
+  spawnSync(process.execPath, ["-e", `setTimeout(() => {}, ${ms})`], { timeout: ms + 1000 });
+}
+
 function teamIdFrom(payload) {
   const team = payload.team && typeof payload.team === "object" ? payload.team : payload;
   const teamId = team.team_id || team.id;
@@ -188,7 +194,12 @@ function listChatsForIsolation(env, chatId, slug, options) {
 
   runVisibleCli(env, `openmates switch-to ${slug}`, ["switch-to", slug], options);
   printCommand("openmates chats list");
-  const teamList = cli(env, ["chats", "list"], options);
+  let teamList = "";
+  for (let attempt = 1; attempt <= CHAT_LIST_RETRY_ATTEMPTS; attempt += 1) {
+    teamList = cli(env, ["chats", "list"], options);
+    if (teamList.includes(chatId.slice(0, 8))) break;
+    if (attempt < CHAT_LIST_RETRY_ATTEMPTS) sleep(CHAT_LIST_RETRY_DELAY_MS);
+  }
   if (!teamList.includes(chatId.slice(0, 8))) throw new Error("Team chat list did not include the created team chat");
   process.stdout.write(`Team chats listed: created team chat ${chatId.slice(0, 8)} is present\n`);
 }

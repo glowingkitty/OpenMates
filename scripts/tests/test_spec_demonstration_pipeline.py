@@ -333,6 +333,8 @@ def test_teams_cli_proof_helper_validates_visible_chat_isolation() -> None:
     assert source.count('printCommand("openmates chats list")') >= 2
     assert "Personal chat list unexpectedly included the team chat" in source
     assert "Team chat list did not include the created team chat" in source
+    assert "CHAT_LIST_RETRY_ATTEMPTS" in source
+    assert "CHAT_LIST_RETRY_DELAY_MS" in source
     assert "Personal chats listed: created team chat" in source
     assert "Team chats listed: created team chat" in source
     assert "is absent" in source
