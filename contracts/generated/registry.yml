@@ -127,7 +127,7 @@ contracts:
     version: 1
     status: approved
     path: features/notifications
-    fingerprint: ae2f357175af98f7d7c0d74230730cad0020ae072ffd209c657a6b7c1891c54d
+    fingerprint: b286705aa8831547c7b45ce8a07025a29dc73363f13bd28ca815d31821de958e
     required_surfaces:
     - rest_api
     - cli
@@ -1344,6 +1344,30 @@ assertions:
     contract_id: feature.notifications
     type: parity
     fingerprint: bd9a68132351c6f3938586a43a524db986dfa9d927e6a5c350ed6232323db5ff
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.web.mobile-insets:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: 0f60c61dac10cc1f5ae84e6cbe2daeef24df3b1896192f0d2d9d4c2b28d2e6ee
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.web.timed-dismissal:
+    contract: feature.notifications@1
+    contract_id: feature.notifications
+    type: behavior
+    fingerprint: 106cb0fa1880478773abb3fc55ae66887c62fea919607ceb2b189b04bf78f330
     required_surfaces:
     - rest_api
     - cli

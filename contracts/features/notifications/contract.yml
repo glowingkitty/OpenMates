@@ -133,6 +133,14 @@ assertions:
     type: parity
     must: REST, CLI, npm SDK, pip SDK, web, and Apple preserve the same authorization, history-listing, read-state, preference-gating, privacy-boundary, and delivery-state semantics for notification surfaces implemented on that client.
     depends_on: [models, examples, surfaces]
+  - id: notifications.web.mobile-insets
+    type: behavior
+    must: In-app notification cards on mobile web keep exactly 10 pixels of visible space from the viewport top, inline-start edge, and inline-end edge without horizontal clipping.
+    depends_on: [surfaces.gui]
+  - id: notifications.web.timed-dismissal
+    type: behavior
+    must: A non-persistent in-app web notification shows a bottom progress indicator for its configured duration and closes when that duration completes unless the user dismisses or acts on it first.
+    depends_on: [surfaces.gui]
 
 surfaces:
   rest_api:
