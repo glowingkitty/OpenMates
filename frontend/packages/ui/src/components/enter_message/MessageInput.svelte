@@ -5780,7 +5780,7 @@
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
-        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft}
+        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         style={containerStyle}
