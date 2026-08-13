@@ -850,7 +850,7 @@ export async function checkAuth(
         autoLogoutNotificationId = notificationStore.autoLogout(
           $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
-          0, // Persist so the user can act on the login CTA
+          7000,
           $text("login.auto_logout_notification.title"),
           {
             actionLabel: $text("login.auto_logout_notification.login_again_action"),

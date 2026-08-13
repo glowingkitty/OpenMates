@@ -3911,6 +3911,12 @@
 		pointer-events: auto;
 	}
 
+	@media (max-width: 730px) {
+		.notification-container {
+			padding-top: 10px;
+		}
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* Developer console wrapper                                            */
 	/* Sits at the bottom of .main-content (in normal flow), so it pushes  */

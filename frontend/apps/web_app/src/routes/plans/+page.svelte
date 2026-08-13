@@ -156,4 +156,12 @@
     right: 20px;
     z-index: 2000;
   }
+
+  @media (max-width: 730px) {
+    .notification-container {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+    }
+  }
 </style>

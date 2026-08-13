@@ -1492,6 +1492,10 @@
   }
 
   @media (max-width: 760px) {
+    .notification-container {
+      padding-top: 10px;
+    }
+
     .workflows-container {
       height: calc(100vh - 75px);
       height: calc(100dvh - 75px);

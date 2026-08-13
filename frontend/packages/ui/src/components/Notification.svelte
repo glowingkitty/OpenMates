@@ -139,6 +139,8 @@
             ? `transform: translateY(${dragOffset}px); opacity: ${Math.max(0.3, 1 - Math.abs(dragOffset) / 150)};`
             : ''
     );
+
+    let progressStyle = $derived(`--notification-duration: ${notification.duration ?? 0}ms`);
 </script>
 
 <!-- 
@@ -221,6 +223,17 @@
             {/if}
         </div>
     </div>
+    {#if notification.duration && notification.duration > 0}
+        <div
+            class="notification-progress"
+            data-testid="notification-progress"
+            data-duration-ms={notification.duration}
+            style={progressStyle}
+            aria-hidden="true"
+        >
+            <div class="notification-progress-fill"></div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -231,6 +244,7 @@
         /* Figma design: 430px or 100% viewport width, with 5px margin on smaller screens */
         width: 430px;
         max-width: calc(100vw - 40px);
+        box-sizing: border-box;
         overflow: hidden;
         
         /* Base styling */
@@ -494,6 +508,35 @@
         filter: none;
         opacity: 1;
     }
+
+    .notification-progress {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 4px;
+        pointer-events: none;
+    }
+
+    .notification-progress-fill {
+        width: 100%;
+        height: 100%;
+        background: var(--color-grey-50);
+        transform: scaleX(0);
+        transform-origin: left center;
+        animation: notificationProgressFill var(--notification-duration) linear forwards;
+    }
+
+    @keyframes notificationProgressFill {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .notification-progress-fill {
+            animation: none;
+            transform: scaleX(1);
+        }
+    }
     
     /* Type-specific icon background colors */
     .notification-auto-logout .notification-icon,
@@ -518,7 +561,6 @@
     /* Mobile responsiveness - ensure notification fits within viewport */
     @media (max-width: 450px) {
         .notification {
-            /* Use 100% of container width minus safe margins */
             width: calc(100vw - 20px);
             max-width: calc(100vw - 20px);
             /* Reduce padding slightly on very small screens */

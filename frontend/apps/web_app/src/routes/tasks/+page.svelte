@@ -165,4 +165,10 @@
   .notification-container :global(.notification) {
     pointer-events: auto;
   }
+
+  @media (max-width: 730px) {
+    .notification-container {
+      padding-top: 10px;
+    }
+  }
 </style>
