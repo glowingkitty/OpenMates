@@ -866,6 +866,7 @@ describe("handleSendEmbedDataImpl", () => {
         type: "embedUpdated",
         detail: expect.objectContaining({
           embed_id: "embed-directus-fallback",
+          type: "encrypted-recording-type",
           status: "finished",
           isProcessing: false,
         }),
@@ -957,6 +958,7 @@ describe("handleSendEmbedDataImpl", () => {
         type: "embedUpdated",
         detail: expect.objectContaining({
           embed_id: "embed-1",
+          type: "pdf",
           status: "finished",
           isProcessing: false,
         }),
@@ -1254,6 +1256,7 @@ describe("handleSendEmbedDataImpl", () => {
         type: "embedUpdated",
         detail: expect.objectContaining({
           embed_id: "embed-1",
+          type: "app-skill-use",
           status: "finished",
           isProcessing: false,
         }),

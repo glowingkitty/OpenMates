@@ -337,7 +337,7 @@ assertions:
     direct_tests:
     - &id037
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1219
+      line: 1221
       name: stores finalized server incognito embeds in memory without durable persistence
       surface: gui.web
     supporting_tests:
@@ -3905,28 +3905,28 @@ assertions:
       surface: gui.web
     - &id423
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 877
+      line: 878
       name: accepts finalized send_embed_data refreshes for existing finished embeds
       surface: gui.web
     - &id424
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 968
+      line: 970
       name: stores Finance owner PII mappings as sidecar data without syncing them
         in store_embed
       surface: gui.web
     - &id425
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1048
+      line: 1050
       name: flushes queued finalized embeds that arrived with hashed chat IDs
       surface: gui.web
     - &id426
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1134
+      line: 1136
       name: flushes hashed queued finalized embeds when the raw chat shell is created
       surface: gui.web
     - &id427
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1219
+      line: 1221
       name: stores finalized server incognito embeds in memory without durable persistence
       surface: gui.web
     - &id428
@@ -4562,12 +4562,12 @@ assertions:
       surface: gui.web
     - &id504
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1048
+      line: 1050
       name: flushes queued finalized embeds that arrived with hashed chat IDs
       surface: gui.web
     - &id505
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 1134
+      line: 1136
       name: flushes hashed queued finalized embeds when the raw chat shell is created
       surface: gui.web
     - &id506
@@ -4726,12 +4726,12 @@ assertions:
       surface: gui.web
     - &id551
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 877
+      line: 878
       name: accepts finalized send_embed_data refreshes for existing finished embeds
       surface: gui.web
     - &id552
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      line: 968
+      line: 970
       name: stores Finance owner PII mappings as sidecar data without syncing them
         in store_embed
       surface: gui.web

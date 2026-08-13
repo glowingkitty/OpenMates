@@ -4669,11 +4669,13 @@
         // PDF upload completion changes only embed node attrs, not plain text.
         // handleEditorUpdate intentionally ignores selection/attrs-only updates, so
         // force-save the draft here or a later server echo can restore prompt-only
-        // content and drop the newly attached PDF card.
-        if (editor && !editor.isDestroyed && currentChatId) {
+        // content and drop the newly attached PDF card. New-chat composers can keep
+        // their generated draft UUID only in draftEditorUIState until first send.
+        const draftChatIdForSave = currentChatId ?? get(draftEditorUIState).currentChatId ?? null;
+        if (editor && !editor.isDestroyed && draftChatIdForSave) {
             refreshDraftPreviewState(editor);
             updateOriginalMarkdown(editor);
-            await flushSaveDraft(editor, currentChatId);
+            await flushSaveDraft(editor, draftChatIdForSave);
         }
 
         // Find which chat this embed belongs to (searches ALL pending sends across all chats)
