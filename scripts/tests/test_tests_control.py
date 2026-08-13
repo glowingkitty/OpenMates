@@ -658,6 +658,34 @@ def test_record_latest_run_artifact_persists_deploy_gate_metadata(tmp_path, monk
     assert attestation["artifact_sha256"].startswith("sha256:")
 
 
+def test_record_latest_run_artifact_expands_short_sha_for_proof_source(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"verified-video")
+    artifact.write_text(json.dumps({
+        "run_id": "run-one",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts", "status": "passed", "artifact_path": str(video),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    persisted = json.loads(artifact.read_text(encoding="utf-8"))
+    assert recorded == commit
+    assert persisted["git_sha"] == commit
+    assert persisted["deployment_reference"] == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["git_sha"] == commit
+
+
 def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(

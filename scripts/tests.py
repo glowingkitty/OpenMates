@@ -4058,11 +4058,6 @@ def record_latest_run_artifact(
                 run_data["campaign_key"] = campaign_key
             if debug_group_key:
                 run_data["debug_group_key"] = debug_group_key
-            if deployment_verified:
-                run_data["gate_deploy"] = True
-                run_data["deployment_verified"] = True
-                run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
-            write_json(artifact, run_data)
             run_git_sha = str(run_data.get("git_sha") or "")
             if expected_commit and not _matches_commit_prefix(run_git_sha, expected_commit):
                 print(
@@ -4071,6 +4066,14 @@ def record_latest_run_artifact(
                     file=sys.stderr,
                 )
                 return ""
+            if deployment_verified:
+                run_data["gate_deploy"] = True
+                run_data["deployment_verified"] = True
+                if expected_commit and re.fullmatch(r"[0-9a-fA-F]{40}", expected_commit.strip()):
+                    run_data["git_sha"] = expected_commit.strip().lower()
+                    run_git_sha = str(run_data["git_sha"])
+                run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
+            write_json(artifact, run_data)
             record_run_result(run_data)
             if deployment_verified:
                 record_proof_source_attestations(run_data)
