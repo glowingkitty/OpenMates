@@ -42,6 +42,7 @@ const WORKTREE_ROOTS = [
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const PRESENCE_FILE = `${PROJECT_ROOT}/.opencode/presence.json`;
+const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
@@ -1470,6 +1471,45 @@ function taskChildClassificationForTest(input, output) {
   return role ? { sessionID, parentID, role } : null;
 }
 
+function toolNameMatches(tool, expected) {
+  return String(tool || "").toLowerCase() === expected.toLowerCase();
+}
+
+function todoListFromToolArgs(args) {
+  const input = toolInput(args);
+  return Array.isArray(input.todos) ? input.todos : [];
+}
+
+function completedAssistantMessageID(event) {
+  if (event?.type !== "message.updated") return "";
+  const info = event?.properties?.info || {};
+  if (info.role !== "assistant" || !info.time?.completed || info.error) return "";
+  return String(info.id || "");
+}
+
+function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = "", todos = [] } = {}) {
+  if (!sessionID) return [];
+  if (eventType === "task-list-changed") {
+    if (!Array.isArray(todos) || todos.length === 0) return [];
+    return [OPENCODE_NOTIFIER, "--event", "task-list-changed", "--session-id", sessionID, "--todos-json", JSON.stringify(todos)];
+  }
+  if (eventType === "response-completed") {
+    return [OPENCODE_NOTIFIER, "--event", "response-completed", "--session-id", sessionID, "--message-id", messageID || ""];
+  }
+  return [];
+}
+
+function scheduleNotifierEvent(args) {
+  if (!args.length) return;
+  const child = spawn("python3", args, {
+    cwd: PROJECT_ROOT,
+    env: process.env,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
 function recordTaskChildRole(input, output) {
   const classification = taskChildClassificationForTest(input, output);
   if (!classification) return;
@@ -1887,6 +1927,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       recordLifecycleEvent(event);
       if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
+      const completedMessageID = completedAssistantMessageID(event);
+      if (completedMessageID) {
+        scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "response-completed", sessionID: eventSessionID(event), messageID: completedMessageID }));
+      }
     },
     "shell.env": async (input, output) => {
       if (!input?.sessionID) return;
@@ -1958,6 +2002,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         recordTaskChildRole(input, output);
         return;
       }
+      if (toolNameMatches(tool, "todowrite")) {
+        scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "task-list-changed", sessionID: input.sessionID, todos: todoListFromToolArgs(toolArgs(input, output)) }));
+      }
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
         if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
@@ -2008,6 +2055,8 @@ OpenMatesHooks.test = Object.freeze({
   editedFilesForTest,
   initialPresenceForTest,
   readConflictWarningForTest,
+  completedAssistantMessageID,
+  notifierEventArgsForTest,
   reducePresenceEventForTest,
   resolveWorktreeRouteForTest,
   rewriteEditArgsForTest,

@@ -263,6 +263,35 @@ def test_merged_worktree_recovery_message_names_force_end() -> None:
     )
 
 
+def test_opencode_notifier_hook_events_are_bounded() -> None:
+    run_hook_assertion(
+        """
+        import { strict as assert } from 'node:assert';
+        import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
+
+        const { completedAssistantMessageID, notifierEventArgsForTest } = OpenMatesHooks.test;
+        const completed = {
+          type: 'message.updated',
+          properties: { info: { id: 'msg-1', role: 'assistant', time: { completed: 123 } }, sessionID: 'ses-parent' },
+        };
+        assert.equal(completedAssistantMessageID(completed), 'msg-1');
+        assert.equal(completedAssistantMessageID({ type: 'message.updated', properties: { info: { id: 'msg-user', role: 'user', time: { completed: 123 } }, sessionID: 'ses-parent' } }), '');
+
+        const taskArgs = notifierEventArgsForTest({
+          eventType: 'task-list-changed',
+          sessionID: 'ses-parent',
+          todos: [{ content: 'Update tests', status: 'in_progress', priority: 'high' }],
+        });
+        assert.deepEqual(taskArgs.slice(1, 5), ['--event', 'task-list-changed', '--session-id', 'ses-parent']);
+        assert.equal(taskArgs[5], '--todos-json');
+        assert.match(taskArgs[6], /Update tests/);
+
+        const completionArgs = notifierEventArgsForTest({ eventType: 'response-completed', sessionID: 'ses-parent', messageID: 'msg-1' });
+        assert.deepEqual(completionArgs.slice(1), ['--event', 'response-completed', '--session-id', 'ses-parent', '--message-id', 'msg-1']);
+        """
+    )
+
+
 def test_openmatescloud_repo_root_routes_tools_to_sibling_checkout() -> None:
     run_hook_assertion(
         """

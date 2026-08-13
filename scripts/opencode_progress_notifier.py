@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Send periodic Discord progress summaries for active OpenCode chats.
+"""Send event-driven Discord notifications for OpenCode chats.
 
-This observer reads existing OpenCode presence and bounded transcript projections,
-summarizes selected top-level chats with Gemini Flash-Lite, and posts one
-maintainer-facing Discord digest. It is intentionally external to OpenCode hooks:
-passive lifecycle events must not start prompts or mutate chats.
+The notifier is called by OpenCode hooks for two maintainer-facing events only:
+deterministic task-list changes and completed assistant responses summarized by
+Gemini Flash-Lite. The legacy periodic path is kept as a safe no-op so old cron
+entries stop producing noisy progress digests.
 Architecture: docs/specs/opencode-active-progress-notifier/spec.yml.
 """
 
@@ -56,6 +56,8 @@ MAX_DISCORD_EMBED_DESCRIPTION_CHARS = 4_000
 MAX_DISCORD_EMBED_TOTAL_CHARS = 6_000
 ACTIVE_CHATS_EMBED_TITLE = "OpenCode Chat Status"
 ACTIVE_CHATS_CONTINUED_EMBED_TITLE = "OpenCode Chat Status (continued)"
+TASK_EVENT_EMBED_TITLE = "OpenCode Task List Changed"
+COMPLETION_EVENT_EMBED_TITLE = "OpenCode Response Completed"
 GEMINI_SYSTEM_PROMPT = (
     "You summarize active OpenCode coding chats for the OpenMates maintainer. "
     "Return concise, scannable, evidence-grounded JSON. Use exact task_items when present. "
@@ -65,6 +67,12 @@ GEMINI_SYSTEM_PROMPT = (
     "Do not mention the notifier summarizer model, token usage, pricing, per-run cost, or per-day cost in visible digest fields. "
     "Highlight important decisions, places the maintainer should watch, product/code issues, and agent workflow issues. "
     "Do not quote raw secrets, webhook URLs, API keys, reasoning traces, attachment content, or long tool outputs."
+)
+GEMINI_COMPLETION_SUMMARY_PROMPT = (
+    "You summarize one completed OpenCode assistant response for the OpenMates maintainer. "
+    "Return short, evidence-grounded JSON. Keep the summary under 240 characters. "
+    "Include at most three bullets for result, blocker, or next step. Do not quote secrets, "
+    "reasoning traces, webhook URLs, API keys, raw tool output, or attachment content."
 )
 STATE_SCHEMA_VERSION = 1
 OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
@@ -275,6 +283,34 @@ def load_status() -> dict[str, Any]:
         return json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise ProgressNotifierError("sessions.py status --json returned invalid JSON") from exc
+
+
+def top_level_session_id_for(session_id: str) -> str:
+    if not session_id:
+        return ""
+    try:
+        presence = json.loads((CONTROL_PLANE_ROOT / ".opencode" / "presence.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        presence = {}
+    record = presence.get("sessions", {}).get(session_id) if isinstance(presence.get("sessions"), dict) else None
+    if isinstance(record, dict):
+        return str(record.get("top_level_session_id") or record.get("parent_id") or session_id)
+    session = active_session_from_opencode_id(session_id)
+    if session:
+        return str(session.get("top_level_opencode_session_id") or session.get("parent_opencode_session_id") or session_id)
+    return session_id
+
+
+def active_session_from_opencode_id(session_id: str) -> dict[str, Any] | None:
+    try:
+        data = json.loads((CONTROL_PLANE_ROOT / ".claude" / "sessions.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    sessions = data.get("sessions") if isinstance(data.get("sessions"), dict) else {}
+    for session in sessions.values():
+        if isinstance(session, dict) and session.get("opencode_session_id") == session_id:
+            return session
+    return None
 
 
 def read_chat_view(session_id: str) -> dict[str, Any]:
@@ -591,6 +627,8 @@ def load_state(path: Path) -> dict[str, Any]:
     state.setdefault("last_digest", {})
     state.setdefault("duplicate_suppressions", 0)
     state.setdefault("chats", {})
+    state.setdefault("task_events", {})
+    state.setdefault("completion_events", {})
     return state
 
 
@@ -667,6 +705,21 @@ def install_cron(project_root: Path) -> None:
         raise RuntimeError(f"crontab installation failed: {result.stderr.strip()}")
 
 
+def remove_cron() -> bool:
+    current = subprocess.run(["crontab", "-l"], capture_output=True, text=True, check=False)
+    if current.returncode == 1:
+        return False
+    if current.returncode != 0:
+        raise RuntimeError(f"crontab -l failed: {current.stderr.strip()}")
+    rendered = "\n".join(_remove_managed_cron_block(current.stdout.splitlines())).rstrip() + "\n"
+    if rendered == current.stdout:
+        return False
+    result = subprocess.run(["crontab", "-"], input=rendered, text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"crontab removal failed: {result.stderr.strip()}")
+    return True
+
+
 def record_duplicate_suppression(state: dict[str, Any], *, now: datetime) -> None:
     state["duplicate_suppressions"] = int(state.get("duplicate_suppressions") or 0) + 1
     state["last_suppressed_at"] = _now_iso(now)
@@ -722,6 +775,10 @@ def _task_map(tasks: list[dict[str, str]]) -> dict[str, dict[str, str]]:
 
 def _task_contents(tasks: list[dict[str, str]]) -> list[str]:
     return [_visible_text(task.get("content") or "") for task in tasks if _visible_text(task.get("content") or "")]
+
+
+def _tasks_changed(current_tasks: list[dict[str, str]], previous_tasks: list[dict[str, str]]) -> bool:
+    return _task_snapshot({"task_items": current_tasks}) != _task_snapshot({"task_items": previous_tasks})
 
 
 def _chat_delta(chat: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any] | None:
@@ -1280,6 +1337,157 @@ def build_delta_discord_payload(digest: dict[str, Any], *, now: datetime) -> dic
     }
 
 
+def build_task_event_payload(
+    *,
+    chat: dict[str, Any],
+    current_tasks: list[dict[str, str]],
+    previous_tasks: list[dict[str, str]],
+    now: datetime,
+) -> dict[str, Any]:
+    previous_by_key = _task_map(previous_tasks)
+    current_by_key = _task_map(current_tasks)
+    added = [task for key, task in current_by_key.items() if key not in previous_by_key]
+    removed = [task for key, task in previous_by_key.items() if key not in current_by_key]
+    status_changed = [task for key, task in current_by_key.items() if key in previous_by_key and task.get("status") != previous_by_key[key].get("status")]
+    title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
+    url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
+    lines = [
+        "**OpenCode Tasks Changed**",
+        f"[{title}]({url}) · `{_now_iso(now)}`",
+    ]
+    details: list[str] = []
+    details.extend(_change_lines("Added", _task_contents(added)))
+    details.extend(_change_lines("Status changed", [f"{task.get('content')} -> {task.get('status')}" for task in status_changed]))
+    details.extend(_change_lines("Removed", _task_contents(removed)))
+    if not details:
+        details.append("Task list changed, but the compact diff contained no renderable item details.")
+    return {
+        "username": "OpenMates Agent Updates",
+        "avatar_url": "https://openmates.org/favicon.png",
+        "allowed_mentions": {"parse": []},
+        "content": _fit_discord_content("\n".join(lines)),
+        "embeds": [{"title": TASK_EVENT_EMBED_TITLE, "description": _fit_discord_embed_description("\n".join(details)), "color": 0x10B981}],
+    }
+
+
+def completion_summary_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string"},
+            "bullets": {"type": "array", "items": {"type": "string"}},
+            "needs_attention": {"type": "boolean"},
+        },
+        "required": ["summary", "bullets", "needs_attention"],
+    }
+
+
+def completion_evidence_from_chat(chat: dict[str, Any]) -> dict[str, Any]:
+    messages = chat.get("messages") if isinstance(chat.get("messages"), list) else []
+    latest_assistant: dict[str, Any] | None = None
+    for message in reversed(messages):
+        if isinstance(message, dict) and message.get("role") == "assistant":
+            latest_assistant = message
+            break
+    text_parts: list[str] = []
+    tool_parts: list[dict[str, str]] = []
+    if latest_assistant:
+        for part in latest_assistant.get("parts") or []:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "text" and part.get("text"):
+                text_parts.append(_bounded_text(part.get("text"), 900))
+            if part.get("type") == "tool":
+                tool_parts.append({"tool": _bounded_text(part.get("tool") or "unknown", 80), "status": _bounded_text(part.get("status") or "unknown", 80)})
+    return {
+        "schema_version": 1,
+        "session_id": str(chat.get("session_id") or ""),
+        "title": _bounded_text(chat.get("title") or chat.get("session_id") or "Untitled chat", 160),
+        "url": str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or ""))),
+        "message_time_updated": latest_assistant.get("time_updated") if latest_assistant else "",
+        "assistant_text": text_parts[-3:],
+        "assistant_tools": tool_parts[-8:],
+        "task_items": chat.get("task_items") if isinstance(chat.get("task_items"), list) else [],
+        "privacy": "summarize only; do not quote secrets, reasoning, raw tool output, or attachment content",
+    }
+
+
+def call_gemini_completion_summary(
+    *,
+    evidence: dict[str, Any],
+    api_key: str,
+    model: str = DEFAULT_GEMINI_MODEL,
+    opener: Callable[..., Any] = request.urlopen,
+) -> dict[str, Any]:
+    if model != DEFAULT_GEMINI_MODEL:
+        raise ProgressNotifierError(f"Completion summaries must use {DEFAULT_GEMINI_MODEL}")
+    user_message = "Summarize this completed OpenCode response:\n" + json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+    tool = {
+        "function_declarations": [
+            {
+                "name": "return_completion_summary",
+                "description": "Return one short completed-response summary.",
+                "parameters": completion_summary_schema(),
+            }
+        ]
+    }
+    payload = {
+        "system_instruction": {"parts": [{"text": GEMINI_COMPLETION_SUMMARY_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
+        "tools": [tool],
+        "tool_config": {"function_calling_config": {"mode": "ANY"}},
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024},
+    }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    body = json.dumps(payload).encode("utf-8")
+    req = request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with opener(req, timeout=45) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise ProgressNotifierError(f"Gemini API error {exc.code}: {detail}") from exc
+    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
+        raise ProgressNotifierError(f"Gemini request failed: {exc}") from exc
+    try:
+        parts = response_payload.get("candidates", [])[0].get("content", {}).get("parts", [])
+    except (AttributeError, IndexError) as exc:
+        raise ProgressNotifierError("Gemini response did not include candidates") from exc
+    for part in parts:
+        function_call = part.get("functionCall") if isinstance(part, dict) else None
+        if function_call and function_call.get("name") == "return_completion_summary":
+            summary = function_call.get("args") or {}
+            return summary if isinstance(summary, dict) else {}
+    text_response = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
+    if text_response:
+        try:
+            parsed = json.loads(text_response)
+        except json.JSONDecodeError as exc:
+            raise ProgressNotifierError("Gemini response was not valid JSON and did not include a function call") from exc
+        return parsed if isinstance(parsed, dict) else {}
+    raise ProgressNotifierError("Gemini response did not include a completion summary")
+
+
+def build_completion_event_payload(*, chat: dict[str, Any], summary: dict[str, Any], now: datetime) -> dict[str, Any]:
+    title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
+    url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
+    content = "\n".join(["**OpenCode Response Completed**", f"[{title}]({url}) · `{_now_iso(now)}`"])
+    lines = [_visible_text(summary.get("summary") or "Response completed.")]
+    for bullet in _string_list(summary.get("bullets"), max_items=3, max_chars=260):
+        visible = _visible_text(bullet)
+        if visible:
+            lines.append(f"• {visible}")
+    if summary.get("needs_attention"):
+        lines.append("Needs attention: yes")
+    return {
+        "username": "OpenMates Agent Updates",
+        "avatar_url": "https://openmates.org/favicon.png",
+        "allowed_mentions": {"parse": []},
+        "content": _fit_discord_content(content),
+        "embeds": [{"title": COMPLETION_EVENT_EMBED_TITLE, "description": _fit_discord_embed_description("\n".join(lines)), "color": 0x6366F1}],
+    }
+
+
 def build_discord_payload(
     digest: dict[str, Any],
     *,
@@ -1346,8 +1554,11 @@ def run_once(
     force: bool = False,
     dry_run: bool = False,
     update_state: bool = True,
+    legacy_periodic_enabled: bool = False,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    if not legacy_periodic_enabled and not force:
+        return {"status": "skipped_legacy_periodic_disabled", "active_count": 0, "model": model}
     current_time = now or datetime.now(timezone.utc)
     status = status_loader()
     active_roots = select_active_chat_roots(status, max_chats=max_chats, now=current_time)
@@ -1449,10 +1660,105 @@ def run_once(
         }
 
 
+def notify_task_list_changed(
+    *,
+    session_id: str,
+    todos: list[dict[str, Any]],
+    chat_reader: Callable[[str], dict[str, Any]] = read_chat_view,
+    discord_sender: Callable[..., dict[str, str] | None] = post_message,
+    state_path: Path = DEFAULT_STATE_FILE,
+    webhook_url: str = "",
+    dry_run: bool = False,
+    update_state: bool = True,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    current_time = now or datetime.now(timezone.utc)
+    root_session_id = top_level_session_id_for(session_id)
+    current_tasks = _normalize_task_items(todos, max_items=40)
+    if not root_session_id or not current_tasks:
+        return {"status": "skipped_no_tasks", "session_id": root_session_id or session_id}
+    if not webhook_url and not dry_run:
+        return {"status": "skipped_missing_webhook", "session_id": root_session_id}
+    chat = project_chat_view(ActiveChatRoot(root_session_id, "active", root_session_id, _now_iso(current_time), []), chat_reader(root_session_id))
+    lock_context = state_lock(state_path) if update_state and not dry_run else nullcontext()
+    with lock_context:
+        state = load_state(state_path)
+        task_events = state.setdefault("task_events", {})
+        previous_tasks = task_events.get(root_session_id, {}).get("task_snapshot") if isinstance(task_events.get(root_session_id), dict) else []
+        previous_tasks = previous_tasks if isinstance(previous_tasks, list) else []
+        normalized_previous = _normalize_task_items(previous_tasks, max_items=40)
+        if not _tasks_changed(current_tasks, normalized_previous):
+            return {"status": "skipped_no_changes", "session_id": root_session_id}
+        payload = build_task_event_payload(chat=chat, current_tasks=current_tasks, previous_tasks=normalized_previous, now=current_time)
+        if dry_run:
+            return {"status": "dry_run", "session_id": root_session_id, "payload": payload}
+        result = discord_sender(webhook_url=webhook_url, payload=payload)
+        if not result:
+            return {"status": "failed_discord", "session_id": root_session_id}
+        if update_state:
+            task_events[root_session_id] = {"task_snapshot": _task_snapshot({"task_items": current_tasks}), "sent_at": _now_iso(current_time), "message_id": result.get("message_id", "")}
+            save_state(state_path, state)
+        return {"status": "sent", "session_id": root_session_id, "message_id": result.get("message_id", ""), "payload": payload}
+
+
+def notify_response_completed(
+    *,
+    session_id: str,
+    message_id: str = "",
+    chat_reader: Callable[[str], dict[str, Any]] = read_chat_view,
+    summarizer: Callable[..., dict[str, Any]] = call_gemini_completion_summary,
+    discord_sender: Callable[..., dict[str, str] | None] = post_message,
+    state_path: Path = DEFAULT_STATE_FILE,
+    api_key: str | None = None,
+    webhook_url: str = "",
+    model: str = DEFAULT_MODEL,
+    dry_run: bool = False,
+    update_state: bool = True,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    current_time = now or datetime.now(timezone.utc)
+    root_session_id = top_level_session_id_for(session_id)
+    if not root_session_id:
+        return {"status": "skipped_missing_session"}
+    if not webhook_url and not dry_run:
+        return {"status": "skipped_missing_webhook", "session_id": root_session_id, "model": model}
+    event_key = message_id or root_session_id
+    lock_context = state_lock(state_path) if update_state and not dry_run else nullcontext()
+    with lock_context:
+        state = load_state(state_path)
+        completion_events = state.setdefault("completion_events", {})
+        previous = completion_events.get(root_session_id) if isinstance(completion_events.get(root_session_id), dict) else {}
+        if message_id and previous.get("message_id") == message_id:
+            return {"status": "skipped_duplicate_completion", "session_id": root_session_id, "message_id": message_id}
+        chat = project_chat_view(ActiveChatRoot(root_session_id, "completed_recently", root_session_id, _now_iso(current_time), []), chat_reader(root_session_id))
+        evidence = completion_evidence_from_chat(chat)
+        key = api_key or load_gemini_api_key()
+        summary = summarizer(evidence=evidence, api_key=key, model=model)
+        normalized_summary = {
+            "summary": _visible_text(summary.get("summary") or "Response completed."),
+            "bullets": [_visible_text(item) for item in _string_list(summary.get("bullets"), max_items=3, max_chars=260)],
+            "needs_attention": bool(summary.get("needs_attention")),
+        }
+        payload = build_completion_event_payload(chat=chat, summary=normalized_summary, now=current_time)
+        if dry_run:
+            return {"status": "dry_run", "session_id": root_session_id, "message_id": message_id, "payload": payload, "evidence": evidence}
+        result = discord_sender(webhook_url=webhook_url, payload=payload)
+        if not result:
+            return {"status": "failed_discord", "session_id": root_session_id, "message_id": message_id}
+        if update_state:
+            completion_events[root_session_id] = {"message_id": event_key, "sent_at": _now_iso(current_time), "discord_message_id": result.get("message_id", "")}
+            save_state(state_path, state)
+        return {"status": "sent", "session_id": root_session_id, "message_id": message_id, "discord_message_id": result.get("message_id", ""), "payload": payload}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Post Discord progress summaries for active OpenCode chats.")
-    parser.add_argument("--once", action="store_true", help="Run one notifier tick and exit (default unless --watch is set).")
-    parser.add_argument("--watch", action="store_true", help="Run continuously, sleeping --interval-minutes between ticks.")
+    parser.add_argument("--event", choices=["legacy-periodic", "task-list-changed", "response-completed"], default="legacy-periodic", help="Notification event to process.")
+    parser.add_argument("--session-id", default="", help="OpenCode session id for event-triggered notifications.")
+    parser.add_argument("--message-id", default="", help="Completed assistant message id for response-completed events.")
+    parser.add_argument("--todos-json", default="", help="JSON todo list for deterministic task-list-changed events.")
+    parser.add_argument("--once", action="store_true", help="Legacy periodic compatibility path; now exits without sending unless --force is set.")
+    parser.add_argument("--watch", action="store_true", help="Legacy periodic compatibility path; now exits without sending unless --force is set.")
     parser.add_argument("--interval-minutes", type=int, default=DEFAULT_INTERVAL_MINUTES, help="Notification cadence and duplicate suppression window.")
     parser.add_argument("--daily-active-hours", type=float, default=DEFAULT_DAILY_ACTIVE_HOURS, help="Active notifier hours per day used for displayed cost projection.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Summary model. Default: gemini-3.5-flash-lite.")
@@ -1462,7 +1768,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-chats", type=int, default=MAX_ACTIVE_CHATS, help="Maximum top-level active chats to summarize.")
     parser.add_argument("--webhook-env", default=DISCORD_ENV, help="Environment/.env key containing the Discord webhook URL.")
     parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_FILE, help="Local dedupe state path.")
-    parser.add_argument("--install-cron", action="store_true", help="Install or refresh the managed 15-minute cron entry.")
+    parser.add_argument("--install-cron", action="store_true", help="Deprecated compatibility option; cron-based progress notifications are disabled.")
+    parser.add_argument("--remove-cron", action="store_true", help="Remove the managed legacy progress-notifier cron block.")
     parser.add_argument("--json", action="store_true", help="Print structured result JSON.")
     return parser
 
@@ -1495,10 +1802,42 @@ def main() -> int:
     if args.daily_active_hours <= 0:
         raise SystemExit("--daily-active-hours must be positive")
     if args.install_cron:
-        install_cron(CONTROL_PLANE_ROOT)
-        print(f"[opencode-progress] installed 15-minute cron for {CONTROL_PLANE_ROOT}")
+        print("[opencode-progress] cron-based progress notifications are disabled; use OpenCode hook events instead.")
+        return 0
+    if args.remove_cron:
+        removed = remove_cron()
+        print("[opencode-progress] removed managed cron block" if removed else "[opencode-progress] managed cron block was not installed")
         return 0
     webhook_url = _dotenv_value(CONTROL_PLANE_ROOT, args.webhook_env)
+    if args.event == "task-list-changed":
+        try:
+            todos = json.loads(args.todos_json or "[]")
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"--todos-json must be valid JSON: {exc}") from exc
+        if not isinstance(todos, list):
+            raise SystemExit("--todos-json must be a JSON array")
+        result = notify_task_list_changed(
+            session_id=args.session_id,
+            todos=todos,
+            webhook_url=webhook_url,
+            dry_run=args.dry_run,
+            update_state=not args.no_state_update and not args.dry_run,
+            state_path=args.state_file,
+        )
+        _print_result(result, as_json=args.json)
+        return 0
+    if args.event == "response-completed":
+        result = notify_response_completed(
+            session_id=args.session_id,
+            message_id=args.message_id,
+            webhook_url=webhook_url,
+            model=args.model,
+            dry_run=args.dry_run,
+            update_state=not args.no_state_update and not args.dry_run,
+            state_path=args.state_file,
+        )
+        _print_result(result, as_json=args.json)
+        return 0
     while True:
         result = run_once(
             webhook_url=webhook_url,

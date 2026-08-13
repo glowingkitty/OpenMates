@@ -1,28 +1,25 @@
 schema_version: 2
 id: opencode-active-progress-notifier
-title: Active OpenCode Progress Discord Notifier
+title: Event-Driven OpenCode Discord Notifier
 status: verified
 
 goal: >
-  Give maintainers a periodic, low-noise Discord digest of currently active
-  OpenCode chats so they can stay aware of decisions, blockers, code issues, and
-  agent-workflow issues without relying on each chat to self-report.
+  Give maintainers low-noise Discord notifications for only two OpenCode chat
+  events: deterministic task-list changes and completed assistant responses with
+  short Gemini Flash-Lite summaries.
 
 scope:
   in:
-    - Inspect live OpenCode presence and durable sessions from the existing local control plane.
-    - Summarize only fresh top-level chats: currently active, waiting for user input, and completed in the last 30 minutes.
-    - Exclude stale waiting/completed chats, stale working records, and notifier-owned analysis sessions.
-    - Use Gemini 3.5 Flash-Lite for LLM summary generation; do not use Mistral for the normal notifier path.
-    - Post one Discord message only when a selected chat is new or has deterministic task/status changes, without visible model or cost details.
-    - Use Gemini only for first-time chat overviews; follow-up notifications are deterministic task/status deltas from OpenCode state.
-    - Include completed/current/new-next task changes for known chats, preferring exact OpenCode `todowrite` data.
-    - Compute estimated Gemini API cost only when a first-time chat summary is generated, and keep it in structured local diagnostics rather than the visible Discord response.
-    - Default the recurring cadence to 15 minutes and provide a `--once`/`--dry-run` test path.
-    - Persist local per-chat snapshots to detect first mentions, completed tasks, current work changes, new next tasks, status changes, and unchanged chats to omit.
+    - Trigger task-list notifications from OpenCode `todowrite` hook events only.
+    - Render task-list notifications deterministically from the hook-provided todo list and local previous snapshot; do not call an LLM for task-list changes.
+    - Trigger completed-response notifications from OpenCode `message.updated` events when an assistant message has a completed timestamp.
+    - Use Gemini 3.5 Flash-Lite only to create a short summary for completed assistant responses; do not post the full response.
+    - Keep the legacy periodic `--once` path as a safe no-op by default so old cron entries do not send progress digests.
+    - Persist local per-chat snapshots for task-list dedupe and completed-message dedupe.
   out:
     - Product APIs, SDKs, web UI, Apple UI, or customer chat data.
-    - OpenCode hook side effects, passive lifecycle prompt injection, or self-reporting agent instructions.
+    - Periodic progress summaries, recurring cadence, or cron-driven Discord digests.
+    - Self-reporting agent instructions.
     - Automatic edits, commits, deploys, or task continuation.
     - Posting raw transcripts, reasoning traces, credentials, environment values, webhook URLs, or full command outputs to Discord.
 
@@ -91,7 +88,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
+  subject_commit: working-tree@730f-event-driven-opencode-notifier
 
 approvals:
   product_contract:
@@ -115,9 +112,9 @@ decisions:
     reason: Gemini 3 Flash Preview is available only as an older preview without a documented cheaper current price, while current docs price Gemini 3.5 Flash-Lite as the lowest-cost current Gemini option; the user explicitly rejected Mistral for the normal path.
     decided_at: "2026-08-10T12:45:00Z"
   - id: D-3
-    status: active
+    status: superseded
     decision: Keep the notifier outside OpenCode hooks.
-    reason: The approved OpenCode presence architecture forbids passive lifecycle observation from prompting or running assistant turns.
+    reason: Superseded by D-8 after maintainer feedback that periodic progress notifications are useless and hook-triggered events are preferred.
     decided_at: "2026-08-10T12:45:00Z"
   - id: D-4
     status: active
@@ -135,10 +132,20 @@ decisions:
     reason: The user validated the grouped format except for visible ellipses, hidden tasks, and unnecessary model/cost metadata.
     decided_at: "2026-08-11T17:10:00Z"
   - id: D-7
-    status: active
+    status: superseded
     decision: Summarize a chat with Gemini only the first time it appears; render follow-up notifications as deterministic task/status deltas and skip unchanged chats.
     reason: The maintainer found repeated full summaries too dense and explicitly asked to focus follow-ups on updates while saving tokens.
     decided_at: "2026-08-11T17:58:00Z"
+  - id: D-8
+    status: active
+    decision: Replace periodic active-chat progress digests with two hook-triggered notifications.
+    reason: The maintainer does not use the current progress notification stream and requested notifications only for task-list changes and completed responses.
+    decided_at: "2026-08-12T14:30:00Z"
+  - id: D-9
+    status: active
+    decision: Task-list notifications are deterministic; completed-response notifications use Gemini 3.5 Flash-Lite for a short summary.
+    reason: Task list changes are already structured OpenCode `todowrite` data, while completion notifications need a short maintainer-readable summary without posting the full response.
+    decided_at: "2026-08-12T14:30:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -253,69 +260,67 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy first-seen plus deterministic-delta notifier mode; cron is already installed and will use the deployed script after push.
-  command: python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json
-  expected_outcome: New chats show short first-time overviews, known chats show only deterministic task/status deltas, unchanged chats are omitted, and visible model/cost lines remain hidden.
+  next_action: Deploy hook-triggered task-list and response-completed notifications.
+  command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py scripts/tests/test_opencode_hooks_recovery.py
+  expected_outcome: Task-list events post deterministic diffs only when todos change; response-completed events post a short Gemini summary; legacy periodic invocations are disabled by default.
   blocker:
     task_id: TASK-1
     requires_user_input: false
-    reason: The maintainer requested first-seen overview plus deterministic follow-up deltas and confirmed this should save tokens.
+    reason: The maintainer requested replacing the unused progress stream with hook-triggered task-list and completion notifications.
     question: none
-    next_action: No user input is needed before deploying this scoped notifier refinement.
-  last_verified_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
+    next_action: No user input is needed before deploying this scoped notifier replacement.
+  last_verified_commit: working-tree@730f-event-driven-opencode-notifier
 
 scenarios:
   - id: S-1
-    title: Active chats produce one Discord digest
+    title: Task-list changes produce deterministic Discord diffs
     given:
-      - The OpenCode presence view contains at least one top-level chat that is working, waiting for user input, or completed within the configured 30-minute freshness window.
+      - An OpenCode chat runs `todowrite` with a structured todo list.
+      - The notifier has a previous task snapshot for that chat, or no prior snapshot for a first task-list notification.
     when:
-      - The notifier runs with Discord delivery enabled.
-    then:
-      - Gemini 3.5 Flash-Lite receives bounded evidence only for first-time chats.
-      - Discord receives one readable message with first-time chat overviews plus deterministic follow-up task/status deltas for known changed chats.
-      - Every known-chat follow-up includes the title, OpenCode link, completed tasks since last send, current work, new next tasks, and status changes where present.
-      - The top summary omits the summarizer model name and estimated model API cost.
-
-  - id: S-5
-    title: Known unchanged chats stay silent and save tokens
-    given:
-      - The notifier has already recorded per-chat snapshots for all selected active chats.
-      - No selected chat has changed task status, current work, next tasks, or selected status bucket.
-    when:
-      - The notifier runs on its recurring cadence.
+      - The OpenCode tool hook calls the notifier with `--event task-list-changed`.
     then:
       - Gemini is not called.
-      - Discord is not called.
-      - The run records a local duplicate/no-change suppression.
+      - Discord receives a compact diff of added, removed, and status-changed tasks when the snapshot changed.
+      - Identical task snapshots do not post another Discord message.
+
+  - id: S-5
+    title: Completed assistant responses produce short summaries
+    given:
+      - OpenCode emits a `message.updated` event for an assistant message with a completed timestamp.
+    when:
+      - The OpenCode event hook calls the notifier with `--event response-completed`.
+    then:
+      - Gemini 3.5 Flash-Lite receives bounded latest-response evidence.
+      - Discord receives the chat link plus a short summary and at most three bullets, not the full assistant response.
+      - Repeated events for the same completed message are deduped.
 
   - id: S-2
-    title: No active chats stay silent
+    title: Legacy periodic progress path stays silent
     given:
-      - The OpenCode presence view has no fresh working, waiting_for_user, or idle_after_response top-level chats.
+      - An old cron entry or operator invokes `scripts/opencode_progress_notifier.py --once` without a specific event.
     when:
       - The notifier runs.
     then:
-      - The summary model is not called.
-      - Discord is not called.
-      - Local state is not updated as a sent notification.
+      - The legacy periodic path exits with `skipped_legacy_periodic_disabled` by default.
+      - Gemini and Discord are not called.
 
   - id: S-3
-    title: Unchanged known-chat notifications are suppressed between cadence windows
+    title: Hook argument construction stays bounded
     given:
-      - A previous digest recorded per-chat task and status snapshots.
+      - OpenCode observes a task-list tool completion or assistant message completion event.
     when:
-      - The notifier runs again.
+      - The OpenCode plugin builds notifier process arguments.
     then:
-      - Discord is not called unless the operator uses a force flag.
-      - The persisted state records the duplicate suppression.
+      - The task-list event receives only the session id and structured todo JSON.
+      - The response-completed event receives only the session id and message id.
 
   - id: S-4
     title: Notification evidence remains bounded and privacy safe
     given:
-      - Active chat transcripts contain tool outputs, attachments, or issue signals.
+      - Chat transcripts contain tool outputs, attachments, or issue signals.
     when:
-      - The notifier builds the model prompt and Discord payload.
+      - The notifier builds event evidence and Discord payloads.
     then:
       - Reasoning, snapshots, attachment content, environment values, webhook URLs, and oversized outputs are omitted or bounded.
       - Discord receives only summaries and links, not raw transcript dumps.
@@ -323,7 +328,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: The notifier selects only fresh top-level OpenCode chats from the currently active, waiting for user input, and completed within 30 minutes buckets, summarizes first-time chats, and renders known changed chats as deterministic completed/current/new-next/status deltas while omitting unchanged chats.
+    text: Task-list notifications are deterministic, LLM-free, include changed task details, and skip identical snapshots.
     required: true
     status: satisfied
     coverage_status: covered
@@ -331,8 +336,8 @@ acceptance_criteria:
     verification_ids:
       - T-PYTEST-NOTIFIER
   - id: AC-2
-    scenario: S-1
-    text: Every default LLM summary call uses `gemini-3.5-flash-lite` and the normal notifier path does not use Mistral.
+    scenario: S-5
+    text: Response-completed notifications use `gemini-3.5-flash-lite` to produce a short summary without posting the full assistant response.
     required: true
     status: satisfied
     coverage_status: covered
@@ -341,7 +346,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-3
     scenario: S-2
-    text: A run with no currently active chats exits without model or Discord calls.
+    text: Legacy periodic invocations exit without model or Discord calls unless explicitly forced for compatibility testing.
     required: true
     status: satisfied
     coverage_status: covered
@@ -350,7 +355,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-4
     scenario: S-3
-    text: The default 15-minute cadence suppresses unchanged known-chat notifications without calling Gemini or Discord while allowing forced test sends.
+    text: OpenCode hook tests prove only bounded notifier arguments are spawned for task-list and response-completed events.
     required: true
     status: satisfied
     coverage_status: covered
@@ -368,7 +373,7 @@ acceptance_criteria:
       - T-PYTEST-NOTIFIER
   - id: AC-6
     scenario: S-5
-    text: Known selected chats with no task/status delta skip Gemini, skip Discord, and are counted as unchanged/no-change suppressions.
+    text: Duplicate task snapshots and duplicate completed-message ids are suppressed.
     required: true
     status: satisfied
     coverage_status: covered
@@ -389,13 +394,11 @@ tests:
       - AC-5
       - AC-6
     assertions:
-      - Active selection merges children, filters stale waiting/working records, and includes recently completed chats.
-      - No-active run skips the summary model and Discord.
-      - Default first-time summary calls use `gemini-3.5-flash-lite`.
-      - Known-chat follow-up notifications render deterministic completed/current/new-next/status deltas without calling the summary model.
-      - Discord payload contains readable first-seen and update sections with OpenCode links and task lists, no visible model/cost line, no normal summary ellipses, and no collapsed task counts.
-      - Cadence state suppresses unchanged known-chat notifications without model or Discord calls.
-      - Evidence projection bounds raw text and omits attachment content.
+      - Legacy periodic `run_once` is disabled by default and does not inspect chats, call Gemini, or call Discord.
+      - Task-list event notifications render deterministic added/status-changed/removed task diffs without model calls.
+      - Identical task-list snapshots are deduped.
+      - Response-completed event notifications use Gemini 3.5 Flash-Lite and render only a short summary and bounded bullets.
+      - Evidence projection bounds raw text and omits tool output, reasoning, and attachment content.
     red_phase:
       required: true
       expected: fail
@@ -412,13 +415,44 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-        run_id: local-20260811T1758Z-pytest
-        subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
-        timestamp: "2026-08-11T17:58:36Z"
-        summary: Eleven notifier tests passed, including Gemini 3.5 Flash-Lite first-time summaries, deterministic known-chat follow-up deltas without model calls, no-change silence, 30-minute stale waiting/working filtering, recently completed chat inclusion, hidden visible model/cost metadata, exact todowrite task extraction, generated task fallback, privacy redaction, and Discord bounds.
+        run_id: local-20260812T1430Z-pytest
+        subject_commit: working-tree@730f-event-driven-opencode-notifier
+        timestamp: "2026-08-12T14:30:00Z"
+        summary: Fifteen notifier tests passed, including disabled legacy periodic default, deterministic task-list diffs without model calls, task snapshot dedupe, response-completed Gemini summary payloads, privacy redaction, and legacy compatibility formatting coverage.
+
+  - id: T-PYTEST-HOOKS
+    type: pytest
+    file: scripts/tests/test_opencode_hooks_recovery.py
+    command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py
+    covers:
+      - AC-4
+    assertions:
+      - OpenCode hook helper recognizes only completed assistant message events for response-completed notifications.
+      - Hook-built task-list notifier arguments include only the session id and serialized todo list.
+      - Hook-built response-completed notifier arguments include only the session id and message id.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required
+        command: none
+        run_id: not-required
+        subject_commit: working-tree@730f-event-driven-opencode-notifier
+        timestamp: "2026-08-12T14:30:00Z"
+        summary: Hook coverage was added directly to an existing hook recovery suite for a focused tooling change; red phase was not required separately.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py
+        run_id: local-20260812T1430Z-pytest-hooks
+        subject_commit: working-tree@730f-event-driven-opencode-notifier
+        timestamp: "2026-08-12T14:30:00Z"
+        summary: Eight hook recovery tests passed, including bounded notifier event argument coverage.
 
 verifications:
-  - id: V-DRY-RUN
+  - id: V-FOCUSED-PYTEST
     kind: deterministic_check
     phase: final
     required_for_done: true
@@ -426,15 +460,17 @@ verifications:
       - AC-1
       - AC-2
       - AC-3
+      - AC-4
       - AC-5
+      - AC-6
     status: passed
     evidence:
       status: passed
-      command: python3 -c '<bounded verifier invoking scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10 --json>'
-      run_id: local-20260811T1802Z-delta-mode-dry-run
-      subject_commit: working-tree@63e390d73+opencode-progress-notifier-delta-mode
-      timestamp: "2026-08-11T18:02:50Z"
-      summary: Live dry-run selected 5 first-time chats, called Gemini only for those new-chat overviews, produced one compact Discord embed without posting, and found no visible cost line, summarizer model name, `... +N more` task collapse, unicode summary ellipsis, or Discord truncation marker in the visible payload. Deterministic follow-up/no-change token-saving behavior is covered by the focused pytest evidence.
+      command: python3 -m pytest scripts/tests/test_opencode_progress_notifier.py scripts/tests/test_opencode_hooks_recovery.py
+      run_id: local-20260812T1430Z-focused-pytest
+      subject_commit: working-tree@730f-event-driven-opencode-notifier
+      timestamp: "2026-08-12T14:30:00Z"
+      summary: Focused notifier and OpenCode hook tests passed for event-driven task-list and response-completed notifications.
 
 implementation_plan:
   spec_path: docs/specs/opencode-active-progress-notifier/spec.yml
@@ -443,31 +479,36 @@ implementation_plan:
     - scripts/opencode_chat_improvement_review.py report, Discord, and scheduled tooling style
     - scripts/release_intelligence.py Gemini generateContent function-calling style
   architecture: >
-    Add a standalone script that reads live status, fetches bounded transcripts
-    for fresh active, waiting, and recently completed top-level chats, calls
-    Gemini 3.5 Flash-Lite for a structured JSON digest, formats a single grouped
-    Discord payload, and stores local dedupe state.
+    Reuse the existing notifier script as a hook-triggered Discord sender.
+    OpenCode hook events spawn the script in detached mode for task-list changes
+    and completed assistant messages. The script renders task-list changes from
+    structured todos deterministically, uses Gemini 3.5 Flash-Lite only for short
+    completed-response summaries, and keeps legacy periodic invocations silent by
+    default.
   data_flow:
-    - Read live session status from the local control plane.
-    - Fetch bounded OpenCode transcript projections for selected top-level session IDs.
-    - Build a bounded JSON evidence prompt for Gemini 3.5 Flash-Lite.
-    - Format the returned overall and per-chat summaries into one grouped Discord message.
-    - Persist the active digest fingerprint and last-send timestamp in a local state file.
+    - OpenCode `todowrite` tool completion passes session id and todo JSON to `--event task-list-changed`.
+    - OpenCode completed assistant message events pass session id and message id to `--event response-completed`.
+    - The notifier resolves the top-level session, builds bounded chat context only where needed, and posts one compact Discord message.
+    - Persist task snapshots and completed message ids in `.opencode/progress-notifier-state.json` for dedupe.
   affected_files:
     - path: scripts/opencode_progress_notifier.py
-      reason: New active chat inspector and Discord notifier.
+      reason: Event-driven task-list and response-completed notifier.
     - path: scripts/tests/test_opencode_progress_notifier.py
-      reason: Focused contract tests for selection, model, payload, dedupe, and privacy bounds.
+      reason: Focused contract tests for event payloads, model use, dedupe, legacy silence, and privacy bounds.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Trigger notifier events from bounded OpenCode hook events.
+    - path: scripts/tests/test_opencode_hooks_recovery.py
+      reason: Hook helper tests for bounded notifier event arguments.
     - path: docs/specs/opencode-active-progress-notifier/spec.yml
-      reason: Durable contract and evidence ledger for the new recurring notifier.
+      reason: Durable contract and evidence ledger for the event-driven notifier.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/opencode-active-progress-notifier/spec.yml
     - python3 -m pytest scripts/tests/test_opencode_progress_notifier.py
-    - python3 scripts/opencode_progress_notifier.py --once --dry-run --no-state-update --force --max-chats 10
+    - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py
   verification_order:
     - Spec validation before implementation.
-    - Focused pytest after tests and script are present.
-    - Dry-run against current local active OpenCode state.
+    - Focused notifier pytest after tests and script are present.
+    - Hook recovery pytest after OpenCode plugin changes are present.
 
 tasks:
   - id: TASK-1
@@ -487,18 +528,23 @@ tasks:
         - AC-4
         - AC-5
     expected_files:
+      - .opencode/plugins/openmates-hooks.js
       - scripts/opencode_progress_notifier.py
+      - scripts/tests/test_opencode_hooks_recovery.py
       - scripts/tests/test_opencode_progress_notifier.py
       - docs/specs/opencode-active-progress-notifier/spec.yml
     ownership:
       files:
         - scripts/opencode_progress_notifier.py
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/tests/test_opencode_hooks_recovery.py
         - scripts/tests/test_opencode_progress_notifier.py
         - docs/specs/opencode-active-progress-notifier/spec.yml
       shared_files: []
     verification_ids:
       - T-PYTEST-NOTIFIER
-      - V-DRY-RUN
+      - T-PYTEST-HOOKS
+      - V-FOCUSED-PYTEST
     dependencies: []
     blockers: []
     follow_up_tasks:
@@ -507,8 +553,8 @@ tasks:
 
 risks:
   - id: R-1
-    risk: Discord noise if unchanged active chats are summarized too often.
-    mitigation: Default 15-minute cadence, transcript fingerprint dedupe, and no-active silence.
+    risk: Discord noise if hook events fire repeatedly for unchanged task lists or duplicate completed messages.
+    mitigation: Persist task snapshots and completed message ids for local dedupe.
   - id: R-2
     risk: Summaries could leak raw transcript or secret-like content.
     mitigation: Use bounded projections, omit reasoning/attachments, apply simple secret redaction, and post summaries instead of raw evidence.
@@ -519,13 +565,13 @@ risks:
 open_questions: []
 
 privacy_security:
-  data_classification: Repository-local developer tooling metadata and bounded OpenCode transcript projections.
+  data_classification: Repository-local developer tooling metadata, structured task lists, and bounded OpenCode transcript projections for completed-response summaries.
   secrets_handling:
     - Do not print or persist Discord webhook URLs or Gemini API keys.
     - Resolve Gemini keys from existing environment or Vault-backed helper patterns.
     - Redact secret-like tokens before prompts and Discord payloads.
   retention:
-    - Persist only summary state and fingerprints in `.opencode/progress-notifier-state.json`.
+    - Persist only task snapshots, completed message ids, and summary state in `.opencode/progress-notifier-state.json`.
     - Do not persist raw transcripts or model prompt bodies.
 
 demonstration:

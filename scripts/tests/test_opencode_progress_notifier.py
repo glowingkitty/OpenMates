@@ -156,8 +156,27 @@ def test_selection_groups_recent_work_waiting_and_completed_only() -> None:
     assert "ses-stale-wait" not in [chat.session_id for chat in selected]
 
 
-def test_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
+def test_legacy_periodic_run_is_disabled_without_force(tmp_path: Path) -> None:
     notifier = load_module("progress_no_active")
+    calls: list[str] = []
+
+    result = notifier.run_once(
+        status_loader=lambda: calls.append("status") or fake_status(),
+        chat_reader=lambda _session_id: fake_chat_view(_session_id),
+        summarizer=lambda **_kwargs: calls.append("model") or {},
+        discord_sender=lambda **_kwargs: calls.append("discord") or {"message_id": "1"},
+        state_path=tmp_path / "state.json",
+        api_key="test-key",
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "skipped_legacy_periodic_disabled"
+    assert calls == []
+
+
+def test_forced_legacy_run_with_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
+    notifier = load_module("progress_no_active_forced")
     calls: list[str] = []
 
     result = notifier.run_once(
@@ -168,6 +187,8 @@ def test_no_active_chats_skips_model_and_discord(tmp_path: Path) -> None:
         state_path=tmp_path / "state.json",
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
+        force=True,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
     )
 
@@ -198,6 +219,8 @@ def test_run_once_uses_gemini_flash_lite_and_posts_digest(tmp_path: Path) -> Non
         state_path=tmp_path / "state.json",
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
+        force=True,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
     )
 
@@ -261,6 +284,8 @@ def test_model_task_fallback_renders_without_todowrite_input(tmp_path: Path) -> 
         state_path=tmp_path / "state.json",
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
+        force=True,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
     )
 
@@ -305,6 +330,8 @@ def test_known_chat_followup_is_deterministic_task_delta_without_model(tmp_path:
         state_path=state_path,
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
+        force=True,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
     )
 
@@ -323,6 +350,101 @@ def test_known_chat_followup_is_deterministic_task_delta_without_model(tmp_path:
     assert "⏭️ New Next:" in combined
     assert "• Review deterministic delta output" in combined
     assert "Overview:" not in combined
+
+
+def test_task_list_changed_event_posts_deterministic_diff_without_model(tmp_path: Path) -> None:
+    notifier = load_module("progress_task_event")
+    state_path = tmp_path / "state.json"
+    state = notifier.load_state(state_path)
+    state["task_events"] = {
+        "ses-parent": {
+            "task_snapshot": [
+                {"content": "Create executable spec", "status": "completed"},
+                {"content": "Implement notifier format", "status": "in_progress"},
+            ]
+        }
+    }
+    notifier.save_state(state_path, state)
+    sent: dict[str, object] = {}
+
+    result = notifier.notify_task_list_changed(
+        session_id="ses-parent",
+        todos=[
+            {"content": "Create executable spec", "status": "completed", "priority": "high"},
+            {"content": "Implement notifier format", "status": "completed", "priority": "high"},
+            {"content": "Wire hook trigger", "status": "in_progress", "priority": "high"},
+        ],
+        chat_reader=fake_chat_view,
+        discord_sender=lambda **kwargs: sent.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
+        state_path=state_path,
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "sent"
+    combined = sent["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in sent["payload"]["embeds"])
+    assert "OpenCode Tasks Changed" in combined
+    assert "Status changed:" in combined
+    assert "Implement notifier format -> completed" in combined
+    assert "Added:" in combined
+    assert "Wire hook trigger" in combined
+    assert "Overview:" not in combined
+
+
+def test_task_list_changed_event_skips_identical_snapshot(tmp_path: Path) -> None:
+    notifier = load_module("progress_task_event_dedupe")
+    state_path = tmp_path / "state.json"
+    todos = [{"content": "Create executable spec", "status": "completed", "priority": "high"}]
+    state = notifier.load_state(state_path)
+    state["task_events"] = {"ses-parent": {"task_snapshot": notifier._task_snapshot({"task_items": todos})}}
+    notifier.save_state(state_path, state)
+
+    result = notifier.notify_task_list_changed(
+        session_id="ses-parent",
+        todos=todos,
+        chat_reader=fake_chat_view,
+        discord_sender=lambda **_kwargs: {"message_id": "discord-1"},
+        state_path=state_path,
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "skipped_no_changes"
+
+
+def test_response_completed_event_posts_short_gemini_summary(tmp_path: Path) -> None:
+    notifier = load_module("progress_completion_event")
+    captured: dict[str, object] = {}
+
+    def summarize(*, evidence: dict, api_key: str, model: str) -> dict:
+        captured["evidence"] = evidence
+        captured["api_key"] = api_key
+        captured["model"] = model
+        return {"summary": "Implemented the event-driven notifier and prepared verification.", "bullets": ["Task notifications are deterministic.", "Completion notifications are summarized."], "needs_attention": False}
+
+    result = notifier.notify_response_completed(
+        session_id="ses-parent",
+        message_id="msg-assistant-1",
+        chat_reader=fake_chat_view,
+        summarizer=summarize,
+        discord_sender=lambda **kwargs: captured.setdefault("payload", kwargs["payload"]) or {"message_id": "discord-1"},
+        state_path=tmp_path / "state.json",
+        api_key="test-key",
+        webhook_url="https://example.invalid/webhook",
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "sent"
+    assert captured["model"] == notifier.DEFAULT_MODEL
+    assert captured["api_key"] == "test-key"
+    encoded_evidence = json.dumps(captured["evidence"])
+    assert "attachment content omitted" not in encoded_evidence
+    assert "raw command output" not in encoded_evidence
+    combined = captured["payload"]["content"] + "\n" + "\n".join(embed["description"] for embed in captured["payload"]["embeds"])
+    assert "OpenCode Response Completed" in combined
+    assert "Implemented the event-driven notifier" in combined
+    assert "Task notifications are deterministic." in combined
+    assert "Chose option 2" not in combined
 
 
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:
@@ -368,6 +490,7 @@ def test_unchanged_known_chats_skip_model_and_discord(tmp_path: Path) -> None:
         "api_key": "test-key",
         "webhook_url": "https://example.invalid/webhook",
         "interval_minutes": 10,
+        "legacy_periodic_enabled": True,
     }
 
     first = notifier.run_once(now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc), **kwargs)
@@ -395,6 +518,7 @@ def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> N
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
         interval_minutes=10,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 12, 55, tzinfo=timezone.utc),
     )
     second = notifier.run_once(
@@ -406,6 +530,7 @@ def test_heartbeat_only_status_changes_do_not_defeat_dedupe(tmp_path: Path) -> N
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
         interval_minutes=10,
+        legacy_periodic_enabled=True,
         now=datetime(2026, 8, 10, 13, 0, tzinfo=timezone.utc),
     )
 
@@ -511,3 +636,24 @@ def test_render_crontab_installs_fifteen_minute_once_command(tmp_path: Path) -> 
     assert "opencode_progress_notifier.py --once" in rendered
     assert "existing" in rendered
     assert rendered.count("opencode_progress_notifier.py") == 1
+
+
+def test_remove_managed_cron_block_removes_legacy_progress_schedule() -> None:
+    notifier = load_module("progress_cron_remove")
+    existing = "\n".join(
+        [
+            "0 1 * * * existing-job",
+            notifier.CRON_BEGIN,
+            "# Every 15 minutes.",
+            "*/15 * * * * cd /repo && python3 /repo/scripts/opencode_progress_notifier.py --once",
+            notifier.CRON_END,
+            "15 2 * * * keep-me",
+        ]
+    )
+
+    rendered = "\n".join(notifier._remove_managed_cron_block(existing.splitlines()))
+
+    assert "opencode_progress_notifier.py" not in rendered
+    assert notifier.CRON_BEGIN not in rendered
+    assert "existing-job" in rendered
+    assert "keep-me" in rendered
