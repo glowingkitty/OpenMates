@@ -36,6 +36,7 @@ DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_MODEL = DEFAULT_GEMINI_MODEL
 DEFAULT_INTERVAL_MINUTES = 15
 DEFAULT_DAILY_ACTIVE_HOURS = 12
+DEFAULT_RESPONSE_NOTIFICATION_DELAY_SECONDS = 300
 RECENT_CHAT_WINDOW_MINUTES = 30
 MODEL_PRICING_USD_PER_MILLION_TOKENS = {
     # Google Gemini API pricing, verified 2026-08-11: https://ai.google.dev/gemini-api/docs/pricing
@@ -1398,10 +1399,38 @@ def completed_assistant_preview_from_chat(chat: dict[str, Any], *, message_id: s
     return lines
 
 
+def completed_assistant_message_time(chat: dict[str, Any], *, message_id: str = "") -> datetime | None:
+    messages = chat.get("messages") if isinstance(chat.get("messages"), list) else []
+    fallback: datetime | None = None
+    for message in reversed(messages):
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        current_message_id = str(message.get("message_id") or message.get("id") or "")
+        timestamp = _parse_iso(str(message.get("time_updated") or message.get("time_created") or ""))
+        if message_id and current_message_id == message_id:
+            return timestamp
+        if fallback is None:
+            fallback = timestamp
+    return fallback
+
+
+def has_user_response_after(chat: dict[str, Any], completed_at: datetime | None) -> bool:
+    if completed_at is None:
+        return False
+    messages = chat.get("messages") if isinstance(chat.get("messages"), list) else []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        timestamp = _parse_iso(str(message.get("time_created") or message.get("time_updated") or ""))
+        if timestamp and timestamp > completed_at:
+            return True
+    return False
+
+
 def build_completion_event_payload(*, chat: dict[str, Any], preview_lines: list[str], now: datetime) -> dict[str, Any]:
     title = _discord_link_label(chat.get("title") or chat.get("session_id") or "Untitled chat")
     url = str(chat.get("url") or opencode_chat_url(str(chat.get("session_id") or "")))
-    lines = ["✅ OpenCode assistant response", title]
+    lines = [title]
     lines.extend(preview_lines or ["Response completed."])
     lines.append(f"🔗 {url}")
     return {
@@ -1639,6 +1668,8 @@ def notify_response_completed(
     model: str = DEFAULT_MODEL,
     dry_run: bool = False,
     update_state: bool = True,
+    delay_seconds: int = DEFAULT_RESPONSE_NOTIFICATION_DELAY_SECONDS,
+    sleeper: Callable[[float], None] = time.sleep,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     current_time = now or datetime.now(timezone.utc)
@@ -1656,6 +1687,15 @@ def notify_response_completed(
         if message_id and previous.get("message_id") == message_id:
             return {"status": "skipped_duplicate_completion", "session_id": root_session_id, "message_id": message_id}
         raw_chat = chat_reader(root_session_id)
+        completed_at = completed_assistant_message_time(raw_chat, message_id=message_id)
+        if delay_seconds > 0 and not dry_run:
+            sleeper(delay_seconds)
+            raw_chat = chat_reader(root_session_id)
+        if has_user_response_after(raw_chat, completed_at):
+            if update_state:
+                completion_events[root_session_id] = {"message_id": event_key, "skipped_at": _now_iso(current_time), "reason": "user_responded_within_delay"}
+                save_state(state_path, state)
+            return {"status": "skipped_user_responded", "session_id": root_session_id, "message_id": message_id}
         chat = project_chat_view(ActiveChatRoot(root_session_id, "completed_recently", root_session_id, _now_iso(current_time), []), raw_chat)
         preview_lines = completed_assistant_preview_from_chat(raw_chat, message_id=message_id)
         payload = build_completion_event_payload(chat=chat, preview_lines=preview_lines, now=current_time)

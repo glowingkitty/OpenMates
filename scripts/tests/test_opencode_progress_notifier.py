@@ -430,19 +430,57 @@ def test_response_completed_event_posts_deterministic_assistant_preview(tmp_path
         state_path=tmp_path / "state.json",
         api_key="test-key",
         webhook_url="https://example.invalid/webhook",
+        delay_seconds=0,
         now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
     )
 
     assert result["status"] == "sent"
     assert captured["payload"]["embeds"] == []
     content = captured["payload"]["content"]
-    assert "✅ OpenCode assistant response" in content
+    assert content.startswith("Build notifier\n")
     assert "Implemented the event-driven notifier" in content
     assert "Completion notifications are deterministic." in content
     assert "<API_KEY>" in content
     assert "This is the fifth visible line." in content
     assert "This sixth line should be omitted." not in content
     assert "Chose option 2" not in content
+
+
+def test_response_completed_event_skips_when_user_replies_during_delay(tmp_path: Path) -> None:
+    notifier = load_module("progress_completion_event_user_reply")
+    initial = fake_chat_view("ses-parent")
+    initial["messages"][0]["message_id"] = "msg-assistant-1"
+    initial["messages"][0]["time_updated"] = "2026-08-10T13:05:00Z"
+    replied = fake_chat_view("ses-parent")
+    replied["messages"][0] = initial["messages"][0]
+    replied["messages"].append(
+        {
+            "message_id": "msg-user-2",
+            "role": "user",
+            "time_created": "2026-08-10T13:06:00Z",
+            "time_updated": "2026-08-10T13:06:00Z",
+            "parts": [{"type": "text", "text": "Thanks, continue."}],
+        }
+    )
+    reads = [initial, replied]
+    slept: list[float] = []
+    sent: list[object] = []
+
+    result = notifier.notify_response_completed(
+        session_id="ses-parent",
+        message_id="msg-assistant-1",
+        chat_reader=lambda _session_id: reads.pop(0),
+        discord_sender=lambda **kwargs: sent.append(kwargs) or {"message_id": "discord-1"},
+        state_path=tmp_path / "state.json",
+        webhook_url="https://example.invalid/webhook",
+        delay_seconds=300,
+        sleeper=lambda seconds: slept.append(seconds),
+        now=datetime(2026, 8, 10, 13, 5, tzinfo=timezone.utc),
+    )
+
+    assert result["status"] == "skipped_user_responded"
+    assert slept == [300]
+    assert sent == []
 
 
 def test_todowrite_output_is_not_used_as_task_evidence() -> None:
