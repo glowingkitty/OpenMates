@@ -533,8 +533,7 @@
 
     @media (prefers-reduced-motion: reduce) {
         .notification-progress-fill {
-            animation: none;
-            transform: scaleX(1);
+            animation-timing-function: steps(20, end);
         }
     }
     

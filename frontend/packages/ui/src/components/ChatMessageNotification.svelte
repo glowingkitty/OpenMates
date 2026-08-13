@@ -211,7 +211,7 @@
      * Pause auto-dismiss when user hovers over notification
      */
     function handleMouseEnter(): void {
-        // Cancel the store-level timer on hover
+        userInteracted = true;
         notificationStore.cancelAutoDismiss(notification.id);
     }
     
@@ -565,8 +565,7 @@
 
     @media (prefers-reduced-motion: reduce) {
         .notification-progress-fill {
-            animation: none;
-            transform: scaleX(1);
+            animation-timing-function: steps(20, end);
         }
     }
     
