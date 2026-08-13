@@ -45,6 +45,8 @@ const PROOF_RECORDING_DIR = 'test-results/proof-video-source/default-model-setti
 const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
 const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'";
 const PROOF_PROFILE_TIMEOUT_MS = 360000;
+const SECURITY_REMINDER_TITLE = 'Security Reminder';
+const VISIBLE_SETTINGS_MENU = '[data-testid="settings-menu"].visible';
 
 const PROOF_VIEWPORTS = [
 	{ name: 'web-phone', width: 390, height: 844 },
@@ -53,12 +55,25 @@ const PROOF_VIEWPORTS = [
 
 async function noopScreenshot(_page: any, _label: string): Promise<void> {}
 
+async function dismissSecurityReminder(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const reminder = page.getByTestId('notification').filter({ hasText: SECURITY_REMINDER_TITLE });
+	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
+
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	await expect(reminder).not.toBeVisible({ timeout: 10000 });
+	logCheckpoint('Dismissed security reminder.');
+}
+
 async function navigateToAiSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
+	const settingsMenu = page.locator(VISIBLE_SETTINGS_MENU);
 	if (
-		await page.locator('[data-testid="settings-menu"].visible')
+		await settingsMenu
 			.getByTestId('ai-settings')
 			.isVisible({ timeout: 500 })
 			.catch(() => false)
@@ -67,13 +82,19 @@ async function navigateToAiSettings(
 		return;
 	}
 
-	const settingsToggle = page.getByRole('button', { name: 'Open settings menu' }).first();
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	await settingsToggle.click({ force: true, timeout: 5000 });
-	logCheckpoint('Opened settings menu.');
+	await dismissSecurityReminder(page, logCheckpoint);
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	if (!(await settingsMenu.isVisible({ timeout: 500 }).catch(() => false))) {
+		const settingsToggle = page.locator('#settings-menu-toggle');
+		await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+		await settingsToggle.click({ force: true, timeout: 5000 });
+		if (!(await settingsMenu.isVisible({ timeout: 2000 }).catch(() => false))) {
+			await settingsToggle.dispatchEvent('click');
+		}
+	}
+
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Opened settings menu.');
 
 	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
 	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
