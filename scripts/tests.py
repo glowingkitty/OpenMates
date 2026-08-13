@@ -1152,12 +1152,19 @@ def _file_sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def _downloaded_recording_paths(spec_name: str, run_ids: set[str]) -> list[Path]:
+def _normalized_spec_path(value: str) -> str:
+    return value.replace("\\", "/").removeprefix("frontend/apps/web_app/tests/").lstrip("./")
+
+
+def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str) -> list[Path]:
     recordings_root = RESULTS_DIR / "recordings"
     matches: list[Path] = []
     for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
         manifest = read_json(manifest_path, {})
-        if Path(str(manifest.get("spec") or "")).name != spec_name:
+        if _normalized_spec_path(str(manifest.get("spec") or "")) != _normalized_spec_path(spec_path):
+            continue
+        manifest_sha = str(manifest.get("git_sha") or "")
+        if not manifest_sha or not _matches_commit_prefix(manifest_sha, git_sha):
             continue
         github_run_id = str(manifest.get("github_run_url") or "").rstrip("/").rsplit("/", 1)[-1]
         if not run_ids.intersection({str(manifest.get("run_id") or ""), github_run_id}):
@@ -1183,11 +1190,12 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         artifact_paths = list(test.get("artifact_paths") or [])
         if test.get("artifact_path"):
             artifact_paths.append(str(test["artifact_path"]))
-        spec_name = Path(test_label(suite, test)).name
+        spec_path = str(test.get("file") or test_label(suite, test))
+        spec_name = Path(spec_path).name
         run_id = str(test.get("run_id") or run_data.get("run_id") or "")
         if not artifact_paths:
             candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
-            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_name, candidate_run_ids)]
+            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_path, candidate_run_ids, git_sha)]
         if len(artifact_paths) != 1:
             continue
         artifact_path = Path(artifact_paths[0]).resolve()

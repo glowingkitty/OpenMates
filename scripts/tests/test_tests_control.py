@@ -723,6 +723,46 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     assert attestation["artifact_path"] == str(video.resolve())
 
 
+def test_record_latest_run_artifact_rejects_stale_downloaded_recording(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"stale-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts", "run_id": "parent-run", "git_sha": "b" * 9,
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run", "git_sha": commit[:9], "environment": "development",
+        "suites": {"playwright": {"tests": [{"file": "example.spec.ts", "status": "passed"}]}},
+    }), encoding="utf-8")
+
+    tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_downloaded_recording_paths_do_not_collide_on_spec_basename(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "other-example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"wrong-spec-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "other/example.spec.ts", "run_id": "run-one", "git_sha": commit[:9],
+        "assets": {"video_key": "latest/other-example/videos/example.webm"},
+    }), encoding="utf-8")
+
+    matches = tests_control._downloaded_recording_paths("target/example.spec.ts", {"run-one"}, commit)
+
+    assert matches == []
+
+
 def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(
