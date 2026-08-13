@@ -47,6 +47,7 @@ const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'A
 const PROOF_PROFILE_TIMEOUT_MS = 360000;
 const SECURITY_REMINDER_TITLE = 'Security Reminder';
 const VISIBLE_SETTINGS_MENU = '[data-testid="settings-menu"].visible';
+const AI_SETTINGS_PATH = 'ai';
 
 const PROOF_VIEWPORTS = [
 	{ name: 'web-phone', width: 390, height: 844 },
@@ -67,11 +68,22 @@ async function dismissSecurityReminder(
 	logCheckpoint('Dismissed security reminder.');
 }
 
+async function requestAiSettingsPanel(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	await page.evaluate((settingsPath: string) => {
+		window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: settingsPath } }));
+	}, AI_SETTINGS_PATH);
+	logCheckpoint('Requested AI settings panel via app settings event.');
+}
+
 async function navigateToAiSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
 	const settingsMenu = page.locator(VISIBLE_SETTINGS_MENU);
+	const aiSettings = page.getByTestId('ai-settings');
 	if (
 		await settingsMenu
 			.getByTestId('ai-settings')
@@ -91,17 +103,24 @@ async function navigateToAiSettings(
 		if (!(await settingsMenu.isVisible({ timeout: 2000 }).catch(() => false))) {
 			await settingsToggle.dispatchEvent('click');
 		}
+		if (!(await settingsMenu.isVisible({ timeout: 2000 }).catch(() => false))) {
+			await requestAiSettingsPanel(page, logCheckpoint);
+		}
 	}
 
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Opened settings menu.');
+	if (await aiSettings.isVisible({ timeout: 2000 }).catch(() => false)) {
+		logCheckpoint('AI Settings page loaded.');
+		return;
+	}
 
 	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
 	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
 	await aiMenuItem.click();
 	logCheckpoint('Clicked AI menu item.');
 
-	await expect(page.getByTestId('ai-settings')).toBeVisible({ timeout: 8000 });
+	await expect(aiSettings).toBeVisible({ timeout: 8000 });
 	logCheckpoint('AI Settings page loaded.');
 }
 
