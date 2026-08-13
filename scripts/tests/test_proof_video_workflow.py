@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -57,6 +58,80 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     assert context.session_id == "abcd"
     assert context.subject_commit == commit
     assert context.source_run_id == "run-current"
+
+
+def test_control_plane_root_resolves_shared_session_registry_from_worktree(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    control_root = tmp_path / "OpenMates"
+    worktree_root = control_root / ".openmates-agent-worktrees" / "agent-abcd"
+    git_dir = control_root / ".git"
+    worktree_root.mkdir(parents=True)
+
+    def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["git", "rev-parse", "--git-common-dir"],
+            returncode=0,
+            stdout=str(git_dir) + "\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(workflow.subprocess, "run", fake_run)
+
+    assert workflow._resolve_control_plane_root(worktree_root) == control_root
+    assert workflow._resolve_control_plane_root(worktree_root) / ".claude" / "sessions.json" == control_root / ".claude" / "sessions.json"
+
+
+def test_start_current_uses_deployed_session_commit_from_linked_worktree(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deployed_commit = "a" * 40
+    sessions_file = tmp_path / "control" / ".claude" / "sessions.json"
+    proof_sources = tmp_path / "worktree" / "test-results" / "proof-video-sources"
+    proof_sources.mkdir(parents=True)
+    sessions_file.parent.mkdir(parents=True)
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "opencode_session_id": "ses_current",
+                        "worktree": {"merged_commit": deployed_commit},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (proof_sources / "run-current.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run-current",
+                "git_sha": deployed_commit,
+                "deployment_reference": deployed_commit,
+                "status": "passed",
+                "spec": "example.spec.ts",
+                "source": "scripts_tests",
+                "deployment_verified": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path / "worktree")
+    monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: ["frontend/dirty.svelte"])
+    monkeypatch.setattr(workflow, "_current_git_sha", lambda: "b" * 40)
+
+    result = workflow.start_current("example.spec.ts")
+
+    assert result["context"]["session_id"] == "abcd"
+    assert result["context"]["subject_commit"] == deployed_commit
+    assert result["context"]["source_run_id"] == "run-current"
 
 
 def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:

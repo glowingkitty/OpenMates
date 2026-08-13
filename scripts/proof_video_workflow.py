@@ -19,8 +19,31 @@ import subprocess
 from typing import Any
 
 
+def _resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the root checkout that owns shared session state."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=checkout_root,
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return checkout_root
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SESSIONS_FILE = REPO_ROOT / ".claude/sessions.json"
+CONTROL_PLANE_ROOT = _resolve_control_plane_root(REPO_ROOT)
+SESSIONS_FILE = CONTROL_PLANE_ROOT / ".claude/sessions.json"
 RESULTS_DIR = REPO_ROOT / "test-results"
 APPROVALS_DIR = RESULTS_DIR / "proof-video-approvals"
 PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
@@ -64,13 +87,7 @@ def resolve_current_context(
     spec_name: str,
     test_runs: list[dict[str, Any]],
 ) -> ProofContext:
-    matches = [
-        session_id
-        for session_id, record in (sessions.get("sessions") or {}).items()
-        if isinstance(record, dict) and record.get("opencode_session_id") == opencode_session_id
-    ]
-    if len(matches) != 1:
-        raise WorkflowError(f"current OpenCode session matches {len(matches)} repository sessions; run sessions.py status")
+    session_id, _session = resolve_current_session(sessions, opencode_session_id=opencode_session_id)
     passing_runs = [
         record
         for record in test_runs
@@ -87,7 +104,26 @@ def resolve_current_context(
         )
     if len(passing_runs) > 1:
         raise WorkflowError(f"multiple passing runs match {spec_name} at {subject_commit}; provide --run-id")
-    return ProofContext(matches[0], subject_commit, str(passing_runs[0]["run_id"]), spec_name)
+    return ProofContext(session_id, subject_commit, str(passing_runs[0]["run_id"]), spec_name)
+
+
+def resolve_current_session(sessions: dict[str, Any], *, opencode_session_id: str) -> tuple[str, dict[str, Any]]:
+    matches = [
+        (session_id, record)
+        for session_id, record in (sessions.get("sessions") or {}).items()
+        if isinstance(record, dict) and record.get("opencode_session_id") == opencode_session_id
+    ]
+    if len(matches) != 1:
+        raise WorkflowError(f"current OpenCode session matches {len(matches)} repository sessions; run sessions.py status")
+    return matches[0]
+
+
+def deployed_subject_commit(session: dict[str, Any]) -> str:
+    worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    merged_commit = str(worktree.get("merged_commit") or "") if isinstance(worktree, dict) else ""
+    if len(merged_commit) == 40:
+        return merged_commit
+    return ""
 
 
 def canonical_contract(contract: dict[str, Any]) -> dict[str, Any]:
@@ -360,13 +396,17 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
     opencode_session_id = os.environ.get("OPENCODE_SESSION_ID", "")
     if not opencode_session_id:
         raise WorkflowError("OPENCODE_SESSION_ID is not set; run inside the active OpenCode chat")
-    require_clean_worktree()
-    subject_commit = _current_git_sha()
+    sessions = _load_json(SESSIONS_FILE)
+    _session_id, session = resolve_current_session(sessions, opencode_session_id=opencode_session_id)
+    subject_commit = deployed_subject_commit(session)
+    if not subject_commit:
+        require_clean_worktree()
+        subject_commit = _current_git_sha()
     runs = _local_test_runs()
     if run_id:
         runs = [run for run in runs if run.get("run_id") == run_id]
     context = resolve_current_context(
-        _load_json(SESSIONS_FILE),
+        sessions,
         opencode_session_id=opencode_session_id,
         subject_commit=subject_commit,
         spec_name=Path(spec_name).name,

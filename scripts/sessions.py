@@ -8902,6 +8902,10 @@ def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dic
 
 def _upsert_proof_video_record(session: dict, run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     record = _proof_video_manifest_record(run_dir, manifest)
+    subject_commit = record.get("subject_commit")
+    pending = session.get("proof_video_pending")
+    if subject_commit and isinstance(pending, list):
+        pending[:] = [existing for existing in pending if not isinstance(existing, dict) or existing.get("subject_commit") != subject_commit]
     records = session.setdefault("proof_videos", [])
     if not isinstance(records, list):
         session["proof_videos"] = records = []
@@ -8933,6 +8937,46 @@ def _enforce_proof_video_end_gate(
     print(f"Create a captioned proof video with bounded frame review{delivery_hint}:", file=sys.stderr)
     print("  python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts", file=sys.stderr)
     sys.exit(1)
+
+
+def _record_proof_video_deploy_pending(
+    sid: str,
+    session: dict,
+    files: list[str],
+    *,
+    commit_sha: str | None = None,
+) -> None:
+    if not _requires_proof_video(session, files):
+        return
+    expected_commit = commit_sha or _current_head()
+    if _latest_proof_video_record(session, expected_commit):
+        print("Proof video gate: PASSED")
+        return
+    record = {
+        "status": "pending",
+        "subject_commit": expected_commit,
+        "files": sorted(files),
+        "timestamp": _now_iso(),
+        "next_action": "python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts",
+    }
+
+    def update(data: dict) -> None:
+        latest_session = data.get("sessions", {}).get(sid)
+        if not isinstance(latest_session, dict):
+            return
+        records = latest_session.setdefault("proof_video_pending", [])
+        if not isinstance(records, list):
+            latest_session["proof_video_pending"] = records = []
+        records[:] = [existing for existing in records if not isinstance(existing, dict) or existing.get("subject_commit") != expected_commit]
+        records.append(record)
+
+    _mutate_sessions(update)
+    delivery_hint = " and published to Discord" if _proof_video_delivery_required() else ""
+    print("DEPLOYED BUT PROOF VIDEO REQUIRED — session cannot be marked complete yet.", file=sys.stderr)
+    print("This deploy changed a product feature, example chat, or actively-debugged E2E proof surface.", file=sys.stderr)
+    print(f"Create a captioned proof video with bounded frame review{delivery_hint}:", file=sys.stderr)
+    print("  python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts", file=sys.stderr)
+    print("Then rerun session completion after the proof video is recorded.", file=sys.stderr)
 
 
 def _enforce_visual_smoke_end_gate(
@@ -9659,6 +9703,15 @@ def _deploy_native_worktree(
             sys.exit(1)
         _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
         print(f"\nSession {sid} ended.")
+    else:
+        latest_data = _load_sessions()
+        latest_session = latest_data.get("sessions", {}).get(sid, session)
+        _record_proof_video_deploy_pending(
+            sid,
+            latest_session,
+            to_commit,
+            commit_sha=commit_hash_full,
+        )
 
 
 def _run_openmatescloud_deploy_gates(files: list[str], *, checkout_root: Path, no_verify: bool) -> None:
@@ -10005,6 +10058,15 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                     sys.exit(1)
                 _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
                 print(f"Session {sid} ended.")
+            else:
+                latest_data = _load_sessions()
+                latest_session = latest_data.get("sessions", {}).get(sid, session)
+                _record_proof_video_deploy_pending(
+                    sid,
+                    latest_session,
+                    modified or _get_unpushed_files(),
+                    commit_sha=commit_hash_full,
+                )
             sys.exit(0)
 
         # Surface untracked dirty files so the caller knows why nothing was committed
@@ -10349,6 +10411,15 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             sys.exit(1)
         _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
         print(f"\nSession {sid} ended.")
+    else:
+        latest_data = _load_sessions()
+        latest_session = latest_data.get("sessions", {}).get(sid, session)
+        _record_proof_video_deploy_pending(
+            sid,
+            latest_session,
+            to_commit,
+            commit_sha=commit_hash_full,
+        )
 
 
 def cmd_worktree(args: argparse.Namespace) -> None:

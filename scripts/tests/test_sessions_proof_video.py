@@ -390,6 +390,35 @@ def test_proof_video_gate_blocks_feature_runtime_changes_without_video(
     assert "PROOF VIDEO REQUIRED" in capsys.readouterr().err
 
 
+def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    saved: dict[str, object] = {}
+
+    def mutate(callback: object) -> None:
+        data = {"sessions": {"abcd": {"mode": "feature"}}}
+        callback(data)
+        saved.update(data)
+
+    monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
+    monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    monkeypatch.setattr(sessions, "_mutate_sessions", mutate)
+
+    sessions._record_proof_video_deploy_pending(
+        "abcd",
+        {"mode": "feature"},
+        ["frontend/packages/ui/src/components/NewFeature.svelte"],
+    )
+
+    error_output = capsys.readouterr().err
+    assert "DEPLOYED BUT PROOF VIDEO REQUIRED" in error_output
+    assert "proof_video_workflow.py start --current" in error_output
+    pending = saved["sessions"]["abcd"]["proof_video_pending"]
+    assert pending[0]["status"] == "pending"
+    assert pending[0]["subject_commit"] == "abc1234"
+
+
 def test_proof_video_gate_ignores_docs_and_scripts_only_feature(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
 
@@ -423,6 +452,21 @@ def test_proof_video_gate_accepts_current_delivered_manifest(
         session,
         ["frontend/packages/ui/src/components/NewFeature.svelte"],
     )
+
+
+def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path) -> None:
+    manifest_path = write_passed_manifest(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    session = {
+        "proof_video_pending": [
+            {"status": "pending", "subject_commit": "abc1234"},
+            {"status": "pending", "subject_commit": "other"},
+        ]
+    }
+
+    sessions._upsert_proof_video_record(session, tmp_path, manifest)
+
+    assert session["proof_video_pending"] == [{"status": "pending", "subject_commit": "other"}]
 
 
 def test_proof_video_manifest_requires_exact_device_profile_dimensions(tmp_path: Path) -> None:
