@@ -419,6 +419,178 @@ def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
     assert pending[0]["subject_commit"] == "abc1234"
 
 
+def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime_file = "frontend/packages/ui/src/components/NewFeature.svelte"
+    commit = "a" * 40
+    commands: list[list[str]] = []
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "locks": {},
+                "sessions": {
+                    "abcd": {
+                        "mode": "feature",
+                        "task": "proof pending deploy",
+                        "modified_files": [runtime_file],
+                        "proof_video_pending": [
+                            {
+                                "status": "pending",
+                                "subject_commit": "c" * 40,
+                                "next_action": "python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts",
+                            }
+                        ],
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_cmd(command: list[str], **_kwargs: object) -> tuple[int, str, str]:
+        commands.append(command)
+        if command[:2] == ["git", "commit"]:
+            return 0, "[dev abc123] proof pending", ""
+        if command == ["git", "rev-parse", "HEAD"]:
+            return 0, commit, ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda **_kwargs: [runtime_file])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: {runtime_file})
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_get_lint_flags", lambda _files: [])
+    monkeypatch.setattr(sessions, "_run_translation_build", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_translation_validation", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_sdk_cleartext_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+    monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+
+    sessions.cmd_deploy(
+        argparse.Namespace(
+            session="abcd",
+            exclude=None,
+            title="test: proof pending deploy",
+            message=None,
+            end_session=False,
+            no_verify=False,
+            use_staged=True,
+            skip_tests_reason="unit test",
+            skip_visual_smoke_reason=None,
+            require_parity=False,
+            expected_patch_id="",
+            expected_checkpoint_commit="",
+            lock_timeout=0,
+            lock_poll=1,
+        )
+    )
+
+    assert ["git", "push", "origin", "dev"] in commands
+    error_output = capsys.readouterr().err
+    assert "DEPLOYED BUT PROOF VIDEO REQUIRED" in error_output
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    pending = data["sessions"]["abcd"]["proof_video_pending"]
+    assert [record["subject_commit"] for record in pending] == ["c" * 40, commit]
+    assert pending[1]["next_action"].startswith("python3 scripts/proof_video_workflow.py start --current")
+
+
+def test_cmd_deploy_end_hard_blocks_without_proof_video(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime_file = "frontend/packages/ui/src/components/NewFeature.svelte"
+    commit = "b" * 40
+    commands: list[list[str]] = []
+    finalized = False
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "locks": {},
+                "sessions": {
+                    "abcd": {
+                        "mode": "feature",
+                        "task": "proof blocked deploy end",
+                        "modified_files": [runtime_file],
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_cmd(command: list[str], **_kwargs: object) -> tuple[int, str, str]:
+        commands.append(command)
+        if command[:2] == ["git", "commit"]:
+            return 0, "[dev abc123] proof blocked", ""
+        if command == ["git", "rev-parse", "HEAD"]:
+            return 0, commit, ""
+        return 0, "", ""
+
+    def fake_finalize(*_args: object, **_kwargs: object) -> None:
+        nonlocal finalized
+        finalized = True
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda **_kwargs: [runtime_file])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: {runtime_file})
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_get_lint_flags", lambda _files: [])
+    monkeypatch.setattr(sessions, "_run_translation_build", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_translation_validation", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_sdk_cleartext_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+    monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    monkeypatch.setattr(sessions, "_enforce_visual_smoke_end_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "finalize_session_worktree", fake_finalize)
+
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_deploy(
+            argparse.Namespace(
+                session="abcd",
+                exclude=None,
+                title="test: proof blocked deploy end",
+                message=None,
+                end_session=True,
+                no_verify=False,
+                use_staged=True,
+                skip_tests_reason="unit test",
+                skip_visual_smoke_reason=None,
+                require_parity=False,
+                expected_patch_id="",
+                expected_checkpoint_commit="",
+                lock_timeout=0,
+                lock_poll=1,
+            )
+        )
+
+    assert exc.value.code == 1
+    assert ["git", "push", "origin", "dev"] in commands
+    assert finalized is False
+    assert "PROOF VIDEO REQUIRED" in capsys.readouterr().err
+
+
 def test_proof_video_gate_ignores_docs_and_scripts_only_feature(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
 
