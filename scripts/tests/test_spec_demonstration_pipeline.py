@@ -243,10 +243,29 @@ def test_cli_terminal_timeline_types_command_then_replays_real_output_delay() ->
     assert states[0]["text"] == "$ "
     assert states[1]["text"].startswith("$ o")
     assert states[-1]["text"].endswith("Status: draft\n")
-    assert timeline["first_output_at"] == pytest.approx(timeline["typing_completed_at"] + 1.25)
+    assert timeline["first_output_at"] == pytest.approx(
+        timeline["typing_completed_at"] + module.TERMINAL_MAX_OUTPUT_GAP_SECONDS,
+    )
     assert timeline["duration_seconds"] >= 15
     assert all("exit_status" not in state["text"] for state in states)
     assert all("run_id" not in state["text"] for state in states)
+
+
+def test_cli_terminal_timeline_caps_slow_network_gaps() -> None:
+    module = load_module()
+    timeline = module.build_cli_terminal_timeline(
+        argv=["openmates", "teams", "create", "--name", "T95"],
+        events=[
+            {"time_seconds": 20.0, "stream": "output", "text": "team created\n"},
+            {"time_seconds": 55.0, "stream": "output", "text": "credits visible\n"},
+        ],
+    )
+
+    assert timeline["first_output_at"] == pytest.approx(
+        timeline["typing_completed_at"] + module.TERMINAL_MAX_OUTPUT_GAP_SECONDS,
+    )
+    assert timeline["duration_seconds"] < 20
+    assert timeline["states"][-1]["text"].endswith("credits visible\n")
 
 
 def test_cli_display_command_replaces_test_harness_and_dist_cli_paths() -> None:

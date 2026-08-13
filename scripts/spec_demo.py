@@ -37,6 +37,7 @@ TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
 TERMINAL_COLUMNS = 72
 TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
+TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
@@ -477,7 +478,7 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
 
 
 def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build visible typing and output states while preserving captured delays."""
+    """Build visible typing and output states with bounded network waits."""
     command = f"$ {shlex.join(argv)}"
     states: list[dict[str, Any]] = []
     visible = "$ "
@@ -489,6 +490,8 @@ def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]
         states.append({"start": 0.0, "text": visible})
     states.append({"start": typing_completed_at, "text": visible})
     first_output_at: float | None = None
+    output_cursor = typing_completed_at
+    previous_event_time: float | None = None
     for event in events:
         if event.get("stream") != "output":
             continue
@@ -496,7 +499,12 @@ def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]
         if first_output_at is None and not visible.endswith("\n"):
             visible += "\n"
         visible += str(event.get("text", ""))
-        shifted_time = typing_completed_at + event_time
+        if previous_event_time is None:
+            output_cursor += min(event_time, TERMINAL_MAX_OUTPUT_GAP_SECONDS)
+        else:
+            output_cursor += min(max(0.0, event_time - previous_event_time), TERMINAL_MAX_OUTPUT_GAP_SECONDS)
+        previous_event_time = event_time
+        shifted_time = output_cursor
         first_output_at = shifted_time if first_output_at is None else first_output_at
         states.append({"start": shifted_time, "text": visible})
     last_change = float(states[-1]["start"])
