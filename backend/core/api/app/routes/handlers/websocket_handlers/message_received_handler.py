@@ -10,6 +10,7 @@ import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
 import time # Import time for performance timing
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
@@ -34,6 +35,23 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
 logger = logging.getLogger(__name__)
+
+TEST_MOCK_MARKER_PREFIX = "<<<TEST_MOCK:"
+TEST_MOCK_MARKER_SUFFIX = ">>>"
+
+
+def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
+    """Return a dev-only marker that routes E2E proof requests to fixture replay."""
+    if os.getenv("SERVER_ENVIRONMENT", "production") == "production":
+        return None
+    if not isinstance(value, str):
+        return None
+    marker = value.strip()
+    if not marker.startswith(TEST_MOCK_MARKER_PREFIX) or not marker.endswith(TEST_MOCK_MARKER_SUFFIX):
+        return None
+    if "\n" in marker or "\r" in marker or len(marker) > 160:
+        return None
+    return marker
 
 AI_USER_PREFERENCE_FIELDS = [
     "timezone",
@@ -239,6 +257,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         encrypted_chat_key_from_client = payload.get("encrypted_chat_key")
         # Check if this is an incognito chat
         is_incognito = payload.get("is_incognito", False)
+        test_mock_marker = _sanitize_test_mock_marker(payload.get("test_mock_marker"))
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
@@ -1738,6 +1757,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
             # Ensure the current message is the last one if it was added or already present
             message_history_for_ai = sorted(message_history_for_ai, key=lambda m: m.created_at)
+            if test_mock_marker:
+                for history_message in reversed(message_history_for_ai):
+                    if history_message.created_at == client_timestamp_unix and history_message.role == role:
+                        history_message.content = f"{history_message.content} {test_mock_marker}"
+                        logger.info("Applied dev E2E test mock marker for message %s", message_id)
+                        break
 
 
             logger.debug(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")

@@ -32,7 +32,6 @@ const {
 const {
 	loginToTestAccount,
 	startNewChat,
-	sendMessage,
 	deleteActiveChat,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
@@ -48,6 +47,7 @@ const PROOF_PROFILE_TIMEOUT_MS = 360000;
 const SECURITY_REMINDER_TITLE = 'Security Reminder';
 const VISIBLE_SETTINGS_MENU = '[data-testid="settings-menu"].visible';
 const AI_SETTINGS_PATH = 'ai';
+const VISIBLE_PROOF_QUESTION = 'Capital of Germany?';
 
 const PROOF_VIEWPORTS = [
 	{ name: 'web-phone', width: 390, height: 844 },
@@ -144,6 +144,30 @@ function modelChangeNotification(page: any, expectedText: string) {
 	return modelChangeNotifications(page).filter({ hasText: expectedText });
 }
 
+async function sendProofQuestionWithHiddenFixture(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
+	stepLabel: string
+): Promise<void> {
+	const messageField = page.getByTestId('message-field').last();
+	const messageEditor = messageField.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+	await messageEditor.click();
+	await page.keyboard.insertText(VISIBLE_PROOF_QUESTION);
+	await expect(messageEditor).toContainText(VISIBLE_PROOF_QUESTION, { timeout: 5000 });
+	logCheckpoint(`Typed visible proof question: "${VISIBLE_PROOF_QUESTION}"`);
+
+	await messageEditor.evaluate((editor: HTMLElement, serverContent: string) => {
+		editor.dispatchEvent(
+			new CustomEvent('custom-send-message', {
+				bubbles: true,
+				detail: { testMockMarker: serverContent }
+			})
+		);
+	}, withMockMarker(VISIBLE_PROOF_QUESTION, 'default_model_mistral'));
+	logCheckpoint(`Sent visible proof question with hidden fixture marker for ${stepLabel}.`);
+}
+
 async function ensureAutoSelectOn(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
@@ -201,13 +225,7 @@ async function sendQuestionAndAssertMistral(
 	_stepLabel: string
 ): Promise<string | null> {
 	await startNewChat(page, logCheckpoint);
-	await sendMessage(
-		page,
-		withMockMarker('Capital of Germany?', 'default_model_mistral'),
-		logCheckpoint,
-		noopScreenshot,
-		_stepLabel
-	);
+	await sendProofQuestionWithHiddenFixture(page, logCheckpoint, _stepLabel);
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
@@ -220,6 +238,10 @@ async function sendQuestionAndAssertMistral(
 		const msgText = await assistantMessage.textContent();
 		expect((msgText || '').trim().length).toBeGreaterThan(5);
 	}).toPass({ timeout: 60000, intervals: [2000, 3000, 5000] });
+
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toContainText(VISIBLE_PROOF_QUESTION, { timeout: 10000 });
+	await expect(userMessage).not.toContainText('<<<TEST_MOCK', { timeout: 10000 });
 
 	const generatedByElement = assistantMessage.getByTestId('generated-by');
 	await expect(generatedByElement).toBeVisible({ timeout: 90000 });

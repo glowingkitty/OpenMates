@@ -331,6 +331,10 @@ function createMessagePayload(
   return message;
 }
 
+type E2ESendServerContentOverride = {
+  testMockMarker: string;
+};
+
 /**
  * Resets the editor content
  * @param editor The TipTap editor instance
@@ -495,6 +499,7 @@ export async function handleSend(
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
   isSendCancelled: (chatId: string) => boolean = () => false,
+  e2eServerContentOverride?: E2ESendServerContentOverride,
 ) {
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -1989,8 +1994,11 @@ export async function handleSend(
 
     // Send message to backend via chatSyncService
     // Include encrypted suggestion for deletion if one was clicked
+    const serverMessagePayload = e2eServerContentOverride
+      ? ({ ...messagePayload, testMockMarker: e2eServerContentOverride.testMockMarker } as Message & { testMockMarker: string })
+      : messagePayload;
     await chatSyncService.sendNewMessage(
-      messagePayload,
+      serverMessagePayload,
       encryptedSuggestionToDelete,
     );
     console.debug(

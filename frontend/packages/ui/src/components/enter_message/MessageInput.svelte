@@ -4718,7 +4718,29 @@
         }
     }
 
-    async function handleSendMessage() {
+    type CustomSendMessageEvent = CustomEvent<{ testMockMarker?: string }>;
+    type E2ESendServerContentOverride = { testMockMarker: string };
+
+    function getE2EServerContentOverride(event?: Event): E2ESendServerContentOverride | undefined {
+        if (!(event instanceof CustomEvent)) return undefined;
+        const testMockMarker = (event as CustomSendMessageEvent).detail?.testMockMarker;
+        if (typeof testMockMarker !== 'string' || testMockMarker.trim().length === 0) return undefined;
+
+        try {
+            const rawE2EState = sessionStorage.getItem('openmates_e2e_log_forwarding');
+            if (!rawE2EState) return undefined;
+            const parsedState = JSON.parse(rawE2EState) as { runId?: unknown; token?: unknown };
+            if (typeof parsedState.runId !== 'string' || typeof parsedState.token !== 'string') {
+                return undefined;
+            }
+        } catch {
+            return undefined;
+        }
+
+        return { testMockMarker };
+    }
+
+    async function handleSendMessage(event?: Event) {
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
         const editorHasContent = editorHasSendableText(editor);
@@ -4828,7 +4850,8 @@
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
             broadcastToSiblings,
-            (chatId) => cancelledNewChatSendIds.has(chatId)
+            (chatId) => cancelledNewChatSendIds.has(chatId),
+            getE2EServerContentOverride(event)
         );
         sendClickInProgress = false;
         

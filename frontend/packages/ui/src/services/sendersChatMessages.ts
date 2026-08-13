@@ -175,6 +175,7 @@ export async function sendNewMessageImpl(
 	encryptedSuggestionToDelete?: string | null,
 	connectedAccountContext?: PreparedConnectedAccountSendContext
 ): Promise<void> {
+	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
 	const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
 
@@ -1286,6 +1287,9 @@ export async function sendNewMessageImpl(
 		console.debug(
 			"[ChatSyncService:Senders] Including encrypted suggestion for server deletion"
 		);
+	}
+	if (typeof testMockMarker === 'string' && testMockMarker.trim().length > 0) {
+		payload.test_mock_marker = testMockMarker;
 	}
 
 	console.debug(
