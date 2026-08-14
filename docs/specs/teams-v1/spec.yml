@@ -2125,7 +2125,7 @@ tests:
 - id: T-WEB-TEAMS-PARITY
   type: playwright
   file: frontend/apps/web_app/tests/teams-flow.spec.ts
-  command: python3 scripts/tests.py run -- --spec teams-flow.spec.ts
+  command: python3 scripts/tests.py run --spec teams-flow.spec.ts
   target: app.dev.openmates.org
   covers:
   - AC-10
@@ -2150,11 +2150,18 @@ tests:
     required: true
     expected: pass_after_deploy
     evidence:
-      status: pending
-      command: ''
-      run_id: ''
-      subject_commit: ''
-      timestamp: ''
+      status: passed
+      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit f9e4c8ad2
+      run_id: teams-flow-spec-green-31820560581
+      subject_commit: f9e4c8ad2
+      target: https://app.dev.openmates.org/teams
+      deployment_reference: Vercel dpl_6Ld9Mk4Cqoti4Zge7tLUnGWQvtow READY for f9e4c8ad2; GitHub Actions run
+        31820560581 passed.
+      reason: Deployed Playwright passed on app.dev.openmates.org after Vercel deployment dpl_6Ld9Mk4Cqoti4Zge7tLUnGWQvtow
+        reached Ready. The run created an encrypted team, switched visible team context, confirmed personal memory/account guards,
+        verified team billing/memory/connected-account panels, and created an encrypted email invite request. Visual smoke was
+        recorded for /teams in session 765a using run test-results/visual-smoke/2026-08-14T16-46-04-130150+00-00/summary.json.
+      timestamp: '2026-08-14T16:44:28Z'
 - id: T-APPLE-TEAMS-PARITY
   type: manual
   file: apple/OpenMates
