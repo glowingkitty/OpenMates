@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
+export {};
+
+import type { Page, Response } from '@playwright/test';
 /**
  * Teams V1 web flow coverage.
  *
@@ -12,7 +15,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
-function isApiPath(response, method, matcher) {
+function isApiPath(response: Response, method: string, matcher: (pathname: string) => boolean): boolean {
 	if (response.request().method() !== method) return false;
 	try {
 		return matcher(new URL(response.url()).pathname);
@@ -23,7 +26,7 @@ function isApiPath(response, method, matcher) {
 
 test.describe('Teams V1 web flow', () => {
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.invites.fragment-key-web-flow,teams.context.full-switch-local,teams.chat-billing.team-credit-boundary,teams.workspace.surface-parity
-	test('creates an encrypted team, switches context, and creates an email invite request', async ({ page }) => {
+	test('creates an encrypted team, switches context, and creates an email invite request', async ({ page }: { page: Page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:teams']);

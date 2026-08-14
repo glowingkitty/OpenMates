@@ -2139,9 +2139,13 @@ tests:
     required: true
     expected: fail_or_missing
     evidence:
-      status: pending
-      run_id: pending-web-teams-red
-      timestamp: ''
+      status: failed_as_expected
+      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit c73f069
+      run_id: teams-flow-spec-red-31816099367
+      subject_commit: c73f069
+      reason: Spec-only deploy proved /teams was not implemented yet; teams-flow.spec.ts failed on missing teams-page after
+        preflight run 31815870763 and Vercel deployment dpl_3PzKKqHWnnJoLLQjd68QDLgn8DrP.
+      timestamp: '2026-08-14'
   green_phase:
     required: true
     expected: pass_after_deploy

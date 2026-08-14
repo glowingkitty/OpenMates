@@ -190,6 +190,30 @@ tasks:
   sv: Uppgifter
   he: משימות
   verified_by_human: []
+teams:
+  context: Navigation item for team workspaces
+  en: Teams
+  de: Teams
+  zh: 团队
+  es: Equipos
+  fr: Équipes
+  pt: Equipes
+  ru: Команды
+  ja: チーム
+  ko: 팀
+  it: Team
+  tr: Ekipler
+  vi: Nhóm
+  id: Tim
+  pl: Zespoły
+  nl: Teams
+  ar: الفرق
+  hi: टीमें
+  th: ทีม
+  cs: Týmy
+  sv: Team
+  he: צוותים
+  verified_by_human: []
 workspace_preview.eyebrow:
   context: Small label above Apple workspace placeholder screens
   en: Apple preview

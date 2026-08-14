@@ -8759,7 +8759,7 @@ assertions:
       surface: rest_api
     - &id971
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 26
+      line: 29
       name: creates an encrypted team, switches context, and creates an email invite
         request
       surface: gui.web
@@ -9083,7 +9083,7 @@ assertions:
       surface: rest_api
     - &id1007
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 26
+      line: 29
       name: creates an encrypted team, switches context, and creates an email invite
         request
       surface: gui.web
@@ -9121,7 +9121,7 @@ assertions:
     direct_tests:
     - &id1010
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 26
+      line: 29
       name: creates an encrypted team, switches context, and creates an email invite
         request
       surface: gui.web
@@ -9172,7 +9172,7 @@ assertions:
       surface: rest_api
     - &id1017
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 26
+      line: 29
       name: creates an encrypted team, switches context, and creates an email invite
         request
       surface: gui.web
@@ -9223,7 +9223,7 @@ assertions:
       surface: rest_api
     - &id1028
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 26
+      line: 29
       name: creates an encrypted team, switches context, and creates an email invite
         request
       surface: gui.web
@@ -10024,12 +10024,12 @@ assertions:
       surface: gui.web
     - &id1119
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
-      line: 30
+      line: 31
       name: hides every optional header workspace disabled by the release backend
       surface: gui.web
     - &id1120
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
-      line: 45
+      line: 48
       name: keeps disabled chats hidden if backend explicitly disables them
       surface: gui.web
     tests:

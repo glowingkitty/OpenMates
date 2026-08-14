@@ -15,7 +15,7 @@
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
-  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans';
+  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
 
   type ContinueItem = {
     id: string;
@@ -684,6 +684,11 @@
   .workspace-surface-background-icon[data-surface='tasks'] {
     -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
     mask-image: url('@openmates/ui/static/icons/task.svg');
+  }
+
+  .workspace-surface-background-icon[data-surface='teams'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+    mask-image: url('@openmates/ui/static/icons/team.svg');
   }
 
   .workspace-center-content .workspace-subtitle {

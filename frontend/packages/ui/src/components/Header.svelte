@@ -82,12 +82,14 @@
     let isChatsRoute = $derived($page.url.pathname === '/');
     let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
     let isPlansRoute = $derived($page.url.pathname.startsWith('/plans'));
+    let isTeamsRoute = $derived($page.url.pathname.startsWith('/teams'));
     let isWorkflowsRoute = $derived($page.url.pathname.startsWith('/workflows'));
     let isTasksRoute = $derived($page.url.pathname.startsWith('/tasks'));
     let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
     let chatsEnabled = $derived(isWorkspaceFeatureAvailable('platform:chats', disabledFeatures, true));
     let projectsEnabled = $derived(isWorkspaceFeatureAvailable('platform:projects', disabledFeatures));
     let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', disabledFeatures));
+    let teamsEnabled = $derived(isWorkspaceFeatureAvailable('platform:teams', disabledFeatures));
     let workflowsEnabled = $derived(isWorkspaceFeatureAvailable('platform:workflows', disabledFeatures));
     let tasksEnabled = $derived(isWorkspaceFeatureAvailable('platform:tasks', disabledFeatures));
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([
@@ -99,6 +101,9 @@
             : []),
         ...(plansEnabled
             ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
+            : []),
+        ...(teamsEnabled
+            ? [{ href: '/teams', testId: 'teams-nav-link', label: $text('navigation.teams'), iconClass: 'team-icon', active: isTeamsRoute, disabled: false }]
             : []),
         ...(tasksEnabled
             ? [{ href: '/tasks', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: isTasksRoute, disabled: false }]
@@ -1141,6 +1146,11 @@
     .task-icon {
         -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
         mask-image: url('@openmates/ui/static/icons/task.svg');
+    }
+
+    .team-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+        mask-image: url('@openmates/ui/static/icons/team.svg');
     }
 
     .workspace-select-shell {

@@ -12,6 +12,7 @@ type DisabledFeatureMap = Record<string, true> | null;
 const RELEASED_OPTIONAL_WORKSPACE_FEATURES = new Set<string>([
   'platform:projects',
   'platform:plans',
+  'platform:teams',
   'platform:tasks',
   'platform:workflows',
 ]);
