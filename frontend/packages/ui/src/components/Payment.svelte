@@ -266,6 +266,7 @@
                 await mountEmbeddedCheckout();
             } else {
                 // EU: regular Stripe Elements (PaymentIntent flow)
+                await tick();
                 initializePaymentElement();
             }
         } catch (error) {
