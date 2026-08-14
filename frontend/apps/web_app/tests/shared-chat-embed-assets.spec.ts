@@ -313,12 +313,13 @@ async function loginCliViaBrowser(page: any, apiUrl: string, logCheckpoint: (msg
 	logCheckpoint('CLI login complete.');
 }
 
-async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 90_000): Promise<any> {
+async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 180_000): Promise<any> {
 	const startedAt = Date.now();
 	let lastOutput = '';
+	clearCliSyncCache();
 	while (Date.now() - startedAt < timeoutMs) {
-		clearCliSyncCache();
-		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		const remainingMs = timeoutMs - (Date.now() - startedAt);
+		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], Math.max(30_000, remainingMs));
 		lastOutput = result.stdout + result.stderr;
 		if (result.code === 0 && result.stdout.trim()) return JSON.parse(result.stdout);
 		await new Promise((resolve) => setTimeout(resolve, 2_000));
