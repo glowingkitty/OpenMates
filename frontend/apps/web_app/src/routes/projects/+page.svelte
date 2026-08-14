@@ -6,7 +6,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
+  import { Header, ProjectsPage, Settings, NotificationStack, authStore, initialize, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let projectsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:projects'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -56,11 +56,7 @@
     <p>Please log in to organize chats, embeds, and uploaded files into projects.</p>
   </main>
 {/if}
-<div class="notification-container">
-  {#each $notificationStore.notifications as notification (notification.id)}
-    <Notification {notification} />
-  {/each}
-</div>
+<NotificationStack />
 
 <style>
   .projects-route-state {
@@ -198,27 +194,4 @@
     color: var(--color-font-secondary);
   }
 
-  .notification-container {
-    position: fixed;
-    top: 0;
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 10000;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 20px;
-    gap: 10px;
-  }
-
-  .notification-container :global(.notification) {
-    pointer-events: auto;
-  }
-
-  @media (max-width: 730px) {
-    .notification-container {
-      padding-top: 10px;
-    }
-  }
 </style>

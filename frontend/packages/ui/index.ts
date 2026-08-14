@@ -31,6 +31,7 @@ export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Not404Screen } from "./src/components/Not404Screen.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";
 export { default as ChatMessageNotification } from "./src/components/ChatMessageNotification.svelte";
+export { default as NotificationStack } from "./src/components/NotificationStack.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";

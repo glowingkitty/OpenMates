@@ -5,8 +5,7 @@
 		ActiveChat,
 		Header,
 		Settings,
-		Notification,
-		ChatMessageNotification,
+		NotificationStack,
 		// stores
 		isInSignupProcess,
 		authStore,
@@ -3567,15 +3566,7 @@
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
 
 <!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
-<div class="notification-container">
-	{#each $notificationStore.notifications as notification (notification.id)}
-		{#if notification.type === 'chat_message'}
-			<ChatMessageNotification {notification} />
-		{:else}
-			<Notification {notification} />
-		{/if}
-	{/each}
-</div>
+<NotificationStack />
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
 	{#if $panelState.isActivityHistoryOpen}
@@ -3891,32 +3882,6 @@
 		transition: none;
 	}
 
-	/* Notification container - full-width banner at top of viewport */
-	.notification-container {
-		position: fixed;
-		top: 0;
-		inset-inline-start: 0;
-		inset-inline-end: 0;
-		z-index: 10000; /* High z-index to appear above all content */
-		pointer-events: none; /* Allow clicks to pass through container */
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding-top: 20px;
-		gap: 10px; /* Space between multiple notifications */
-	}
-
-	/* Enable pointer events on notifications themselves */
-	.notification-container :global(.notification) {
-		pointer-events: auto;
-	}
-
-	@media (max-width: 730px) {
-		.notification-container {
-			padding-top: 10px;
-		}
-	}
-
 	/* ------------------------------------------------------------------ */
 	/* Developer console wrapper                                            */
 	/* Sits at the bottom of .main-content (in normal flow), so it pushes  */
@@ -3947,7 +3912,7 @@
 	/* ── Media mode (?media=1) — superset of og-mode ──────────────────── */
 	/* Hide all non-essential UI for pixel-perfect screenshot capture.
 	   The real app renders inside iframes in /dev/media device mockups. */
-	:global(body.media-mode .notification-container) {
+	:global(body.media-mode .notification-stack) {
 		display: none !important;
 	}
 	:global(body.media-mode .cookie-banner) {

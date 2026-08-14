@@ -9,14 +9,13 @@
   import { onMount } from 'svelte';
   import {
     Header,
-    Notification,
+    NotificationStack,
     Settings,
     TeamsWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
     initializeFeatureAvailability,
-    notificationStore,
     panelState,
   } from '@repo/ui';
   import { isWorkspaceFeatureAvailable } from '@repo/ui/config/workspaceFeatureGates';
@@ -63,11 +62,7 @@
   </main>
 {/if}
 
-<div class="notification-container">
-  {#each $notificationStore.notifications as notification (notification.id)}
-    <Notification {notification} />
-  {/each}
-</div>
+<NotificationStack />
 
 <style>
   .teams-route-state {
@@ -155,18 +150,4 @@
     color: var(--color-font-secondary);
   }
 
-  .notification-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2000;
-  }
-
-  @media (max-width: 730px) {
-    .notification-container {
-      top: 10px;
-      right: 10px;
-      left: 10px;
-    }
-  }
 </style>
