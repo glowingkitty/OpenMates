@@ -174,7 +174,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 9977e0ce8
+  subject_commit: d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960
 
 approvals:
   product_contract:
@@ -182,7 +182,8 @@ approvals:
     approved_at: "2026-08-12T13:45:00Z"
     reason: User explicitly approved the surface.cli contract after reviewing the full contract draft.
   implementation_plan:
-    status: pending
+    status: approved
+    approved_at: "2026-08-14T11:48:31Z"
 
 decisions:
   - id: D-1
@@ -268,7 +269,7 @@ acceptance_criteria:
     scenario: S-1
     text: Workflows store encrypted_slug and slug_lookup_hash on create/update and CLI workflow commands accept the slug while sending only workflow_id to server run/detail/list-runs operations.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-BACKEND-SLUGS, T-CLI-WORKFLOW-SLUGS, V-LIVE-CLI-SLUGS]
@@ -277,7 +278,7 @@ acceptance_criteria:
     scenario: S-2
     text: Backend mutation paths reject duplicate slug_lookup_hash values within the same owner/team context for every implemented slugged object surface without creating partial objects.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND-SLUGS]
@@ -286,7 +287,7 @@ acceptance_criteria:
     scenario: S-3
     text: Projects, Plans, and Tasks human CLI output leads with slug plus decrypted name/title, uses slug-based next commands, and keeps canonical IDs available in detail or --json output.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-WORKSPACE-SLUGS, V-LIVE-CLI-SLUGS]
@@ -295,7 +296,7 @@ acceptance_criteria:
     scenario: S-4
     text: Saved Chat list/show/send commands accept encrypted chat slugs locally and send only chat_id over WebSocket/REST operations.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-CHAT-SLUGS, V-LIVE-CLI-SLUGS]
@@ -304,7 +305,7 @@ acceptance_criteria:
     scenario: S-5
     text: npm and pip SDK object create/update helpers preserve encrypted_slug plus slug_lookup_hash semantics and do not expose encrypted storage details to callers.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: npm_sdk
     verification_ids: [T-SDK-SLUGS, V-SDK-PARITY]
@@ -394,11 +395,11 @@ verifications:
   - id: V-LIVE-CLI-SLUGS
     kind: deterministic_check
     phase: green
-    status: pending
+    status: passed
     covers: [AC-1, AC-3, AC-4]
     required_for_done: true
-    command: OPENMATES_API_URL=https://api.dev.openmates.org /home/superdev/.npm-global/bin/openmates workflows|projects|plans|tasks|chats slug smoke
-    evidence: {}
+    command: npm exec --yes tsx -- scripts/verify_cli_encrypted_slugs_live_smoke.mjs --proof-summary
+    evidence: {status: passed, command: "npm exec --yes tsx -- scripts/verify_cli_encrypted_slugs_live_smoke.mjs --proof-summary", run_id: "live:cli-encrypted-slugs-2026-08-14T11-02-58-326Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:12:08Z", artifact_path: "test-results/cli-encrypted-slugs/live:cli-encrypted-slugs-2026-08-14T11-02-58-326Z.json", artifact_sha256: "sha256:ff59ed81b23b21e67131e457688d81f63dba48f209dc542dc71cff3ebb91473a", target_environment: "https://api.dev.openmates.org", proof_summary: "CLI/npm/pip project, task, plan, workflow, and chat all slug-ok; encrypted_slug and slug_lookup_hash hidden; slug inputs resolved locally to canonical IDs; temporary API key and private CLI HOME removed."}
   - id: V-SDK-PARITY
     kind: deterministic_check
     phase: green
@@ -406,15 +407,15 @@ verifications:
     covers: [AC-5]
     required_for_done: true
     command: python3 scripts/audit_sdk_cli_parity.py
-    evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local:audit-sdk-cli-parity-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}
+    evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local:audit-sdk-cli-parity-2026-08-14T11:41:00Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:41:00Z", note: "Audit exited successfully and reported pre-existing unclassified CLI commands: credits, switch-to."}
   - id: V-SPEC-VERIFY
     kind: deterministic_check
     phase: final
-    status: pending
+    status: passed
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
     required_for_done: true
     command: python3 scripts/spec_verify.py docs/specs/cli-encrypted-slugs/spec.yml
-    evidence: {}
+    evidence: {status: passed, command: "python3 scripts/spec_verify.py docs/specs/cli-encrypted-slugs/spec.yml", run_id: "local:spec-verify-cli-encrypted-slugs-2026-08-14T11:56:00Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:56:00Z"}
 
 demonstration:
   eligibility:
@@ -434,17 +435,17 @@ demonstration:
       scenario_ids: [S-3, S-4]
       acceptance_criteria: [AC-3, AC-4]
   evidence:
-    status: pending
-    privacy_status: pending
-    audio_status: pending
-    review_status: pending
-    publication_status: pending
-    review_attempts: 0
-    subject_commit: ""
-    manifest_path: ""
-    manifest_hash: ""
-    review_run_id: ""
-    timestamp: ""
+    status: passed
+    privacy_status: passed
+    audio_status: not_required
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 2
+    subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960"
+    manifest_path: "test-results/proof-videos/3e46/cli-encrypted-slugs-artifact-d9a70a9/manifest.json"
+    manifest_hash: "sha256:a5961e3dd27c5d8a1e2846684318d78ddba9766d34e23e6320c1904cec2d4a6e"
+    review_run_id: "review-cli-encrypted-slugs-artifact-d9a70a9"
+    timestamp: "2026-08-14T11:48:31Z"
 
 implementation_plan:
   spec_path: docs/specs/cli-encrypted-slugs/spec.yml
@@ -496,7 +497,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add encrypted slug primitives and backend schema/API support
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-5], acceptance_criteria: [AC-1, AC-2, AC-5]}
     expected_files:
@@ -520,7 +521,7 @@ tasks:
     follow_up_tasks: [TASK-2]
   - id: TASK-2
     title: Implement CLI slug resolution and readable output
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-3, S-4], acceptance_criteria: [AC-1, AC-3, AC-4]}
     expected_files:
@@ -544,7 +545,7 @@ tasks:
     follow_up_tasks: [TASK-3]
   - id: TASK-3
     title: Preserve npm and pip SDK slug parity
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
     expected_files:
@@ -566,12 +567,12 @@ tasks:
     follow_up_tasks: [TASK-4]
   - id: TASK-4
     title: Final verification, proof video, and spec closure
-    status: pending
+    status: done
     phase: running_checks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
     expected_files:
       - docs/specs/cli-encrypted-slugs/spec.yml
-      - test-results/proof-videos/d3d9/cli-encrypted-slugs/manifest.json
+      - test-results/proof-videos/3e46/cli-encrypted-slugs-artifact-d9a70a9/manifest.json
     verification_ids: [V-LIVE-CLI-SLUGS, V-SDK-PARITY, V-SPEC-VERIFY]
     dependencies: [TASK-1, TASK-2, TASK-3]
     blockers: []
@@ -590,9 +591,9 @@ attempts:
     evidence: contracts/surfaces/cli/contract.yml fingerprint c81cf22357b99e260947304f2b0df39d9f1cb5654370831a4aced1aa6ea8007d
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Confirm assumptions A-1 and A-2, then write red backend/CLI tests before product implementation.
-  command: python3 scripts/spec_validate.py docs/specs/cli-encrypted-slugs/spec.yml
-  expected_outcome: Spec validation passes before implementation begins.
+  current_task_id: TASK-4
+  next_action: Deploy the final spec evidence ledger update.
+  command: python3 scripts/sessions.py deploy --session 3e46 --title "Verify CLI encrypted slug evidence" --message "Verify CLI encrypted slug spec evidence"
+  expected_outcome: The final spec evidence ledger update is committed and pushed to dev.
   blocker: null
-  last_verified_commit: 9977e0ce8
+  last_verified_commit: d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960
