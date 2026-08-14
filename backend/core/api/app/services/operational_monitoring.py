@@ -462,17 +462,15 @@ async def collect_activity_and_transactions(
 ) -> tuple[dict[str, int], dict[str, int], dict[str, Any] | None]:
     _validate_environment(environment)
     activity_requests = [
-        _directus_count(directus_service, "chats", timestamp_field="created_at", start=start, end=end),
-        _directus_count(directus_service, "messages", timestamp_field="created_at", start=start, end=end),
-        _directus_count(directus_service, "embeds", timestamp_field="created_at", start=start, end=end),
         _directus_count(
             directus_service,
-            "usage",
+            collection,
             timestamp_field="created_at",
             timestamp_format="unix_seconds",
             start=start,
             end=end,
-        ),
+        )
+        for collection in ("chats", "messages", "embeds", "usage")
     ]
     chats, messages, embeds, usage_entries = await asyncio.gather(*activity_requests)
     processing_started, processing_completed, processing_failed, processing_stuck = await asyncio.gather(

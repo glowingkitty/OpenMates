@@ -169,7 +169,10 @@ async def test_collection_counts_processing_jobs_without_exposing_billing_to_sel
     assert processing == {"started": 5, "completed": 6, "failed": 7, "stuck": 8}
     assert billing is None
     assert all(collection != "billing_charge_identities" for collection, _, _, _ in calls)
-    assert calls[3][:3] == ("usage", "created_at", "unix_seconds")
+    assert [call[:3] for call in calls[:4]] == [
+        (collection, "created_at", "unix_seconds")
+        for collection in ("chats", "messages", "embeds", "usage")
+    ]
     assert calls[4][1] == "created_at"
     assert calls[5][1] == "completed_at"
     assert calls[6][1] == "invalidated_at"
