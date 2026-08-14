@@ -465,6 +465,185 @@ def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monke
     assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "completed"
 
 
+def test_complete_vercel_gate_child_from_later_successful_parent_dispatch(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    parent_specs = ["ai-response-language.spec.ts", "message-sync.spec.ts"]
+    control.record_run_result(failed_run("ai-response-language.spec.ts"))
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "session-1")
+    campaign = control.start_debug_campaign(session_id="session-1")
+    parent = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    parent = control.get_store().update_debug_group(
+        parent["group_key"],
+        {"member_test_keys": [f"playwright::{spec}" for spec in parent_specs]},
+    )
+
+    children = control.add_debug_child_groups(
+        campaign["campaign_key"],
+        parent["group_key"],
+        failed_run("vercel-deployment-gate", run_id="run-vercel-gate-red"),
+    )
+    assert len(children) == 1
+    child = children[0]
+    assert child["member_test_keys"] == ["playwright::vercel-deployment-gate"]
+
+    incomplete_gate_cases = [
+        ("no-gate-fields", {}),
+        ("missing-deployment-verified", {"gate_deploy": True}),
+        ("missing-gate-deploy", {"deployment_verified": True}),
+        ("false-deployment-verified", {"gate_deploy": True, "deployment_verified": False}),
+        ("false-gate-deploy", {"gate_deploy": False, "deployment_verified": True}),
+    ]
+    for suffix, gate_fields in incomplete_gate_cases:
+        incomplete_run = passed_run(
+            parent_specs,
+            f"run-parent-green-{suffix}",
+            "fix222abc",
+            campaign["campaign_key"],
+            parent["group_key"],
+        )
+        incomplete_run.update(gate_fields)
+        control.record_run_result(incomplete_run)
+        control.complete_debug_group(parent["group_key"], commit="fix222abc")
+        with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+            control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    partial_gated_run = passed_run(
+        ["ai-response-language.spec.ts"],
+        "run-parent-green-partial",
+        "fix222abc",
+        campaign["campaign_key"],
+        parent["group_key"],
+    )
+    partial_gated_run["gate_deploy"] = True
+    partial_gated_run["deployment_verified"] = True
+    control.record_run_result(partial_gated_run)
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+        control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    duplicate_request_run = passed_run(
+        parent_specs,
+        "run-parent-green-duplicate-request",
+        "fix222abc",
+        campaign["campaign_key"],
+        parent["group_key"],
+    )
+    duplicate_request_run["gate_deploy"] = True
+    duplicate_request_run["deployment_verified"] = True
+    duplicate_request_run["requested_tests"] = [
+        "playwright::ai-response-language.spec.ts",
+        "playwright::message-sync.spec.ts",
+        "playwright::message-sync.spec.ts",
+    ]
+    control.record_run_result(duplicate_request_run)
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+        control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    invalid_time_run = passed_run(
+        parent_specs,
+        "run-parent-green-invalid-time",
+        "fix222abc",
+        campaign["campaign_key"],
+        parent["group_key"],
+    )
+    invalid_time_run["gate_deploy"] = True
+    invalid_time_run["deployment_verified"] = True
+    control.record_run_result(invalid_time_run)
+    for result in control.get_store().test_results.values():
+        if result.get("run_key") == "run-parent-green-invalid-time":
+            result["created_at"] = "not-a-timestamp"
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+        control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    naive_time_run = passed_run(
+        parent_specs,
+        "run-parent-green-naive-time",
+        "fix222abc",
+        campaign["campaign_key"],
+        parent["group_key"],
+    )
+    naive_time_run["gate_deploy"] = True
+    naive_time_run["deployment_verified"] = True
+    control.record_run_result(naive_time_run)
+    for result in control.get_store().test_results.values():
+        if result.get("run_key") == "run-parent-green-naive-time":
+            result["created_at"] = "2999-01-01T00:00:00"
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+        control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    preselection_run = passed_run(
+        parent_specs,
+        "run-parent-green-preselection",
+        "fix222abc",
+        campaign["campaign_key"],
+        parent["group_key"],
+    )
+    preselection_run["gate_deploy"] = True
+    preselection_run["deployment_verified"] = True
+    control.record_run_result(preselection_run)
+    for result in control.get_store().test_results.values():
+        if result.get("run_key") == "run-parent-green-preselection":
+            result["created_at"] = "2000-01-01T00:00:00Z"
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+        control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    bad_summary_cases = [
+        ("missing-summary", {}),
+        ("skipped-summary", {"total": 2, "passed": 1, "failed": 0, "skipped": 1}),
+        ("running-summary", {"total": 2, "passed": 2, "failed": 0, "running": 1}),
+    ]
+    for suffix, summary in bad_summary_cases:
+        bad_summary_run = passed_run(
+            parent_specs,
+            f"run-parent-green-{suffix}",
+            "fix222abc",
+            campaign["campaign_key"],
+            parent["group_key"],
+        )
+        bad_summary_run["gate_deploy"] = True
+        bad_summary_run["deployment_verified"] = True
+        bad_summary_run["summary"] = summary
+        control.record_run_result(bad_summary_run)
+        control.complete_debug_group(parent["group_key"], commit="fix222abc")
+        with pytest.raises(RuntimeError, match="vercel-deployment-gate"):
+            control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    for run_id in ("run-parent-green-a", "run-parent-green-z"):
+        gated_run = passed_run(
+            parent_specs,
+            run_id,
+            "fix222abc",
+            campaign["campaign_key"],
+            parent["group_key"],
+        )
+        gated_run["gate_deploy"] = True
+        gated_run["deployment_verified"] = True
+        control.record_run_result(gated_run)
+    for result in control.get_store().test_results.values():
+        if result.get("run_key") == "run-parent-green-a":
+            result["created_at"] = "2999-01-01T01:00:00+01:00"
+            result["created_at_unix"] = 32_503_680_000
+        if result.get("run_key") == "run-parent-green-z":
+            result["created_at"] = "2999-01-01T00:00:00Z"
+            result["created_at_unix"] = 32_503_680_000
+    control.complete_debug_group(parent["group_key"], commit="fix222abc")
+    completed_child = control.complete_debug_group(child["group_key"], commit="fix222abc")
+
+    assert completed_child["status"] == "green"
+    assert completed_child["green_evidence"] == [{
+        "test_key": "playwright::vercel-deployment-gate",
+        "run_key": "run-parent-green-z",
+        "result_key": "run-parent-green-z:playwright::vercel-deployment-gate:synthetic-passed",
+        "subject_commit": "fix222abc",
+        "timestamp": completed_child["green_evidence"][0]["timestamp"],
+    }]
+    assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "completed"
+
+
 def test_campaign_bound_failure_is_added_as_child_group(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("account-preflight.spec.ts"))

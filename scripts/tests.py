@@ -153,6 +153,7 @@ SOURCE_SCAN_ROOTS = (
 )
 
 SOURCE_SCAN_SUFFIXES = {".svelte", ".ts", ".tsx", ".js", ".mjs", ".py", ".swift"}
+VERCEL_DEPLOYMENT_GATE_TEST_KEY = "playwright::vercel-deployment-gate"
 _SOURCE_TEXT_CACHE: dict[str, str] | None = None
 
 
@@ -3118,7 +3119,71 @@ def _passing_evidence_for_group(group: dict[str, Any]) -> tuple[list[dict[str, A
             "timestamp": result.get("created_at") or utc_now(),
         }
     missing = [member for member in members if member not in passing_by_test]
+    if missing == [VERCEL_DEPLOYMENT_GATE_TEST_KEY]:
+        synthetic = _synthetic_vercel_deployment_gate_evidence(group)
+        if synthetic:
+            passing_by_test[VERCEL_DEPLOYMENT_GATE_TEST_KEY] = synthetic
+            missing = []
     return [passing_by_test[member] for member in members if member in passing_by_test], missing
+
+
+def _synthetic_vercel_deployment_gate_evidence(group: dict[str, Any]) -> dict[str, Any] | None:
+    """Use a later successful Playwright dispatch as evidence that the dev deployment gate passed."""
+    parent_group_key = str(group.get("parent_group_key") or "")
+    if not parent_group_key:
+        return None
+    try:
+        parent = _debug_group(parent_group_key)
+    except RuntimeError:
+        return None
+    if parent.get("status") != "green":
+        return None
+    selected_at = parse_utc(str(group.get("selected_at") or ""))
+    if selected_at is None or selected_at.tzinfo is None or selected_at.utcoffset() is None:
+        return None
+    parent_members = list(parent.get("member_test_keys") or [])
+    candidates: list[tuple[datetime, int, str, dict[str, Any]]] = []
+    for result in get_store().list_test_results(parent_members):
+        if result.get("status") != "passed":
+            continue
+        timestamp_text = str(result.get("created_at") or "")
+        timestamp = parse_utc(timestamp_text)
+        if timestamp is None or timestamp.tzinfo is None or timestamp.utcoffset() is None or timestamp < selected_at:
+            continue
+        run_key = str(result.get("run_key") or "")
+        run = get_store().get_test_run(run_key)
+        if run.get("campaign_key") != group.get("campaign_key"):
+            continue
+        if run.get("debug_group_key") != parent_group_key:
+            continue
+        run_record = run.get("record_json") or {}
+        if run_record.get("gate_deploy") is not True or run_record.get("deployment_verified") is not True:
+            continue
+        if run.get("status") not in {"completed", "passed"}:
+            continue
+        if run.get("environment") != "development":
+            continue
+        requested_tests = run.get("requested_tests") or []
+        requested_test_keys = [str(key) for key in requested_tests]
+        if sorted(requested_test_keys) != sorted(parent_members) or VERCEL_DEPLOYMENT_GATE_TEST_KEY in requested_test_keys:
+            continue
+        summary = run.get("summary") or {}
+        if int(summary.get("total") or -1) != len(parent_members) or int(summary.get("passed") or -1) != len(parent_members):
+            continue
+        if any(int(summary.get(key) or 0) for key in ("failed", "dispatch_error", "not_started", "timeout", "result_unknown", "skipped", "running")):
+            continue
+        evidence = {
+            "test_key": VERCEL_DEPLOYMENT_GATE_TEST_KEY,
+            "run_key": run_key,
+            "result_key": f"{run_key}:{VERCEL_DEPLOYMENT_GATE_TEST_KEY}:synthetic-passed",
+            "subject_commit": run.get("git_sha"),
+            "timestamp": result.get("created_at") or utc_now(),
+        }
+        candidates.append((timestamp, int(result.get("created_at_unix") or 0), str(result.get("result_key") or ""), evidence))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda candidate: (candidate[0], candidate[1], candidate[2]))
+    return candidates[-1][3]
 
 
 def complete_debug_group(group_key: str, commit: str = "") -> dict[str, Any]:
