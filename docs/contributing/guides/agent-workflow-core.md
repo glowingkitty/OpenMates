@@ -35,6 +35,14 @@ uploads. Extract them with
 before substituting a regenerated screenshot or asking the user to resend the
 file.
 
+To embed generated images or videos in an OpenCode assistant response, upload the
+media with `python3 scripts/opencode_response_media.py <path> --alt "..."` and
+paste the returned Markdown or HTML snippet. The script stores plaintext media in
+a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL.
+Use only intentionally shareable screenshots, diagrams, or demo clips; do not use
+it for secrets, private user data, logs, raw production evidence, or durable docs.
+External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
+
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
 when repeated mistakes, flaky behavior, safety risks, or workflow drift are
@@ -137,6 +145,7 @@ For each observed preventable process problem, check the relevant existing hooks
 - `python3 scripts/sessions.py chat read <ses_or_code_dev_url>`
 - `python3 scripts/sessions.py chat search <ses_or_code_dev_url> "worktree"`
 - `python3 scripts/sessions.py chat attachments <ses_or_code_dev_url> --out /tmp/opencode/<task>-attachments`
+- `python3 scripts/opencode_response_media.py <path> --alt "Description"`
 - `python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/<route> --session <id>`
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`

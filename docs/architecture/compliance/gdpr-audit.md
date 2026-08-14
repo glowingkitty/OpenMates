@@ -69,6 +69,7 @@ Redis/Dragonfly holds short-lived decrypted copies of profile, device, chat list
 | `openmates-compliance-logs-backups` | Plaintext | 2 y audit / 10 y financial |
 | `openmates-usage-archives` | Server key | 3 years |
 | `openmates-temp-images` | Plaintext, **private** (15 min presigned URL to SerpAPI) | 1 day (safety net) |
+| `openmates-opencode-response-media` | Plaintext, **private** (48 h presigned URL for agent-rendered response media) | 2 days |
 | `openmates-issue-logs` | Encrypted YAML + plaintext PNG | 1 year |
 
 ### 3.4 Browser-side

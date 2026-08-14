@@ -1,0 +1,426 @@
+#!/usr/bin/env python3
+# scripts/opencode_response_media.py
+#
+# Upload temporary media for OpenCode assistant responses without making a
+# public bucket. The host script copies a local image/video into the API
+# container, where Vault-backed Hetzner S3 credentials are available, then
+# creates/reconciles a private 48-hour bucket and returns a presigned URL.
+#
+# Usage: python3 scripts/opencode_response_media.py path/to/file.png --alt "Screenshot"
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import html
+import json
+import mimetypes
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import uuid
+
+
+BUCKET_NAME = "openmates-opencode-response-media"
+DEV_BUCKET_NAME = "dev-openmates-opencode-response-media"
+BUCKET_KEY = "opencode_response_media"
+LIFECYCLE_DAYS = 2
+DEFAULT_EXPIRES_SECONDS = 48 * 60 * 60
+MIN_EXPIRES_SECONDS = 60
+MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
+DEFAULT_CONTAINER = "api"
+CONTAINER_TMP_DIR = "/tmp/opencode-response-media"
+MAX_MEDIA_BYTES = 500 * 1024 * 1024
+
+CONTENT_TYPES = {
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".mov": "video/quicktime",
+    ".mp4": "video/mp4",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".webm": "video/webm",
+    ".webp": "image/webp",
+}
+
+ALLOWED_CONTENT_TYPES = set(CONTENT_TYPES.values())
+
+INNER_UPLOAD_CODE = r'''
+import asyncio
+import json
+import os
+from pathlib import Path
+import time
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+
+REQUEST = json.loads(os.environ["OPENCODE_RESPONSE_MEDIA_REQUEST"])
+
+
+def bucket_name(environment):
+    return REQUEST["dev_bucket"] if environment == "development" else REQUEST["bucket"]
+
+
+def allowed_origins(environment):
+    if environment == "development":
+        return [
+            "https://code.dev.openmates.org",
+            "http://127.0.0.1:4096",
+            "http://localhost:4096",
+        ]
+    return ["https://code.openmates.org"]
+
+
+def ensure_bucket(client, name):
+    try:
+        client.head_bucket(Bucket=name)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code not in {"404", "NoSuchBucket"}:
+            raise
+        client.create_bucket(Bucket=name)
+        time.sleep(2)
+    client.put_bucket_acl(Bucket=name, ACL="private")
+
+
+def apply_lifecycle(client, name):
+    days = int(REQUEST["lifecycle_days"])
+    client.put_bucket_lifecycle_configuration(
+        Bucket=name,
+        LifecycleConfiguration={
+            "Rules": [
+                {
+                    "ID": f"ExpireAfter{days}Days",
+                    "Status": "Enabled",
+                    "Prefix": "",
+                    "Expiration": {"Days": days},
+                }
+            ]
+        },
+    )
+
+
+def apply_cors(client, name, origins):
+    client.put_bucket_cors(
+        Bucket=name,
+        CORSConfiguration={
+            "CORSRules": [
+                {
+                    "AllowedOrigins": origins,
+                    "AllowedMethods": ["GET", "HEAD"],
+                    "AllowedHeaders": ["*"],
+                    "ExposeHeaders": [
+                        "Accept-Ranges",
+                        "Content-Length",
+                        "Content-Range",
+                        "Content-Type",
+                        "ETag",
+                    ],
+                    "MaxAgeSeconds": 3600,
+                }
+            ]
+        },
+    )
+
+
+async def main():
+    manager = SecretsManager()
+    await manager.initialize()
+    access_key = await manager.get_secret(
+        secret_path="kv/data/providers/hetzner",
+        secret_key="s3_access_key",
+    )
+    secret_key = await manager.get_secret(
+        secret_path="kv/data/providers/hetzner",
+        secret_key="s3_secret_key",
+    )
+    region = await manager.get_secret(
+        secret_path="kv/data/providers/hetzner",
+        secret_key="s3_region_name",
+    ) or "nbg1"
+    if not access_key or not secret_key:
+        raise RuntimeError("Hetzner S3 credentials are unavailable in Vault")
+
+    client = boto3.client(
+        "s3",
+        region_name=region,
+        endpoint_url=f"https://{region}.your-objectstorage.com",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            connect_timeout=10,
+            read_timeout=120,
+            retries={"max_attempts": 3},
+        ),
+    )
+
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    target_bucket = bucket_name(environment)
+    ensure_bucket(client, target_bucket)
+    apply_lifecycle(client, target_bucket)
+    apply_cors(client, target_bucket, allowed_origins(environment))
+
+    content = Path(REQUEST["container_path"]).read_bytes()
+    metadata = {
+        "purpose": "opencode-response-media",
+        "lifecycle-policy": f"expire-after-{REQUEST['lifecycle_days']}-days",
+        "source-sha256": REQUEST["sha256"],
+    }
+    client.put_object(
+        Bucket=target_bucket,
+        Key=REQUEST["key"],
+        Body=content,
+        ContentType=REQUEST["content_type"],
+        CacheControl=f"private, max-age={REQUEST['expires_in']}",
+        ACL="private",
+        Metadata=metadata,
+    )
+    url = client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": target_bucket, "Key": REQUEST["key"]},
+        ExpiresIn=int(REQUEST["expires_in"]),
+    )
+    print(json.dumps({"bucket": target_bucket, "key": REQUEST["key"], "url": url}))
+
+
+asyncio.run(main())
+'''
+
+
+def guess_content_type(path: Path) -> str:
+    value = CONTENT_TYPES.get(path.suffix.lower())
+    if value:
+        return value
+    guessed, _encoding = mimetypes.guess_type(str(path))
+    if guessed in ALLOWED_CONTENT_TYPES:
+        return guessed
+    raise ValueError(f"Unsupported media type for {path.name}")
+
+
+def media_kind(content_type: str) -> str:
+    if content_type.startswith("image/"):
+        return "image"
+    if content_type.startswith("video/"):
+        return "video"
+    raise ValueError(f"Unsupported content type: {content_type}")
+
+
+def safe_filename(name: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-._")
+    return stem[:96] or "media"
+
+
+def object_key(path: Path, content: bytes, now: dt.datetime | None = None) -> str:
+    instant = now or dt.datetime.now(dt.timezone.utc)
+    digest = hashlib.sha256(content).hexdigest()[:16]
+    unique = uuid.uuid4().hex[:12]
+    return (
+        f"opencode-responses/{instant:%Y/%m/%d}/"
+        f"{unique}-{digest}-{safe_filename(path.name)}"
+    )
+
+
+def container_path_for(source: Path, key: str) -> str:
+    return f"{CONTAINER_TMP_DIR}/{Path(key).name}"
+
+
+def ensure_expires(value: int) -> int:
+    if value < MIN_EXPIRES_SECONDS:
+        raise ValueError(f"--expires-in must be at least {MIN_EXPIRES_SECONDS} seconds")
+    if value > MAX_EXPIRES_SECONDS:
+        raise ValueError(f"--expires-in must be at most {MAX_EXPIRES_SECONDS} seconds")
+    return value
+
+
+def run_command(command: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def upload_via_api_container(
+    *,
+    source: Path,
+    container: str,
+    request: dict[str, object],
+) -> dict[str, str]:
+    mkdir = run_command(["docker", "exec", container, "mkdir", "-p", CONTAINER_TMP_DIR])
+    if mkdir.returncode != 0:
+        raise RuntimeError(mkdir.stderr.strip() or mkdir.stdout.strip())
+
+    copy = run_command(["docker", "cp", str(source), f"{container}:{request['container_path']}"])
+    if copy.returncode != 0:
+        raise RuntimeError(copy.stderr.strip() or copy.stdout.strip())
+
+    env = os.environ.copy()
+    env["OPENCODE_RESPONSE_MEDIA_REQUEST"] = json.dumps(request, sort_keys=True)
+    upload = run_command(
+        ["docker", "exec", "-e", "OPENCODE_RESPONSE_MEDIA_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
+        env=env,
+    )
+    if upload.returncode != 0:
+        raise RuntimeError(upload.stderr.strip() or upload.stdout.strip())
+    lines = [line for line in upload.stdout.splitlines() if line.strip().startswith("{")]
+    if not lines:
+        raise RuntimeError("Upload completed without JSON output")
+    return json.loads(lines[-1])
+
+
+def build_snippets(url: str, *, content_type: str, alt: str, width: int | None) -> dict[str, str]:
+    kind = media_kind(content_type)
+    escaped_url = html.escape(url, quote=True)
+    escaped_alt = html.escape(alt, quote=True)
+    if kind == "image":
+        width_attr = f' width="{width}"' if width else ""
+        return {
+            "markdown": f"![{alt}]({url})",
+            "html": f'<img src="{escaped_url}" alt="{escaped_alt}"{width_attr}>',
+        }
+    width_attr = f' width="{width}"' if width else ' width="640"'
+    return {
+        "markdown": f"[{alt}]({url})",
+        "html": (
+            f"<video controls{width_attr} preload=\"metadata\" playsinline>\n"
+            f"  <source src=\"{escaped_url}\" type=\"{html.escape(content_type, quote=True)}\">\n"
+            "  Video fallback text.\n"
+            "</video>"
+        ),
+    }
+
+
+def render_text(result: dict[str, object]) -> str:
+    snippets = result["snippets"]
+    assert isinstance(snippets, dict)
+    lines = [
+        "URL:",
+        str(result["url"]),
+        "",
+        "Markdown:",
+        str(snippets["markdown"]),
+        "",
+        "HTML:",
+        str(snippets["html"]),
+        "",
+        f"Expires in: {result['expires_in']} seconds",
+        f"S3 key: {result['key']}",
+    ]
+    return "\n".join(lines)
+
+
+def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str, object]:
+    source = Path(args.path).expanduser().resolve()
+    if not source.is_file():
+        raise ValueError(f"Media file does not exist: {source}")
+    content = source.read_bytes()
+    if not content:
+        raise ValueError("Media file is empty")
+    if len(content) > MAX_MEDIA_BYTES:
+        raise ValueError(f"Media file exceeds {MAX_MEDIA_BYTES} bytes")
+
+    content_type = guess_content_type(source)
+    kind = media_kind(content_type)
+    expires_in = ensure_expires(args.expires_in)
+    key = object_key(source, content)
+    sha256 = hashlib.sha256(content).hexdigest()
+    container_path = container_path_for(source, key)
+    request = {
+        "bucket": BUCKET_NAME,
+        "bucket_key": BUCKET_KEY,
+        "container_path": container_path,
+        "content_type": content_type,
+        "dev_bucket": DEV_BUCKET_NAME,
+        "expires_in": expires_in,
+        "key": key,
+        "lifecycle_days": LIFECYCLE_DAYS,
+        "sha256": sha256,
+    }
+
+    if dry_run:
+        upload = {
+            "bucket": DEV_BUCKET_NAME,
+            "key": key,
+            "url": f"https://example.invalid/{key}?X-Amz-Expires={expires_in}",
+        }
+    else:
+        upload = upload_via_api_container(source=source, container=args.container, request=request)
+
+    alt = args.alt or source.stem.replace("-", " ").replace("_", " ")
+    snippets = build_snippets(
+        upload["url"],
+        content_type=content_type,
+        alt=alt,
+        width=args.width,
+    )
+    return {
+        "bucket": upload["bucket"],
+        "content_type": content_type,
+        "expires_in": expires_in,
+        "key": upload["key"],
+        "kind": kind,
+        "sha256": sha256,
+        "snippets": snippets,
+        "url": upload["url"],
+    }
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Upload temporary image/video media for OpenCode Markdown responses.",
+    )
+    parser.add_argument("path", help="Image or video file to upload")
+    parser.add_argument("--alt", help="Alt text or video label")
+    parser.add_argument("--container", default=DEFAULT_CONTAINER, help="API container name")
+    parser.add_argument(
+        "--expires-in",
+        type=int,
+        default=DEFAULT_EXPIRES_SECONDS,
+        help="Presigned URL lifetime in seconds; max/default is 48 hours",
+    )
+    parser.add_argument("--width", type=int, help="Width attribute for generated HTML")
+    parser.add_argument(
+        "--output",
+        choices=("text", "json", "url", "markdown", "html"),
+        default="text",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Do not contact Docker/S3")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        result = build_result(args, dry_run=args.dry_run)
+    except Exception as exc:
+        print(f"opencode_response_media: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output == "json":
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.output == "url":
+        print(result["url"])
+    elif args.output in {"markdown", "html"}:
+        snippets = result["snippets"]
+        assert isinstance(snippets, dict)
+        print(snippets[args.output])
+    else:
+        print(render_text(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

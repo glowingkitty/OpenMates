@@ -53,7 +53,13 @@ def apply_cors_settings(s3_client, bucket_names: Optional[List[str]] = None):
                 'AllowedOrigins': allowed_origins,
                 'AllowedMethods': ['GET', 'HEAD'],
                 'AllowedHeaders': ['*'],
-                'ExposeHeaders': ['ETag', 'Content-Length'],
+                'ExposeHeaders': [
+                    'Accept-Ranges',
+                    'Content-Length',
+                    'Content-Range',
+                    'Content-Type',
+                    'ETag',
+                ],
                 'MaxAgeSeconds': 3600
             }
         ]

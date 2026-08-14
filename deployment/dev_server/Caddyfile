@@ -550,6 +550,11 @@ code.dev.openmates.org {
 	reverse_proxy localhost:4096 {
 		header_up Host {http.request.host}
 		header_up X-Real-IP {http.request.remote}
+		# OpenCode's upstream CSP allows external images but blocks external video.
+		# Replace it for the dev web UI so temporary response media can use private
+		# S3 presigned HTTPS URLs without weakening script/style sources.
+		header_down -Content-Security-Policy
+		header_down Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-jURJv6M3UYb5GqNE3+c1I0SvGlqS1+LmHVWtqFsefBk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data: https: blob:; connect-src * data:"
 
 		# WebSocket support for the web UI
 		header_up Connection {http.request.header.Connection}

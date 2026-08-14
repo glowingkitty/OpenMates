@@ -123,6 +123,7 @@ graph TB
 - `GET /v1/embeds/presigned-url` → 15-min presigned URL → client fetches encrypted blob → decrypts with local AES key
 - On 403 (expired): auto-retry with fresh URL; in-memory blob cache prevents redundant fetches
 - Implementation: [embeds_api.py](../../backend/core/api/app/routes/embeds_api.py) (endpoint), [presignedUrlService.ts](../../frontend/packages/ui/src/services/presignedUrlService.ts) (client retry logic)
+- OpenCode response media uses `scripts/opencode_response_media.py` to upload intentionally shareable plaintext images/videos to a private 48-hour bucket and returns a 48-hour presigned URL for Markdown rendering. This is an agent/dev utility, not a public product API.
 
 ### Skill/Task Access (Internal API)
 

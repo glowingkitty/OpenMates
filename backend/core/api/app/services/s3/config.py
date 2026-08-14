@@ -42,7 +42,9 @@ CORS_ENABLED_BUCKETS = [
     'openmates-invoices',
     'dev-openmates-invoices',
     'openmates-test-recordings',
-    'dev-openmates-test-recordings'
+    'dev-openmates-test-recordings',
+    'openmates-opencode-response-media',
+    'dev-openmates-opencode-response-media'
 ]
 
 # S3 bucket configurations
@@ -172,6 +174,30 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 1,  # 1 day auto-delete (safety net only)
     },
+    # Temporary plaintext media bucket for OpenCode assistant responses.
+    # This is a developer/agent workflow bucket, not a product data surface:
+    # agents upload synthetic proof screenshots, short demo clips, or other
+    # intentionally shareable response media here, then embed only a presigned
+    # URL in Markdown. The bucket stays private and expires objects after two
+    # days so URLs are bounded bearer tokens rather than permanent public assets.
+    'opencode_response_media': {
+        'name': 'openmates-opencode-response-media',
+        'dev_name': 'dev-openmates-opencode-response-media',
+        'allowed_types': [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/gif',
+            'image/svg+xml',
+            'video/mp4',
+            'video/webm',
+            'video/quicktime',
+        ],
+        'max_size': 500 * 1024 * 1024,
+        'access': 'private',
+        'lifecycle_policy': 2,
+        'cache_control': 'private, max-age=172800',
+    },
     'issue_logs': {
         'name': 'openmates-issue-logs',
         'dev_name': 'dev-openmates-issue-logs',
@@ -272,6 +298,9 @@ def get_allowed_origins(environment: str) -> List[str]:
     if environment == 'development':
         deployed_dev_origins = [
             'https://app.dev.openmates.org',
+            'https://code.dev.openmates.org',
+            'http://127.0.0.1:4096',
+            'http://localhost:4096',
         ]
         for origin in deployed_dev_origins:
             if origin not in origins:
