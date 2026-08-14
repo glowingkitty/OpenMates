@@ -862,7 +862,7 @@ def test_dispatch_can_record_live_fixtures(monkeypatch):
     assert "record_live_fixtures=true" in commands[0]
 
 
-def test_dispatch_can_request_exact_proof_video_profile(monkeypatch):
+def test_dispatch_can_request_exact_proof_video_profiles(monkeypatch):
     run_tests = load_run_tests_module()
     commands: list[list[str]] = []
 
@@ -882,18 +882,20 @@ def test_dispatch_can_request_exact_proof_video_profile(monkeypatch):
             "databaseId": 123,
             "displayTitle": next(
                 item.removeprefix("dispatch_token=")
-                for item in commands[0]
+                for item in commands[-1]
                 if item.startswith("dispatch_token=")
             ),
         }],
     )
 
-    assert client.dispatch_spec(
-        "audio-recording.spec.ts",
-        account=1,
-        proof_video_profile="web-laptop",
-    ) == 123
-    assert "proof_video_profile=web-laptop" in commands[0]
+    for profile in ("web-laptop", "web-phone"):
+        commands.clear()
+        assert client.dispatch_spec(
+            "audio-recording.spec.ts",
+            account=1,
+            proof_video_profile=profile,
+        ) == 123
+        assert f"proof_video_profile={profile}" in commands[0]
 
 
 def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):

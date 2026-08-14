@@ -62,7 +62,7 @@ on:
         type: boolean
         default: true
       proof_video_profile:
-        description: "Optional exact proof-video capture profile; currently supports web-laptop."
+        description: "Optional exact proof-video capture profile; supports web-laptop and web-phone."
         type: string
         default: ""
       migrate_account_secrets_to_expanded_bundle:
@@ -461,8 +461,8 @@ jobs:
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
-          PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-laptop' && '1440' || '' }}
-          PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-laptop' && '900' || '' }}
+          PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-laptop' && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
+          PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-laptop' && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
