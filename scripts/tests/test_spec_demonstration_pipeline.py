@@ -731,11 +731,11 @@ def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
     laptop_style = module._playwright_caption_force_style({"width": 1440, "height": 900})
 
     assert "FontSize=6" in phone_style
-    assert "MarginV=128" in phone_style
-    assert "Alignment=8" in phone_style
+    assert "MarginV=220" in phone_style
+    assert "Alignment=2" in phone_style
     assert "FontSize=14" in laptop_style
-    assert "MarginV=90" in laptop_style
-    assert "Alignment=8" in laptop_style
+    assert "MarginV=180" in laptop_style
+    assert "Alignment=2" in laptop_style
 
 
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:
