@@ -401,6 +401,31 @@ async function waitForFinishedPdfEmbed(
 	throw new Error(`Timed out waiting for finished uploaded PDF embed: ${lastSummary}`);
 }
 
+async function resetRecordedPageToLoggedOut(page: any, baseUrl: string): Promise<void> {
+	await page.context().clearCookies();
+	await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+	await page.evaluate(async () => {
+		localStorage.clear();
+		sessionStorage.clear();
+		const databases = typeof indexedDB.databases === 'function' ? await indexedDB.databases() : [];
+		await Promise.all(
+			databases
+				.map((database) => database.name)
+				.filter((name): name is string => Boolean(name))
+				.map(
+					(name) =>
+						new Promise<void>((resolve, reject) => {
+							const request = indexedDB.deleteDatabase(name);
+							request.onsuccess = () => resolve();
+							request.onerror = () => reject(request.error || new Error(`Failed to delete IndexedDB ${name}`));
+							request.onblocked = () => reject(new Error(`Blocked deleting IndexedDB ${name}`));
+						})
+				)
+		);
+	});
+	await page.context().clearCookies();
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -416,11 +441,9 @@ test.afterEach(async ({}, testInfo: any) => {
 
 // contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open
 test('shared chat loads uploaded PDF, image, and audio recording assets while logged out', async ({
-	page,
-	browser
+	page
 }: {
 	page: any;
-	browser: any;
 }) => {
 	test.slow();
 	test.setTimeout(900_000);
@@ -433,7 +456,6 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 	const logCheckpoint = createSignupLogger('SHARED_EMBED_ASSETS');
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-shared-assets-'));
 	let fullChatId: string | undefined;
-	let sharedContext: any;
 
 	try {
 		await loginCliViaBrowser(page, apiUrl, logCheckpoint);
@@ -475,8 +497,8 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		expect(shareUrl).toContain('#key=');
 		logCheckpoint('Generated share URL.');
 
-		sharedContext = await browser.newContext({ baseURL: baseUrl });
-		const sharedPage = await sharedContext.newPage();
+		await resetRecordedPageToLoggedOut(page, baseUrl);
+		const sharedPage = page;
 		const presignedResponses: Array<{ status: number; url: string }> = [];
 		sharedPage.on('response', (response: any) => {
 			if (response.url().includes('/v1/embeds/presigned-url')) {
@@ -488,6 +510,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		});
 
 		await sharedPage.goto(shareUrl);
+		await expect(sharedPage.locator('[data-authenticated="true"]')).toHaveCount(0, { timeout: 60_000 });
 		await expect(sharedPage).toHaveURL(/#chat-id=/, { timeout: 60_000 });
 		await expect(
 			sharedPage.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')
@@ -530,7 +553,6 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await assertNoMissingTranslations(sharedPage);
 		logCheckpoint('Logged-out shared chat loaded PDF, image, and audio assets.');
 	} finally {
-		if (sharedContext) await sharedContext.close();
 		if (fullChatId) {
 			await runCli(apiUrl, ['chats', 'delete', fullChatId, '--yes'], 30_000);
 		}
