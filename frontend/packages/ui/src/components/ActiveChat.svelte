@@ -9653,7 +9653,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ? latestCheckpoint.compressed_up_to_timestamp
                             : undefined,
                     });
-                    if (windowResult.messages.length === 0 || (options?.messageId && !windowResult.anchorFound)) {
+                    const expectedLatestMessages = !options?.messageId
+                        ? Math.min(
+                            Math.max(
+                                Number(currentChat.messages_v ?? 0),
+                                Number(chat.messages_v ?? 0),
+                            ),
+                            MESSAGE_WINDOW_LIMIT,
+                        )
+                        : 0;
+                    const latestWindowIsShort = !options?.messageId &&
+                        expectedLatestMessages > windowResult.messages.length;
+                    if (windowResult.messages.length === 0 || latestWindowIsShort || (options?.messageId && !windowResult.anchorFound)) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
                                 direction: options?.messageId ? 'around' : 'latest',
