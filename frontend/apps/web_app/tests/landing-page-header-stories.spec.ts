@@ -41,7 +41,7 @@ const PRIVACY_STAGE_TEST_IDS = {
 	'memory-permission': 'app-settings-memories-permission-card'
 } as const;
 
-async function openPrivacySlide(page: any): Promise<void> {
+async function openPrivacySlide(page: any, reducedMotion = false): Promise<void> {
 	await page.goto(getE2EDebugUrl('/?landing-header-stories'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
@@ -49,9 +49,9 @@ async function openPrivacySlide(page: any): Promise<void> {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
-	await expect(page.getByTestId('daily-inspiration-phrase').or(page.getByTestId('landing-privacy-summary'))).toBeVisible();
+	await expect(page.getByTestId(reducedMotion ? 'landing-privacy-summary' : 'daily-inspiration-phrase')).toBeVisible();
 	await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
-	await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveCount(0);
+	await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveCount(reducedMotion ? 1 : 0);
 }
 
 async function expectInsideBanner(page: any, testId: string): Promise<void> {
@@ -305,7 +305,7 @@ test.describe('Landing page header stories', () => {
 			}
 		}
 
-		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible({ timeout: 6000 });
+		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible({ timeout: HEADING_TRANSITION_MS + ADVANCE_GRACE_MS });
 		await expectInsideBanner(page, 'landing-mates-focus-demo');
 		await expect(page.getByTestId('landing-people-experience-demo')).toBeVisible({ timeout: STORY_DURATION_MS + ADVANCE_GRACE_MS });
 		await expectInsideBanner(page, 'landing-people-experience-demo');
@@ -315,7 +315,7 @@ test.describe('Landing page header stories', () => {
 	test('tablet portrait keeps every Privacy animation inside the daily inspiration banner', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await openPrivacySlide(page);
+		await openPrivacySlide(page, true);
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
