@@ -333,22 +333,23 @@ def _ffmpeg_filter_path(path: Path) -> str:
 
 
 def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
-    """Keep burned-in web proof captions readable without covering mobile controls."""
+    """Keep burned-in web proof captions readable without covering board/composer controls."""
     width = int(metadata.get("width") or 0)
     height = int(metadata.get("height") or 0)
     font_size = max(
         PLAYWRIGHT_CAPTION_MIN_FONT_SIZE,
         min(PLAYWRIGHT_CAPTION_MAX_FONT_SIZE, round(width / 72)),
     )
-    margin_v = max(12, min(24, round(height * 0.018)))
+    margin_v = max(72, min(96, round(height * 0.1)))
     if width <= 430 and height >= 800:
-        margin_v = 92
+        margin_v = 128
     outline = 1
+    alignment = 8
     return (
         "FontName=DejaVu Sans,"
         f"FontSize={font_size},"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=2,MarginV={margin_v}"
+        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment={alignment},MarginV={margin_v}"
     )
 
 
