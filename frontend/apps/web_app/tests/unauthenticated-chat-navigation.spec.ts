@@ -67,7 +67,12 @@ async function expectBlankFocusedComposer(page: any) {
 
 async function blurComposerAndWaitForWelcome(page: any) {
 	const composer = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
-	await composer.blur();
+	const dismissButton = page.getByTestId('input-dismiss-button');
+	if (await dismissButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await dismissButton.click();
+	} else {
+		await composer.evaluate((element: HTMLElement) => element.blur());
+	}
 	await expect(composer).not.toBeFocused();
 	await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
