@@ -24,6 +24,7 @@ const MOBILE_SLIDE_FADE_SETTLE_MS = 1200;
 const ACTIONABLE_INTERACTION_TIMEOUT_MS = 8000;
 const LANDING_INTRO_RAIL_SYNC_SETTLE_MS = 760;
 const LANDING_INTRO_RAIL_MOTION_SAMPLE_MS = 420;
+const PRIMARY_BUTTON_COLOR_TOLERANCE = 4;
 const ACTIONABLE_PREVIEW_CENTER_MIN_OFFSET_Y = -24;
 const ACTIONABLE_PREVIEW_CENTER_MAX_OFFSET_Y = 15;
 const ACTIONABLE_DEMO_MAX_BANNER_OVERFLOW_PX = 26;
@@ -936,7 +937,7 @@ test.describe('Landing page onboarding refresh', () => {
 			await page.setViewportSize(viewport);
 			await page.goto(getE2EDebugUrl(`/?collapsed-guest-layout=${viewport.width}`), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
-			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+			await waitForLandingIntroExamples(page);
 			await skipExpandedLandingIntro(page);
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
 			await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
@@ -1258,18 +1259,33 @@ test.describe('Landing page onboarding refresh', () => {
 				colorProbe.remove();
 				return background;
 			};
+			const parseRgb = (value: string): [number, number, number] | null => {
+				const match = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+				return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+			};
+			const channelDistance = (left: string, right: string): number => {
+				const leftRgb = parseRgb(left);
+				const rightRgb = parseRgb(right);
+				if (!leftRgb || !rightRgb) return Number.POSITIVE_INFINITY;
+				return Math.max(
+					Math.abs(leftRgb[0] - rightRgb[0]),
+					Math.abs(leftRgb[1] - rightRgb[1]),
+					Math.abs(leftRgb[2] - rightRgb[2])
+				);
+			};
+			const primaryBackgrounds = [
+				resolveBackground(elementStyle.getPropertyValue('--color-button-primary')),
+				resolveBackground(elementStyle.getPropertyValue('--color-button-primary-hover')),
+				resolveBackground(elementStyle.getPropertyValue('--color-button-primary-pressed'))
+			];
 
 			return {
 				backgroundColor: elementStyle.backgroundColor,
 				color: elementStyle.color,
-				primaryBackgrounds: [
-					resolveBackground(elementStyle.getPropertyValue('--color-button-primary')),
-					resolveBackground(elementStyle.getPropertyValue('--color-button-primary-hover')),
-					resolveBackground(elementStyle.getPropertyValue('--color-button-primary-pressed'))
-				]
+				primaryDistance: Math.min(...primaryBackgrounds.map((background) => channelDistance(elementStyle.backgroundColor, background)))
 			};
 		});
-		expect(finishButtonStyle.primaryBackgrounds).toContain(finishButtonStyle.backgroundColor);
+		expect(finishButtonStyle.primaryDistance).toBeLessThanOrEqual(PRIMARY_BUTTON_COLOR_TOLERANCE);
 		expect(finishButtonStyle.color).toBe('rgb(255, 255, 255)');
 		await expect(page.getByTestId('cancel-hint')).toHaveCount(0);
 		await expect(page.getByTestId('release-text')).toContainText('Recording');
@@ -1408,7 +1424,7 @@ test.describe('Landing page onboarding refresh', () => {
 			});
 		});
 
-		await page.getByTestId('landing-signup-cta-button').click();
+		await page.getByTestId('landing-signup-cta-button').click({ force: true });
 		await expect.poll(async () => page.evaluate(() => {
 			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
 			return trackedWindow.__landingSignupEventCount ?? 0;

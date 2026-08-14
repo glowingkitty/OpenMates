@@ -214,6 +214,7 @@
     min-width: 0;
     height: 100%;
     min-height: 0;
+    --landing-actionable-preview-center-lift: -16px;
     border-radius: var(--radius-4);
     overflow: visible;
     background: transparent;
@@ -311,11 +312,12 @@
     position: relative;
     z-index: var(--z-index-raised-2);
     width: 300px;
+    transform: translateY(var(--landing-actionable-preview-center-lift));
     transition: transform var(--duration-fast) ease;
   }
 
   .landing-actionable-preview[data-demo-pressed='true'] {
-    transform: scale(0.96);
+    transform: translateY(var(--landing-actionable-preview-center-lift)) scale(0.96);
   }
 
   .landing-actionable-preview :global(.unified-embed-preview) {

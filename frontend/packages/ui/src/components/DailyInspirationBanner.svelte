@@ -56,6 +56,7 @@
   import {
     PRODUCT_STORY_HEADING_DELAY_MS,
     PRODUCT_STORY_HEADING_FADE_OUT_MS,
+    PRODUCT_STORY_HEADING_HIDDEN_SETTLE_MS,
     PRODUCT_STORY_HEADING_SWAP_MS,
     PRIVACY_STORY_CAROUSEL_DURATION_MS,
     MATES_FOCUS_STORY_CAROUSEL_DURATION_MS,
@@ -223,6 +224,10 @@
   let landingIntroRevealAnimationFrame: number | undefined;
   let landingIntroRevealTimeout: number | undefined;
   let landingIntroRailSyncAnimationFrame: number | undefined;
+  let guestProductHeadingEntryTimeout: number | undefined;
+  let guestProductHeadingStartTimeout: number | undefined;
+  let guestProductHeadingFallbackTimeout: number | undefined;
+  let guestProductHeadingReadyTimeout: number | undefined;
   let guestSlideTransitionTimeout: number | undefined;
   let guestSlideTransitionAnimationFrame: number | undefined;
   let signupStageTimeout: number | undefined;
@@ -447,6 +452,8 @@
   // intentionally hidden before the demo starts so text and animation never share
   // the same screen.
   $effect(() => {
+    clearGuestProductHeadingTimers();
+
     if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
       actionableMobileHeadingReady = false;
@@ -470,27 +477,21 @@
         guestHeadingMotionPhase = 'hidden';
         return;
       }
-      let headingFadeOutTimeout: number | undefined;
-      let headingEntryTimeout: number | undefined;
-      headingEntryTimeout = window.setTimeout(() => {
+      guestProductHeadingEntryTimeout = window.setTimeout(() => {
         guestHeadingMotionPhase = 'visible';
       }, HEADING_ENTRY_PAINT_DELAY_MS);
-      const headingStartTimeout = window.setTimeout(() => {
+      guestProductHeadingStartTimeout = window.setTimeout(() => {
         guestHeadingMotionPhase = 'exiting';
         actionableMobileHeadingPhase = 'fading-out';
-        headingFadeOutTimeout = window.setTimeout(() => {
+        guestProductHeadingFallbackTimeout = window.setTimeout(() => {
           guestHeadingMotionPhase = 'hidden';
           actionableMobileHeadingPhase = 'hidden';
           showMobileCard = true;
           actionableMobileHeadingReady = true;
-        }, PRODUCT_STORY_HEADING_FADE_OUT_MS);
+        }, PRODUCT_STORY_HEADING_SWAP_MS);
       }, PRODUCT_STORY_HEADING_DELAY_MS);
 
-      return () => {
-        window.clearTimeout(headingStartTimeout);
-        window.clearTimeout(headingFadeOutTimeout);
-        window.clearTimeout(headingEntryTimeout);
-      };
+      return clearGuestProductHeadingTimers;
     }
 
     const interval = window.setInterval(() => {
@@ -1079,6 +1080,31 @@
 
   function restartProgressAnimation() {
     progressRestartToken += 1;
+  }
+
+  function clearGuestProductHeadingTimers(): void {
+    window.clearTimeout(guestProductHeadingEntryTimeout);
+    window.clearTimeout(guestProductHeadingStartTimeout);
+    window.clearTimeout(guestProductHeadingFallbackTimeout);
+    window.clearTimeout(guestProductHeadingReadyTimeout);
+    guestProductHeadingEntryTimeout = undefined;
+    guestProductHeadingStartTimeout = undefined;
+    guestProductHeadingFallbackTimeout = undefined;
+    guestProductHeadingReadyTimeout = undefined;
+  }
+
+  function handleGuestProductHeadingTransitionEnd(event: TransitionEvent): void {
+    if (event.target !== event.currentTarget || event.propertyName !== 'opacity') return;
+    if (!isGuestIntroVariant || !isCoordinatedGuestStory || actionableMobileHeadingPhase !== 'fading-out') return;
+
+    window.clearTimeout(guestProductHeadingFallbackTimeout);
+    window.clearTimeout(guestProductHeadingReadyTimeout);
+    guestHeadingMotionPhase = 'hidden';
+    actionableMobileHeadingPhase = 'hidden';
+    guestProductHeadingReadyTimeout = window.setTimeout(() => {
+      showMobileCard = true;
+      actionableMobileHeadingReady = true;
+    }, PRODUCT_STORY_HEADING_HIDDEN_SETTLE_MS);
   }
 
   function resetLandingIntroToFirstSlide(): void {
@@ -1751,6 +1777,7 @@
                   data-actionable-heading-ready={isGuestActionableSlide ? (actionableMobileHeadingReady ? 'true' : 'false') : undefined}
                   data-testid="guest-intro-copy"
                   in:fade={{ duration: 320 }}
+                  ontransitionend={handleGuestProductHeadingTransitionEnd}
                 >
                   <LandingHeadingMotion phase={guestHeadingMotionPhase} testId="landing-guest-heading-motion">
                     {#if InfoCardIconComponent && !isCoordinatedGuestStory}

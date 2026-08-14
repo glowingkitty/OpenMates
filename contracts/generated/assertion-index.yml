@@ -5989,36 +5989,36 @@ assertions:
       surface: gui.web
     - &id683
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 562
+      line: 563
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id684
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 663
+      line: 664
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     supporting_tests:
     - &id685
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 722
+      line: 723
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
     - &id686
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 755
+      line: 756
       name: settings panel keeps active chat fixed inside the viewport
       surface: gui.web
     - &id687
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1162
+      line: 1163
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
     - &id688
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1425
+      line: 1441
       name: guest example chat follow-up input matches the adjacent new-chat CTA height
       surface: gui.web
     tests:
@@ -6065,19 +6065,19 @@ assertions:
       surface: gui.web
     - &id691
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 663
+      line: 664
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     - &id693
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1319
+      line: 1335
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id692
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1162
+      line: 1163
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
@@ -6111,17 +6111,17 @@ assertions:
       surface: gui.apple
     - &id695
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 562
+      line: 563
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id696
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 629
+      line: 630
       name: expanded intro app rails keep moving with a slower primary row
       surface: gui.web
     - &id697
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 645
+      line: 646
       name: expanded intro top app rail stays continuous when the highlighted app
         switches
       surface: gui.web
@@ -6164,29 +6164,29 @@ assertions:
       surface: gui.web
     - &id705
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 562
+      line: 563
       name: expanded intro fits all target device viewports
       surface: gui.web
     - &id706
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 629
+      line: 630
       name: expanded intro app rails keep moving with a slower primary row
       surface: gui.web
     - &id707
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 645
+      line: 646
       name: expanded intro top app rail stays continuous when the highlighted app
         switches
       surface: gui.web
     - &id708
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 781
+      line: 782
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id710
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 988
+      line: 989
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -6215,7 +6215,7 @@ assertions:
       surface: gui.web
     - &id709
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 924
+      line: 925
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
@@ -6275,24 +6275,24 @@ assertions:
       surface: gui.web
     - &id715
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 663
+      line: 664
       name: expanded intro overlays active chat content and reverses when returning
         to slide one
       surface: gui.web
     - &id717
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 781
+      line: 782
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id718
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 988
+      line: 989
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     - &id719
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1319
+      line: 1335
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
@@ -6303,7 +6303,7 @@ assertions:
       surface: gui.web
     - &id716
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 722
+      line: 723
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
@@ -6345,13 +6345,13 @@ assertions:
       surface: gui.apple
     - &id722
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 781
+      line: 782
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id723
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 988
+      line: 989
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -6418,7 +6418,7 @@ assertions:
       surface: gui.web
     - &id730
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 924
+      line: 925
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
@@ -6460,7 +6460,7 @@ assertions:
       surface: gui.web
     - &id733
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1319
+      line: 1335
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests: []
