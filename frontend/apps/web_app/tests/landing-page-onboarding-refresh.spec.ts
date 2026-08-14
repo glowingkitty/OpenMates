@@ -701,6 +701,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('regular');
 		const regular = await landingIntroOverlayMetrics(page);
 		expect(regular.phase).toBe('regular');
 		expect(regular.bannerHeight, 'regular daily inspiration respects the compact max height').toBeLessThanOrEqual(DAILY_INSPIRATION_MAX_HEIGHT);

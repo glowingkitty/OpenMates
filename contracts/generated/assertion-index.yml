@@ -6001,24 +6001,24 @@ assertions:
     supporting_tests:
     - &id685
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 721
+      line: 722
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
     - &id686
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 754
+      line: 755
       name: settings panel keeps active chat fixed inside the viewport
       surface: gui.web
     - &id687
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1161
+      line: 1162
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
     - &id688
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1424
+      line: 1425
       name: guest example chat follow-up input matches the adjacent new-chat CTA height
       surface: gui.web
     tests:
@@ -6071,13 +6071,13 @@ assertions:
       surface: gui.web
     - &id693
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1318
+      line: 1319
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id692
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1161
+      line: 1162
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
@@ -6180,13 +6180,13 @@ assertions:
       surface: gui.web
     - &id708
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 780
+      line: 781
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id710
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 987
+      line: 988
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -6215,7 +6215,7 @@ assertions:
       surface: gui.web
     - &id709
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 923
+      line: 924
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
@@ -6281,18 +6281,18 @@ assertions:
       surface: gui.web
     - &id717
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 780
+      line: 781
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id718
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 987
+      line: 988
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     - &id719
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1318
+      line: 1319
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
@@ -6303,7 +6303,7 @@ assertions:
       surface: gui.web
     - &id716
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 721
+      line: 722
       name: touch guest prompt and example cards stay fixed when intro advances to
         slide two
       surface: gui.web
@@ -6345,13 +6345,13 @@ assertions:
       surface: gui.apple
     - &id722
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 780
+      line: 781
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id723
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 987
+      line: 988
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -6418,7 +6418,7 @@ assertions:
       surface: gui.web
     - &id730
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 923
+      line: 924
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
@@ -6460,7 +6460,7 @@ assertions:
       surface: gui.web
     - &id733
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1318
+      line: 1319
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests: []
