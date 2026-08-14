@@ -2,16 +2,23 @@
 """Tests for bounded automatic cleanup of stale agent worktrees.
 
 Cleanup may remove only old worktrees with an integration-safe classification.
-Recent, unique, and uncertain work remains visible for an operator decision.
-Deletion manifests intentionally retain metadata but no source or patch content.
+Safe reconciliation preserves recent, unique, and uncertain work, while the
+separate 72-hour hard expiry removes every managed classification. Deletion
+manifests intentionally retain metadata but no source or patch content.
 """
+
+# contract-test-file: tooling
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
+import time
 from pathlib import Path
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -167,3 +174,68 @@ def test_reconciliation_started_marker_replaces_stale_health(monkeypatch, tmp_pa
     saved = json.loads(report_path.read_text(encoding="utf-8"))
     assert saved["status"] == "running"
     assert saved["target_ref"] == "origin/dev"
+
+
+def test_hard_expiry_deletes_every_classification_after_seventy_two_hours(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    old_unique = managed / "agent-old"
+    recent_active = managed / "agent-recent"
+    old_unique.mkdir(parents=True)
+    recent_active.mkdir()
+    now = time.time()
+    os.utime(old_unique, (now - 73 * 3600, now - 73 * 3600))
+    os.utime(recent_active, (now - 2 * 3600, now - 2 * 3600))
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "old": {"writing": "source.py", "worktree": {"path": str(old_unique), "status": "active"}},
+                    "recent": {"worktree": {"path": str(recent_active), "status": "active"}},
+                },
+                "deploy_queue": [{"session_id": "old"}, {"session_id": "recent"}],
+                "edit_leases": {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+    removed: list[Path] = []
+    monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda item: removed.append(Path(item["path"])))
+    deleted_refs: list[str] = []
+    monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda sid: deleted_refs.append(sid) or True)
+
+    report = sessions.expire_managed_worktrees(max_age_hours=72, now_timestamp=now)
+
+    assert removed == [old_unique]
+    assert report["deleted"] == ["old"]
+    assert report["retained"] == ["recent"]
+    assert deleted_refs == ["old"]
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert set(data["sessions"]) == {"recent"}
+    assert data["deploy_queue"] == [{"session_id": "recent"}]
+    assert data["edit_leases"] == {"recent.py": {"session_id": "recent"}}
+    manifest = data["worktree_deletion_manifests"][-1]
+    assert manifest["session_id"] == "old"
+    assert manifest["reason"] == "hard_max_age_72h"
+    assert "patch" not in manifest
+    assert "content" not in manifest
+
+
+def test_worktree_capacity_refuses_before_creation_when_limits_are_breached(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    managed.mkdir()
+    for index in range(3):
+        (managed / f"agent-{index}").mkdir()
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "WORKTREE_MAX_COUNT", 3)
+    monkeypatch.setattr(sessions, "WORKTREE_MIN_FREE_BYTES", 0)
+    monkeypatch.setattr(sessions, "WORKTREE_MAX_DISK_PERCENT", 100)
+    monkeypatch.setattr(sessions, "expire_managed_worktrees", lambda **_kwargs: {"deleted": []})
+
+    with pytest.raises(RuntimeError, match="worktree count limit"):
+        sessions._enforce_worktree_creation_capacity()

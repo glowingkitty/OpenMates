@@ -5,9 +5,12 @@ The reconciliation report joins session metadata with Git-linked and physical
 worktrees. Report-only operation must never mutate repository or session state.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -221,6 +224,63 @@ def test_reconciliation_only_filter_limits_immediate_review_scope(monkeypatch):
     )
 
     assert [item["session_id"] for item in report["items"]] == ["selected"]
+
+
+def test_discovery_only_scope_skips_diff_inspection_for_unselected_worktrees(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    selected = managed / "agent-selected"
+    other = managed / "agent-other"
+    selected.mkdir(parents=True)
+    other.mkdir()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "selected": {"worktree": {"path": str(selected), "status": "active"}},
+                    "other": {"worktree": {"path": str(other), "status": "active"}},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+    inspected: list[Path] = []
+    monkeypatch.setattr(
+        sessions,
+        "_candidate_changed_files",
+        lambda path, _metadata: inspected.append(Path(path)) or [],
+    )
+
+    candidates = sessions._discover_worktree_candidates(only_session_ids={"selected"})
+
+    assert [item["session_id"] for item in candidates] == ["selected"]
+    assert inspected == [selected]
+
+
+def test_merged_candidate_compares_changed_files_to_recorded_merge_commit(monkeypatch):
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "merged",
+        "path": "/tmp/agent-merged",
+        "idle_hours": 100,
+        "changed_files": ["source.py"],
+        "metadata": {"merged_commit": "merge-commit", "status": "merged"},
+    }
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda commit, target: (commit, target) == ("merge-commit", "origin/dev"))
+    monkeypatch.setattr(
+        sessions,
+        "_worktree_target_files_match",
+        lambda _candidate, target: target == "merge-commit",
+    )
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "integrated"
+    assert result["reason_code"] == "merged_file_states_reachable"
 
 
 def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys):
