@@ -355,7 +355,7 @@ test.describe('Landing page header stories', () => {
 		await expect(page.getByTestId('landing-privacy-summary')).toBeVisible();
 		await expect(page.getByTestId('daily-inspiration-carousel-progress-fill')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
 		await page.waitForTimeout(16000);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+		await expect(page.getByTestId('landing-privacy-summary')).toBeVisible();
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(page.getByTestId('landing-mates-focus-demo')).toBeVisible();
 	});

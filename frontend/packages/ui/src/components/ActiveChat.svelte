@@ -7437,10 +7437,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             composed: true
         });
         window.dispatchEvent(globalDeselectEvent);
+        activeChatStore.clearActiveChat();
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
 
-        // activeChatStore was already cleared at the top of handleNewChatClick()
-        // (before showWelcome = true) to ensure the resume card effect sees it.
+        // Clear again after synchronous deselection listeners so none can restore the old chat ID.
     }
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
