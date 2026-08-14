@@ -2814,7 +2814,7 @@ describe("apps code run command variants", () => {
 });
 
 describe("apps travel search_connections typed request", () => {
-  // contract-test: direct surface=cli assertions=travel-search.departure-window.upstream,travel-search.surface-parity
+  // contract-test: supporting surface=cli assertions=travel-search.departure-window.upstream,travel-search.surface-parity
   it("maps pass-aware train flags into the app-skill request", () => {
     const request = buildTravelConnectionsRequest([], {
       origin: "Potsdam Hbf",

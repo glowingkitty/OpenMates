@@ -403,6 +403,87 @@ async def test_serpapi_provider_filters_by_departure_before_result_cap(
     assert [result.legs[0].departure for result in results] == ["2026-08-14 16:00"]
 
 
+# contract-test: direct surface=rest_api assertions=travel-search.departure-window.upstream,travel-search.departure-window.filtered
+@pytest.mark.anyio
+async def test_serpapi_provider_queries_next_date_for_overnight_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
+
+    searched_dates: list[str] = []
+
+    def flight_group(date_value: str, hour: int) -> dict[str, Any]:
+        return {
+            "flights": [{
+                "departure_airport": {"id": "BER", "time": f"{date_value} {hour:02d}:00"},
+                "arrival_airport": {"id": "LHR", "time": f"{date_value} {hour + 2:02d}:00"},
+                "airline": "Example Air",
+                "flight_number": "EX 1",
+                "duration": 120,
+            }],
+            "total_duration": 120,
+            "price": 100,
+        }
+
+    provider = SerpApiProvider()
+
+    async def fake_serpapi_get(params: dict[str, Any]) -> dict[str, Any]:
+        searched_dates.append(str(params["outbound_date"]))
+        if params["outbound_date"] == "2026-08-14":
+            return {"best_flights": [flight_group("2026-08-14", 12), flight_group("2026-08-14", 23)]}
+        return {"best_flights": [flight_group("2026-08-15", 0), flight_group("2026-08-15", 8)]}
+
+    monkeypatch.setattr(provider, "_serpapi_get", fake_serpapi_get)
+    results = await provider._search_one_way(
+        api_key="test",
+        resolved_leg={"origin": "BER", "destination": "LHR", "date": "2026-08-14"},
+        original_leg={
+            "origin": "BER",
+            "destination": "LHR",
+            "date": "2026-08-14",
+            "departure_time": "23:00",
+            "max_departure_time": "01:00",
+        },
+        passengers=1,
+        travel_class="economy",
+        max_results=2,
+        non_stop_only=False,
+        currency="EUR",
+    )
+
+    assert searched_dates == ["2026-08-14", "2026-08-15"]
+    assert [result.legs[0].departure for result in results] == [
+        "2026-08-14 23:00",
+        "2026-08-15 00:00",
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=travel-search.no-results.explicit
+@pytest.mark.anyio
+async def test_serpapi_provider_does_not_turn_upstream_failure_into_empty_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
+
+    provider = SerpApiProvider()
+
+    async def fake_serpapi_get(params: dict[str, Any]) -> dict[str, Any]:
+        return {"error": "quota exceeded"}
+
+    monkeypatch.setattr(provider, "_serpapi_get", fake_serpapi_get)
+    with pytest.raises(RuntimeError, match="SerpAPI search failed"):
+        await provider._search_one_way(
+            api_key="test",
+            resolved_leg={"origin": "BER", "destination": "LHR", "date": "2026-08-14"},
+            original_leg={"origin": "BER", "destination": "LHR", "date": "2026-08-14"},
+            passengers=1,
+            travel_class="economy",
+            max_results=1,
+            non_stop_only=False,
+            currency="EUR",
+        )
+
+
 @pytest.mark.parametrize(
     ("departure", "expected"),
     [
