@@ -795,6 +795,11 @@ export async function handleNewChatMessageImpl(
           await flushPendingMessagesForChat(payload.chat_id),
         );
         await flushPendingSystemMessagesForChat(payload.chat_id);
+        await requestMissingMetadataMessageContent(
+          serviceInstance,
+          payload.chat_id,
+          payload.messages_v,
+        );
       }
 
       // OPE-360: If an `ai_typing_started` event arrived before this
@@ -845,6 +850,11 @@ export async function handleNewChatMessageImpl(
             await flushPendingMessagesForChat(payload.chat_id),
           );
           await flushPendingSystemMessagesForChat(payload.chat_id);
+          await requestMissingMetadataMessageContent(
+            serviceInstance,
+            payload.chat_id,
+            payload.messages_v,
+          );
           // Also persist encrypted_chat_key to the IDB chat record so the key survives page reload.
           // Without this, the key is only in memory — lost on refresh for the "existing chat" path.
           // Guard: only run the getChat + updateChat IDB round-trip once per session per chat.

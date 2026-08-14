@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     updateChat: vi.fn(),
     saveMessage: vi.fn(),
     getMessage: vi.fn(),
+    getMessageWindowForChat: vi.fn(),
     clearChatKey: vi.fn(),
   },
   userDB: {
@@ -121,6 +122,9 @@ describe("handleNewChatMessageImpl", () => {
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getMessageWindowForChat.mockResolvedValue({
+      messages: [{ message_id: "existing-message" }],
+    });
     mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
     mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
     mocks.chatKeyManager.withKey.mockImplementation(
@@ -166,6 +170,35 @@ describe("handleNewChatMessageImpl", () => {
       mocks.flushPendingSystemMessagesForChat.mock.invocationCallOrder[0],
     );
   });
+
+  // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
+  it("requests a content batch when a synced chat key arrives after the local message window", async () => {
+    const service = {
+      dispatchEvent: vi.fn(),
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+    mocks.chatKeyManager.receiveKeyFromServer.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.decryptWithChatKey.mockResolvedValue("Synced chat");
+    mocks.chatDB.getMessageWindowForChat.mockResolvedValue({
+      messages: [{ message_id: "user-1" }],
+    });
+
+    await handleNewChatMessageImpl(service, {
+      chat_id: "chat-needs-content-batch",
+      message_id: "user-1",
+      content: "Question from another device",
+      role: "user",
+      messages_v: 2,
+      created_at: 100,
+      last_edited_overall_timestamp: 100,
+      encrypted_chat_key: "encrypted-chat-key",
+      encrypted_title: "encrypted-title",
+    });
+
+    expect(
+      service.requestChatContentBatch_FOR_HANDLERS_ONLY,
+    ).toHaveBeenCalledWith(["chat-needs-content-batch"]);
+  });
 });
 
 describe("handleEncryptedChatMetadataImpl", () => {
@@ -175,6 +208,9 @@ describe("handleEncryptedChatMetadataImpl", () => {
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.clearChatKey.mockReturnValue(undefined);
+    mocks.chatDB.getMessageWindowForChat.mockResolvedValue({
+      messages: [{ message_id: "existing-message" }],
+    });
     mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
     mocks.chatKeyManager.getKeySync.mockReturnValue(null);
     mocks.decryptChatKeyWithMasterKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
