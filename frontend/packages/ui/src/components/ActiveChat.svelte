@@ -9664,7 +9664,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         : 0;
                     const latestWindowIsShort = !options?.messageId &&
                         expectedLatestMessages > windowResult.messages.length;
-                    if (windowResult.messages.length === 0 || latestWindowIsShort || (options?.messageId && !windowResult.anchorFound)) {
+                    const latestWindowMayBePartial = !options?.messageId &&
+                        windowResult.messages.length > 0 &&
+                        !windowResult.hasMoreBefore &&
+                        windowResult.messages.length < MESSAGE_WINDOW_LIMIT;
+                    if (windowResult.messages.length === 0 || latestWindowIsShort || latestWindowMayBePartial || (options?.messageId && !windowResult.anchorFound)) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
                                 direction: options?.messageId ? 'around' : 'latest',
