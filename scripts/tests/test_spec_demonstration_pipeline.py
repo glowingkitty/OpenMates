@@ -731,7 +731,7 @@ def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
     laptop_style = module._playwright_caption_force_style({"width": 1440, "height": 900})
 
     assert "FontSize=8" in phone_style
-    assert "MarginV=15" in phone_style
+    assert "MarginV=92" in phone_style
     assert "Alignment=2" in phone_style
     assert "FontSize=20" in laptop_style
     assert "MarginV=16" in laptop_style

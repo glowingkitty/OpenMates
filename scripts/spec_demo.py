@@ -341,6 +341,8 @@ def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
         min(PLAYWRIGHT_CAPTION_MAX_FONT_SIZE, round(width / 72)),
     )
     margin_v = max(12, min(24, round(height * 0.018)))
+    if width <= 430 and height >= 800:
+        margin_v = 92
     outline = 1 if font_size <= PLAYWRIGHT_CAPTION_MIN_FONT_SIZE else 2
     return (
         "FontName=DejaVu Sans,"
