@@ -175,11 +175,18 @@ export async function createTeam(input: { name: string; description?: string | n
     body: JSON.stringify(payload),
   });
   teamKeyCache.set(teamId, teamKey);
+  const returnedTeam = data.team ?? {};
   const createdRecord: TeamRecord = {
-    ...data.team,
-    team_id: data.team.team_id ?? teamId,
-    encrypted_team_key: data.team.encrypted_team_key ?? encryptedTeamKey,
-    role: data.team.role ?? "owner",
+    ...returnedTeam,
+    team_id: returnedTeam.team_id ?? teamId,
+    encrypted_name: returnedTeam.encrypted_name ?? payload.encrypted_name,
+    encrypted_description: returnedTeam.encrypted_description ?? payload.encrypted_description,
+    encrypted_profile_image_metadata: returnedTeam.encrypted_profile_image_metadata ?? payload.encrypted_profile_image_metadata,
+    encrypted_team_key: returnedTeam.encrypted_team_key ?? encryptedTeamKey,
+    encrypted_zero_balance: returnedTeam.encrypted_zero_balance ?? payload.encrypted_zero_balance,
+    role: returnedTeam.role ?? "owner",
+    created_at: returnedTeam.created_at ?? payload.created_at,
+    updated_at: returnedTeam.updated_at ?? payload.updated_at,
   };
   const decrypted = await decryptTeam(createdRecord);
   if (!decrypted) throw new Error("Created team could not be decrypted");
