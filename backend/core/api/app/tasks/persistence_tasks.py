@@ -218,6 +218,34 @@ def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: 
         )
 
 
+def _is_client_encrypted_base64(value: str) -> bool:
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError):
+        return False
+    return len(decoded) >= MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES
+
+
+def _sanitize_optional_client_encrypted_field(
+    *,
+    message_id: str,
+    field_name: str,
+    value: Optional[str],
+) -> Optional[str]:
+    """Drop malformed optional encrypted sidecars before they reach sync clients."""
+    if not value:
+        return None
+    if _is_client_encrypted_base64(value):
+        return value
+    logger.warning(
+        "Dropping malformed optional encrypted field %s for message %s: length=%s",
+        field_name,
+        message_id,
+        len(value),
+    )
+    return None
+
+
 async def _async_persist_chat_title_task(
     chat_id: str, encrypted_title: str, title_v: int, task_id: str,
     encrypted_chat_key: Optional[str] = None, metadata_v: Optional[int] = None,
@@ -648,6 +676,11 @@ async def _async_persist_new_chat_message_task(
         encrypted_model_name = None  # Remove it for non-assistant messages
 
     _validate_client_encrypted_chat_payload(message_id, encrypted_content)
+    encrypted_pii_mappings = _sanitize_optional_client_encrypted_field(
+        message_id=message_id,
+        field_name="encrypted_pii_mappings",
+        value=encrypted_pii_mappings,
+    )
 
     directus_service = DirectusService()
 

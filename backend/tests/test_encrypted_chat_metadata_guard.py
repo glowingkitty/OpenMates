@@ -149,6 +149,16 @@ class FakeNewChatDirectusService:
         self.chat = FakeNewChatService()
 
 
+class FakeNewChatCacheService:
+    async def get_chat_list_item_data(self, user_id: str, chat_id: str):
+        return None
+
+    async def update_chat_list_item_field(
+        self, user_id: str, chat_id: str, field: str, value: str
+    ) -> bool:
+        return True
+
+
 # contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
 def test_mismatched_chat_key_rejects_entire_encrypted_payload(monkeypatch):
     asyncio.run(_run_mismatched_chat_key_rejects_entire_encrypted_payload(monkeypatch))
@@ -162,6 +172,92 @@ def test_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch):
 # contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
 def test_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkeypatch):
     asyncio.run(_run_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkeypatch))
+
+
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+def test_history_injection_preserves_encrypted_pii_mappings_without_positional_shift(monkeypatch):
+    asyncio.run(_run_history_injection_preserves_encrypted_pii_mappings_without_positional_shift(monkeypatch))
+
+
+async def _run_history_injection_preserves_encrypted_pii_mappings_without_positional_shift(monkeypatch):
+    queued_tasks: list[tuple[str, list, dict, str | None]] = []
+
+    def fake_send_task(
+        name: str,
+        args: list | None = None,
+        kwargs: dict | None = None,
+        queue: str | None = None,
+    ):
+        queued_tasks.append((name, args or [], kwargs or {}, queue))
+        return SimpleNamespace(id="history-task")
+
+    monkeypatch.setattr(
+        _handler_module().celery_app,
+        "send_task",
+        fake_send_task,
+    )
+
+    manager = FakeManager()
+    await _handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeNewChatCacheService(),
+        directus_service=FakeNewChatDirectusService(),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "new-chat-123",
+            "message_id": "message-123",
+            "encrypted_content": "current-message-content",
+            "encrypted_sender_name": "sender",
+            "encrypted_category": "message-category",
+            "encrypted_title": "encrypted-title",
+            "encrypted_icon": "encrypted-icon",
+            "encrypted_chat_category": "encrypted-chat-category",
+            "encrypted_chat_key": "encrypted-chat-key",
+            "created_at": 1_778_686_000,
+            "versions": {
+                "messages_v": 1,
+                "title_v": 1,
+                "last_edited_overall_timestamp": 1_778_686_000,
+            },
+            "message_history": [
+                {
+                    "message_id": "history-message-1",
+                    "encrypted_content": "history-content",
+                    "encrypted_sender_name": "history-sender",
+                    "encrypted_category": "history-category",
+                    "encrypted_model_name": "history-model",
+                    "encrypted_pii_mappings": "history-pii-ciphertext",
+                    "created_at": 1_778_685_999,
+                    "task_id": "legacy-history-task-id",
+                }
+            ],
+        },
+    )
+
+    history_task = next(task for task in queued_tasks if task[2].get("message_id") == "history-message-1")
+    assert history_task[0] == "app.tasks.persistence_tasks.persist_new_chat_message"
+    assert history_task[1] == []
+    assert history_task[3] == "persistence"
+    assert history_task[2] == {
+        "message_id": "history-message-1",
+        "chat_id": "new-chat-123",
+        "hashed_user_id": "user-hash-123",
+        "role": "user",
+        "encrypted_sender_name": "history-sender",
+        "encrypted_category": "history-category",
+        "encrypted_model_name": "history-model",
+        "encrypted_content": "history-content",
+        "created_at": 1_778_685_999,
+        "new_chat_messages_version": None,
+        "new_last_edited_overall_timestamp": None,
+        "encrypted_chat_key": "encrypted-chat-key",
+        "user_id": "user-123",
+        "encrypted_pii_mappings": "history-pii-ciphertext",
+    }
 
 
 async def _run_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch):

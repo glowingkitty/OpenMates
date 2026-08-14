@@ -9,6 +9,7 @@
 
 import type { Message, Chat } from "../../types/chat";
 import {
+  base64ToUint8Array,
   encryptWithChatKey,
   decryptWithChatKey,
   decryptChatKeyWithMasterKey,
@@ -36,6 +37,15 @@ export interface ChatVersionEntry {
 
 /** In-memory version map populated during bulk key loading. */
 const cachedChatVersionMap = new Map<string, ChatVersionEntry>();
+const MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29;
+
+function looksLikeClientEncryptedOptionalField(value: string): boolean {
+  try {
+    return base64ToUint8Array(value).byteLength >= MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Returns the version map collected during loadChatKeysFromDatabase().
@@ -960,17 +970,25 @@ export async function decryptMessageFields(
   }
 
   if (message.encrypted_pii_mappings) {
-    decryptField(
-      message.encrypted_pii_mappings,
-      "pii_mappings",
-      (val) => {
-        decryptedMessage.pii_mappings = JSON.parse(val);
-        delete decryptedMessage.encrypted_pii_mappings;
-      },
-      () => {
-        decryptedMessage.pii_mappings = undefined;
-      },
-    );
+    if (!looksLikeClientEncryptedOptionalField(message.encrypted_pii_mappings)) {
+      console.warn(
+        `[ChatDatabase] Ignoring malformed optional encrypted_pii_mappings for message ${message.message_id} in chat ${chatId}.`,
+      );
+      decryptedMessage.pii_mappings = undefined;
+      delete decryptedMessage.encrypted_pii_mappings;
+    } else {
+      decryptField(
+        message.encrypted_pii_mappings,
+        "pii_mappings",
+        (val) => {
+          decryptedMessage.pii_mappings = JSON.parse(val);
+          delete decryptedMessage.encrypted_pii_mappings;
+        },
+        () => {
+          decryptedMessage.pii_mappings = undefined;
+        },
+      );
+    }
   }
 
   await Promise.all(fieldDecryptions);

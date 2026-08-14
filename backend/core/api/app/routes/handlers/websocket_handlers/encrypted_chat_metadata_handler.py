@@ -311,21 +311,23 @@ async def handle_encrypted_chat_metadata(
                     if hist_msg_id and hist_encrypted_content:
                         celery_app.send_task(
                             "app.tasks.persistence_tasks.persist_new_chat_message",
-                            args=[
-                                hist_msg_id, 
-                                chat_id, 
-                                user_id_hash, 
-                                hist_msg.get("role", "user"),
-                                hist_msg.get("encrypted_sender_name"),
-                                hist_msg.get("encrypted_category"),
-                                hist_msg.get("encrypted_model_name"),
-                                hist_encrypted_content,
-                                hist_msg.get("created_at"),
-                                None, None, # messages_v, last_edited_overall_timestamp
-                                hist_msg.get("task_id"),
-                                encrypted_chat_key,
-                                user_id
-                            ]
+                            kwargs={
+                                "message_id": hist_msg_id,
+                                "chat_id": chat_id,
+                                "hashed_user_id": user_id_hash,
+                                "role": hist_msg.get("role", "user"),
+                                "encrypted_sender_name": hist_msg.get("encrypted_sender_name"),
+                                "encrypted_category": hist_msg.get("encrypted_category"),
+                                "encrypted_model_name": hist_msg.get("encrypted_model_name"),
+                                "encrypted_content": hist_encrypted_content,
+                                "created_at": hist_msg.get("created_at"),
+                                "new_chat_messages_version": None,
+                                "new_last_edited_overall_timestamp": None,
+                                "encrypted_chat_key": encrypted_chat_key,
+                                "user_id": user_id,
+                                "encrypted_pii_mappings": hist_msg.get("encrypted_pii_mappings"),
+                            },
+                            queue="persistence",
                         )
 
             # Store encrypted user message if provided
