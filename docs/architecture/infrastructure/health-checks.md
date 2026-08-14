@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-08-14
 key_files:
 - backend/core/api/app/tasks/health_check_tasks.py
 - backend/core/api/app/tasks/celery_config.py
@@ -123,6 +123,14 @@ Error sanitization: HTTP codes -> numeric string, timeouts -> `"timeout"`, conne
 - If Redis is unavailable, health checks cannot acquire the distributed lock and skip execution (logged as error).
 - Cache miss on the `/health` endpoint returns stale or empty data, not an error -- the next Celery Beat cycle repopulates.
 - Provider with no configured models returns `"no_models"` status.
+
+## Host Operational Monitoring
+
+CLI-managed servers install a host systemd verifier and independent watchdog in addition to Celery health checks. The verifier runs every five minutes and covers role health, API availability, host disk, notification configuration, and read-only billing readiness only for verified official-cloud deployments. Self-host inventories omit all billing checks and never read payment-provider credentials.
+
+When a verified email or Discord destination exists, the same host scheduler sends a compact daily 24-hour operational digest at 08:30 UTC. The report watchdog opens one incident after 26 hours without an accepted report and emits one recovery event after delivery resumes. Host notification delivery retries independently and does not depend on the API or Celery task scheduler.
+
+Prometheus provides container/host trend data and disk/report-staleness alerts. Alertmanager can additionally send critical events directly to an environment-specific Discord webhook; the host verifier remains the independent email/Discord path when that optional Alertmanager receiver is not configured.
 
 ## Related Docs
 

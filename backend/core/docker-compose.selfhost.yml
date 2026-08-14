@@ -446,6 +446,76 @@ services:
     networks:
       - openmates
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sed "s|\$${SERVER_ENVIRONMENT}|$${SERVER_ENVIRONMENT:-self_host}|g" /etc/prometheus/prometheus.yml > /tmp/prometheus.runtime.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.runtime.yml --storage.tsdb.path=/prometheus
+    networks:
+      - openmates
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - openmates
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.textfile.directory=/textfile"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/.+)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+      - ${GIT_WORK_DIR:-../..}/.openmates/runtime-health/metrics:/textfile:ro
+    networks:
+      - openmates
+
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        urgent_webhook="$${DISCORD_WEBHOOK_URGENT_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL:-}}}"
+        sed "s|\$${INTERNAL_API_SHARED_TOKEN}|$${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if [ -n "$$urgent_webhook" ]; then
+          sed -i "s|\$${DISCORD_WEBHOOK_URGENT_SCOPED}|$$urgent_webhook|g" /tmp/alertmanager.runtime.yml
+        else
+          sed -i '/URGENT_DISCORD_ROUTE_START/,/URGENT_DISCORD_ROUTE_END/d; /URGENT_DISCORD_RECEIVER_START/,/URGENT_DISCORD_RECEIVER_END/d' /tmp/alertmanager.runtime.yml
+        fi
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
+    networks:
+      - openmates
+
   admin-sidecar:
     container_name: core-admin-sidecar
     image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.16.0}
@@ -514,6 +584,8 @@ volumes:
     name: openmates-cache-data
   openobserve-data:
     name: openmates-openobserve-data
+  prometheus-data:
+    name: openmates-prometheus-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:

@@ -90,15 +90,63 @@ groups:
 
       - alert: HighMemoryUsage
         expr: |
-          (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""})
-          > 0.90
+          (
+            container_memory_usage_bytes{name!="",container_label_com_docker_compose_project="openmates"}
+            /
+            container_spec_memory_limit_bytes{name!="",container_label_com_docker_compose_project="openmates"}
+          ) > 0.90
+          and on(instance, id, name, environment, container_label_com_docker_compose_project)
+          container_spec_memory_limit_bytes{name!="",container_label_com_docker_compose_project="openmates"} > 0
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "Container {{ $labels.name }} memory above 90%"
           description: >-
-            Memory usage is at {{ $value | humanizePercentage }}.
+             Memory usage is at {{ $value | humanizePercentage }}.
+
+  - name: host_resource_alerts
+    rules:
+      - alert: HostDiskSpaceWarning
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"}
+          /
+          node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"}
+          < 0.15
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk usage above 85% on {{ $labels.mountpoint }}"
+          description: "Disk usage is above 85% for {{ $labels.mountpoint }}."
+
+      - alert: HostDiskSpaceCritical
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"}
+          /
+          node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"}
+          < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host disk usage above 95% on {{ $labels.mountpoint }}"
+          description: "Disk usage is above 95% for {{ $labels.mountpoint }}."
+
+      - alert: OperationalReportStale
+        expr: |
+          (time() - operational_report_last_success_timestamp_seconds > 93600)
+          or
+          (
+            (time() - operational_report_monitoring_started_timestamp_seconds > 93600)
+            unless on(environment) operational_report_last_success_timestamp_seconds
+          )
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.environment }} operational report is stale"
+          description: "No accepted operational report has been recorded for more than 26 hours."
 
   # -------------------------------------------------------------------------
   # Prometheus self-monitoring

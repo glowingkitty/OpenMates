@@ -1,0 +1,32 @@
+<mjml>
+  <mj-head>
+    <mj-title>OpenMates operational report</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" />
+      <mj-text color="#e7e7ec" line-height="1.4" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#0f1016">
+    <mj-section background-color="#191c26" border-radius="12px" padding="24px">
+      <mj-column>
+        <mj-text font-size="25px" font-weight="bold" padding-bottom="4px">{{ test_label }}{{ environment_label }} operational report</mj-text>
+        <mj-text font-size="13px" color="#aeb0ba" padding-bottom="18px">{{ window_start }} to {{ window_end }}</mj-text>
+        <mj-image src="cid:operational-report" alt="CPU, memory and disk usage over the preceding 24 hours" padding="0 0 18px 0" />
+        <mj-text font-size="16px"><strong>Activity:</strong> {{ activity.chats }} chats · {{ activity.messages }} messages · {{ activity.embeds }} embeds · {{ activity.usage_entries }} usage entries</mj-text>
+        <mj-text font-size="16px"><strong>Processing:</strong> {{ processing.started }} started · {{ processing.completed }} completed · {{ processing.failed }} failed · {{ processing.stuck }} stuck</mj-text>
+        {% if cloud %}
+        <mj-text font-size="16px"><strong>Cloud billing:</strong> {{ cloud.status }} · {{ cloud.started }} started · {{ cloud.completed }} completed · {{ cloud.failed }} failed</mj-text>
+        {% endif %}
+        <mj-text font-size="14px" color="#aeb0ba"><strong>Telemetry:</strong> resources {{ freshness.resource_metrics }} · application {{ freshness.application_metrics }} · scheduler {{ freshness.report_scheduler }}</mj-text>
+        <mj-text font-size="18px" font-weight="bold" padding-top="12px">Prioritized issues</mj-text>
+        {% if issues %}
+        {% for issue in issues %}
+        <mj-text font-size="14px" padding="3px 0">{{ issue.severity | upper }} · {{ issue.fingerprint }} · {{ issue.count }}x</mj-text>
+        {% endfor %}
+        {% else %}
+        <mj-text font-size="14px" color="#70d69b">No prioritized issues.</mj-text>
+        {% endif %}
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

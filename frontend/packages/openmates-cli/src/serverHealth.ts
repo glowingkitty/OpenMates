@@ -18,8 +18,9 @@ import type { ServerRole } from "./serverPlanning.js";
 const INCIDENT_FAILURE_THRESHOLD = 2;
 const STALE_AFTER_MS = 15 * 60 * 1000;
 const HEARTBEAT_AFTER_MS = 24 * 60 * 60 * 1000;
+const OPERATIONAL_REPORT_STALE_AFTER_MS = 26 * 60 * 60 * 1000;
 const ALLOWED_WEBHOOK_PORTS = new Set([443]);
-const IMMEDIATE_FAILURE_CLASSES = new Set(["credential", "configuration", "config"]);
+const IMMEDIATE_FAILURE_CLASSES = new Set(["credential", "configuration", "config", "critical_availability"]);
 const WEBHOOK_EGRESS_POLICY = { followRedirects: false, denyAddressClasses: ["private", "linkLocal"] } as const;
 
 export type RuntimeIncidentState = {
@@ -72,6 +73,198 @@ export type RuntimeNotificationConfig = {
   discordWebhookUrl?: string;
   genericWebhook?: { url: string; secret: string; allowLocalDevelopmentFixture?: boolean };
 };
+
+export type OperationalEnvironment = "development" | "production" | "self_host";
+
+export type OperationalMonitoringPlan = {
+  environment: OperationalEnvironment;
+  configurationStatus: "ready" | "missing_admin_email" | "email_service_unavailable";
+  emailEnabled: boolean;
+  discordEnabled: boolean;
+  scheduleEnabled: boolean;
+  digestServiceName: string;
+  digestTimerName: string;
+  watchdogServiceName: string;
+  watchdogTimerName: string;
+  digestUnit: string;
+  digestTimer: string;
+  watchdogUnit: string;
+  watchdogTimer: string;
+};
+
+export type OperationalReportState = {
+  incidentOpen: boolean;
+  lastAcceptedReportAt?: string;
+  incidentOpenedAt?: string;
+  monitoringStartedAt?: string;
+};
+
+export type OperationalReportEvent = {
+  type: "operational_report_stale" | "operational_report_recovered";
+  reason: string;
+};
+
+export type OperationalDeliveryReceipt = {
+  environment: OperationalEnvironment;
+  reportId: string;
+  reportSha256: string;
+  channel: "email" | "discord";
+  state: "queued" | "accepted" | "failed" | "unavailable";
+  attemptCount: number;
+  occurredAt: string;
+  sanitizedFailureClass?: string;
+};
+
+export function planOperationalMonitoring(options: {
+  environment: OperationalEnvironment;
+  role: ServerRole;
+  installPath: string;
+  adminEmail?: string;
+  emailServiceAvailable: boolean;
+  discordConfigured: boolean;
+  executablePath?: string;
+}): OperationalMonitoringPlan {
+  const emailEnabled = Boolean(options.adminEmail?.trim()) && options.emailServiceAvailable;
+  const configurationStatus = !options.adminEmail?.trim()
+    ? "missing_admin_email"
+    : options.emailServiceAvailable
+      ? "ready"
+      : "email_service_unavailable";
+  const unitPrefix = `openmates-${options.role}-operational-report`;
+  const commandPrefix = `${options.executablePath ?? "openmates"} server monitoring`;
+  const selectedChannels = [emailEnabled ? "email" : null, options.discordConfigured ? "discord" : null]
+    .filter(Boolean)
+    .join(",");
+  return {
+    environment: options.environment,
+    configurationStatus,
+    emailEnabled,
+    discordEnabled: options.discordConfigured,
+    scheduleEnabled: emailEnabled || options.discordConfigured,
+    digestServiceName: `${unitPrefix}.service`,
+    digestTimerName: `${unitPrefix}.timer`,
+    watchdogServiceName: `${unitPrefix}-watchdog.service`,
+    watchdogTimerName: `${unitPrefix}-watchdog.timer`,
+    digestUnit: [
+      "[Unit]",
+      "Description=OpenMates daily operational report",
+      "[Service]",
+      "Type=oneshot",
+      `WorkingDirectory=${options.installPath}`,
+      `ExecStart=${commandPrefix} digest --role ${options.role} --channel ${selectedChannels}`,
+      "",
+    ].join("\n"),
+    digestTimer: [
+      "[Unit]",
+      "Description=OpenMates daily operational report timer",
+      "[Timer]",
+      "OnCalendar=*-*-* 08:30:00 UTC",
+      "Persistent=true",
+      `Unit=${unitPrefix}.service`,
+      "[Install]",
+      "WantedBy=timers.target",
+      "",
+    ].join("\n"),
+    watchdogUnit: [
+      "[Unit]",
+      "Description=OpenMates operational report watchdog",
+      "[Service]",
+      "Type=oneshot",
+      `WorkingDirectory=${options.installPath}`,
+      `ExecStart=${commandPrefix} report-watchdog --role ${options.role}`,
+      "",
+    ].join("\n"),
+    watchdogTimer: [
+      "[Unit]",
+      "Description=OpenMates operational report watchdog timer",
+      "[Timer]",
+      "OnUnitActiveSec=5m",
+      "Persistent=true",
+      `Unit=${unitPrefix}-watchdog.service`,
+      "[Install]",
+      "WantedBy=timers.target",
+      "",
+    ].join("\n"),
+  };
+}
+
+export function evaluateOperationalReportFreshness(
+  state: OperationalReportState | undefined,
+  now: Date,
+): { state: OperationalReportState; event: OperationalReportEvent | null } {
+  const current = state ?? { incidentOpen: false };
+  const lastAccepted = current.lastAcceptedReportAt ? Date.parse(current.lastAcceptedReportAt) : 0;
+  const monitoringStarted = current.monitoringStartedAt ? Date.parse(current.monitoringStartedAt) : now.getTime();
+  const stale = lastAccepted
+    ? now.getTime() - lastAccepted > OPERATIONAL_REPORT_STALE_AFTER_MS
+    : now.getTime() - monitoringStarted > OPERATIONAL_REPORT_STALE_AFTER_MS;
+  if (stale && !current.incidentOpen) {
+    return {
+      state: { ...current, incidentOpen: true, incidentOpenedAt: now.toISOString() },
+      event: { type: "operational_report_stale", reason: "daily_report_stale" },
+    };
+  }
+  if (!stale && current.incidentOpen) {
+    return {
+      state: { ...current, incidentOpen: false, incidentOpenedAt: undefined },
+      event: { type: "operational_report_recovered", reason: "daily_report_fresh" },
+    };
+  }
+  return { state: current, event: null };
+}
+
+export function buildOperationalDeliveryReceipt(input: OperationalDeliveryReceipt): OperationalDeliveryReceipt {
+  return {
+    environment: input.environment,
+    reportId: input.reportId,
+    reportSha256: input.reportSha256,
+    channel: input.channel,
+    state: input.state,
+    attemptCount: input.attemptCount,
+    occurredAt: input.occurredAt,
+    ...(input.sanitizedFailureClass ? { sanitizedFailureClass: input.sanitizedFailureClass } : {}),
+  };
+}
+
+export async function probeRuntimeEmailService(
+  config: NonNullable<RuntimeNotificationConfig["email"]>,
+): Promise<boolean> {
+  try {
+    const response = await fetch("https://api.brevo.com/v3/account", {
+      method: "GET",
+      redirect: "error",
+      headers: { "api-key": config.apiKey },
+      signal: AbortSignal.timeout(10_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function readOperationalReportState(installDir: string, role: ServerRole): Promise<OperationalReportState> {
+  const statePath = path.join(installDir, ".openmates", "runtime-health", `${role}-operational-report.json`);
+  try {
+    return JSON.parse(await fs.readFile(statePath, "utf8")) as OperationalReportState;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { incidentOpen: false, monitoringStartedAt: new Date().toISOString() };
+    throw error;
+  }
+}
+
+export async function writeOperationalReportState(
+  installDir: string,
+  role: ServerRole,
+  state: OperationalReportState,
+): Promise<void> {
+  const stateDir = path.join(installDir, ".openmates", "runtime-health");
+  const statePath = path.join(stateDir, `${role}-operational-report.json`);
+  const temporaryPath = `${statePath}.${process.pid}.tmp`;
+  await fs.mkdir(stateDir, { recursive: true, mode: 0o700 });
+  await fs.writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+  await fs.rename(temporaryPath, statePath);
+  await fs.chmod(statePath, 0o600);
+}
 
 export function initialRuntimeIncidentState(): RuntimeIncidentState {
   return { consecutiveFailures: 0, incidentOpen: false };

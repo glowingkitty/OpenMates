@@ -10,7 +10,7 @@
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -60,10 +60,16 @@ import {
 } from "./serverPlanning.js";
 import {
   applyRuntimeCheckResults,
+  buildOperationalDeliveryReceipt,
   deliverRuntimeNotification,
+  evaluateOperationalReportFreshness,
   evaluateRuntimeHeartbeat,
   evaluateRuntimeWatchdog,
+  planOperationalMonitoring,
+  probeRuntimeEmailService,
+  readOperationalReportState,
   readRuntimeIncidentState,
+  writeOperationalReportState,
   writeRuntimeIncidentState,
   type RuntimeCheckResult,
   type RuntimeNotificationDelivery,
@@ -1820,7 +1826,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       ...cliUrls,
     });
     try {
-      autoInstallRuntimeMonitoringServices(installPath, role);
+      await autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1914,7 +1920,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     ...cliUrls,
   });
   try {
-    autoInstallRuntimeMonitoringServices(installPath, role);
+    await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -2022,6 +2028,8 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
 function runtimeNotificationConfig(installPath: string) {
   const env = readEnvMap(installPath);
   const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
+  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const serverEnvironment = value("SERVER_ENVIRONMENT") === "production" ? "production" : "development";
   const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
   const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
   const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
@@ -2035,9 +2043,15 @@ function runtimeNotificationConfig(installPath: string) {
   const genericWebhook = webhookUrl && webhookSecret
     ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
     : undefined;
+  const discordWebhookUrl = value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
+    || (deploymentMode === "self_host"
+      ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST")
+      : serverEnvironment === "production"
+        ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION") || value("DISCORD_WEBHOOK_PROD_SMOKE")
+        : value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT") || value("DISCORD_WEBHOOK_DEV_SMOKE"));
   return {
     email,
-    discordWebhookUrl: value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL") || value("DISCORD_WEBHOOK_DEV_SMOKE"),
+    discordWebhookUrl,
     genericWebhook,
   };
 }
@@ -2075,15 +2089,78 @@ async function persistRuntimeResult(installPath: string, role: ServerRole, outpu
   );
 }
 
-function installRuntimeMonitoringServices(installPath: string, role: ServerRole): void {
+async function installRuntimeMonitoringServices(installPath: string, role: ServerRole): Promise<void> {
   const executablePath = resolve(process.argv[1] ?? "/usr/local/bin/openmates");
   const plan = planRuntimeMonitoringServices({ role, installPath, executablePath });
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  const emailServiceAvailable = notificationConfig.email
+    ? await probeRuntimeEmailService(notificationConfig.email)
+    : false;
+  if (notificationConfig.email && !emailServiceAvailable) {
+    console.error("Operational email reports remain disabled because the configured email service is unavailable.");
+  }
+  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const operationalPlan = planOperationalMonitoring({
+    environment: deploymentMode === "official_cloud"
+      ? (readEnvMap(installPath).SERVER_ENVIRONMENT === "production" ? "production" : "development")
+      : "self_host",
+    role,
+    installPath,
+    executablePath,
+    adminEmail: notificationConfig.email?.to,
+    emailServiceAvailable,
+    discordConfigured: Boolean(notificationConfig.discordWebhookUrl),
+  });
   const files = [
     [plan.serviceName, plan.unit],
     [plan.timerName, plan.timer],
     [plan.watchdogServiceName, plan.watchdogUnit],
     [plan.watchdogTimerName, plan.watchdogTimer],
+    ...(operationalPlan.scheduleEnabled ? [
+      [operationalPlan.digestServiceName, operationalPlan.digestUnit],
+      [operationalPlan.digestTimerName, operationalPlan.digestTimer],
+      [operationalPlan.watchdogServiceName, operationalPlan.watchdogUnit],
+      [operationalPlan.watchdogTimerName, operationalPlan.watchdogTimer],
+    ] : []),
   ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+  const reportStatePath = join(installPath, ".openmates", "runtime-health", `${role}-operational-report.json`);
+  const reportMetricsDir = join(installPath, ".openmates", "runtime-health", "metrics");
+  const startedMetricPath = join(reportMetricsDir, "operational-report-started.prom");
+  const successMetricPath = join(reportMetricsDir, "operational-report.prom");
+  const operationalUnitNames = [
+    operationalPlan.digestServiceName,
+    operationalPlan.digestTimerName,
+    operationalPlan.watchdogServiceName,
+    operationalPlan.watchdogTimerName,
+  ];
+  if (operationalPlan.scheduleEnabled) {
+    mkdirSync(dirname(reportStatePath), { recursive: true, mode: 0o700 });
+    mkdirSync(reportMetricsDir, { recursive: true, mode: 0o700 });
+    if (!existsSync(reportStatePath)) {
+      writeFileSync(
+        reportStatePath,
+        `${JSON.stringify({ incidentOpen: false, monitoringStartedAt: new Date().toISOString() }, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+    }
+    if (!existsSync(startedMetricPath)) {
+      writeFileSync(
+        startedMetricPath,
+        `operational_report_monitoring_started_timestamp_seconds{environment="${operationalPlan.environment}"} ${Math.floor(Date.now() / 1000)}\n`,
+        { mode: 0o600 },
+      );
+    }
+  } else {
+    const installedOperationalUnits = operationalUnitNames.filter((name) => existsSync(join("/etc", "systemd", "system", name)));
+    const installedOperationalTimers = installedOperationalUnits.filter((name) => name.endsWith(".timer"));
+    if (installedOperationalTimers.length) {
+      execFileSync("systemctl", ["disable", "--now", ...installedOperationalTimers], { stdio: "pipe" });
+    }
+    for (const name of installedOperationalUnits) rmSync(join("/etc", "systemd", "system", name));
+    for (const path of [reportStatePath, startedMetricPath, successMetricPath]) {
+      if (existsSync(path)) rmSync(path);
+    }
+  }
   for (const [name, content] of files) writeFileSync(join("/etc", "systemd", "system", name), content, { mode: 0o644 });
   execSync("systemctl daemon-reload", { stdio: "pipe" });
   const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
@@ -2091,12 +2168,12 @@ function installRuntimeMonitoringServices(installPath: string, role: ServerRole)
   for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
-function autoInstallRuntimeMonitoringServices(installPath: string, role: ServerRole): "installed" | "skipped" {
+async function autoInstallRuntimeMonitoringServices(installPath: string, role: ServerRole): Promise<"installed" | "skipped"> {
   if (!shouldAutoInstallRuntimeMonitoringServices(process.env)) {
     console.error("Skipping runtime monitoring service installation because OPENMATES_SKIP_RUNTIME_MONITORING=1.");
     return "skipped";
   }
-  installRuntimeMonitoringServices(installPath, role);
+  await installRuntimeMonitoringServices(installPath, role);
   return "installed";
 }
 
@@ -2274,7 +2351,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
         let monitoringProvision = "installed";
         try {
-          monitoringProvision = autoInstallRuntimeMonitoringServices(installPath, role);
+          monitoringProvision = await autoInstallRuntimeMonitoringServices(installPath, role);
         } catch {
           monitoringProvision = "failed";
         }
@@ -2301,7 +2378,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
     try {
-      autoInstallRuntimeMonitoringServices(installPath, role);
+      await autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       const restoreCommand = safetyPlan.backupName
         ? `openmates server restore --role ${role} --file ${join(roleBackupDir(installPath, role), safetyPlan.backupName)}`
@@ -2409,7 +2486,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
       let monitoringProvision = "installed";
       try {
-        monitoringProvision = autoInstallRuntimeMonitoringServices(installPath, role);
+        monitoringProvision = await autoInstallRuntimeMonitoringServices(installPath, role);
       } catch {
         monitoringProvision = "failed";
       }
@@ -2432,7 +2509,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   }
 
   try {
-    autoInstallRuntimeMonitoringServices(installPath, role);
+    await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
     throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -2478,8 +2555,89 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
       printJson({ command: "monitoring install-service", status: "planned", role, files: files.map(([name, content]) => ({ name, content })) });
       return;
     }
-    installRuntimeMonitoringServices(installPath, role);
+    await installRuntimeMonitoringServices(installPath, role);
     console.log(`Installed runtime monitor and independent watchdog for ${role}.`);
+    return;
+  }
+
+  if (rest[0] === "digest") {
+    requireDocker();
+    const deploymentMode = getInstallDeploymentMode(installPath, config);
+    const environment = deploymentMode === "official_cloud"
+      ? (readEnvMap(installPath).SERVER_ENVIRONMENT === "production" ? "production" : "development")
+      : "self_host";
+    const channel = typeof flags.channel === "string" ? flags.channel : "email,discord";
+    const result = spawnSync(
+      "docker",
+      [
+        ...composeArgs(installPath, config?.composeProfile === "full", getInstallMode(installPath, config), role),
+        "exec", "-T", "api", "python", "-m", "backend.scripts.operational_monitoring",
+        "--environment", environment, "--channels", channel,
+        ...(flags.test === true ? ["--test"] : []),
+      ],
+      { cwd: installPath, encoding: "utf-8", timeout: 120_000 },
+    );
+    const outputLine = result.stdout.trim().split("\n").filter(Boolean).at(-1);
+    if (!outputLine) throw new Error("Operational report command returned no structured output.");
+    const output = JSON.parse(outputLine) as {
+      delivery_state: string;
+      report_id: string;
+      report_sha256: string;
+      receipts: Array<{ environment: "development" | "production" | "self_host"; channel: "email" | "discord"; state: "queued" | "accepted" | "failed" | "unavailable"; attempt_count: number; occurred_at: string; sanitized_failure_class?: string }>;
+    };
+    const accepted = output.delivery_state === "accepted";
+    const state = await readOperationalReportState(installPath, role);
+    const nextState = accepted
+      ? { ...state, incidentOpen: false, incidentOpenedAt: undefined, lastAcceptedReportAt: new Date().toISOString() }
+      : state;
+    await writeOperationalReportState(installPath, role, nextState);
+    const metricsDir = join(installPath, ".openmates", "runtime-health", "metrics");
+    mkdirSync(metricsDir, { recursive: true, mode: 0o700 });
+    if (accepted) {
+      writeFileSync(
+        join(metricsDir, "operational-report.prom"),
+        `operational_report_last_success_timestamp_seconds{environment="${output.receipts[0]?.environment ?? environment}"} ${Math.floor(Date.now() / 1000)}\n`,
+        { mode: 0o600 },
+      );
+    }
+    const redactedReceipts = output.receipts.map((receipt) => buildOperationalDeliveryReceipt({
+      environment: receipt.environment,
+      reportId: output.report_id,
+      reportSha256: output.report_sha256,
+      channel: receipt.channel,
+      state: receipt.state,
+      attemptCount: receipt.attempt_count,
+      occurredAt: receipt.occurred_at,
+      sanitizedFailureClass: receipt.sanitized_failure_class,
+    }));
+    const receiptDir = join(installPath, ".openmates", "runtime-health", "receipts");
+    mkdirSync(receiptDir, { recursive: true, mode: 0o700 });
+    const receiptMonth = new Date().toISOString().slice(0, 7);
+    for (const receipt of redactedReceipts) {
+      appendFileSync(join(receiptDir, `${receiptMonth}.jsonl`), `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+    }
+    const displayed = { command: "monitoring digest", reportId: output.report_id, reportSha256: output.report_sha256, deliveryState: output.delivery_state, receipts: redactedReceipts };
+    if (flags.json === true) printJson(displayed);
+    else console.log(JSON.stringify(displayed, null, 2));
+    if (result.status !== 0 || output.delivery_state !== "accepted") throw new Error("Operational report delivery did not succeed on every requested channel.");
+    return;
+  }
+
+  if (rest[0] === "report-watchdog") {
+    const reportState = await readOperationalReportState(installPath, role);
+    const evaluated = evaluateOperationalReportFreshness(reportState, new Date());
+    await writeOperationalReportState(installPath, role, evaluated.state);
+    const delivery = evaluated.event
+      ? await dispatchRuntimeEvent(
+          installPath,
+          role,
+          evaluated.event.type === "operational_report_recovered" ? "recovery" : "monitor_stale",
+          [{ id: "operational.report", status: evaluated.event.type === "operational_report_recovered" ? "passed" : "failed", required: true, duration_ms: 0, sanitized_reason: evaluated.event.reason }],
+          new Date().toISOString(),
+        )
+      : [];
+    if (flags.json === true) printJson({ command: "monitoring report-watchdog", event: evaluated.event, delivery, state: evaluated.state });
+    else console.log(JSON.stringify({ event: evaluated.event, delivery, state: evaluated.state }, null, 2));
     return;
   }
 
@@ -2491,7 +2649,7 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
     else console.log(JSON.stringify(output, null, 2));
     return;
   }
-  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service [--role core|upload|preview]");
+  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service|digest|report-watchdog [--role core|upload|preview]");
 
   if (flags.watchdog === true) {
     const evaluated = evaluateRuntimeWatchdog(state, new Date());
@@ -2503,8 +2661,26 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
     return;
   }
 
-  requireDocker();
-  const output = runRuntimeVerification(installPath, role, config);
+  let output: RuntimeVerifierOutput;
+  try {
+    requireDocker();
+    output = runRuntimeVerification(installPath, role, config);
+  } catch (error) {
+    console.error(`Runtime verifier unavailable: ${error instanceof Error ? error.name : "UnknownError"}`);
+    output = {
+      status: "failed",
+      role,
+      completed_at: Date.now() / 1000,
+      checks: [{
+        id: `${role}.runtime_verifier_available`,
+        status: "failed",
+        required: true,
+        duration_ms: 0,
+        failureClass: "critical_availability",
+        sanitized_reason: "runtime_verifier_unavailable",
+      }],
+    };
+  }
   await persistRuntimeResult(installPath, role, output);
   let nextState = await readRuntimeIncidentState(installPath, role);
   const heartbeat = evaluateRuntimeHeartbeat(nextState, new Date());

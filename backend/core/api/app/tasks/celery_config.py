@@ -177,6 +177,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
 
@@ -998,6 +999,7 @@ task_routes = {
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
+    "operational_monitoring.send_digest": {'queue': 'email'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1058,6 +1060,7 @@ _EXPLICIT_TASK_ROUTES = {
     "health_check.check_all_apps": "health_check",
     "health_check.check_external_services": "health_check",
     "health_check.send_degraded_services_discord_report": "health_check",
+    "operational_monitoring.send_digest": "email",
     
     # Usage archive tasks
     "usage.archive_old_entries": "persistence",

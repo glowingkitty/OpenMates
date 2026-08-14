@@ -23,6 +23,18 @@ route:
   repeat_interval: 4h
 
   routes:
+    # URGENT_DISCORD_ROUTE_START
+    # Critical alerts first reach Discord directly. This path does not depend on
+    # the API or Celery and therefore still works for APIDown incidents.
+    - match:
+        severity: critical
+      receiver: "urgent-discord"
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: true
+    # URGENT_DISCORD_ROUTE_END
+    # The second critical route preserves the existing email receiver.
     # Critical alerts: shorter wait, still throttled
     - match:
         severity: critical
@@ -61,3 +73,9 @@ receivers:
           http_headers:
             X-Internal-Service-Token:
               secrets: ["${INTERNAL_API_SHARED_TOKEN}"]
+  # URGENT_DISCORD_RECEIVER_START
+  - name: "urgent-discord"
+    discord_configs:
+      - webhook_url: "${DISCORD_WEBHOOK_URGENT_SCOPED}"
+        send_resolved: true
+  # URGENT_DISCORD_RECEIVER_END

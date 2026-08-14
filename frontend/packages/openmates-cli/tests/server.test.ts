@@ -81,6 +81,10 @@ import {
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
+  buildOperationalDeliveryReceipt,
+  evaluateOperationalReportFreshness,
+  planOperationalMonitoring,
+  probeRuntimeEmailService,
   signRuntimeWebhookPayload,
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
@@ -1055,6 +1059,17 @@ describe("post-update runtime health", () => {
     assert.equal(recovered.events[0]?.type, "recovered");
   });
 
+  it("alerts immediately when the runtime verifier container is unavailable", () => {
+    const result = applyRuntimeCheckResults(
+      undefined,
+      [{ id: "core.runtime_verifier_available", status: "failed", failureClass: "critical_availability" }],
+      "2026-08-06T10:00:00Z",
+    );
+
+    assert.equal(result.events[0]?.type, "service_unhealthy");
+    assert.equal(result.state.checks?.["core.runtime_verifier_available"]?.incidentOpen, true);
+  });
+
   it("tracks failure thresholds per check instead of combining unrelated failures", () => {
     const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
     const unrelated = applyRuntimeCheckResults(first.state, [{ id: "core.database", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
@@ -1075,6 +1090,142 @@ describe("post-update runtime health", () => {
     await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::ffff:a00:1"]));
     await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::a9fe:101"]));
     await assert.doesNotReject(() => validateRuntimeWebhookDestination("https://example.org/hook", ["93.184.216.34"]));
+  });
+});
+
+describe("operational monitoring digest", () => {
+  it("enables email only after a bounded provider availability probe", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let requestedUrl = "";
+      globalThis.fetch = (async (input: string | URL | Request) => {
+        requestedUrl = String(input);
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), true);
+      assert.equal(requestedUrl, "https://api.brevo.com/v3/account");
+
+      globalThis.fetch = (async () => { throw new Error("network_unavailable"); }) as typeof fetch;
+      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.self-host.no-billing,operational-monitoring.environments.isolated-labeled
+  it("activates self-host email only with an admin recipient and available service", () => {
+    const active = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: false,
+    });
+    const missingRecipient = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      emailServiceAvailable: true,
+      discordConfigured: false,
+    });
+    const unavailableService = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: false,
+      discordConfigured: false,
+    });
+
+    assert.equal(active.emailEnabled, true);
+    assert.equal(active.scheduleEnabled, true);
+    assert.equal(missingRecipient.emailEnabled, false);
+    assert.equal(missingRecipient.configurationStatus, "missing_admin_email");
+    assert.equal(unavailableService.emailEnabled, false);
+    assert.equal(unavailableService.configurationStatus, "email_service_unavailable");
+    assert.match(active.digestUnit, /--channel email(?:\s|$)/);
+
+    const serialized = JSON.stringify(active).toLowerCase();
+    for (const forbidden of ["billing", "payment", "stripe", "invoice", "subscription", "purchase"]) {
+      assert.equal(serialized.includes(forbidden), false);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.delivery.observable
+  it("renders idempotent digest and stale-watchdog systemd plans", () => {
+    const first = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: true,
+    });
+    const second = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: true,
+    });
+
+    assert.deepEqual(first, second);
+    assert.match(first.digestTimer, /Persistent=true/);
+    assert.match(first.digestUnit, /server monitoring digest/);
+    assert.match(first.watchdogUnit, /server monitoring report-watchdog/);
+    assert.doesNotMatch(first.digestUnit + first.watchdogUnit, /admin@example\.test|SECRET__|API_KEY|TOKEN=/);
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.alerts.independent-urgent-path
+  it("detects stale reports once and recovers after a fresh accepted report", () => {
+    const grace = evaluateOperationalReportFreshness(
+      { incidentOpen: false, monitoringStartedAt: "2026-08-14T11:00:00Z" },
+      new Date("2026-08-14T12:00:00Z"),
+    );
+    const stale = evaluateOperationalReportFreshness(
+      { incidentOpen: false, monitoringStartedAt: "2026-08-13T09:00:00Z" },
+      new Date("2026-08-14T12:00:00Z"),
+    );
+    const repeated = evaluateOperationalReportFreshness(stale.state, new Date("2026-08-14T12:05:00Z"));
+    const recovered = evaluateOperationalReportFreshness(
+      { ...repeated.state, lastAcceptedReportAt: "2026-08-14T12:06:00Z" },
+      new Date("2026-08-14T12:07:00Z"),
+    );
+
+    assert.equal(grace.event, null);
+    assert.equal(stale.event?.type, "operational_report_stale");
+    assert.equal(repeated.event, null);
+    assert.equal(recovered.event?.type, "operational_report_recovered");
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.environments.isolated-labeled
+  it("keeps per-channel accepted and failed receipts without destinations", () => {
+    const email = buildOperationalDeliveryReceipt({
+      environment: "development",
+      reportId: "report-1",
+      reportSha256: "abc123",
+      channel: "email",
+      state: "accepted",
+      attemptCount: 1,
+      occurredAt: "2026-08-14T12:00:00Z",
+    });
+    const discord = buildOperationalDeliveryReceipt({
+      environment: "development",
+      reportId: "report-1",
+      reportSha256: "abc123",
+      channel: "discord",
+      state: "failed",
+      attemptCount: 3,
+      occurredAt: "2026-08-14T12:00:00Z",
+      sanitizedFailureClass: "delivery_timeout",
+    });
+
+    assert.equal(email.state, "accepted");
+    assert.equal(discord.state, "failed");
+    assert.equal("destination" in email, false);
+    assert.equal("webhookUrl" in discord, false);
   });
 });
 

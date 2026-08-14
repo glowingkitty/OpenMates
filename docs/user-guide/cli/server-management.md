@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-08-06
+last_verified: 2026-08-14
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -259,9 +259,15 @@ Install or repair the periodic monitor and independent watchdog:
 sudo "$(command -v openmates)" server monitoring install-service --role core --path ~/openmates
 openmates server monitoring status --role core --path ~/openmates
 openmates server monitoring status --role core --path ~/openmates --json
+openmates server monitoring digest --role core --path ~/openmates --channel email,discord --test --json
+openmates server monitoring report-watchdog --role core --path ~/openmates --json
 ```
 
-The installation creates two systemd services and two persistent timers. Both run every five minutes. The application monitor executes the packaged verifier through Docker Compose; the separate host watchdog reads host-owned state and can detect a missing or stale verifier even when API or Celery notification code is unavailable.
+The installation always creates two five-minute runtime-health services and timers. When at least one verified report channel is configured, it also creates a daily 08:30 UTC operational digest and a five-minute report-freshness watchdog. Host systemd is the only digest scheduler, preventing duplicate Celery and host deliveries.
+
+The digest summarizes the preceding 24 hours of aggregate resource, activity, processing, and issue data in a compact graph. Official cloud reports also include aggregate billing readiness/outcomes. Self-host reports omit billing entirely and do not query billing collections or credentials. Email is enabled only after a bounded Brevo account probe; the generated service requests only channels that passed configuration checks.
+
+An accepted report updates host-owned freshness metrics and append-only redacted receipt history under `<install>/.openmates/runtime-health/`. A missing accepted report becomes an incident after 26 hours. Disabling all digest destinations removes the digest timers and freshness metrics rather than generating a false stale incident.
 
 Runtime state is stored at `<install>/.openmates/runtime-health/<role>.json`. The directory uses mode `0700`, the state file uses `0600`, and writes are atomic. It stores operational check IDs, timestamps, counters, and delivery status only, never notification destinations, provider responses, user data, chat content, payment data, or secrets.
 
@@ -273,6 +279,7 @@ Alert behavior:
 - One recovery event is sent when an open incident clears.
 - A healthy installation sends at most one green heartbeat per UTC day.
 - Email, Discord, and generic webhook delivery are attempted independently, with bounded retries.
+- API, host, disk, official-cloud billing-readiness, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
 
 ## Runtime Notifications
 

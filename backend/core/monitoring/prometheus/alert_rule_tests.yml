@@ -1,0 +1,112 @@
+# Promtool contract tests for OpenMates operational alerts.
+# Run: promtool test rules /etc/prometheus/alert_rule_tests.yml
+rule_files:
+  - alert_rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: zero memory limit cannot produce an infinite utilization alert
+    interval: 1m
+    input_series:
+      - series: 'container_memory_usage_bytes{name="api",container_label_com_docker_compose_project="openmates",environment="development"}'
+        values: '500000000x20'
+      - series: 'container_spec_memory_limit_bytes{name="api",container_label_com_docker_compose_project="openmates",environment="development"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighMemoryUsage
+        exp_alerts: []
+
+  - name: finite sustained memory pressure fires for an OpenMates container
+    interval: 1m
+    input_series:
+      - series: 'container_memory_usage_bytes{name="api",container_label_com_docker_compose_project="openmates",environment="development"}'
+        values: '950000000x20'
+      - series: 'container_spec_memory_limit_bytes{name="api",container_label_com_docker_compose_project="openmates",environment="development"}'
+        values: '1000000000x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighMemoryUsage
+        exp_alerts:
+          - exp_labels:
+              alertname: HighMemoryUsage
+              name: api
+              container_label_com_docker_compose_project: openmates
+              environment: development
+              severity: warning
+            exp_annotations:
+              summary: "Container api memory above 90%"
+              description: "Memory usage is at 95%."
+
+  - name: host disk warning and critical thresholds are distinct
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_size_bytes{instance="node-exporter:9100",mountpoint="/",fstype="ext4",environment="development"}'
+        values: '100000000000x40'
+      - series: 'node_filesystem_avail_bytes{instance="node-exporter:9100",mountpoint="/",fstype="ext4",environment="development"}'
+        values: '12000000000x20 4000000000x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HostDiskSpaceWarning
+        exp_alerts:
+          - exp_labels:
+              alertname: HostDiskSpaceWarning
+              instance: node-exporter:9100
+              mountpoint: /
+              fstype: ext4
+              environment: development
+              severity: warning
+            exp_annotations:
+              summary: "Host disk usage above 85% on /"
+              description: "Disk usage is above 85% for /."
+      - eval_time: 39m
+        alertname: HostDiskSpaceCritical
+        exp_alerts:
+          - exp_labels:
+              alertname: HostDiskSpaceCritical
+              instance: node-exporter:9100
+              mountpoint: /
+              fstype: ext4
+              environment: development
+              severity: critical
+            exp_annotations:
+              summary: "Host disk usage above 95% on /"
+              description: "Disk usage is above 95% for /."
+
+  - name: stale expected operational report fires
+    interval: 1m
+    input_series:
+      - series: 'operational_report_last_success_timestamp_seconds{environment="development"}'
+        values: '1+0x1620'
+    alert_rule_test:
+      - eval_time: 27h
+        alertname: OperationalReportStale
+        exp_alerts:
+          - exp_labels:
+              alertname: OperationalReportStale
+              environment: development
+              severity: critical
+            exp_annotations:
+              summary: "development operational report is stale"
+              description: "No accepted operational report has been recorded for more than 26 hours."
+
+  - name: absent first report waits for install grace then fires
+    interval: 1m
+    input_series:
+      - series: 'operational_report_monitoring_started_timestamp_seconds{environment="development"}'
+        values: '1+0x1620'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: OperationalReportStale
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: OperationalReportStale
+        exp_alerts:
+          - exp_labels:
+              alertname: OperationalReportStale
+              environment: development
+              severity: critical
+            exp_annotations:
+              summary: "development operational report is stale"
+              description: "No accepted operational report has been recorded for more than 26 hours."

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-05
+last_verified: 2026-08-14
 key_files:
 - .github/dependabot.yml
 - pnpm-workspace.yaml
@@ -108,6 +108,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | 07, 13, 19 Berlin             | `tests.py run --prod-paid-chat`        | Paid production CLI chat smoke with one tiny `PONG` prompt |
 | 09 Berlin                     | `tests.py run --prod-app-skill`        | Production CLI `apps web search` app-skill smoke |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
+| `08:30 daily` (host systemd)   | `openmates server monitoring digest`   | Privacy-safe 24-hour operational email/Discord report |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
@@ -127,6 +128,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
 **Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76), writes `last-passed-tests.json` / `last-failed-tests.json`, pushes one OpenObserve summary, and archives to `test-results/daily-run-YYYY-MM-DD.json`. The scheduled runner is notification-only: it does not start OpenCode auto-fix, so failed-test remediation can never hold the daily lock and block the next scheduled run. Manual follow-up can still use `scripts/auto_fix_failed_tests.py --from-daily-run` when an operator intentionally wants controller-owned fixes. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated manual auto-fix channel).
+
+**Operational monitoring digest** (08:30 UTC daily, host systemd): The CLI-installed host timer invokes the packaged Docker report command for exactly one environment and only the configured email/Discord channels. Host systemd is the sole scheduler; Celery Beat does not schedule this digest. A separate five-minute host watchdog detects missing accepted reports after 26 hours and uses the retrying API-independent notifier for incident and recovery delivery. State, freshness metrics, and redacted monthly JSONL receipts live under `<install>/.openmates/runtime-health/`.
 
 **Release intelligence** (`00:20 daily`, `00:45 Mon`, `01:10 first day`): `scripts/release-intelligence-cron.sh` creates LLM-backed changelog artifacts from git history and prior rollups. Daily mode writes `docs/releases/daily/YYYY-MM-DD.yml` for the previous UTC day. Weekly mode reads the last seven daily artifacts, writes `docs/releases/weekly/YYYY-Www.yml`, and posts a compact Discord summary. Monthly mode reads weekly artifacts for the previous month and writes `docs/releases/monthly/YYYY-MM.yml`. Artifacts include deterministic release readiness, feature availability gates, newsletter include/exclude candidates, and LLM summaries. Env: `GEMINI_API_KEY` or `SECRET__GOOGLE_AI_STUDIO__API_KEY`; optional `DISCORD_WEBHOOK_RELEASE_INTELLIGENCE` with fallback to `DISCORD_WEBHOOK_DEV_NIGHTLY` for weekly summaries. Manual: `scripts/release-intelligence-cron.sh daily|weekly|monthly`.
 

@@ -8,6 +8,13 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  architecture.operational-monitoring:
+    version: 1
+    status: approved
+    path: architecture/operational-monitoring
+    fingerprint: bfd529ca9fec376b4ae7f2b6866a1dd0c452209b6374d35d5d48a7bf4e3a5744
+    required_surfaces:
+    - cli
   architecture.sync:
     version: 1
     status: approved
@@ -308,6 +315,69 @@ assertions:
     required_surfaces:
     - gui.web
     - gui.apple
+  operational-monitoring.digest.real-24h-snapshot:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: e7617802f484d79d1114c44c54d1b5cffde15f460182f91aade28eef30b71988
+    required_surfaces:
+    - cli
+  operational-monitoring.self-host.auto-email:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: 0e536e43869475c62e9eb8e145bb1381f92fab124b29bdefe47195c1f1d7d125
+    required_surfaces:
+    - cli
+  operational-monitoring.self-host.no-billing:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: security
+    fingerprint: 7e062ac7dc227e08cce3597cf904ace0eabd4389e835638f4ac86a2a44053911
+    required_surfaces:
+    - cli
+  operational-monitoring.delivery.real-data-test:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: dcb7eb4d7b15f455aa2f4099492bc5bcf400001d9afeea2bf14621c4a1b43e11
+    required_surfaces:
+    - cli
+  operational-monitoring.alerts.independent-urgent-path:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: failure
+    fingerprint: 8c619d21a60387561b4a79b3a404703739b4ec107df78973e6fd3fc7147451c7
+    required_surfaces:
+    - cli
+  operational-monitoring.alerts.actionable-low-noise:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: 7281c0bb387e2bb15dea10f125bf2dc028820ed161888fd9342dc8183280fb2e
+    required_surfaces:
+    - cli
+  operational-monitoring.delivery.observable:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: invariant
+    fingerprint: 1cab584102bde76bddfdea48523b3324723eb8ba8e5579fdbe8947a09e9db453
+    required_surfaces:
+    - cli
+  operational-monitoring.content.privacy-boundary:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: privacy
+    fingerprint: 0debf8ec55cf0c790d6f845f9822e61cc7580f654c4e25d02263d9ee229acaf1
+    required_surfaces:
+    - cli
+  operational-monitoring.environments.isolated-labeled:
+    contract: architecture.operational-monitoring@1
+    contract_id: architecture.operational-monitoring
+    type: security
+    fingerprint: 1c4dcf4be52e10d5f3d417d77e700e49c3332224553c2c4b83a1ca283ac71028
+    required_surfaces:
+    - cli
   sync.access.first-party-authenticated:
     contract: architecture.sync@1
     contract_id: architecture.sync

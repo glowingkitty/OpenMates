@@ -1044,6 +1044,7 @@ services:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
     restart: unless-stopped
+    env_file: ../../.env
     deploy:
       resources:
         limits:
@@ -1052,11 +1053,11 @@ services:
     volumes:
       - ./monitoring/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - |
+        sed "s|\$${SERVER_ENVIRONMENT}|$${SERVER_ENVIRONMENT:-development}|g" /etc/prometheus/prometheus.yml > /tmp/prometheus.runtime.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.runtime.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
     networks:
       - openmates
     healthcheck:
@@ -1085,7 +1086,17 @@ services:
           echo "FATAL: INTERNAL_API_SHARED_TOKEN is empty — alertmanager cannot authenticate to the internal webhook. Set it in .env." >&2
           exit 1
         fi
+        case "$${SERVER_ENVIRONMENT:-development}" in
+          production) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_PRODUCTION:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION:-}}" ;;
+          self_host) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL:-}}}" ;;
+          *) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_DEVELOPMENT:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT:-}}" ;;
+        esac
         sed "s|\$${INTERNAL_API_SHARED_TOKEN}|$$INTERNAL_API_SHARED_TOKEN|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if [ -n "$$urgent_webhook" ]; then
+          sed -i "s|\$${DISCORD_WEBHOOK_URGENT_SCOPED}|$$urgent_webhook|g" /tmp/alertmanager.runtime.yml
+        else
+          sed -i '/URGENT_DISCORD_ROUTE_START/,/URGENT_DISCORD_ROUTE_END/d; /URGENT_DISCORD_RECEIVER_START/,/URGENT_DISCORD_RECEIVER_END/d' /tmp/alertmanager.runtime.yml
+        fi
         if grep -q '\$${' /tmp/alertmanager.runtime.yml; then
           echo "FATAL: unresolved \$${...} placeholder remains in /tmp/alertmanager.runtime.yml after substitution." >&2
           grep -n '\$${' /tmp/alertmanager.runtime.yml >&2
@@ -1114,8 +1125,9 @@ services:
     command:
       - "--housekeeping_interval=30s"
       - "--docker_only=true"
-      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
       - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project"
+      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -1129,6 +1141,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.textfile.directory=/textfile"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/.+)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+      - ${GIT_WORK_DIR:-../..}/.openmates/runtime-health/metrics:/textfile:ro
+    networks:
+      - openmates
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
 
   promtail:
     container_name: promtail
