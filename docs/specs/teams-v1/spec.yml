@@ -528,6 +528,7 @@ acceptance_criteria:
   verification_ids:
   - T-BACKEND-TEAM-LIFECYCLE
   - T-CLI-TEAM-LIFECYCLE-DEV
+  - T-CLI-TEAM-PROFILE-IMAGES-DEV
 - id: AC-2
   scenario: S-2
   text: Invite and accept flows create memberships and team key wrappers without exposing personal records.
@@ -1693,6 +1694,49 @@ tests:
       reason: Real CLI verifier passed against api.dev.openmates.org after rebuilding the CLI, restarting api, and confirming
         health; team delete cleanup used interactive destructive step-up.
       timestamp: '2026-07-18'
+- id: T-CLI-TEAM-PROFILE-IMAGES-DEV
+  type: manual
+  file: scripts/verify_teams_cli_profile_images.py
+  command: python3 scripts/verify_teams_cli_profile_images.py --api-url https://api.dev.openmates.org
+  target: api.dev.openmates.org with real CLI test-account auth and upload.openmates.org profile-image storage
+  covers:
+  - AC-1
+  assertions:
+  - real CLI sets generated encrypted team profile-image metadata through teams profile-image generated.
+  - real CLI uploads a team profile image through upload.openmates.org and receives the authenticated team profile-image proxy URL.
+  - real CLI retrieves the uploaded team profile image through the authenticated team route and writes image bytes locally.
+  - profile-image schema storage safety is covered by T-TEAM-PRIVACY-AUDIT.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence:
+      status: pending
+      run_id: pending-cli-teams-profile-images-red
+      timestamp: ''
+  green_phase:
+    required: true
+    expected: pass_after_deploy
+    evidence:
+      status: passed
+      command: python3 scripts/verify_teams_cli_profile_images.py --api-url https://api.dev.openmates.org
+      run_id: teams-cli-profile-images-dev-green-2026-08-14
+      subject_commit: 7447827696a29dd855674b1afff339d4d5a28093
+      reason: Real CLI verifier passed against api.dev.openmates.org after the dev API container was restarted from commit 7447827696a29dd855674b1afff339d4d5a28093 and upload.openmates.org ran ghcr.io/glowingkitty/openmates-uploads:dev revision ad2fafcc31d31d771f5beef3118228cff8d346de.
+      timestamp: '2026-08-14T14:09:07Z'
+      proof_video:
+        status: passed
+        command: python3 scripts/sessions.py proof-video produce --session 6370 --run-dir test-results/proof-videos/6370/teams-profile-images-cli-v4 --proof-id T-CLI-TEAM-PROFILE-IMAGES-DEV -- bash test-results/proof-video-sources/6370/teams_profile_image_proof.sh
+        approval_hash: sha256:d9af02c71970b9a3fb7be5e45be1131ff8cbfbfdbdbe5517bfd945debb1d813c
+        manifest_path: test-results/proof-videos/6370/teams-profile-images-cli-v4/manifest.json
+        manifest_hash: sha256:3da1529d7a25580b7098fc4258c0a3b2423ef7d63676f5d25993be743f0920bb
+        video_hash: sha256:43a4de01edb39841bfad0dea227b041ed8b95b409b964437d65d5f5d7dd844f8
+        privacy_status: passed
+        review_status: passed
+        review_run_id: review-teams-profile-images-cli-v4
+        review_attempts: 1
+        publication_status: opencode_response_media_uploaded
+        publication_artifact_key: opencode-responses/2026/08/14/4d5852f654a8-43a4de01edb39841-demo.mp4
+        timestamp: '2026-08-14T14:56:15Z'
 - id: T-CLI-TEAM-MEMBERSHIP-DEV
   type: manual
   file: scripts/verify_teams_cli_membership.py
@@ -2287,9 +2331,10 @@ verifications:
   evidence:
     status: passed
     command: python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
-    run_id: teams-spec-validate-proof-video-20260814
+    run_id: teams-spec-validate-profile-images-proof-video-20260814
     subject_commit: f2e7a45
-    timestamp: '2026-08-14T12:10:00Z'
+    summary: Spec validation passed after adding real dev Teams CLI profile-image verifier evidence and reviewed proof-video metadata.
+    timestamp: '2026-08-14T15:10:22Z'
 - id: V-USER-CONFIRMATION
   kind: user_confirmation
   phase: final
@@ -2697,6 +2742,7 @@ tasks:
   - frontend/packages/openmates-cli/src/cli.ts
   - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
   - scripts/verify_teams_cli_lifecycle.py
+  - scripts/verify_teams_cli_profile_images.py
   - scripts/verify_teams_cli_common.py
   - scripts/verify_teams_cli_membership.py
   - scripts/verify_teams_cli_chat.py
@@ -2708,6 +2754,7 @@ tasks:
   - scripts/verify_teams_cli_data_portability.py
   verification:
   - T-CLI-TEAM-LIFECYCLE-DEV
+  - T-CLI-TEAM-PROFILE-IMAGES-DEV
   - T-CLI-TEAM-MEMBERSHIP-DEV
   - T-CLI-TEAM-CHAT-DEV
   - T-CLI-WORKSPACE-CONTEXT-DEV
@@ -2719,6 +2766,7 @@ tasks:
   - T-CLI-TEAM-DATA-PORTABILITY-DEV
   verification_ids:
   - T-CLI-TEAM-LIFECYCLE-DEV
+  - T-CLI-TEAM-PROFILE-IMAGES-DEV
   - T-CLI-TEAM-MEMBERSHIP-DEV
   - T-CLI-TEAM-CHAT-DEV
   - T-CLI-WORKSPACE-CONTEXT-DEV
@@ -2740,6 +2788,7 @@ tasks:
     - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
     - scripts/verify_teams_cli_common.py
     - scripts/verify_teams_cli_lifecycle.py
+    - scripts/verify_teams_cli_profile_images.py
     - scripts/verify_teams_cli_membership.py
     - scripts/verify_teams_cli_chat.py
     - scripts/verify_teams_cli_workspace_context.py
@@ -2751,8 +2800,7 @@ tasks:
     shared_files:
     - frontend/packages/openmates-cli/src/client.ts
     - frontend/packages/openmates-cli/src/cli.ts
-  blockers:
-  - Fix deployed dev /v1/teams empty-reply/socket failure before real dev CLI verification can complete.
+  blockers: []
   follow_up_tasks:
   - Wire real CLI team verification into daily tests after dev pass.
   independently_deployable: false
