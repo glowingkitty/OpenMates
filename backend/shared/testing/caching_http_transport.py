@@ -75,9 +75,10 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
 
         group_id = get_mock_group()
 
-        # Read request body for fingerprinting
-        # httpx.Request.content is bytes
-        body_bytes = request.content if request.content else None
+        # Read and buffer the request body for fingerprinting. Redirected httpx
+        # requests can expose an unread stream instead of eager .content.
+        body_content = await request.aread()
+        body_bytes = body_content or None
 
         fingerprint = self._cache.fingerprint_http_request(
             method=str(request.method),
@@ -85,14 +86,20 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             body=body_bytes,
         )
 
-        # Try cache first
-        cached = self._cache.load(group_id, self._category, fingerprint)
+        # In explicit record mode, always refresh the cassette. This prevents a
+        # stale or malformed cached response from making re-recording a no-op.
+        cached = (
+            None
+            if is_record_mode()
+            else self._cache.load(group_id, self._category, fingerprint)
+        )
         if cached is not None:
             response_data = cached.get("response", {})
             return httpx.Response(
                 status_code=response_data.get("status_code", 200),
                 headers=self._replay_headers(response_data.get("headers", {})),
                 content=self._decode_body(response_data.get("body", "")),
+                request=request,
             )
 
         # Cache miss
