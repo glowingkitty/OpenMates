@@ -1141,6 +1141,7 @@
     }
 
     .workspace-daily-inspiration-area {
+      --daily-inspiration-area-height: 190px;
       min-height: 190px;
     }
 
