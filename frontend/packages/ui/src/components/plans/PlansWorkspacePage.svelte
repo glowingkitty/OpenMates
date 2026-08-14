@@ -424,6 +424,10 @@
     padding: 0;
   }
 
+  .plans-board-panel :global(.plan-column) {
+    min-height: 410px;
+  }
+
   .plans-toolbar {
     display: flex;
     align-items: flex-start;
@@ -524,6 +528,10 @@
 
     .plans-filter-chips {
       width: 100%;
+    }
+
+    .plans-board-panel :global(.plan-column) {
+      min-height: 360px;
     }
   }
 </style>

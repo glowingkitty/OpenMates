@@ -118,7 +118,7 @@ async function visualMetrics(page: any, selectors: {
 }
 
 function expectNear(actual: number, expected: number, message: string, tolerance = 3): void {
-	expect(Math.abs(actual - expected), message).toBeLessThanOrEqual(tolerance);
+	expect(Math.abs(actual - expected), `${message}: ${actual} vs ${expected}`).toBeLessThanOrEqual(tolerance);
 }
 
 function expectVisualParity(actual: VisualMetrics, chats: VisualMetrics, workspace: string): void {
