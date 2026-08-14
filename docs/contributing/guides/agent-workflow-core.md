@@ -42,6 +42,10 @@ a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned U
 Use only intentionally shareable screenshots, diagrams, or demo clips; do not use
 it for secrets, private user data, logs, raw production evidence, or durable docs.
 External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
+When a screenshot or short clip materially helps the user understand a visual UI
+state, bug fix, visual-smoke result, proof-video, or implementation defect,
+include the uploaded media directly in the chat response instead of only naming
+an artifact path.
 
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
@@ -107,10 +111,10 @@ nightly/daily/CI failed E2E that is actively debugged in a chat and turns green
 requires proof-video evidence before completion. A test report, screenshots, or
 visual-smoke evidence alone never satisfies this gate. Use `create-demo-video`
 and `python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts`
-with passing real CLI or deployed Playwright evidence and burned-in captions;
-narration audio is optional. Web/spec/example
-chat proof uses separate phone and laptop videos, Apple proof uses separate
-iPhone portrait and iPad landscape videos, and CLI proof uses one terminal video.
+with passing deployed Playwright, Apple, or real OpenMates CLI evidence and
+burned-in captions; narration audio is optional. Web/spec/example chat proof uses
+separate phone and laptop videos, Apple proof uses separate iPhone portrait and
+iPad landscape videos, and CLI proof uses one terminal video only for the actual `openmates` CLI product surface being demonstrated or fixed. Do not ask for CLI proof videos for generic smoke scripts, pytest helpers, Node scripts, or shell wrappers that do not visibly execute the OpenMates CLI.
 Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
 iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
 `1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device
@@ -118,10 +122,12 @@ captures wrapped in a generic 16:9/16:10 canvas. The transcript must describe th
 specific visible UI/action/result, not generic success claims; use retiming or a
 last-frame hold when the source flow moves too quickly, and preserve product audio
 when playback is part of the claim. Give the active agent the canonical transcript
-and bounded image frames, never the full video. Use a default
-three-second interval plus event boundaries, request exact-timestamp frames only
-when needed, and require confirmed Discord delivery before completion when the
-proof destination is configured. If any reviewed frame shows an objective product
+and bounded image frames, never the full video. Use a default three-second
+interval plus event boundaries, request exact-timestamp frames only when needed,
+then upload the approved proof media with `scripts/opencode_response_media.py`.
+This is the OpenCode response-media proof path: embed the returned image Markdown
+or `<video>` HTML directly in the final OpenCode response. Do not send proof media
+to Discord unless the user explicitly asks for a separate Discord mirror. If any reviewed frame shows an objective product
 defect such as clipping, premature truncation, wrong metadata, raw protocol/error
 text, missing processing animation, stale loading state, or broken navigation,
 classify it as an implementation defect and automatically return to a failing

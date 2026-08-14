@@ -253,7 +253,7 @@ def test_verifier_rejects_pending_discord_publication(tmp_path: Path) -> None:
 
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
-    assert any("Discord delivery" in failure for failure in failures)
+    assert any("response-media proof embed" in failure for failure in failures)
 
 
 def test_verifier_rejects_stale_demonstration_evidence(tmp_path: Path) -> None:
@@ -357,7 +357,7 @@ def test_verifier_rejects_recorded_publication_status_that_differs_from_manifest
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
     assert not any("manifest hash" in failure for failure in failures)
-    assert any("publication_status" in failure or "Discord delivery" in failure for failure in failures)
+    assert any("publication_status" in failure or "response-media proof embed" in failure for failure in failures)
 
 
 def test_demonstration_recorder_derives_evidence_from_manifest(tmp_path: Path) -> None:

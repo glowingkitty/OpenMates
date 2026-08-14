@@ -1,7 +1,7 @@
 """Tests for session-level CLI and Playwright proof-video orchestration.
 
 Purpose: verify exact capture delegates to the demonstration pipeline safely.
-Security: webhook fixtures are synthetic and must never be printed.
+Security: response-media URLs are synthetic in tests and secrets are never printed.
 Architecture: scripts/sessions.py wraps scripts/spec_demo.py for session evidence.
 Tests: python3 -m pytest scripts/tests/test_sessions_proof_video.py.
 """
@@ -98,6 +98,43 @@ def test_proof_video_produce_always_enables_typed_anonymization(
     assert observed["anonymize_sensitive"] is True
     assert observed["timeout_seconds"] == 240.0
     assert observed["narration_audio_path"] is None
+
+
+def test_proof_video_produce_rejects_generic_smoke_script(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "spec_demo", fake_spec_demo())
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {"abcd": {}}})
+    monkeypatch.setattr(sessions, "_save_sessions", lambda _data: None)
+
+    args = argparse.Namespace(
+        session="abcd",
+        proof_action="produce",
+        argv=["--", "python3", "scripts/smoke_cli_encrypted_slugs.py"],
+        run_dir=tmp_path / "proof",
+        subject_commit="abc1234",
+        proof_id="cli-proof",
+        run_id="run-1",
+        target_environment="dev",
+        test_account_provenance="stored session",
+        narration_id="NARR-1",
+        caption="Run a smoke script.",
+        expected_proof="The smoke output is visible.",
+        acceptance_criterion=["AC-1"],
+        audio_path=None,
+        audio_provider="elevenlabs",
+        audio_model="eleven_flash_v2_5",
+        audio_voice="warm_neutral",
+        audio_reused_from="",
+        device_profile=None,
+        playback_rate=1.0,
+        hold_last_frame_seconds=0.0,
+        demo_audio_path=None,
+    )
+
+    with pytest.raises(SyntheticDemonstrationError, match="OpenMates CLI"):
+        sessions.cmd_proof_video(args)
 
 
 def test_proof_video_playwright_requires_and_forwards_passing_source(
@@ -312,7 +349,7 @@ def test_proof_video_playwright_rejects_post_resolution_artifact_replacement(
     assert rendered is True
 
 
-def test_proof_video_publish_loads_dev_smoke_webhook_without_printing_it(
+def test_proof_video_publish_uploads_response_media_without_discord(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -322,25 +359,61 @@ def test_proof_video_publish_loads_dev_smoke_webhook_without_printing_it(
     env_file.write_text(f"DISCORD_WEBHOOK_DEV_SMOKE={secret}\n", encoding="utf-8")
     run_dir = tmp_path / "proof"
     run_dir.mkdir()
-    (run_dir / "manifest.json").write_text(json.dumps({"review": {"status": "passed"}}), encoding="utf-8")
-    observed: dict[str, object] = {}
+    video = run_dir / "proof.mp4"
+    video.write_bytes(b"video")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "spec_id": "session-proof",
+                "privacy": {"status": "passed"},
+                "review": {"status": "passed"},
+                "narration_audio": {"status": "not_required"},
+                "video_path": "proof.mp4",
+            }
+        ),
+        encoding="utf-8",
+    )
+    observed_command: list[str] = []
 
-    def publish(*_args: object, **kwargs: object) -> dict[str, object]:
-        observed.update(kwargs)
-        return {"publication": {"status": "delivered"}}
+    def fake_run(command: list[str], **_kwargs: object) -> object:
+        observed_command.extend(command)
 
-    monkeypatch.setitem(sys.modules, "spec_demo", fake_spec_demo(publish=publish))
+        class Result:
+            returncode = 0
+            stderr = ""
+            stdout = json.dumps(
+                {
+                    "expires_in": 172800,
+                    "key": "opencode-responses/proof.mp4",
+                    "snippets": {
+                        "html": "<video controls><source src=\"https://example.invalid/proof.mp4\"></video>",
+                        "markdown": "[Proof](https://example.invalid/proof.mp4)",
+                    },
+                    "url": "https://example.invalid/proof.mp4",
+                }
+            )
+
+        return Result()
+
+    monkeypatch.setitem(sys.modules, "spec_demo", fake_spec_demo())
     monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {"abcd": {}}})
     monkeypatch.setattr(sessions, "_save_sessions", lambda _data: None)
     monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+    monkeypatch.setattr(sessions.subprocess, "run", fake_run)
     monkeypatch.delenv("DISCORD_WEBHOOK_DEV_SMOKE", raising=False)
 
     sessions.cmd_proof_video(
         argparse.Namespace(session="abcd", proof_action="publish", run_dir=run_dir),
     )
 
-    assert observed["webhook_url"] == secret
-    assert secret not in capsys.readouterr().out
+    output = capsys.readouterr().out
+    publication = json.loads((run_dir / "publication.json").read_text(encoding="utf-8"))
+
+    assert "opencode_response_media.py" in " ".join(observed_command)
+    assert publication["delivery_kind"] == "opencode_response_media"
+    assert publication["snippet_html"].startswith("<video")
+    assert "snippet_html" in output
+    assert secret not in output
 
 
 def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") -> Path:

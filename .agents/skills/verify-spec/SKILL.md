@@ -94,10 +94,10 @@ Pass only when:
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
 - Required proof videos have current-commit privacy, burned-in captions,
-  intentional audio status, frame-only review, and configured Discord delivery
+  intentional audio status, frame-only review, and OpenCode response-media embed
   evidence. The review bundle contains captions and selected images but never the
-  full video. `publication_pending` blocks configured completion without
-  invalidating a passed implementation or review.
+  full video. Missing response-media snippets block completion without invalidating
+  a passed implementation or review.
 
 Failed required checks must not be treated as a summary-only issue. The report
 must identify the affected acceptance criteria and confirm that follow-up tasks

@@ -218,7 +218,6 @@ PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
-PROOF_VIDEO_DELIVERY_ENV = "DISCORD_WEBHOOK_DEV_SMOKE"
 PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
 PROOF_VIDEO_DEVICE_PROFILES = {
     "cli-terminal": (1280, 720),
@@ -227,6 +226,11 @@ PROOF_VIDEO_DEVICE_PROFILES = {
     "apple-iphone-portrait": (393, 852),
     "apple-ipad-landscape": (1366, 1024),
 }
+OPENMATES_CLI_PROOF_EXECUTABLES = {"openmates", "openmates-cli"}
+OPENMATES_CLI_PROOF_SOURCE_MARKERS = (
+    "frontend/packages/openmates-cli",
+    "packages/openmates-cli",
+)
 APPLE_CONTEXT_KEYWORDS = (
     "apple",
     "ios",
@@ -7336,13 +7340,96 @@ def cmd_visual_smoke(args: argparse.Namespace) -> None:
         print(f"  url: {url}")
 
 
+def _command_invokes_openmates_cli(argv: list[str]) -> bool:
+    """Return true only when a proof command visibly executes OpenMates CLI."""
+
+    tokens = [str(token) for token in argv if str(token).strip()]
+    if not tokens:
+        return False
+    executable = Path(tokens[0]).name
+    if executable in OPENMATES_CLI_PROOF_EXECUTABLES:
+        return True
+    token_names = {Path(token).name for token in tokens}
+    if token_names & OPENMATES_CLI_PROOF_EXECUTABLES:
+        return True
+    joined = " ".join(tokens)
+    if any(marker in joined for marker in OPENMATES_CLI_PROOF_SOURCE_MARKERS):
+        return any(name in {"cli.ts", "cli.js", "openmates", "openmates-cli"} for name in token_names)
+    return False
+
+
+def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    """Upload reviewed proof media for final OpenCode response embedding."""
+
+    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
+        raise RuntimeError("OpenCode response-media publication requires passed privacy and frame review")
+    audio_status = manifest.get("narration_audio", {}).get("status")
+    if audio_status not in {"passed", "not_required"}:
+        raise RuntimeError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
+    if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
+        raise RuntimeError("OpenCode response-media publication requires the requested narration audio track")
+
+    video_path = Path(str(manifest.get("video_path") or ""))
+    if not video_path.is_absolute():
+        video_path = run_dir / video_path
+    if not video_path.is_file():
+        raise RuntimeError("Reviewed proof video does not exist")
+
+    alt = f"OpenMates proof video {manifest.get('spec_id', 'session-proof')}"
+    command = [
+        sys.executable,
+        str(PROJECT_ROOT / "scripts" / "opencode_response_media.py"),
+        str(video_path),
+        "--alt",
+        alt,
+        "--output",
+        "json",
+    ]
+    upload = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
+    if upload.returncode != 0:
+        raise RuntimeError(upload.stderr.strip() or upload.stdout.strip() or "response-media upload failed")
+    try:
+        result = json.loads(upload.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"response-media upload returned invalid JSON: {exc}") from exc
+    snippets = result.get("snippets") if isinstance(result, dict) else None
+    if not isinstance(snippets, dict) or not snippets.get("html"):
+        raise RuntimeError("response-media upload did not return an embeddable HTML snippet")
+
+    publication = manifest.setdefault("publication", {})
+    if not isinstance(publication, dict):
+        raise RuntimeError("Manifest publication record must be a mapping")
+    publication.update(
+        {
+            "status": "delivered",
+            "delivery_kind": "opencode_response_media",
+            "delivered_at": _now_iso(),
+            "expires_in": result.get("expires_in"),
+            "s3_key": result.get("key"),
+            "snippet_html": snippets.get("html"),
+            "snippet_markdown": snippets.get("markdown"),
+            "url": result.get("url"),
+        }
+    )
+    publication.pop("failure_reason", None)
+    publication.pop("next_retry_at", None)
+    (run_dir / "publication.json").write_text(
+        json.dumps(publication, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return manifest
+
+
 def cmd_proof_video(args: argparse.Namespace) -> None:
     """Produce, review, or publish narrated CLI and Playwright proof videos."""
     from spec_demo import (
         DemonstrationError,
         produce_cli_demonstration,
         produce_playwright_demonstration,
-        publish_reviewed_video,
         record_review,
     )
     data = _load_sessions()
@@ -7353,6 +7440,11 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         command_argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
         if not command_argv:
             raise DemonstrationError("proof-video produce requires an explicit command after --")
+        if not _command_invokes_openmates_cli(command_argv):
+            raise DemonstrationError(
+                "CLI proof videos are only allowed when the command visibly executes the OpenMates CLI. "
+                "Use deployed Playwright, Apple, or ordinary test evidence for generic scripts and smoke helpers."
+            )
         run_dir = args.run_dir or (
             PROJECT_ROOT / "test-results" / "proof-videos" / args.session / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         )
@@ -7465,20 +7557,26 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         _save_sessions(data)
         print(json.dumps({"status": result["review"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
         return
-    env = {**_load_env_pairs(ENV_FILE), **os.environ}
-    webhook = env.get("DISCORD_WEBHOOK_DEV_SMOKE", "")
-    if not webhook:
-        raise DemonstrationError("DISCORD_WEBHOOK_DEV_SMOKE is not configured")
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    result = publish_reviewed_video(
-        run_dir,
-        manifest,
-        webhook_url=webhook,
-        now=datetime.now(timezone.utc),
-    )
+    try:
+        result = _publish_proof_media_to_opencode_response(run_dir, manifest)
+    except RuntimeError as exc:
+        raise DemonstrationError(str(exc)) from exc
     _upsert_proof_video_record(session, run_dir, result)
     _save_sessions(data)
-    print(json.dumps({"status": result["publication"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
+    publication = result["publication"]
+    print(
+        json.dumps(
+            {
+                "status": publication["status"],
+                "delivery_kind": publication.get("delivery_kind"),
+                "run_dir": str(run_dir),
+                "snippet_html": publication.get("snippet_html"),
+                "snippet_markdown": publication.get("snippet_markdown"),
+            },
+            sort_keys=True,
+        )
+    )
 
 
 def _opencode_presence_store() -> PresenceStore:
@@ -9016,8 +9114,7 @@ def _record_visual_smoke_skip(session: dict, reason: str, commit_sha: str | None
 
 
 def _proof_video_delivery_required() -> bool:
-    env = {**_load_env_pairs(ENV_FILE), **os.environ}
-    return bool(str(env.get(PROOF_VIDEO_DELIVERY_ENV, "")).strip())
+    return False
 
 
 def _proof_video_runtime_files(files: list[str]) -> list[str]:
@@ -9082,7 +9179,7 @@ def _proof_video_manifest_problems(manifest: dict, *, delivery_required: bool) -
         problems.append("caption evidence is missing")
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
     if delivery_required and publication.get("status") != "delivered":
-        problems.append("Discord delivery has not completed")
+        problems.append("OpenCode response-media proof embed has not completed")
     return problems
 
 
@@ -9179,10 +9276,9 @@ def _enforce_proof_video_end_gate(
     if _latest_proof_video_record(session, expected_commit):
         print("Proof video gate: PASSED")
         return
-    delivery_hint = " and published to Discord" if _proof_video_delivery_required() else ""
     print("PROOF VIDEO REQUIRED — session cannot be ended yet.", file=sys.stderr)
     print("This session changed a product feature, example chat, or actively-debugged E2E proof surface.", file=sys.stderr)
-    print(f"Create a captioned proof video with bounded frame review{delivery_hint}:", file=sys.stderr)
+    print("Create a captioned proof video with bounded frame review:", file=sys.stderr)
     print("  python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts", file=sys.stderr)
     sys.exit(1)
 
@@ -9219,10 +9315,9 @@ def _record_proof_video_deploy_pending(
         records.append(record)
 
     _mutate_sessions(update)
-    delivery_hint = " and published to Discord" if _proof_video_delivery_required() else ""
     print("DEPLOYED BUT PROOF VIDEO REQUIRED — session cannot be marked complete yet.", file=sys.stderr)
     print("This deploy changed a product feature, example chat, or actively-debugged E2E proof surface.", file=sys.stderr)
-    print(f"Create a captioned proof video with bounded frame review{delivery_hint}:", file=sys.stderr)
+    print("Create a captioned proof video with bounded frame review:", file=sys.stderr)
     print("  python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts", file=sys.stderr)
     print("Then rerun session completion after the proof video is recorded.", file=sys.stderr)
 
@@ -13333,7 +13428,7 @@ def main() -> None:
     # proof-video
     p_proof_video = sub.add_parser(
         "proof-video",
-        help="Produce, review, and publish exact CLI proof videos to the dev-smoke Discord channel",
+        help="Produce, review, and upload exact proof videos for OpenCode response embedding",
     )
     proof_actions = p_proof_video.add_subparsers(dest="proof_action", required=True)
     p_proof_produce = proof_actions.add_parser("produce", help="Capture and render an exact CLI command")
@@ -13407,7 +13502,7 @@ def main() -> None:
     p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_review.add_argument("--run-dir", type=Path, required=True)
     p_proof_review.add_argument("--claims-json", required=True)
-    p_proof_publish = proof_actions.add_parser("publish", help="Publish a passed proof to dev-smoke Discord")
+    p_proof_publish = proof_actions.add_parser("publish", help="Upload a passed proof for OpenCode response embedding")
     p_proof_publish.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_publish.add_argument("--run-dir", type=Path, required=True)
 

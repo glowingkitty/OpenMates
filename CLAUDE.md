@@ -96,6 +96,7 @@ For each observed preventable process problem, check the relevant existing hooks
 - The helper uploads plaintext media to a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL; treat the URL as a temporary bearer token.
 - Use this only for intentionally shareable screenshots, diagrams, synthetic test media, or demo clips. Do not upload secrets, private user data, raw logs, production evidence, or anything that must remain available after 48 hours.
 - External video playback in OpenCode Web requires the `code.dev.openmates.org` CSP to allow `media-src https:`; if video controls render but playback fails, verify Caddy applied `deployment/dev_server/Caddyfile`.
+- When a screenshot or short clip materially helps explain a visual UI state, bug fix, visual-smoke result, proof-video, or implementation defect, include the uploaded media directly in the chat response instead of only naming an artifact path.
 
 ---
 

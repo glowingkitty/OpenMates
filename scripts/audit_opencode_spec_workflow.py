@@ -45,7 +45,7 @@ PLAN_PROMPT_TERMS = {
     "frame-only review",
     "proof-video",
     "narration audio is optional",
-    "Discord delivery",
+    "OpenCode response-media",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
     ("*", "deny"),
@@ -58,6 +58,8 @@ SKILL_TERMS = {
         "bottom-centered",
         "three to eight",
         "product_defect",
+        "opencode_response_media.py",
+        "actual `openmates` CLI",
     },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",
@@ -90,7 +92,7 @@ SKILL_TERMS = {
         "ownership",
         "handoff",
         "frame-only review",
-        "configured Discord publication",
+        "OpenCode response-media",
         "optional narration audio",
     },
     ".claude/skills/verify-spec/SKILL.md": {
@@ -103,9 +105,9 @@ SKILL_TERMS = {
         "subject commit",
         "material",
         "frame-only",
-        "publication_pending",
+        "response-media snippets",
         "intentional audio status",
-        "configured Discord delivery",
+        "OpenCode response-media",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
@@ -120,7 +122,7 @@ PROOF_REVIEWER_TERMS = {
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "Discord delivery", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",

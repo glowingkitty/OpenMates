@@ -39,7 +39,11 @@ audio is off by default and `--audio-path` is an explicit opt-in.
 
 ## Capture And Render
 
-- Use a real passing deployed Playwright result, Apple run, or real dev CLI command.
+- Use a real passing deployed Playwright result, Apple run, or real OpenMates CLI command.
+- Use CLI proof only when the actual `openmates` CLI is the product surface being
+  demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
+  helpers, Node scripts, or shell wrappers that do not visibly execute the
+  OpenMates CLI.
 - Browser/native capture must record an explicit ready timestamp after required UI
   is visible. Trim only to that marker minus the fixed lead; do not scan or crop
   until a product defect disappears.
@@ -68,7 +72,9 @@ loading, and broken navigation are product defects: add or strengthen a failing
 test, fix the product, deploy, and recapture. Never hide them through trimming,
 cropping, caption edits, or transcript edits.
 
-After a passed frame review, publish through the existing
-`sessions.py proof-video publish` path when Discord is configured. Confirm delivery
-before deleting disposable video/frame files and retain sanitized transcripts,
-captions, manifests, hashes, review evidence, and publication state.
+After a passed frame review, upload the approved proof video or representative
+proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt
+"..."` and paste the returned image Markdown or `<video>` HTML in the final
+OpenCode response. Do not send proof media to Discord unless the user explicitly
+asks for a separate Discord mirror. Retain sanitized transcripts, captions,
+manifests, hashes, review evidence, and response-media publication state.

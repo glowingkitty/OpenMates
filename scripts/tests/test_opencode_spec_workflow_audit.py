@@ -190,7 +190,7 @@ def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
         "frame-only review",
         "proof-video",
         "narration audio is optional",
-        "Discord delivery",
+        "OpenCode response-media",
     }.issubset(audit.PLAN_PROMPT_TERMS)
 
 
@@ -201,11 +201,13 @@ def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
             "proof_video_workflow.py start --current",
             "audio is off by default",
             "bottom-centered",
+            "opencode_response_media.py",
+            "actual `openmates` CLI",
         },
         ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
         ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
-        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "configured Discord publication", "optional narration audio"},
-        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending", "intentional audio status", "configured Discord delivery"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "OpenCode response-media", "optional narration audio"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "response-media snippets", "intentional audio status", "OpenCode response-media"},
     }
 
     for path, terms in expected.items():

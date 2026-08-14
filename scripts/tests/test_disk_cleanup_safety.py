@@ -110,11 +110,12 @@ def test_opencode_cleanup_includes_archived_sessions_and_bounds_todo_retention()
     assert "opencode session delete" in script
 
 
-def test_proof_cleanup_retries_then_expires_only_manifest_owned_media() -> None:
+def test_proof_cleanup_expires_only_manifest_owned_media_without_discord() -> None:
     script = (ROOT / "scripts" / "cleanup-proof-videos.sh").read_text(encoding="utf-8")
 
-    assert "sweep-publications" in script
-    assert "DISCORD_WEBHOOK_DEV_SMOKE" in script
+    assert "sweep-expired" in script
+    assert "DISCORD_WEBHOOK_DEV_SMOKE" not in script
+    assert "sweep-publications" not in script
     assert "test-results/proof-videos" in script
     assert "rm " not in script
     assert "docker" not in script

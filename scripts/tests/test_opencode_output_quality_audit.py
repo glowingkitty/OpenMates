@@ -153,6 +153,27 @@ against `https://app.dev.openmates.org`.
     assert issues == []
 
 
+def test_rejects_required_discord_proof_delivery_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    skill = tmp_path / ".claude" / "skills" / "create-demo-video" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(
+        "After review, proof-video publish` path when Discord is configured. "
+        "configured Discord delivery",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text(
+        "Use opencode_response_media.py in the final OpenCode response. "
+        "Do not send proof media to Discord unless the user explicitly asks. "
+        "Use actual `openmates` CLI only, not generic smoke scripts.",
+        encoding="utf-8",
+    )
+
+    issues = audit._audit_proof_media_guidance(tmp_path)
+
+    assert any("still requires Discord" in issue.message for issue in issues)
+
+
 def test_requires_recommendations_and_examples_for_clarifying_questions(tmp_path: Path) -> None:
     audit = load_audit_module()
     write_core(tmp_path, CLARIFYING_QUESTION_GUIDANCE)

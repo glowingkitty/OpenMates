@@ -210,7 +210,7 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
     if evidence.get("publication_status") != "delivered":
-        failures.append("demonstration: Discord delivery has not completed")
+        failures.append("demonstration: OpenCode response-media proof embed has not completed")
 
     review_attempts = evidence.get("review_attempts")
     if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):

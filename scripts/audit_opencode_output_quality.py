@@ -116,6 +116,37 @@ REQUIRED_RETROSPECTIVE_PHRASES = (
     "clarification-only turns",
     "progress updates",
 )
+PROOF_MEDIA_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    "docs/contributing/guides/spec-driven-development.md",
+    ".claude/skills/create-demo-video/SKILL.md",
+    ".agents/skills/create-demo-video/SKILL.md",
+    ".claude/skills/plan-from-spec/SKILL.md",
+    ".agents/skills/plan-from-spec/SKILL.md",
+    ".claude/skills/tasks-from-spec/SKILL.md",
+    ".agents/skills/tasks-from-spec/SKILL.md",
+    ".claude/skills/verify-spec/SKILL.md",
+    ".agents/skills/verify-spec/SKILL.md",
+    ".claude/skills/deploy/SKILL.md",
+    ".agents/skills/deploy/SKILL.md",
+)
+FORBIDDEN_PROOF_DISCORD_PHRASES = (
+    "confirmed Discord delivery is a hard completion gate",
+    "require confirmed Discord delivery",
+    "configured Discord delivery",
+    "configured Discord publication",
+    "Discord publication attempt",
+    "proof-video publish` path when Discord is configured",
+    "Publish a passed proof to dev-smoke Discord",
+)
+REQUIRED_PROOF_MEDIA_TERMS = (
+    "opencode_response_media.py",
+    "final OpenCode response",
+    "Do not send proof media to Discord unless the user explicitly asks",
+    "actual `openmates` CLI",
+    "generic smoke scripts",
+)
 FORBIDDEN_RETROSPECTIVE_CLAUSE = re.compile(
     r"^(?:(?:this (?:section|retrospective)|agents?)\s+(?:must|should)\s+)?"
     r"(?:include|summarize|report|repeat)\b.*\b(?:implementation results|changed files|"
@@ -232,6 +263,27 @@ def _audit_scan_first_guidance(path: str, text: str) -> list[AuditIssue]:
     if not missing:
         return []
     return [AuditIssue(path, f"scan-first final-answer guidance missing: {missing[0]}")]
+
+
+def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
+    if not (root / ".claude/skills/create-demo-video/SKILL.md").exists():
+        return []
+    issues: list[AuditIssue] = []
+    combined: list[str] = []
+    for rel_path in PROOF_MEDIA_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        combined.append(text)
+        for phrase in FORBIDDEN_PROOF_DISCORD_PHRASES:
+            if phrase in text:
+                issues.append(AuditIssue(rel_path, f"proof media guidance still requires Discord delivery: {phrase}"))
+    all_text = "\n".join(combined)
+    for term in REQUIRED_PROOF_MEDIA_TERMS:
+        if term not in all_text:
+            issues.append(AuditIssue("proof-media-guidance", f"proof media guidance missing: {term}"))
+    return issues
 
 
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
@@ -354,6 +406,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         )
     if len(set(retrospective_bodies.values())) > 1:
         issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
+    issues.extend(_audit_proof_media_guidance(root))
     return issues
 
 

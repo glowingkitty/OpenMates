@@ -45,11 +45,10 @@ Each task must include:
 - Whether it is independently deployable
 
 For required proof videos, put capture, exact burned-in captions, optional narration audio,
-local privacy scan, frame-only review, repair
-routing, and configured Discord publication after applicable normal green gates.
-Keep `publication_pending` retryable but incomplete while a Discord destination is
-configured, and add a final evidence task that retains sanitized transcripts and
-optional audio provenance while applying the approved video cleanup policy.
+local privacy scan, frame-only review, repair routing, and OpenCode response-media
+embedding after applicable normal green gates. Add a final evidence task that
+retains sanitized transcripts, response-media snippets, and optional audio
+provenance while applying the approved video cleanup policy.
 
 For shared product surfaces, task dependencies must enforce this order: CLI
 implementation/testing against the dev server first, npm SDK and pip SDK

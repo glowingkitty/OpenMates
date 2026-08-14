@@ -332,7 +332,7 @@ Complements the planning template above with the end-to-end lifecycle.
 7. **Verify** — Work through Acceptance Criteria checklist. Run applicable pre-deploy checks for full-spec work.
 8. **Deploy for verification** — Deploy when live Playwright or dev-server evidence is required. Rebuild Docker if backend changed.
 9. **Demonstrate** — New feature implementations, new hardcoded example chats, and actively debugged failed-to-green E2E work turn real green evidence into captioned proof videos with bounded frame review. Define the transcript outline and expected proof during planning, but write the exact tutorial transcript only after implementation is green. Narration audio is optional.
-10. **Publish** — Publish sanitized proof videos after frame review; confirmed Discord delivery is required before completion when the destination is configured.
+10. **Publish** — Upload sanitized proof videos or screenshots after frame review with `scripts/opencode_response_media.py`, then embed the returned Markdown/HTML snippet in the final OpenCode response. Do not send proof media to Discord unless the user explicitly asks for a separate Discord mirror.
 11. **Confirm** — Run final `verify-spec`, provide the task summary, handle required user confirmation, and end the session.
 
 If a test fails and you're stuck after 2 attempts: STOP and report.

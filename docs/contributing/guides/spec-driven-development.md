@@ -128,10 +128,10 @@ For full specs:
     evidence.
 16. A required demonstration review must pass for the current subject commit
     before completion. One initial review plus three classified repair retries
-    are allowed. Discord publication runs after review; configured destinations
-    require delivered status before completion. `publication_pending` does not
-    invalidate implementation or review evidence, but it keeps configured proof
-    work incomplete until delivery succeeds.
+    are allowed. Upload the approved proof media with `scripts/opencode_response_media.py`
+    after review and embed the returned Markdown/HTML snippet in the final
+    OpenCode response. Do not send proof media to Discord unless the user
+    explicitly asks for a separate Discord mirror.
 
 An active implementation spec is non-interruptible. Continue from its current
 handoff until verification completes; task size, context pressure, test failure,
@@ -175,8 +175,9 @@ The active OpenCode agent receives a frame-only review bundle, never the full
 video. Deterministic text privacy scanning runs before selected frames enter agent
 context. Review failures are classified as implementation, test coverage,
 recording, narration, composition, or environment defects and return only to the
-responsible stage. Discord publication is retryable, but delivered status is a
-completion gate when the proof destination is configured.
+responsible stage. A proof whose response-media upload is still waiting records
+`publication_pending`; completed proof embeds approved media through the private
+48-hour OpenCode response-media bucket.
 
 ## Apple Impact And Parity
 
