@@ -446,10 +446,33 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
                     }
                 ],
             },
+            {
+                "session_id": "one",
+                "time_created": 3_000,
+                "tools": [
+                    {
+                        "name": "bash",
+                        "args": {},
+                        "status": "error",
+                        "error": "[OpenMates child ownership guard] Reason: child role read_only may read the parent worktree but may not mutate it",
+                    }
+                ],
+            },
         ]
     )
 
-    assert report["tool_error_counts"] == {"child_role": 1, "grep_output_too_large": 1}
+    assert report["tool_error_counts"] == {
+        "child_mutation_block": 1,
+        "child_role_unknown": 1,
+        "grep_output_too_large": 1,
+    }
+
+
+def test_unavailable_local_firecrawl_parse_is_denied() -> None:
+    audit = load_audit_module()
+    config = audit._load_config()
+
+    assert config["permission"]["firecrawl_firecrawl_parse"] == "deny"
 
 
 def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
@@ -460,7 +483,8 @@ def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
             "conservative_batchable_turns": 81,
             "standalone_todo_turns": 82,
             "tool_error_counts": {
-                "child_role": 10,
+                "child_role_unknown": 10,
+                "child_mutation_block": 999,
                 "missing_session": 6,
                 "root_path_routing": 5,
                 "other": 999,

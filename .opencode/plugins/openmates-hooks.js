@@ -24,7 +24,6 @@ const READ_ONLY_SUBAGENTS = new Set([
   "embed-rendering-investigator",
   "encryption-flow-tracer",
   "explore",
-  "general",
   "issue-forensics",
   "legal-compliance-auditor",
   "main-processor-guru",
@@ -33,6 +32,7 @@ const READ_ONLY_SUBAGENTS = new Set([
   "skill-integration-doctor",
   "test-failure-triager",
 ]);
+const WRITABLE_SUBAGENTS = new Set(["general"]);
 const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
@@ -346,6 +346,13 @@ function initialPresenceForTest(sessionID, { questionCapability = "unsupported",
   };
 }
 
+function childRoleFromAgent(agent) {
+  if (REVIEWER_SUBAGENTS.has(agent)) return "reviewer";
+  if (READ_ONLY_SUBAGENTS.has(agent)) return "read_only";
+  if (WRITABLE_SUBAGENTS.has(agent)) return "writable";
+  return "unknown";
+}
+
 function eventSessionID(event) {
   const properties = event?.properties || {};
   return properties.sessionID || properties.info?.sessionID || properties.info?.id || properties.part?.sessionID || "";
@@ -421,7 +428,14 @@ function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
   }
   if (["session.created", "session.updated"].includes(event.type)) {
     const parentID = properties.info?.parentID;
-    return parentID ? { ...state, parent_id: parentID, top_level_session_id: parentID } : state;
+    if (!parentID) return state;
+    const explicitRole = childRoleFromAgent(properties.info?.agent || "");
+    return {
+      ...state,
+      parent_id: parentID,
+      top_level_session_id: parentID,
+      child_role: explicitRole === "unknown" ? state.child_role : explicitRole,
+    };
   }
   if (event.type === "openmates.child.role") {
     const role = properties.role;
@@ -631,6 +645,7 @@ async function openCodeSession(client, sessionID) {
 async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
   let currentID = sessionID;
   let inheritedParentRoute = false;
+  let childRole = childRoles?.[sessionID]?.role || "unknown";
   const visited = new Set();
   for (let depth = 0; currentID && depth < 12 && !visited.has(currentID); depth += 1) {
     visited.add(currentID);
@@ -643,12 +658,15 @@ async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = 
         topLevelOpenCodeSessionID: currentID,
         requestingOpenCodeSessionID: sessionID,
         inheritedParentRoute,
-        childRole: childRoles?.[sessionID]?.role || "unknown",
+        childRole,
         session: record.session,
       };
     }
     const info = await getSession(currentID);
     const parentID = info?.parentID || "";
+    if (currentID === sessionID && parentID && childRole === "unknown") {
+      childRole = childRoleFromAgent(info?.agent || "");
+    }
     if (parentID) inheritedParentRoute = true;
     currentID = parentID;
   }
@@ -659,7 +677,7 @@ async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = 
     topLevelOpenCodeSessionID: currentID || sessionID || "",
     requestingOpenCodeSessionID: sessionID || "",
     inheritedParentRoute,
-    childRole: childRoles?.[sessionID]?.role || "unknown",
+    childRole,
     session: null,
   };
 }
@@ -710,7 +728,7 @@ function isReadOnlyChildBash(command) {
     return quote !== "";
   })();
   if (hasUnsafeExpansion || ["<(", ">("].some((token) => safeCommand.includes(token)) || extractWriteTargets(safeCommand).length > 0) return false;
-  const readOnlyCommands = new Set(["head", "jq", "pgrep", "ps", "pwd", "rg", "tail", "wc"]);
+  const readOnlyCommands = new Set(["cat", "cut", "head", "jq", "nl", "pgrep", "ps", "pwd", "rg", "tail", "uniq", "wc"]);
   const readOnlyGitCommands = new Set(["blame", "branch", "describe", "diff", "log", "ls-files", "ls-tree", "merge-base", "name-rev", "rev-parse", "show", "status"]);
   const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
   const readOnlyDebugSpecs = {
@@ -776,7 +794,7 @@ function isReadOnlyChildBash(command) {
   };
 
   return commandSegmentTokens(safeCommand.replace(/\\\s*\n/g, " ")).every((tokens) => {
-    if (tokens.some((token) => isAssignment(token)) || basename(unquote(tokens[0] || "")) === "env") return false;
+    if (isAssignment(tokens[0] || "") || basename(unquote(tokens[0] || "")) === "env") return false;
     const directScript = unquote(tokens[0] || "").replace(/^\.\//, "");
     if (directScript === "scripts/issues.py") return issueCommandIsReadOnly(tokens.slice(1));
     const invocation = normalizedInvocation(tokens);
@@ -785,6 +803,16 @@ function isReadOnlyChildBash(command) {
     if (commandName === "rg") {
       const executionOptions = ["--pre", "--pre-glob", "--hostname-bin", "--search-zip"];
       return !args.some((arg) => executionOptions.some((option) => arg === option || arg.startsWith(`${option}=`)));
+    }
+    if (commandName === "sort") {
+      const mutatingOrExecutingOption = args.some((arg) => (
+        /^-[^-]*o/.test(arg)
+        || arg === "--output"
+        || arg.startsWith("--output=")
+        || arg === "--compress-program"
+        || arg.startsWith("--compress-program=")
+      ));
+      return !mutatingOrExecutingOption;
     }
     if (readOnlyCommands.has(commandName)) return true;
     if (commandName === "git") {
@@ -1491,10 +1519,8 @@ function taskChildClassificationForTest(input, output) {
   const sessionID = String(metadata.sessionId || "");
   const subagentType = String((input?.args || {}).subagent_type || "");
   if (!parentID || parentID !== input?.sessionID || !sessionID) return null;
-  const role = REVIEWER_SUBAGENTS.has(subagentType)
-    ? "reviewer"
-    : (READ_ONLY_SUBAGENTS.has(subagentType) ? "read_only" : "");
-  return role ? { sessionID, parentID, role } : null;
+  const role = childRoleFromAgent(subagentType);
+  return role === "unknown" ? null : { sessionID, parentID, role };
 }
 
 function toolNameMatches(tool, expected) {
@@ -2093,12 +2119,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 };
 
 OpenMatesHooks.test = Object.freeze({
+  childRoleFromAgent,
   childMutationDecisionForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
   editedFilesForTest,
   initialPresenceForTest,
+  isReadOnlyChildBash,
   isTodoWriteTool,
   presenceIsLive,
   readConflictWarningForTest,

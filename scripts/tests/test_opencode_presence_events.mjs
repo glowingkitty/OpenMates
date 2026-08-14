@@ -6,6 +6,8 @@
  * Run: node --test scripts/tests/test_opencode_presence_events.mjs.
  */
 
+// contract-test-file: tooling
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -89,6 +91,16 @@ test("parent grouping never infers a child role", () => {
   assert.equal(state.child_role, "unknown");
   state = reduce(state, { type: "openmates.child.role", properties: { sessionID: "ses-child", parentID: "ses-parent", role: "reviewer" } });
   assert.equal(state.child_role, "reviewer");
+});
+
+test("session agent metadata explicitly classifies a child before its first tool", () => {
+  let state = initialPresenceForTest("ses-child");
+  state = reduce(state, {
+    type: "session.created",
+    properties: { info: { id: "ses-child", parentID: "ses-parent", agent: "explore" } },
+  });
+  assert.equal(state.parent_id, "ses-parent");
+  assert.equal(state.child_role, "read_only");
 });
 
 test("session closure clears pending request identities", () => {

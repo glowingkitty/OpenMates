@@ -553,8 +553,10 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
             if tool.get("status") != "error":
                 continue
             error = str(tool.get("error") or "")
-            if "child ownership guard" in error:
-                category = "child_role"
+            if "child ownership guard" in error and "child role unknown" in error:
+                category = "child_role_unknown"
+            elif "child ownership guard" in error:
+                category = "child_mutation_block"
             elif "explicitly references the root checkout" in error:
                 category = "root_path_routing"
             elif "no active sessions.py worktree" in error:
@@ -593,7 +595,7 @@ def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[A
     batchable = int(telemetry.get("conservative_batchable_turns") or 0)
     standalone_todos = int(telemetry.get("standalone_todo_turns") or 0)
     error_counts = telemetry.get("tool_error_counts") if isinstance(telemetry.get("tool_error_counts"), dict) else {}
-    routing_errors = sum(int(error_counts.get(key) or 0) for key in ("child_role", "missing_session", "root_path_routing"))
+    routing_errors = sum(int(error_counts.get(key) or 0) for key in ("child_role_unknown", "missing_session", "root_path_routing"))
 
     batchable_budget = MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY * days
     if batchable > batchable_budget:
@@ -611,7 +613,7 @@ def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[A
     if routing_errors > routing_budget:
         issues.append(AuditIssue(
             "opencode-telemetry",
-            f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role/missing_session/root_path_routing categories",
+            f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role_unknown/missing_session/root_path_routing categories",
         ))
     return issues
 

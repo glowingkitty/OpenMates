@@ -37,6 +37,15 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _resolve_opencode_bin() -> str | None:
+    candidates = [
+        os.environ.get("OPENCODE_BIN"),
+        str(Path.home() / ".npm-global" / "bin" / "opencode"),
+        shutil.which("opencode"),
+    ]
+    return next((candidate for candidate in candidates if candidate and os.access(candidate, os.X_OK)), None)
+
+
 def _free_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -85,6 +94,8 @@ class FixtureProvider:
     def __init__(self) -> None:
         self.requests: list[dict] = []
         self.warning_seen = threading.Event()
+        self.child_tool_seen = threading.Event()
+        self.child_tool_outputs: list[str] = []
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -132,7 +143,24 @@ class FixtureProvider:
                 self.send_header("Connection", "close")
                 self.end_headers()
                 try:
-                    if "PRESENCE_TOOL" in user_text and not tool_after_user:
+                    if "PRESENCE_TASK" in user_text and not tool_after_user:
+                        self._chunk({"role": "assistant", "tool_calls": [{"index": 0, "id": "call_presence_task", "type": "function", "function": {"name": "task", "arguments": '{"description":"Inspect fixture","prompt":"PRESENCE_CHILD","subagent_type":"explore"}'}}]})
+                        self._finish("tool_calls")
+                    elif "PRESENCE_CHILD" in user_text and not tool_after_user:
+                        self._chunk({"role": "assistant", "tool_calls": [{"index": 0, "id": "call_presence_child_bash", "type": "function", "function": {"name": "bash", "arguments": '{"command":"rg -o \\"fixture\\" fixture.txt | wc -l"}'}}]})
+                        self._finish("tool_calls")
+                    elif "PRESENCE_CHILD" in user_text and tool_after_user:
+                        tool_outputs = [
+                            _message_text(message).strip()
+                            for message in messages
+                            if isinstance(message, dict) and message.get("role") == "tool"
+                        ]
+                        fixture.child_tool_outputs = tool_outputs
+                        if "1" in tool_outputs and "OpenMates child ownership guard" not in serialized:
+                            fixture.child_tool_seen.set()
+                        self._chunk({"role": "assistant", "content": "child inspection complete"})
+                        self._finish("stop")
+                    elif "PRESENCE_TOOL" in user_text and not tool_after_user:
                         self._chunk({"role": "assistant", "tool_calls": [{"index": 0, "id": "call_presence_read", "type": "function", "function": {"name": "read", "arguments": '{"filePath":"fixture.txt"}'}}]})
                         self._finish("tool_calls")
                     elif "PRESENCE_ABORT" in user_text:
@@ -173,6 +201,7 @@ def _copy_fixture_files(fixture: Path) -> None:
     files = (
         ".opencode/plugins/openmates-hooks.js",
         ".codex/hooks/claude-hook-bridge.sh",
+        "scripts/safe_bash_guard.py",
         "scripts/sessions.py",
         "scripts/opencode_presence_store.py",
     )
@@ -215,10 +244,8 @@ def _presence(fixture: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {"sessions": {}}
 
 
-def _create_session(base_url: str, fixture: Path, title: str, parent_id: str | None = None) -> dict:
+def _create_session(base_url: str, fixture: Path, title: str) -> dict:
     body = {"title": title}
-    if parent_id:
-        body["parentID"] = parent_id
     query = urllib.parse.urlencode({"directory": str(fixture)})
     return _request("POST", f"{base_url}/session?{query}", body)
 
@@ -233,7 +260,7 @@ def _prompt(base_url: str, fixture: Path, session_id: str, text: str) -> None:
 
 
 def _run_isolated() -> dict:
-    opencode = shutil.which("opencode")
+    opencode = _resolve_opencode_bin()
     if not opencode:
         raise AssertionError("OpenCode CLI is not installed")
     provider = FixtureProvider()
@@ -265,7 +292,7 @@ def _run_isolated() -> dict:
                     "models": {MODEL_ID: {"name": "Presence Fixture"}},
                 }
             },
-            "permission": {"read": "ask", "bash": "deny", "edit": "deny", "write": "deny"},
+            "permission": {"read": "ask", "bash": "allow", "task": "allow", "edit": "deny", "write": "deny"},
             "mcp": {},
         }
         (fixture / "opencode.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
@@ -292,7 +319,19 @@ def _run_isolated() -> dict:
             text=True,
         )
         try:
-            _wait_for("isolated OpenCode server", lambda: _request("GET", f"{base_url}/session?{urllib.parse.urlencode({'directory': str(fixture)})}") is not None, timeout=30)
+            def server_ready() -> bool:
+                if process and process.poll() is not None:
+                    stdout = process.stdout.read() if process.stdout else ""
+                    stderr = process.stderr.read() if process.stderr else ""
+                    detail = (stderr or stdout or "no OpenCode process output")[-2_000:]
+                    raise AssertionError(f"Isolated OpenCode server exited {process.returncode}: {detail}")
+                return _request(
+                    "GET",
+                    f"{base_url}/session?{urllib.parse.urlencode({'directory': str(fixture)})}",
+                    timeout=1,
+                ) is not None
+
+            _wait_for("isolated OpenCode server", server_ready, timeout=30)
 
             def collect_events() -> None:
                 url = f"{base_url}/event?{urllib.parse.urlencode({'directory': str(fixture)})}"
@@ -341,7 +380,14 @@ def _run_isolated() -> dict:
             busy = _wait_for("busy presence", lambda: _presence(fixture).get("sessions", {}).get(first["id"], {}).get("execution") == "busy")
             assert busy
             query = urllib.parse.urlencode({"directory": str(fixture)})
-            owner_messages_before = _request("GET", f"{base_url}/session/{first['id']}/message?{query}")
+            owner_messages_before = _wait_for(
+                "owner assistant message before collision snapshot",
+                lambda: (
+                    messages
+                    if len(messages := _request("GET", f"{base_url}/session/{first['id']}/message?{query}")) >= 2
+                    else None
+                ),
+            )
             owner_message_ids = [message["info"]["id"] for message in owner_messages_before]
 
             _prompt(base_url, fixture, second["id"], "PRESENCE_TOOL")
@@ -377,28 +423,27 @@ def _run_isolated() -> dict:
                 second_trace = [entry for entry in event_trace if entry["session_id"] == second["id"]][-30:]
                 raise AssertionError(f"{error}; presence={json.dumps(second_record, sort_keys=True)}; events={json.dumps(second_trace, sort_keys=True)}") from error
 
-            child = _create_session(base_url, fixture, f"{SYNTHETIC_PREFIX}child", parent_id=second["id"])
-            created_sessions.append(child["id"])
-            subprocess.run(
-                ["python3", "scripts/sessions.py", "presence", "child-role", "--session", child["id"], "--parent", second["id"], "--role", "reviewer"],
-                cwd=fixture,
-                env=env,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            _prompt(base_url, fixture, child["id"], "PRESENCE_CHILD")
-            child_record = _wait_for(
-                "explicit child grouping",
-                lambda: (
-                    record
-                    if (record := _presence(fixture).get("sessions", {}).get(child["id"], {})).get("parent_id") == second["id"]
-                    and record.get("child_role") == "reviewer"
-                    else None
+            _prompt(base_url, fixture, second["id"], "PRESENCE_TASK")
+            child_id, child_record = _wait_for(
+                "task child role before parent completion",
+                lambda: next(
+                    (
+                        (child_id, record)
+                        for child_id, record in _presence(fixture).get("sessions", {}).items()
+                        if child_id not in {first["id"], second["id"]}
+                        and record.get("parent_id") == second["id"]
+                        and record.get("child_role") == "read_only"
+                    ),
+                    None,
                 ),
             )
+            created_sessions.append(child_id)
             assert child_record["parent_id"] == second["id"]
-            assert child_record["child_role"] == "reviewer"
+            assert child_record["child_role"] == "read_only"
+            try:
+                _wait_for("task child read-only shell completion", provider.child_tool_seen.is_set, timeout=30)
+            except AssertionError as error:
+                raise AssertionError(f"{error}; child_tool_outputs={provider.child_tool_outputs!r}") from error
 
             _request("POST", f"{base_url}/session/{first['id']}/abort?{query}")
             stopped = _wait_for(
@@ -430,6 +475,8 @@ def _run_isolated() -> dict:
                 "event_types": sorted(set(events) & observed_events),
                 "question_capability": snapshot["sessions"][second["id"]]["capabilities"]["question"],
                 "collision_warning_seen": provider.warning_seen.is_set(),
+                "task_child_role": child_record["child_role"],
+                "task_child_shell_seen": provider.child_tool_seen.is_set(),
                 "owner_chat_unchanged": True,
                 "bridge_isolated": str(fixture) in (fixture / ".codex" / "hooks" / "claude-hook-bridge.sh").read_text(encoding="utf-8"),
                 "normal_server_used": False,

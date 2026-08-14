@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-presence-coordination
 title: Real-Time Agent Presence and Collision Coordination
-status: verified
+status: implementing
 
 goal: >
   Give parallel OpenCode chats an accurate, privacy-minimal view of which work is
@@ -23,6 +23,12 @@ scope:
     - Associate top-level OpenCode chats, explicitly classified child roles,
       repository sessions, worktrees, task keys, and path intent without storing
       message bodies, reasoning, free-form titles or todos, or tool output.
+    - Resolve a task child's explicit role from the OpenCode session's agent field
+      before its first tool call, then reconcile the persisted role marker after
+      task completion without inferring ownership from parentID alone.
+    - Permit bounded read-only child shell pipelines used for source and artifact
+      inspection while continuing to reject writes, interpreter evaluation,
+      command substitution, redirection, and utility options that can mutate files.
     - Make sessions.py status show genuinely current work by default and expose
       explicit all, conflict, and single-session views.
     - Record exact write intent immediately before an edit and use existing edit
@@ -192,6 +198,11 @@ decisions:
     decision: Do not use unconditional experimental.chat.system.transform injection in the first implementation.
     reason: It may repeat during tool loops, invalidate prompt caches, and add context when no collision exists.
     decided_at: "2026-08-04T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Use the OpenCode child session agent field as explicit pre-tool role metadata and keep parentID insufficient on its own.
+    reason: OpenCode creates task child sessions with both parentID and agent before prompting, while task-result metadata arrives only after the child finishes.
+    decided_at: "2026-08-14T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -365,6 +376,20 @@ scenarios:
       - The second session sees only the relevant collision through a supported hook output or error channel.
       - The first session receives no injected coordination message or resumed turn.
       - Only sessions created by the run are removed, and startup scavenging cleans abandoned synthetic sessions from earlier runs.
+  - id: S-12
+    title: Diagnostic child is classified before its first inspection command
+    given:
+      - A top-level chat launches an OpenCode task child whose session records parentID and agent explore.
+      - No persisted OpenMates child-role marker exists yet.
+    when:
+      - The child runs its first bounded read-only source or artifact inspection pipeline.
+    then:
+      - Routing derives the explicit read_only role from the child session agent field before authorization.
+      - Common read-only filters and escaped literal regex syntax remain available.
+      - File mutation, redirection, interpreter evaluation, command substitution, and mutating utility options remain blocked.
+      - An unrecognized child agent remains unknown and receives no inferred ownership from parentID.
+      - Telemetry separates unknown-role routing defects from expected child mutation blocks.
+      - The unavailable local Firecrawl parse path is denied instead of failing after invocation.
 
 acceptance_criteria:
   - id: AC-1
@@ -471,6 +496,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PYTEST-PRIVACY]
+  - id: AC-14
+    scenario: S-12
+    text: Task children receive an explicit role from OpenCode session agent metadata before their first tool call, observed read-only inspection pipelines pass without weakening mutation guards, and telemetry separates expected blocks from routing defects.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NODE-CHILD-GUARD, T-LIVE-OPENCODE]
 
 assumptions:
   - id: A-1
@@ -657,6 +690,24 @@ tests:
       required: true
       expected: pass
       evidence: {status: passed, command: "node --test scripts/tests/test_opencode_presence_collisions.mjs", run_id: "local-green-20260805-collisions", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
+  - id: T-NODE-CHILD-GUARD
+    type: unit
+    file: scripts/tests/test_opencode_task_child_roles.mjs
+    command: node --test scripts/tests/test_opencode_task_child_roles.mjs scripts/tests/test_opencode_presence_collisions.mjs
+    covers: [AC-6, AC-14]
+    assertions:
+      - an explore child derives read_only from session agent metadata before task completion metadata exists
+      - a general child derives writable and an unrecognized child remains unknown
+      - exact read-only commands observed in the failing child transcript are allowed
+      - redirection, interpreter evaluation, command substitution, and mutating filter options remain blocked
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed, command: "node --test scripts/tests/test_opencode_task_child_roles.mjs scripts/tests/test_opencode_presence_collisions.mjs scripts/tests/test_opencode_presence_events.mjs", run_id: "local-red-20260814-child-guard", subject_commit: "ac76b5b214e0503f8a59df3a2aa471c964c46b88", timestamp: "2026-08-14T15:45:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
   - id: T-PYTEST-STATUS
     type: pytest
     file: scripts/tests/test_sessions_presence_status.py
@@ -735,14 +786,15 @@ tests:
     type: unit
     file: scripts/verify_opencode_presence_live.py
     command: python3 scripts/verify_opencode_presence_live.py --isolated
-    covers: [AC-1, AC-2, AC-4, AC-6, AC-7, AC-8, AC-10, AC-11]
+    covers: [AC-1, AC-2, AC-4, AC-6, AC-7, AC-8, AC-10, AC-11, AC-14]
     assertions:
       - verifier refuses the normal development server and starts a random-port server with temporary XDG storage, config, fixture repository, and synthetic prefix
       - deterministic local streaming provider drives known text, tool, permission, delay, completion, resume, and abort sequences without an external model
       - actual top-level sessions become busy and refresh streaming heartbeat within two seconds
       - actual completed response becomes idle-after-response and is excluded from currently working
       - a second user turn resumes the same session identity
-      - SDK-created child session is grouped under its parent, while role remains explicitly supplied by the test
+      - an actual task-created explore child derives read_only from session agent metadata before parent task completion
+      - the task child's first bounded read-only shell inspection executes through inherited worktree routing
       - delayed fixture stream plus abort request deterministically emits the installed runtime terminal sequence and stopped presence
       - runtime capability probe records installed permission support and explicit question support or unsupported status through the implementation transport
       - deterministic provider tool calls exercise actual runtime read and edit hook dispatch on controlled fixture paths
@@ -755,7 +807,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: passed, command: "python3 scripts/verify_opencode_presence_live.py --isolated", run_id: "local-green-20260805-live", subject_commit: "2c3512629a5b421f1cc14d4106618a761728856c", timestamp: "2026-08-05T01:11:31Z"}
+      evidence: {status: pending}
 
 verifications:
   - id: V-PASSIVE-OBSERVATION
@@ -836,6 +888,14 @@ implementation_plan:
       reason: Verify concurrent persistence, expiry, and task claims.
     - path: scripts/tests/test_opencode_presence_collisions.mjs
       reason: Verify relevance and non-interruption policy.
+    - path: scripts/tests/test_opencode_task_child_roles.mjs
+      reason: Verify pre-tool child-role derivation and the observed read-only command corpus.
+    - path: scripts/audit_opencode_output_quality.py
+      reason: Separate unknown child-role routing defects from expected inherited-child mutation blocks.
+    - path: scripts/tests/test_opencode_output_quality_audit.py
+      reason: Verify routing telemetry categories and budgets remain actionable.
+    - path: opencode.json
+      reason: Deny the unavailable local Firecrawl parse capability while retaining other ask-gated Firecrawl tools.
     - path: scripts/tests/test_sessions_presence_status.py
       reason: Verify live status views.
     - path: scripts/tests/test_opencode_presence_privacy.py
@@ -967,6 +1027,23 @@ tasks:
     ownership:
       files: [docs/contributing/guides/concurrent-sessions.md, docs/architecture/agent-tooling-parity.md]
       shared_files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py, docs/specs/agent-presence-coordination/spec.yml]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: true
+  - id: TASK-7
+    title: Eliminate diagnostic child ownership false positives
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-6, S-12]
+      acceptance_criteria: [AC-6, AC-14]
+    expected_files: [.opencode/plugins/openmates-hooks.js, opencode.json, scripts/audit_opencode_output_quality.py, scripts/tests/test_opencode_presence_events.mjs, scripts/tests/test_opencode_presence_collisions.mjs, scripts/tests/test_opencode_task_child_roles.mjs, scripts/tests/test_opencode_output_quality_audit.py, scripts/verify_opencode_presence_live.py, docs/specs/agent-presence-coordination/spec.yml]
+    verification: [T-NODE-EVENTS, T-NODE-CHILD-GUARD, T-LIVE-OPENCODE]
+    verification_ids: [T-NODE-EVENTS, T-NODE-CHILD-GUARD, T-LIVE-OPENCODE]
+    dependencies: [TASK-6]
+    ownership:
+      files: [scripts/audit_opencode_output_quality.py, scripts/tests/test_opencode_presence_events.mjs, scripts/tests/test_opencode_presence_collisions.mjs, scripts/tests/test_opencode_task_child_roles.mjs, scripts/tests/test_opencode_output_quality_audit.py, scripts/verify_opencode_presence_live.py]
+      shared_files: [.opencode/plugins/openmates-hooks.js, opencode.json, docs/specs/agent-presence-coordination/spec.yml]
     blockers: []
     follow_up_tasks: []
     independently_deployable: true

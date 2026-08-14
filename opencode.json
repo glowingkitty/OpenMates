@@ -21,7 +21,7 @@
     "firecrawl_firecrawl_monitor_list": "ask",
     "firecrawl_firecrawl_monitor_run": "ask",
     "firecrawl_firecrawl_monitor_update": "ask",
-    "firecrawl_firecrawl_parse": "ask",
+    "firecrawl_firecrawl_parse": "deny",
     "firecrawl_firecrawl_research_inspect_paper": "ask",
     "firecrawl_firecrawl_research_read_paper": "ask",
     "firecrawl_firecrawl_research_related_papers": "ask",
