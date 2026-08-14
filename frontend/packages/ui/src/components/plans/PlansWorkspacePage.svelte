@@ -38,6 +38,7 @@
   let actionId = $state<string | null>(null);
   let promptValue = $state('');
   let searchTerm = $state('');
+  let showPlanFilters = $state(false);
   let pendingArchive = $state<ArchiveConfirmation | null>(null);
   let lastArchiveUndo = $state<ArchiveConfirmation | null>(null);
 
@@ -45,8 +46,6 @@
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
   let greetingName = $derived(formatGreetingName($userProfile.username));
   let visiblePlans = $derived(filterPlans(plans, searchTerm));
-  let activePlanCount = $derived(plans.filter((plan) => !['archived', 'completed'].includes(plan.status)).length);
-  let donePlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
   let filterChips = $derived(resolveFilterChips(plans));
 
   function formatGreetingName(username: string): string {
@@ -320,21 +319,23 @@
       >
     <section class="plans-board-panel" data-testid="plans-board-workspace" aria-label="Plans workspace board">
       <div class="plans-toolbar">
-        <div class="plans-summary">
-          <p class="eyebrow">Plans</p>
-          <h1>Plan board</h1>
-          <p>{plans.length} total, {activePlanCount} active, {donePlanCount} done</p>
-        </div>
         <div class="plans-actions">
-          <label class="plans-search-field" for="plans-search">
-            <span class="search-icon" aria-hidden="true"></span>
-            <input id="plans-search" bind:value={searchTerm} placeholder="Search" data-testid="plan-search-input" />
-          </label>
-          <div class="plans-filter-chips" aria-label="Plan filters">
-            {#each filterChips as chip}
-              <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
-            {/each}
-          </div>
+          {#if showPlanFilters}
+            <div class="plans-filter-chips" data-testid="plan-filter-tags" aria-label="Plan filters">
+              {#each filterChips as chip}
+                <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+              {/each}
+            </div>
+          {/if}
+          <button
+            type="button"
+            class="plan-filter-button"
+            class:active={showPlanFilters}
+            data-testid="plan-filter-button"
+            aria-label="Toggle plan filters"
+            aria-expanded={showPlanFilters}
+            onclick={() => { showPlanFilters = !showPlanFilters; }}
+          ><span aria-hidden="true"></span></button>
         </div>
       </div>
 
@@ -404,6 +405,8 @@
     gap: 18px;
     overflow: hidden;
     border-radius: 17px;
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
   }
 
@@ -423,32 +426,9 @@
 
   .plans-toolbar {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+    align-items: flex-start;
+    justify-content: flex-end;
     gap: 16px;
-  }
-
-  .plans-summary h1,
-  .plans-summary p {
-    margin: 0;
-  }
-
-  .plans-summary h1 {
-    font-size: clamp(1.5rem, 3vw, 2.2rem);
-  }
-
-  .plans-summary p:not(.eyebrow) {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-  }
-
-  .eyebrow {
-    margin: 0 0 4px;
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xxs);
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
   }
 
   .plans-actions,
@@ -460,35 +440,6 @@
     gap: 8px;
   }
 
-  .plans-search-field {
-    display: flex;
-    min-width: min(260px, 100%);
-    align-items: center;
-    gap: 8px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-full);
-    padding: 8px 12px;
-    background: var(--color-grey-10);
-  }
-
-  .plans-search-field input {
-    min-width: 0;
-    flex: 1;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-font-primary);
-    font: inherit;
-  }
-
-  .search-icon {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    background: var(--color-font-secondary);
-    -webkit-mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
-    mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
-  }
 
   .plans-filter-chips button,
   .workspace-confirmation button,
@@ -507,6 +458,33 @@
   .workspace-confirmation button:first-of-type {
     background: var(--color-button-primary);
     color: var(--color-font-button);
+  }
+
+  .plan-filter-button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: 0;
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  .plan-filter-button span {
+    width: 20px;
+    height: 20px;
+    background: var(--color-font-primary);
+    -webkit-mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+  }
+
+  .plan-filter-button.active {
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-grey-10));
   }
 
   .workspace-confirmation {
@@ -541,13 +519,11 @@
 
   @media (max-width: 760px) {
     .plans-toolbar {
-      align-items: stretch;
-      flex-direction: column;
+      align-items: flex-end;
     }
 
-    .plans-actions,
     .plans-filter-chips {
-      justify-content: flex-start;
+      width: 100%;
     }
   }
 </style>

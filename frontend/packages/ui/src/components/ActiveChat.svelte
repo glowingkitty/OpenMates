@@ -12573,7 +12573,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
-                            <div class="new-chat-button-wrapper">
+                            <div class="new-chat-button-wrapper" data-testid="report-issue-button-shell">
                                 <button
                                     data-testid="report-issue-button"
                                     class="clickable-icon icon_bug top-button"

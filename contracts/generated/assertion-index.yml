@@ -9851,7 +9851,7 @@ assertions:
       surface: gui.web
     - &id1096
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 396
+      line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
@@ -9913,12 +9913,12 @@ assertions:
     direct_tests:
     - &id1103
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 360
+      line: 364
       name: renders route-specific shared workspace shells
       surface: gui.web
     - &id1104
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 396
+      line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
@@ -9945,12 +9945,12 @@ assertions:
     direct_tests:
     - &id1105
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 396
+      line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     - &id1106
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 445
+      line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
@@ -9970,7 +9970,7 @@ assertions:
     direct_tests:
     - &id1107
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 445
+      line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
@@ -9988,12 +9988,12 @@ assertions:
     direct_tests:
     - &id1108
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 360
+      line: 364
       name: renders route-specific shared workspace shells
       surface: gui.web
     - &id1109
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
-      line: 445
+      line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []

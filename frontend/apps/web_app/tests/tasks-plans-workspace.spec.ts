@@ -149,6 +149,10 @@ async function expectFigmaBoardControls(page: any, surface: 'tasks' | 'plans', m
 	if (mobile || surface === 'plans') {
 		await expect(page.getByTestId(`${prefix}-search-link`)).toHaveCount(0);
 		await expect(page.getByTestId(`${prefix}-filter-tags`)).toHaveCount(0);
+		await page.getByTestId(`${prefix}-filter-button`).click();
+		await expect(page.getByTestId(`${prefix}-filter-tags`)).toBeVisible();
+		await page.getByTestId(`${prefix}-filter-button`).click();
+		await expect(page.getByTestId(`${prefix}-filter-tags`)).toHaveCount(0);
 		return;
 	}
 	const search = page.getByTestId('task-search-link');
@@ -402,12 +406,12 @@ test.describe('Tasks and Plans workspace transition', () => {
 				await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 30000 });
 				await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 15000 });
 				await expect(page.getByTestId('report-issue-button-shell')).toBeVisible({ timeout: 15000 });
-				await expect(page.getByTestId('message-input-field')).toBeVisible({ timeout: 15000 });
+				await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 15000 });
 				const chatsMetrics = await visualMetrics(page, {
 					containerTestId: 'active-chat-container',
 					dailyInspirationTestId: 'daily-inspiration-area',
 					reportIssueShellTestId: 'report-issue-button-shell',
-					composerFieldTestId: 'message-input-field'
+					composerFieldTestId: 'message-field'
 				});
 				markReady();
 				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
@@ -451,12 +455,12 @@ test.describe('Tasks and Plans workspace transition', () => {
 				await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 30000 });
 				await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 15000 });
 				await expect(page.getByTestId('report-issue-button-shell')).toBeVisible({ timeout: 15000 });
-				await expect(page.getByTestId('message-input-field')).toBeVisible({ timeout: 15000 });
+				await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 15000 });
 				const chatsMetrics = await visualMetrics(page, {
 					containerTestId: 'active-chat-container',
 					dailyInspirationTestId: 'daily-inspiration-area',
 					reportIssueShellTestId: 'report-issue-button-shell',
-					composerFieldTestId: 'message-input-field'
+					composerFieldTestId: 'message-field'
 				});
 				markReady();
 				await page.waitForTimeout(PROOF_STATE_SETTLE_MS);

@@ -454,7 +454,8 @@
     position: relative;
     padding: 0;
     border-radius: 17px;
-    background: transparent;
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
     overflow: hidden;
   }
@@ -478,10 +479,15 @@
   }
 
   .workspace-daily-inspiration-area {
+    --daily-inspiration-area-height: clamp(190px, 50.9383cqi, 420px);
     width: 100%;
+    height: var(--daily-inspiration-area-height);
+    min-height: 250px;
+    max-height: 35dvh;
+    flex: 0 0 var(--daily-inspiration-area-height);
     max-width: none;
     margin: 0;
-    flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .workspace-top-buttons {
@@ -1127,6 +1133,10 @@
     .workspace-home-shell {
       min-height: 0;
       padding: 0;
+    }
+
+    .workspace-daily-inspiration-area {
+      min-height: 190px;
     }
 
     .workspace-center-content .welcome-text h2 {

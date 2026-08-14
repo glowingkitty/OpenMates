@@ -75,10 +75,14 @@
   let extractedProposals = $state<UserTaskProposal[]>([]);
   let tasksPageWidth = $state(900);
   let searchTerm = $state('');
+  let showTaskSearch = $state(false);
+  let showDesktopTaskTags = $state(true);
+  let showMobileTaskTags = $state(false);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
   let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
+  let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
@@ -590,21 +594,45 @@
         >
       <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
         <div class="task-workspace-toolbar">
-          <div class="task-board-summary">
-            <p class="eyebrow">Tasks</p>
-            <h1>Task board</h1>
-            <p>{totalCount} total, {activeCount} active, {doneCount} done</p>
-          </div>
           <div class="task-search-cluster" aria-label="Task search and filters">
-            <label class="task-search-field" for="task-search">
-              <span class="search-icon" aria-hidden="true"></span>
-              <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
-            </label>
-            <div class="task-filter-chips" aria-label="Task filters">
-              {#each taskFilterChips as chip}
-                <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
-              {/each}
+            <div class="task-search-stack">
+              {#if !isNarrowTasksWorkspace}
+                {#if showTaskSearch}
+                  <label class="task-search-field" for="task-search">
+                    <span class="search-icon" aria-hidden="true"></span>
+                    <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
+                  </label>
+                {:else}
+                  <button type="button" class="task-search-link" data-testid="task-search-link" onclick={() => { showTaskSearch = true; }}>Search</button>
+                {/if}
+                {#if showDesktopTaskTags}
+                  <div class="task-filter-chips" data-testid="task-filter-tags" aria-label="Task filters">
+                    {#each taskFilterChips as chip}
+                      <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+                    {/each}
+                  </div>
+                {/if}
+              {/if}
             </div>
+            <button
+              type="button"
+              class="task-filter-button"
+              class:active={isNarrowTasksWorkspace ? showMobileTaskTags : showDesktopTaskTags}
+              data-testid="task-filter-button"
+              aria-label="Toggle task filters"
+              aria-expanded={isNarrowTasksWorkspace ? showMobileTaskTags : showDesktopTaskTags}
+              onclick={() => {
+                if (isNarrowTasksWorkspace) showMobileTaskTags = !showMobileTaskTags;
+                else showDesktopTaskTags = !showDesktopTaskTags;
+              }}
+            ><span aria-hidden="true"></span></button>
+            {#if isNarrowTasksWorkspace && showMobileTaskTags}
+              <div class="task-filter-chips mobile" data-testid="task-filter-tags" aria-label="Task filters">
+                {#each taskFilterChips as chip}
+                  <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+                {/each}
+              </div>
+            {/if}
           </div>
         </div>
 
@@ -838,7 +866,7 @@
   }
 
   .tasks-page.figma-layout {
-    background: var(--color-grey-0);
+    background: var(--color-grey-20);
     overflow: hidden;
     padding: 0;
   }
@@ -881,7 +909,8 @@
     gap: 18px;
     overflow: hidden;
     border-radius: 17px;
-    background: var(--color-grey-0);
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
 
   .task-board-panel {
@@ -897,32 +926,36 @@
     z-index: 2;
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 18px;
-  }
-
-  .task-board-summary h1,
-  .task-board-summary p {
-    margin: 0;
-  }
-
-  .task-board-summary h1 {
-    font-size: clamp(1.5rem, 3vw, 2.2rem);
-    letter-spacing: -0.04em;
-  }
-
-  .task-board-summary p:not(.eyebrow) {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
   }
 
   .task-search-cluster {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
-    gap: 8px;
-    min-width: min(100%, 620px);
+    gap: 12px;
+  }
+
+  .task-search-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .task-search-link {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: var(--color-font-secondary);
+    font: inherit;
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    box-shadow: none;
   }
 
   .task-search-field {
@@ -994,6 +1027,33 @@
 
   .task-filter-chips button.active {
     background: var(--color-button-primary);
+  }
+
+  .task-filter-button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: 0;
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  .task-filter-button span {
+    width: 20px;
+    height: 20px;
+    background: var(--color-font-primary);
+    -webkit-mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+  }
+
+  .task-filter-button.active {
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-grey-10));
   }
 
   .task-board-stage {
@@ -1362,18 +1422,22 @@
     }
 
     .task-workspace-toolbar {
-      flex-direction: column;
+      align-items: flex-start;
     }
 
     .task-search-cluster {
-      align-items: center;
-      justify-content: flex-start;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       width: 100%;
       min-width: 0;
     }
 
-    .task-filter-chips {
-      justify-content: flex-start;
+    .task-search-stack {
+      display: none;
+    }
+
+    .task-filter-chips.mobile {
+      width: 100%;
     }
 
     .task-board-stage :global(.task-board) {
