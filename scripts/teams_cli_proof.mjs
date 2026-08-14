@@ -185,22 +185,27 @@ function printConciseChatCreate(env, slug, commandText, args, options) {
   return chatId;
 }
 
+function chatListIncludes(listResult, chatId) {
+  const chats = Array.isArray(listResult.chats) ? listResult.chats : [];
+  return chats.some((chat) => chat && (chat.id === chatId || chat.chat_id === chatId));
+}
+
 function listChatsForIsolation(env, chatId, slug, options) {
   runVisibleCli(env, "openmates switch-to personal", ["switch-to", "personal"], options);
   printCommand("openmates chats list");
-  const personalList = cli(env, ["chats", "list"], options);
-  if (personalList.includes(chatId.slice(0, 8))) throw new Error("Personal chat list unexpectedly included the team chat");
+  const personalList = cliJson(env, ["chats", "list"], options);
+  if (chatListIncludes(personalList, chatId)) throw new Error("Personal chat list unexpectedly included the team chat");
   process.stdout.write(`Personal chats listed: created team chat ${chatId.slice(0, 8)} is absent\n`);
 
   runVisibleCli(env, `openmates switch-to ${slug}`, ["switch-to", slug], options);
   printCommand("openmates chats list");
-  let teamList = "";
+  let teamHasChat = false;
   for (let attempt = 1; attempt <= CHAT_LIST_RETRY_ATTEMPTS; attempt += 1) {
-    teamList = cli(env, ["chats", "list"], options);
-    if (teamList.includes(chatId.slice(0, 8))) break;
+    teamHasChat = chatListIncludes(cliJson(env, ["chats", "list"], options), chatId);
+    if (teamHasChat) break;
     if (attempt < CHAT_LIST_RETRY_ATTEMPTS) sleep(CHAT_LIST_RETRY_DELAY_MS);
   }
-  if (!teamList.includes(chatId.slice(0, 8))) throw new Error("Team chat list did not include the created team chat");
+  if (!teamHasChat) throw new Error("Team chat list did not include the created team chat");
   process.stdout.write(`Team chats listed: created team chat ${chatId.slice(0, 8)} is present\n`);
 }
 
@@ -232,9 +237,10 @@ function main() {
     accountSlot = typeof loginResult.slot === "string" ? loginResult.slot : options.slot;
 
     const createCommand = `openmates teams create --name ${JSON.stringify(options.name)} --slug ${options.slug} --switch`;
-    const createOutput = runVisibleCli(env, createCommand, ["teams", "create", "--name", options.name, "--slug", options.slug, "--switch"], options, false);
+    const createOutput = cli(env, ["teams", "create", "--name", options.name, "--slug", options.slug, "--switch"], options);
     teamId = teamIdFrom({ id: resolveTeamIdBySlug(env, options.slug, options) });
     if (!createOutput.includes(options.slug)) throw new Error("Visible team creation output did not include the team slug");
+    process.stdout.write(`Team created and selected: ${options.slug}\n`);
 
     printConciseSwitchTargets(options.slug);
     printSwitchProof(env, options.slug, options);

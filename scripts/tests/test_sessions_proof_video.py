@@ -85,6 +85,7 @@ def test_proof_video_produce_always_enables_typed_anonymization(
         audio_model="eleven_flash_v2_5",
         audio_voice="warm_neutral",
         audio_reused_from="",
+        timeout_seconds=240.0,
         device_profile=None,
         playback_rate=1.0,
         hold_last_frame_seconds=0.0,
@@ -95,6 +96,7 @@ def test_proof_video_produce_always_enables_typed_anonymization(
 
     assert observed["argv"] == ["openmates", "plans", "create"]
     assert observed["anonymize_sensitive"] is True
+    assert observed["timeout_seconds"] == 240.0
     assert observed["narration_audio_path"] is None
 
 

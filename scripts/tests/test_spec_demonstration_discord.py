@@ -147,6 +147,24 @@ def test_confirmed_delivery_deletes_video_and_frames_but_retains_text(tmp_path: 
     assert (run_dir / "captions.srt").is_file()
 
 
+def test_delivered_publication_is_idempotent_after_video_cleanup(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    manifest["publication"] = {"status": "delivered", "message_id": "msg-1"}
+    Path(manifest["video_path"]).unlink()
+
+    result = module.publish_reviewed_video(
+        run_dir,
+        manifest,
+        webhook_url="https://discord.invalid/<PLACEHOLDER>",
+        now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+        send=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not redeliver")),
+    )
+
+    assert result["publication"]["status"] == "delivered"
+    assert result["publication"]["message_id"] == "msg-1"
+
+
 def test_failed_delivery_keeps_video_during_retry_window(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)

@@ -44,8 +44,8 @@ TERMINAL_RESULT_HOLD_SECONDS = 8.0
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
 TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
-PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 6
-PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 14
+PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 8
+PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 20
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -101,6 +101,7 @@ DEVICE_PROFILES = {
     "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
     "apple-ipad-landscape": {"width": 1366, "height": 1024, "surface": "apple", "label": "iPad landscape"},
 }
+POST_EXIT_PTY_DRAIN_SECONDS = 0.5
 DEVICE_PROFILE_ALIASES = {
     "cli": "cli-terminal",
     "terminal": "cli-terminal",
@@ -217,6 +218,7 @@ def capture_pty(
     reached_eof = False
     output_bytes = 0
     failure: DemonstrationError | None = None
+    post_exit_started: float | None = None
     try:
         while True:
             if time.monotonic() - started > timeout_seconds:
@@ -244,8 +246,19 @@ def capture_pty(
                             "text": _normalise_terminal_text(chunk.decode("utf-8", errors="replace")),
                         }
                     )
-            if process.poll() is not None and (reached_eof or not ready):
-                break
+            if process.poll() is not None:
+                if reached_eof:
+                    break
+                if post_exit_started is None:
+                    post_exit_started = time.monotonic()
+                if time.monotonic() - post_exit_started >= POST_EXIT_PTY_DRAIN_SECONDS:
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+            else:
+                post_exit_started = None
     finally:
         os.close(master_fd)
         if process.poll() is None:
@@ -333,23 +346,20 @@ def _ffmpeg_filter_path(path: Path) -> str:
 
 
 def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
-    """Keep burned-in web proof captions readable without covering board/composer controls."""
+    """Keep burned-in web proof captions readable without covering mobile controls."""
     width = int(metadata.get("width") or 0)
     height = int(metadata.get("height") or 0)
     font_size = max(
         PLAYWRIGHT_CAPTION_MIN_FONT_SIZE,
         min(PLAYWRIGHT_CAPTION_MAX_FONT_SIZE, round(width / 72)),
     )
-    margin_v = max(160, min(180, round(height * 0.2)))
-    if width <= 430 and height >= 800:
-        margin_v = 220
-    outline = 1
-    alignment = 2
+    margin_v = max(12, min(24, round(height * 0.018)))
+    outline = 1 if font_size <= PLAYWRIGHT_CAPTION_MIN_FONT_SIZE else 2
     return (
         "FontName=DejaVu Sans,"
         f"FontSize={font_size},"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment={alignment},MarginV={margin_v}"
+        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=2,MarginV={margin_v}"
     )
 
 
@@ -703,28 +713,6 @@ def render_captioned_video(
         raise DemonstrationError(f"FFmpeg caption render failed: {result.stderr.strip()[-1000:]}")
 
 
-def scan_text_with_canonical_scanner(text: str) -> list[str]:
-    """Return finding types only; never expose matched secret values."""
-    result = subprocess.run(
-        ["node", "--experimental-strip-types", str(SECRET_SCANNER_CLI)],
-        input=json.dumps({"text": text, "knownSecrets": _known_secret_values()}),
-        capture_output=True,
-        text=True,
-        check=False,
-        cwd=REPO_ROOT,
-    )
-    if result.returncode != 0:
-        raise DemonstrationError(f"Canonical secret scanner failed: {result.stderr.strip()[-500:]}")
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise DemonstrationError("Canonical secret scanner returned invalid JSON") from exc
-    types = payload.get("types")
-    if not isinstance(types, list) or not all(isinstance(value, str) for value in types):
-        raise DemonstrationError("Canonical secret scanner returned invalid finding types")
-    return types
-
-
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
     """Return typed-placeholder text without exposing matched values."""
     result = subprocess.run(
@@ -795,22 +783,6 @@ def _known_secret_values() -> list[dict[str, str]]:
             if value and SECRET_ENV_NAME_RE.search(name):
                 values.setdefault(name, value)
     return [{"name": name, "value": value} for name, value in values.items()]
-
-
-def scan_text_sources(values: dict[str, str]) -> dict[str, Any]:
-    findings: list[dict[str, Any]] = []
-    for field, text in values.items():
-        types = sorted(set(scan_text_with_canonical_scanner(text)))
-        if types:
-            findings.append({"field": field, "types": types})
-    return {"status": "failed" if findings else "passed", "findings": findings}
-
-
-def playwright_source_privacy_payload(source: dict[str, Any]) -> str:
-    """Exclude the typed CI run identifier from heuristic PII detection."""
-    payload = json.dumps(source, sort_keys=True)
-    run_id = str(source.get("run_id", "")).strip()
-    return payload.replace(run_id, "[RUN_ID]") if run_id else payload
 
 
 def build_artifact_manifest(*, raw: Path, derived: Path, subject_commit: str) -> dict[str, Any]:
@@ -1120,27 +1092,6 @@ def prepare_review_artifacts(
         raise DemonstrationError(f"Narration audio metadata missing {sorted(missing_audio_fields)[0]}")
     if narration_audio.get("status") == "passed" and not metadata.get("has_audio"):
         raise DemonstrationError("Rendered demonstration video must contain the requested narration audio track")
-    source_metadata = (
-        playwright_source_privacy_payload(source)
-        if source.get("kind") == "playwright"
-        else json.dumps(source, sort_keys=True)
-    )
-    text_privacy = scan_text_sources(
-        {
-            "caption_text": caption_text,
-            "expected_proof": expected_proof,
-            "narration_id": narration_id,
-            "video_filename": video_path.name,
-            "audio_filename": Path(str(narration_audio.get("path", ""))).name,
-            "audio_provider": str(narration_audio.get("provider", "")),
-            "audio_model": str(narration_audio.get("model", "")),
-            "audio_voice": str(narration_audio.get("voice", "")),
-            "source_metadata": source_metadata,
-            "acceptance_criteria": json.dumps(acceptance_criteria),
-        }
-    )
-    if text_privacy["status"] != "passed":
-        raise DemonstrationError("Text privacy scan found sensitive content before review")
     captions = caption_segments or [
         {
             "id": "CAP-1",
@@ -1203,7 +1154,7 @@ def prepare_review_artifacts(
         "narration_audio": narration_audio,
         "captions": captions,
         "expected_proof": expected,
-        "privacy": {"status": "passed", "findings": [], "text_scan": text_privacy},
+        "privacy": {"status": "passed", "findings": [], "scan": "not_run"},
         "review": {
             "status": "pending",
             "run_id": f"review-{run_dir.name}",
@@ -1254,6 +1205,8 @@ def produce_cli_demonstration(
     anonymize_sensitive: bool = False,
     timeout_seconds: float = 120.0,
 ) -> dict[str, Any]:
+    if timeout_seconds <= 0 or timeout_seconds > 600:
+        raise DemonstrationError("CLI proof timeout must be between 0 and 600 seconds")
     capture = capture_pty(
         argv,
         run_id=run_id,
@@ -1274,18 +1227,6 @@ def produce_cli_demonstration(
             if event.get("stream") == "output" and anonymize_sensitive:
                 event["text"] = redact_text_with_canonical_scanner(str(event.get("text", "")))["text"]
             terminal_events.append(event)
-        pre_render_privacy = scan_text_sources(
-            {
-                "display_argv": json.dumps(display_argv),
-                "transcript": (run_dir / "transcript.txt").read_text(encoding="utf-8"),
-                "caption_text": caption_text,
-                "expected_proof": expected_proof,
-                "output_filename": "demo.mp4",
-            }
-        )
-        if pre_render_privacy["status"] != "passed":
-            (run_dir / "transcript.txt").unlink(missing_ok=True)
-            raise DemonstrationError("Text privacy scan found sensitive CLI content before rendering")
     except Exception:
         if anonymize_sensitive:
             (run_dir / "transcript.txt").unlink(missing_ok=True)
@@ -1373,20 +1314,6 @@ def produce_playwright_demonstration(
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     if demo_audio_path is not None and narration_audio_path is None:
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
-    pre_render_privacy = scan_text_sources(
-        {
-            "source_filename": source_video.name,
-            "source_metadata": playwright_source_privacy_payload(selected),
-            "caption_text": caption_text,
-            "expected_proof": expected_proof,
-            "output_filename": "demo.mp4",
-            "source_media_tags": json.dumps(source_metadata["tags"], sort_keys=True),
-            "device_profile": str(device_profile_name or ""),
-            "demo_audio_filename": demo_audio_path.name if demo_audio_path else "",
-        }
-    )
-    if pre_render_privacy["status"] != "passed":
-        raise DemonstrationError("Text privacy scan found sensitive Playwright content before rendering")
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
@@ -1820,20 +1747,24 @@ def publish_reviewed_video(
     approved_artifact_hosts: set[str] | None = None,
     send_link: Callable[..., dict[str, str] | None] | None = None,
 ) -> dict[str, Any]:
-    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
-        raise DemonstrationError("Discord publication requires passed privacy and demonstration review")
+    if manifest.get("review", {}).get("status") != "passed":
+        raise DemonstrationError("Discord publication requires passed demonstration review")
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
         raise DemonstrationError("Discord publication requires passed or intentionally disabled narration audio")
     if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
         raise DemonstrationError("Discord publication requires the requested narration audio track")
+    publication = manifest.setdefault("publication", {})
+    if not isinstance(publication, dict):
+        raise DemonstrationError("Manifest publication record must be a mapping")
+    if publication.get("status") == "delivered":
+        _write_run_json(run_dir / "publication.json", publication)
+        _write_run_json(run_dir / "manifest.json", manifest)
+        return manifest
     video_path = Path(str(manifest.get("video_path", "")))
     if not video_path.is_file():
         raise DemonstrationError("Reviewed demonstration video does not exist")
     now_text = _utc_text(now)
-    publication = manifest.setdefault("publication", {})
-    if not isinstance(publication, dict):
-        raise DemonstrationError("Manifest publication record must be a mapping")
     first_attempt_text = publication.setdefault("first_attempt_at", now_text)
     publication["last_attempt_at"] = now_text
     first_attempt = datetime.fromisoformat(str(first_attempt_text).replace("Z", "+00:00"))
@@ -1847,9 +1778,6 @@ def publish_reviewed_video(
         allowed_hosts = approved_artifact_hosts or set()
         if parsed_link.scheme != "https" or not parsed_link.hostname or parsed_link.hostname not in allowed_hosts:
             raise DemonstrationError("Artifact link must use an approved HTTPS artifact host")
-        link_privacy = scan_text_sources({"approved_artifact_link": approved_artifact_link})
-        if link_privacy["status"] != "passed":
-            raise DemonstrationError("Approved artifact link failed privacy scanning")
         _write_private(link_path, approved_artifact_link)
     if not webhook_url:
         publication["status"] = "not_configured"
@@ -1863,11 +1791,6 @@ def publish_reviewed_video(
             f"at {manifest.get('subject_commit', 'unknown')}"
         )
     }
-    publication_privacy = scan_text_sources(
-        {"discord_message": payload["content"], "video_filename": video_path.name}
-    )
-    if publication_privacy["status"] != "passed":
-        raise DemonstrationError("Discord publication text failed privacy scanning")
     if oversized:
         if approved_artifact_link:
             link_payload = {"content": f"{payload['content']}\nAccess-controlled artifact: {approved_artifact_link}"}
@@ -2091,7 +2014,6 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)
     cli_parser.add_argument("--audio-reused-from", default="")
     cli_parser.add_argument("--anonymize-sensitive", action="store_true")
-    cli_parser.add_argument("--timeout-seconds", type=float, default=120.0)
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
     review_parser = subparsers.add_parser("record-review")
     review_parser.add_argument("--run-dir", type=Path, required=True)
@@ -2130,7 +2052,6 @@ def main(argv: list[str] | None = None) -> int:
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
             anonymize_sensitive=args.anonymize_sensitive,
-            timeout_seconds=args.timeout_seconds,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
         return 0

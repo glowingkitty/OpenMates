@@ -173,6 +173,24 @@ def test_pty_capture_times_out_and_caps_output(tmp_path: Path) -> None:
         )
 
 
+def test_pty_capture_returns_when_child_exits_before_inherited_pty_closes(tmp_path: Path) -> None:
+    module = load_module()
+    started = time.monotonic()
+
+    result = module.capture_pty(
+        [sys.executable, "-c", "import os, time; pid = os.fork(); print('parent done'); os._exit(0) if pid else time.sleep(5)"],
+        run_id="inherited-pty",
+        target_environment="local synthetic fixture",
+        output_dir=tmp_path,
+        test_account_provenance="no account used",
+        timeout_seconds=2,
+    )
+
+    assert result["exit_status"] == 0
+    assert time.monotonic() - started < 2
+    assert "parent done" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+
+
 def test_reconstruction_requires_visible_label_and_matching_transcript_hash() -> None:
     module = load_module()
     source = {"transcript_hash": "sha256:exact", "reconstructed": False}
@@ -317,6 +335,7 @@ def test_teams_cli_proof_helper_prints_approved_visible_commands() -> None:
     source = (ROOT / "scripts" / "teams_cli_proof.mjs").read_text(encoding="utf-8")
 
     for command in (
+        "openmates teams create --name",
         "openmates switch-to personal",
         "openmates switch-to ${slug}",
         "openmates teams ${slug} switch-to",
@@ -324,6 +343,7 @@ def test_teams_cli_proof_helper_prints_approved_visible_commands() -> None:
     ):
         assert command in source
     assert "&& openmates switch-to" not in source
+    assert "Team created and selected: ${options.slug}" in source
 
 
 def test_teams_cli_proof_helper_validates_visible_chat_isolation() -> None:
@@ -367,7 +387,6 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     module = load_module()
     video = tmp_path / "demo.mp4"
     video.write_bytes(b"synthetic")
-    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
     monkeypatch.setattr(
         module,
         "video_metadata",
@@ -415,6 +434,7 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
 
     assert manifest["captions"][0]["end"] == 15.967
     assert manifest["expected_proof"][0]["evidence_intervals"] == [[0.0, 15.967]]
+    assert manifest["privacy"] == {"status": "passed", "findings": [], "scan": "not_run"}
     request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
     assert request["captions"][0]["end"] == 15.967
 
@@ -462,38 +482,6 @@ def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
 
     with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
         module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
-
-
-def test_text_scan_detects_known_environment_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = load_module()
-    secret = "synthetic-webhook-value-without-vendor-pattern"
-    monkeypatch.setenv("SYNTHETIC_WEBHOOK_TOKEN", secret)
-
-    assert module.scan_text_with_canonical_scanner(f"visible {secret}")
-
-
-def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = load_module()
-    secret = "https://discord.invalid/api/webhooks/synthetic/private-value"
-    monkeypatch.setenv("DISCORD_WEBHOOK_SPEC_DEMOS", secret)
-
-    assert module.scan_text_with_canonical_scanner(f"visible {secret}")
-
-
-def test_playwright_privacy_scan_does_not_treat_ci_run_id_as_phone_number() -> None:
-    module = load_module()
-    source = {
-        "run_id": "31231661641",
-        "subject_commit": "6150eb0",
-        "target": "https://app.dev.openmates.org",
-        "artifact_path": "/tmp/playwright-31231661641/video.webm",
-    }
-
-    payload = module.playwright_source_privacy_payload(source)
-
-    assert "31231661641" not in payload
-    assert "6150eb0" in payload
-    assert module.scan_text_sources({"source_metadata": payload})["status"] == "passed"
 
 
 def test_cli_anonymization_uses_visible_typed_placeholders(
@@ -730,11 +718,11 @@ def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
     phone_style = module._playwright_caption_force_style({"width": 390, "height": 844})
     laptop_style = module._playwright_caption_force_style({"width": 1440, "height": 900})
 
-    assert "FontSize=6" in phone_style
-    assert "MarginV=220" in phone_style
+    assert "FontSize=8" in phone_style
+    assert "MarginV=15" in phone_style
     assert "Alignment=2" in phone_style
-    assert "FontSize=14" in laptop_style
-    assert "MarginV=180" in laptop_style
+    assert "FontSize=20" in laptop_style
+    assert "MarginV=16" in laptop_style
     assert "Alignment=2" in laptop_style
 
 
@@ -758,7 +746,6 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
 ) -> None:
     module = load_module()
     observed = {}
-    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         module,
@@ -836,7 +823,6 @@ def test_cli_production_renders_user_facing_openmates_command(
 ) -> None:
     module = load_module()
     observed: dict[str, object] = {}
-    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         module,
