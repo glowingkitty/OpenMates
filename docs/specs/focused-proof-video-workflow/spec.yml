@@ -73,7 +73,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: working-tree@871ab13ea
+  subject_commit: 4fb32f9
 
 approvals:
   product_contract:
@@ -137,7 +137,7 @@ handoff:
     --message "Enforce immutable receipts, persistent budgets, bounded corrections, and least-privilege review."
   expected_outcome: Verified proof-video review hardening is committed and pushed through the scoped session deploy path.
   blocker: null
-  last_verified_commit: working-tree@871ab13ea
+  last_verified_commit: 4fb32f9
 
 scenarios:
   - id: S-1
@@ -263,7 +263,7 @@ tests:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate -q
         run_id: local-2026-08-14-focused-proof-review-green
-        subject_commit: working-tree@871ab13ea
+        subject_commit: 4fb32f9
         timestamp: "2026-08-14T16:19:09Z"
         summary: Focused workflow, immutable receipt/cache integrity, budgets, correction routing, reviewer permissions, and session provenance tests passed.
   - id: T-PROOF-RENDER
@@ -292,7 +292,7 @@ tests:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_demonstration_pipeline.py -q
         run_id: local-2026-08-14-focused-proof-render-green
-        subject_commit: working-tree@871ab13ea
+        subject_commit: 4fb32f9
         timestamp: "2026-08-14T16:19:09Z"
         summary: Caption rendering, event-frame selection, output bounds, audio provenance, artifact hashes, and publication receipt checks passed.
   - id: T-PROOF-AUDIT
@@ -320,7 +320,7 @@ tests:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py -q && python3 scripts/audit_opencode_spec_workflow.py && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/sync_agent_parity.py --check
         run_id: local-2026-08-14-focused-proof-audit-green
-        subject_commit: working-tree@871ab13ea
+        subject_commit: 4fb32f9
         timestamp: "2026-08-14T16:19:09Z"
         summary: Workflow, reviewer least-privilege, output quality, tooling parity, and generated agent parity checks passed.
 
@@ -335,7 +335,7 @@ verifications:
       status: passed
       command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_spec_demonstration_review.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py scripts/tests/test_tests_control.py::test_normalize_playwright_report_retains_one_terminal_video_artifact scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_skipped_deploy_gate_is_not_verified scripts/tests/test_tests_control.py::test_normalize_playwright_report_preserves_duplicate_video_attachments scripts/tests/test_tests_control.py::test_duplicate_video_attachments_do_not_create_proof_source_attestation scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate scripts/tests/test_tests_control.py::test_e2e_deploy_gate_checks_playwright_targets scripts/tests/test_tests_control.py::test_e2e_deploy_gate_skips_non_playwright_targets -q
       run_id: local-2026-08-14-focused-proof-final
-      subject_commit: working-tree@871ab13ea
+      subject_commit: 4fb32f9
       timestamp: "2026-08-14T16:19:09Z"
       summary: 235 affected pytest checks passed with pytest cache disabled, plus workflow audits, spec verification, and parity checks passed separately.
 
