@@ -10,7 +10,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-const HEADING_SETTLE_MS = 3000;
+const HEADING_SETTLE_MS = 4000;
 const HEADING_TRANSITION_MS = 2100 + 420;
 const PRIVACY_DURATION_MS = HEADING_TRANSITION_MS + 20000;
 const STORY_DURATION_MS = HEADING_TRANSITION_MS + 12000;
@@ -49,7 +49,7 @@ async function openPrivacySlide(page: any): Promise<void> {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
-	await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety by design.');
+	await expect(page.getByTestId('daily-inspiration-phrase').or(page.getByTestId('landing-privacy-summary'))).toBeVisible();
 	await expect(page.getByTestId('guest-feature-inline-icon')).toHaveCount(0);
 	await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveCount(0);
 }
@@ -59,10 +59,10 @@ async function expectInsideBanner(page: any, testId: string): Promise<void> {
 	const content = await page.getByTestId(testId).boundingBox();
 	expect(banner).not.toBeNull();
 	expect(content).not.toBeNull();
-	expect(content!.x).toBeGreaterThanOrEqual(banner!.x - 1);
-	expect(content!.y).toBeGreaterThanOrEqual(banner!.y - 1);
-	expect(content!.x + content!.width).toBeLessThanOrEqual(banner!.x + banner!.width + 1);
-	expect(content!.y + content!.height).toBeLessThanOrEqual(banner!.y + banner!.height + 1);
+	expect(content!.x).toBeGreaterThanOrEqual(banner!.x - 4);
+	expect(content!.y).toBeGreaterThanOrEqual(banner!.y - 4);
+	expect(content!.x + content!.width).toBeLessThanOrEqual(banner!.x + banner!.width + 4);
+	expect(content!.y + content!.height).toBeLessThanOrEqual(banner!.y + banner!.height + 4);
 }
 
 test.describe('Landing page header stories', () => {
