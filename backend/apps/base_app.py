@@ -628,7 +628,7 @@ class BaseApp:
                                     r.model_dump() if hasattr(r, 'model_dump') else r
                                     for r in raw_requests
                                 ]
-                                response = await skill_instance.execute(serialized_requests, secrets_manager=None, **supported_skill_kwargs)
+                                response = await skill_instance.execute(serialized_requests, **supported_skill_kwargs)
                             else:
                                 # Fallback: try to pass the model and let the skill handle it
                                 response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
@@ -650,11 +650,11 @@ class BaseApp:
                             detail=error_details
                         )
                 else:
-                    # No Pydantic model found - try unpacking as keyword arguments
-                    # Remove internal metadata fields but preserve context fields for API authentication
+                    # No Pydantic model found - try unpacking as keyword arguments.
+                    # Remove internal metadata fields, then merge public context kwargs below.
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
-                        if not k.startswith("_") or k in INTERNAL_REQUEST_CONTEXT_FIELDS
+                        if not k.startswith("_")
                     }
                     logger.info(
                         f"No Pydantic model found for skill '{skill_definition.id}', using kwargs. "
