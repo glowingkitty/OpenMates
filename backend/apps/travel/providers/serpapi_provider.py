@@ -410,6 +410,24 @@ def _format_duration_minutes(total_minutes: int) -> str:
         return f"{mins}m"
 
 
+def _departure_meets_minimum(connection: ConnectionResult, minimum_time: Optional[str]) -> bool:
+    """Filter date-wide Google Flights results before applying the result cap."""
+    if not minimum_time:
+        return True
+    minimum_match = re.fullmatch(r"(\d{1,2}):(\d{2})", minimum_time.strip())
+    departure = connection.legs[0].departure if connection.legs else ""
+    departure_match = re.search(r"(?:T|\s)(\d{2}):(\d{2})", departure)
+    if not minimum_match:
+        raise ValueError("departure_time must use HH:MM local time")
+    if not departure_match:
+        return False
+    minimum_minutes = int(minimum_match.group(1)) * 60 + int(minimum_match.group(2))
+    departure_minutes = int(departure_match.group(1)) * 60 + int(departure_match.group(2))
+    if minimum_minutes > 23 * 60 + 59:
+        raise ValueError("departure_time must be a valid local time")
+    return departure_minutes >= minimum_minutes
+
+
 def _post_to_get_url(base_url: str, post_data: str) -> str:
     """
     Convert a SerpAPI POST-based booking URL to a clickable GET URL.
@@ -656,12 +674,15 @@ class SerpApiProvider(BaseTransportProvider):
         # Convert to ConnectionResult objects, passing booking_token from
         # each flight group for on-demand booking URL lookup
         results = []
-        for fg in flight_groups[:max_results]:
+        minimum_time = original_leg.get("departure_time")
+        for fg in flight_groups:
             connection = self._parse_flight_group(
                 fg, [original_leg], currency, booking_context=booking_ctx,
             )
-            if connection:
+            if connection and _departure_meets_minimum(connection, minimum_time):
                 results.append(connection)
+                if len(results) >= max_results:
+                    break
 
         logger.info(f"SerpAPI one-way returned {len(results)} flight(s)")
         return results
@@ -758,12 +779,15 @@ class SerpApiProvider(BaseTransportProvider):
         }
 
         results = []
-        for fg in flight_groups[:max_results]:
+        minimum_time = original_legs[0].get("departure_time") if original_legs else None
+        for fg in flight_groups:
             connection = self._parse_flight_group(
                 fg, original_legs, currency, booking_context=booking_ctx,
             )
-            if connection:
+            if connection and _departure_meets_minimum(connection, minimum_time):
                 results.append(connection)
+                if len(results) >= max_results:
+                    break
 
         logger.info(f"SerpAPI round-trip returned {len(results)} flight(s)")
         return results
@@ -863,12 +887,15 @@ class SerpApiProvider(BaseTransportProvider):
         }
 
         results = []
-        for fg in flight_groups[:max_results]:
+        minimum_time = original_legs[0].get("departure_time") if original_legs else None
+        for fg in flight_groups:
             connection = self._parse_flight_group(
                 fg, original_legs, currency, booking_context=booking_ctx,
             )
-            if connection:
+            if connection and _departure_meets_minimum(connection, minimum_time):
                 results.append(connection)
+                if len(results) >= max_results:
+                    break
 
         logger.info(f"SerpAPI multi-city returned {len(results)} flight(s)")
         return results

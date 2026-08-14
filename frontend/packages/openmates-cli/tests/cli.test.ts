@@ -2814,6 +2814,7 @@ describe("apps code run command variants", () => {
 });
 
 describe("apps travel search_connections typed request", () => {
+  // contract-test: direct surface=cli assertions=travel-search.departure-window.upstream,travel-search.surface-parity
   it("maps pass-aware train flags into the app-skill request", () => {
     const request = buildTravelConnectionsRequest([], {
       origin: "Potsdam Hbf",
@@ -2825,6 +2826,8 @@ describe("apps travel search_connections typed request", () => {
       "pass-only": true,
       "rail-products": "regional,s_bahn",
       "min-transfer-minutes": "15",
+      "min-departure-time": "16:20",
+      "max-departure-time": "16:45",
       "max-results": "8",
     });
 
@@ -2836,6 +2839,8 @@ describe("apps travel search_connections typed request", () => {
       rail_products: ["regional", "s_bahn"],
       pass_only: true,
       min_transfer_minutes: 15,
+      min_departure_time: "16:20",
+      max_departure_time: "16:45",
       max_results: 8,
     });
   });

@@ -760,6 +760,18 @@ class SearchConnectionsSkill(BaseSkill):
             if not leg.get("date"):
                 return (request_id, [], f"Leg {i}: missing 'date'")
 
+        provider_legs = [dict(leg) for leg in legs]
+        for key in ("min_departure_time", "max_departure_time"):
+            value = result_filters.get(key)
+            if value and self._parse_time_minutes(value) is None:
+                return (request_id, [], f"{key} must use HH:MM local time")
+        if result_filters.get("min_departure_time"):
+            provider_legs[0]["departure_time"] = str(result_filters["min_departure_time"]).strip()
+        elif result_filters.get("max_departure_time"):
+            provider_legs[0]["departure_time"] = "00:00"
+        if result_filters.get("max_departure_time"):
+            provider_legs[0]["max_departure_time"] = str(result_filters["max_departure_time"]).strip()
+
         # Validate transport methods
         valid_methods = {"airplane", "train", "bus", "boat"}
         transport_methods = [m for m in transport_methods if m in valid_methods]
@@ -791,7 +803,7 @@ class SearchConnectionsSkill(BaseSkill):
         for provider in matched_providers:
             try:
                 connections = await provider.search_connections(
-                    legs=legs,
+                    legs=provider_legs,
                     passengers=passengers,
                     children=children,
                     infants_in_seat=infants_in_seat,
@@ -1189,10 +1201,22 @@ class SearchConnectionsSkill(BaseSkill):
                 "items": [item for item in items if item],
             }
 
+        provider_error_status = next(
+            (
+                group["status"]
+                for group in groups.values()
+                if group["status"] not in {"matched", "no_match"}
+            ),
+            None,
+        )
         summary = {
             "provider": "Geoapify",
             "data_source": GEOAPIFY_SOURCE_LABEL,
-            "status": "matched" if any(group["count"] for group in groups.values()) else "no_match",
+            "status": (
+                "matched"
+                if any(group["count"] for group in groups.values())
+                else provider_error_status or "no_match"
+            ),
             "cache_hit": False,
             "groups": groups,
         }

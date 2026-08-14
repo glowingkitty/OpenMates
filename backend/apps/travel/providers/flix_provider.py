@@ -66,6 +66,46 @@ def _format_flix_time(time_value: Dict[str, Any]) -> str:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).astimezone(offset).isoformat()
 
 
+def _parse_requested_time(value: Optional[str], field_name: str) -> Optional[int]:
+    if not value:
+        return None
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})", value.strip())
+    if not match:
+        raise ValueError(f"{field_name} must use HH:MM local time")
+    minutes = int(match.group(1)) * 60 + int(match.group(2))
+    if minutes > 23 * 60 + 59:
+        raise ValueError(f"{field_name} must be a valid local time")
+    return minutes
+
+
+def _departure_matches_window(
+    item: Dict[str, Any],
+    minimum_minutes: Optional[int],
+    maximum_minutes: Optional[int],
+    *,
+    next_overnight_date: bool,
+) -> bool:
+    """Filter Flix's date-wide response before applying the result cap."""
+    departure = item.get("departure") or {}
+    try:
+        local_departure = datetime.fromisoformat(_format_flix_time(departure))
+    except (TypeError, ValueError):
+        return False
+    departure_minutes = local_departure.hour * 60 + local_departure.minute
+    overnight = (
+        minimum_minutes is not None
+        and maximum_minutes is not None
+        and minimum_minutes > maximum_minutes
+    )
+    if overnight:
+        return departure_minutes <= maximum_minutes if next_overnight_date else departure_minutes >= minimum_minutes
+    if minimum_minutes is not None and departure_minutes < minimum_minutes:
+        return False
+    if maximum_minutes is not None and departure_minutes > maximum_minutes:
+        return False
+    return True
+
+
 def _booking_url(trip: Dict[str, Any]) -> Optional[str]:
     for link in trip.get("links", []) or []:
         if link.get("rel") == BOOKING_LINK_REL and link.get("href"):
@@ -310,9 +350,25 @@ class FlixProvider(BaseTransportProvider):
             origin = str(leg.get("origin") or "")
             destination = str(leg.get("destination") or "")
             date = str(leg.get("date") or "")
+            departure_time = str(leg.get("departure_time") or "").strip() or None
+            maximum_departure_time = str(leg.get("max_departure_time") or "").strip() or None
             if not origin or not destination or not date:
                 logger.warning("Flix provider: skipping leg with missing fields: %s", leg)
                 continue
+
+            minimum_minutes = _parse_requested_time(departure_time, "departure_time")
+            maximum_minutes = _parse_requested_time(maximum_departure_time, "max_departure_time")
+            search_dates = [date]
+            if (
+                minimum_minutes is not None
+                and maximum_minutes is not None
+                and minimum_minutes > maximum_minutes
+            ):
+                try:
+                    next_date = datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)
+                except ValueError as exc:
+                    raise ValueError("date must use YYYY-MM-DD format for an overnight window") from exc
+                search_dates.append(next_date.strftime("%Y-%m-%d"))
 
             origin_location = await self._resolve_location(origin, train_only=train_only)
             destination_location = await self._resolve_location(destination, train_only=train_only)
@@ -320,28 +376,36 @@ class FlixProvider(BaseTransportProvider):
                 logger.warning("Flix provider: could not resolve route %s -> %s", origin, destination)
                 continue
 
-            payload = await search_trips(
-                int(origin_location["legacy_id"]),
-                int(destination_location["legacy_id"]),
-                departure_date=_format_date_for_flix(date),
-                search_by="cities",
-                currency=currency,
-                adults=passengers,
-                children=children,
-                bikes=0,
-            )
-            for trip in payload.get("trips", []) or []:
-                for item in trip.get("items", []) or []:
-                    parsed = _parse_connection(trip, item)
-                    if not parsed or parsed.transport_method not in wanted_methods:
-                        continue
-                    parsed.currency = currency.upper()
-                    if non_stop_only and parsed.legs and parsed.legs[0].stops > 0:
-                        continue
-                    if max_stops is not None and parsed.legs and parsed.legs[0].stops > max_stops:
-                        continue
-                    all_connections.append(parsed)
-                    if len(all_connections) >= max_results:
-                        return all_connections
+            for search_index, search_date in enumerate(search_dates):
+                payload = await search_trips(
+                    int(origin_location["legacy_id"]),
+                    int(destination_location["legacy_id"]),
+                    departure_date=_format_date_for_flix(search_date),
+                    search_by="cities",
+                    currency=currency,
+                    adults=passengers,
+                    children=children,
+                    bikes=0,
+                )
+                for trip in payload.get("trips", []) or []:
+                    for item in trip.get("items", []) or []:
+                        if not _departure_matches_window(
+                            item,
+                            minimum_minutes,
+                            maximum_minutes,
+                            next_overnight_date=search_index > 0,
+                        ):
+                            continue
+                        parsed = _parse_connection(trip, item)
+                        if not parsed or parsed.transport_method not in wanted_methods:
+                            continue
+                        parsed.currency = currency.upper()
+                        if non_stop_only and parsed.legs and parsed.legs[0].stops > 0:
+                            continue
+                        if max_stops is not None and parsed.legs and parsed.legs[0].stops > max_stops:
+                            continue
+                        all_connections.append(parsed)
+                        if len(all_connections) >= max_results:
+                            return all_connections
 
         return all_connections

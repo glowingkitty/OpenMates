@@ -6343,6 +6343,10 @@ export function buildTravelConnectionsRequest(
   if (passOnly !== undefined) request.pass_only = passOnly;
   const minTransferMinutes = integerFlag(flags, "min_transfer_minutes") ?? integerFlag(flags, "min-transfer-minutes");
   if (minTransferMinutes !== undefined) request.min_transfer_minutes = minTransferMinutes;
+  const minDepartureTime = stringFlag(flags, "min_departure_time") ?? stringFlag(flags, "min-departure-time");
+  if (minDepartureTime) request.min_departure_time = minDepartureTime;
+  const maxDepartureTime = stringFlag(flags, "max_departure_time") ?? stringFlag(flags, "max-departure-time");
+  if (maxDepartureTime) request.max_departure_time = maxDepartureTime;
   const maxResults = integerFlag(flags, "max_results") ?? integerFlag(flags, "max-results");
   if (maxResults !== undefined) request.max_results = maxResults;
   return request;

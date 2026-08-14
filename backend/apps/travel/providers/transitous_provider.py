@@ -13,6 +13,7 @@ import logging
 from datetime import datetime
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -91,8 +92,21 @@ def _duration_minutes(start: str, end: str) -> Optional[int]:
     return max(0, int((end_dt - start_dt).total_seconds() // 60))
 
 
-def _format_plan_time(date: str) -> str:
-    return f"{date}T08:00:00Z"
+def _format_plan_time(date: str, departure_time: str = "08:00", timezone_name: str = "UTC") -> str:
+    """Convert an origin-local departure time to Transitous UTC format."""
+    try:
+        local_time = datetime.strptime(f"{date} {departure_time}", "%Y-%m-%d %H:%M")
+        timezone_info = ZoneInfo(timezone_name)
+        # Prefer the first occurrence during a fall-back fold and reject wall
+        # times that do not exist during a spring-forward transition.
+        localized_time = local_time.replace(tzinfo=timezone_info, fold=0)
+        utc_time = localized_time.astimezone(ZoneInfo("UTC"))
+        round_trip = utc_time.astimezone(timezone_info).replace(tzinfo=None)
+        if round_trip != local_time:
+            raise ValueError("departure_time does not exist in the origin timezone")
+    except (ValueError, KeyError) as exc:
+        raise ValueError("Transitous departure date, time, or timezone is invalid") from exc
+    return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _nested_string(value: Dict[str, Any], *keys: str) -> Optional[str]:
@@ -181,6 +195,7 @@ class TransitousProvider(BaseTransportProvider):
             origin = str(leg.get("origin") or "").strip()
             destination = str(leg.get("destination") or "").strip()
             date = str(leg.get("date") or "").strip()
+            departure_time = str(leg.get("departure_time") or "08:00").strip()
             if not origin or not destination or not date:
                 continue
 
@@ -190,6 +205,8 @@ class TransitousProvider(BaseTransportProvider):
                 from_place=from_place,
                 to_place=to_place,
                 date=date,
+                departure_time=departure_time,
+                timezone_name=str(from_place.get("timezone") or "UTC"),
                 max_results=max_results,
                 max_stops=0 if non_stop_only else max_stops,
             )
@@ -254,6 +271,7 @@ class TransitousProvider(BaseTransportProvider):
                 "lon": lon,
                 "type": suggestion_type or "STOP",
                 "confidence": round(min(score, 1.0), 3),
+                "timezone": str(suggestion.get("tz") or "UTC"),
                 "raw": suggestion,
             }))
 
@@ -271,13 +289,15 @@ class TransitousProvider(BaseTransportProvider):
         from_place: Dict[str, Any],
         to_place: Dict[str, Any],
         date: str,
+        departure_time: str,
+        timezone_name: str,
         max_results: int,
         max_stops: Optional[int],
     ) -> Dict[str, Any]:
         params: Dict[str, Any] = {
             "fromPlace": self._format_place(from_place),
             "toPlace": self._format_place(to_place),
-            "time": _format_plan_time(date),
+            "time": _format_plan_time(date, departure_time, timezone_name),
             "numItineraries": max(1, min(max_results, 10)),
             "withFares": "true",
             "detailedLegs": "true",

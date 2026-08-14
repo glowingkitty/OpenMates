@@ -135,6 +135,19 @@ def _normalize_pass_id(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
 
 
+def _db_departure_time(value: Any) -> str:
+    """Normalize an optional local departure time for DB Navigator."""
+    if value in (None, ""):
+        return "08:00:00"
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", str(value).strip())
+    if not match:
+        raise ValueError("departure_time must use HH:MM or HH:MM:SS local time")
+    hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    if hours > 23 or minutes > 59 or seconds > 59:
+        raise ValueError("departure_time must be a valid local time")
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def _owns_deutschland_ticket(owned_passes: Optional[List[str]]) -> bool:
     """Return whether owned_passes includes a Deutschlandticket alias."""
     return any(
@@ -950,6 +963,7 @@ class DeutscheBahnProvider(BaseTransportProvider):
             origin = leg.get("origin", "")
             destination = leg.get("destination", "")
             date = leg.get("date", "")
+            departure_time = _db_departure_time(leg.get("departure_time"))
 
             if not origin or not destination or not date:
                 logger.warning("DB provider: skipping leg with missing fields: %s", leg)
@@ -972,6 +986,7 @@ class DeutscheBahnProvider(BaseTransportProvider):
                     from_location_id=from_lid,
                     to_location_id=to_lid,
                     date=date,
+                    time=departure_time,
                     klasse=klasse,
                     travellers=travellers,
                     max_changes=max_changes,
@@ -982,7 +997,7 @@ class DeutscheBahnProvider(BaseTransportProvider):
                 )
             except Exception as e:
                 logger.error("DB journey search failed (%s → %s): %s", origin, destination, e)
-                continue
+                raise RuntimeError(f"DB journey search failed ({origin} → {destination})") from e
 
             # Parse connections
             verbindungen = result.get("verbindungen", [])

@@ -41,6 +41,18 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.travel-search:
+    version: 1
+    status: draft
+    path: features/app-skills/travel-search
+    fingerprint: 1c3ea65755e19ce63d624c327c9361971561981c76f1ed1ecf9fc7ca92fe682c
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.web-search:
     version: 1
     status: approved
@@ -673,6 +685,90 @@ assertions:
     contract_id: feature.app-skill.audio-speak
     type: parity
     fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.departure-window.upstream:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: e7165716d4618a72b41aadb9eb38f1fd8b42ad3f496cfc18196d3fe7735ce00a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.departure-window.filtered:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 8bf7fd70c7c72ca6d8a33fc9347fe813228ada58869f5fb0acaed2352e391148
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.realtime.source-faithful:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 4a766025ab3261f99ac20320c6d47b0b18228aa663d837fc290c43db44556926
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.optimization.additive-provenance:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 500159c1e5ebb4239a32fba17c29252b09d3021c9e210e9b37c1ae560ec96217
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.transfer-amenities.source-labelled:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 3943b37b7d06bcd5ba63bbf1ac297c8abc8c5d6d014e09680f9803a7191e1044
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.no-results.explicit:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: failure
+    fingerprint: 54f8d864e038aa646a8f9502b0729d4757330288ac9ba7de2921660b28694567
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.surface-parity:
+    contract: feature.app-skill.travel-search@1
+    contract_id: feature.app-skill.travel-search
+    type: parity
+    fingerprint: b0fce4f176dfd23e481f3d22674e2ef75822d0e33361d64c7b92308506fa7e4a
     required_surfaces:
     - rest_api
     - cli
