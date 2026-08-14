@@ -136,9 +136,10 @@
     }
 
     .tasks-container {
-      height: calc(100vh - 75px);
-      height: calc(100dvh - 75px);
+      height: calc(100vh - 66px);
+      height: calc(100dvh - 66px);
       padding-inline-end: 10px;
+      box-sizing: border-box;
     }
   }
 

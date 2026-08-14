@@ -1501,9 +1501,10 @@
     }
 
     .workflows-container {
-      height: calc(100vh - 75px);
-      height: calc(100dvh - 75px);
+      height: calc(100vh - 66px);
+      height: calc(100dvh - 66px);
       padding: 8px 10px;
+      box-sizing: border-box;
     }
 
     .workflow-sidebar-shell {
