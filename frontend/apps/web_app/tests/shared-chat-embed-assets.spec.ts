@@ -426,7 +426,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 
 		const runMarker = randomUUID();
 		const message =
-			`Create a short response confirming these uploaded files are attached. Run marker: ${runMarker}. ` +
+			`Run marker ${runMarker}: create a short response confirming these uploaded files are attached. ` +
 			`@${SAMPLE_PDF} @${SAMPLE_IMAGE} @${audioPath}`;
 		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
