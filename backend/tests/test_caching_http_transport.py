@@ -1,5 +1,4 @@
 # contract-test-file: infrastructure
-# contract-test-file: infrastructure
 # backend/tests/test_caching_http_transport.py
 # Regression coverage for shared live-mock HTTP response replay.
 #
