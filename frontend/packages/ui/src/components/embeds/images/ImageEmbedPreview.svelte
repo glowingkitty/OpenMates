@@ -234,7 +234,7 @@
   // --- Derived state ---
 
   let status = $derived(statusProp);
-  let previewFile = $derived(s3Files?.preview);
+  let previewFile = $derived(s3Files?.preview ?? s3Files?.full ?? s3Files?.original);
   let previewS3Key = $derived(previewFile?.s3_key);
 
   /** Map our upload-specific status to the UnifiedEmbedPreview status union.
