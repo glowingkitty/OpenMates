@@ -40,6 +40,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	getTestAccount,
 } = require('./signup-flow-helpers');
 
@@ -79,6 +80,7 @@ const MOCK_AMOUNT_EUR = '10.00';
 // Test: Settings → Support → One-Time → SEPA bank transfer flow
 // ─────────────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible,billing.access.authenticated-first-party
 test('settings support: shows SEPA bank transfer details and transitions to success on receipt', async ({
 	page
 }: {
@@ -112,7 +114,7 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 	// "Stripe Public Key not found" before the bank_transfer_available flag is read.
 	// We don't use route.fetch() because GHA's outbound IP may get an HTML error page from the
 	// dev server's rate limiter, causing a JSON parse failure.
-	await page.route('**/v1/payments/config', async (route: any) => {
+	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -121,6 +123,8 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 				public_key: 'pk_test_placeholder_bank_transfer_test',
 				environment: 'sandbox',
 				bank_transfer_available: true,
+				is_eu: true,
+				use_managed_payments: false,
 			}),
 		});
 	});
@@ -188,12 +192,7 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 	await screenshot(page, '01-settings-menu-open');
 
 	// ─── Navigate: Support → One-Time ────────────────────────────────────────

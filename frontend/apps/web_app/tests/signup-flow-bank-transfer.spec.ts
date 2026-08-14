@@ -46,6 +46,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	getTestAccount,
 	setToggleChecked
 } = require('./signup-flow-helpers');
@@ -83,6 +84,7 @@ const MOCK_ACCOUNT_HOLDER = 'Marco Bartsch';
 // Test: Signup payment step shows bank transfer option and Continue button
 // ─────────────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible,billing.access.authenticated-first-party
 test('signup flow: bank transfer option available at payment step, Continue to app works', async ({
 	page
 }: {
@@ -111,7 +113,7 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 
 	// Force bank_transfer_available=true with Stripe provider (hardcoded to avoid
 	// route.fetch HTML errors from GHA's outbound IP being rate-limited).
-	await page.route('**/v1/payments/config', async (route: any) => {
+	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -120,6 +122,8 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
 				environment: 'sandbox',
 				bank_transfer_available: true,
+				is_eu: true,
+				use_managed_payments: false,
 			}),
 		});
 	});
@@ -175,11 +179,7 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	// Navigate to billing → buy credits
 	const billingItem = page
@@ -258,6 +258,7 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 // Test: Bank transfer switch button appears in signup Stripe form + Continue works
 // ─────────────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible,billing.access.authenticated-first-party
 test('signup flow: bank transfer switch button appears in Stripe payment form and Continue button works', async ({
 	page
 }: {
@@ -277,7 +278,7 @@ test('signup flow: bank transfer switch button appears in Stripe payment form an
 	await archiveExistingScreenshots(log);
 
 	// Mock /config with bank_transfer_available=true and stripe provider
-	await page.route('**/v1/payments/config', async (route: any) => {
+	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -286,6 +287,8 @@ test('signup flow: bank transfer switch button appears in Stripe payment form an
 				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
 				environment: 'sandbox',
 				bank_transfer_available: true,
+				is_eu: true,
+				use_managed_payments: false,
 			}),
 		});
 	});
@@ -333,11 +336,7 @@ test('signup flow: bank transfer switch button appears in Stripe payment form an
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	const billingItem = page
 		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')

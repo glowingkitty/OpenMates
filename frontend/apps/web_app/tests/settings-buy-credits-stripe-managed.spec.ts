@@ -47,6 +47,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	assertNoMissingTranslations,
 	checkEmailQuota,
 	createEmailClient,
@@ -116,6 +117,7 @@ function isMailosaurPermissionError(error: unknown): boolean {
 // #checkout div. After payment, onComplete fires in-page — NO page redirect.
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('settings buy credits: completes Stripe Managed Payments (Checkout Session) flow without page reload', async ({
 	page
 }: {
@@ -146,6 +148,21 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-managed' });
 	await archiveExistingScreenshots(log);
 
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: false,
+				use_managed_payments: true,
+			}),
+		});
+	});
+
 	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
 
 	// ─── Login ────────────────────────────────────────────────────────────────────
@@ -157,11 +174,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
 	const billingItem = page

@@ -40,6 +40,7 @@ const {
 	setToggleChecked,
 	validateSignupInviteIfRequired,
 	fillStripeCardDetails,
+	expectVisibleSettingsMenu,
 	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
@@ -71,6 +72,7 @@ const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 // Netherlands EU card — required to pass the Radar "block non-EU cards" rule on the EU Stripe path.
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('completes signup and EU card purchase from Settings billing', async ({
 	page,
 	context
@@ -139,6 +141,21 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234';
 	logSignupCheckpoint('Initialized signup identity.', { signupEmail });
+
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: true,
+				use_managed_payments: false,
+			}),
+		});
+	});
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
 	await page.goto(getE2EDebugUrl('/'));
@@ -262,7 +279,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 
 	// Billing moved out of signup. Purchase credits from Settings > Billing > Buy Credits.
 	await settingsMenuButtonForPurchase.click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await expectVisibleSettingsMenu(page);
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
@@ -356,7 +373,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	if (!(await page.locator('[data-testid="settings-menu"].visible').isVisible({ timeout: 2000 }).catch(() => false))) {
 		await settingsMenuButton.click();
 	}
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
+	await expectVisibleSettingsMenu(page);
 	await takeStepScreenshot(page, 'settings-menu-open');
 	logSignupCheckpoint('Opened settings menu for credit verification.');
 

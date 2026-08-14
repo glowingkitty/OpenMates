@@ -49,6 +49,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
+	expectVisibleSettingsMenu,
 	getTestAccount,
 	fillStripeCardDetails,
 	setToggleChecked,
@@ -88,6 +89,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // Test: Saved payment method → purchase → invoice appears → download works
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('purchases credits with saved payment method, then verifies invoice is downloadable', async ({
 	page
 }: {
@@ -115,6 +117,21 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'saved-payment-invoice' });
 	await archiveExistingScreenshots(log);
 
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: true,
+				use_managed_payments: false,
+			}),
+		});
+	});
+
 	// ─── Step 1: Login ────────────────────────────────────────────────────────────
 
 	await loginToTestAccount(page, log, screenshot);
@@ -128,13 +145,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-
-	// Wait for settings menu items to load (confirms authenticated state fully propagated).
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first()
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	await screenshot(page, 'settings-menu-open');
 
@@ -195,9 +206,6 @@ test('purchases credits with saved payment method, then verifies invoice is down
 			await expect(consentToggle).toBeHidden({ timeout: 10000 });
 			log('Accepted limited refund consent.');
 		}
-
-		// Wait for any iframe (Stripe EU or Stripe Managed Payments) to confirm the payment component loaded.
-		await page.waitForSelector('iframe', { state: 'visible', timeout: 20000 });
 
 		// If an "Add payment method" button is visible (saved methods exist on Stripe),
 		// click it to reveal the fresh Stripe form.

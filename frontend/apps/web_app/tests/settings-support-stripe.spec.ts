@@ -42,6 +42,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	fillStripeCardDetails,
 	getTestAccount,
 } = require('./signup-flow-helpers');
@@ -75,6 +76,7 @@ const STRIPE_TEST_CARD = '4000002460000001'; // Finland EU card
 // Test: Settings → Support → One-Time → Stripe card donation
 // ─────────────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.access.authenticated-first-party
 test('settings support: completes one-time donation via Stripe card', async ({
 	page
 }: {
@@ -104,7 +106,7 @@ test('settings support: completes one-time donation via Stripe card', async ({
 	// ─── Force Stripe EU provider (GHA has US IPs → defaults to Managed Payments) ────
 	// Hardcoded response to avoid route.fetch() HTML error from GHA's IP.
 	// The Stripe publishable key is intentionally public (pk_test_* prefix).
-	await page.route('**/v1/payments/config', async (route: any) => {
+	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -113,6 +115,8 @@ test('settings support: completes one-time donation via Stripe card', async ({
 				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
 				environment: 'sandbox',
 				bank_transfer_available: false,
+				is_eu: true,
+				use_managed_payments: false,
 			}),
 		});
 	});
@@ -129,11 +133,7 @@ test('settings support: completes one-time donation via Stripe card', async ({
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 	await screenshot(page, '01-settings-menu-open');
 
 	// ─── Navigate: Support → One-Time ────────────────────────────────────────

@@ -20,6 +20,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	getTestAccount,
 } = require('./signup-flow-helpers');
 
@@ -56,6 +57,7 @@ const MOCK_COUNTRY = 'Germany';
 const MOCK_PENDING_INVOICE_REFERENCE = 'OM-TEST-PENDING';
 const MOCK_COMPLETED_INVOICE_REFERENCE = 'OM-TEST-COMPLETED';
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view', async ({
 	page
 }: {
@@ -77,7 +79,7 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	// Force bank_transfer_available=true with a hardcoded config mock.
 	// Use a non-empty placeholder public key so Payment.svelte doesn't throw
 	// "Stripe Public Key not found" before the bank_transfer_available flag is read.
-	await page.route('**/v1/payments/config', async (route: any) => {
+	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -86,6 +88,8 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 				public_key: 'pk_test_placeholder_bank_transfer_test',
 				environment: 'sandbox',
 				bank_transfer_available: true,
+				is_eu: true,
+				use_managed_payments: false,
 			}),
 		});
 	});
@@ -182,11 +186,7 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	const billingItem = page
 		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
@@ -236,8 +236,7 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	log('Closed settings after verifying bank-transfer details.');
 
 	await profileContainer.click();
-	const reopenedSettingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(reopenedSettingsMenu).toBeVisible({ timeout: 8000 });
+	const reopenedSettingsMenu = await expectVisibleSettingsMenu(page);
 
 	const billingAfterReopen = reopenedSettingsMenu
 		.locator('[data-testid="menu-item"][role="menuitem"]')

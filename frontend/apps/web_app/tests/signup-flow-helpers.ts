@@ -9,6 +9,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const nodeCrypto = require('crypto');
+const { expect } = require('@playwright/test');
 
 /**
  * Default artifacts locations for Playwright screenshot output.
@@ -239,6 +240,15 @@ async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): P
 			element.dispatchEvent(new Event('change', { bubbles: true }));
 		}, shouldBeChecked);
 	}
+}
+
+async function expectVisibleSettingsMenu(page: any, timeout = 15000): Promise<any> {
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	await expect(settingsMenu).toBeVisible({ timeout: Math.min(timeout, 10000) });
+	await expect(
+		settingsMenu.locator('[data-testid="menu-item"][role="menuitem"]').first()
+	).toBeVisible({ timeout });
+	return settingsMenu;
 }
 
 async function validateSignupInviteIfRequired(
@@ -1707,6 +1717,7 @@ module.exports = {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	expectVisibleSettingsMenu,
 	validateSignupInviteIfRequired,
 	cleanupFailedSignupAccount,
 	fillStripeCardDetails,
