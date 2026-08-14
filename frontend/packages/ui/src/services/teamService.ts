@@ -174,15 +174,16 @@ export async function createTeam(input: { name: string; description?: string | n
     method: "POST",
     body: JSON.stringify(payload),
   });
-  teamKeyCache.set(teamId, teamKey);
   const returnedTeam = data.team ?? {};
+  const createdTeamId = returnedTeam.team_id ?? teamId;
+  teamKeyCache.set(createdTeamId, teamKey);
   const createdRecord: TeamRecord = {
     ...returnedTeam,
-    team_id: returnedTeam.team_id ?? teamId,
+    team_id: createdTeamId,
     encrypted_name: returnedTeam.encrypted_name ?? payload.encrypted_name,
     encrypted_description: returnedTeam.encrypted_description ?? payload.encrypted_description,
     encrypted_profile_image_metadata: returnedTeam.encrypted_profile_image_metadata ?? payload.encrypted_profile_image_metadata,
-    encrypted_team_key: returnedTeam.encrypted_team_key ?? encryptedTeamKey,
+    encrypted_team_key: encryptedTeamKey,
     encrypted_zero_balance: returnedTeam.encrypted_zero_balance ?? payload.encrypted_zero_balance,
     role: returnedTeam.role ?? "owner",
     created_at: returnedTeam.created_at ?? payload.created_at,

@@ -34,7 +34,7 @@ describe('teamService', () => {
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled
 	it('keeps the submitted encrypted fields when create returns a sparse team row', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response(JSON.stringify({ team: { team_id: 'team-local-id', role: 'owner' } }), {
+			new Response(JSON.stringify({ team: { team_id: 'team-server-id', encrypted_team_key: 'server-wrapper', role: 'owner' } }), {
 				status: 200,
 				headers: { 'Content-Type': 'application/json' }
 			})
@@ -50,12 +50,14 @@ describe('teamService', () => {
 			credentials: 'include'
 		}));
 		expect(team).toMatchObject({
-			team_id: 'team-local-id',
+			team_id: 'team-server-id',
 			name: 'Launch team',
 			description: 'Encrypted browser team',
 			role: 'owner',
 			zeroBalance: 0
 		});
+		expect(cryptoMocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+		expect(team.encrypted.encrypted_team_key).toBe('wrapped-team-key');
 		expect(team.encrypted.encrypted_name).toBe('enc:Launch team');
 		expect(team.encrypted.encrypted_description).toBe('enc:Encrypted browser team');
 	});
