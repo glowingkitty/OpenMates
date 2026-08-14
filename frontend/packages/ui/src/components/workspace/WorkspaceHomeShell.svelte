@@ -1202,6 +1202,7 @@
 
     .workspace-composer-slot {
       padding-inline: 0;
+      padding-bottom: var(--spacing-5);
     }
 
     .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
