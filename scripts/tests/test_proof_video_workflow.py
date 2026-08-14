@@ -773,11 +773,22 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
         return type("Result", (), {"returncode": 0, "stdout": '{"type":"text","part":{"text":"{}"}}\n', "stderr": ""})()
 
     monkeypatch.setattr(workflow.subprocess, "run", run)
+    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
     workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
 
     assert observed["cwd"] == tmp_path
+    assert observed["command"][0] == "/test/opencode"
     assert str(prompt.resolve()) not in " ".join(observed["command"])
     assert "review-prompt-round-0.json" in " ".join(observed["command"])
+
+
+def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prompt = tmp_path / "review-prompt-round-0.json"
+    prompt.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: None)
+
+    with pytest.raises(workflow.WorkflowError, match="OPENCODE_BIN"):
+        workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
 
 
 def test_review_run_rejects_reviewer_frame_hash_replacement(

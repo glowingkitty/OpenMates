@@ -19,6 +19,11 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
+try:
+    from scripts._zellij_utils import _resolve_opencode_bin
+except ModuleNotFoundError:
+    from _zellij_utils import _resolve_opencode_bin
+
 
 def _resolve_control_plane_root(checkout_root: Path) -> Path:
     """Resolve the root checkout that owns shared session state."""
@@ -624,8 +629,11 @@ def _parse_reviewer_output(output: str) -> dict[str, Any]:
 
 def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_round: int) -> tuple[dict[str, Any], str]:
     output_path = run_dir / f"review-output-round-{correction_round}.jsonl"
+    opencode_bin = _resolve_opencode_bin()
+    if not opencode_bin:
+        raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
     command = [
-        "opencode",
+        opencode_bin,
         "run",
         "--title",
         f"Review proof frames round {correction_round}",
