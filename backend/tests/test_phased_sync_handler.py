@@ -42,6 +42,49 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
 )
 
 
+def _hash(value: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+# contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,teams.workspace.surface-parity,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync() -> None:
+    calls = []
+
+    class FakeChatKeyWrapper:
+        async def get_wrappers_by_hashed_chat_ids_batch(
+            self,
+            hashed_chat_ids,
+            *,
+            hashed_user_id=None,
+            hashed_team_id=None,
+        ):
+            calls.append({
+                "hashed_chat_ids": hashed_chat_ids,
+                "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
+            })
+            return [{"id": "team-wrapper"}]
+
+    directus = SimpleNamespace(chat_key_wrapper=FakeChatKeyWrapper())
+
+    wrappers = await phased_sync_handler._fetch_chat_key_wrappers_for_chats(
+        directus,
+        ["chat-1"],
+        "user-1",
+        team_id="team-1",
+    )
+
+    assert wrappers == [{"id": "team-wrapper"}]
+    assert calls == [{
+        "hashed_chat_ids": [_hash("chat-1")],
+        "hashed_user_id": None,
+        "hashed_team_id": _hash("team-1"),
+    }]
+
+
 @pytest.mark.anyio
 async def test_phase2_uses_batched_draft_metadata_without_per_chat_lookup() -> None:
     calls = []

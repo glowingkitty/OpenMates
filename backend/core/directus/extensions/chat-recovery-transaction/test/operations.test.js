@@ -14,6 +14,7 @@ const PREFLIGHT_ID = '018f1111-1111-7111-8111-111111111111';
 const JOB_ID = '018f7777-7777-7777-8777-777777777777';
 const BILLING_ID = '018f6666-6666-7666-8666-666666666666';
 const OWNER = 'a'.repeat(64);
+const TEAM_HASH = 'c'.repeat(64);
 const RECOVERY_KEY = b64(32, 7);
 const COMMITMENT = 'b'.repeat(64);
 const SEALED_PAYLOAD = JSON.stringify({ v: 1, epk: b64(32, 1), nonce: b64(12, 2), ciphertext: b64(17, 3) });
@@ -765,6 +766,7 @@ test('worker failure after sealed job is treated as stale and idempotent', async
   assert.equal(database.rows.chat_inference_outbox[0].state, 'DISPATCHED');
 });
 
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight atomically writes chat, user message, and preflight', async () => {
   const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [] });
   const result = await executeOperation(database, 'prepare_preflight', prepareBody(), new Date('2029-01-01T00:00:00Z'));
@@ -780,6 +782,51 @@ test('prepare_preflight atomically writes chat, user message, and preflight', as
   assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
 });
 
+// contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
+test('prepare_preflight creates team chat wrapper for new team chats', async () => {
+  const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] });
+  const result = await executeOperation(
+    database,
+    'prepare_preflight',
+    prepareBody({ hashed_team_id: TEAM_HASH }),
+    new Date('2029-01-01T00:00:00Z'),
+  );
+
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(database.rows.chats[0].hashed_team_id, TEAM_HASH);
+  assert.equal(database.rows.chat_key_wrappers.length, 1);
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(database.rows.chat_key_wrappers[0])
+        .filter(([key]) => key !== 'id'),
+    ),
+    {
+      hashed_chat_id: testing.digest(CHAT_ID),
+      hashed_team_id: TEAM_HASH,
+      key_type: 'team',
+      team_key_epoch: 1,
+      encrypted_chat_key: 'wrapped-key-1',
+      wrapper_version: 1,
+      created_at: 1861920000,
+    },
+  );
+});
+
+// contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
+test('prepare_preflight rolls back team chat when team wrapper insert fails', async () => {
+  const database = fakeDatabase(
+    { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] },
+    { operation: 'insert', table: 'chat_key_wrappers' },
+  );
+
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH }), new Date('2029-01-01T00:00:00Z')),
+    /injected insert:chat_key_wrappers failure/,
+  );
+  assert.deepEqual(database.rows, { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] });
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rolls back all writes when the final preflight insert fails', async () => {
   const database = fakeDatabase(
     { chats: [], messages: [], chat_turn_preflights: [] },
@@ -793,6 +840,7 @@ test('prepare_preflight rolls back all writes when the final preflight insert fa
   assert.deepEqual(database.rows, { chats: [], messages: [], chat_turn_preflights: [] });
 });
 
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight accepts matching metadata for an existing empty draft shell', async () => {
   const metadata = prepareBody().encrypted_chat_metadata;
   const database = fakeDatabase({
@@ -819,6 +867,7 @@ test('prepare_preflight accepts matching metadata for an existing empty draft sh
   assert.equal(database.rows.chat_turn_preflights.length, 1);
 });
 
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rejects metadata for an existing non-empty chat', async () => {
   const metadata = prepareBody().encrypted_chat_metadata;
   const database = fakeDatabase({
@@ -845,6 +894,7 @@ test('prepare_preflight rejects metadata for an existing non-empty chat', async 
   );
 });
 
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight is idempotent for an exact duplicate and rejects immutable key changes', async () => {
   const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [] });
   const now = new Date('2029-01-01T00:00:00Z');

@@ -411,16 +411,21 @@ async def _fetch_chat_key_wrappers_for_chats(
     directus_service: DirectusService,
     chat_ids: List[str],
     user_id: str,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
     if not chat_ids:
         return []
     try:
         hashed_chat_ids = [hashlib.sha256(chat_id.encode()).hexdigest() for chat_id in chat_ids]
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        if team_id:
+            return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+                hashed_chat_ids,
+                hashed_team_id=hashlib.sha256(team_id.encode()).hexdigest(),
+            )
         return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
             hashed_chat_ids,
-            hashed_user_id=hashed_user_id,
+            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
         )
     except Exception as exc:
         logger.warning("Failed to fetch chat key wrappers for sync: %s", exc, exc_info=True)
@@ -612,6 +617,7 @@ async def handle_phased_sync_request(
                         _handle_phase1b_sync(
                             manager, cache_service, directus_service, user_id, device_fingerprint_hash,
                             phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                            team_id=team_id,
                             user_otel_attrs=user_otel_attrs,
                         )
                     )
@@ -630,6 +636,7 @@ async def handle_phased_sync_request(
                     await _handle_phase1b_sync(
                         manager, cache_service, directus_service, user_id, device_fingerprint_hash,
                         phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                        team_id=team_id,
                         user_otel_attrs=user_otel_attrs,
                     )
 
@@ -1176,6 +1183,7 @@ async def _handle_phase1b_sync(
     client_chat_versions: Dict[str, Dict[str, int]],
     sent_embed_ids: set,
     client_embed_ids: Optional[set] = None,
+    team_id: Optional[str] = None,
     user_otel_attrs: dict | None = None,
 ):
     """
@@ -1306,6 +1314,7 @@ async def _handle_phase1b_sync(
             directus_service,
             phase1_chat_ids,
             user_id,
+            team_id=team_id,
         )
 
         # Send Phase 1b as separate WS message
@@ -1755,6 +1764,7 @@ async def _handle_phase3_sync(
                 directus_service,
                 batch_chat_ids,
                 user_id,
+                team_id=team_id,
             )
             if batch_chat_key_wrappers:
                 payload_data["chat_key_wrappers"] = batch_chat_key_wrappers

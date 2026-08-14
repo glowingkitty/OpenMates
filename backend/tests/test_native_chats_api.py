@@ -32,6 +32,7 @@ def _request(chat_service, chat_key_wrapper_service=None, get_items=None, team_s
     ))))
 
 
+# contract-test: direct surface=rest_api assertions=auth.surface.first-party-boundary,chats.persistence.client-encrypted
 def test_native_chat_routes_require_session_authentication() -> None:
     routes = {route.path: route for route in router.routes}
 
@@ -43,6 +44,7 @@ def test_native_chat_routes_require_session_authentication() -> None:
         assert get_current_user in dependency_calls
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     chat_service = SimpleNamespace(
@@ -72,6 +74,8 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
             {
                 "id": "chat-owned",
                 "encrypted_title": "cipher-title",
+                "encrypted_slug": None,
+                "slug_lookup_hash": None,
                 "encrypted_chat_summary": "cipher-summary",
                 "encrypted_chat_key": "wrapped-chat-key",
                 "chat_key_wrappers": [],
@@ -98,6 +102,54 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     assert "chat_summary" not in result["chats"][0]
 
 
+# contract-test: supporting surface=rest_api assertions=teams.membership.role-gated,teams.workspace.surface-parity,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_list_team_chats_fetches_team_key_wrappers_after_role_check() -> None:
+    team_hash = hashlib.sha256("team-1".encode()).hexdigest()
+    chat_hash = hashlib.sha256("team-chat".encode()).hexdigest()
+    wrapper = {
+        "id": "team-wrapper",
+        "hashed_chat_id": chat_hash,
+        "hashed_team_id": team_hash,
+        "key_type": "team",
+        "encrypted_chat_key": "team-cipher",
+    }
+    chat_service = SimpleNamespace(
+        get_user_chats_metadata=AsyncMock(return_value=[
+            {
+                "id": "team-chat",
+                "encrypted_title": "cipher-title",
+                "encrypted_chat_summary": "cipher-summary",
+                "encrypted_chat_key": "team-wrapped-key",
+                "pinned": False,
+                "updated_at": 200,
+                "last_message_timestamp": 190,
+            }
+        ])
+    )
+    chat_key_wrapper_service = SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[wrapper]))
+    team_service = SimpleNamespace(require_team_role=AsyncMock())
+
+    result = await list_chats(
+        request=_request(chat_service, chat_key_wrapper_service, team_service=team_service),
+        limit=20,
+        team_id="team-1",
+        current_user=SimpleNamespace(id="user-1"),
+    )
+
+    assert result["chats"][0]["chat_key_wrappers"] == [wrapper]
+    team_service.require_team_role.assert_awaited_once_with(
+        "team-1",
+        "user-1",
+        {"owner", "admin", "member", "viewer"},
+    )
+    chat_key_wrapper_service.get_wrappers_by_hashed_chat_ids_batch.assert_awaited_once_with(
+        [chat_hash],
+        hashed_team_id=team_hash,
+    )
+
+
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> None:
     chat_service = SimpleNamespace(
@@ -126,6 +178,7 @@ async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> 
     chat_service.get_all_messages_for_chat.assert_awaited_once_with("chat-owned", decrypt_content=False)
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_list_chat_messages_hides_cross_user_chat_existence() -> None:
     chat_service = SimpleNamespace(
@@ -146,6 +199,7 @@ async def test_list_chat_messages_hides_cross_user_chat_existence() -> None:
     chat_service.get_all_messages_for_chat.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.anyio
 async def test_chat_message_window_requires_ownership_before_bounded_encrypted_read() -> None:
     messages = [
@@ -214,6 +268,7 @@ async def test_chat_message_window_requires_ownership_before_bounded_encrypted_r
     chat_service.get_all_messages_for_chat.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_chat_message_window_hides_cross_user_chat_existence() -> None:
     chat_service = SimpleNamespace(
@@ -246,6 +301,7 @@ async def test_chat_message_window_hides_cross_user_chat_existence() -> None:
     get_items.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.anyio
 async def test_chat_message_window_around_anchor_passes_anchor_cursor() -> None:
     chat_service = SimpleNamespace(

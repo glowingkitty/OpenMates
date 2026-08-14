@@ -162,10 +162,16 @@ async def list_chats(
         for chat in chats
         if chat.get("id")
     ]
-    wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-        hashed_chat_ids,
-        hashed_user_id=hashlib.sha256(current_user.id.encode()).hexdigest(),
-    )
+    if team_id:
+        wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_team_id=hash_id(team_id),
+        )
+    else:
+        wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_user_id=hashlib.sha256(current_user.id.encode()).hexdigest(),
+        )
     wrappers_by_hash: dict[str, list[dict[str, Any]]] = {}
     for wrapper in wrappers:
         hashed_chat_id = wrapper.get("hashed_chat_id")

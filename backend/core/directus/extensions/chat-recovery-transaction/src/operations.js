@@ -9,6 +9,7 @@ const JOBS = 'chat_completion_recovery_jobs';
 const OUTBOX = 'chat_inference_outbox';
 const CHATS = 'chats';
 const MESSAGES = 'messages';
+const CHAT_KEY_WRAPPERS = 'chat_key_wrappers';
 const PROTOCOL_STATE = 'chat_recovery_protocol_state';
 const PROTOCOL_STATE_ID = 'chat-recovery';
 const PROTOCOL_VERSION = 1;
@@ -527,6 +528,7 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && Number(chat.title_v ?? 0) === 0
   && Number(chat.metadata_v ?? 0) === 0
   && chat.last_message_timestamp == null;
+const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
 async function preparePreflight(database, raw, now) {
   const body = operationBody(raw, 'prepare_preflight');
@@ -591,6 +593,18 @@ async function preparePreflight(database, raw, now) {
         share_highlights: true,
       };
       await trx(CHATS).insert(chat);
+      if (teamHash) {
+        await trx(CHAT_KEY_WRAPPERS).insert({
+          id: randomUUID(),
+          hashed_chat_id: hashIdentifier(chatId),
+          hashed_team_id: teamHash,
+          key_type: 'team',
+          team_key_epoch: 1,
+          encrypted_chat_key: wrappedKey,
+          wrapper_version: 1,
+          created_at: timestamp,
+        });
+      }
     }
     const canonical = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, chat_key_version: keyVersion })
       .whereNull('deletion_invalidated_at').orderBy('prepared_at', 'asc').first();
