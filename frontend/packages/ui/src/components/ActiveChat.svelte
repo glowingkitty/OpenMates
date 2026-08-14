@@ -7333,6 +7333,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (activeElement instanceof HTMLElement) {
             activeElement.blur();
         }
+        // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
+        currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
         // The resume card $effect guards on $activeChatStore — if it's still set
         // when showWelcome triggers the effect, the guard returns early and the
@@ -7343,7 +7345,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
         }
         // Reset current chat metadata and messages
-        currentChat = null;
         currentMessages = [];
         currentCompressionCheckpoints = [];
         currentMessageWindowHasMoreBefore = false;

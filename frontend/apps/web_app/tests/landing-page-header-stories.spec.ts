@@ -315,7 +315,7 @@ test.describe('Landing page header stories', () => {
 	test('tablet portrait keeps every Privacy animation inside the daily inspiration banner', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await openPrivacySlide(page, true);
+		await openPrivacySlide(page);
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {
 			timeout: HEADING_SETTLE_MS
 		});
@@ -348,7 +348,7 @@ test.describe('Landing page header stories', () => {
 		test.setTimeout(45000);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await openPrivacySlide(page);
+		await openPrivacySlide(page, true);
 
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-reduced-motion', 'true');
 		await expect(page.getByTestId('landing-privacy-safety-demo')).toHaveAttribute('data-playing', 'false');
