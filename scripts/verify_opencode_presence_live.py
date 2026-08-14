@@ -310,20 +310,21 @@ def _run_isolated() -> dict:
             "OPENMATES_PROJECT_ROOT": str(fixture),
             "OPENCODE_DISABLE_AUTOUPDATE": "1",
         }
+        process_log_path = root / "opencode-server.log"
+        process_log = process_log_path.open("w", encoding="utf-8")
         process = subprocess.Popen(
             [opencode, "serve", "--hostname", "127.0.0.1", "--port", str(port), "--print-logs", "--log-level", "INFO"],
             cwd=fixture,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=process_log,
+            stderr=subprocess.STDOUT,
             text=True,
         )
         try:
             def server_ready() -> bool:
                 if process and process.poll() is not None:
-                    stdout = process.stdout.read() if process.stdout else ""
-                    stderr = process.stderr.read() if process.stderr else ""
-                    detail = (stderr or stdout or "no OpenCode process output")[-2_000:]
+                    process_log.flush()
+                    detail = (process_log_path.read_text(encoding="utf-8") or "no OpenCode process output")[-2_000:]
                     raise AssertionError(f"Isolated OpenCode server exited {process.returncode}: {detail}")
                 return _request(
                     "GET",
@@ -331,7 +332,12 @@ def _run_isolated() -> dict:
                     timeout=1,
                 ) is not None
 
-            _wait_for("isolated OpenCode server", server_ready, timeout=30)
+            try:
+                _wait_for("isolated OpenCode server", server_ready, timeout=30)
+            except AssertionError as error:
+                process_log.flush()
+                detail = (process_log_path.read_text(encoding="utf-8") or "no OpenCode process output")[-2_000:]
+                raise AssertionError(f"{error}: {detail}") from error
 
             def collect_events() -> None:
                 url = f"{base_url}/event?{urllib.parse.urlencode({'directory': str(fixture)})}"
@@ -497,6 +503,7 @@ def _run_isolated() -> dict:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+            process_log.close()
     atexit.unregister(provider.stop)
     provider.stop()
     return result
