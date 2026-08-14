@@ -52,12 +52,21 @@ audio is off by default and `--audio-path` is an explicit opt-in.
 - Captions are sentence-level and bottom-centered. Pacing may use only whole-video
   slowdown to `0.75x` and a final hold, with a 35-second output cap.
 - Process one device at a time. Do not use OCR or place the full video in model
-  context. Permit at most one automatic rerender for a mechanical defect.
+  context. Sample periodically every five seconds, prioritize event boundaries,
+  deduplicate nearby timestamps, and cap the immutable index at twelve frames per
+  device.
 
 ## Review And Repair
 
-Review only three to eight selected frames per device plus the approved contract
-and deterministic metadata. Return exactly one status:
+Run the canonical review command rather than manually selecting frames or writing
+claim verdicts:
+
+```bash
+python3 scripts/proof_video_workflow.py review --run-dir <path> --correction-round 0 --correction-kind none
+```
+
+Review every frame in the immutable one-to-twelve-frame device index plus the
+approved contract and deterministic metadata. Return exactly one status:
 
 - `passed`
 - `capture_defect`
@@ -71,6 +80,12 @@ capture. Clipping, broken headers, wrong UI state, raw implementation text, stal
 loading, and broken navigation are product defects: add or strengthen a failing
 test, fix the product, deploy, and recapture. Never hide them through trimming,
 cropping, caption edits, or transcript edits.
+
+The entire proof contract is limited to six AI review calls and forty-eight cumulative submitted frames.
+It permits one initial review plus at most two
+automatic correction rounds, including at most one product-code correction round.
+Re-review only changed device hashes. Uncertain findings, repeated defect
+fingerprints, or exhausted budgets require immediate user input.
 
 After a passed frame review, upload the approved proof video or representative
 proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt

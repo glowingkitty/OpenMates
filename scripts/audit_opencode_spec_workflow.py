@@ -56,10 +56,13 @@ SKILL_TERMS = {
         "proof_video_workflow.py start --current",
         "audio is off by default",
         "bottom-centered",
-        "three to eight",
+        "immutable one-to-twelve-frame",
         "product_defect",
         "opencode_response_media.py",
         "actual `openmates` CLI",
+        "periodically every five seconds",
+        "forty-eight cumulative submitted frames",
+        "proof_video_workflow.py review",
     },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",
@@ -112,12 +115,23 @@ SKILL_TERMS = {
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 PROOF_REVIEWER_TERMS = {
-    "three to eight image frames",
+    "one to twelve image frames",
     "Never request or read the\nfull video",
     "capture_defect",
     "render_defect",
     "product_defect",
     "uncertain",
+    "incidental_findings",
+    "every supplied frame",
+}
+OPENCODE_PROOF_REVIEWER_TERMS = {
+    "mode: all",
+    '"*": deny',
+    "review-prompt-round-*.json",
+    "frames/*",
+    "grep: deny",
+    "glob: deny",
+    "external_directory: deny",
 }
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
@@ -205,6 +219,21 @@ def audit_proof_video_reviewer(root: Path = REPO_ROOT) -> list[str]:
     return [f"proof-video reviewer missing required term: {term}" for term in sorted(PROOF_REVIEWER_TERMS) if term not in text]
 
 
+def audit_opencode_proof_video_reviewer(root: Path = REPO_ROOT) -> list[str]:
+    path = root / ".opencode/agents/proof-video-reviewer.md"
+    if not path.exists():
+        return ["missing generated OpenCode proof-video reviewer"]
+    text = path.read_text(encoding="utf-8")
+    problems = [
+        f"OpenCode proof-video reviewer missing required term: {term}"
+        for term in sorted(OPENCODE_PROOF_REVIEWER_TERMS)
+        if term not in text
+    ]
+    if "**/test-results/proof-videos/**" in text:
+        problems.append("OpenCode proof-video reviewer read access is not scoped to its current run directory")
+    return problems
+
+
 def audit_skill_mirrors(root: Path = REPO_ROOT) -> list[str]:
     failures: list[str] = []
     for claude_rel_path in CANONICAL_SKILLS:
@@ -269,6 +298,7 @@ def audit() -> list[str]:
         audit_config(_load_opencode_config())
         + audit_skills()
         + audit_proof_video_reviewer()
+        + audit_opencode_proof_video_reviewer()
         + audit_skill_mirrors()
         + audit_instructions()
         + audit_opencode_coordination()

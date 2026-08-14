@@ -60,8 +60,12 @@ PLAYWRIGHT_SOURCE_FIELDS = {
     "artifact_sha256",
     "test_account_provenance",
 }
-MAX_REVIEW_INTERVAL_SECONDS = 3.0
+MAX_REVIEW_INTERVAL_SECONDS = 5.0
+MAX_REVIEW_FRAMES_PER_DEVICE = 12
+MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS = 0.05
+SCENE_CHANGE_THRESHOLD = 0.3
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
+MAX_REVIEW_ATTEMPTS = 3
 END_FRAME_OFFSET_SECONDS = 0.1
 MEDIA_TIMESTAMP_DECIMALS = 3
 DEFAULT_NARRATION_PROVIDER = "elevenlabs"
@@ -78,7 +82,18 @@ DEFECT_RETURN_STAGES = {
 }
 FULL_VIDEO_REVIEW_KEYS = {"video", "video_path", "video_bytes", "video_base64", "video_attachment"}
 SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-REVIEW_REQUEST_FIELDS = {"spec_id", "subject_commit", "captions", "expected_proof", "frames", "video_metadata", "narration_audio"}
+REVIEW_REQUEST_FIELDS = {
+    "spec_id",
+    "subject_commit",
+    "captions",
+    "expected_proof",
+    "frames",
+    "frame_index_hash",
+    "proof_contract_hash",
+    "proof_group_id",
+    "video_metadata",
+    "narration_audio",
+}
 REVIEW_CAPTION_FIELDS = {"id", "narration_id", "text", "start", "end", "claim_ids"}
 REVIEW_PROOF_FIELDS = {"claim_id", "text", "acceptance_criteria", "evidence_intervals"}
 REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
@@ -1068,9 +1083,15 @@ def prepare_review_artifacts(
     acceptance_criteria: list[str],
     source: dict[str, Any],
     narration_audio: dict[str, Any],
+    proof_assertions: list[dict[str, str]] | None = None,
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
     caption_segments: list[dict[str, Any]] | None = None,
     device_profile: dict[str, Any] | None = None,
     render_metadata: dict[str, Any] | None = None,
+    scene_times: Iterable[float] = (),
+    action_times: Iterable[float] = (),
+    state_change_times: Iterable[float] = (),
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
     if device_profile is not None:
@@ -1102,6 +1123,9 @@ def prepare_review_artifacts(
             "claim_ids": ["CLAIM-1"],
         }
     ]
+    claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
+    if claim_ids:
+        captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     frame_dir = run_dir / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1111,7 +1135,10 @@ def prepare_review_artifacts(
         build_review_frame_times(
             duration_seconds=metadata["duration_seconds"],
             interval_seconds=MAX_REVIEW_INTERVAL_SECONDS,
+            scene_times=scene_times,
+            action_times=action_times,
             caption_intervals=[(float(caption["start"]), float(caption["end"])) for caption in captions],
+            state_change_times=state_change_times,
         )
     ):
         frame = extract_frame(
@@ -1123,14 +1150,27 @@ def prepare_review_artifacts(
         frames.append(frame)
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
-    expected = [
-        {
-            "claim_id": "CLAIM-1",
-            "text": expected_proof,
-            "acceptance_criteria": acceptance_criteria,
-            "evidence_intervals": [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]],
-        }
-    ]
+    evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
+    expected = (
+        [
+            {
+                "claim_id": str(assertion["id"]),
+                "text": str(assertion["description"]),
+                "acceptance_criteria": [str(assertion["id"])],
+                "evidence_intervals": evidence_intervals,
+            }
+            for assertion in proof_assertions
+        ]
+        if proof_assertions
+        else [
+            {
+                "claim_id": "CLAIM-1",
+                "text": expected_proof,
+                "acceptance_criteria": acceptance_criteria,
+                "evidence_intervals": evidence_intervals,
+            }
+        ]
+    )
     review_audio = {
         **narration_audio,
         "path": Path(str(narration_audio["path"])).name if narration_audio.get("path") else "",
@@ -1141,6 +1181,8 @@ def prepare_review_artifacts(
         captions=captions,
         expected_proof=expected,
         frames=frames,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
         video_metadata=metadata,
         narration_audio=review_audio,
     )
@@ -1149,6 +1191,8 @@ def prepare_review_artifacts(
         "spec_id": spec_id,
         "subject_commit": subject_commit,
         "source": source,
+        "proof_contract_hash": request["proof_contract_hash"],
+        "proof_group_id": request["proof_group_id"],
         "video_path": str(video_path),
         "video_metadata": metadata,
         "narration_audio": narration_audio,
@@ -1274,6 +1318,7 @@ def produce_cli_demonstration(
         source={"kind": "cli", **capture, "display_argv": display_argv},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
+        state_change_times=[float(state["start"]) for state in timeline["states"][1:]],
     )
 
 
@@ -1289,6 +1334,9 @@ def produce_playwright_demonstration(
     expected_proof: str,
     acceptance_criteria: list[str],
     narration_audio_path: Path | None,
+    proof_assertions: list[dict[str, str]] | None = None,
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
     narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
     narration_audio_model: str = DEFAULT_NARRATION_MODEL,
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
@@ -1346,6 +1394,7 @@ def produce_playwright_demonstration(
         hold_last_frame_seconds=hold_last_frame_seconds,
         demo_audio_path=demo_audio_path,
     )
+    scene_times = detect_scene_change_times(video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1355,6 +1404,9 @@ def produce_playwright_demonstration(
         caption_text=caption_text,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
+        proof_assertions=proof_assertions,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
         source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
@@ -1364,37 +1416,201 @@ def produce_playwright_demonstration(
             "hold_last_frame_seconds": hold_last_frame_seconds,
             "demo_audio_mixed": demo_audio_path is not None,
         },
+        scene_times=scene_times,
+        action_times=selected.get("action_timestamps", []),
+        state_change_times=selected.get("state_change_timestamps", []),
     )
 
 
-def record_review(run_dir: Path, claims: list[dict[str, Any]]) -> dict[str, Any]:
+def frame_index_hash(frames: list[dict[str, Any]]) -> str:
+    """Bind a review to the complete ordered frame index, not a hand-picked subset."""
+    canonical = [
+        {
+            "path": str(frame.get("path") or ""),
+            "sha256": str(frame.get("sha256") or ""),
+            "timestamp_seconds": frame.get("timestamp_seconds", frame.get("timestamp")),
+        }
+        for frame in frames
+    ]
+    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> None:
+    """Recompute the index and verify every reviewed frame is contained and unchanged."""
+    assert_frame_only_review_request(request)
+    frames = request.get("frames", [])
+    if request.get("frame_index_hash") != frame_index_hash(frames):
+        raise DemonstrationError("Review request frame-index hash does not match its canonical frames")
+    root = run_dir.resolve()
+    for frame in frames:
+        relative = Path(str(frame.get("path") or ""))
+        if relative.is_absolute():
+            raise DemonstrationError("Review frame paths must be relative to the run directory")
+        resolved = (root / relative).resolve()
+        if not resolved.is_relative_to(root):
+            raise DemonstrationError("Review frame path escapes the run directory")
+        if not resolved.is_file() or sha256_file(resolved) != frame.get("sha256"):
+            raise DemonstrationError(f"Review frame is missing or its hash changed: {relative}")
+
+
+def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    """Validate and persist one AI review receipt bound to every supplied frame."""
+    request = json.loads((run_dir / "review-request.json").read_text(encoding="utf-8"))
+    validate_review_request_files(run_dir, request)
     manifest_path = run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     review = manifest.get("review")
     if not isinstance(review, dict):
         raise DemonstrationError("Manifest review record must be a mapping")
     attempts = review.setdefault("attempts", [])
-    if not isinstance(attempts, list):
-        raise DemonstrationError("Manifest review attempts must be a list")
-    expected_claim_ids = [
-        item.get("claim_id") for item in manifest.get("expected_proof", []) if isinstance(item, dict)
-    ]
-    actual_claim_ids = [item.get("claim_id") for item in claims if isinstance(item, dict)]
+    if not isinstance(attempts, list) or len(attempts) >= MAX_REVIEW_ATTEMPTS:
+        raise DemonstrationError("Review attempt budget is exhausted; user input is required")
+    if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
+        raise DemonstrationError("Review receipt frame-index hash does not match the canonical request")
+
+    allowed_receipt_fields = {
+        "status",
+        "confidence",
+        "frame_index_hash",
+        "reviewed_frames",
+        "assertions",
+        "incidental_findings",
+        "return_stage",
+        "next_action",
+        "reviewer_session_id",
+        "device",
+        "proof_contract_hash",
+        "proof_group_id",
+        "source_artifact_hash",
+        "subject_commit",
+        "correction_round",
+        "correction_kind",
+        "workflow",
+    }
+    unknown_receipt_fields = set(receipt) - allowed_receipt_fields
+    if unknown_receipt_fields:
+        raise DemonstrationError(f"Review receipt contains unsupported field: {sorted(unknown_receipt_fields)[0]}")
+    missing_receipt_fields = allowed_receipt_fields - set(receipt)
+    if missing_receipt_fields:
+        raise DemonstrationError(f"Review receipt missing required field: {sorted(missing_receipt_fields)[0]}")
     if (
-        not expected_claim_ids
-        or len(actual_claim_ids) != len(set(actual_claim_ids))
-        or sorted(actual_claim_ids) != sorted(expected_claim_ids)
+        not isinstance(receipt.get("reviewer_session_id"), str)
+        or not receipt["reviewer_session_id"].strip()
+        or receipt.get("proof_contract_hash") != request.get("proof_contract_hash")
+        or receipt.get("proof_group_id") != request.get("proof_group_id")
+        or receipt.get("source_artifact_hash") != (request.get("video_metadata") or {}).get("sha256")
+        or receipt.get("subject_commit") != request.get("subject_commit")
+        or receipt.get("device") != (request.get("video_metadata") or {}).get("device_profile", "unspecified-device")
+        or receipt.get("correction_round") not in range(3)
+        or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or not isinstance(receipt.get("workflow"), dict)
     ):
-        raise DemonstrationError("Review must provide exactly one verdict for every expected claim")
-    result = evaluate_review_claims(claims, prior_attempts=len(attempts))
-    attempts.append(result)
+        raise DemonstrationError("Review receipt is missing canonical runner provenance")
+
+    known_frames = {str(frame["path"]) for frame in request.get("frames", []) if isinstance(frame, dict)}
+    expected_ids = {
+        str(item["claim_id"])
+        for item in request.get("expected_proof", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    assertions = receipt.get("assertions")
+    assertion_ids = [str(item.get("id")) for item in assertions or [] if isinstance(item, dict)]
+    if (
+        not isinstance(assertions, list)
+        or len(assertion_ids) != len(set(assertion_ids))
+        or set(assertion_ids) != expected_ids
+    ):
+        raise DemonstrationError("Review receipt must provide exactly one verdict for every expected assertion")
+
+    def validate_citations(items: list[dict[str, Any]], label: str) -> None:
+        for item in items:
+            frames = item.get("frames")
+            if not isinstance(frames, list) or not frames:
+                raise DemonstrationError(f"Every {label} requires at least one cited frame")
+            unknown = [str(path) for path in frames if str(path) not in known_frames]
+            if unknown:
+                raise DemonstrationError(f"Review receipt cites unknown frame: {unknown[0]}")
+            if not isinstance(item.get("observation"), str) or not item["observation"].strip():
+                raise DemonstrationError(f"Every {label} requires a frame-grounded observation")
+
+    validate_citations(assertions, "assertion")
+    allowed_assertion_fields = {"id", "verdict", "frames", "observation"}
+    for assertion in assertions:
+        if set(assertion) != allowed_assertion_fields:
+            raise DemonstrationError("Review receipt assertion fields do not match the canonical schema")
+        if assertion.get("verdict") not in REVIEW_VERDICTS:
+            raise DemonstrationError(f"Unsupported review assertion verdict: {assertion.get('verdict')}")
+    incidental = receipt.get("incidental_findings", [])
+    if not isinstance(incidental, list):
+        raise DemonstrationError("Review receipt incidental_findings must be a list")
+    validate_citations(incidental, "incidental finding") if incidental else None
+    allowed_incidental_fields = {"id", "category", "severity", "confidence", "frames", "observation"}
+    allowed_incidental_categories = {
+        "clipping",
+        "overlap",
+        "overflow",
+        "geometry",
+        "color",
+        "loading",
+        "raw_text",
+        "navigation",
+        "responsiveness",
+        "other",
+    }
+    for finding in incidental:
+        if set(finding) != allowed_incidental_fields:
+            raise DemonstrationError("Review receipt incidental-finding fields do not match the canonical schema")
+        finding_confidence = finding.get("confidence")
+        if (
+            finding.get("category") not in allowed_incidental_categories
+            or finding.get("severity") not in {"blocking", "warning"}
+            or isinstance(finding_confidence, bool)
+            or not isinstance(finding_confidence, (int, float))
+            or not 0 <= finding_confidence <= 1
+        ):
+            raise DemonstrationError("Review receipt contains an invalid incidental finding")
+    reviewed_frames = receipt.get("reviewed_frames")
+    if (
+        not isinstance(reviewed_frames, list)
+        or len(reviewed_frames) != len(set(map(str, reviewed_frames)))
+        or set(map(str, reviewed_frames)) != known_frames
+    ):
+        raise DemonstrationError("Review receipt must attest every canonical frame exactly once")
+    blocking = [item for item in incidental if item.get("severity") == "blocking"]
+    status = receipt.get("status")
+    if status == "passed":
+        if any(item.get("verdict") != "supported" for item in assertions):
+            raise DemonstrationError("Passed review receipt contains an unsupported assertion")
+        if blocking:
+            raise DemonstrationError("Passed review receipt contains a blocking incidental finding")
+    elif status not in {"capture_defect", "render_defect", "product_defect", "uncertain"}:
+        raise DemonstrationError(f"Unsupported review receipt status: {status}")
+    confidence = receipt.get("confidence")
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+        raise DemonstrationError("Review receipt confidence must be between zero and one")
+    if receipt.get("return_stage") not in {"complete", "capture", "render", "implementation", "review"}:
+        raise DemonstrationError("Review receipt has an unsupported return stage")
+    if not isinstance(receipt.get("next_action"), str) or not receipt["next_action"].strip():
+        raise DemonstrationError("Review receipt requires one bounded next action")
+
+    attempt_number = len(attempts) + 1
+    receipt_record = {**receipt, "attempt_number": attempt_number}
+    attempts.append(receipt_record)
     review.update(
         {
-            "status": result["status"],
-            "attempt_count": result["attempt_number"],
-            "requires_user_input": result["requires_user_input"],
+            "status": "passed" if status == "passed" else "failed",
+            "classified_status": status,
+            "attempt_count": attempt_number,
+            "requires_user_input": bool((receipt.get("workflow") or {}).get("requires_user_input"))
+            or status == "uncertain"
+            or attempt_number >= MAX_REVIEW_ATTEMPTS,
+            "frame_index_hash": receipt["frame_index_hash"],
         }
     )
+    receipt_path = run_dir / "review-receipt.json"
+    _write_run_json(receipt_path, receipt_record)
+    review["receipt_sha256"] = sha256_file(receipt_path)
     _write_run_json(run_dir / "review.json", review)
     _write_run_json(manifest_path, manifest)
     return manifest
@@ -1412,16 +1628,24 @@ def build_review_frame_times(
     if duration_seconds <= 0:
         raise DemonstrationError("Review duration must be positive")
     if interval_seconds <= 0 or interval_seconds > MAX_REVIEW_INTERVAL_SECONDS:
-        raise DemonstrationError("Periodic review interval must be positive and no longer than three seconds")
-    times = {0.0, round(float(duration_seconds), 3)}
+        raise DemonstrationError("Periodic review interval must be positive and no longer than five seconds")
+    periodic = {0.0, round(float(duration_seconds), 3)}
     current = 0.0
     while current < duration_seconds:
-        times.add(round(current, 3))
+        periodic.add(round(current, 3))
         current += interval_seconds
+
+    times = sorted(periodic)
+    event_candidates: list[float] = []
 
     def add_time(value: float) -> None:
         if 0 <= value <= duration_seconds:
-            times.add(round(float(value), 3))
+            rounded = round(float(value), 3)
+            if all(
+                abs(rounded - existing) >= MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS
+                for existing in [*times, *event_candidates]
+            ):
+                event_candidates.append(rounded)
 
     for value in scene_times:
         add_time(value)
@@ -1432,7 +1656,10 @@ def build_review_frame_times(
         add_time(value - 0.25)
         add_time(value)
         add_time(value + 0.25)
-    return sorted(times)
+    remaining = MAX_REVIEW_FRAMES_PER_DEVICE - len(times)
+    if remaining > 0:
+        times.extend(event_candidates[:remaining])
+    return sorted(times[:MAX_REVIEW_FRAMES_PER_DEVICE])
 
 
 def assert_frame_only_review_request(request: dict[str, Any]) -> None:
@@ -1467,6 +1694,12 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
         raise DemonstrationError("Review request spec_id must be a non-empty string")
     if not isinstance(request["subject_commit"], str) or not request["subject_commit"]:
         raise DemonstrationError("Review request subject_commit must be a non-empty string")
+    if not isinstance(request["frame_index_hash"], str) or not SHA256_RE.fullmatch(request["frame_index_hash"]):
+        raise DemonstrationError("Review request frame_index_hash must be a SHA-256 value")
+    if not isinstance(request["proof_contract_hash"], str) or not SHA256_RE.fullmatch(request["proof_contract_hash"]):
+        raise DemonstrationError("Review request proof_contract_hash must be a SHA-256 value")
+    if not isinstance(request["proof_group_id"], str) or not SHA256_RE.fullmatch(request["proof_group_id"]):
+        raise DemonstrationError("Review request proof_group_id must be a SHA-256 value")
     for field in ("captions", "expected_proof", "frames"):
         if not isinstance(request[field], list) or not request[field]:
             raise DemonstrationError(f"Review request {field} must be a non-empty list")
@@ -1577,14 +1810,29 @@ def build_review_request(
     frames: list[dict[str, Any]],
     video_metadata: dict[str, Any],
     narration_audio: dict[str, Any],
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
 ) -> dict[str, Any]:
     allowed_metadata = {key: video_metadata[key] for key in REVIEW_METADATA_FIELDS if key in video_metadata}
+    if not proof_contract_hash:
+        proof_contract_payload = json.dumps(
+            {"spec_id": spec_id, "expected_proof": expected_proof},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        proof_contract_hash = f"sha256:{hashlib.sha256(proof_contract_payload).hexdigest()}"
+    if not proof_group_id:
+        proof_group_payload = f"{spec_id}\0{proof_contract_hash}".encode("utf-8")
+        proof_group_id = f"sha256:{hashlib.sha256(proof_group_payload).hexdigest()}"
     request = {
         "spec_id": spec_id,
         "subject_commit": subject_commit,
         "captions": captions,
         "expected_proof": expected_proof,
         "frames": frames,
+        "frame_index_hash": frame_index_hash(frames),
+        "proof_contract_hash": proof_contract_hash,
+        "proof_group_id": proof_group_id,
         "video_metadata": allowed_metadata,
         "narration_audio": narration_audio,
     }
@@ -1612,6 +1860,32 @@ def register_exact_timestamp_request(
     }
     requests.append(record)
     return record
+
+
+def detect_scene_change_times(video_path: Path) -> list[float]:
+    """Return deterministic visual transition timestamps for bounded frame review."""
+    if not video_path.is_file():
+        raise DemonstrationError(f"Scene detection input does not exist: {video_path}")
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-i",
+            str(video_path),
+            "-vf",
+            f"select='gt(scene,{SCENE_CHANGE_THRESHOLD:g})',showinfo",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"FFmpeg scene detection failed: {result.stderr.strip()[-1000:]}")
+    return [round(float(value), 3) for value in re.findall(r"pts_time:([0-9]+(?:\.[0-9]+)?)", result.stderr)]
 
 
 def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, Any]:
@@ -1654,8 +1928,8 @@ def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Pa
 def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int) -> dict[str, Any]:
     if not claims:
         raise DemonstrationError("Review requires at least one claim verdict")
-    if isinstance(prior_attempts, bool) or not isinstance(prior_attempts, int) or not 0 <= prior_attempts < 4:
-        raise DemonstrationError("Prior review attempts must be an integer from 0 to 3")
+    if isinstance(prior_attempts, bool) or not isinstance(prior_attempts, int) or not 0 <= prior_attempts < MAX_REVIEW_ATTEMPTS:
+        raise DemonstrationError("Prior review attempts must be an integer from 0 to 2")
     failed_claim_ids: list[str] = []
     return_stages: list[str] = []
     invalidate = False
@@ -1690,7 +1964,9 @@ def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int)
         "failed_claim_ids": failed_claim_ids,
         "return_stages": return_stages,
         "invalidate_implementation_evidence": invalidate,
-        "requires_user_input": status == "failed" and attempt_number >= 4,
+        "requires_user_input": status == "failed" and (
+            attempt_number >= MAX_REVIEW_ATTEMPTS or any(claim.get("verdict") == "ambiguous" for claim in claims)
+        ),
         "claims": claims,
     }
 
@@ -1735,6 +2011,38 @@ def delete_disposable_artifacts(run_dir: Path, manifest: dict[str, Any]) -> list
     return deleted
 
 
+def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *, verify_video: bool = True) -> None:
+    """Reject legacy or modified review records before any proof publication."""
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    receipt_path = run_dir / "review-receipt.json"
+    expected_hash = str(review.get("receipt_sha256") or "")
+    if not receipt_path.is_file() or not SHA256_RE.fullmatch(expected_hash):
+        raise DemonstrationError("Publication requires a hash-bound AI review receipt")
+    if sha256_file(receipt_path) != expected_hash:
+        raise DemonstrationError("AI review receipt hash no longer matches the reviewed manifest")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if (
+        receipt.get("status") != "passed"
+        or not str(receipt.get("reviewer_session_id") or "").strip()
+        or receipt.get("frame_index_hash") != review.get("frame_index_hash")
+        or receipt.get("proof_contract_hash") != manifest.get("proof_contract_hash")
+        or receipt.get("proof_group_id") != manifest.get("proof_group_id")
+        or receipt.get("source_artifact_hash") != (manifest.get("video_metadata") or {}).get("sha256")
+        or receipt.get("subject_commit") != manifest.get("subject_commit")
+        or receipt.get("correction_round") not in range(3)
+        or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or not isinstance(receipt.get("workflow"), dict)
+    ):
+        raise DemonstrationError("AI review receipt does not match the passed manifest review")
+    if verify_video:
+        video_path = Path(str(manifest.get("video_path") or ""))
+        if not video_path.is_absolute():
+            video_path = run_dir / video_path
+        expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
+        if not video_path.is_file() or sha256_file(video_path) != expected_video_hash:
+            raise DemonstrationError("Reviewed proof video is missing or its content hash changed")
+
+
 def publish_reviewed_video(
     run_dir: Path,
     manifest: dict[str, Any],
@@ -1753,9 +2061,11 @@ def publish_reviewed_video(
     if not isinstance(publication, dict):
         raise DemonstrationError("Manifest publication record must be a mapping")
     if publication.get("status") == "delivered":
+        require_review_receipt_integrity(run_dir, manifest, verify_video=False)
         _write_run_json(run_dir / "publication.json", publication)
         _write_run_json(run_dir / "manifest.json", manifest)
         return manifest
+    require_review_receipt_integrity(run_dir, manifest)
     video_path = Path(str(manifest.get("video_path", "")))
     if not video_path.is_file():
         raise DemonstrationError("Reviewed demonstration video does not exist")
@@ -1945,9 +2255,6 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--audio-reused-from", default="")
     cli_parser.add_argument("--anonymize-sensitive", action="store_true")
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
-    review_parser = subparsers.add_parser("record-review")
-    review_parser.add_argument("--run-dir", type=Path, required=True)
-    review_parser.add_argument("--claims-json", required=True)
     publish_parser = subparsers.add_parser("publish")
     publish_parser.add_argument("--run-dir", type=Path, required=True)
     expire_parser = subparsers.add_parser("expire")
@@ -1983,13 +2290,6 @@ def main(argv: list[str] | None = None) -> int:
             anonymize_sensitive=args.anonymize_sensitive,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
-        return 0
-    if args.command == "record-review":
-        claims = json.loads(args.claims_json)
-        if not isinstance(claims, list):
-            raise DemonstrationError("--claims-json must contain a JSON array")
-        result = record_review(args.run_dir, claims)
-        print(json.dumps({"status": result["review"]["status"], "attempt_count": result["review"]["attempt_count"]}, sort_keys=True))
         return 0
     if args.command == "publish":
         manifest = json.loads((args.run_dir / "manifest.json").read_text(encoding="utf-8"))

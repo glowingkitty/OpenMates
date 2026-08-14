@@ -17,13 +17,14 @@ scope:
     - Require an explicit capture-ready timestamp for browser and native recordings and trim from that marker with a small fixed lead.
     - Default to caption-only proof videos; retain existing narration audio only as explicit opt-in behavior.
     - Render sentence-level captions at bottom center with bounded whole-video slowdown and final-frame hold.
-    - Enforce fixed duration, frame-count, concurrency, analysis, and automatic-rerender limits.
-    - Build a bounded frame bundle for semantic review and classify failures as capture, render, product, or uncertain.
+    - Enforce fixed duration, frame-count, concurrency, analysis-call, cumulative-frame, and automatic-correction limits.
+    - Build an immutable hash-bound frame bundle for assertion and independent visual-integrity review, then classify failures as capture, render, product, or uncertain.
+    - Persist review budgets across commands, cache only fully revalidated unchanged device evidence, and bind completion/publication to a canonical review receipt.
     - Update the create-demo-video skill and completion hint to use the focused entry point.
   out:
     - Product REST API, WebSocket, SDK, web UI, Apple app, CLI product command, or Directus changes.
     - Marketing video creation or promotional editing.
-    - OCR, generic pixel-based UI understanding, full-video model input, scene-by-scene retiming, or automatic product-code repair.
+    - OCR, generic pixel-based UI understanding, full-video model input, scene-by-scene retiming, or unbounded product-code repair.
     - Automatic scrolling inferred from video pixels.
     - Requiring audio by default or removing existing opt-in audio support.
 
@@ -72,7 +73,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+  subject_commit: working-tree@871ab13ea
 
 approvals:
   product_contract:
@@ -101,14 +102,19 @@ decisions:
     decided_at: "2026-08-12T00:00:00Z"
   - id: D-4
     status: active
-    decision: Semantic review receives three to eight frames per device and returns a classified frame-grounded verdict.
+    decision: Semantic review receives one to twelve frames per device at a five-second cadence plus prioritized event frames and returns a classified frame-grounded verdict.
     reason: A bounded reviewer is more reliable than pixel heuristics and cheaper than repeated main-agent frame exploration.
     decided_at: "2026-08-12T00:00:00Z"
   - id: D-5
     status: active
-    decision: Mechanical defects may rerender once; product defects must return to implementation.
-    reason: Video editing must not conceal broken product behavior.
+    decision: The initial review permits at most two automatic correction rounds and one high-confidence product-code correction; uncertain or repeated findings ask the user immediately.
+    reason: Bounded corrections reduce avoidable loops without allowing video editing or low-confidence changes to conceal broken product behavior.
     decided_at: "2026-08-12T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: One proof contract permits six AI review calls and forty-eight cumulative submitted frames; immutable receipts and unchanged-device cache entries are revalidated before reuse.
+    reason: Persistent budgets cap cost across process restarts while hash-bound provenance prevents stale or forged review completion.
+    decided_at: "2026-08-14T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -124,12 +130,14 @@ attempts:
     recorded_at: "2026-08-12T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Deploy the verified focused proof-video workflow tooling.
-  command: python3 scripts/sessions.py deploy --session 59a3 --title "Focus proof-video workflow" --message "Focus proof-video workflow"
-  expected_outcome: Verified workflow tooling is committed and pushed through the session deploy path.
+  current_task_id: TASK-6
+  next_action: Deploy the verified AI review-loop hardening.
+  command: >-
+    python3 scripts/sessions.py deploy --session 2cd0 --title "feat: enforce bounded proof-video review"
+    --message "Enforce immutable receipts, persistent budgets, bounded corrections, and least-privilege review."
+  expected_outcome: Verified proof-video review hardening is committed and pushed through the scoped session deploy path.
   blocker: null
-  last_verified_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+  last_verified_commit: working-tree@871ab13ea
 
 scenarios:
   - id: S-1
@@ -171,8 +179,9 @@ scenarios:
     when:
       - The review bundle is prepared.
     then:
-      - It contains the approved contract, deterministic metadata, and three to eight frames per device, never the full video.
-      - The reviewer returns passed, capture_defect, render_defect, product_defect, or uncertain with frame-grounded observations.
+      - It contains the approved contract, deterministic metadata, and an immutable index of one to twelve frames per device, never the full video.
+      - The reviewer checks every assertion and independently scans for obvious visual-integrity defects before returning passed, capture_defect, render_defect, product_defect, or uncertain.
+      - Six-call and forty-eight-frame budgets persist across commands, while unchanged-device cache hits require complete receipt, request, manifest, frame, and source-video integrity.
       - Product defects return to implementation and cannot be hidden by cropping, trimming, captions, or transcript changes.
 
 acceptance_criteria:
@@ -180,8 +189,8 @@ acceptance_criteria:
   - { id: AC-2, scenario: S-2, text: "New visible claims stop before capture until the canonical transcript and one-to-five assertion contract hash is approved; unchanged approved hashes are reusable.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-3, scenario: S-3, text: "Caption-only is the default, Playwright captions are bottom-centered, and existing audio support requires explicit opt-in.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-4, scenario: S-3, text: "Marker trim, simple pacing, 35-second output, bounded frame analysis, serial device processing, caching, and one-rerender limits are deterministic and tested.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PROOF-WORKFLOW] }
-  - { id: AC-5, scenario: S-4, text: "The review request contains three-to-eight frames per device plus the approved contract and metadata but no full video content.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
-  - { id: AC-6, scenario: S-4, text: "Mechanical defects permit at most one automated correction while product defects produce a classified return-to-implementation result.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
+  - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
+  - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
 
 assumptions:
   - id: A-1
@@ -236,7 +245,7 @@ tests:
       - current session, commit, and passing run resolution is deterministic and ambiguity is explicit
       - canonical contract hashes gate capture and remain stable
       - marker trim and simple pacing calculations obey fixed limits
-      - caption-only defaults, caching, frame budgets, and defect routing are enforced
+      - caption-only defaults, immutable receipt caching, persistent call/frame budgets, correction limits, and defect routing are enforced
     red_phase:
       required: true
       expected: fail
@@ -253,10 +262,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate -q
-        run_id: local-2026-08-13-focused-proof-workflow-green
-        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
-        timestamp: "2026-08-13T10:51:12Z"
-        summary: Focused workflow, approval, attestation, and session provenance tests passed.
+        run_id: local-2026-08-14-focused-proof-review-green
+        subject_commit: working-tree@871ab13ea
+        timestamp: "2026-08-14T16:19:09Z"
+        summary: Focused workflow, immutable receipt/cache integrity, budgets, correction routing, reviewer permissions, and session provenance tests passed.
   - id: T-PROOF-RENDER
     type: pytest
     file: scripts/tests/test_sessions_proof_video.py
@@ -282,10 +291,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_demonstration_pipeline.py -q
-        run_id: local-2026-08-13-focused-proof-render-green
-        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
-        timestamp: "2026-08-13T10:51:12Z"
-        summary: Caption-only, bottom-centered captions, output bounds, audio provenance, and artifact-hash render checks passed.
+        run_id: local-2026-08-14-focused-proof-render-green
+        subject_commit: working-tree@871ab13ea
+        timestamp: "2026-08-14T16:19:09Z"
+        summary: Caption rendering, event-frame selection, output bounds, audio provenance, artifact hashes, and publication receipt checks passed.
   - id: T-PROOF-AUDIT
     type: pytest
     file: scripts/tests/test_opencode_spec_workflow_audit.py
@@ -310,10 +319,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest -p no:cacheprovider scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py -q && python3 scripts/audit_opencode_spec_workflow.py && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/sync_agent_parity.py --check
-        run_id: local-2026-08-13-focused-proof-audit-green
-        subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
-        timestamp: "2026-08-13T10:51:12Z"
-        summary: Workflow instruction audits, output quality audit, tooling parity audit, and agent parity check passed.
+        run_id: local-2026-08-14-focused-proof-audit-green
+        subject_commit: working-tree@871ab13ea
+        timestamp: "2026-08-14T16:19:09Z"
+        summary: Workflow, reviewer least-privilege, output quality, tooling parity, and generated agent parity checks passed.
 
 verifications:
   - id: V-FOCUSED-TESTS
@@ -325,10 +334,10 @@ verifications:
     evidence:
       status: passed
       command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_spec_demonstration_review.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py scripts/tests/test_tests_control.py::test_normalize_playwright_report_retains_one_terminal_video_artifact scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_skipped_deploy_gate_is_not_verified scripts/tests/test_tests_control.py::test_normalize_playwright_report_preserves_duplicate_video_attachments scripts/tests/test_tests_control.py::test_duplicate_video_attachments_do_not_create_proof_source_attestation scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate scripts/tests/test_tests_control.py::test_e2e_deploy_gate_checks_playwright_targets scripts/tests/test_tests_control.py::test_e2e_deploy_gate_skips_non_playwright_targets -q
-      run_id: local-2026-08-13-focused-proof-final
-      subject_commit: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
-      timestamp: "2026-08-13T10:51:12Z"
-      summary: 200 affected pytest checks passed with pytest cache disabled, plus workflow audits and parity checks passed separately.
+      run_id: local-2026-08-14-focused-proof-final
+      subject_commit: working-tree@871ab13ea
+      timestamp: "2026-08-14T16:19:09Z"
+      summary: 235 affected pytest checks passed with pytest cache disabled, plus workflow audits, spec verification, and parity checks passed separately.
 
 implementation_plan:
   spec_path: docs/specs/focused-proof-video-workflow/spec.yml
@@ -422,6 +431,17 @@ tasks:
     blockers: []
     follow_up_tasks: []
     ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
+  - id: TASK-6
+    title: Enforce bounded AI review integrity and correction budgets
+    status: done
+    phase: complete
+    covers: { scenarios: [S-4], acceptance_criteria: [AC-5, AC-6] }
+    expected_files: [scripts/proof_video_workflow.py, scripts/spec_demo.py, scripts/sessions.py, .claude/agents/proof-video-reviewer.md, scripts/tests/test_proof_video_workflow.py, scripts/tests/test_spec_demonstration_review.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT, V-FOCUSED-TESTS]
+    dependencies: [TASK-5]
+    blockers: []
+    follow_up_tasks: []
+    ownership: { files: [scripts/proof_video_workflow.py, scripts/spec_demo.py, scripts/sessions.py, .claude/agents/proof-video-reviewer.md], shared_files: [] }
 
 risks:
   - risk: Metadata inference may select stale or ambiguous test evidence.
@@ -429,7 +449,7 @@ risks:
   - risk: Caption-only media changes could weaken existing proof completion checks.
     mitigation: Preserve privacy, provenance, frame review, device, and publication requirements while making only audio optional.
   - risk: Media processing may consume excessive CPU.
-    mitigation: Process one device at a time, cap output and frame counts, avoid OCR/full scans, cache by source and contract hash, and allow one rerender.
+    mitigation: Process one device at a time, cap output, calls, and cumulative frame submissions, avoid OCR/full scans, revalidate caches by source/contract/frame hashes, and allow only two correction rounds.
   - risk: Trimming could hide a product defect.
     mitigation: Trim only to an explicit ready marker with a small fixed lead; semantic product defects return to implementation.
 

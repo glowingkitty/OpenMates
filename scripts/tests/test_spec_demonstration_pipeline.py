@@ -430,6 +430,9 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
                 "claim_ids": ["CLAIM-1"],
             }
         ],
+        scene_times=[2.0],
+        action_times=[7.0],
+        state_change_times=[12.0],
     )
 
     assert manifest["captions"][0]["end"] == 15.967
@@ -437,6 +440,26 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     assert manifest["privacy"] == {"status": "passed", "findings": [], "scan": "not_run"}
     request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
     assert request["captions"][0]["end"] == 15.967
+    timestamps = {frame["timestamp_seconds"] for frame in request["frames"]}
+    assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
+
+
+def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: type(
+            "Result",
+            (),
+            {"returncode": 0, "stdout": "", "stderr": "showinfo pts_time:1.250 x\nshowinfo pts_time:4.5 x\n"},
+        )(),
+    )
+
+    assert module.detect_scene_change_times(video) == [1.25, 4.5]
 
 
 def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:

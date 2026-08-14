@@ -7360,9 +7360,14 @@ def _command_invokes_openmates_cli(argv: list[str]) -> bool:
 
 def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Upload reviewed proof media for final OpenCode response embedding."""
+    from spec_demo import require_review_receipt_integrity
 
     if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
         raise RuntimeError("OpenCode response-media publication requires passed privacy and frame review")
+    try:
+        require_review_receipt_integrity(run_dir, manifest)
+    except Exception as exc:
+        raise RuntimeError(str(exc)) from exc
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
         raise RuntimeError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
@@ -7430,7 +7435,6 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         DemonstrationError,
         produce_cli_demonstration,
         produce_playwright_demonstration,
-        record_review,
     )
     data = _load_sessions()
     session = data.get("sessions", {}).get(args.session)
@@ -7521,6 +7525,10 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             "artifact_sha256": str(deployed_run.get("artifact_sha256") or ""),
             "test_account_provenance": args.test_account_provenance,
         }
+        for timestamp_field in ("action_timestamps", "state_change_timestamps"):
+            timestamps = deployed_run.get(timestamp_field)
+            if isinstance(timestamps, list):
+                source[timestamp_field] = timestamps
         result = produce_playwright_demonstration(
             run_dir=run_dir,
             source_video=args.source_video,
@@ -7531,6 +7539,12 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             caption_text=approved_claims["caption_text"],
             expected_proof=approved_claims["expected_proof"],
             acceptance_criteria=approved_claims["acceptance_criteria"],
+            proof_assertions=approved_claims["assertions"],
+            proof_contract_hash=approved_claims["contract_hash"],
+            proof_group_id="sha256:"
+            + hashlib.sha256(
+                f"{args.spec_name}\0{approved_claims['contract_hash']}".encode("utf-8")
+            ).hexdigest(),
             narration_audio_path=args.audio_path,
             narration_audio_provider=args.audio_provider,
             narration_audio_model=args.audio_model,
@@ -7548,15 +7562,6 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             print(json.dumps({"proof_video_pending": record["problems"]}, sort_keys=True))
         return
     run_dir = args.run_dir
-    if args.proof_action == "review":
-        claims = json.loads(args.claims_json)
-        if not isinstance(claims, list):
-            raise DemonstrationError("--claims-json must contain a JSON array")
-        result = record_review(run_dir, claims)
-        _upsert_proof_video_record(session, run_dir, result)
-        _save_sessions(data)
-        print(json.dumps({"status": result["review"]["status"], "run_dir": str(run_dir)}, sort_keys=True))
-        return
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     try:
         result = _publish_proof_media_to_opencode_response(run_dir, manifest)
@@ -9141,13 +9146,30 @@ def _requires_proof_video(session: dict, files: list[str]) -> bool:
     return False
 
 
-def _proof_video_manifest_problems(manifest: dict, *, delivery_required: bool) -> list[str]:
+def _proof_video_manifest_problems(
+    manifest: dict,
+    *,
+    delivery_required: bool,
+    run_dir: Path | None = None,
+) -> list[str]:
     problems: list[str] = []
     if manifest.get("privacy", {}).get("status") != "passed":
         problems.append("privacy review has not passed")
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     if review.get("status") != "passed":
         problems.append("frame review has not passed")
+    elif run_dir is not None:
+        try:
+            from spec_demo import require_review_receipt_integrity
+
+            publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+            require_review_receipt_integrity(
+                run_dir,
+                manifest,
+                verify_video=publication.get("status") != "delivered",
+            )
+        except Exception as exc:
+            problems.append(f"invalid frame-review receipt: {exc}")
     if not isinstance(review.get("attempt_count"), int) or review.get("attempt_count", 0) < 1:
         problems.append("missing review attempt count")
     audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
@@ -9204,7 +9226,13 @@ def _proof_video_record_problems(record: dict, expected_commit: str | None) -> l
     except (OSError, json.JSONDecodeError) as exc:
         problems.append(f"could not parse manifest: {exc}")
         return problems
-    problems.extend(_proof_video_manifest_problems(manifest, delivery_required=_proof_video_delivery_required()))
+    problems.extend(
+        _proof_video_manifest_problems(
+            manifest,
+            delivery_required=_proof_video_delivery_required(),
+            run_dir=manifest_path.parent,
+        )
+    )
     return problems
 
 
@@ -9224,7 +9252,11 @@ def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dic
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
     audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
     delivery_required = _proof_video_delivery_required()
-    manifest_problems = _proof_video_manifest_problems(manifest, delivery_required=delivery_required)
+    manifest_problems = _proof_video_manifest_problems(
+        manifest,
+        delivery_required=delivery_required,
+        run_dir=run_dir,
+    )
     return {
         "status": "passed" if not manifest_problems else "pending",
         "proof_id": manifest.get("spec_id", "session-proof"),
@@ -13498,10 +13530,6 @@ def main() -> None:
         type=Path,
         help="Optional product audio fixture to preserve playback audio when it is part of the proof.",
     )
-    p_proof_review = proof_actions.add_parser("review", help="Record frame-only claim verdicts")
-    p_proof_review.add_argument("--session", "-s", required=True, help="Session ID")
-    p_proof_review.add_argument("--run-dir", type=Path, required=True)
-    p_proof_review.add_argument("--claims-json", required=True)
     p_proof_publish = proof_actions.add_parser("publish", help="Upload a passed proof for OpenCode response embedding")
     p_proof_publish.add_argument("--session", "-s", required=True, help="Session ID")
     p_proof_publish.add_argument("--run-dir", type=Path, required=True)

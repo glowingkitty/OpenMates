@@ -47,11 +47,32 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     caption.write_text("sanitized captions", encoding="utf-8")
     audio.write_bytes(b"synthetic-audio")
     frame.write_bytes(b"synthetic-frame")
+    frame_index_hash = "sha256:" + "f" * 64
+    source_artifact_hash = f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"
+    proof_contract_hash = "sha256:" + "c" * 64
+    proof_group_id = "sha256:" + "e" * 64
+    receipt = {
+        "status": "passed",
+        "reviewer_session_id": "ses_reviewer",
+        "frame_index_hash": frame_index_hash,
+        "proof_contract_hash": proof_contract_hash,
+        "proof_group_id": proof_group_id,
+        "source_artifact_hash": source_artifact_hash,
+        "subject_commit": "abc1234",
+        "correction_round": 0,
+        "correction_kind": "none",
+        "workflow": {"requires_user_input": False},
+    }
+    receipt_path = run_dir / "review-receipt.json"
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+    receipt_sha256 = f"sha256:{hashlib.sha256(receipt_path.read_bytes()).hexdigest()}"
     manifest = {
         "spec_id": "example",
         "subject_commit": "abc1234",
         "video_path": str(video),
-        "video_metadata": {"has_audio": True},
+        "video_metadata": {"has_audio": True, "sha256": source_artifact_hash},
+        "proof_contract_hash": proof_contract_hash,
+        "proof_group_id": proof_group_id,
         "narration_audio": {
             "status": "passed",
             "provider": "elevenlabs",
@@ -69,7 +90,7 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
             {"path": str(frame), "kind": "review_frame", "sha256": f"sha256:{hashlib.sha256(frame.read_bytes()).hexdigest()}"},
         ],
         "privacy": {"status": "passed"},
-        "review": {"status": "passed"},
+        "review": {"status": "passed", "frame_index_hash": frame_index_hash, "receipt_sha256": receipt_sha256},
         "publication": {"status": "pending"},
     }
     (run_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -124,6 +145,43 @@ def test_confirmed_response_media_publication_deletes_video_and_frames_but_retai
     assert result["publication"]["response_media_html"].startswith("<video")
     assert not Path(manifest["video_path"]).exists()
     assert not (run_dir / "frames" / "frame-001.png").exists()
+
+
+def test_publication_rejects_legacy_pass_without_bound_receipt(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    (run_dir / "review-receipt.json").unlink()
+    manifest["review"] = {"status": "passed"}
+
+    try:
+        module.publish_reviewed_video(
+            run_dir,
+            manifest,
+            now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+            uploader=lambda **_kwargs: response_media_result(),
+        )
+    except module.DemonstrationError as exc:
+        assert "hash-bound AI review receipt" in str(exc)
+    else:
+        raise AssertionError("legacy free-form review unexpectedly reached publication")
+
+
+def test_publication_rejects_video_changed_after_review(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    Path(manifest["video_path"]).write_bytes(b"changed-after-review")
+
+    try:
+        module.publish_reviewed_video(
+            run_dir,
+            manifest,
+            now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+            uploader=lambda **_kwargs: response_media_result(),
+        )
+    except module.DemonstrationError as exc:
+        assert "content hash changed" in str(exc)
+    else:
+        raise AssertionError("modified proof video unexpectedly reached publication")
     assert (run_dir / "transcript.txt").is_file()
     assert (run_dir / "captions.srt").is_file()
 

@@ -45,6 +45,7 @@ OPENCODE_AGENT_MODELS = {
     "skill-integration-doctor": "openai/gpt-5.6-terra",
     "test-failure-triager": "openai/gpt-5.6-luna",
 }
+OPENCODE_ALL_MODE_AGENTS = {"proof-video-reviewer"}
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
     "lint-swift-design-tokens.sh": REPO_ROOT / "scripts" / "lint-swift-design-tokens.sh",
@@ -177,7 +178,7 @@ def render_opencode_agent(source: Path) -> str:
     lines = [
         FRONTMATTER_BOUNDARY,
         f"description: {yaml_scalar(description)}",
-        "mode: subagent",
+        f"mode: {'all' if source.stem in OPENCODE_ALL_MODE_AGENTS else 'subagent'}",
         f"model: {model}",
         "options:",
         f"  reasoningEffort: {OPENCODE_REASONING_EFFORT}",
@@ -186,17 +187,30 @@ def render_opencode_agent(source: Path) -> str:
     if max_turns := metadata.get("maxTurns"):
         lines.append(f"steps: {max_turns}")
 
-    lines.extend([
-        "permission:",
-        "  read: allow",
-        "  grep: allow",
-        "  glob: allow",
-        f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
-        f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
-        FRONTMATTER_BOUNDARY,
-        "",
-        body,
-    ])
+    lines.append("permission:")
+    if source.stem == "proof-video-reviewer":
+        lines.extend(
+            [
+                "  read:",
+                '    "*": deny',
+                '    "review-prompt-round-*.json": allow',
+                '    "frames/*": allow',
+                "  grep: deny",
+                "  glob: deny",
+                "  external_directory: deny",
+            ]
+        )
+    else:
+        lines.extend(["  read: allow", "  grep: allow", "  glob: allow"])
+    lines.extend(
+        [
+            f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
+            f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
+            FRONTMATTER_BOUNDARY,
+            "",
+            body,
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 

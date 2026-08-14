@@ -11,6 +11,7 @@ Tests: python3 -m pytest scripts/tests/test_sessions_proof_video.py.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -31,7 +32,7 @@ def fake_spec_demo(**functions: object) -> ModuleType:
     module.DemonstrationError = SyntheticDemonstrationError
     module.produce_cli_demonstration = functions.get("produce", lambda **_kwargs: {})
     module.produce_playwright_demonstration = functions.get("produce_playwright", lambda **_kwargs: {})
-    module.record_review = functions.get("review", lambda *_args: {})
+    module.require_review_receipt_integrity = functions.get("require_receipt", lambda *_args: None)
     module.publish_reviewed_video = functions.get("publish", lambda *_args, **_kwargs: {})
     return module
 
@@ -45,6 +46,8 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
             "caption_text": "Approved caption.",
             "expected_proof": "Approved proof.",
             "acceptance_criteria": ["approved"],
+            "assertions": [{"id": "approved", "description": "Approved proof."}],
+            "contract_hash": "sha256:" + "a" * 64,
         },
     )
     module.require_clean_worktree = functions.get("require_clean_worktree", lambda: None)
@@ -177,6 +180,8 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
                 "status": "passed",
                 "artifact_path": str(video),
                 "artifact_sha256": proof_video_workflow._file_sha256(video),
+                "action_timestamps": [1.25],
+                "state_change_timestamps": [2.5],
             }
         ),
         encoding="utf-8",
@@ -237,12 +242,20 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         "artifact_path": str(video),
         "artifact_sha256": proof_video_workflow._file_sha256(video),
         "test_account_provenance": "reserved test account with synthetic signup identity",
+        "action_timestamps": [1.25],
+        "state_change_timestamps": [2.5],
     }
     assert observed["device_profile_name"] == "web-phone"
     assert observed["narration_audio_path"] is None
     assert observed["caption_text"] == "The signup screen shows the expected result."
     assert observed["expected_proof"] == "The signup result is visible."
     assert observed["acceptance_criteria"] == ["signup"]
+    assert observed["proof_assertions"] == [{"id": "signup", "description": "The signup result is visible."}]
+    assert str(observed["proof_contract_hash"]).startswith("sha256:")
+    assert str(observed["proof_group_id"]).startswith("sha256:")
+    assert observed["proof_group_id"] == "sha256:" + hashlib.sha256(
+        f"{args.spec_name}\0{observed['proof_contract_hash']}".encode("utf-8")
+    ).hexdigest()
     assert observed["playback_rate"] == 0.75
     assert observed["hold_last_frame_seconds"] == 2.0
     assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
@@ -419,12 +432,33 @@ def test_proof_video_publish_uploads_response_media_without_discord(
 def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") -> Path:
     run_dir = tmp_path / "proof"
     run_dir.mkdir()
+    frame_index_hash = "sha256:" + "f" * 64
+    proof_contract_hash = "sha256:" + "c" * 64
+    proof_group_id = "sha256:" + "e" * 64
+    video_hash = "sha256:" + "d" * 64
+    receipt = {
+        "status": "passed",
+        "reviewer_session_id": "ses_reviewer",
+        "frame_index_hash": frame_index_hash,
+        "proof_contract_hash": proof_contract_hash,
+        "proof_group_id": proof_group_id,
+        "source_artifact_hash": video_hash,
+        "subject_commit": subject_commit,
+        "correction_round": 0,
+        "correction_kind": "none",
+        "workflow": {"requires_user_input": False},
+    }
+    receipt_path = run_dir / "review-receipt.json"
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+    receipt_hash = f"sha256:{hashlib.sha256(receipt_path.read_bytes()).hexdigest()}"
     manifest_path = run_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(
             {
                 "spec_id": "session-proof",
                 "subject_commit": subject_commit,
+                "proof_contract_hash": proof_contract_hash,
+                "proof_group_id": proof_group_id,
                 "privacy": {"status": "passed"},
                 "narration_audio": {
                     "status": "passed",
@@ -437,9 +471,15 @@ def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") ->
                     "duration_seconds": 1.0,
                     "reused_from": "",
                 },
-                "video_metadata": {"has_audio": True},
+                "video_metadata": {"has_audio": True, "sha256": video_hash},
                 "captions": [{"id": "CAP-1", "text": "Visible."}],
-                "review": {"status": "passed", "run_id": "review-1", "attempt_count": 1},
+                "review": {
+                    "status": "passed",
+                    "run_id": "review-1",
+                    "attempt_count": 1,
+                    "frame_index_hash": frame_index_hash,
+                    "receipt_sha256": receipt_hash,
+                },
                 "publication": {"status": "delivered"},
             }
         ),
@@ -699,6 +739,20 @@ def test_proof_video_gate_accepts_current_delivered_manifest(
         session,
         ["frontend/packages/ui/src/components/NewFeature.svelte"],
     )
+
+
+def test_proof_video_gate_rejects_forged_passed_manifest_without_receipt(tmp_path: Path) -> None:
+    manifest_path = write_passed_manifest(tmp_path)
+    (manifest_path.parent / "review-receipt.json").unlink()
+    record = {
+        "status": "passed",
+        "subject_commit": "abc1234",
+        "manifest_path": str(manifest_path),
+    }
+
+    problems = sessions._proof_video_record_problems(record, "abc1234")
+
+    assert any("invalid frame-review receipt" in problem for problem in problems)
 
 
 def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path) -> None:

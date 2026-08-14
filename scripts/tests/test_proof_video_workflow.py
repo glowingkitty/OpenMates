@@ -403,8 +403,12 @@ def test_resource_limits_and_cache_key_are_stable() -> None:
         "parallel_device_renders": 1,
         "maximum_output_seconds": 35,
         "maximum_analysis_frames": 12,
-        "maximum_review_frames_per_device": 8,
-        "maximum_automatic_rerenders": 1,
+        "periodic_frame_interval_seconds": 5,
+        "maximum_review_frames_per_device": 12,
+        "maximum_ai_review_calls": 6,
+        "maximum_cumulative_submitted_frames": 48,
+        "maximum_automatic_correction_rounds": 2,
+        "maximum_product_code_correction_rounds": 1,
         "ocr_enabled": False,
     }
     assert workflow.cache_key("sha256:source", "sha256:contract", renderer_version="1") == workflow.cache_key(
@@ -414,7 +418,7 @@ def test_resource_limits_and_cache_key_are_stable() -> None:
 
 def test_review_bundle_is_frame_only_and_bounded(tmp_path: Path) -> None:
     frames = []
-    for index in range(8):
+    for index in range(12):
         frame = tmp_path / f"frame-{index}.png"
         frame.write_bytes(b"image")
         frames.append({"path": str(frame), "timestamp_seconds": float(index)})
@@ -425,9 +429,9 @@ def test_review_bundle_is_frame_only_and_bounded(tmp_path: Path) -> None:
         frames_by_device={"web-phone": frames},
     )
 
-    assert len(bundle["frames_by_device"]["web-phone"]) == 8
+    assert len(bundle["frames_by_device"]["web-phone"]) == 12
     assert "video" not in json.dumps(bundle).lower()
-    with pytest.raises(workflow.WorkflowError, match="three to eight"):
+    with pytest.raises(workflow.WorkflowError, match="three to twelve"):
         workflow.build_review_bundle(
             contract={"contract_hash": "sha256:contract", "assertions": [{"id": "visible", "description": "Visible."}]},
             deterministic_metadata={},
@@ -455,7 +459,373 @@ def test_defect_routing_never_hides_product_defects(defect: str, expected_stage:
 
 
 def test_mechanical_rerender_limit_is_one() -> None:
-    result = workflow.route_defect("blank_first_frame", prior_automatic_rerenders=1)
+    result = workflow.route_defect("blank_first_frame", prior_automatic_rerenders=2)
 
     assert result["automatic_correction"] is False
     assert result["verdict"] == "uncertain"
+
+
+def test_review_budget_caps_calls_frames_and_correction_rounds() -> None:
+    budget: dict[str, object] = {}
+
+    budget = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+    )
+    budget = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+    )
+    budget = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=1,
+        correction_kind="product",
+    )
+    budget = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=2,
+        correction_kind="capture",
+    )
+
+    assert budget["ai_review_calls"] == 4
+    assert budget["submitted_frames"] == 48
+    assert budget["product_code_correction_rounds"] == [1]
+    with pytest.raises(workflow.WorkflowError, match="frame budget"):
+        workflow.reserve_review_budget(
+            budget,
+            device="web-laptop",
+            frame_count=1,
+            correction_round=1,
+            correction_kind="capture",
+        )
+    with pytest.raises(workflow.WorkflowError, match="correction round"):
+        workflow.reserve_review_budget(
+            {},
+            device="web-phone",
+            frame_count=1,
+            correction_round=3,
+            correction_kind="capture",
+        )
+
+
+def test_review_budget_allows_only_one_product_code_correction_round() -> None:
+    budget = workflow.reserve_review_budget(
+        {},
+        device="web-phone",
+        frame_count=1,
+        correction_round=1,
+        correction_kind="product",
+    )
+
+    with pytest.raises(workflow.WorkflowError, match="product-code correction"):
+        workflow.reserve_review_budget(
+            budget,
+            device="web-laptop",
+            frame_count=1,
+            correction_round=2,
+            correction_kind="product",
+        )
+
+
+def test_review_budget_reuses_cached_unchanged_device_evidence() -> None:
+    budget = workflow.reserve_review_budget(
+        {},
+        device="web-phone",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+    )
+
+    with pytest.raises(workflow.WorkflowError, match="cached receipt"):
+        workflow.reserve_review_budget(
+            budget,
+            device="web-phone",
+            frame_count=12,
+            correction_round=1,
+            correction_kind="capture",
+            frame_index_hash="sha256:frames",
+            source_artifact_hash="sha256:video",
+        )
+
+
+def test_uncertain_review_requires_user_input_immediately() -> None:
+    result = workflow.review_next_action(
+        {
+            "status": "uncertain",
+            "assertions": [],
+            "incidental_findings": [],
+            "return_stage": "review",
+            "next_action": "Clarify whether the loading state is expected.",
+        },
+        prior_defect_fingerprints=[],
+    )
+
+    assert result["requires_user_input"] is True
+    assert result["automatic_correction"] is False
+
+
+def test_repeated_defect_requires_user_input() -> None:
+    review = {
+        "status": "render_defect",
+        "assertions": [
+            {
+                "id": "visible",
+                "verdict": "wrong_time",
+                "frames": ["frames/frame-0001.png"],
+                "observation": "Caption overlaps the control.",
+            }
+        ],
+        "incidental_findings": [],
+        "return_stage": "render",
+        "next_action": "Move the caption.",
+    }
+    fingerprint = workflow.review_defect_fingerprint(review)
+
+    result = workflow.review_next_action(review, prior_defect_fingerprints=[fingerprint])
+
+    assert result["requires_user_input"] is True
+    assert result["automatic_correction"] is False
+
+
+def _write_review_run(tmp_path: Path, *, frame_path: str = "frames/frame.png") -> tuple[Path, dict[str, object]]:
+    from scripts import spec_demo
+
+    run_dir = tmp_path
+    frame = run_dir / frame_path
+    frame.parent.mkdir(parents=True, exist_ok=True)
+    frame.write_bytes(b"frame")
+    video = run_dir / "demo.mp4"
+    video.write_bytes(b"video")
+    request = spec_demo.build_review_request(
+        spec_id="example",
+        subject_commit="a" * 40,
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": frame_path, "sha256": workflow._file_sha256(frame)}],
+        video_metadata={
+            "duration_seconds": 1.0,
+            "sha256": workflow._file_sha256(video),
+            "width": 320,
+            "height": 240,
+            "device_profile": "web-phone",
+        },
+        narration_audio={"status": "not_required", "provider": "", "model": "", "voice": "", "path": "", "sha256": "", "mime_type": "", "duration_seconds": 0.0, "reused_from": ""},
+        proof_contract_hash="sha256:" + "b" * 64,
+    )
+    (run_dir / "review-request.json").write_text(json.dumps(request), encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "subject_commit": request["subject_commit"],
+                "proof_contract_hash": request["proof_contract_hash"],
+                "proof_group_id": request["proof_group_id"],
+                "video_path": str(video),
+                "video_metadata": request["video_metadata"],
+                "expected_proof": request["expected_proof"],
+                "review": {"status": "pending", "attempts": []},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return run_dir, request
+
+
+def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "first")
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible in the frame."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=reviewer,
+    )
+
+    assert result["status"] == "passed"
+    assert len(list((tmp_path / "budgets").glob("*.json"))) == 1
+
+    second_dir, _ = _write_review_run(tmp_path / "proof-videos" / "second")
+    cached = workflow.review_run(
+        run_dir=second_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must use cache")),
+    )
+    assert cached["cached"] is True
+    assert cached["status"] == "passed"
+    assert cached["manifest"]["review"]["status"] == "passed"
+    assert (second_dir / "review-receipt.json").is_file()
+    from scripts import spec_demo
+
+    spec_demo.require_review_receipt_integrity(second_dir, cached["manifest"])
+
+
+def test_review_run_rejects_tampered_cached_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "first")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    (run_dir / "review-receipt.json").write_text("{}\n", encoding="utf-8")
+    second_dir, _ = _write_review_run(tmp_path / "proof-videos" / "second")
+
+    with pytest.raises(workflow.WorkflowError, match="receipt hash changed"):
+        workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("subject_commit", "c" * 40),
+        ("proof_contract_hash", "sha256:" + "d" * 64),
+        ("frame_index_hash", "sha256:" + "e" * 64),
+    ],
+)
+def test_review_run_rejects_mismatched_cached_request_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    replacement: str,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "first")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    cached_request_path = run_dir / "review-request.json"
+    cached_request = json.loads(cached_request_path.read_text(encoding="utf-8"))
+    cached_request[field] = replacement
+    cached_request_path.write_text(json.dumps(cached_request), encoding="utf-8")
+    second_dir, _ = _write_review_run(tmp_path / "proof-videos" / "second")
+
+    with pytest.raises(workflow.WorkflowError, match="integrity validation|provenance"):
+        workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+
+
+def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prompt = tmp_path / "review-prompt-round-0.json"
+    prompt.write_text("{}\n", encoding="utf-8")
+    observed: dict[str, object] = {}
+
+    def run(command: list[str], **kwargs: object):
+        observed.update({"command": command, **kwargs})
+        return type("Result", (), {"returncode": 0, "stdout": '{"type":"text","part":{"text":"{}"}}\n', "stderr": ""})()
+
+    monkeypatch.setattr(workflow.subprocess, "run", run)
+    workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+
+    assert observed["cwd"] == tmp_path
+    assert str(prompt.resolve()) not in " ".join(observed["command"])
+    assert "review-prompt-round-0.json" in " ".join(observed["command"])
+
+
+def test_review_run_rejects_reviewer_frame_hash_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    run_dir, _request = _write_review_run(tmp_path / "proof-videos" / "run")
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return ({"status": "passed", "frame_index_hash": "sha256:" + "0" * 64}, "ses_reviewer")
+
+    with pytest.raises(workflow.WorkflowError, match="did not preserve"):
+        workflow.review_run(
+            run_dir=run_dir,
+            correction_round=0,
+            correction_kind="none",
+            reviewer_runner=reviewer,
+        )
+
+
+def test_review_run_rejects_frame_path_escape_before_inference(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "run")
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"outside")
+    request["frames"][0].update({"path": "../outside.png", "sha256": workflow._file_sha256(outside)})
+    from scripts import spec_demo
+
+    request["frame_index_hash"] = spec_demo.frame_index_hash(request["frames"])
+    (run_dir / "review-request.json").write_text(json.dumps(request), encoding="utf-8")
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    invoked = False
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        nonlocal invoked
+        invoked = True
+        return ({}, "ses_reviewer")
+
+    with pytest.raises(workflow.WorkflowError, match="escapes"):
+        workflow.review_run(
+            run_dir=run_dir,
+            correction_round=0,
+            correction_kind="none",
+            reviewer_runner=reviewer,
+        )
+    assert invoked is False

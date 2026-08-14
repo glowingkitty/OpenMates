@@ -62,3 +62,24 @@ def test_non_check_sync_repairs_codex_hook_mirrors(tmp_path: Path, monkeypatch) 
     assert (auto_track_target.stat().st_mode & 0o777) == 0o755
     assert (codex_hooks / "pre-edit-guard.sh").read_text(encoding="utf-8") == pre_edit_source.read_text(encoding="utf-8")
     assert module.sync_hooks(check=True) == []
+
+
+def test_proof_video_reviewer_is_callable_as_primary_and_subagent(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "proof-video-reviewer.md"
+    source.write_text(
+        "---\nname: proof-video-reviewer\ndescription: Review frames.\ntools: Read\n---\nReview every frame.\n",
+        encoding="utf-8",
+    )
+
+    rendered = module.render_opencode_agent(source)
+
+    assert "mode: all" in rendered
+    assert '"*": deny' in rendered
+    assert "review-prompt-round-*.json" in rendered
+    assert "frames/*" in rendered
+    assert "**/test-results/proof-videos/**" not in rendered
+    assert "grep: deny" in rendered
+    assert "glob: deny" in rendered
+    assert "bash: deny" in rendered
+    assert "edit: deny" in rendered
