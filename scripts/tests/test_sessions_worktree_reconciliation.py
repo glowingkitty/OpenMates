@@ -283,6 +283,20 @@ def test_merged_candidate_compares_changed_files_to_recorded_merge_commit(monkey
     assert result["reason_code"] == "merged_file_states_reachable"
 
 
+def test_related_test_discovery_prunes_managed_worktree_copies(tmp_path):
+    sessions = load_sessions_module()
+    source_test = tmp_path / "scripts" / "test_storage_guard.py"
+    worktree_test = tmp_path / ".openmates-agent-worktrees" / "agent-old" / "scripts" / "test_storage_guard_copy.py"
+    source_test.parent.mkdir(parents=True)
+    worktree_test.parent.mkdir(parents=True)
+    source_test.write_text("def test_storage_guard(): pass\n", encoding="utf-8")
+    worktree_test.write_text("def test_storage_guard_copy(): pass\n", encoding="utf-8")
+
+    report = sessions._find_tests_for_file("scripts/storage_guard.py", checkout_root=tmp_path)
+
+    assert report["unit_tests"] == ["scripts/test_storage_guard.py"]
+
+
 def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys):
     sessions = load_sessions_module()
     monkeypatch.setattr(

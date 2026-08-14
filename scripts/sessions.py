@@ -139,6 +139,10 @@ DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
 WORKTREE_CLEANUP_IDLE_HOURS = 48
+WORKTREE_HARD_MAX_AGE_HOURS = 72
+WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
+WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
+WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
 WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES = 15
 WORKTREE_AUTO_INTEGRATION_BINDING_MODES = {"native", "pilot_fallback", "worktree_routed"}
@@ -2137,6 +2141,7 @@ def ensure_session_worktree(session_id: str) -> dict:
         current["shared_runtime_resources"] = link_shared_worktree_resources(current["path"])
         return current
 
+    _enforce_worktree_creation_capacity()
     base_commit = _current_git_sha()
     path = _session_worktree_path(session_id)
     if not is_valid_managed_worktree_path(path):
@@ -3802,7 +3807,7 @@ def _candidate_changed_files(path: Path, metadata: dict | None) -> list[str]:
     return _worktree_changed_files(effective)
 
 
-def _discover_worktree_candidates() -> list[dict]:
+def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -> list[dict]:
     """Join sessions, linked worktrees, and physical worktree directories."""
     data = _load_sessions()
     sessions = data.get("sessions", {})
@@ -3845,6 +3850,8 @@ def _discover_worktree_candidates() -> list[dict]:
         metadata = registered.get("metadata") if isinstance(registered.get("metadata"), dict) else {}
         session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
         session_id = str(registered.get("session_id") or _worktree_candidate_id(resolved_path, metadata))
+        if only_session_ids and session_id not in only_session_ids:
+            continue
         worktree_kind = "integration" if _is_integration_worktree_path(path) else "source"
         inspection_error = ""
         try:
@@ -3962,6 +3969,10 @@ def _classify_worktree_candidate(
     integration = metadata.get("integration") if isinstance(metadata.get("integration"), dict) else {}
     deployed_patch = str(metadata.get("root_applied_patch_id") or integration.get("patch_id") or "")
     merged_commit = str(metadata.get("merged_commit") or "")
+    if merged_commit and _git_is_ancestor(merged_commit, target_ref):
+        if _worktree_target_files_match(result, merged_commit):
+            result.update(classification="integrated", reason_code="merged_file_states_reachable")
+            return result
     if deployed_patch and merged_commit and _git_is_ancestor(merged_commit, target_ref):
         try:
             current_patch = _worktree_patch_id(metadata)
@@ -4068,9 +4079,23 @@ def reconcile_session_worktrees(
         raise RuntimeError(f"Failed to resolve {target_ref}: {stderr}")
     target_commit = target_commit.strip()
     items = []
-    for candidate in _discover_worktree_candidates():
-        if only_session_ids and str(candidate.get("session_id")) not in only_session_ids:
-            continue
+    if only_session_ids:
+        try:
+            discovered = _discover_worktree_candidates(only_session_ids=only_session_ids)
+        except TypeError as exc:
+            # Preserve compatibility with tests and downstream wrappers that
+            # monkeypatch the historical zero-argument discovery hook.
+            if "unexpected keyword argument" not in str(exc):
+                raise
+            discovered = _discover_worktree_candidates()
+            discovered = [
+                candidate
+                for candidate in discovered
+                if str(candidate.get("session_id") or "") in only_session_ids
+            ]
+    else:
+        discovered = _discover_worktree_candidates()
+    for candidate in discovered:
         if candidate.get("classification"):
             item = dict(candidate)
             if float(item.get("idle_hours", float("inf"))) < idle_hours:
@@ -4287,6 +4312,227 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
     result = _mutate_sessions(finalize)
     if result == "pending":
         raise RuntimeError(f"Session {session_id} worktree has residual or unintegrated changes")
+
+
+def _managed_worktree_records() -> list[dict]:
+    """Return lightweight managed worktree records without running source diffs."""
+    data = _load_sessions()
+    sessions = data.get("sessions", {})
+    root = AGENT_WORKTREES_DIR.resolve(strict=False)
+    by_path: dict[str, dict] = {}
+    for session_id, session in sessions.items():
+        if not isinstance(session, dict):
+            continue
+        metadata = session.get("worktree")
+        if not isinstance(metadata, dict) or not metadata.get("path"):
+            continue
+        path = Path(str(metadata["path"])).resolve(strict=False)
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        by_path[str(path)] = {
+            "session_id": str(session_id),
+            "session": session,
+            "metadata": metadata,
+        }
+
+    paths: dict[str, dict] = {}
+    for linked in _linked_git_worktrees():
+        path = Path(str(linked.get("path") or "")).resolve(strict=False)
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        paths[str(path)] = {**linked, "linked": True}
+    if AGENT_WORKTREES_DIR.is_dir():
+        for path in AGENT_WORKTREES_DIR.iterdir():
+            if not path.is_dir():
+                continue
+            resolved = path.resolve(strict=False)
+            try:
+                resolved.relative_to(root)
+            except ValueError:
+                continue
+            paths.setdefault(str(resolved), {"path": str(resolved), "linked": False})
+    for path in by_path:
+        paths.setdefault(path, {"path": path, "linked": False})
+
+    records: list[dict] = []
+    for path_text, linked in sorted(paths.items()):
+        registered = by_path.get(path_text, {})
+        metadata = registered.get("metadata") if isinstance(registered.get("metadata"), dict) else {}
+        session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
+        path = Path(path_text)
+        timestamp: float | None = None
+        if path.exists():
+            timestamp = path.stat().st_mtime
+        else:
+            created_at = str(metadata.get("created_at") or session.get("started") or "")
+            if created_at:
+                try:
+                    timestamp = _parse_iso(created_at).timestamp()
+                except (TypeError, ValueError):
+                    timestamp = None
+        records.append(
+            {
+                "session_id": str(registered.get("session_id") or _worktree_candidate_id(path_text, metadata)),
+                "path": path_text,
+                "path_timestamp": timestamp,
+                "linked": bool(linked.get("linked") or linked.get("head")),
+                "registered": bool(registered),
+                "metadata": metadata,
+                "session": session,
+            }
+        )
+    return records
+
+
+def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
+    timestamp = record.get("path_timestamp")
+    if not isinstance(timestamp, (int, float)):
+        return 0
+    return max(0.0, (now_timestamp - float(timestamp)) / 3600)
+
+
+def _remove_expired_worktree(record: dict) -> None:
+    """Remove one exact expired path while refusing anything outside managed storage."""
+    path = Path(str(record.get("path") or "")).resolve(strict=False)
+    root = AGENT_WORKTREES_DIR.resolve(strict=False)
+    try:
+        relative = path.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError(f"Refusing expired worktree outside {root}: {path}") from exc
+    if not relative.parts or path == root or path == CONTROL_PLANE_ROOT.resolve():
+        raise RuntimeError(f"Refusing unsafe expired worktree path: {path}")
+    if not path.exists():
+        return
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "worktree", "remove", "--force", str(path)],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0 and path.exists():
+        try:
+            shutil.rmtree(path)
+        except OSError as exc:
+            raise RuntimeError(f"Failed to remove expired worktree {path}: {stderr or exc}") from exc
+    if path.exists():
+        raise RuntimeError(f"Expired worktree still exists after removal: {path}")
+
+
+def expire_managed_worktrees(
+    *,
+    max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
+    now_timestamp: float | None = None,
+) -> dict:
+    """Unconditionally delete managed worktrees after the configured hard lifetime."""
+    if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
+        raise ValueError(
+            f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
+        )
+    current_timestamp = time.time() if now_timestamp is None else now_timestamp
+    records = _managed_worktree_records()
+    expired = [
+        {**record, "age_hours": _managed_worktree_age_hours(record, current_timestamp)}
+        for record in records
+        if _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+    ]
+    expired.sort(key=lambda item: len(Path(str(item["path"])).parts), reverse=True)
+    retained = sorted(
+        str(record["session_id"])
+        for record in records
+        if _managed_worktree_age_hours(record, current_timestamp) < max_age_hours
+    )
+    deleted_records: list[dict] = []
+    failures: list[dict] = []
+    for record in expired:
+        try:
+            _remove_expired_worktree(record)
+        except RuntimeError as exc:
+            failures.append({"session_id": record["session_id"], "path": record["path"], "error": str(exc)})
+            continue
+        deleted_records.append(record)
+
+    deleted_ids = sorted({str(record["session_id"]) for record in deleted_records})
+    for session_id in deleted_ids:
+        _delete_worktree_checkpoint_ref(session_id)
+    deleted_paths = [Path(str(record["path"])).resolve(strict=False) for record in deleted_records]
+
+    def store(data: dict) -> None:
+        _prune_deletion_manifests(data)
+        sessions = data.setdefault("sessions", {})
+        manifests = data.setdefault("worktree_deletion_manifests", [])
+        removed_session_ids: set[str] = set()
+        for session_id, session in list(sessions.items()):
+            metadata = session.get("worktree") if isinstance(session, dict) else None
+            path_text = str(metadata.get("path") or "") if isinstance(metadata, dict) else ""
+            if not path_text:
+                continue
+            session_path = Path(path_text).resolve(strict=False)
+            if not any(session_path == deleted_path or session_path.is_relative_to(deleted_path) for deleted_path in deleted_paths):
+                continue
+            removed_session_ids.add(str(session_id))
+            sessions.pop(session_id, None)
+        removed_session_ids.update(deleted_ids)
+        data["deploy_queue"] = [
+            item for item in data.setdefault("deploy_queue", [])
+            if str(item.get("session_id") or "") not in removed_session_ids
+        ]
+        data["edit_leases"] = {
+            path: lease
+            for path, lease in data.setdefault("edit_leases", {}).items()
+            if str(lease.get("session_id") or "") not in removed_session_ids
+        }
+        for record in deleted_records:
+            metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+            session = record.get("session") if isinstance(record.get("session"), dict) else {}
+            manifests.append(
+                {
+                    "session_id": str(record["session_id"]),
+                    "worktree_name": Path(str(record["path"])).name,
+                    "classification": "expired",
+                    "reason": f"hard_max_age_{max_age_hours}h",
+                    "reason_code": "hard_max_age",
+                    "last_active": str(metadata.get("last_active") or session.get("last_active") or ""),
+                    "changed_file_count": len(session.get("modified_files") or []),
+                    "head": str(record.get("head") or ""),
+                    "target_commit": str(metadata.get("merged_commit") or ""),
+                    "deleted_at": _now_iso(),
+                }
+            )
+
+    if deleted_records:
+        _mutate_sessions(store)
+        _run_cmd(["git", "worktree", "prune"], cwd=str(CONTROL_PLANE_ROOT))
+    return {
+        "max_age_hours": max_age_hours,
+        "inspected": len(records),
+        "deleted": deleted_ids,
+        "retained": retained,
+        "failures": failures,
+    }
+
+
+def _enforce_worktree_creation_capacity() -> None:
+    """Clean expired worktrees, then refuse creation before disk or count exhaustion."""
+    expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
+    worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
+    usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
+    used_percent = ((usage.total - usage.free) * 100 / usage.total) if usage.total else 100.0
+    breaches: list[str] = []
+    if worktree_count >= WORKTREE_MAX_COUNT:
+        breaches.append(f"worktree count limit reached ({worktree_count}/{WORKTREE_MAX_COUNT})")
+    if usage.free < WORKTREE_MIN_FREE_BYTES:
+        breaches.append(
+            f"free space below minimum ({usage.free / 1024**3:.1f} GiB < {WORKTREE_MIN_FREE_BYTES / 1024**3:.1f} GiB)"
+        )
+    if used_percent >= WORKTREE_MAX_DISK_PERCENT:
+        breaches.append(f"filesystem use limit reached ({used_percent:.1f}% >= {WORKTREE_MAX_DISK_PERCENT}%)")
+    if breaches:
+        raise RuntimeError(
+            "; ".join(breaches)
+            + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
+        )
 
 
 def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS) -> list[str]:
@@ -10479,6 +10725,25 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         if result["blocked"]:
             sys.exit(1)
         return
+    if args.worktree_action == "expire":
+        try:
+            report = expire_managed_worktrees(max_age_hours=args.max_age_hours)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.format == "json":
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print("== WORKTREE HARD EXPIRY ==")
+            print(f"Maximum age: {report['max_age_hours']} hours")
+            print(f"Inspected: {report['inspected']}")
+            print(f"Deleted: {len(report['deleted'])}")
+            print(f"Retained: {len(report['retained'])}")
+            for failure in report["failures"]:
+                print(f"  ! {failure['path']}: {failure['error']}")
+        if report["failures"]:
+            sys.exit(1)
+        return
     if args.worktree_action == "cleanup":
         if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS:
             print(
@@ -10924,16 +11189,36 @@ def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) ->
         if full_path.exists():
             result["unit_tests"].append(candidate)
 
-    # Also do a glob search for any test file containing the stem name
-    for test_glob_pattern in [
+    # Also search for any test file containing the stem name. Prune generated
+    # and managed-worktree roots before descending: Path.glob("**/...") walks
+    # every session checkout and made this deploy gate scale by worktree count.
+    test_glob_patterns = [
         f"**/__tests__/*{stem}*",
         f"**/test_{stem}*",
         f"**/*{stem}*.test.*",
         f"**/*{stem}*.spec.*",
-    ]:
-        for match in root.glob(test_glob_pattern):
+    ]
+    excluded_test_roots = {
+        ".agent-worktrees",
+        ".git",
+        ".openmates-agent-worktrees",
+        ".svelte-kit",
+        ".venv",
+        "build",
+        "dist",
+        "node_modules",
+        "test-results",
+    }
+    for current, directories, names in os.walk(root):
+        directories[:] = [name for name in directories if name not in excluded_test_roots]
+        current_path = Path(current)
+        for name in names:
+            match = current_path / name
+            relative = match.relative_to(root)
+            if not any(relative.match(pattern) for pattern in test_glob_patterns):
+                continue
             rel = str(match.relative_to(root))
-            if rel not in result["unit_tests"] and "node_modules" not in rel:
+            if rel not in result["unit_tests"]:
                 result["unit_tests"].append(rel)
 
     # --- Search for E2E tests referencing this file/component ---
@@ -13353,6 +13638,16 @@ def main() -> None:
     p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])
     p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
     p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
+    p_worktree_expire = p_worktree_sub.add_parser(
+        "expire", help="Unconditionally delete managed worktrees at the hard maximum age"
+    )
+    p_worktree_expire.add_argument(
+        "--max-age-hours",
+        type=int,
+        default=WORKTREE_HARD_MAX_AGE_HOURS,
+        help=f"Hard maximum worktree age (minimum/default: {WORKTREE_HARD_MAX_AGE_HOURS})",
+    )
+    p_worktree_expire.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",

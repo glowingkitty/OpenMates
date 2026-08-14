@@ -96,6 +96,20 @@ def test_docker_cleanup_is_bounded_and_never_prunes_data_containers_or_volumes()
     assert "docker system prune" not in script
 
 
+def test_daily_test_artifacts_are_bounded_to_one_week() -> None:
+    run_tests = load_run_tests_module()
+
+    assert run_tests.DAILY_ARTIFACT_RETENTION_DAYS == 7
+
+
+def test_opencode_cleanup_includes_archived_sessions_and_bounds_todo_retention() -> None:
+    script = (ROOT / "scripts" / "cleanup-opencode-sessions.sh").read_text(encoding="utf-8")
+
+    assert "time_archived IS NULL" not in script
+    assert "OPENMATES_OPENCODE_TODO_RETENTION_DAYS:-90" in script
+    assert "opencode session delete" in script
+
+
 def test_proof_cleanup_retries_then_expires_only_manifest_owned_media() -> None:
     script = (ROOT / "scripts" / "cleanup-proof-videos.sh").read_text(encoding="utf-8")
 

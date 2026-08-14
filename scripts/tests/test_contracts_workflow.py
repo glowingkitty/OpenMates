@@ -199,6 +199,21 @@ def test_generated_integrity_rejects_registry_drift(tmp_path):
 
 
 # contract-test: tooling
+def test_repository_test_discovery_prunes_managed_worktrees(tmp_path):
+    module = load_module()
+    source_test = tmp_path / "scripts" / "tests" / "test_source.py"
+    worktree_test = tmp_path / ".openmates-agent-worktrees" / "agent-old" / "scripts" / "tests" / "test_copy.py"
+    source_test.parent.mkdir(parents=True)
+    worktree_test.parent.mkdir(parents=True)
+    source_test.write_text("def test_source(): pass\n", encoding="utf-8")
+    worktree_test.write_text("def test_copy(): pass\n", encoding="utf-8")
+
+    discovered = module._repository_test_files(tmp_path)
+
+    assert discovered == [source_test]
+
+
+# contract-test: tooling
 def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, tmp_path):
     module = load_module()
     control_root = tmp_path / "repo"

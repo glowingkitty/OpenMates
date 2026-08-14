@@ -13,6 +13,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -725,14 +726,23 @@ def _bundle_for_changed_contract_path(path: Path, contracts_root: Path) -> Path 
 
 
 def _repository_test_files(repo_root: Path) -> list[Path]:
-    excluded = {".git", ".svelte-kit", ".venv", "build", "dist", "node_modules", "test-results"}
-    return [
-        path
-        for path in repo_root.rglob("*")
-        if path.is_file()
-        and _is_test_file(str(path))
-        and not any(part in excluded for part in path.relative_to(repo_root).parts)
-    ]
+    excluded = {
+        ".agent-worktrees",
+        ".git",
+        ".openmates-agent-worktrees",
+        ".svelte-kit",
+        ".venv",
+        "build",
+        "dist",
+        "node_modules",
+        "test-results",
+    }
+    files: list[Path] = []
+    for current, directories, names in os.walk(repo_root):
+        directories[:] = [name for name in directories if name not in excluded]
+        current_path = Path(current)
+        files.extend(current_path / name for name in names if _is_test_file(name))
+    return files
 
 
 def _evidence_records(test_index: dict[str, Any]) -> list[dict[str, Any]]:

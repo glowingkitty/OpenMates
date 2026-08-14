@@ -100,6 +100,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
+DAILY_ARTIFACT_RETENTION_DAYS = 7
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
@@ -7089,12 +7090,13 @@ class TestOrchestrator:
             shutil.copy2(str(last_run), str(archive))
             _log(f"Archived to {archive.name}")
 
-        # Prune old archives (keep last 30)
+        # Bound daily JSON and screenshot growth to one week. The canonical
+        # latest results remain separate from these dated archives.
         archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
-        for old in archives[30:]:
+        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
             old.unlink(missing_ok=True)
 
-        # Prune old screenshot archives (keep last 30 days)
+        # Prune old screenshot archives (keep last 7 daily snapshots).
         screenshots_dir = RESULTS_DIR / "screenshots"
         if screenshots_dir.is_dir():
             date_dirs = sorted(
@@ -7102,7 +7104,7 @@ class TestOrchestrator:
                  if d.is_dir() and d.name != "current" and len(d.name) == 10],
                 reverse=True,
             )
-            for old_dir in date_dirs[30:]:
+            for old_dir in date_dirs[DAILY_ARTIFACT_RETENTION_DAYS:]:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 

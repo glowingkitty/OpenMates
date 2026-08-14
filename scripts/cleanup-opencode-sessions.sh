@@ -1,7 +1,8 @@
 #!/bin/bash
 # OpenCode Session Cleanup Script
-# Deletes opencode sessions older than 14 days that do NOT have "TODO" (case-insensitive)
-# in their title. Sessions with TODO are kept indefinitely until manually addressed.
+# Deletes OpenCode sessions older than 14 days that do NOT have "TODO"
+# (case-insensitive) in their title. TODO sessions have a separate 90-day hard
+# limit so retained transcripts cannot grow without bound.
 #
 # Runs daily via crontab at 01:30 UTC.
 # Logs to: logs/opencode-cleanup.log
@@ -14,7 +15,14 @@ set -euo pipefail
 
 DB_PATH="$HOME/.local/share/opencode/opencode.db"
 OPENCODE_BIN="$HOME/.npm-global/bin/opencode"
-CUTOFF_MS=$(python3 -c "import time; print(int((time.time() - 14*24*3600) * 1000))")
+RETENTION_DAYS="${OPENMATES_OPENCODE_RETENTION_DAYS:-14}"
+TODO_RETENTION_DAYS="${OPENMATES_OPENCODE_TODO_RETENTION_DAYS:-90}"
+if [[ ! "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || [[ ! "$TODO_RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: OpenCode retention values must be positive whole days."
+    exit 2
+fi
+CUTOFF_MS=$(python3 -c "import time; print(int((time.time() - ${RETENTION_DAYS}*24*3600) * 1000))")
+TODO_CUTOFF_MS=$(python3 -c "import time; print(int((time.time() - ${TODO_RETENTION_DAYS}*24*3600) * 1000))")
 
 echo "=========================================="
 echo "OpenCode Session Cleanup"
@@ -22,7 +30,7 @@ echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "=========================================="
 echo ""
 echo "Cutoff: sessions not updated since $(date -u -d "@$(( CUTOFF_MS / 1000 ))" '+%Y-%m-%d %H:%M UTC')"
-echo "Rule: delete if older than 14 days AND title does NOT contain 'TODO' (case-insensitive)"
+echo "Rule: delete non-TODO sessions after ${RETENTION_DAYS} days and TODO sessions after ${TODO_RETENTION_DAYS} days"
 echo ""
 
 # Verify DB exists
@@ -52,9 +60,8 @@ cur = conn.cursor()
 cur.execute("""
     SELECT id, title, time_updated
     FROM session
-    WHERE time_archived IS NULL
-      AND time_updated < $CUTOFF_MS
-      AND UPPER(title) NOT LIKE '%TODO%'
+    WHERE (time_updated < $CUTOFF_MS AND UPPER(title) NOT LIKE '%TODO%')
+       OR (time_updated < $TODO_CUTOFF_MS AND UPPER(title) LIKE '%TODO%')
     ORDER BY time_updated ASC
 """)
 rows = cur.fetchall()
