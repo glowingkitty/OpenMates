@@ -321,7 +321,13 @@ async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 180_0
 		const remainingMs = timeoutMs - (Date.now() - startedAt);
 		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], Math.max(30_000, remainingMs));
 		lastOutput = result.stdout + result.stderr;
-		if (result.code === 0 && result.stdout.trim()) return JSON.parse(result.stdout);
+		if (result.stdout.trim()) {
+			try {
+				return JSON.parse(result.stdout);
+			} catch {
+				if (result.code === 0) throw new Error(`Invalid chats show JSON: ${result.stdout.slice(0, 500)}`);
+			}
+		}
 		await new Promise((resolve) => setTimeout(resolve, 2_000));
 	}
 	throw new Error(`Timed out waiting for chat ${chatId}: ${lastOutput.slice(0, 500)}`);
