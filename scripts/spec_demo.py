@@ -25,10 +25,10 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import textwrap
 import time
 from typing import Any, Callable, Iterable
-from urllib.parse import urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -1739,21 +1739,16 @@ def publish_reviewed_video(
     run_dir: Path,
     manifest: dict[str, Any],
     *,
-    webhook_url: str,
     now: datetime,
-    send: Callable[..., dict[str, str] | None] | None = None,
-    max_attachment_bytes: int = 10 * 1024 * 1024,
-    approved_artifact_link: str = "",
-    approved_artifact_hosts: set[str] | None = None,
-    send_link: Callable[..., dict[str, str] | None] | None = None,
+    uploader: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if manifest.get("review", {}).get("status") != "passed":
-        raise DemonstrationError("Discord publication requires passed demonstration review")
+    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
+        raise DemonstrationError("OpenCode response-media publication requires passed privacy and demonstration review")
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
-        raise DemonstrationError("Discord publication requires passed or intentionally disabled narration audio")
+        raise DemonstrationError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
     if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
-        raise DemonstrationError("Discord publication requires the requested narration audio track")
+        raise DemonstrationError("OpenCode response-media publication requires the requested narration audio track")
     publication = manifest.setdefault("publication", {})
     if not isinstance(publication, dict):
         raise DemonstrationError("Manifest publication record must be a mapping")
@@ -1769,103 +1764,70 @@ def publish_reviewed_video(
     publication["last_attempt_at"] = now_text
     first_attempt = datetime.fromisoformat(str(first_attempt_text).replace("Z", "+00:00"))
     publication.setdefault("retry_until", _utc_text(first_attempt + timedelta(hours=24)))
-    link_path = run_dir / ".publication-link"
-    oversized = video_path.stat().st_size > max_attachment_bytes
-    if oversized and not approved_artifact_link and link_path.is_file():
-        approved_artifact_link = link_path.read_text(encoding="utf-8")
-    if oversized and approved_artifact_link:
-        parsed_link = urlparse(approved_artifact_link)
-        allowed_hosts = approved_artifact_hosts or set()
-        if parsed_link.scheme != "https" or not parsed_link.hostname or parsed_link.hostname not in allowed_hosts:
-            raise DemonstrationError("Artifact link must use an approved HTTPS artifact host")
-        _write_private(link_path, approved_artifact_link)
-    if not webhook_url:
-        publication["status"] = "not_configured"
-        _write_run_json(run_dir / "publication.json", publication)
-        _write_run_json(run_dir / "manifest.json", manifest)
-        return manifest
-
-    payload = {
-        "content": (
-            f"Reviewed implementation demonstration: {manifest.get('spec_id', 'unknown')} "
-            f"at {manifest.get('subject_commit', 'unknown')}"
-        )
-    }
-    if oversized:
-        if approved_artifact_link:
-            link_payload = {"content": f"{payload['content']}\nAccess-controlled artifact: {approved_artifact_link}"}
-            if send_link is None and send is not None:
-                delivery = send(
-                    webhook_url=webhook_url,
-                    payload=link_payload,
-                    content=None,
-                    filename="",
-                )
-            else:
-                if send_link is None:
-                    send_link = _discord_webhook_module().post_message
-                delivery = send_link(webhook_url=webhook_url, payload=link_payload)
-            if isinstance(delivery, dict) and delivery.get("message_id"):
-                publication.update(
-                    {
-                        "status": "delivered",
-                        "delivered_at": now_text,
-                        "message_id": str(delivery["message_id"]),
-                        "delivery_kind": "access_controlled_link",
-                    }
-                )
-                publication.pop("failure_reason", None)
-                publication.pop("next_retry_at", None)
-                publication["deleted_paths"] = delete_disposable_artifacts(run_dir, manifest)
-                publication["video_deleted_at"] = now_text
-                link_path.unlink(missing_ok=True)
-                _write_run_json(run_dir / "publication.json", publication)
-                _write_run_json(run_dir / "manifest.json", manifest)
-                return manifest
+    alt_text = (
+        f"Reviewed implementation demonstration for {manifest.get('spec_id', 'unknown')} "
+        f"at {manifest.get('subject_commit', 'unknown')}"
+    )
+    if uploader is None:
+        uploader = upload_response_media
+    try:
+        upload = uploader(path=video_path, alt=alt_text)
+    except Exception as exc:
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = "Reviewed video exceeds the configured Discord attachment limit and needs an approved access-controlled artifact link."
+        publication["failure_reason"] = f"OpenCode response-media upload did not complete: {str(exc)[:500]}"
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
         _write_run_json(run_dir / "publication.json", publication)
         _write_run_json(run_dir / "manifest.json", manifest)
         return manifest
-    if send is None:
-        send = _discord_webhook_module().post_attachment
-    delivery = send(
-        webhook_url=webhook_url,
-        payload=payload,
-        content=video_path.read_bytes(),
-        filename=video_path.name,
-    )
-    if not isinstance(delivery, dict) or not delivery.get("message_id") or not delivery.get("attachment_id"):
+
+    snippets = upload.get("snippets") if isinstance(upload, dict) else None
+    if not isinstance(upload, dict) or not upload.get("key") or not isinstance(snippets, dict):
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = "Discord did not confirm message and attachment creation."
+        publication["failure_reason"] = "OpenCode response-media upload completed without usable snippets."
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
     else:
         publication.update(
             {
                 "status": "delivered",
                 "delivered_at": now_text,
-                "message_id": str(delivery["message_id"]),
-                "attachment_id": str(delivery["attachment_id"]),
+                "delivery_kind": "opencode_response_media",
+                "response_media_key": str(upload["key"]),
+                "response_media_kind": str(upload.get("kind", "media")),
+                "response_media_markdown": str(snippets.get("markdown", "")),
+                "response_media_html": str(snippets.get("html", "")),
             }
         )
+        if "expires_in" in upload:
+            publication["response_media_expires_in"] = upload["expires_in"]
         publication.pop("failure_reason", None)
         publication.pop("next_retry_at", None)
         publication["deleted_paths"] = delete_disposable_artifacts(run_dir, manifest)
         publication["video_deleted_at"] = now_text
-        link_path.unlink(missing_ok=True)
     _write_run_json(run_dir / "publication.json", publication)
     _write_run_json(run_dir / "manifest.json", manifest)
     return manifest
 
 
-def _discord_webhook_module() -> Any:
-    """Load the sibling helper in both script and repository-module contexts."""
+def upload_response_media(*, path: Path, alt: str) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts/opencode_response_media.py"),
+        str(path),
+        "--alt",
+        alt,
+        "--output",
+        "json",
+    ]
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise DemonstrationError(result.stderr.strip() or result.stdout.strip() or "response-media upload failed")
     try:
-        import discord_webhook
-    except ModuleNotFoundError:
-        from scripts import discord_webhook
-    return discord_webhook
+        parsed = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise DemonstrationError("response-media upload returned invalid JSON") from exc
+    if not isinstance(parsed, dict):
+        raise DemonstrationError("response-media upload returned an invalid payload")
+    return parsed
 
 
 def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: datetime) -> dict[str, Any]:
@@ -1882,7 +1844,7 @@ def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: dateti
         {
             "status": "expired_deleted",
             "expired_at": _utc_text(now),
-            "failure_reason": "Discord delivery did not complete within 24 hours.",
+            "failure_reason": "OpenCode response-media proof embed did not complete within 24 hours.",
             "deleted_paths": delete_disposable_artifacts(run_dir, manifest),
             "video_deleted_at": _utc_text(now),
         }
@@ -1912,11 +1874,7 @@ def sweep_publications(
     root: Path,
     *,
     now: datetime,
-    webhook_url: str,
-    send: Callable[..., dict[str, str] | None] | None = None,
-    max_attachment_bytes: int = 10 * 1024 * 1024,
-    approved_artifact_link: str = "",
-    approved_artifact_hosts: set[str] | None = None,
+    uploader: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, int]:
     counts = {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
     if not root.is_dir():
@@ -1947,25 +1905,12 @@ def sweep_publications(
             result = publish_reviewed_video(
                 manifest_path.parent,
                 manifest,
-                webhook_url=webhook_url,
                 now=now,
-                send=send,
-                max_attachment_bytes=max_attachment_bytes,
-                approved_artifact_link=approved_artifact_link,
-                approved_artifact_hosts=approved_artifact_hosts,
+                uploader=uploader,
             )
             if result.get("publication", {}).get("status") == "delivered":
                 counts["delivered"] += 1
     return counts
-
-
-def resolve_discord_webhook(env: dict[str, str]) -> str:
-    """Return only the dedicated implementation-demonstration destination."""
-    return env.get("DISCORD_WEBHOOK_SPEC_DEMOS", "")
-
-
-def resolve_artifact_hosts(value: str) -> set[str]:
-    return {host.strip().lower() for host in value.split(",") if host.strip()}
 
 
 def doctor() -> dict[str, Any]:
@@ -1976,21 +1921,6 @@ def doctor() -> dict[str, Any]:
         "node": shutil.which("node") is not None,
     }
     return {"status": "passed" if all(checks.values()) else "blocked", "checks": checks}
-
-
-def _load_named_env(keys: tuple[str, ...]) -> dict[str, str]:
-    values = {key: os.environ.get(key, "") for key in keys}
-    env_path = REPO_ROOT / ".env"
-    if env_path.is_file() and not all(values.values()):
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, _, value = stripped.partition("=")
-            key = key.strip()
-            if key in values and not values[key]:
-                values[key] = value.strip().strip("'\"")
-    return values
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2020,7 +1950,6 @@ def main(argv: list[str] | None = None) -> int:
     review_parser.add_argument("--claims-json", required=True)
     publish_parser = subparsers.add_parser("publish")
     publish_parser.add_argument("--run-dir", type=Path, required=True)
-    publish_parser.add_argument("--approved-artifact-link", default="")
     expire_parser = subparsers.add_parser("expire")
     expire_parser.add_argument("--run-dir", type=Path, required=True)
     sweep_parser = subparsers.add_parser("sweep-expired")
@@ -2064,32 +1993,32 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "publish":
         manifest = json.loads((args.run_dir / "manifest.json").read_text(encoding="utf-8"))
-        env = _load_named_env(("DISCORD_WEBHOOK_SPEC_DEMOS", "SPEC_DEMO_APPROVED_ARTIFACT_LINK", "SPEC_DEMO_ARTIFACT_HOSTS"))
-        webhook = resolve_discord_webhook(env)
         result = publish_reviewed_video(
             args.run_dir,
             manifest,
-            webhook_url=webhook,
             now=datetime.now(timezone.utc),
-            approved_artifact_link=args.approved_artifact_link or env["SPEC_DEMO_APPROVED_ARTIFACT_LINK"],
-            approved_artifact_hosts=resolve_artifact_hosts(env["SPEC_DEMO_ARTIFACT_HOSTS"]),
         )
-        print(json.dumps({"status": result["publication"]["status"]}, sort_keys=True))
+        publication = result["publication"]
+        print(
+            json.dumps(
+                {
+                    "status": publication["status"],
+                    "markdown": publication.get("response_media_markdown", ""),
+                    "html": publication.get("response_media_html", ""),
+                },
+                sort_keys=True,
+            )
+        )
         return 0
     if args.command == "sweep-expired":
         print(json.dumps(sweep_expired_videos(args.root, now=datetime.now(timezone.utc)), sort_keys=True))
         return 0
     if args.command == "sweep-publications":
-        env = _load_named_env(("DISCORD_WEBHOOK_SPEC_DEMOS", "SPEC_DEMO_APPROVED_ARTIFACT_LINK", "SPEC_DEMO_ARTIFACT_HOSTS"))
-        webhook = resolve_discord_webhook(env)
         print(
             json.dumps(
                 sweep_publications(
                     args.root,
                     now=datetime.now(timezone.utc),
-                    webhook_url=webhook,
-                    approved_artifact_link=env["SPEC_DEMO_APPROVED_ARTIFACT_LINK"],
-                    approved_artifact_hosts=resolve_artifact_hosts(env["SPEC_DEMO_ARTIFACT_HOSTS"]),
                 ),
                 sort_keys=True,
             )

@@ -1,8 +1,8 @@
-"""Tests for reviewed demonstration Discord delivery and cleanup.
+"""Tests for reviewed demonstration response-media publication and cleanup.
 
-Purpose: confirm delivery before deleting video and bound failed-delivery storage.
-Architecture: use a shared multipart helper plus manifest-owned cleanup functions.
-Privacy: webhook URLs, response bodies, media, and identifiers are synthetic.
+Purpose: confirm OpenCode response-media publication before deleting video and bound failed-publication storage.
+Architecture: use the response-media helper plus manifest-owned cleanup functions.
+Privacy: response-media snippets, media, and identifiers are synthetic.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py.
 """
 
@@ -31,19 +31,6 @@ def load_module(name: str):
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def test_discord_helper_imports_from_direct_script_context() -> None:
-    result = subprocess.run(
-        [sys.executable, "-c", "import spec_demo; print(spec_demo._discord_webhook_module().__name__)"],
-        cwd=ROOT / "scripts",
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "discord_webhook"
 
 
 def demo_run(tmp_path: Path) -> tuple[Path, dict]:
@@ -89,43 +76,37 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     return run_dir, manifest
 
 
-def test_multipart_body_uses_video_content_type_and_no_webhook_value() -> None:
-    discord = load_module("discord_webhook")
-
-    body, content_type = discord.build_multipart_body(
-        {"content": "Reviewed example at abc1234"},
-        [("files[0]", b"video", "demo.mp4")],
-    )
-
-    assert content_type.startswith("multipart/form-data; boundary=")
-    assert b"Content-Type: video/mp4" in body
-    assert b"Reviewed example at abc1234" in body
-    assert b"discord.invalid" not in body
+def response_media_result() -> dict[str, object]:
+    return {
+        "expires_in": 172800,
+        "key": "opencode-responses/2026/08/14/demo.mp4",
+        "kind": "video",
+        "snippets": {
+            "markdown": "[Demo](https://media.invalid/demo.mp4)",
+            "html": '<video controls width="640"><source src="https://media.invalid/demo.mp4" type="video/mp4"></video>',
+        },
+    }
 
 
-def test_text_only_discord_delivery_confirms_message_id() -> None:
-    discord = load_module("discord_webhook")
+def test_response_media_upload_helper_parses_json(monkeypatch, tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic-video")
 
-    class Response:
-        def __enter__(self):
-            return self
+    def fake_run(command, **kwargs):
+        assert command[1].endswith("opencode_response_media.py")
+        assert "--output" in command
+        assert kwargs == {"check": False, "capture_output": True, "text": True}
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(response_media_result()), stderr="")
 
-        def __exit__(self, *_args):
-            return False
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
 
-        def read(self):
-            return b'{"id":"msg-1"}'
+    result = module.upload_response_media(path=video, alt="Demo")
 
-    result = discord.post_message(
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
-        payload={"content": "Access-controlled artifact: https://artifacts.invalid/demo"},
-        opener=lambda *_args, **_kwargs: Response(),
-    )
-
-    assert result == {"message_id": "msg-1"}
+    assert result["key"] == "opencode-responses/2026/08/14/demo.mp4"
 
 
-def test_confirmed_delivery_deletes_video_and_frames_but_retains_text(tmp_path: Path) -> None:
+def test_confirmed_response_media_publication_deletes_video_and_frames_but_retains_text(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
     now = datetime(2026, 8, 6, tzinfo=timezone.utc)
@@ -133,14 +114,14 @@ def test_confirmed_delivery_deletes_video_and_frames_but_retains_text(tmp_path: 
     result = module.publish_reviewed_video(
         run_dir,
         manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
         now=now,
-        send=lambda **_kwargs: {"message_id": "msg-1", "attachment_id": "att-1"},
+        uploader=lambda **_kwargs: response_media_result(),
     )
 
     assert result["publication"]["status"] == "delivered"
-    assert result["publication"]["message_id"] == "msg-1"
-    assert "webhook" not in json.dumps(result).lower()
+    assert result["publication"]["delivery_kind"] == "opencode_response_media"
+    assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
+    assert result["publication"]["response_media_html"].startswith("<video")
     assert not Path(manifest["video_path"]).exists()
     assert not (run_dir / "frames" / "frame-001.png").exists()
     assert (run_dir / "transcript.txt").is_file()
@@ -150,48 +131,55 @@ def test_confirmed_delivery_deletes_video_and_frames_but_retains_text(tmp_path: 
 def test_delivered_publication_is_idempotent_after_video_cleanup(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
-    manifest["publication"] = {"status": "delivered", "message_id": "msg-1"}
+    manifest["publication"] = {
+        "status": "delivered",
+        "delivery_kind": "opencode_response_media",
+        "response_media_key": "opencode-responses/2026/08/14/demo.mp4",
+    }
     Path(manifest["video_path"]).unlink()
 
     result = module.publish_reviewed_video(
         run_dir,
         manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
         now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-        send=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not redeliver")),
+        uploader=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not republish")),
     )
 
     assert result["publication"]["status"] == "delivered"
-    assert result["publication"]["message_id"] == "msg-1"
+    assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
 
 
-def test_failed_delivery_keeps_video_during_retry_window(tmp_path: Path) -> None:
+def test_failed_response_media_publication_keeps_video_during_retry_window(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
     now = datetime(2026, 8, 6, tzinfo=timezone.utc)
+
+    def fail_upload(**_kwargs):
+        raise RuntimeError("synthetic upload failure")
 
     result = module.publish_reviewed_video(
         run_dir,
         manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
         now=now,
-        send=lambda **_kwargs: None,
+        uploader=fail_upload,
     )
 
     assert result["publication"]["status"] == "publication_pending"
     assert result["publication"]["retry_until"] == "2026-08-07T00:00:00Z"
+    assert "response-media upload did not complete" in result["publication"]["failure_reason"]
     assert Path(manifest["video_path"]).is_file()
 
 
-def test_missing_webhook_records_not_configured_without_value(tmp_path: Path) -> None:
+def test_missing_response_media_snippet_records_pending_without_deleting_video(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
     now = datetime(2026, 8, 6, tzinfo=timezone.utc)
 
-    result = module.publish_reviewed_video(run_dir, manifest, webhook_url="", now=now)
+    result = module.publish_reviewed_video(run_dir, manifest, now=now, uploader=lambda **_kwargs: {"key": "demo"})
 
-    assert result["publication"]["status"] == "not_configured"
-    assert "webhook_url" not in result["publication"]
+    assert result["publication"]["status"] == "publication_pending"
+    assert "usable snippets" in result["publication"]["failure_reason"]
+    assert Path(manifest["video_path"]).is_file()
 
 
 def test_pending_video_is_deleted_after_24_hours(tmp_path: Path) -> None:
@@ -209,7 +197,7 @@ def test_pending_video_is_deleted_after_24_hours(tmp_path: Path) -> None:
     assert result["publication"]["status"] == "expired_deleted"
     assert not Path(manifest["video_path"]).exists()
     assert (run_dir / "transcript.txt").is_file()
-    assert result["publication"]["failure_reason"] == "Discord delivery did not complete within 24 hours."
+    assert result["publication"]["failure_reason"] == "OpenCode response-media proof embed did not complete within 24 hours."
 
 
 def test_cleanup_rejects_paths_outside_manifest_run_directory(tmp_path: Path) -> None:
@@ -247,79 +235,6 @@ def test_cleanup_rejects_retained_or_hash_mismatched_artifacts(tmp_path: Path) -
     assert transcript.is_file()
 
 
-def test_oversized_video_stays_pending_without_send(tmp_path: Path) -> None:
-    module = load_module("spec_demo")
-    run_dir, manifest = demo_run(tmp_path)
-    called = False
-
-    def send(**_kwargs):
-        nonlocal called
-        called = True
-        return {"message_id": "unexpected", "attachment_id": "unexpected"}
-
-    result = module.publish_reviewed_video(
-        run_dir,
-        manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
-        now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-        send=send,
-        max_attachment_bytes=1,
-    )
-
-    assert called is False
-    assert result["publication"]["status"] == "publication_pending"
-
-
-def test_oversized_video_uses_explicit_approved_artifact_link(tmp_path: Path) -> None:
-    module = load_module("spec_demo")
-    run_dir, manifest = demo_run(tmp_path)
-    payloads = []
-
-    result = module.publish_reviewed_video(
-        run_dir,
-        manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
-        now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-        send=lambda **kwargs: payloads.append(kwargs) or {"message_id": "msg-1"},
-        max_attachment_bytes=1,
-        approved_artifact_link="https://artifacts.invalid/access-controlled/demo",
-        approved_artifact_hosts={"artifacts.invalid"},
-    )
-
-    assert result["publication"]["status"] == "delivered"
-    assert payloads[0]["content"] is None
-    assert "access-controlled" in payloads[0]["payload"]["content"]
-    assert not Path(manifest["video_path"]).exists()
-
-
-def test_artifact_link_requires_configured_https_host(tmp_path: Path) -> None:
-    module = load_module("spec_demo")
-    run_dir, manifest = demo_run(tmp_path)
-
-    try:
-        module.publish_reviewed_video(
-            run_dir,
-            manifest,
-            webhook_url="https://discord.invalid/<PLACEHOLDER>",
-            now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-            max_attachment_bytes=1,
-            approved_artifact_link="http://public.invalid/demo",
-            approved_artifact_hosts={"artifacts.invalid"},
-        )
-    except module.DemonstrationError as exc:
-        assert "approved HTTPS artifact host" in str(exc)
-    else:
-        raise AssertionError("public artifact URLs must not be accepted")
-
-
-def test_discord_destination_never_implicitly_uses_dev_nightly() -> None:
-    module = load_module("spec_demo")
-
-    assert module.resolve_discord_webhook(
-        {"DISCORD_WEBHOOK_SPEC_DEMOS": "", "DISCORD_WEBHOOK_DEV_NIGHTLY": "https://discord.invalid/nightly"}
-    ) == ""
-
-
 def test_expiry_sweep_processes_due_manifests(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
@@ -349,40 +264,35 @@ def test_publication_sweep_retries_due_pending_delivery(tmp_path: Path) -> None:
     result = module.sweep_publications(
         tmp_path,
         now=datetime(2026, 8, 6, 0, 15, tzinfo=timezone.utc),
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
-        send=lambda **_kwargs: {"message_id": "msg-1", "attachment_id": "att-1"},
+        uploader=lambda **_kwargs: response_media_result(),
     )
 
     assert result == {"scanned": 1, "retried": 1, "delivered": 1, "expired_deleted": 0}
 
 
-def test_publication_sweep_retries_failed_approved_link_delivery(tmp_path: Path) -> None:
+def test_publication_sweep_retries_failed_response_media_upload(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
+
+    def fail_upload(**_kwargs):
+        raise RuntimeError("synthetic upload failure")
+
     module.publish_reviewed_video(
         run_dir,
         manifest,
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
         now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-        send=lambda **_kwargs: None,
-        max_attachment_bytes=1,
-        approved_artifact_link="https://artifacts.invalid/access-controlled/demo",
-        approved_artifact_hosts={"artifacts.invalid"},
+        uploader=fail_upload,
     )
-    assert (run_dir / ".publication-link").is_file()
+    assert Path(manifest["video_path"]).is_file()
 
     result = module.sweep_publications(
         tmp_path,
         now=datetime(2026, 8, 6, 0, 15, tzinfo=timezone.utc),
-        webhook_url="https://discord.invalid/<PLACEHOLDER>",
-        send=lambda **_kwargs: {"message_id": "msg-1"},
-        max_attachment_bytes=1,
-        approved_artifact_hosts={"artifacts.invalid"},
+        uploader=lambda **_kwargs: response_media_result(),
     )
 
     assert result["delivered"] == 1
     assert not Path(manifest["video_path"]).exists()
-    assert not (run_dir / ".publication-link").exists()
 
 
 def test_publication_sweep_skips_root_already_claimed_by_another_runner(tmp_path: Path) -> None:
@@ -395,7 +305,6 @@ def test_publication_sweep_skips_root_already_claimed_by_another_runner(tmp_path
         result = module.sweep_publications(
             tmp_path,
             now=datetime(2026, 8, 6, tzinfo=timezone.utc),
-            webhook_url="https://discord.invalid/<PLACEHOLDER>",
         )
 
     assert result == {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
