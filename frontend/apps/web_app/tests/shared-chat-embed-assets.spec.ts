@@ -11,6 +11,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
+const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -423,8 +424,9 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		writeTinyWav(audioPath);
 		logCheckpoint('Created audio fixture for upload.');
 
+		const runMarker = randomUUID();
 		const message =
-			`Create a short response confirming these uploaded files are attached. ` +
+			`Create a short response confirming these uploaded files are attached. Run marker: ${runMarker}. ` +
 			`@${SAMPLE_PDF} @${SAMPLE_IMAGE} @${audioPath}`;
 		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
