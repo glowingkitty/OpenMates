@@ -204,10 +204,10 @@ contracts:
     - cli
     - gui.web
   feature.workspace-shell:
-    version: 1
+    version: 2
     status: draft
     path: features/workspace-shell
-    fingerprint: 5c4d4954d1714eb6d492b0da4f5d11ed199c0950631ed6ba6ea21d011e00bb11
+    fingerprint: 312455bcfc81c5947ab334b033283abe1c9c7b4637654190a24f0f4a46127b9e
     required_surfaces:
     - gui.web
   surface.cli:
@@ -1826,21 +1826,35 @@ assertions:
     - cli
     - gui.web
   workspace-shell.nav.released-surfaces-visible:
-    contract: feature.workspace-shell@1
+    contract: feature.workspace-shell@2
     contract_id: feature.workspace-shell
     type: behavior
     fingerprint: 103fa17fdc62bbf706e20a853105a20f1866cdd26911bc6d1d3aa9fbed5ec45c
     required_surfaces:
     - gui.web
   workspace-shell.start.shared-affordances:
-    contract: feature.workspace-shell@1
+    contract: feature.workspace-shell@2
     contract_id: feature.workspace-shell
     type: behavior
-    fingerprint: f8c5ea65a5f81c70d62c84f27b3379edc531f67a33f08c3f130695033a3393d4
+    fingerprint: 8a0b866811329d3ec7166fe6b070bbb0d8058087754c8e65df4a91c017fa315b
+    required_surfaces:
+    - gui.web
+  workspace-shell.start.chat-visual-parity:
+    contract: feature.workspace-shell@2
+    contract_id: feature.workspace-shell
+    type: behavior
+    fingerprint: 8f485229db354e7e4f7d2b76852f178556ab09d564fa540f6272a1b31b8fb477
+    required_surfaces:
+    - gui.web
+  workspace-shell.kanban.figma-controls:
+    contract: feature.workspace-shell@2
+    contract_id: feature.workspace-shell
+    type: behavior
+    fingerprint: 4d7da5304ddda2c61e92f40f8f8d6099d46c40c68e440de020f66e3a08e4a725
     required_surfaces:
     - gui.web
   workspace-shell.kanban.scroll-containment:
-    contract: feature.workspace-shell@1
+    contract: feature.workspace-shell@2
     contract_id: feature.workspace-shell
     type: behavior
     fingerprint: f95ed3f29dcb259118a530ad56646f2560f7b429ae017d98355b5a7e6dbfd187

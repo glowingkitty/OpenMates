@@ -1,22 +1,22 @@
 schema_version: 1
 id: feature.workspace-shell
-version: 1
+version: 2
 status: draft
 title: Workspace Shell
 summary: >
   First-party web workspace surfaces expose released top-level workspaces through
-  the shared OpenMates header and render stable workspace-shell affordances so
-  users can start, resume, and scan chats-adjacent work without losing the
-  surface-specific board or content semantics.
+  the shared OpenMates header and preserve the Chats start screen as the visual
+  shell baseline while retaining surface-specific board and content semantics.
 
 scope:
   includes:
     - Header release-gated workspace tab visibility for Chats, Projects, Plans, Workflows, and Tasks.
-    - Shared start-screen shell affordances for released Projects, Plans, Workflows, and Tasks.
+    - Chats-relative start-screen shell affordances for released Projects, Plans, Workflows, and Tasks.
     - Surface-specific Daily Inspiration placement, background identity icon, and bottom composer mount points.
+    - Figma-referenced Tasks and Plans board-control placement on desktop and narrow viewports.
     - Tasks and Plans Kanban board containment, including vertical shell scrolling under a fixed bottom composer and horizontal board scrolling on narrow viewports.
   excludes:
-    - Exact pixel values, gradients, animation timing, copy punctuation, and Figma-only visual variants.
+    - Hardcoded copies of current pixel values, gradients, animation timing, copy punctuation, and unrelated Figma-only visual variants.
     - Task, Plan, Project, Workflow, Daily Inspiration, and chat CRUD/privacy semantics already covered by their feature contracts.
     - Apple-native workspace presentation unless a native workspace shell is explicitly implemented and mapped later.
 
@@ -39,7 +39,14 @@ models:
     surface:
       type: enum
       required: true
-      values: [projects, workflows, tasks, plans]
+      values: [chats, projects, workflows, tasks, plans]
+    chats_visual_baseline:
+      type: relative_visual_contract
+      required: true
+      constraints:
+        matching_regions: [workspace_container, daily_inspiration_area, report_issue_control, bottom_composer]
+        viewports: [desktop, mobile]
+        allows_surface_specific_content: true
     daily_inspiration_area:
       type: mounted_region
       required: true
@@ -52,6 +59,24 @@ models:
       type: input_region
       required: true
       constraints: {surface_specific_action: true, mounted_at_shell_bottom: true}
+
+  KanbanBoardControls:
+    surfaces:
+      type: set
+      required: true
+      constraints: {values: [tasks, plans]}
+    tasks_desktop:
+      type: figma_referenced_layout
+      required: true
+      constraints: {compact_search_link: true, tags_below_search: true, filter_control_at_inline_end: true, board_summary_absent: true}
+    plans_desktop:
+      type: figma_referenced_layout
+      required: true
+      constraints: {search_absent: true, tags_absent: true, filter_control_at_inline_end: true, board_summary_absent: true}
+    narrow_viewport:
+      type: responsive_layout
+      required: true
+      constraints: {search_absent: true, tags_absent: true, filter_control_visible: true}
 
   KanbanWorkspaceContent:
     surfaces:
@@ -80,6 +105,14 @@ assertions:
     type: behavior
     must: Projects, Workflows, Tasks, and Plans start shells render a surface-specific Daily Inspiration area, decorative background identity icon, and bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership.
     depends_on: [models.WorkspaceStartShell, examples.start_shells]
+  - id: workspace-shell.start.chat-visual-parity
+    type: behavior
+    must: Projects, Workflows, Tasks, and Plans match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content.
+    depends_on: [models.WorkspaceStartShell, examples.visual_parity]
+  - id: workspace-shell.kanban.figma-controls
+    type: behavior
+    must: The Tasks desktop board places a compact Search link and tags at the upper inline end beside the circular filter control, while Plans omits Search and tags and keeps the circular filter control; both omit the dashboard-style board summary, and narrow viewports hide Search and tags while preserving the filter control and horizontal Kanban.
+    depends_on: [models.KanbanBoardControls, examples.figma_board_controls]
   - id: workspace-shell.kanban.scroll-containment
     type: behavior
     must: Tasks and Plans preserve their Kanban status columns inside the shared workspace shell; board content can scroll vertically beneath a fixed bottom composer, and narrow viewports keep all columns reachable through horizontal board scrolling instead of replacing Kanban with a non-board layout.
@@ -111,4 +144,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [released_navigation, start_shells, kanban_scroll]
+  required_groups: [released_navigation, start_shells, visual_parity, figma_board_controls, kanban_scroll]
