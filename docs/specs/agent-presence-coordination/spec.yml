@@ -1,7 +1,7 @@
 schema_version: 2
 id: agent-presence-coordination
 title: Real-Time Agent Presence and Collision Coordination
-status: implementing
+status: verified
 
 goal: >
   Give parallel OpenCode chats an accurate, privacy-minimal view of which work is
@@ -140,7 +140,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 2c3512629a5b421f1cc14d4106618a761728856c
+  subject_commit: d0d84a1f0d87809278717f7612a91dda9454c789
 
 approvals:
   product_contract:
@@ -500,7 +500,7 @@ acceptance_criteria:
     scenario: S-12
     text: Task children receive an explicit role from OpenCode session agent metadata before their first tool call, observed read-only inspection pipelines pass without weakening mutation guards, and telemetry separates expected blocks from routing defects.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NODE-CHILD-GUARD, T-LIVE-OPENCODE]
@@ -707,7 +707,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence: {status: passed, command: "node --test scripts/tests/test_opencode_task_child_roles.mjs scripts/tests/test_opencode_presence_collisions.mjs", run_id: "local-green-20260814-child-guard-postdeploy", subject_commit: "d0d84a1f0d87809278717f7612a91dda9454c789", timestamp: "2026-08-14T21:49:24Z"}
   - id: T-PYTEST-STATUS
     type: pytest
     file: scripts/tests/test_sessions_presence_status.py
@@ -807,7 +807,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending}
+      evidence: {status: passed, command: "python3 scripts/verify_opencode_presence_live.py --isolated", run_id: "local-green-20260814-live-postdeploy", subject_commit: "d0d84a1f0d87809278717f7612a91dda9454c789", timestamp: "2026-08-14T21:49:24Z", summary: "OpenCode 1.18.18 isolated runtime proof passed with task_child_role=read_only, task_child_shell_seen=true, sessions_created=3, normal_server_used=false, external_model_used=false."}
 
 verifications:
   - id: V-PASSIVE-OBSERVATION
@@ -1032,7 +1032,7 @@ tasks:
     independently_deployable: true
   - id: TASK-7
     title: Eliminate diagnostic child ownership false positives
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-6, S-12]
