@@ -44,8 +44,8 @@ TERMINAL_RESULT_HOLD_SECONDS = 8.0
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
 TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
-PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 8
-PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 20
+PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 6
+PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 14
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -343,7 +343,7 @@ def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
     margin_v = max(12, min(24, round(height * 0.018)))
     if width <= 430 and height >= 800:
         margin_v = 92
-    outline = 1 if font_size <= PLAYWRIGHT_CAPTION_MIN_FONT_SIZE else 2
+    outline = 1
     return (
         "FontName=DejaVu Sans,"
         f"FontSize={font_size},"
