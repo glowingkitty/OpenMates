@@ -3,8 +3,8 @@
 # Regression coverage for shared live-mock HTTP response replay.
 #
 # Cached provider responses are written as decoded JSON/text cassettes while
-# preserving the original provider headers for debugging. Replay must strip
-# wire-level compression headers so httpx does not try to decode plain text.
+# preserving safe provider headers for debugging. Replay must strip wire-level
+# compression headers so httpx does not try to decode plain text.
 
 from __future__ import annotations
 
@@ -109,6 +109,42 @@ async def test_record_mode_refreshes_existing_http_cache(tmp_path) -> None:
     assert cached is not None
     assert cached["response"]["status_code"] == 200
     assert "fresh" in cached["response"]["body"]
+
+
+@pytest.mark.asyncio
+async def test_record_mode_omits_set_cookie_response_header(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path)
+    group_id = "omit_set_cookie"
+    category = "rewe"
+    url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
+    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
+    real_transport = _StaticAsyncTransport(
+        {
+            url: httpx.Response(
+                200,
+                headers={
+                    "content-type": "application/json",
+                    "set-cookie": "__cf_bm=secret; HttpOnly; Secure",
+                },
+                content=b'{"products":[{"id":"safe"}]}',
+            )
+        }
+    )
+
+    activate_mock_mode("record", group_id)
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(real_transport, cache, category)
+        ) as client:
+            response = await client.get(url)
+    finally:
+        deactivate_mock_mode()
+
+    assert response.json()["products"] == [{"id": "safe"}]
+    cached = cache.load(group_id, category, fingerprint)
+    assert cached is not None
+    assert cached["response"]["headers"].get("content-type") == "application/json"
+    assert "set-cookie" not in cached["response"]["headers"]
 
 
 @pytest.mark.asyncio

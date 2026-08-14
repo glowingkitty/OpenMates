@@ -38,6 +38,10 @@ _DECODED_BODY_HEADER_NAMES = {
     "transfer-encoding",
 }
 
+_RECORDED_RESPONSE_HEADER_DENYLIST = {
+    "set-cookie",
+}
+
 
 class CachingHTTPTransport(httpx.AsyncBaseTransport):
     """
@@ -143,7 +147,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         # Build response data
         response_data = {
             "status_code": response.status_code,
-            "headers": dict(response.headers),
+            "headers": self._recorded_response_headers(response.headers),
             "body": response_body,
         }
 
@@ -181,6 +185,15 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             str(name): str(value)
             for name, value in headers.items()
             if str(name).lower() not in _DECODED_BODY_HEADER_NAMES
+        }
+
+    @staticmethod
+    def _recorded_response_headers(headers: httpx.Headers) -> Dict[str, str]:
+        """Return provider response headers safe to persist in cache fixtures."""
+        return {
+            str(name): str(value)
+            for name, value in dict(headers).items()
+            if str(name).lower() not in _RECORDED_RESPONSE_HEADER_DENYLIST
         }
 
 
