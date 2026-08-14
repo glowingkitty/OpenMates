@@ -129,7 +129,7 @@ assertions:
     direct_tests:
     - &id014
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
@@ -263,7 +263,7 @@ assertions:
     direct_tests:
     - &id030
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
@@ -304,7 +304,7 @@ assertions:
     direct_tests:
     - &id034
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
@@ -3856,13 +3856,13 @@ assertions:
       surface: gui.apple
     - &id423
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
     - &id424
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 175
+      line: 188
       name: right control and right-to-left swipe navigate to previous sidebar chat
       surface: gui.web
     supporting_tests:
@@ -3899,7 +3899,7 @@ assertions:
       surface: gui.apple
     - &id427
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web
@@ -4075,7 +4075,7 @@ assertions:
       surface: gui.apple
     - &id450
       path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      line: 72
+      line: 82
       name: navigates from a regular chat to the newest draft-only chat with the sidebar
         closed
       surface: gui.web

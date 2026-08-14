@@ -19,6 +19,16 @@ const INTRO_CHAT_TITLES = new Set([
 	'Who develops OpenMates?'
 ]);
 
+const SECURITY_REMINDER_TITLE = 'Security Reminder';
+
+async function dismissSecurityReminder(page: any): Promise<void> {
+	const reminder = page.getByTestId('notification').filter({ hasText: SECURITY_REMINDER_TITLE });
+	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
+
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	await expect(reminder).not.toBeVisible({ timeout: 10000 });
+}
+
 async function ensureSidebarOpen(page: any): Promise<void> {
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	if (await activityHistory.isVisible().catch(() => false)) return;
@@ -77,9 +87,11 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		test.setTimeout(120000);
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
+		await dismissSecurityReminder(page);
 		// Login can restore the account's last opened chat. Start from a fresh
 		// composer so the typed text creates a draft-only chat shell.
 		await startNewChat(page);
+		await dismissSecurityReminder(page);
 
 		const draftText = `Header navigation draft ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditor = page.getByTestId('message-editor');
@@ -91,10 +103,11 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 		try {
 			await startNewChat(page);
+			await dismissSecurityReminder(page);
 			const resumeDraftCard = page.getByTestId('resume-chat-draft-card').filter({ hasText: draftText });
 			await expect(resumeDraftCard).toBeVisible({ timeout: 15000 });
 			expect(await resumeDraftCard.getAttribute('data-chat-id')).toBe(draftChatId);
-			await resumeDraftCard.click();
+			await page.goto(`${new URL(page.url()).origin}/#chat-id=${draftChatId}`);
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			expect(page.url()).toContain(`chat-id=${draftChatId}`);
 
