@@ -547,6 +547,7 @@ def test_review_budget_reuses_cached_unchanged_device_evidence() -> None:
         frame_index_hash="sha256:frames",
         source_artifact_hash="sha256:video",
     )
+    budget["reservations"][0]["receipt_path"] = "review-receipt.json"
 
     with pytest.raises(workflow.WorkflowError, match="cached receipt"):
         workflow.reserve_review_budget(
@@ -558,6 +559,30 @@ def test_review_budget_reuses_cached_unchanged_device_evidence() -> None:
             frame_index_hash="sha256:frames",
             source_artifact_hash="sha256:video",
         )
+
+
+def test_review_budget_retries_incomplete_unchanged_device_reservation() -> None:
+    budget = workflow.reserve_review_budget(
+        {},
+        device="web-phone",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+    )
+
+    retry = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=1,
+        correction_kind="capture",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+    )
+
+    assert retry["ai_review_calls"] == 2
 
 
 def test_uncertain_review_requires_user_input_immediately() -> None:
@@ -764,7 +789,12 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
 
 
 def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    prompt = tmp_path / "review-prompt-round-0.json"
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "frames").mkdir()
+    prompt = run_dir / "review-prompt-round-0.json"
     prompt.write_text("{}\n", encoding="utf-8")
     observed: dict[str, object] = {}
 
@@ -774,12 +804,17 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(workflow.subprocess, "run", run)
     monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
+    workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
 
-    assert observed["cwd"] == tmp_path
+    assert observed["cwd"] == repo_root
     assert observed["command"][0] == "/test/opencode"
+    assert "--dir" in observed["command"]
+    assert str(repo_root) in observed["command"]
     assert str(prompt.resolve()) not in " ".join(observed["command"])
     assert "review-prompt-round-0.json" in " ".join(observed["command"])
+    assert not (repo_root / "review-prompt-round-0.json").exists()
+    assert not (repo_root / "frames").exists()
 
 
 def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

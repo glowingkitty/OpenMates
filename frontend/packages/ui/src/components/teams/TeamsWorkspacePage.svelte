@@ -306,6 +306,16 @@
     min-height: 0;
   }
 
+  @media (min-width: 900px) {
+    .teams-page :global(.workspace-home-shell.content-slot-mode .workspace-center-content.center-content) {
+      margin-top: clamp(8px, 1.4vh, 18px);
+    }
+
+    .teams-page :global(.workspace-content-slot) {
+      margin-top: clamp(12px, 2vh, 24px);
+    }
+  }
+
   .teams-grid {
     display: grid;
     grid-template-columns: minmax(220px, 0.9fr) minmax(240px, 1fr) minmax(280px, 1.25fr);

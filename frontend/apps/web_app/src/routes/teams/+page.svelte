@@ -104,6 +104,13 @@
     height: calc(100dvh - 82px);
     gap: 0;
     padding: 10px 20px 10px 10px;
+    box-sizing: border-box;
+  }
+
+  @media (min-width: 900px) {
+    .teams-container {
+      padding-top: 70px;
+    }
   }
 
   @media (min-width: 1100px) {

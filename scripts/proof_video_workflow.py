@@ -379,6 +379,7 @@ def reserve_review_budget(
         item.get("device") == device
         and item.get("frame_index_hash") == frame_index_hash
         and item.get("source_artifact_hash") == source_artifact_hash
+        and item.get("receipt_path")
         for item in reservations
         if isinstance(item, dict)
     ):
@@ -632,6 +633,10 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
     opencode_bin = _resolve_opencode_bin()
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
+    staged_prompt = REPO_ROOT / prompt_path.name
+    staged_frames = REPO_ROOT / "frames"
+    if staged_prompt.exists() or staged_prompt.is_symlink() or staged_frames.exists() or staged_frames.is_symlink():
+        raise WorkflowError("proof-video reviewer staging paths already exist; remove stale review-prompt or frames symlink")
     command = [
         opencode_bin,
         "run",
@@ -641,9 +646,18 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         "json",
         "--agent",
         "proof-video-reviewer",
+        "--dir",
+        str(REPO_ROOT),
         f"Read {prompt_path.name} in full and return only the required JSON review receipt.",
     ]
-    result = subprocess.run(command, cwd=run_dir, text=True, capture_output=True, timeout=600, check=False)
+    try:
+        staged_prompt.symlink_to(prompt_path.resolve())
+        staged_frames.symlink_to((run_dir / "frames").resolve(), target_is_directory=True)
+        result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=600, check=False)
+    finally:
+        for staged in (staged_prompt, staged_frames):
+            if staged.is_symlink():
+                staged.unlink()
     output = (result.stdout + result.stderr).strip()
     output_path.write_text(output + ("\n" if output else ""), encoding="utf-8")
     output_path.chmod(0o600)
