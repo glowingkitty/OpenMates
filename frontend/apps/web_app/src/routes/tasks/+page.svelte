@@ -131,6 +131,10 @@
       z-index: 20;
     }
 
+    .main-content.menu-closed {
+      inset-inline-start: 0;
+    }
+
     .tasks-container {
       height: calc(100vh - 75px);
       height: calc(100dvh - 75px);

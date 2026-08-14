@@ -168,6 +168,10 @@
       transform: translateX(0);
     }
 
+    .main-content.menu-closed {
+      inset-inline-start: 0;
+    }
+
     .main-content:not(.menu-closed) {
       transform: translateX(100%);
     }

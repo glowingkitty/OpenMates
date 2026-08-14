@@ -133,6 +133,10 @@
       z-index: 20;
     }
 
+    .main-content.menu-closed {
+      inset-inline-start: 0;
+    }
+
     .plans-container {
       height: calc(100vh - 75px);
       height: calc(100dvh - 75px);

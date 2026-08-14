@@ -1492,6 +1492,10 @@
   }
 
   @media (max-width: 760px) {
+    .main-content {
+      inset-inline-start: 0;
+    }
+
     .notification-container {
       padding-top: 10px;
     }
