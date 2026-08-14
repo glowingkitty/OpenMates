@@ -111,18 +111,33 @@ async function waitForEmbedFinished(
  */
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
-	const overlayCountBeforeOpen = await overlays.count();
+	const visibleOverlayCount = async (): Promise<number> => {
+		let visibleCount = 0;
+		for (let index = 0, count = await overlays.count(); index < count; index += 1) {
+			if (await overlays.nth(index).isVisible({ timeout: 250 }).catch(() => false)) {
+				visibleCount += 1;
+			}
+		}
+		return visibleCount;
+	};
+	const visibleOverlayCountBeforeOpen = await visibleOverlayCount();
 	await expect(async () => {
-		if (await overlays.count() > overlayCountBeforeOpen) return;
+		if (await visibleOverlayCount() > visibleOverlayCountBeforeOpen) return;
 		await dismissVisibleNotifications(page);
 		await embedLocator.scrollIntoViewIfNeeded();
 		await embedLocator.click();
 		await expect(async () => {
-			const overlayCountAfterOpen = await overlays.count();
-			expect(overlayCountAfterOpen).toBeGreaterThan(overlayCountBeforeOpen);
+			expect(await visibleOverlayCount()).toBeGreaterThan(visibleOverlayCountBeforeOpen);
 		}).toPass({ timeout: 1000 });
 	}).toPass({ timeout: 10000 });
-	const fullscreenOverlay = overlays.nth(overlayCountBeforeOpen);
+	let fullscreenOverlay = overlays.last();
+	for (let index = await overlays.count() - 1; index >= 0; index -= 1) {
+		const candidate = overlays.nth(index);
+		if (await candidate.isVisible({ timeout: 250 }).catch(() => false)) {
+			fullscreenOverlay = candidate;
+			break;
+		}
+	}
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
 	return fullscreenOverlay;
 }

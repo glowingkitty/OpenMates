@@ -395,6 +395,7 @@ test.afterEach(async ({}, testInfo: any) => {
 	}
 });
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open
 test('shared chat loads uploaded PDF, image, and audio recording assets while logged out', async ({
 	page,
 	browser
@@ -456,10 +457,10 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 
 		sharedContext = await browser.newContext({ baseURL: baseUrl });
 		const sharedPage = await sharedContext.newPage();
-		const presignedStatuses: number[] = [];
+		const presignedResponses: Array<{ status: number; url: string }> = [];
 		sharedPage.on('response', (response: any) => {
 			if (response.url().includes('/v1/embeds/presigned-url')) {
-				presignedStatuses.push(response.status());
+				presignedResponses.push({ status: response.status(), url: response.url() });
 			}
 		});
 		sharedPage.on('console', (msg: any) => {
@@ -499,9 +500,13 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		});
 
 		await expect
-			.poll(() => presignedStatuses.length, { timeout: 60_000 })
+			.poll(() => presignedResponses.length, { timeout: 60_000 })
 			.toBeGreaterThanOrEqual(3);
-		expect(presignedStatuses.every((status) => status === 200)).toBe(true);
+		const failedPresignedResponses = presignedResponses.filter((response) => response.status !== 200);
+		expect(
+			failedPresignedResponses,
+			`Expected all shared asset presigned-url responses to be 200. Responses: ${JSON.stringify(presignedResponses)}`
+		).toEqual([]);
 		await assertNoMissingTranslations(sharedPage);
 		logCheckpoint('Logged-out shared chat loaded PDF, image, and audio assets.');
 	} finally {

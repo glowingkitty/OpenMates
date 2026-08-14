@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * New chat screen — pinned chats sort order test.
@@ -32,10 +31,16 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	deleteActiveChat,
+	loginToTestAccount,
+	sendMessage,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -95,14 +100,6 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
 	logStep('Sidebar closed.');
 }
 
-async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const newChatBtn = page.locator('[data-testid="new-chat-button"]');
-	await expect(newChatBtn).toBeVisible({ timeout: 5000 });
-	await newChatBtn.click();
-	logStep('Clicked New Chat button.');
-	await page.waitForTimeout(3000);
-}
-
 /**
  * Pin or unpin a chat item via right-click context menu.
  */
@@ -128,19 +125,19 @@ async function togglePinViaContextMenu(
  * Get all card elements from the recent-chats carousel (auth section).
  * Returns an array of { title, pinned } for each card (resume + recent).
  */
-async function getCarouselCards(page: any): Promise<Array<{ title: string; pinned: string | null }>> {
+async function getCarouselCards(page: any): Promise<Array<{ chatId: string | null; title: string; pinned: string | null }>> {
 	const container = page.getByTestId('recent-chats-scroll-container').first();
 	if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
 		return [];
 	}
 
-	const cards: Array<{ title: string; pinned: string | null }> = [];
+	const cards: Array<{ chatId: string | null; title: string; pinned: string | null }> = [];
 
 	// Resume card (no data-pinned attr — it's the last-opened, always first)
 	const resumeLargeTitle = container.locator('[data-testid="resume-chat-large-card"]:not([data-chat-id]) [data-testid="resume-large-title"], [data-testid="resume-chat-card"]:not([data-chat-id]) [data-testid="resume-chat-title"]').first();
 	if (await resumeLargeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		const title = (await resumeLargeTitle.textContent())?.trim() || '';
-		if (title) cards.push({ title, pinned: null });
+		if (title) cards.push({ chatId: null, title, pinned: null });
 	}
 
 	// Recent chat cards (have data-chat-id and data-pinned)
@@ -148,10 +145,11 @@ async function getCarouselCards(page: any): Promise<Array<{ title: string; pinne
 	const count = await recentCards.count();
 	for (let i = 0; i < count; i++) {
 		const card = recentCards.nth(i);
+		const chatId = await card.getAttribute('data-chat-id');
 		const pinned = await card.getAttribute('data-pinned');
 		const titleEl = card.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]').first();
 		const title = (await titleEl.textContent())?.trim() || '';
-		if (title) cards.push({ title, pinned });
+		if (title) cards.push({ chatId, title, pinned });
 	}
 
 	return cards;
@@ -159,6 +157,7 @@ async function getCarouselCards(page: any): Promise<Array<{ title: string; pinne
 
 // ─── Test ───────────────────────────────────────────────────────────────────
 
+// contract-test: supporting surface=gui.web assertions=chat-navigation.order.sidebar-header-match
 test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', async ({
 	page
 }: {
@@ -191,126 +190,118 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await page.waitForTimeout(4000);
 	await takeStepScreenshot(page, '01-logged-in');
 
-	// =========================================================================
-	// PHASE 2: Find a chat to pin — pick the 3rd chat (index 2) from sidebar
-	// so it's not already the last-opened/resume chat
-	// =========================================================================
-	logStep('Phase 2: Finding a chat to pin...');
-	await ensureSidebarOpen(page, logStep);
+	let targetChatId: string | null = null;
+	let targetTitle = '';
 
-	// Wait for chat items to populate after sync
-	const chatItemsLocator = page.getByTestId('chat-item-wrapper');
-	await expect(chatItemsLocator.first()).toBeVisible({ timeout: 20000 });
-	// Allow more items to load
-	await page.waitForTimeout(3000);
+	try {
+		// =========================================================================
+		// PHASE 2: Create and pin a normal run-owned chat. Shared account history can
+		// contain demo/incognito chats whose context menu intentionally omits Pin.
+		// =========================================================================
+		logStep('Phase 2: Creating a normal chat to pin...');
+		await startNewChat(page, logStep);
+		await sendMessage(
+			page,
+			withMockMarker(`Pinned sort setup ${Date.now().toString(36)}`, 'chat_flow_capital'),
+			logStep,
+			takeStepScreenshot,
+			'pinned-sort-setup'
+		);
 
-	const chatCount = await chatItemsLocator.count();
-	logStep(`Sidebar shows ${chatCount} chats.`);
-	expect(chatCount).toBeGreaterThanOrEqual(3);
+		await ensureSidebarOpen(page, logStep);
+		const targetChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+		await expect(targetChatItem).toBeVisible({ timeout: 10000 });
+		targetChatId = await targetChatItem.getAttribute('data-chat-id');
+		targetTitle = (await targetChatItem.getByTestId('chat-title').textContent())?.trim() || '';
+		expect(targetChatId, 'Created test chat must expose data-chat-id').toBeTruthy();
+		targetTitle ||= targetChatId ?? 'created chat';
+		logStep(`Target chat to pin: "${targetTitle}" (${targetChatId})`);
 
-	// Pick the 3rd chat (unlikely to be resume card)
-	const targetIndex = 2;
-	const targetChatItem = chatItemsLocator.nth(targetIndex);
-	const targetTitle = (await targetChatItem.getByTestId('chat-title').textContent())?.trim() || '';
-	logStep(`Target chat to pin: "${targetTitle}" (index ${targetIndex})`);
-	expect(targetTitle).toBeTruthy();
+		if (!(await targetChatItem.getByTestId('pin-indicator').isVisible({ timeout: 500 }).catch(() => false))) {
+			logStep('Pinning target chat...');
+			await togglePinViaContextMenu(page, targetChatItem, 'pin', logStep);
+		}
 
-	// Check if already pinned (has pin-indicator) — if so, skip pinning
-	const alreadyPinned = await targetChatItem.getByTestId('pin-indicator').isVisible({ timeout: 500 }).catch(() => false);
-
-	if (!alreadyPinned) {
-		logStep('Pinning target chat...');
-		await togglePinViaContextMenu(page, targetChatItem, 'pin', logStep);
-
-		// After pinning, the chat reorders in the sidebar — find it by title
-		const pinnedChatItem = page.getByTestId('chat-item-wrapper').filter({ hasText: targetTitle }).first();
+		const pinnedChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
 		await expect(async () => {
-			const pinIndicator = pinnedChatItem.getByTestId('pin-indicator');
-			await expect(pinIndicator).toBeVisible();
+			await expect(pinnedChatItem.getByTestId('pin-indicator')).toBeVisible();
 		}).toPass({ timeout: 10000 });
 		logStep('Pin indicator visible.');
-	} else {
-		logStep('Chat already pinned — skipping pin step.');
-	}
-	await takeStepScreenshot(page, '02-chat-pinned');
+		await takeStepScreenshot(page, '02-chat-pinned');
+		await startNewChat(page, logStep);
 
-	// =========================================================================
-	// PHASE 3: Verify sort order on the initial welcome screen carousel.
-	// The carousel is visible right after login — use it directly rather than
-	// navigating away and back (which triggers layout overlap that hides it).
-	// =========================================================================
-	logStep('Phase 3: Checking carousel on initial welcome screen...');
-	await closeSidebar(page, logStep);
+		// =========================================================================
+		// PHASE 3: Verify sort order on the new-chat welcome screen carousel.
+		// =========================================================================
+		logStep('Phase 3: Checking carousel on new chat screen...');
+		await closeSidebar(page, logStep);
 
-	// The carousel should be visible on the initial login welcome screen
-	const resumeCardTitle = page.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]').first();
-	await expect(async () => {
-		await expect(resumeCardTitle).toBeVisible();
-	}).toPass({ timeout: 30000 });
-	await page.waitForTimeout(2000);
-	await takeStepScreenshot(page, '03-new-chat-screen');
+		// The carousel should be visible on the new chat welcome screen
+		const resumeCardTitle = page.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]').first();
+		await expect(async () => {
+			await expect(resumeCardTitle).toBeVisible();
+		}).toPass({ timeout: 30000 });
+		await page.waitForTimeout(2000);
+		await takeStepScreenshot(page, '03-new-chat-screen');
 
-	// Get all carousel cards
-	const cards = await getCarouselCards(page);
-	logStep(`Carousel cards (${cards.length}): ${JSON.stringify(cards.map(c => ({ t: c.title.slice(0, 30), p: c.pinned })))}`);
+		// Get all carousel cards
+		const cards = await getCarouselCards(page);
+		logStep(`Carousel cards (${cards.length}): ${JSON.stringify(cards.map(c => ({ t: c.title.slice(0, 30), p: c.pinned })))}`);
 
-	// ASSERTION 1: Total cards ≤ 10
-	expect(cards.length).toBeLessThanOrEqual(10);
-	logStep(`PASS: Total cards = ${cards.length} (≤ 10).`);
+		// ASSERTION 1: Total cards <= 10
+		expect(cards.length).toBeLessThanOrEqual(10);
+		logStep(`PASS: Total cards = ${cards.length} (<= 10).`);
 
-	// ASSERTION 2: Pinned cards appear before non-pinned cards
-	// Skip the first card (resume card, pinned=null) — it's always first by design.
-	const recentCards = cards.filter(c => c.pinned !== null);
-	let seenNonPinned = false;
-	const orderViolations: string[] = [];
-	for (const card of recentCards) {
-		if (card.pinned === 'true' && seenNonPinned) {
-			orderViolations.push(`Pinned "${card.title}" appears after a non-pinned card`);
+		// ASSERTION 2: Pinned cards appear before non-pinned cards
+		// Skip the first card (resume card, pinned=null) — it's always first by design.
+		const recentCards = cards.filter(c => c.pinned !== null);
+		let seenNonPinned = false;
+		const orderViolations: string[] = [];
+		for (const card of recentCards) {
+			if (card.pinned === 'true' && seenNonPinned) {
+				orderViolations.push(`Pinned "${card.title}" appears after a non-pinned card`);
+			}
+			if (card.pinned === 'false') {
+				seenNonPinned = true;
+			}
 		}
-		if (card.pinned === 'false') {
-			seenNonPinned = true;
+		if (orderViolations.length > 0) {
+			logStep(`FAIL: Sort order violations: ${JSON.stringify(orderViolations)}`);
+		}
+		expect(orderViolations).toEqual([]);
+		logStep('PASS: Pinned chats appear before non-pinned chats.');
+
+		// ASSERTION 3: Our pinned chat is in the carousel
+		const pinnedCards = recentCards.filter(c => c.pinned === 'true');
+		logStep(`Pinned cards in carousel: ${JSON.stringify(pinnedCards.map(c => c.title.slice(0, 40)))}`);
+		const targetInCarousel = cards.some(c => c.chatId === targetChatId);
+		expect(targetInCarousel).toBe(true);
+		logStep(`PASS: Pinned chat "${targetTitle}" found in carousel.`);
+
+		// ASSERTION 4: Pinned cards show a pin badge icon
+		const pinBadges = page.locator('[data-testid="resume-card-pin"]');
+		const pinBadgeCount = await pinBadges.count();
+		logStep(`Pin badges visible: ${pinBadgeCount}`);
+		expect(pinBadgeCount).toBeGreaterThanOrEqual(1);
+		logStep('PASS: Pin badge visible on pinned card(s).');
+
+		await takeStepScreenshot(page, '03-verified');
+
+		logStep('Test completed successfully.');
+	} finally {
+		if (targetChatId) {
+			logStep('Phase 4: Cleanup — unpinning and deleting test chat...');
+			await ensureSidebarOpen(page, logStep).catch(() => undefined);
+			const cleanupChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
+			if (await cleanupChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+				if (await cleanupChatItem.getByTestId('pin-indicator').isVisible({ timeout: 500 }).catch(() => false)) {
+					await togglePinViaContextMenu(page, cleanupChatItem, 'unpin', logStep).catch((error: unknown) => {
+						logStep(`Cleanup unpin failed (non-fatal): ${String(error)}`);
+					});
+				}
+				await cleanupChatItem.click().catch(() => undefined);
+				await deleteActiveChat(page, logStep, takeStepScreenshot, 'pinned-sort-cleanup');
+			}
 		}
 	}
-	if (orderViolations.length > 0) {
-		logStep(`FAIL: Sort order violations: ${JSON.stringify(orderViolations)}`);
-	}
-	expect(orderViolations).toEqual([]);
-	logStep('PASS: Pinned chats appear before non-pinned chats.');
-
-	// ASSERTION 3: Our pinned chat is in the carousel
-	const pinnedCards = recentCards.filter(c => c.pinned === 'true');
-	logStep(`Pinned cards in carousel: ${JSON.stringify(pinnedCards.map(c => c.title.slice(0, 40)))}`);
-	const targetInCarousel = cards.some(c => c.title === targetTitle);
-	expect(targetInCarousel).toBe(true);
-	logStep(`PASS: Pinned chat "${targetTitle}" found in carousel.`);
-
-	// ASSERTION 4: Pinned cards show a pin badge icon
-	const pinBadges = page.locator('[data-testid="resume-card-pin"]');
-	const pinBadgeCount = await pinBadges.count();
-	logStep(`Pin badges visible: ${pinBadgeCount}`);
-	expect(pinBadgeCount).toBeGreaterThanOrEqual(1);
-	logStep('PASS: Pin badge visible on pinned card(s).');
-
-	await takeStepScreenshot(page, '03-verified');
-
-	// =========================================================================
-	// PHASE 4: Cleanup — unpin the chat
-	// =========================================================================
-	logStep('Phase 4: Cleanup — unpinning chat...');
-	await ensureSidebarOpen(page, logStep);
-
-	// Find the chat again in sidebar
-	const cleanupChatItem = page.getByTestId('chat-item-wrapper').filter({ hasText: targetTitle }).first();
-	await expect(cleanupChatItem).toBeVisible({ timeout: 10000 });
-	await togglePinViaContextMenu(page, cleanupChatItem, 'unpin', logStep);
-
-	// Verify pin indicator gone
-	await expect(async () => {
-		const pinIndicator = cleanupChatItem.getByTestId('pin-indicator');
-		await expect(pinIndicator).not.toBeVisible();
-	}).toPass({ timeout: 10000 });
-	logStep('Cleanup done — chat unpinned.');
-	await takeStepScreenshot(page, '04-cleanup-done');
-
-	logStep('Test completed successfully.');
 });
