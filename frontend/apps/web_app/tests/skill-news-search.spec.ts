@@ -45,11 +45,13 @@ test.describe('App: News / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/news', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'news', log);
 	});
 
+	// contract-test: supporting surface=cli assertions=web-search.surface-parity
 	test('Phase 2: CLI apps news search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -74,6 +76,7 @@ test.describe('App: News / Skill: search', () => {
 		console.log(`[P2] news/search found ${results.length} article(s)`);
 	});
 
+	// contract-test: supporting surface=cli assertions=web-search.surface-parity
 	test('Phase 3: CLI chats new triggers news search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -90,6 +93,7 @@ test.describe('App: News / Skill: search', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
 	test('Phase 4: Web chat triggers news search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -110,12 +114,24 @@ test.describe('App: News / Skill: search', () => {
 
 		const embed = await waitForEmbedFinished(page, 'news', 'search');
 		logCheckpoint('News search embed finished.');
+		await expect(embed, 'Finished news search card must keep the visible query.').toContainText(NEWS_SEARCH_FIXTURE_QUERY);
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		await expect(assistantMessage).not.toContainText('app_skill_use');
+		await expect(assistantMessage).not.toContainText('embed_ref');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
 		logCheckpoint(`Found ${await resultCards.count()} news result(s).`);
 
 		await closeFullscreen(page, fullscreenOverlay);
+
+		await page.reload({ waitUntil: 'networkidle' });
+		const reloadedEmbed = await waitForEmbedFinished(page, 'news', 'search');
+		await expect(reloadedEmbed, 'Reloaded news search card must keep the visible query.').toContainText(NEWS_SEARCH_FIXTURE_QUERY);
+		const reloadedAssistantMessage = page.getByTestId('message-assistant').last();
+		await expect(reloadedAssistantMessage).not.toContainText('app_skill_use');
+		await expect(reloadedAssistantMessage).not.toContainText('embed_ref');
+		logCheckpoint('Reload preserved finished news search card without raw protocol text.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'news-search');
 	});
 });

@@ -1,0 +1,396 @@
+schema_version: 3
+id: search-skill-embed-reliability
+title: Search Skill Embed Reliability
+status: approved
+
+contract_refs:
+  - id: feature.app-skill.web-search
+    version: 1
+    role: primary
+    fingerprint: 738df115f3d77305ef48ca7e1865acecd0715462685c39e3e5a0ec2312552375
+
+contract_impact:
+  classification: implementation_only
+  contract_update_required: false
+  affected_assertions:
+    - web-search.request.validated
+    - web-search.request.ids-correlated
+    - web-search.surface-parity
+  reason: >
+    The approved contract already requires validated object-shaped request items,
+    correlated request groups, specialized search when applicable, and cross-surface
+    parity. This work repairs violations without changing those semantics.
+
+documentation_impact:
+  generated_reference: {status: unchanged, reason: No public API shape changes.}
+  user_docs: {status: unchanged, reason: Bug fix restores existing search behavior.}
+  semantic_layer:
+    status: unchanged
+    reason: Existing web-search contract and semantic page already govern the behavior.
+
+goal: >
+  Ensure web/news search routing and embed completion are reliable when the model
+  emits malformed-but-recoverable request arrays: news search remains available,
+  each streamed placeholder has one terminal outcome, queries survive completion
+  and reload, and raw app-skill protocol references never become visible.
+
+scope:
+  in:
+    - Add news-search as a companion whenever preprocessing selects web-search.
+    - Normalize string-valued request-array items to schema-shaped query objects before placeholder creation.
+    - Reuse one normalized argument object for placeholder creation and execution.
+    - Prevent duplicate/orphan processing parents and preserve query metadata.
+    - Extend web and news CLI/web regression assertions.
+  out:
+    - Changing provider APIs, pricing, auth, rate limits, SDK APIs, or endpoint exposure.
+    - Forcing news-search to execute; it is offered and the main model chooses.
+    - General redesign of app-skill embeds or Apple UI.
+
+context_discovery:
+  github_issues: []
+  reported_issue:
+    id: ecbcf920-ba69-47a6-991e-2454eb495446
+    environment: dev
+  docs:
+    - docs/architecture/semantic/domains/web-search.md
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+  contracts:
+    - contracts/features/app-skills/web-search/contract.yml
+  code_patterns:
+    - backend/apps/ai/processing/main_processor.py companion expansion, placeholder creation, argument normalization, and embed completion.
+    - backend/apps/web/skills/search_skill.py currently recovers string request items after placeholder creation.
+    - backend/apps/ai/tasks/stream_consumer.py persists canonical app-skill references.
+  tests:
+    - backend/tests/test_app_skill_json_cleanup.py
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Backend terminal embed state remains compatible with Apple clients.
+  verification:
+    - Apple implementation is not changed; shared backend regression risk is covered by backend and CLI tests.
+  intentional_native_differences: [none]
+
+clarification:
+  rounds:
+    - question: Should news-search replace web-search or be available alongside it?
+      answer: Always include news-search as an available companion whenever preprocessing selects web-search, like images-search; the main model chooses what to call.
+    - question: What verification order is required?
+      answer: Real OpenMates CLI first, then both deployed web-search and news-search spec.ts tests.
+  vision_summary: >
+    One user request may run one or more genuinely selected search skills, but one
+    tool call must never create an abandoned queryless card. Current-information
+    routing must not prevent the main model from choosing the dedicated news skill.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ab6408bb6e96240b071fcf06b43fedf145aec692
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-08-14T21:03:31Z"
+    reason: User approved the discussed root-cause fixes and explicitly selected web-to-news companion availability.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-08-14T21:03:31Z"
+    reason: The plan follows the user-requested CLI-first then deployed web-spec order without new architecture or privacy decisions.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Selecting web-search in preprocessing also offers news-search and images-search to the main model.
+    reason: Dedicated news search must remain available for recent developments while the main model retains final tool choice.
+    decided_at: "2026-08-14T21:03:31Z"
+  - id: D-2
+    status: active
+    decision: Tool arguments are normalized once before placeholder creation and reused for execution.
+    reason: Divergent normalization created the reported orphan placeholder and missing query.
+    decided_at: "2026-08-14T21:03:31Z"
+
+scenarios:
+  - id: S-1
+    title: Current-development question can use dedicated news search
+    given:
+      - Preprocessing selects web-search for a recent legislative-development question.
+    when:
+      - Main-model tools are generated.
+    then:
+      - web-search, news-search, and images-search are available.
+      - The main model may call the most appropriate offered skill or skills.
+  - id: S-2
+    title: String request items produce correlated terminal embeds
+    given:
+      - A model emits web-search arguments with two strings in requests instead of query objects.
+    when:
+      - The call streams placeholders and executes.
+    then:
+      - Both strings are normalized to query objects before placeholder creation.
+      - Placeholder IDs correlate with execution result groups.
+      - No orphan processing parent remains.
+  - id: S-3
+    title: Search cards remain complete after reload
+    given:
+      - A web or news search finishes in chat.
+    when:
+      - The user views and reloads the chat.
+    then:
+      - Every visible search card shows its query and terminal status.
+      - The assistant message exposes no raw app_skill_use JSON or literal embed protocol reference.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Preselected web-search expands to include both news-search and images-search before tool generation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-SEARCH-LIFECYCLE, V-LIVE-CLI]
+    contract_assertions: [web-search.surface-parity]
+  - id: AC-2
+    scenario: S-2
+    text: Recoverable string request items are normalized before placeholders and produce no unmatched processing parent.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-SEARCH-LIFECYCLE, V-LIVE-CLI]
+    contract_assertions: [web-search.request.validated, web-search.request.ids-correlated]
+  - id: AC-3
+    scenario: S-3
+    text: Finished web/news search cards show query and terminal state after reload with no raw protocol leakage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-SEARCH, T-NEWS-SEARCH, V-UI-VISUAL-SMOKE]
+    contract_assertions: [web-search.surface-parity]
+
+assumptions:
+  - id: A-1
+    text: Search request schemas identify query as the required string field for string-item recovery.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - Web and news tool schemas define requests items with required query.
+  - id: A-2
+    text: No endpoint, auth, encryption, credit, or rate-limit contract changes are needed.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - Changes are internal first-party AI processing and existing encrypted chat/embed persistence only.
+
+tests:
+  - id: T-BACKEND-SEARCH-LIFECYCLE
+    type: pytest
+    file: backend/apps/ai/tests/test_search_skill_reliability.py
+    target: backend AI processing helpers
+    command: python3 -m pytest backend/apps/ai/tests/test_search_skill_reliability.py -q
+    assertions:
+      - web-search companion expansion includes news-search and images-search.
+      - string request items normalize to query objects before placeholder handling.
+    contract_assertions: [web-search.request.validated, web-search.request.ids-correlated, web-search.surface-parity]
+    covers: [AC-1, AC-2]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      status: not_captured
+      evidence:
+        status: not_captured
+        timestamp: "2026-08-14T22:22:55Z"
+        reason: Source edit was applied before the intended red pytest run was captured.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/apps/ai/tests/test_search_skill_reliability.py
+        run_id: local-pytest-search-skill-embed-reliability-20260814T222255Z
+        timestamp: "2026-08-14T22:22:55Z"
+        subject_commit: ab6408bb6e96240b071fcf06b43fedf145aec692+worktree
+        summary: 2 tests passed; companion expansion and string request normalization helpers covered.
+  - id: T-WEB-SEARCH
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-web-search.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec skill-web-search.spec.ts --gate-deploy --expected-commit <SHA>
+    assertions:
+      - query is visible, status is finished, exactly the durable groups render, reload preserves state, and raw protocol text is absent.
+    contract_assertions: [web-search.surface-parity, web-search.request.ids-correlated]
+    covers: [AC-2, AC-3]
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
+  - id: T-NEWS-SEARCH
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-news-search.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec skill-news-search.spec.ts --gate-deploy --expected-commit <SHA>
+    assertions:
+      - current-news chat can render a finished news search with visible query after reload and no protocol leakage.
+    contract_assertions: [web-search.surface-parity]
+    covers: [AC-1, AC-3]
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
+
+verifications:
+  - id: V-LIVE-CLI
+    kind: deterministic_check
+    phase: green
+    status: pending
+    covers: [AC-1, AC-2]
+    required_for_done: true
+    command: openmates chats new <CURRENT_NEWS_PROMPT> --json against https://api.dev.openmates.org
+    evidence: {}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: green
+    status: pending
+    covers: [AC-3]
+    required_for_done: true
+    command: python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/ --session 464b
+    viewports: [laptop, mobile]
+    evidence: {}
+  - id: V-SPEC-VERIFY
+    kind: deterministic_check
+    phase: final
+    status: pending
+    covers: [AC-1, AC-2, AC-3]
+    required_for_done: true
+    command: python3 scripts/spec_verify.py docs/specs/search-skill-embed-reliability/spec.yml
+    evidence: {}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: User-visible embed lifecycle repair requires phone and laptop proof after green tests.
+    classified_at: "2026-08-14T21:03:31Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show a current-development question completing with appropriate search results.
+      expected_proof: Finished search card shows its query and results without an extra processing card.
+      scenario_ids: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    - id: NARR-2
+      purpose: Show durable rendering after reload.
+      expected_proof: Reloaded phone and laptop chats retain query, terminal state, and clean assistant prose.
+      scenario_ids: [S-3]
+      acceptance_criteria: [AC-3]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ab6408bb6e96240b071fcf06b43fedf145aec692
+    manifest_path: pending
+    manifest_hash: pending
+    review_run_id: pending
+    timestamp: "2026-08-14T21:03:31Z"
+
+implementation_plan:
+  spec_path: docs/specs/search-skill-embed-reliability/spec.yml
+  architecture: >
+    Extract companion expansion and schema-aware request-item normalization into
+    focused pure helpers used by main_processor.py. Normalize before streaming placeholders,
+    retain the same parsed arguments for execution, and rely on existing matched-ID
+    update paths so a successful call terminalizes its original placeholders.
+  existing_patterns:
+    - Existing COMPANION_SKILLS expansion already adds images-search.
+    - Existing web search skill converts string requests to query objects, but too late.
+    - Existing placeholder maps correlate normalized request IDs.
+  data_flow:
+    - Preprocessor selects web-search; companion expansion adds news-search and images-search.
+    - Main model emits requests; schema-aware normalization converts strings to query objects.
+    - Placeholder creation assigns IDs on normalized objects.
+    - Execution reuses those objects and updates the matching placeholders to finished.
+    - Encrypted assistant persistence retains only matched durable references; clients reload terminal embeds with queries.
+  affected_files:
+    - {path: backend/apps/ai/processing/search_skill_reliability.py, reason: Pure helper seam for companion expansion and malformed request-item recovery.}
+    - {path: backend/apps/ai/processing/main_processor.py, reason: Companion expansion and pre-placeholder normalization.}
+    - {path: backend/apps/ai/tests/test_search_skill_reliability.py, reason: Focused red/green regression coverage.}
+    - {path: frontend/apps/web_app/tests/skill-web-search.spec.ts, reason: Durable query and lifecycle assertions.}
+    - {path: frontend/apps/web_app/tests/skill-news-search.spec.ts, reason: Companion routing and durable rendering assertions.}
+  api_data_ui_privacy:
+    - No endpoint or public data model changes.
+    - Existing first-party encrypted chat/embed persistence remains unchanged.
+    - Provider costs and credit accounting remain one usage entry per actual skill call.
+  rollout:
+    - Restart app-ai-worker and affected AI/API services on dev before CLI proof.
+    - Deploy frontend/test changes to dev before Playwright.
+  observability:
+    - Existing debug request cache must show preselected skills, offered tools, tool calls, and final response references.
+  verification_strategy:
+    - Run focused pytest red then green.
+    - Run a real current-news CLI chat against the dev server and inspect called skills/terminal embeds.
+    - Deploy and run both requested Playwright specs, then visual smoke and proof video.
+  verification_order: [T-BACKEND-SEARCH-LIFECYCLE, V-LIVE-CLI, T-WEB-SEARCH, T-NEWS-SEARCH, V-UI-VISUAL-SMOKE, V-SPEC-VERIFY]
+
+tasks:
+  - id: TASK-1
+    title: Add red search lifecycle regression coverage
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [backend/apps/ai/tests/test_search_skill_reliability.py]
+    verification_ids: [T-BACKEND-SEARCH-LIFECYCLE]
+    dependencies: []
+    blockers: []
+    ownership: {files: [backend/apps/ai/tests/test_search_skill_reliability.py], shared_files: []}
+    follow_up_tasks: [TASK-2]
+  - id: TASK-2
+    title: Repair companion selection and normalized placeholder lifecycle
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [backend/apps/ai/processing/main_processor.py]
+    verification_ids: [T-BACKEND-SEARCH-LIFECYCLE, V-LIVE-CLI]
+    dependencies: [TASK-1]
+    blockers: []
+    ownership: {files: [backend/apps/ai/processing/main_processor.py], shared_files: []}
+    follow_up_tasks: [TASK-3]
+  - id: TASK-3
+    title: Verify durable web and news search rendering
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [frontend/apps/web_app/tests/skill-web-search.spec.ts, frontend/apps/web_app/tests/skill-news-search.spec.ts]
+    verification_ids: [T-WEB-SEARCH, T-NEWS-SEARCH, V-UI-VISUAL-SMOKE, V-SPEC-VERIFY]
+    dependencies: [TASK-2]
+    blockers: []
+    ownership: {files: [frontend/apps/web_app/tests/skill-web-search.spec.ts, frontend/apps/web_app/tests/skill-news-search.spec.ts], shared_files: []}
+    follow_up_tasks: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Investigate reported issue and create executable regression spec before implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-14T21:03:31Z"
+    evidence: docs/findings/issues/dev/2026/ecbcf920-ba69-47a6-991e-2454eb495446-admin-queries-do-not-show-up-in-embed-searches-and-one-s.md
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Added focused helper-level pytest coverage and extracted pure search reliability helpers to avoid runtime-heavy main_processor imports.
+    outcome: succeeded
+    recorded_at: "2026-08-14T22:22:55Z"
+    evidence: local-pytest-search-skill-embed-reliability-20260814T222255Z
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Wired companion expansion through the pure helper and normalized recoverable request strings before placeholder creation and execution.
+    outcome: succeeded
+    recorded_at: "2026-08-14T22:22:55Z"
+    evidence: python3 -m py_compile backend/apps/ai/processing/main_processor.py backend/apps/ai/processing/search_skill_reliability.py
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Restart dev API if needed, run the real OpenMates CLI proof against https://api.dev.openmates.org, then deploy and run requested web/news Playwright specs.
+  command: python3 scripts/sessions.py docker restart --session 464b --service api
+  expected_outcome: Dev API serves the backend fix for live CLI verification.
+  blocker: null
+  last_verified_commit: ab6408bb6e96240b071fcf06b43fedf145aec692+worktree

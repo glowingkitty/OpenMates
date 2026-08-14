@@ -239,6 +239,10 @@ test.describe('App: Web / Skill: search', () => {
 		logCheckpoint('Waiting for web search embed to finish...');
 		const embed = await waitForEmbedFinished(page, 'web', 'search');
 		logCheckpoint('Web search embed finished.');
+		await expect(embed, 'Finished web search card must keep the visible query.').toContainText(WEB_SEARCH_FIXTURE_QUERY);
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		await expect(assistantMessage).not.toContainText('app_skill_use');
+		await expect(assistantMessage).not.toContainText('embed_ref');
 		await takeStepScreenshot(page, 'web-search-embed-finished');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
@@ -263,6 +267,14 @@ test.describe('App: Web / Skill: search', () => {
 
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
+
+		await page.reload({ waitUntil: 'networkidle' });
+		const reloadedEmbed = await waitForEmbedFinished(page, 'web', 'search');
+		await expect(reloadedEmbed, 'Reloaded web search card must keep the visible query.').toContainText(WEB_SEARCH_FIXTURE_QUERY);
+		const reloadedAssistantMessage = page.getByTestId('message-assistant').last();
+		await expect(reloadedAssistantMessage).not.toContainText('app_skill_use');
+		await expect(reloadedAssistantMessage).not.toContainText('embed_ref');
+		logCheckpoint('Reload preserved finished web search card without raw protocol text.');
 
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search');
 	});

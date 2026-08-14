@@ -26,6 +26,10 @@ from backend.apps.ai.processing.preprocessor import (
     IMAGE_CHAT_SAFE_MODEL_NAME,
     PreprocessingResult,
 )
+from backend.apps.ai.processing.search_skill_reliability import (
+    expand_companion_skills,
+    normalize_string_query_request_items,
+)
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
@@ -2594,23 +2598,15 @@ async def handle_main_processing(
     # LLM to consider a companion skill, it must also be in the allowed tool set.
     # Without this the LLM follows the instruction, calls the companion, and the
     # hallucination guard rejects it → zero response.
-    COMPANION_SKILLS: dict[str, list[str]] = {
-        "web-search": ["images-search"],
-        "news-search": ["images-search"],
-    }
     if preselected_skills:
-        companions_to_add: set[str] = set()
-        for trigger, companions in COMPANION_SKILLS.items():
-            if trigger in preselected_skills:
-                for c in companions:
-                    if c not in preselected_skills:
-                        companions_to_add.add(c)
+        expanded_preselected_skills = expand_companion_skills(preselected_skills)
+        companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(
                 f"{log_prefix} [COMPANION_SKILLS] Auto-including companion skills: "
                 f"{sorted(companions_to_add)} (triggered by preselected skills)"
             )
-            preselected_skills = preselected_skills | companions_to_add
+            preselected_skills = expanded_preselected_skills
 
     task_tool_context = None
     task_context_prompt = ""
@@ -4038,6 +4034,15 @@ async def handle_main_processing(
                         hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
                         hallucinated_rejections_this_turn += 1
                         continue
+
+                    parsed_args = _normalize_skill_arguments(
+                        arguments=parsed_args,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        task_id=task_id,
+                        message_history=current_message_history,
+                    )
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
@@ -7700,7 +7705,23 @@ def _normalize_skill_arguments(
     if "requests" in arguments:
         # The LLM sent a "requests" key.
         if schema_expects_requests:
-            # Schema also wants "requests" — no normalization needed.
+            items_schema = schema_properties["requests"].get("items", {})
+            items_required = items_schema.get("required", [])
+
+            normalized, normalized_string_items = normalize_string_query_request_items(
+                arguments=arguments,
+                item_required_fields=items_required,
+            )
+            if normalized_string_items:
+                logger.warning(
+                    f"{log_prefix} [NORMALIZE] LLM sent {normalized_string_items} string item(s) "
+                    f"inside 'requests' for '{app_id}.{skill_id}'. Converted each string "
+                    "to a request object with a 'query' field so placeholder metadata "
+                    "and skill execution stay correlated."
+                )
+                return normalized
+
+            # Schema also wants "requests" and item shape is already compatible.
             return arguments
         else:
             # Schema does NOT have "requests" (flat-schema skill like pdf.read/view/search).
