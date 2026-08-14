@@ -224,10 +224,8 @@
                     // which fires onComplete in-page instead of redirecting.
                     return_url: returnUrl.toString(),
                 };
-                // Pass mode override so backend routes EU vs non-EU correctly
-                if (modeOverride) {
-                    requestBody.provider = modeOverride;
-                }
+                // Keep order creation in the same EU/managed mode selected by config or switch buttons.
+                requestBody.provider = modeOverride || (useManagedPayments ? 'managed' : 'stripe');
             }
 
             const response = await fetch(getApiEndpoint(endpoint), {
