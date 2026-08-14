@@ -37,6 +37,7 @@
   let newTeamDescription = $state('');
   let inviteEmail = $state('');
   let inviteStatus = $state('');
+  let teamsRefreshGeneration = 0;
 
   let teamsEnabled = $derived(isWorkspaceFeatureAvailable('platform:teams', $featureAvailabilityStore.disabledById));
   let greetingName = $derived(formatGreetingName($userProfile.username));
@@ -51,16 +52,21 @@
 
   async function refreshTeams(): Promise<void> {
     if (!teamsEnabled) {
+      teamsRefreshGeneration += 1;
       teams = [];
       selectedTeam = null;
       setActiveTeamContext(null);
       isLoading = false;
       return;
     }
+    const refreshGeneration = teamsRefreshGeneration + 1;
+    teamsRefreshGeneration = refreshGeneration;
     isLoading = true;
     try {
       hasLoadError = false;
-      teams = await listTeams();
+      const nextTeams = await listTeams();
+      if (refreshGeneration !== teamsRefreshGeneration) return;
+      teams = nextTeams;
       const persistedTeam = teams.find((team) => team.team_id === $activeTeamId) ?? teams[0] ?? null;
       if (persistedTeam) {
         await selectTeam(persistedTeam, { notify: false });
@@ -71,11 +77,12 @@
         setActiveTeamContext(null);
       }
     } catch (error) {
+      if (refreshGeneration !== teamsRefreshGeneration) return;
       hasLoadError = true;
       console.error('[TeamsWorkspacePage] Failed to load teams:', error);
       notificationStore.error('Failed to load teams');
     } finally {
-      isLoading = false;
+      if (refreshGeneration === teamsRefreshGeneration) isLoading = false;
     }
   }
 
@@ -105,6 +112,9 @@
     isCreating = true;
     try {
       const team = await createTeam({ name: newTeamName, description: newTeamDescription });
+      teamsRefreshGeneration += 1;
+      isLoading = false;
+      hasLoadError = false;
       teams = [team, ...teams.filter((candidate) => candidate.team_id !== team.team_id)];
       newTeamName = '';
       newTeamDescription = '';
