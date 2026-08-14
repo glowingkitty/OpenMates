@@ -157,7 +157,7 @@ async def test_collection_counts_processing_jobs_without_exposing_billing_to_sel
     calls = []
 
     async def fake_count(_service, collection, **kwargs):
-        calls.append((collection, kwargs["timestamp_field"], kwargs.get("extra_filter")))
+        calls.append((collection, kwargs["timestamp_field"], kwargs.get("timestamp_format"), kwargs.get("extra_filter")))
         return len(calls)
 
     monkeypatch.setattr(monitoring, "_directus_count", fake_count)
@@ -168,10 +168,48 @@ async def test_collection_counts_processing_jobs_without_exposing_billing_to_sel
     assert activity == {"chats": 1, "messages": 2, "embeds": 3, "usage_entries": 4}
     assert processing == {"started": 5, "completed": 6, "failed": 7, "stuck": 8}
     assert billing is None
-    assert all(collection != "billing_charge_identities" for collection, _, _ in calls)
+    assert all(collection != "billing_charge_identities" for collection, _, _, _ in calls)
+    assert calls[3][:3] == ("usage", "created_at", "unix_seconds")
     assert calls[4][1] == "created_at"
     assert calls[5][1] == "completed_at"
     assert calls[6][1] == "invalidated_at"
+
+
+@pytest.mark.asyncio
+async def test_usage_count_filters_integer_created_at_timestamps():
+    class FakeDirectus:
+        base_url = "http://cms:8055"
+
+        async def ensure_auth_token(self, *, admin_required):
+            assert admin_required is True
+            return "token"
+
+        async def _make_api_request(self, _method, _url, *, params, headers):
+            assert headers == {"Authorization": "Bearer token"}
+            filters = monitoring.json.loads(params["filter"])["_and"]
+            assert filters == [
+                {"created_at": {"_gte": int(WINDOW_START.timestamp())}},
+                {"created_at": {"_lt": int(WINDOW_END.timestamp())}},
+            ]
+
+            class Response:
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"meta": {"filter_count": 12}}
+
+            return Response()
+
+    count = await monitoring._directus_count(
+        FakeDirectus(),
+        "usage",
+        timestamp_field="created_at",
+        timestamp_format="unix_seconds",
+        start=WINDOW_START,
+        end=WINDOW_END,
+    )
+    assert count == 12
 
 
 @pytest.mark.asyncio

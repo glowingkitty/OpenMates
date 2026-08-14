@@ -425,11 +425,20 @@ async def _directus_count(
     timestamp_field: str,
     start: datetime,
     end: datetime,
+    timestamp_format: str = "iso",
     extra_filter: dict[str, Any] | None = None,
 ) -> int:
+    if timestamp_format == "iso":
+        start_value: str | int = start.isoformat()
+        end_value: str | int = end.isoformat()
+    elif timestamp_format == "unix_seconds":
+        start_value = int(start.timestamp())
+        end_value = int(end.timestamp())
+    else:
+        raise ValueError(f"unsupported timestamp format: {timestamp_format}")
     filters: list[dict[str, Any]] = [
-        {timestamp_field: {"_gte": start.isoformat()}},
-        {timestamp_field: {"_lt": end.isoformat()}},
+        {timestamp_field: {"_gte": start_value}},
+        {timestamp_field: {"_lt": end_value}},
     ]
     if extra_filter:
         filters.append(extra_filter)
@@ -456,7 +465,14 @@ async def collect_activity_and_transactions(
         _directus_count(directus_service, "chats", timestamp_field="created_at", start=start, end=end),
         _directus_count(directus_service, "messages", timestamp_field="created_at", start=start, end=end),
         _directus_count(directus_service, "embeds", timestamp_field="created_at", start=start, end=end),
-        _directus_count(directus_service, "usage", timestamp_field="created_at", start=start, end=end),
+        _directus_count(
+            directus_service,
+            "usage",
+            timestamp_field="created_at",
+            timestamp_format="unix_seconds",
+            start=start,
+            end=end,
+        ),
     ]
     chats, messages, embeds, usage_entries = await asyncio.gather(*activity_requests)
     processing_started, processing_completed, processing_failed, processing_stuck = await asyncio.gather(
