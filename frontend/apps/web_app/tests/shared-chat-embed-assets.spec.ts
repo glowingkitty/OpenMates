@@ -89,6 +89,7 @@ function extractEmbedIdsFromText(content: unknown): string[] {
 	for (const match of text.matchAll(/"embed_id"\s*:\s*"([^"\s]+)"/gi)) ids.add(match[1]);
 	for (const ref of extractEmbedRefsFromText(text)) {
 		if (/^[a-f0-9-]{36}$/i.test(ref)) ids.add(ref);
+		for (const id of extractEmbedIdCandidatesFromRef(ref)) ids.add(id);
 	}
 	return [...ids];
 }
@@ -101,9 +102,19 @@ function extractEmbedRefsFromText(content: unknown): string[] {
 	return [...refs];
 }
 
+function extractEmbedIdCandidatesFromRef(embedRef: string): string[] {
+	const ids = new Set<string>();
+	if (/^[a-f0-9-]{36}$/i.test(embedRef)) ids.add(embedRef.toLowerCase());
+	for (const match of embedRef.matchAll(/(?:^|-)([a-f0-9]{8})(?=-[a-f0-9]{4})/gi)) {
+		ids.add(match[1].toLowerCase());
+	}
+	return [...ids];
+}
+
 function extractEmbedIdPrefixesFromRefs(embedRefs: Iterable<string>): string[] {
 	const prefixes = new Set<string>();
 	for (const embedRef of embedRefs) {
+		for (const id of extractEmbedIdCandidatesFromRef(embedRef)) prefixes.add(id);
 		for (const match of embedRef.matchAll(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]+/gi)) {
 			prefixes.add(match[0].toLowerCase());
 		}
