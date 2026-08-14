@@ -16,6 +16,7 @@ import { join } from "node:path";
 
 import { OpenMatesClient, type WorkflowGraph } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
+import { buildEncryptedObjectSlugMetadata } from "../src/objectSlugs.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown; headers: IncomingMessage["headers"] };
@@ -60,6 +61,12 @@ function templateImportPayload() {
     required_capabilities: [],
     binding_requirements: [],
   };
+}
+
+function assertPublicWorkflowSlug(workflow: Record<string, unknown>, slug: string): void {
+  assert.equal(workflow.slug, slug);
+  assert.equal("encrypted_slug" in workflow, false);
+  assert.equal("slug_lookup_hash" in workflow, false);
 }
 
 async function withServer(
@@ -116,26 +123,41 @@ describe("OpenMatesClient workflows", () => {
   // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,cli.slugs.encrypted-stable,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
   it("creates, lists, and updates workflows through typed endpoints", async () => {
     const graph = minimalGraph();
+    const masterKey = Buffer.alloc(32);
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: "Morning", encryptionKey: masterKey, lookupKey: masterKey });
+    const encryptedSlugFields = {
+      encrypted_slug: slugMetadata.encrypted_slug,
+      slug_lookup_hash: slugMetadata.slug_lookup_hash,
+    };
     await withServer(
       (request) => {
         if (request.method === "GET") {
           return {
             workflows: [
-              { id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 },
+              { id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields },
             ],
           };
         }
         return {
-          workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph },
+          workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields },
         };
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.listWorkflows())[0]?.id, "wf-1");
-        assert.equal((await client.listTemporaryWorkflows())[0]?.id, "wf-1");
-        assert.equal((await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true })).enabled, true);
-        assert.equal((await client.updateWorkflow("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
-        assert.equal((await client.keepWorkflow("wf-1")).id, "wf-1");
+        const listedWorkflow = (await client.listWorkflows())[0];
+        const temporaryWorkflow = (await client.listTemporaryWorkflows())[0];
+        const createdWorkflow = await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true });
+        const updatedWorkflow = await client.updateWorkflow("wf-1", { enabled: false, runContentRetention: "last_5" });
+        const keptWorkflow = await client.keepWorkflow("wf-1");
+
+        assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(temporaryWorkflow?.id, "wf-1");
+        assert.equal(createdWorkflow.enabled, true);
+        assert.equal(updatedWorkflow.id, "wf-1");
+        assert.equal(keptWorkflow.id, "wf-1");
+        for (const workflow of [listedWorkflow, temporaryWorkflow, createdWorkflow, updatedWorkflow, keptWorkflow]) {
+          assertPublicWorkflowSlug(workflow as Record<string, unknown>, "morning");
+        }
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/workflows"],

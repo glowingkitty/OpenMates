@@ -4248,8 +4248,9 @@ export class OpenMatesWorkflows {
   }
 
   private async decryptWorkflowSlug<T extends WorkflowSummary>(workflow: T, masterKey?: Uint8Array): Promise<T> {
-    if (!workflow.encrypted_slug) return workflow;
-    return { ...workflow, slug: await decryptObjectSlug(workflow.encrypted_slug, masterKey ?? await this.client.masterKey()) };
+    const { encrypted_slug: encryptedSlug, slug_lookup_hash: _slugLookupHash, ...publicWorkflow } = workflow;
+    if (!encryptedSlug) return publicWorkflow as T;
+    return { ...publicWorkflow, slug: await decryptObjectSlug(encryptedSlug, masterKey ?? await this.client.masterKey()) } as T;
   }
 
   private async resolveId(workflowId: string): Promise<string> {
@@ -4630,7 +4631,7 @@ export class OpenMatesWorkflows {
   async importTemplate(payload: WorkflowTemplateImportPayload): Promise<ImportedWorkflowTemplate> {
     const response = await this.client.request<{ workflow?: ImportedWorkflowTemplate }>("/v1/workflows/template-import", payload);
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow template import response missing workflow" });
-    return response.workflow;
+    return this.decryptWorkflowSlug(response.workflow);
   }
 }
 

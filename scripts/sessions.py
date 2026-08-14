@@ -7375,6 +7375,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
             anonymize_sensitive=True,
+            timeout_seconds=getattr(args, "timeout_seconds", 120.0),
         )
         record = _upsert_proof_video_record(session, run_dir, result)
         _save_sessions(data)
@@ -13355,6 +13356,7 @@ def main() -> None:
     p_proof_produce.add_argument("--audio-model", default="eleven_flash_v2_5")
     p_proof_produce.add_argument("--audio-voice", default="warm_neutral")
     p_proof_produce.add_argument("--audio-reused-from", default="")
+    p_proof_produce.add_argument("--timeout-seconds", type=float, default=120.0)
     p_proof_produce.add_argument("argv", nargs=argparse.REMAINDER)
     p_proof_playwright = proof_actions.add_parser(
         "produce-playwright",

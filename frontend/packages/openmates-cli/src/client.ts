@@ -8262,7 +8262,7 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Temporary workflow list failed with HTTP ${response.status}`);
     }
-    return response.data.workflows ?? [];
+    return this.decryptWorkflowSlugs(response.data.workflows ?? [], { personal: true });
   }
 
   async createWorkflow(params: {
@@ -8376,7 +8376,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow || !response.data.validation) {
       throw new Error(`Workflow YAML create failed with HTTP ${response.status}`);
     }
-    return { workflow: response.data.workflow, validation: response.data.validation };
+    return { workflow: await this.decryptWorkflowSlug(response.data.workflow, { personal: true }), validation: response.data.validation };
   }
 
   async updateWorkflowYaml(workflowId: string, source: string): Promise<{
@@ -8391,7 +8391,7 @@ export class OpenMatesClient {
     if (!createLike.ok || !createLike.data.workflow || !createLike.data.validation) {
       throw new Error(`Workflow YAML update failed with HTTP ${createLike.status}`);
     }
-    return { workflow: createLike.data.workflow, validation: createLike.data.validation };
+    return { workflow: await this.decryptWorkflowSlug(createLike.data.workflow, { personal: true }), validation: createLike.data.validation };
   }
 
   async getWorkflow(workflowId: string, options: TeamContextOptions = {}): Promise<WorkflowDetail> {
@@ -8504,8 +8504,13 @@ export class OpenMatesClient {
     if (workflows.length === 0) return workflows;
     const teamId = this.resolveTeamContext(options);
     const key = teamId ? await this.loadTeamKeyBytes(teamId) : this.getMasterKeyBytes();
-    if (!key) return workflows;
+    if (!key) return workflows.map((workflow) => this.toPublicWorkflow(workflow));
     return Promise.all(workflows.map((workflow) => this.decryptWorkflowSlug(workflow, options, key)));
+  }
+
+  private toPublicWorkflow<T extends WorkflowSummary>(workflow: T): T {
+    const { encrypted_slug: _encryptedSlug, slug_lookup_hash: _slugLookupHash, ...publicWorkflow } = workflow;
+    return publicWorkflow as T;
   }
 
   private async decryptWorkflowSlug<T extends WorkflowSummary>(
@@ -8513,11 +8518,13 @@ export class OpenMatesClient {
     options: TeamContextOptions = {},
     resolvedKey?: Uint8Array,
   ): Promise<T> {
-    if (!workflow.encrypted_slug) return workflow;
+    const encryptedSlug = workflow.encrypted_slug;
+    const publicWorkflow = this.toPublicWorkflow(workflow);
+    if (!encryptedSlug) return publicWorkflow;
     const teamId = this.resolveTeamContext(options);
     const key = resolvedKey ?? (teamId ? await this.loadTeamKeyBytes(teamId) : this.getMasterKeyBytes());
-    if (!key) return workflow;
-    return { ...workflow, slug: await decryptObjectSlug(workflow.encrypted_slug, key) };
+    if (!key) return publicWorkflow;
+    return { ...publicWorkflow, slug: await decryptObjectSlug(encryptedSlug, key) } as T;
   }
 
   async deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
@@ -8543,7 +8550,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow keep failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
   async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
@@ -8776,7 +8783,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.workflow) {
       throw new Error(`Workflow template import failed with HTTP ${response.status}`);
     }
-    return response.data.workflow;
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
   async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {

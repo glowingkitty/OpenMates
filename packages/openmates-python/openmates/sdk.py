@@ -3478,7 +3478,7 @@ class OpenMatesPlans:
 
     def _get_raw_plan(self, plan_id: str) -> dict[str, Any]:
         if not _is_uuid(plan_id):
-            return _find_plan(self._list_raw(active_only=False), plan_id)
+            return self._find_raw_plan_by_selector(plan_id)
         try:
             plan = self._client._get(f"/v1/user-plans/{_quote(plan_id)}").get("plan")
             if not isinstance(plan, dict):
@@ -3487,7 +3487,17 @@ class OpenMatesPlans:
         except OpenMatesApiError as exc:
             if exc.status_code != 404:
                 raise
-        return _find_plan(self._list_raw(active_only=False), plan_id)
+        return self._find_raw_plan_by_selector(plan_id)
+
+    def _find_raw_plan_by_selector(self, plan_id: str) -> dict[str, Any]:
+        raw_plans = self._list_raw(active_only=False)
+        master_key = self._client._get_master_key()
+        public_plan = _find_plan([_public_plan(_decrypt_plan_record(plan, master_key)) for plan in raw_plans], plan_id)
+        public_plan_id = public_plan.get("plan_id")
+        for plan in raw_plans:
+            if plan.get("plan_id") == public_plan_id:
+                return plan
+        raise OpenMatesConfigError(f"Plan '{plan_id}' was not found")
 
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
@@ -4169,9 +4179,12 @@ class OpenMatesWorkflows:
         return [self._decrypt_slug(workflow) for workflow in self._client._get("/v1/workflows/temporary").get("workflows", [])]
 
     def _decrypt_slug(self, workflow: dict[str, Any]) -> dict[str, Any]:
-        if isinstance(workflow, dict) and isinstance(workflow.get("encrypted_slug"), str):
-            return {**workflow, "slug": _decrypt_object_slug(workflow["encrypted_slug"], self._client._get_master_key())}
-        return workflow
+        if not isinstance(workflow, dict):
+            return workflow
+        public_workflow = {key: value for key, value in workflow.items() if key not in {"encrypted_slug", "slug_lookup_hash"}}
+        if isinstance(workflow.get("encrypted_slug"), str):
+            public_workflow["slug"] = _decrypt_object_slug(workflow["encrypted_slug"], self._client._get_master_key())
+        return public_workflow
 
     def capabilities(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
@@ -4188,7 +4201,7 @@ class OpenMatesWorkflows:
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing workflow"})
         if not isinstance(response.get("validation"), dict):
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing validation"})
-        return response
+        return {**response, "workflow": self._decrypt_slug(response["workflow"])}
 
     def update_from_yaml(self, workflow_id: str, source: str) -> dict[str, Any]:
         response = _workflow_resource_request(self._client, "POST", workflow_id, "/yaml", {"source": source})
@@ -4196,7 +4209,7 @@ class OpenMatesWorkflows:
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing workflow"})
         if not isinstance(response.get("validation"), dict):
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing validation"})
-        return response
+        return {**response, "workflow": self._decrypt_slug(response["workflow"])}
 
     def history(self, workflow_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
@@ -4527,7 +4540,7 @@ class OpenMatesWorkflows:
         workflow = response.get("workflow")
         if not isinstance(workflow, dict):
             raise OpenMatesApiError(500, {"detail": "Workflow template import response missing workflow"})
-        return workflow
+        return self._decrypt_slug(workflow)
 
 
 class OpenMatesAccount:

@@ -1252,6 +1252,7 @@ def produce_cli_demonstration(
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
     narration_audio_reused_from: str = "",
     anonymize_sensitive: bool = False,
+    timeout_seconds: float = 120.0,
 ) -> dict[str, Any]:
     capture = capture_pty(
         argv,
@@ -1259,6 +1260,7 @@ def produce_cli_demonstration(
         target_environment=target_environment,
         output_dir=run_dir,
         test_account_provenance=test_account_provenance,
+        timeout_seconds=timeout_seconds,
     )
     if capture.get("exit_status") != 0:
         raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
@@ -2089,6 +2091,7 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)
     cli_parser.add_argument("--audio-reused-from", default="")
     cli_parser.add_argument("--anonymize-sensitive", action="store_true")
+    cli_parser.add_argument("--timeout-seconds", type=float, default=120.0)
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
     review_parser = subparsers.add_parser("record-review")
     review_parser.add_argument("--run-dir", type=Path, required=True)
@@ -2127,6 +2130,7 @@ def main(argv: list[str] | None = None) -> int:
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
             anonymize_sensitive=args.anonymize_sensitive,
+            timeout_seconds=args.timeout_seconds,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
         return 0
