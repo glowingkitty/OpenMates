@@ -2323,6 +2323,8 @@ export class GroupRenderer implements EmbedRenderer {
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",
             aesNonce: decodedContent?.aes_nonce || "",
+            previewVideoUrl: decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "",
+            previewImageUrl: decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             taskId,
