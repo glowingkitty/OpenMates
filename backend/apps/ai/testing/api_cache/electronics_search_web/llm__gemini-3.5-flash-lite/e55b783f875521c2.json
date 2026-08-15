@@ -1,0 +1,57 @@
+{
+  "fingerprint": "e55b783f875521c2",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "electronics_search_web",
+  "recorded_at": "2026-08-15T12:17:06.535742+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "f4da15c68a2cf39b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "status: error\nerror: \"\"\nmessage: \"The search_components skill failed: . Please continue with any other available information.\"\napp_id: electronics\nskill_id: search_components\nembed_ref: component-9JW\n..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-search-ab31ec66",
+          "function_name": "web-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"TI buck converter 12V to 3.3V 3A WEBENCH recommended parts\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "TI buck converter 12V to 3.3V 3A WEBENCH recommended parts"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPT5kUg4hnGYdrCdMJt7rHtb5m15BMCKvizYkRBm98x8h4R/qkAU0Lz6uG1Z5iH6oORDCXeW+TaQGn+OwUK73WODmtnRsqqSnzjiRgJhDfaoNI0UGAD6Lq"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15185,
+          "candidates_token_count": 39,
+          "total_token_count": 15224,
+          "user_input_tokens": 123,
+          "system_prompt_tokens": 13998
+        }
+      }
+    ]
+  }
+}

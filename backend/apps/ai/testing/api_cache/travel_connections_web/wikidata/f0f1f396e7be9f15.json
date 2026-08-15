@@ -1,0 +1,38 @@
+{
+  "fingerprint": "f0f1f396e7be9f15",
+  "category": "wikidata",
+  "group_id": "travel_connections_web",
+  "recorded_at": "2026-08-15T12:16:29.991072+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q2468712&props=labels%7Cdescriptions%7Cclaims&languages=en&format=json"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Sat, 15 Aug 2026 12:16:29 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-dpqvp",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "transfer-encoding": "chunked",
+      "x-request-id": "65da5546-765e-48a1-9969-7dbc4f7c6a08",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"2810823903\""
+    },
+    "body": "{\"entities\":{\"Q2468712\":{\"type\":\"item\",\"id\":\"Q2468712\",\"labels\":{\"en\":{\"language\":\"en\",\"value\":\"indicated airspeed\"}},\"descriptions\":{\"en\":{\"language\":\"en\",\"value\":\"airspeed read directly from the airspeed indicator (ASI) on an aircraft\"}},\"claims\":{\"P646\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P646\",\"hash\":\"0c17ac3c49d8165491448b1dd57e9b5e631a420a\",\"datavalue\":{\"value\":\"/m/02thqs\",\"type\":\"string\"},\"datatype\":\"external-id\"},\"type\":\"statement\",\"id\":\"Q2468712$C3A8DC83-F7FC-4AF4-B542-7AE9D72D2FDE\",\"rank\":\"normal\",\"references\":[{\"hash\":\"2b00cb481cddcac7623114367489b5c194901c4a\",\"snaks\":{\"P248\":[{\"snaktype\":\"value\",\"property\":\"P248\",\"hash\":\"a94b740202b097dd33355e0e6c00e54b9395e5e0\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":15241312,\"id\":\"Q15241312\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"}],\"P577\":[{\"snaktype\":\"value\",\"property\":\"P577\",\"hash\":\"fde79ecb015112d2f29229ccc1ec514ed3e71fa2\",\"datavalue\":{\"value\":{\"time\":\"+2013-10-28T00:00:00Z\",\"timezone\":0,\"before\":0,\"after\":0,\"precision\":11,\"calendarmodel\":\"http://www.wikidata.org/entity/Q1985727\"},\"type\":\"time\"},\"datatype\":\"time\"}]},\"snaks-order\":[\"P248\",\"P577\"]}]}],\"P279\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"hash\":\"35492fcd5081c7b80247e9621b90e66f5303c9d1\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":1197176,\"id\":\"Q1197176\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$7e880ddb-43c9-8b19-9706-ea65c816a9f3\",\"rank\":\"normal\"},{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P279\",\"hash\":\"5f8a9464ce632cd9fa784f809c75f6aeab6d2ad1\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":107715,\"id\":\"Q107715\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$b069105e-45b9-1bfe-7a8b-86f04f7f74c4\",\"rank\":\"normal\"}],\"P1889\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P1889\",\"hash\":\"d405f0ac7a6b79f12f28d84675c017d6f1a9dec2\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":2356944,\"id\":\"Q2356944\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$0c30c954-425d-f51c-1786-eb26356b9d93\",\"rank\":\"normal\"},{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P1889\",\"hash\":\"3de22a1083b9ced046a1ea0a582715fdfde3cefe\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":1518019,\"id\":\"Q1518019\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$fdf83b81-4dd4-5d6c-6355-c7a87020cc5e\",\"rank\":\"normal\"},{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P1889\",\"hash\":\"7f249dac668a2aa4854ea234947cc463b015e5b1\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":1784114,\"id\":\"Q1784114\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$cb39fb66-4d78-14e5-ecba-9204cb546b0b\",\"rank\":\"normal\"}],\"P2534\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P2534\",\"hash\":\"af46575a85f8ff14fc16a899397e47cd8b8b9fb3\",\"datavalue\":{\"value\":\"CAS=a_{0}\\\\sqrt{5\\\\left[\\\\left(\\\\frac{q_c}{P_{0}}+1\\\\right)^\\\\frac{2}{7}-1\\\\right]}\",\"type\":\"string\"},\"datatype\":\"math\"},\"type\":\"statement\",\"id\":\"Q2468712$858285b0-44ea-42a0-5bfc-aeb6a58da4e0\",\"rank\":\"normal\"}],\"P1813\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P1813\",\"hash\":\"21397237049c90687f2b5d2b02c43bfe5fe7db46\",\"datavalue\":{\"value\":{\"text\":\"IAS\",\"language\":\"en\"},\"type\":\"monolingualtext\"},\"datatype\":\"monolingualtext\"},\"type\":\"statement\",\"id\":\"Q2468712$107f08ab-4257-3dfc-3801-e64e6ad8daac\",\"rank\":\"normal\"}],\"P7431\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P7431\",\"hash\":\"5df7c5f49f1e1a9e07961513c43c9c226b97395f\",\"datavalue\":{\"value\":\"IndicatedAirspeed\",\"type\":\"string\"},\"datatype\":\"external-id\"},\"type\":\"statement\",\"id\":\"Q2468712$d7aaffd0-4de0-cf0e-3569-e51f2c141e29\",\"rank\":\"normal\"}],\"P6366\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P6366\",\"hash\":\"02938ae8a9e122c35784275bb7cbc6362758bdfd\",\"datavalue\":{\"value\":\"22074990\",\"type\":\"string\"},\"datatype\":\"external-id\"},\"type\":\"statement\",\"id\":\"Q2468712$33B4B6D0-BB52-4C89-B7EB-54262B380F2D\",\"rank\":\"normal\"}],\"P4020\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P4020\",\"hash\":\"b5a8eb9cfd878d447befae3a4ab9710e9dca595e\",\"datavalue\":{\"value\":\"\\\\mathsf{L} \\\\mathsf{T}^{-1}\",\"type\":\"string\"},\"datatype\":\"math\"},\"type\":\"statement\",\"id\":\"Q2468712$0f8c7c79-40e0-66aa-0488-757394011754\",\"rank\":\"normal\"}],\"P6104\":[{\"mainsnak\":{\"snaktype\":\"value\",\"property\":\"P6104\",\"hash\":\"a27c5fdb35b42381f12b2a603711e56d98dd77fd\",\"datavalue\":{\"value\":{\"entity-type\":\"item\",\"numeric-id\":8487137,\"id\":\"Q8487137\"},\"type\":\"wikibase-entityid\"},\"datatype\":\"wikibase-item\"},\"type\":\"statement\",\"id\":\"Q2468712$379A74D4-CD05-414E-926D-CF82F37D586A\",\"rank\":\"normal\"}]}}},\"success\":1}"
+  }
+}

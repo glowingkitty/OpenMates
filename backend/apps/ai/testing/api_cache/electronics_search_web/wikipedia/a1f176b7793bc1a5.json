@@ -1,0 +1,47 @@
+{
+  "fingerprint": "a1f176b7793bc1a5",
+  "category": "wikipedia",
+  "group_id": "electronics_search_web",
+  "recorded_at": "2026-08-15T12:18:12.408025+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/api/rest_v1/page/summary/Noise_(electronics)"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-webkit-csp": "default-src 'none'; frame-ancestors 'none'",
+      "cache-control": "s-maxage=1209600, max-age=300",
+      "content-language": "en",
+      "content-type": "application/json; charset=utf-8; profile=\"https://www.mediawiki.org/wiki/Specs/Summary/1.5.0\"",
+      "date": "Sat, 15 Aug 2026 12:18:12 GMT",
+      "server": "production-tls",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD",
+      "access-control-allow-headers": "accept, content-type, content-length, cache-control, accept-language, api-user-agent, if-match, if-modified-since, if-none-match, dnt, accept-encoding",
+      "access-control-expose-headers": "etag",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "referrer-policy": "origin-when-cross-origin",
+      "x-xss-protection": "1; mode=block",
+      "etag": "W/\"1303001217/8c90e030-95da-11f1-940d-dc41310c8548\"",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "vary": "Accept-Language, x-restbase-compat, Accept-Encoding",
+      "x-cache": "cp3067 miss, cp3067 miss",
+      "x-cache-status": "miss",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "content-length": "658",
+      "x-request-id": "d5f572f1-df21-4ca4-af71-76cc96b429f3",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"miss\", host;desc=\"cp3067\",co_id;desc=\"3248827747\""
+    },
+    "body": "{\"type\":\"standard\",\"title\":\"Noise (electronics)\",\"displaytitle\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Noise (electronics)</span></span>\",\"namespace\":{\"id\":0,\"text\":\"\"},\"wikibase_item\":\"Q11306265\",\"titles\":{\"canonical\":\"Noise_(electronics)\",\"normalized\":\"Noise (electronics)\",\"display\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Noise (electronics)</span></span>\"},\"pageid\":3966982,\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Pink.noise.png/330px-Pink.noise.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":330,\"height\":245},\"originalimage\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/7/72/Pink.noise.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled\",\"width\":1262,\"height\":937},\"lang\":\"en\",\"dir\":\"ltr\",\"revision\":\"1303001217\",\"tid\":\"bce1d55d-6bc9-11f0-b724-dbd1f5a3a166\",\"timestamp\":\"2025-07-28T15:44:25Z\",\"description\":\"Random fluctuation in an electrical signal\",\"description_source\":\"local\",\"content_urls\":{\"desktop\":{\"page\":\"https://en.wikipedia.org/wiki/Noise_(electronics)\",\"revisions\":\"https://en.wikipedia.org/wiki/Noise_(electronics)?action=history\",\"edit\":\"https://en.wikipedia.org/wiki/Noise_(electronics)?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Noise_(electronics)\"},\"mobile\":{\"page\":\"https://en.wikipedia.org/wiki/Noise_(electronics)\",\"revisions\":\"https://en.wikipedia.org/wiki/Special:History/Noise_(electronics)\",\"edit\":\"https://en.wikipedia.org/wiki/Noise_(electronics)?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Noise_(electronics)\"}},\"extract\":\"In electronics, noise is an unwanted disturbance in an electrical signal.\",\"extract_html\":\"<p>In electronics, <b>noise</b> is an unwanted disturbance in an electrical signal.</p>\"}"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "fingerprint": "000d9b9cf4d39243",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "videos_search_web",
+  "recorded_at": "2026-08-15T12:14:38.282344+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "44b4f48ff459a98d",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Use videos.search to find videos for exact query openmates_e2e_video_fixture_python"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "videos-search-34c40d7c",
+          "function_name": "videos-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"openmates_e2e_video_fixture_python\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "openmates_e2e_video_fixture_python"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPDf5IgSst0bz1T7n5m6LTUzDN6h5DtWgxOQlDMqQFBThWcM9fbU8lO4kmd7aKtaTk+QvKJs5DpGRz1OSBgYiSG/vqAHT/+ZHCEmFVXqpIo4GTyslB08+w"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14735,
+          "candidates_token_count": 30,
+          "total_token_count": 14765,
+          "user_input_tokens": 19,
+          "system_prompt_tokens": 13720
+        }
+      }
+    ]
+  }
+}

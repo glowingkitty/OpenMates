@@ -1,0 +1,57 @@
+{
+  "fingerprint": "dd22b0a6fcfd6613",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_stays_web",
+  "recorded_at": "2026-08-15T12:15:50.446997+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "06ec6fd57d6b45fe",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find hotels in Berlin for next week"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-search-f3f94e67",
+          "function_name": "web-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"hotels in Berlin next week\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "hotels in Berlin next week"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIP57CtfxiirKYrMxHOItl3nGlXMIFtIVFeBTOyQvyVaX6erzrFUHRGUYJ7/9xxE/N3FGR/Yak6KGY7DtBO/jY5x/nmI5InOlkFBVLW/8crQam6RLO2kNWV"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14381,
+          "candidates_token_count": 23,
+          "total_token_count": 14404,
+          "user_input_tokens": 9,
+          "system_prompt_tokens": 13433
+        }
+      }
+    ]
+  }
+}

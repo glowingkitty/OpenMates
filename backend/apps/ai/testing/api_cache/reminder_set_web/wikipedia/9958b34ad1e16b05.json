@@ -1,0 +1,47 @@
+{
+  "fingerprint": "9958b34ad1e16b05",
+  "category": "wikipedia",
+  "group_id": "reminder_set_web",
+  "recorded_at": "2026-08-15T12:15:40.005746+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/api/rest_v1/page/summary/Pomodoro_Technique"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Fri, 14 Aug 2026 20:42:05 GMT",
+      "cache-control": "s-maxage=1209600, max-age=300",
+      "server": "ATS/9.2.13",
+      "etag": "W/\"1364480643/3360cba0-95ef-11f1-b84e-0159ecc469b2\"",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-webkit-csp": "default-src 'none'; frame-ancestors 'none'",
+      "content-language": "en",
+      "content-type": "application/json; charset=utf-8; profile=\"https://www.mediawiki.org/wiki/Specs/Summary/1.5.0\"",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD",
+      "access-control-allow-headers": "accept, content-type, content-length, cache-control, accept-language, api-user-agent, if-match, if-modified-since, if-none-match, dnt, accept-encoding",
+      "access-control-expose-headers": "etag",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "referrer-policy": "origin-when-cross-origin",
+      "x-xss-protection": "1; mode=block",
+      "content-encoding": "gzip",
+      "age": "56014",
+      "accept-ranges": "bytes",
+      "vary": "Accept-Language, x-restbase-compat",
+      "x-cache": "cp3067 hit, cp3067 hit/9",
+      "x-cache-status": "hit-front",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "content-length": "825",
+      "x-request-id": "152089d3-2b56-4b6d-9887-78e970a5adc0",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"hit-front\", host;desc=\"cp3067\",co_id;desc=\"2689985477\""
+    },
+    "body": "{\"type\":\"standard\",\"title\":\"Pomodoro Technique\",\"displaytitle\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Pomodoro Technique</span></span>\",\"namespace\":{\"id\":0,\"text\":\"\"},\"wikibase_item\":\"Q2091716\",\"titles\":{\"canonical\":\"Pomodoro_Technique\",\"normalized\":\"Pomodoro Technique\",\"display\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Pomodoro Technique</span></span>\"},\"pageid\":26154544,\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Il_pomodoro.jpg/330px-Il_pomodoro.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":330,\"height\":330},\"originalimage\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/3/34/Il_pomodoro.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled\",\"width\":591,\"height\":591},\"lang\":\"en\",\"dir\":\"ltr\",\"revision\":\"1364480643\",\"tid\":\"63b1dc98-8155-11f1-8232-80d84950a09d\",\"timestamp\":\"2026-07-16T20:31:57Z\",\"description\":\"Time management method\",\"description_source\":\"local\",\"content_urls\":{\"desktop\":{\"page\":\"https://en.wikipedia.org/wiki/Pomodoro_Technique\",\"revisions\":\"https://en.wikipedia.org/wiki/Pomodoro_Technique?action=history\",\"edit\":\"https://en.wikipedia.org/wiki/Pomodoro_Technique?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Pomodoro_Technique\"},\"mobile\":{\"page\":\"https://en.wikipedia.org/wiki/Pomodoro_Technique\",\"revisions\":\"https://en.wikipedia.org/wiki/Special:History/Pomodoro_Technique\",\"edit\":\"https://en.wikipedia.org/wiki/Pomodoro_Technique?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Pomodoro_Technique\"}},\"extract\":\"The Pomodoro Technique is a time management method developed by Francesco Cirillo in the late 1980s. It uses a kitchen timer to break work into intervals, typically 25 minutes in length, separated by short breaks. Each interval is known as a pomodoro, from the Italian word for tomato, after the tomato-shaped kitchen timer that Cirillo used while he was a university student.\",\"extract_html\":\"<p>The <b>Pomodoro Technique</b> is a time management method developed by Francesco Cirillo in the late 1980s. It uses a kitchen timer to break work into intervals, typically 25 minutes in length, separated by short breaks. Each interval is known as a <i>pomodoro</i>, from the Italian word for tomato, after the tomato-shaped kitchen timer that Cirillo used while he was a university student.</p>\"}"
+  }
+}

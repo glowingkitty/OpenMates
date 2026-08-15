@@ -1,0 +1,74 @@
+{
+  "fingerprint": "a53f657fb36734cc",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_connections_web",
+  "recorded_at": "2026-08-15T12:16:59.622046+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "666ec8037ae4611a",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[13]:\n  - transport_method: airplane\n    source_provider: google_flights\n    trip_type: one_way\n    total_price: \"155\"\n    currency: EUR\n    bookable_seats: null\n    last_ticketing_date: null\n ..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the flight options from Berlin (BER) to Munich (MUC) for next week (August 20, 2026). \n\nThe most economical option is a connecting flight with [Eurowings flight (14:55)](embed:eurowings-2026-DVC) starting at €155, while direct flights operated by [Lufthansa flight (06:20)](embed:lufthansa-2026-fWD) take about 1 hour and 10 minutes.\n\n```embeds_results_view\ntitle: Flights from Berlin to Munich\nembeds: eurowings-2026-DVC, condor-2026-0Jf, lufthansa-2026-OiR, lufthansa-2026-fWD\n```\n\nWould you like to check train options (such as Deutsche Bahn ICE connections) for this route as well?",
+    "chunk_count": 10,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the flight options from Berlin (BER) to Munich (MUC) for next week"
+      },
+      {
+        "kind": "text",
+        "value": " (August 20, 2026). \n\nThe most economical option is a connecting flight with"
+      },
+      {
+        "kind": "text",
+        "value": " [Eurowings flight (14:55)](embed:eurowings-2026-DVC) starting at €155,"
+      },
+      {
+        "kind": "text",
+        "value": " while direct flights operated by [Lufthansa flight (06:20)](embed:lufthansa-2026-f"
+      },
+      {
+        "kind": "text",
+        "value": "WD) take about 1 hour and 10 minutes.\n\n```embeds_results_view\ntitle: Flights"
+      },
+      {
+        "kind": "text",
+        "value": " from Berlin to Munich\nembeds: eurowings-2026-DVC, condor-2"
+      },
+      {
+        "kind": "text",
+        "value": "026-0Jf, lufthansa-2026-OiR, lufthansa-2026-"
+      },
+      {
+        "kind": "text",
+        "value": "fWD\n```\n\nWould you like to check train options (such as Deutsche Bahn ICE connections) for this route as well?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 31438,
+          "candidates_token_count": 203,
+          "total_token_count": 31641,
+          "user_input_tokens": 12642,
+          "system_prompt_tokens": 14814
+        }
+      }
+    ]
+  }
+}
