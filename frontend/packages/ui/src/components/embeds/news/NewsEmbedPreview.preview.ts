@@ -12,8 +12,8 @@ const defaultProps = {
   title: "Svelte 5 Officially Released with Revolutionary Runes System",
   description:
     "The Svelte team has announced the stable release of Svelte 5, featuring the new runes reactivity system that promises better performance and developer experience.",
-  favicon: "",
-  image: "",
+  favicon: "/favicon.png",
+  image: "/images/og-image.jpg",
   status: "finished" as const,
   isMobile: false,
   onFullscreen: () => {},
@@ -27,6 +27,8 @@ export const variants = {
   processing: {
     id: "preview-news-processing",
     url: "https://techcrunch.com/news/loading",
+    favicon: "/favicon.png",
+    image: "/images/og-image.jpg",
     status: "processing" as const,
     isMobile: false,
   },
@@ -35,6 +37,8 @@ export const variants = {
   error: {
     id: "preview-news-error",
     url: "https://techcrunch.com/news/not-found",
+    favicon: "/favicon.png",
+    image: "/images/og-image.jpg",
     status: "error" as const,
     isMobile: false,
   },
@@ -46,8 +50,8 @@ export const variants = {
     title: "Svelte 5 Launches to Wide Acclaim",
     description:
       "The latest version of the popular frontend framework brings fundamental changes to reactivity with the introduction of runes.",
-    favicon: "",
-    image: "",
+    favicon: "/favicon.png",
+    image: "/images/og-image.jpg",
     status: "finished" as const,
     isMobile: false,
   },

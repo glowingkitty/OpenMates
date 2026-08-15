@@ -11,8 +11,8 @@ const defaultProps = {
   title: "Svelte 5 Officially Released with Revolutionary Runes System",
   description:
     "The Svelte team has announced the stable release of Svelte 5, featuring the new runes reactivity system.",
-  favicon: "",
-  thumbnail: "",
+  favicon: "/favicon.png",
+  thumbnail: "/images/og-image.jpg",
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
@@ -44,6 +44,8 @@ export const variants = {
   /** Minimal — just URL */
   minimal: {
     url: "https://techcrunch.com/news/article",
+    favicon: "/favicon.png",
+    thumbnail: "/images/og-image.jpg",
     onClose: () => {},
   },
 };

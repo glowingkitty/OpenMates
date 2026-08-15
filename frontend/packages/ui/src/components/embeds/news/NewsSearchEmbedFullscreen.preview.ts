@@ -11,7 +11,8 @@ const sampleResults = [
     url: "https://techcrunch.com/2026/ai-advances",
     description:
       "New AI-powered development tools are changing how developers write, test, and deploy software.",
-    favicon: "",
+    favicon: "/favicon.png",
+    thumbnail: { original: "/images/og-image.jpg" },
     publishedAt: "2026-02-15T08:00:00Z",
   },
   {
@@ -19,7 +20,8 @@ const sampleResults = [
     url: "https://theverge.com/2026/wasm-3",
     description:
       "The W3C has finalized the WebAssembly 3.0 specification, bringing garbage collection and improved threading.",
-    favicon: "",
+    favicon: "/favicon.png",
+    thumbnail: { original: "/images/og-image.jpg" },
     publishedAt: "2026-02-10T12:00:00Z",
   },
   {
@@ -27,7 +29,8 @@ const sampleResults = [
     url: "https://bbc.com/news/eu-vc",
     description:
       "European startups raised a record €45 billion in venture capital funding in Q4 2025.",
-    favicon: "",
+    favicon: "/favicon.png",
+    thumbnail: { original: "/images/og-image.jpg" },
     publishedAt: "2026-01-28T09:00:00Z",
   },
 ];
