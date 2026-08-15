@@ -54,6 +54,71 @@ def test_finalize_removes_fully_integrated_worktree_before_session(monkeypatch, 
     assert "abcd" not in json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]
 
 
+def test_finalize_preserves_worktree_owned_by_docker_restart(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    metadata = {
+        "path": str(tmp_path / "agent-abcd"),
+        "base_commit": "base",
+        "status": "merged",
+        "merged_commit": "commit",
+    }
+    sessions_file.write_text(
+        json.dumps({
+            "sessions": {"abcd": {"worktree": metadata}},
+            "deploy_queue": [],
+            "locks": {
+                "docker_rebuild": {
+                    "status": "IN_PROGRESS",
+                    "claimed_by": "abcd",
+                    "last_updated": "2026-08-15T19:00:00+00:00",
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _timestamp: 0)
+    removed = []
+    monkeypatch.setattr(sessions, "_remove_git_worktree", lambda _metadata: removed.append(True))
+
+    with pytest.raises(RuntimeError, match="in use by a Docker restart"):
+        sessions.finalize_session_worktree("abcd")
+
+    assert removed == []
+    assert "abcd" in json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]
+
+
+def test_finalize_ignores_expired_docker_restart_lock(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    metadata = {"path": str(tmp_path / "agent-abcd"), "base_commit": "base", "status": "active"}
+    sessions_file.write_text(
+        json.dumps({
+            "sessions": {"abcd": {"modified_files": [], "worktree": metadata}},
+            "deploy_queue": [],
+            "locks": {
+                "docker_rebuild": {
+                    "status": "IN_PROGRESS",
+                    "claimed_by": "abcd",
+                    "last_updated": "2026-08-15T18:00:00+00:00",
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _timestamp: sessions.STALE_LOCK_MINUTES + 1)
+    monkeypatch.setattr(sessions, "_worktree_pending_files", lambda _session: [])
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _cwd: "base")
+    removed = []
+    monkeypatch.setattr(sessions, "_remove_git_worktree", lambda _metadata: removed.append(True))
+
+    sessions.finalize_session_worktree("abcd")
+
+    assert removed == [True]
+
+
 def test_finalize_blocks_residual_changes_and_preserves_metadata(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"

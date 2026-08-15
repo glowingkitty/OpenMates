@@ -4277,6 +4277,10 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
         if not isinstance(metadata, dict) or not metadata.get("path"):
             data.setdefault("sessions", {}).pop(session_id, None)
             return "removed"
+        docker_lock = data.get("locks", {}).get("docker_rebuild", {})
+        if _is_lock_active(docker_lock, "docker_rebuild") and docker_lock.get("claimed_by") == session_id:
+            metadata["last_active"] = _now_iso()
+            return "docker_busy"
         live_lease = any(
             isinstance(lease, dict) and lease.get("session_id") == session_id
             for lease in data.get("edit_leases", {}).values()
@@ -4317,6 +4321,8 @@ def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev"
         return "removed"
 
     result = _mutate_sessions(finalize)
+    if result == "docker_busy":
+        raise RuntimeError(f"Session {session_id} worktree is in use by a Docker restart")
     if result == "pending":
         raise RuntimeError(f"Session {session_id} worktree has residual or unintegrated changes")
 
@@ -8753,17 +8759,19 @@ def _read_env_values(path: Path) -> dict[str, str]:
     return values
 
 
-def _docker_compose_command(*args: str) -> list[str]:
+def _docker_compose_command(*args: str, checkout_root: Path = CONTROL_PLANE_ROOT) -> list[str]:
+    compose_file = checkout_root / DOCKER_COMPOSE_FILE.relative_to(CONTROL_PLANE_ROOT)
+    compose_override = checkout_root / DOCKER_COMPOSE_OVERRIDE.relative_to(CONTROL_PLANE_ROOT)
     command = [
         "docker",
         "compose",
         "--env-file",
         str(ENV_FILE),
         "-f",
-        str(DOCKER_COMPOSE_FILE),
+        str(compose_file),
     ]
-    if DOCKER_COMPOSE_OVERRIDE.is_file():
-        command.extend(["-f", str(DOCKER_COMPOSE_OVERRIDE)])
+    if compose_override.is_file():
+        command.extend(["-f", str(compose_override)])
     runtime_env = _read_env_values(ENV_FILE)
     if runtime_env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud":
         configured_overlay_path = runtime_env.get("OPENMATES_CLOUD_OVERLAY_PATH")
@@ -8783,20 +8791,33 @@ def _docker_compose_command(*args: str) -> list[str]:
     return [*command, *args]
 
 
-def available_docker_services() -> set[str]:
+def available_docker_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[str]:
     rc, stdout, stderr = _run_cmd(
-        _docker_compose_command("config", "--services"),
-        cwd=str(CONTROL_PLANE_ROOT),
+        _docker_compose_command("config", "--services", checkout_root=checkout_root),
+        cwd=str(checkout_root),
     )
     if rc != 0:
         raise RuntimeError(f"Could not read Docker Compose services: {stderr or stdout}")
     return {line.strip() for line in stdout.splitlines() if line.strip()} - DOCKER_NON_RESTARTABLE_SERVICES
 
 
-def _docker_service_state(service: str) -> dict:
+def _docker_checkout_root(session_id: str) -> Path:
+    session = _load_sessions().get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        raise RuntimeError(f"Docker restart session not found: {session_id}")
+    worktree = session.get("worktree")
+    if not isinstance(worktree, dict) or worktree.get("status") not in {"active", "changes_pending"}:
+        raise RuntimeError(f"Docker restart requires an active session worktree: {session_id}")
+    checkout_root = _validate_managed_worktree_path(str(worktree.get("path") or ""))
+    if not checkout_root.is_dir():
+        raise RuntimeError(f"Docker restart worktree is missing: {checkout_root}")
+    return checkout_root
+
+
+def _docker_service_state(service: str, checkout_root: Path = CONTROL_PLANE_ROOT) -> dict:
     rc, container_id, stderr = _run_cmd(
-        _docker_compose_command("ps", "-q", service),
-        cwd=str(CONTROL_PLANE_ROOT),
+        _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+        cwd=str(checkout_root),
     )
     container_id = container_id.strip()
     if rc != 0 or not container_id:
@@ -8835,13 +8856,14 @@ def wait_for_docker_services_healthy(
     *,
     timeout: int,
     poll: int,
+    checkout_root: Path = CONTROL_PLANE_ROOT,
     heartbeat=None,
 ) -> dict:
     deadline = time.time() + max(0, timeout)
     poll = max(1, poll)
     states = {}
     while True:
-        states = {service: _docker_service_state(service) for service in services}
+        states = {service: _docker_service_state(service, checkout_root) for service in services}
         if all(
             state.get("running") and state.get("health") in {"healthy", "none"}
             for state in states.values()
@@ -8892,7 +8914,8 @@ def _run_cmd_with_heartbeat(
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
     services = sorted(set(args.service))
-    available = available_docker_services()
+    checkout_root = _docker_checkout_root(args.session)
+    available = available_docker_services(checkout_root)
     invalid = sorted(set(services) - available)
     if invalid:
         raise RuntimeError(
@@ -8923,6 +8946,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
+        if _docker_checkout_root(args.session) != checkout_root:
+            raise RuntimeError("Docker restart session worktree changed while waiting for the lock")
         update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
         _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
         compose_args = (
@@ -8931,8 +8956,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             else ["restart", *services]
         )
         rc, stdout, stderr = _run_cmd_with_heartbeat(
-            _docker_compose_command(*compose_args),
-            cwd=str(CONTROL_PLANE_ROOT),
+            _docker_compose_command(*compose_args, checkout_root=checkout_root),
+            cwd=str(checkout_root),
             timeout=max(120, args.timeout),
             heartbeat=lambda: (
                 _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
@@ -8947,6 +8972,7 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             services,
             timeout=args.health_timeout,
             poll=args.poll,
+            checkout_root=checkout_root,
             heartbeat=lambda: (
                 _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
                 update_docker_operation(operation["id"], "verifying"),

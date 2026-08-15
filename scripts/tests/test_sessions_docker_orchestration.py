@@ -20,6 +20,8 @@ import pytest
 
 from scripts import sessions
 
+# contract-test-file: tooling
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -70,6 +72,108 @@ def test_official_cloud_docker_command_includes_overlay(monkeypatch, tmp_path):
     command = sessions._docker_compose_command("restart", "api")
 
     assert command[-4:] == ["-f", str(overlay_file), "restart", "api"]
+
+
+def test_docker_command_uses_session_worktree_compose_files(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    compose_file = checkout_root / "backend" / "core" / "docker-compose.yml"
+    override_file = checkout_root / "backend" / "core" / "docker-compose.override.yml"
+    compose_file.parent.mkdir(parents=True)
+    compose_file.write_text("services: {}\n", encoding="utf-8")
+    override_file.write_text("services: {}\n", encoding="utf-8")
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENMATES_DEPLOYMENT_MODE=self_host\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+
+    command = sessions._docker_compose_command("config", "--services", checkout_root=checkout_root)
+
+    assert command == [
+        "docker",
+        "compose",
+        "--env-file",
+        str(env_file),
+        "-f",
+        str(compose_file),
+        "-f",
+        str(override_file),
+        "config",
+        "--services",
+    ]
+
+
+def test_restart_command_routes_all_compose_operations_through_worktree(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {"sessions": {"abcd": {"worktree": {"path": str(checkout_root), "status": "active"}}}},
+    )
+    monkeypatch.setattr(sessions, "_validate_managed_worktree_path", lambda path: Path(path))
+    roots = []
+    monkeypatch.setattr(sessions, "available_docker_services", lambda root: roots.append(("available", root)) or {"api"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **kwargs: {"id": operation_id, "status": status, **kwargs})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd_with_heartbeat",
+        lambda command, *, cwd, **_kwargs: roots.append(("restart", Path(cwd), command)) or (0, "", ""),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "wait_for_docker_services_healthy",
+        lambda _services, *, checkout_root, **_kwargs: roots.append(("health", checkout_root)) or {"api": {"running": True}},
+    )
+    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=True)
+
+    sessions.cmd_docker_restart(args)
+
+    assert roots == [
+        ("available", checkout_root),
+        ("restart", checkout_root, [str(checkout_root), "up", "-d", "--build", "api"]),
+        ("health", checkout_root),
+    ]
+
+
+def test_docker_checkout_root_rejects_unknown_session(monkeypatch) -> None:
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+
+    with pytest.raises(RuntimeError, match="session not found"):
+        sessions._docker_checkout_root("missing")
+
+
+def test_restart_stops_if_worktree_disappears_while_waiting(monkeypatch, tmp_path) -> None:
+    roots = iter([tmp_path, RuntimeError("Docker restart worktree is missing")])
+
+    def checkout_root(_session_id):
+        result = next(roots)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(sessions, "_docker_checkout_root", checkout_root)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    released = []
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **kwargs: released.append(kwargs["released_by"]) or True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **kwargs: {"id": operation_id, "status": status, **kwargs})
+    compose_calls = []
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda *_args, **_kwargs: compose_calls.append(True))
+    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=True)
+
+    with pytest.raises(RuntimeError, match="worktree is missing"):
+        sessions.cmd_docker_restart(args)
+
+    assert compose_calls == []
+    assert released == ["abcd"]
 
 
 def test_official_cloud_docker_command_fails_closed_without_overlay(monkeypatch, tmp_path):
@@ -215,7 +319,8 @@ def test_lock_release_requires_current_owner(monkeypatch, tmp_path):
 
 def test_restart_command_records_failure_and_releases_lock(monkeypatch, tmp_path):
     configure_state(monkeypatch, tmp_path)
-    monkeypatch.setattr(sessions, "available_docker_services", lambda: {"api"})
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: tmp_path)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _checkout_root: {"api"})
     monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
     released = []
