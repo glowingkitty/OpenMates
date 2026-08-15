@@ -224,6 +224,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         device_profile="web-phone",
         playback_rate=0.75,
         hold_last_frame_seconds=2.0,
+        ready_timestamp_seconds=4.2,
         demo_audio_path=tmp_path / "product-audio.mp3",
         spec_name="signup-flow-passkey.spec.ts",
         contract_path=contract_path,
@@ -259,6 +260,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     ).hexdigest()
     assert observed["playback_rate"] == 0.75
     assert observed["hold_last_frame_seconds"] == 2.0
+    assert observed["ready_timestamp_seconds"] == 4.2
     assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
 
 

@@ -7635,6 +7635,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             device_profile_name=args.device_profile,
             playback_rate=args.playback_rate,
             hold_last_frame_seconds=args.hold_last_frame_seconds,
+            ready_timestamp_seconds=getattr(args, "ready_timestamp_seconds", None),
             demo_audio_path=args.demo_audio_path,
         )
         record = _upsert_proof_video_record(session, run_dir, result)
@@ -13628,6 +13629,11 @@ def main() -> None:
         type=float,
         default=0.0,
         help="Clone the final frame for a readable end-state hold before review.",
+    )
+    p_proof_playwright.add_argument(
+        "--ready-timestamp-seconds",
+        type=float,
+        help="Trim the Playwright recording from this explicit capture-ready timestamp minus the fixed lead.",
     )
     p_proof_playwright.add_argument(
         "--demo-audio-path",

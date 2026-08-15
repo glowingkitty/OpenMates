@@ -1353,11 +1353,22 @@ def produce_playwright_demonstration(
     device_profile_name: str | None = None,
     playback_rate: float = 1.0,
     hold_last_frame_seconds: float = 0.0,
+    ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
-    source_metadata = video_metadata(source_video)
+    render_source_video = source_video
+    trim_metadata: dict[str, Any] = {}
+    if ready_timestamp_seconds is not None:
+        run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        render_source_video = run_dir / "source-ready-trimmed.mp4"
+        trim_metadata = trim_source_to_ready_marker(
+            source_video,
+            render_source_video,
+            ready_timestamp_seconds=ready_timestamp_seconds,
+        )
+    source_metadata = video_metadata(render_source_video)
     device_profile = resolve_device_profile(device_profile_name)
     if device_profile is None:
         raise DemonstrationError("Playwright proof videos require --device-profile")
@@ -1395,7 +1406,7 @@ def produce_playwright_demonstration(
     )
     video_path = run_dir / "demo.mp4"
     render_clean_video(
-        source_video,
+        render_source_video,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
         playback_rate=playback_rate,
@@ -1423,6 +1434,7 @@ def produce_playwright_demonstration(
         render_metadata={
             "playback_rate": playback_rate,
             "hold_last_frame_seconds": hold_last_frame_seconds,
+            **trim_metadata,
             "demo_audio_mixed": demo_audio_path is not None,
         },
         scene_times=scene_times,

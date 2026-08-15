@@ -31,7 +31,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
 const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'sample.png');
 const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
-const PROOF_FRAME_HOLD_MS = 1_500;
+const PROOF_FRAME_HOLD_MS = 5_500;
 
 const consoleLogs: string[] = [];
 
@@ -402,12 +402,16 @@ async function waitForFinishedPdfEmbed(
 	throw new Error(`Timed out waiting for finished uploaded PDF embed: ${lastSummary}`);
 }
 
-async function holdVisibleProofFrames(page: any, targets: any[]): Promise<void> {
+async function holdVisibleProofFrames(page: any): Promise<void> {
 	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
 	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
-	for (const target of targets) {
-		await target.scrollIntoViewIfNeeded();
+	const nextEmbedButton = page.getByLabel('Next embed').first();
+	for (let index = 0; index < 3; index += 1) {
 		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
+		if (index < 2) {
+			await nextEmbedButton.click();
+			await page.waitForTimeout(750);
+		}
 	}
 }
 
@@ -494,6 +498,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		logCheckpoint('Generated share URL.');
 
 		proofContext = await browser.newContext({
+			permissions: ['microphone'],
 			viewport: { width: 390, height: 844 },
 			recordVideo: {
 				dir: testInfo.outputPath('shared-chat-embed-assets-proof-video'),
@@ -544,7 +549,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(sharedPage.getByTestId('recording-preview-waveform').first()).toBeVisible({
 			timeout: 60_000
 		});
-		await holdVisibleProofFrames(sharedPage, [imageEmbed, pdfEmbed, audioEmbed]);
+		await holdVisibleProofFrames(sharedPage);
 
 		await expect
 			.poll(() => presignedResponses.length, { timeout: 60_000 })
