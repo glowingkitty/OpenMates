@@ -1122,34 +1122,24 @@ test.describe('Landing page onboarding refresh', () => {
 			window.setTimeout(() => observer.disconnect(), fadeSettleMs * 2);
 		}, MOBILE_SLIDE_FADE_SETTLE_MS);
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'fading-out');
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-actionable-events');
-		await expect.poll(
-			async () => page.getByTestId('guest-slide-content').evaluate((content: HTMLElement) => Number.parseFloat(getComputedStyle(content).opacity)),
-			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
-		).toBeLessThanOrEqual(0.05);
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle');
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 		await expect.poll(
 			async () => page.getByTestId('guest-slide-content').evaluate((content: HTMLElement) => Number.parseFloat(getComputedStyle(content).opacity)),
 			{ timeout: MOBILE_SLIDE_FADE_SETTLE_MS }
 		).toBeGreaterThanOrEqual(0.95);
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle');
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 		const transitionSamples = await page.evaluate(() => (
 			(window as typeof window & {
 				__guestSlideTransitionSamples?: Array<{ phase: string; inspirationId: string; opacity: number }>;
 			}).__guestSlideTransitionSamples ?? []
 		));
-		expect(transitionSamples.some((sample) => sample.phase === 'hidden'), 'slide transition should include an explicit hidden phase').toBe(true);
 		expect(
-			transitionSamples.some((sample) => sample.inspirationId === 'openmates-privacy-safety' && sample.opacity <= 0.05),
-			'new slide content must be swapped only while the previous content is fully transparent'
+			transitionSamples.every((sample) => sample.opacity >= 0.95),
+			'guest slide navigation must not show a blank or faint transition frame'
 		).toBe(true);
 
 		await page.getByTestId('daily-inspiration-previous').click();
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'fading-out');
-		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle', {
-			timeout: MOBILE_SLIDE_FADE_SETTLE_MS
-		});
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-guest-slide-phase', 'idle');
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-actionable-events');
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 2000 });

@@ -81,7 +81,6 @@
   const LANDING_INTRO_CONTENT_FADE_MS = 360;
   const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
-  const GUEST_SLIDE_CONTENT_FADE_MS = 320;
   const HEADING_ENTRY_PAINT_DELAY_MS = 80;
   const SIGNUP_BENEFITS_HOLD_MS = 2800;
   const SIGNUP_STAGE_TRANSITION_MS = 420;
@@ -194,7 +193,6 @@
   let introHeadingMotionPhase = $state<LandingHeadingMotionPhase>('entering');
   let guestSlidePhase = $state<GuestSlidePhase>('idle');
   let signupSlidePhase = $state<SignupSlidePhase>('idle');
-  let pendingGuestSlideIndex = $state<number | null>(null);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
@@ -228,8 +226,6 @@
   let guestProductHeadingStartTimeout: number | undefined;
   let guestProductHeadingFallbackTimeout: number | undefined;
   let guestProductHeadingReadyTimeout: number | undefined;
-  let guestSlideTransitionTimeout: number | undefined;
-  let guestSlideTransitionAnimationFrame: number | undefined;
   let signupStageTimeout: number | undefined;
   let signupStageTransitionTimeout: number | undefined;
   let signupStageAnimationFrame: number | undefined;
@@ -321,8 +317,6 @@
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
-    window.clearTimeout(guestSlideTransitionTimeout);
-    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
     window.clearTimeout(signupStageTimeout);
     window.clearTimeout(signupStageTransitionTimeout);
     window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
@@ -467,7 +461,7 @@
     showMobileCard = false;
     actionableMobileHeadingReady = false;
     actionableMobileHeadingPhase = 'large';
-    guestHeadingMotionPhase = 'entering';
+    guestHeadingMotionPhase = 'visible';
 
     if (isGuestIntroVariant) {
       if (prefersReducedMotion) {
@@ -1461,32 +1455,11 @@
 
   function startGuestSlideTransition(resolvedIndex: number): void {
     if (guestSlidePhase !== 'idle') return;
-    pendingGuestSlideIndex = resolvedIndex;
-    guestSlidePhase = 'fading-out';
-    guestHeadingMotionPhase = 'exiting';
-    const fadeDurationMs = prefersReducedMotion ? 0 : GUEST_SLIDE_CONTENT_FADE_MS;
-    guestSlideTransitionTimeout = window.setTimeout(() => {
-      if (pendingGuestSlideIndex === null) return;
-      guestSlidePhase = 'hidden';
-      goToVisibleIndex(pendingGuestSlideIndex);
-      pendingGuestSlideIndex = null;
-      guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
-        guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
-          guestSlidePhase = 'fading-in';
-          guestSlideTransitionTimeout = window.setTimeout(() => {
-            guestSlidePhase = 'idle';
-          }, fadeDurationMs);
-        });
-      });
-    }, fadeDurationMs);
+    goToVisibleIndex(resolvedIndex);
+    guestHeadingMotionPhase = 'visible';
   }
 
   function cancelGuestSlideTransition(): void {
-    window.clearTimeout(guestSlideTransitionTimeout);
-    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
-    guestSlideTransitionTimeout = undefined;
-    guestSlideTransitionAnimationFrame = undefined;
-    pendingGuestSlideIndex = null;
     guestSlidePhase = 'idle';
     guestHeadingMotionPhase = 'visible';
   }
@@ -1655,14 +1628,11 @@
           class:guest-actionable-slide={isGuestActionableSlide}
           class:actionable-heading-fading-out={actionableMobileHeadingPhase === 'fading-out'}
           class:actionable-heading-hidden={actionableMobileHeadingPhase === 'hidden'}
-          class:guest-slide-fading-out={guestSlidePhase === 'fading-out'}
-          class:guest-slide-hidden={guestSlidePhase === 'hidden'}
-          class:guest-slide-fading-in={guestSlidePhase === 'fading-in'}
           data-actionable-heading-phase={isGuestActionableSlide ? actionableMobileHeadingPhase : undefined}
           data-guest-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-mobile-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-testid="guest-slide-content"
-          style={`--actionable-mobile-heading-fade-out: ${PRODUCT_STORY_HEADING_FADE_OUT_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
+          style={`--actionable-mobile-heading-fade-out: ${PRODUCT_STORY_HEADING_FADE_OUT_MS}ms`}
         >
 
           {#if isGuestIntroVariant}
@@ -2010,20 +1980,6 @@
         </div>
       </div><!-- /.banner-inner -->
 
-      {#if isGuestIntroVariant && !landingIntroOverlayActive && guestSlidePhase !== 'idle'}
-        <div class="guest-transition-ghost" aria-hidden="true">
-          <div class="guest-intro-ai-icon guest-transition-ghost-icon"></div>
-          <div class="guest-transition-ghost-copy">
-            {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
-              <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
-              <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
-            {:else}
-              <span>{current.phrase}</span>
-            {/if}
-          </div>
-        </div>
-      {/if}
-
       <div class="mounted-slide-sentinels" aria-hidden="true">
         {#each reachableSlideIndexes as slideIndex (slideIndex)}
           <span
@@ -2276,21 +2232,6 @@
     min-height: 0;
   }
 
-  .banner-content.guest-slide-fading-out {
-    opacity: 0;
-    transition: opacity var(--guest-slide-content-fade) ease;
-  }
-
-  .banner-content.guest-slide-hidden {
-    opacity: 0;
-    transition: none;
-  }
-
-  .banner-content.guest-slide-fading-in {
-    opacity: 1;
-    transition: opacity var(--guest-slide-content-fade) ease;
-  }
-
   .guest-intro-variant .banner-content {
     position: relative;
     flex-direction: column;
@@ -2300,42 +2241,6 @@
     width: 100%;
     transform: translateZ(0);
     contain: layout;
-  }
-
-  .guest-transition-ghost {
-    position: absolute;
-    inset: 0;
-    z-index: calc(var(--z-index-dropdown-1) + 1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(8px, 1vw, 14px);
-    padding: clamp(18px, 2.5vw, 32px) 48px;
-    box-sizing: border-box;
-    pointer-events: none;
-    color: rgba(255, 255, 255, 0.96);
-    text-align: center;
-  }
-
-  .guest-transition-ghost-icon {
-    width: clamp(36px, 3.6vw, 60px);
-    height: clamp(36px, 3.6vw, 60px);
-    margin-bottom: 0;
-    opacity: 0.92;
-    filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.2));
-  }
-
-  .guest-transition-ghost-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: min(100% - 48px, 760px);
-    font-size: clamp(2rem, 4vw, 4.75rem);
-    line-height: 1.05;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    text-shadow: 0 8px 38px rgba(0, 0, 0, 0.22);
   }
 
   .landing-intro-expanded .banner-inner {
@@ -4026,8 +3931,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .banner-content.guest-slide-fading-out,
-    .banner-content.guest-slide-fading-in,
     .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy {
       transition-duration: 1ms !important;
     }

@@ -6621,13 +6621,13 @@ assertions:
       surface: gui.web
     - &id748
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1163
+      line: 1153
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
     - &id749
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1441
+      line: 1431
       name: guest example chat follow-up input matches the adjacent new-chat CTA height
       surface: gui.web
     tests:
@@ -6680,13 +6680,13 @@ assertions:
       surface: gui.web
     - &id754
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1335
+      line: 1325
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id753
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1163
+      line: 1153
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
@@ -6901,7 +6901,7 @@ assertions:
       surface: gui.web
     - &id780
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1335
+      line: 1325
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
@@ -7069,7 +7069,7 @@ assertions:
       surface: gui.web
     - &id794
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1335
+      line: 1325
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests: []
