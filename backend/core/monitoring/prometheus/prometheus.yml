@@ -61,6 +61,7 @@ scrape_configs:
   #   task-worker:        9101
   #   user-init-worker:   9110
   #   core-worker:        9109
+  #   user-tasks-worker:  9112
   #   reminder-worker:    9111
   #   app-ai-worker:      9102
   #   app-images-worker:  9103
@@ -78,6 +79,11 @@ scrape_configs:
   - job_name: "celery-core-worker"
     static_configs:
       - targets: ["core-worker:9109"]
+        labels: {environment: "${SERVER_ENVIRONMENT}"}
+
+  - job_name: "celery-user-tasks-worker"
+    static_configs:
+      - targets: ["user-tasks-worker:9112"]
         labels: {environment: "${SERVER_ENVIRONMENT}"}
 
   - job_name: "celery-reminder-worker"

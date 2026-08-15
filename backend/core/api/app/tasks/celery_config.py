@@ -174,7 +174,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
     {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
-    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
+    {'name': 'user_tasks', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
@@ -1000,6 +1000,8 @@ task_routes = {
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
     "operational_monitoring.send_digest": {'queue': 'email'},
+    "user_tasks.process_due_ai_tasks": {'queue': 'user_tasks'},
+    "user_tasks.archive_completed_tasks": {'queue': 'persistence'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1054,6 +1056,8 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     "runtime_health.worker_probe": "app_ai",
     "runtime_health.scheduler_heartbeat": "health_check",
+    "user_tasks.process_due_ai_tasks": "user_tasks",
+    "user_tasks.archive_completed_tasks": "persistence",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
@@ -1318,7 +1322,7 @@ app.conf.beat_schedule = {
     'process-due-ai-user-tasks': {
         'task': 'user_tasks.process_due_ai_tasks',
         'schedule': timedelta(seconds=60),
-        'options': {'queue': 'persistence'},
+        'options': {'queue': 'user_tasks'},
     },
     'archive-completed-user-tasks-daily': {
         'task': 'user_tasks.archive_completed_tasks',

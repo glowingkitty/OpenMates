@@ -235,6 +235,7 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
         "task-worker",
         "user-init-worker",
         "core-worker",
+        "user-tasks-worker",
         "reminder-worker",
         "task-scheduler",
         "app-ai-worker",

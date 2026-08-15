@@ -28,6 +28,7 @@ CORE_SERVICES = (
     "task-worker",
     "user-init-worker",
     "core-worker",
+    "user-tasks-worker",
     "reminder-worker",
     "task-scheduler",
     "app-ai-worker",

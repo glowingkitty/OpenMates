@@ -221,6 +221,19 @@ services:
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
+  user-tasks-worker:
+    <<: *openmates-worker-base
+    container_name: user-tasks-worker
+    mem_limit: "${USER_TASKS_WORKER_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "user_tasks"
+      CELERY_AUTOSCALE_MAX: "${USER_TASKS_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9112"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_tasks --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
   reminder-worker:
     <<: *openmates-worker-base
     container_name: reminder-worker

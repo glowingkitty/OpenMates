@@ -19,6 +19,7 @@ EMAIL_QUEUE = "email"
 USER_INIT_QUEUE = "user_init"
 REMINDER_QUEUE = "reminder"
 CORE_TASK_QUEUES = "persistence,health_check,server_stats,demo,e2e_tests,push"
+USER_TASK_QUEUE = "user_tasks"
 COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.yml",
     ROOT / "backend/core/docker-compose.selfhost.yml",
@@ -57,6 +58,14 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         if compose_path == COMPOSE_FILES[0]:
             assert core_worker["extends"] == {"service": "task-worker"}, compose_path
 
+        user_tasks_worker = compose["services"].get("user-tasks-worker")
+        assert user_tasks_worker is not None, compose_path
+        assert user_tasks_worker["environment"]["CELERY_QUEUES"] == USER_TASK_QUEUE, compose_path
+        assert f"--queues={USER_TASK_QUEUE} " in user_tasks_worker["command"], compose_path
+        assert user_tasks_worker["environment"]["CELERY_METRICS_PORT"] == "9112", compose_path
+        if compose_path == COMPOSE_FILES[0]:
+            assert user_tasks_worker["extends"] == {"service": "task-worker"}, compose_path
+
         reminder_worker = compose["services"].get("reminder-worker")
         assert reminder_worker is not None, compose_path
         assert reminder_worker["environment"]["CELERY_QUEUES"] == REMINDER_QUEUE, compose_path
@@ -82,10 +91,11 @@ def test_api_image_packages_worker_and_billing_translation_runtime() -> None:
 
 
 def test_core_worker_is_in_every_runtime_control_plane() -> None:
-    for service in ('"core-worker"', '"user-init-worker"', '"reminder-worker"'):
+    for service in ('"core-worker"', '"user-init-worker"', '"user-tasks-worker"', '"reminder-worker"'):
         assert service in RELEASE_PREPARATION.read_text(encoding="utf-8")
         assert service in CLI_SERVER_PLANNING.read_text(encoding="utf-8")
         assert service in CLOUD_BOOT_SMOKE.read_text(encoding="utf-8")
     assert '"core-worker:9109"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
     assert '"user-init-worker:9110"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
+    assert '"user-tasks-worker:9112"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
     assert '"reminder-worker:9111"' in PROMETHEUS_CONFIG.read_text(encoding="utf-8")
