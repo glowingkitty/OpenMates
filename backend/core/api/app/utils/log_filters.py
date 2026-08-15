@@ -179,5 +179,10 @@ class SensitiveDataFilter(logging.Filter):
                         value = pattern.sub(self.replacements[pattern_name], value)
             else:
                 value = self._redact_sensitive_data(value)
+        else:
+            rendered = str(value)
+            redacted = self._redact_sensitive_data(rendered)
+            if redacted != rendered:
+                return redacted
         
         return value

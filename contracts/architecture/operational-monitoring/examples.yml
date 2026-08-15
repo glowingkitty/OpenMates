@@ -10,10 +10,17 @@ daily_snapshots:
     expect:
       graph_series: [cpu, memory, disk_used, disk_free]
       activity_counts: [chats, messages, embeds, usage_entries]
-      processing_outcomes: [started, completed, failed, stuck]
-      billing: official_cloud_dev_status
+      processing_scope: ai_response_recovery_jobs
+      processing_outcomes: [created, completed, invalidated, non_terminal_over_15m]
+      billing:
+        rolling_24h: [purchase_count, credits_sold, usage_committed, usage_failed]
+        purchase_source: privacy_safe_durable_settlement_ledger
+        current_open_issues: [bank_review, failed_refunds, chargebacks, incomplete_settlements]
       maximum_prioritized_issues: 3
       source_data: real_observed_data
+  - id: incomplete-purchase-settlement-is-not-exact
+    given: {environment: development, unresolved_purchase_settlements: 1}
+    expect: {billing_status: unavailable, exact_totals_claimed: false}
   - id: compact-production-last-24-hours
     given: {environment: production, observed_window: 24h}
     expect:

@@ -28,19 +28,11 @@ class ServerStatsService:
         'income_eur_cents', 'credits_sold', 'credits_used', 'messages_sent', 
         'chats_created', 'embeds_created'.
         """
-        if not day:
-            day = date.today().isoformat()
-        
-        key = f"{STATS_DAILY_KEY_PREFIX}{day}"
-        client = await self.cache.client
-        if client:
-            try:
-                await client.hincrby(key, field, amount)
-                # Ensure the hash has a TTL so it doesn't live forever in Redis
-                # 2 days is enough since it will be flushed to Directus
-                await client.expire(key, 172800) 
-            except Exception as e:
-                logger.error(f"Failed to increment stat {field} in Redis: {e}")
+        await self.cache.increment_stat(field, amount, day)
+
+    async def record_credit_purchase(self, credits_sold: int, day: Optional[str] = None) -> None:
+        """Atomically update daily and rolling purchase aggregates."""
+        await self.cache.record_credit_purchase(credits_sold, day)
 
     async def increment_json_stat(self, prefix: str, sub_key: str, amount: int = 1, day: Optional[str] = None):
         """

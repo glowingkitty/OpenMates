@@ -20,6 +20,11 @@ from typing import Any, Iterable, Mapping
 
 import httpx
 
+from backend.core.api.app.services.purchase_settlement_ledger import (
+    PURCHASE_SETTLEMENT_COLLECTION,
+    ensure_purchase_ledger_watermark,
+)
+
 
 VALID_ENVIRONMENTS = {"development", "production", "self_host"}
 VALID_DELIVERY_CHANNELS = {"email", "discord"}
@@ -31,14 +36,18 @@ FORBIDDEN_PRIVATE_FIELD_FRAGMENTS = {
 }
 RESOURCE_KEYS = {"cpu_percent", "memory_percent", "disk_used_percent", "disk_free_bytes"}
 ACTIVITY_KEYS = {"chats", "messages", "embeds", "usage_entries"}
-PROCESSING_KEYS = {"started", "completed", "failed", "stuck"}
+PROCESSING_KEYS = {"created", "completed", "invalidated", "non_terminal_over_15m"}
 FRESHNESS_KEYS = {"resource_metrics", "application_metrics", "report_scheduler"}
-BILLING_KEYS = {"status", "started", "completed", "failed"}
+BILLING_KEYS = {
+    "status", "purchase_count", "credits_sold", "usage_committed", "usage_failed",
+    "bank_review", "refund_failed", "chargebacks", "incomplete_settlements", "purchase_window_complete",
+    "purchase_window_label",
+}
 ISSUE_KEYS = {"fingerprint", "severity", "active", "count", "last_seen"}
 SELF_HOST_FORBIDDEN_TERMS = ("billing", "payment", "stripe", "invoice", "subscription", "purchase")
 SEVERITY_ORDER = {"critical": 3, "warning": 2, "digest": 1}
 REPORT_WIDTH = 1200
-REPORT_HEIGHT = 680
+REPORT_HEIGHT = 800
 MAX_GRAPH_POINTS = 96
 MAX_ISSUES = 3
 DELIVERY_MAX_ATTEMPTS = 3
@@ -157,7 +166,19 @@ def build_operational_snapshot(
         "prioritized_issues": rank_prioritized_issues(issues),
     }
     if environment != "self_host":
-        snapshot["billing"] = billing or {"status": "unavailable", "started": 0, "completed": 0, "failed": 0}
+        snapshot["billing"] = billing or {
+            "status": "unavailable",
+            "purchase_count": 0,
+            "credits_sold": 0,
+            "usage_committed": 0,
+            "usage_failed": 0,
+            "bank_review": 0,
+            "refund_failed": 0,
+            "chargebacks": 0,
+            "incomplete_settlements": 0,
+            "purchase_window_complete": False,
+            "purchase_window_label": "withheld until ledger is complete",
+        }
     _validate_private_fields(snapshot)
     if environment == "self_host":
         serialized = json.dumps(snapshot, sort_keys=True).lower()
@@ -233,22 +254,25 @@ def render_operational_report_svg(snapshot: dict[str, Any]) -> str:
     processing = snapshot["processing_transactions"]
     issues = snapshot["prioritized_issues"]
     issue_lines = []
+    issues_y = 704 if environment != "self_host" else 568
     for index, issue in enumerate(issues):
         fingerprint = escape(str(issue.get("fingerprint", "unknown"))[:90])
         issue_lines.append(
-            f'<text x="72" y="{568 + index * 24}" fill="#e7e7ec" font-size="16">'
+            f'<text x="72" y="{issues_y + index * 24}" fill="#e7e7ec" font-size="16">'
             f'{escape(str(issue.get("severity", "digest")).upper())}: {fingerprint} ({int(issue.get("count", 0) or 0)}x)</text>'
         )
     if not issue_lines:
-        issue_lines.append('<text x="72" y="568" fill="#70d69b" font-size="16">No prioritized issues.</text>')
+        issue_lines.append(f'<text x="72" y="{issues_y}" fill="#70d69b" font-size="16">No prioritized issues.</text>')
 
     cloud_only = ""
     if environment != "self_host":
         cloud = snapshot.get("billing") or {}
+        purchase_window_label = escape(str(cloud.get("purchase_window_label", "withheld until ledger is complete")))
         cloud_only = (
-            f'<text x="792" y="462" fill="#aeb0ba" font-size="14">Cloud billing</text>'
-            f'<text x="792" y="488" fill="#ffffff" font-size="20">{escape(str(cloud.get("status", "unavailable")))}</text>'
-            f'<text x="792" y="514" fill="#aeb0ba" font-size="14">Started {int(cloud.get("started", 0) or 0)} · Completed {int(cloud.get("completed", 0) or 0)} · Failed {int(cloud.get("failed", 0) or 0)}</text>'
+            f'<text x="72" y="558" fill="#aeb0ba" font-size="14">Cloud credit purchases · {purchase_window_label}</text>'
+            f'<text x="72" y="586" fill="#ffffff" font-size="18">Purchases {escape(str(cloud.get("purchase_count", "withheld")))} · Credits sold {escape(str(cloud.get("credits_sold", "withheld")))} · Status {escape(str(cloud.get("status", "unavailable")))}</text>'
+            f'<text x="72" y="620" fill="#aeb0ba" font-size="14">Usage charging: {int(cloud.get("usage_committed", 0) or 0)} committed · {int(cloud.get("usage_failed", 0) or 0)} failed</text>'
+            f'<text x="72" y="646" fill="#aeb0ba" font-size="14">Open purchase issues: {int(cloud.get("bank_review", 0) or 0)} bank review · {int(cloud.get("refund_failed", 0) or 0)} failed refunds · {int(cloud.get("chargebacks", 0) or 0)} chargebacks · {int(cloud.get("incomplete_settlements", 0) or 0)} incomplete settlements</text>'
         )
 
     paths = "".join(
@@ -259,7 +283,7 @@ def render_operational_report_svg(snapshot: dict[str, Any]) -> str:
     title = escape(report_subject(environment).replace("Daily operational report", "24-hour operational snapshot"))
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{REPORT_WIDTH}" height="{REPORT_HEIGHT}" viewBox="0 0 {REPORT_WIDTH} {REPORT_HEIGHT}">'
-        '<rect width="1200" height="680" rx="24" fill="#11131a" />'
+        f'<rect width="{REPORT_WIDTH}" height="{REPORT_HEIGHT}" rx="24" fill="#11131a" />'
         f'<text x="72" y="62" fill="#ffffff" font-size="28" font-family="Arial" font-weight="700">{title}</text>'
         f'<text x="72" y="92" fill="#aeb0ba" font-size="14" font-family="Arial">{escape(snapshot["window_start"])} to {escape(snapshot["window_end"])}</text>'
         '<rect x="72" y="128" width="1056" height="210" rx="12" fill="#191c26" />'
@@ -271,10 +295,10 @@ def render_operational_report_svg(snapshot: dict[str, Any]) -> str:
         + f'<text x="72" y="382" fill="#ffffff" font-size="20">CPU {_format_metric(_latest(series, "cpu_percent"))} · Memory {_format_metric(_latest(series, "memory_percent"))} · Disk {_format_metric(_latest(series, "disk_used_percent"))} · Free {_format_bytes(_latest(series, "disk_free_bytes"))}</text>'
         + '<text x="72" y="426" fill="#aeb0ba" font-size="14">Activity</text>'
         + f'<text x="72" y="454" fill="#ffffff" font-size="20">Chats {activity.get("chats", 0)} · Messages {activity.get("messages", 0)} · Embeds {activity.get("embeds", 0)} · Usage {activity.get("usage_entries", 0)}</text>'
-        + '<text x="72" y="492" fill="#aeb0ba" font-size="14">Processing</text>'
-        + f'<text x="72" y="520" fill="#ffffff" font-size="18">Started {processing.get("started", 0)} · Completed {processing.get("completed", 0)} · Failed {processing.get("failed", 0)} · Stuck {processing.get("stuck", 0)}</text>'
+        + '<text x="72" y="492" fill="#aeb0ba" font-size="14">AI response recovery jobs · last 24h</text>'
+        + f'<text x="72" y="520" fill="#ffffff" font-size="18">Created {processing.get("created", 0)} · Completed {processing.get("completed", 0)} · Invalidated {processing.get("invalidated", 0)} · Non-terminal &gt;15m {processing.get("non_terminal_over_15m", 0)}</text>'
         + cloud_only
-        + '<text x="72" y="548" fill="#aeb0ba" font-size="14">Prioritized issues</text>'
+        + f'<text x="72" y="{issues_y - 20}" fill="#aeb0ba" font-size="14">Prioritized issues</text>'
         + "".join(issue_lines)
         + '</svg>'
     )
@@ -311,8 +335,10 @@ def render_operational_report_png(snapshot: dict[str, Any]) -> bytes:
                 draw.line(coordinates, fill=color, width=3)
         draw.text((72, 370), "CPU  Memory  Disk", fill="white")
         draw.text((72, 420), f'Activity: {snapshot["activity_counts"]}', fill="white")
-        draw.text((72, 460), f'Processing: {snapshot["processing_transactions"]}', fill="white")
-        draw.text((72, 520), f'Issues: {len(snapshot["prioritized_issues"])}', fill="#aeb0ba")
+        draw.text((72, 460), f'AI response recovery jobs: {snapshot["processing_transactions"]}', fill="white")
+        if snapshot["environment"] != "self_host":
+            draw.text((72, 500), f'Cloud credit purchases: {snapshot["billing"]}', fill="white")
+        draw.text((72, 680 if snapshot["environment"] != "self_host" else 540), f'Issues: {len(snapshot["prioritized_issues"])}', fill="#aeb0ba")
         output = BytesIO()
         image.save(output, format="PNG", optimize=True)
         return output.getvalue()
@@ -453,9 +479,77 @@ async def _directus_count(
     return int(response.json().get("meta", {}).get("filter_count", 0) or 0)
 
 
+async def _directus_current_count(
+    directus_service: Any,
+    collection: str,
+    *,
+    filters: dict[str, Any],
+) -> int:
+    token = await directus_service.ensure_auth_token(admin_required=True)
+    response = await directus_service._make_api_request(
+        "GET",
+        f"{directus_service.base_url}/items/{collection}",
+        params={"limit": 1, "meta": "filter_count", "filter": json.dumps(filters)},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    response.raise_for_status()
+    return int(response.json().get("meta", {}).get("filter_count", 0) or 0)
+
+
+async def _directus_sum(
+    directus_service: Any,
+    collection: str,
+    *,
+    field: str,
+    filters: dict[str, Any],
+) -> int:
+    rows = await directus_service.get_items(
+        collection,
+        {"limit": -1, "fields": field, "filter": filters},
+        admin_required=True,
+        raise_on_error=True,
+    )
+    return sum(int(row.get(field, 0) or 0) for row in rows)
+
+
+async def _purchase_ledger_totals(
+    directus_service: Any,
+    *,
+    start: datetime,
+    end: datetime,
+) -> tuple[int, int, bool, int]:
+    watermark = await ensure_purchase_ledger_watermark(directus_service, started_at=end)
+    rows = await directus_service.get_items(
+        PURCHASE_SETTLEMENT_COLLECTION,
+        {
+            "limit": -1,
+            "fields": "credits_sold",
+            "filter": {"_and": [
+                {"record_type": {"_eq": "purchase"}},
+                {"state": {"_eq": "completed"}},
+                {"completed_at": {"_gte": start.isoformat()}},
+                {"completed_at": {"_lt": end.isoformat()}},
+            ]},
+        },
+        admin_required=True,
+        raise_on_error=True,
+    )
+    incomplete = await _directus_current_count(
+        directus_service,
+        PURCHASE_SETTLEMENT_COLLECTION,
+        filters={"_and": [
+            {"record_type": {"_eq": "purchase"}},
+            {"state": {"_eq": "pending"}},
+        ]},
+    )
+    watermark_started_at = datetime.fromisoformat(str(watermark["started_at"]).replace("Z", "+00:00"))
+    return len(rows), sum(int(row.get("credits_sold", 0) or 0) for row in rows), watermark_started_at <= start, incomplete
+
+
 async def collect_activity_and_transactions(
     directus_service: Any,
     *,
+    cache_service: Any | None = None,
     environment: str,
     start: datetime,
     end: datetime,
@@ -473,7 +567,7 @@ async def collect_activity_and_transactions(
         for collection in ("chats", "messages", "embeds", "usage")
     ]
     chats, messages, embeds, usage_entries = await asyncio.gather(*activity_requests)
-    processing_started, processing_completed, processing_failed, processing_stuck = await asyncio.gather(
+    processing_created, processing_completed, processing_invalidated, processing_stuck = await asyncio.gather(
         _directus_count(
             directus_service,
             "chat_completion_recovery_jobs",
@@ -488,37 +582,37 @@ async def collect_activity_and_transactions(
             start=start,
             end=end,
         ),
-        _directus_count(
+        _directus_sum(
             directus_service,
-            "chat_completion_recovery_jobs",
-            timestamp_field="invalidated_at",
-            start=start,
-            end=end,
+            "operational_monitoring_events",
+            field="count",
+            filters={"_and": [
+                {"event_type": {"_eq": "recovery_jobs_invalidated"}},
+                {"occurred_at": {"_gte": start.isoformat()}},
+                {"occurred_at": {"_lt": end.isoformat()}},
+            ]},
         ),
-        _directus_count(
+        _directus_current_count(
             directus_service,
             "chat_completion_recovery_jobs",
-            timestamp_field="created_at",
-            start=start,
-            end=end,
-            extra_filter={"_and": [
-                {"state": {"_nin": ["completed", "invalidated"]}},
+            filters={"_and": [
+                {"completed_at": {"_null": True}},
+                {"invalidated_at": {"_null": True}},
                 {"created_at": {"_lt": (end - timedelta(minutes=15)).isoformat()}},
             ]},
         ),
     )
     activity = {"chats": chats, "messages": messages, "embeds": embeds, "usage_entries": usage_entries}
     processing = {
-        "started": processing_started,
+        "created": processing_created,
         "completed": processing_completed,
-        "failed": processing_failed,
-        "stuck": processing_stuck,
+        "invalidated": processing_invalidated,
+        "non_terminal_over_15m": processing_stuck,
     }
 
     cloud = None
     if environment != "self_host":
-        started, completed, billing_failed = await asyncio.gather(
-            _directus_count(directus_service, "billing_charge_identities", timestamp_field="created_at", start=start, end=end),
+        billing_results = await asyncio.gather(
             _directus_count(directus_service, "billing_charge_identities", timestamp_field="committed_at", start=start, end=end),
             _directus_count(
                 directus_service,
@@ -528,12 +622,51 @@ async def collect_activity_and_transactions(
                 end=end,
                 extra_filter={"state": {"_eq": "failed"}},
             ),
+            _purchase_ledger_totals(directus_service, start=start, end=end),
+            _directus_current_count(
+                directus_service,
+                "pending_bank_transfers",
+                filters={"status": {"_eq": "admin_review"}},
+            ),
+            _directus_current_count(
+                directus_service,
+                "invoices",
+                filters={"refund_status": {"_eq": "failed"}},
+            ),
+            _directus_current_count(
+                directus_service,
+                "invoices",
+                filters={"has_chargeback": {"_eq": True}},
+            ),
+            return_exceptions=True,
         )
+        billing_unavailable = any(isinstance(result, Exception) for result in billing_results)
+        if billing_unavailable:
+            logger.warning(
+                "Operational billing collection unavailable: %s",
+                ",".join(type(result).__name__ for result in billing_results if isinstance(result, Exception)),
+            )
+        usage_committed = billing_results[0] if isinstance(billing_results[0], int) else 0
+        usage_failed = billing_results[1] if isinstance(billing_results[1], int) else 0
+        purchase_totals = billing_results[2] if isinstance(billing_results[2], tuple) else (0, 0, False, 0)
+        bank_review = billing_results[3] if isinstance(billing_results[3], int) else 0
+        refund_failed = billing_results[4] if isinstance(billing_results[4], int) else 0
+        chargebacks = billing_results[5] if isinstance(billing_results[5], int) else 0
+        purchase_count, credits_sold, purchase_window_complete, incomplete_settlements = purchase_totals
+        issue_count = usage_failed + bank_review + refund_failed + chargebacks + incomplete_settlements
+        totals_available = not billing_unavailable and incomplete_settlements == 0 and purchase_window_complete
         cloud = {
-            "status": "healthy" if billing_failed == 0 else "degraded",
-            "started": started,
-            "completed": completed,
-            "failed": billing_failed,
+            "status": "unavailable" if billing_unavailable or incomplete_settlements else ("warming" if not purchase_window_complete else ("healthy" if issue_count == 0 else "degraded")),
+            "purchase_window_label": "exact rolling 24h" if totals_available else "withheld until ledger is complete",
+            "purchase_count": purchase_count if totals_available else "withheld",
+            "credits_sold": credits_sold if totals_available else "withheld",
+            "usage_committed": usage_committed,
+            "usage_failed": usage_failed,
+            "bank_review": bank_review,
+            "refund_failed": refund_failed,
+            "chargebacks": chargebacks,
+            "incomplete_settlements": incomplete_settlements,
+            "purchase_window_complete": purchase_window_complete,
         }
     return activity, processing, cloud
 

@@ -10,12 +10,14 @@ private fields out of operator artifacts and delivery receipts.
 from __future__ import annotations
 
 import argparse
+import ast
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVICE = ROOT / "backend/core/api/app/services/operational_monitoring.py"
 TASK = ROOT / "backend/core/api/app/tasks/operational_monitoring_tasks.py"
+EMAIL_TEMPLATE = ROOT / "backend/core/api/templates/email/operational_monitoring_digest.mjml"
 CELERY_CONFIG = ROOT / "backend/core/api/app/tasks/celery_config.py"
 ALERT_RULES = ROOT / "backend/core/monitoring/prometheus/alert_rules.yml"
 ALERTMANAGER = ROOT / "backend/core/monitoring/alertmanager/alertmanager.yml"
@@ -27,6 +29,10 @@ SERVER_HEALTH = ROOT / "frontend/packages/openmates-cli/src/serverHealth.ts"
 SERVER = ROOT / "frontend/packages/openmates-cli/src/server.ts"
 SERVER_PLANNING = ROOT / "frontend/packages/openmates-cli/src/serverPlanning.ts"
 VERIFIER = ROOT / "scripts/verify_operational_monitoring.py"
+PAYMENTS = ROOT / "backend/core/api/app/routes/payments.py"
+APPROVE_BANK_TRANSFER = ROOT / "backend/scripts/approve_bank_transfer.py"
+PURCHASE_SETTLEMENT_SCHEMA = ROOT / "backend/core/directus/schemas/credit_purchase_settlements.yml"
+PURCHASE_SETTLEMENT_SERVICE = ROOT / "backend/core/api/app/services/purchase_settlement_ledger.py"
 
 FORBIDDEN_PRIVATE_FIELDS = {
     "user",
@@ -52,6 +58,7 @@ def run_audit(*, privacy: bool) -> list[str]:
     failures: list[str] = []
     service = _require_file(SERVICE, failures)
     task = _require_file(TASK, failures)
+    email_template = _require_file(EMAIL_TEMPLATE, failures)
     celery_config = _require_file(CELERY_CONFIG, failures)
     alert_rules = _require_file(ALERT_RULES, failures)
     alertmanager = _require_file(ALERTMANAGER, failures)
@@ -63,6 +70,10 @@ def run_audit(*, privacy: bool) -> list[str]:
     server = _require_file(SERVER, failures)
     server_planning = _require_file(SERVER_PLANNING, failures)
     verifier = _require_file(VERIFIER, failures)
+    payments = _require_file(PAYMENTS, failures)
+    approve_bank_transfer = _require_file(APPROVE_BANK_TRANSFER, failures)
+    purchase_settlement_schema = _require_file(PURCHASE_SETTLEMENT_SCHEMA, failures)
+    purchase_settlement_service = _require_file(PURCHASE_SETTLEMENT_SERVICE, failures)
 
     required_markers = {
         "service snapshot builder": (service, "build_operational_snapshot"),
@@ -89,12 +100,58 @@ def run_audit(*, privacy: bool) -> list[str]:
         "environment-specific self-host Discord": (service, "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST"),
         "environment-specific production urgent Discord": (source_compose, "DISCORD_WEBHOOK_URGENT_PRODUCTION"),
         "environment-specific development urgent Discord": (source_compose, "DISCORD_WEBHOOK_URGENT_DEVELOPMENT"),
+        "SVG conditional purchase label": (service, "purchase_window_label"),
+        "Discord conditional purchase label": (task, "purchase_window_label"),
+        "email conditional purchase label": (email_template, "purchase_window_label"),
+        "explicit recovery-job scope": (service, "AI response recovery jobs"),
+        "durable purchase settlement source": (service, "_purchase_ledger_totals"),
+        "hashed purchase settlement identity": (purchase_settlement_schema, "settlement_key_hash"),
+        "deterministic purchase settlement identity hash": (purchase_settlement_service, "hashlib.sha256"),
     }
     for label, (content, marker) in required_markers.items():
         if marker not in content:
             failures.append(f"missing {label}: {marker}")
     if "operational-monitoring-digest-daily" in celery_config:
         failures.append("operational digest must have exactly one scheduler; Celery Beat schedule is forbidden")
+    for path, source in ((PAYMENTS, payments), (APPROVE_BANK_TRANSFER, approve_bank_transfer)):
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr != "increment_stat" or not node.args or not isinstance(node.args[0], ast.Constant):
+                continue
+            if node.args[0].value in {"credits_sold", "purchase_count"}:
+                failures.append(
+                    f"{path.relative_to(ROOT)}:{node.lineno} must use atomic record_credit_purchase"
+                )
+    if payments.count(".record_credit_purchase(") != 6:
+        failures.append("payments route must update daily purchase analytics in exactly six settlement paths")
+    if approve_bank_transfer.count(".record_credit_purchase(") != 2:
+        failures.append("bank-transfer approval script must update daily purchase analytics in exactly two settlement paths")
+    if payments.count("begin_purchase_settlement(") != 7 or payments.count("complete_purchase_settlement(") != 8:
+        failures.append("payments route must ledger seven purchase branches and both Apple replay completion paths")
+    if approve_bank_transfer.count("begin_purchase_settlement(") != 2 or approve_bank_transfer.count("complete_purchase_settlement(") != 2:
+        failures.append("bank-transfer approval script must ledger exactly two purchase settlement paths")
+    subscription_block = payments.partition('# Handle subscription events')[2].partition('event_type == "customer.subscription.deleted"')[0]
+    subscription_order = (
+        subscription_block.find('get_user_by_id(user_id)'),
+        subscription_block.find('vault_key_id ='),
+        subscription_block.find('begin_purchase_settlement('),
+        subscription_block.find('update_user('),
+    )
+    if -1 in subscription_order or subscription_order != tuple(sorted(subscription_order)):
+        failures.append("subscription settlement must validate cache/key before ledger begin and mutate credits afterward")
+    if "cancel_purchase_settlement" in subscription_block or 'status_code=500' not in subscription_block:
+        failures.append("failed subscription credit mutations must leave the pending ledger row for reconciliation")
+    if 'existing_state == "reserved"' not in payments or "get_purchase_settlement(" not in payments:
+        failures.append("Apple replays must block reserved fulfillment and reconcile an existing pending settlement")
+    if "replayed_completed_settlement" not in payments or "directus_update_success or replayed_completed_settlement" not in payments:
+        failures.append("completed payment replays must preserve completed cache state without rewriting credits")
+    if "hmac.new" in purchase_settlement_service or "PURCHASE_SETTLEMENT_IDENTITY_SECRET" in purchase_settlement_service:
+        failures.append("purchase settlement identities must use deterministic SHA-256 without extra runtime secrets")
+    redemption_block = payments.partition("# Update Global Stats for Gift Card")[2].partition("# 9. Record redemption")[0]
+    if 'increment_stat("credits_sold"' in redemption_block:
+        failures.append("gift-card redemption must not record a second credit sale")
 
     combined_selfhost = "\n".join((selfhost_compose, selfhost_template, server_health))
     if "self_host" not in combined_selfhost:

@@ -56,6 +56,8 @@ class AppleIAPTransactionMethods:
             "credits": credits,
             "environment": environment,
             "processed_at": datetime.now(timezone.utc).isoformat(),
+            "state": "reserved",
+            "completed_at": None,
         }
         success, created = await self.directus.create_item(
             APPLE_IAP_TRANSACTIONS_COLLECTION,
@@ -71,6 +73,17 @@ class AppleIAPTransactionMethods:
 
         logger.error("Failed to reserve Apple IAP transaction and no existing row was found")
         return False, None
+
+    async def mark_transaction_completed(self, transaction_id: str) -> bool:
+        """Mark a reservation fulfilled after the durable balance update."""
+        item_id = str(uuid.uuid5(APPLE_IAP_TRANSACTION_NAMESPACE, transaction_id))
+        updated = await self.directus.update_item(
+            APPLE_IAP_TRANSACTIONS_COLLECTION,
+            item_id,
+            {"state": "completed", "completed_at": datetime.now(timezone.utc).isoformat()},
+            admin_required=True,
+        )
+        return bool(updated)
 
     async def delete_processed_transaction(self, transaction_id: str) -> bool:
         """Remove a reservation if fulfillment failed before credits were added."""

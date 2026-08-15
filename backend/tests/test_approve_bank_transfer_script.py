@@ -41,6 +41,22 @@ from backend.scripts import approve_bank_transfer
 from backend.core.api.app.services.directus.team_methods import TeamMethods, hash_id
 
 
+@pytest.fixture(autouse=True)
+def _stub_purchase_settlement_ledger(monkeypatch):
+    async def begin(*_args, **_kwargs):
+        return {"id": "settlement-test", "state": "pending", "_created": True}
+
+    async def complete(_service, settlement, **_kwargs):
+        return {**settlement, "state": "completed"}
+
+    async def cancel(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(approve_bank_transfer, "begin_purchase_settlement", begin)
+    monkeypatch.setattr(approve_bank_transfer, "complete_purchase_settlement", complete)
+    monkeypatch.setattr(approve_bank_transfer, "cancel_purchase_settlement", cancel)
+
+
 class FakeDirectus:
     def __init__(self) -> None:
         self.get_items_calls: list[dict] = []
@@ -127,6 +143,9 @@ class FakeCache:
 
     async def increment_stat(self, name: str, value: int | None = None):
         self.stats.append(("increment_stat", name, value))
+
+    async def record_credit_purchase(self, credits: int):
+        self.stats.append(("record_credit_purchase", credits))
 
     async def increment_json_stat(self, name: str, key: str):
         self.stats.append(("increment_json_stat", name, key))
@@ -372,6 +391,7 @@ async def test_approve_team_bank_transfer_grants_team_credits_and_completes_orde
     assert pending_updates[0][2]["status"] == "admin_review"
     assert pending_updates[1][2]["status"] == "completed"
     assert completed_order["received_amount_cents"] == 10000
+    assert ("record_credit_purchase", 110000) in cache.stats
     assert cache.status_updates[0]["order_id"] == "bt_team01"
     assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer_manual") in cache.stats
     assert compliance_events[0]["transaction_type"] == "team_credit_purchase"

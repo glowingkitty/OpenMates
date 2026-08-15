@@ -171,6 +171,7 @@ const leasedSeed = (now = new Date('2029-01-01T00:00:00Z')) => ({
   messages: [userMessage()],
   chat_turn_preflights: [{ id: PREFLIGHT_ID, hashed_user_id: OWNER, chat_id: CHAT_ID, turn_id: TURN_ID, state: 'RUNNING' }],
   chat_inference_outbox: [],
+  operational_monitoring_events: [],
   chat_completion_recovery_jobs: [{
     id: JOB_ID, hashed_user_id: OWNER, chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
     inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1', chat_key_version: 1,
@@ -1094,6 +1095,11 @@ test('chat deletion invalidates recovery state and rejects a late sealed job', a
   }, new Date('2029-01-01T00:00:00Z'));
 
   assert.deepEqual(invalidated, { deleted_preflights: 1, deleted_jobs: 1, deleted_outbox: 1 });
+  assert.deepEqual(database.rows.operational_monitoring_events, [{
+    id: database.rows.operational_monitoring_events[0].id,
+    event_type: 'recovery_jobs_invalidated', count: 1,
+    occurred_at: new Date('2029-01-01T00:00:00Z'),
+  }]);
   await assert.rejects(
     executeOperation(database, 'create_sealed_job', {
       protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, chat_id: CHAT_ID, turn_id: TURN_ID,
@@ -1102,4 +1108,23 @@ test('chat deletion invalidates recovery state and rejects a late sealed job', a
     }, new Date('2029-01-01T00:00:01Z')),
     (error) => error instanceof ProtocolError && error.code === 'inference_not_running',
   );
+});
+
+test('chat deletion rolls back when invalidation aggregation cannot be recorded', async () => {
+  const seed = leasedSeed();
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_inference_outbox.push({ id: OUTBOX_ID, hashed_user_id: OWNER, chat_id: CHAT_ID });
+  const database = fakeDatabase(seed, {
+    operation: 'insert', table: 'operational_monitoring_events', occurrence: 1,
+  });
+
+  await assert.rejects(
+    executeOperation(database, 'invalidate_deletion', {
+      protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+    }, new Date('2029-01-01T00:00:00Z')),
+    /injected insert:operational_monitoring_events failure/,
+  );
+  assert.equal(database.rows.chat_completion_recovery_jobs.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
 });

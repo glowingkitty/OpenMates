@@ -75,10 +75,17 @@ def _discord_summary(snapshot: dict, *, test: bool) -> str:
     lines = [
         f"**{prefix}{report_subject(snapshot['environment'])}**",
         f"24h: {activity['chats']} chats · {activity['messages']} messages · {activity['embeds']} embeds · {activity['usage_entries']} usage entries",
-        f"Processing: {processing['started']} started · {processing['completed']} completed · {processing['failed']} failed · {processing['stuck']} stuck",
+        f"AI response recovery jobs: {processing['created']} created · {processing['completed']} completed · {processing['invalidated']} invalidated · {processing['non_terminal_over_15m']} non-terminal >15m",
         f"Telemetry: resources {freshness['resource_metrics']} · application {freshness['application_metrics']}",
         f"Prioritized issues: {len(snapshot['prioritized_issues'])}",
     ]
+    if snapshot["environment"] != "self_host":
+        cloud = snapshot["billing"]
+        lines.extend([
+            f"Cloud credit purchases ({cloud.get('purchase_window_label', 'withheld until ledger is complete')}): {cloud['purchase_count']} purchases · {cloud['credits_sold']} credits sold · {cloud['status']}",
+            f"Usage charging: {cloud['usage_committed']} committed · {cloud['usage_failed']} failed",
+            f"Open purchase issues: {cloud['bank_review']} bank review · {cloud['refund_failed']} failed refunds · {cloud['chargebacks']} chargebacks · {cloud['incomplete_settlements']} incomplete settlements",
+        ])
     return "\n".join(lines)
 
 
@@ -99,7 +106,13 @@ async def generate_and_deliver_operational_report(
     try:
         resources, activity_result, alerts_result = await asyncio.gather(
             collect_resource_series(start=start, end=now),
-            collect_activity_and_transactions(directus, environment=selected_environment, start=start, end=now),
+            collect_activity_and_transactions(
+                directus,
+                cache_service=cache,
+                environment=selected_environment,
+                start=start,
+                end=now,
+            ),
             collect_active_alerts(),
             return_exceptions=True,
         )

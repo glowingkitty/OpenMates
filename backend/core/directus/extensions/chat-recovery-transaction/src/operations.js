@@ -11,6 +11,7 @@ const CHATS = 'chats';
 const MESSAGES = 'messages';
 const CHAT_KEY_WRAPPERS = 'chat_key_wrappers';
 const PROTOCOL_STATE = 'chat_recovery_protocol_state';
+const OPERATIONAL_EVENTS = 'operational_monitoring_events';
 const PROTOCOL_STATE_ID = 'chat-recovery';
 const PROTOCOL_VERSION = 1;
 const LEASE_MS = 60_000;
@@ -946,6 +947,11 @@ async function invalidateDeletion(database, raw, now) {
     const outbox = trx(OUTBOX).where({ hashed_user_id: ownerHash });
     if (chatId) { preflights.andWhere({ chat_id: chatId }); jobs.andWhere({ chat_id: chatId }); outbox.andWhere({ chat_id: chatId }); }
     const deletedJobs = await jobs.delete();
+    if (deletedJobs > 0) {
+      await trx(OPERATIONAL_EVENTS).insert({
+        id: randomUUID(), event_type: 'recovery_jobs_invalidated', count: deletedJobs, occurred_at: now,
+      });
+    }
     const deletedOutbox = await outbox.delete();
     const deletedPreflights = await preflights.delete();
     return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs, deleted_outbox: deletedOutbox };

@@ -8,10 +8,13 @@ Live dev delivery is verified separately by the spec's manual gate.
 """
 
 from datetime import datetime, timedelta, timezone
+import logging
 
+import httpx
 import pytest
 
 from backend.core.api.app.services import operational_monitoring as monitoring
+from backend.core.api.app.services.cache_stats_mixin import CacheStatsMixin
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 
@@ -31,8 +34,20 @@ def _snapshot(environment: str = "development", **overrides):
             "disk_free_bytes": [[WINDOW_START.timestamp(), 100_000_000], [WINDOW_END.timestamp(), 90_000_000]],
         },
         "activity_counts": {"chats": 7, "messages": 42, "embeds": 5, "usage_entries": 38},
-        "processing_transactions": {"started": 42, "completed": 39, "failed": 2, "stuck": 1},
-        "billing": {"status": "healthy", "started": 3, "completed": 2, "failed": 1},
+        "processing_transactions": {"created": 42, "completed": 39, "invalidated": 2, "non_terminal_over_15m": 1},
+        "billing": {
+            "status": "degraded",
+            "purchase_count": 3,
+            "credits_sold": 300,
+            "usage_committed": 38,
+            "usage_failed": 1,
+            "bank_review": 1,
+            "refund_failed": 0,
+            "chargebacks": 0,
+            "incomplete_settlements": 0,
+            "purchase_window_complete": True,
+            "purchase_window_label": "exact rolling 24h",
+        },
         "telemetry_freshness": {
             "resource_metrics": "fresh",
             "application_metrics": "fresh",
@@ -80,6 +95,27 @@ def test_compact_svg_and_png_render_deterministically():
     assert "CPU" in first_svg and "Memory" in first_svg and "Disk" in first_svg
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
     assert len(png) < 2_000_000
+
+
+def test_rendered_report_labels_withheld_purchase_totals_without_exact_claim():
+    snapshot = _snapshot(billing={
+        "status": "warming",
+        "purchase_count": "withheld",
+        "credits_sold": "withheld",
+        "usage_committed": 0,
+        "usage_failed": 0,
+        "bank_review": 0,
+        "refund_failed": 0,
+        "chargebacks": 0,
+        "incomplete_settlements": 0,
+        "purchase_window_complete": False,
+        "purchase_window_label": "withheld until ledger is complete",
+    })
+
+    svg = monitoring.render_operational_report_svg(snapshot)
+
+    assert "Cloud credit purchases · withheld until ledger is complete" in svg
+    assert "Cloud credit purchases · exact rolling 24h" not in svg
 
 
 # contract-test: direct surface=cli assertions=operational-monitoring.self-host.no-billing,operational-monitoring.content.privacy-boundary
@@ -161,13 +197,23 @@ async def test_collection_counts_processing_jobs_without_exposing_billing_to_sel
         calls.append((collection, kwargs["timestamp_field"], kwargs.get("timestamp_format"), kwargs.get("extra_filter")))
         return len(calls)
 
+    async def fake_current_count(_service, collection, **kwargs):
+        calls.append((collection, None, None, kwargs["filters"]))
+        return len(calls)
+
+    async def fake_sum(_service, collection, **kwargs):
+        calls.append((collection, kwargs["field"], None, kwargs["filters"]))
+        return len(calls)
+
     monkeypatch.setattr(monitoring, "_directus_count", fake_count)
+    monkeypatch.setattr(monitoring, "_directus_current_count", fake_current_count)
+    monkeypatch.setattr(monitoring, "_directus_sum", fake_sum)
     activity, processing, billing = await monitoring.collect_activity_and_transactions(
         object(), environment="self_host", start=WINDOW_START, end=WINDOW_END,
     )
 
     assert activity == {"chats": 1, "messages": 2, "embeds": 3, "usage_entries": 4}
-    assert processing == {"started": 5, "completed": 6, "failed": 7, "stuck": 8}
+    assert processing == {"created": 5, "completed": 6, "invalidated": 7, "non_terminal_over_15m": 8}
     assert billing is None
     assert all(collection != "billing_charge_identities" for collection, _, _, _ in calls)
     assert [call[:3] for call in calls[:4]] == [
@@ -176,7 +222,14 @@ async def test_collection_counts_processing_jobs_without_exposing_billing_to_sel
     ]
     assert calls[4][1] == "created_at"
     assert calls[5][1] == "completed_at"
-    assert calls[6][1] == "invalidated_at"
+    assert calls[6][0] == "operational_monitoring_events"
+    assert calls[6][1] == "count"
+    assert calls[7][0] == "chat_completion_recovery_jobs"
+    assert calls[7][3] == {"_and": [
+        {"completed_at": {"_null": True}},
+        {"invalidated_at": {"_null": True}},
+        {"created_at": {"_lt": (WINDOW_END - timedelta(minutes=15)).isoformat()}},
+    ]}
 
 
 @pytest.mark.asyncio
@@ -220,13 +273,21 @@ async def test_usage_count_filters_integer_created_at_timestamps():
 def test_sensitive_log_filter_redacts_discord_webhook_destinations():
     webhook_id = "123456789012345678"
     webhook_token = "secret_webhook_token"
-    filtered = SensitiveDataFilter()._redact_sensitive_data(
-        f"HTTP Request: POST https://discord.com/api/webhooks/{webhook_id}/{webhook_token}"
+    record = logging.LogRecord(
+        "httpx",
+        logging.INFO,
+        __file__,
+        1,
+        'HTTP Request: %s %s "%s %d %s"',
+        ("POST", httpx.URL(f"https://discord.com/api/webhooks/{webhook_id}/{webhook_token}"), "HTTP/1.1", 200, "OK"),
+        None,
     )
+    SensitiveDataFilter().filter(record)
+    filtered = record.getMessage()
 
     assert webhook_id not in filtered
     assert webhook_token not in filtered
-    assert filtered.endswith("https://discord.com/api/webhooks/[REDACTED]")
+    assert "https://discord.com/api/webhooks/[REDACTED]" in filtered
 
 
 @pytest.mark.asyncio
@@ -238,12 +299,191 @@ async def test_official_cloud_collection_includes_aggregate_billing_outcomes(mon
         return 0 if collection == "billing_charge_identities" else 1
 
     monkeypatch.setattr(monitoring, "_directus_count", fake_count)
+    monkeypatch.setattr(monitoring, "_directus_sum", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_purchase_ledger_totals", lambda *_args, **_kwargs: _completed_value((2, 250, True, 0)))
+    monkeypatch.setattr(monitoring, "_directus_current_count", lambda *_args, **kwargs: _completed_value(
+        1 if kwargs["filters"] == {"status": {"_eq": "admin_review"}} else 0
+    ))
+    _, _, billing = await monitoring.collect_activity_and_transactions(
+        object(), cache_service=object(), environment="development", start=WINDOW_START, end=WINDOW_END,
+    )
+
+    assert billing == {
+        "status": "degraded",
+        "purchase_count": 2,
+        "credits_sold": 250,
+        "usage_committed": 0,
+        "usage_failed": 0,
+        "bank_review": 1,
+        "refund_failed": 0,
+        "chargebacks": 0,
+        "incomplete_settlements": 0,
+        "purchase_window_complete": True,
+        "purchase_window_label": "exact rolling 24h",
+    }
+    assert calls.count("billing_charge_identities") == 2
+
+
+@pytest.mark.asyncio
+async def test_purchase_totals_sum_only_events_inside_exact_window(monkeypatch):
+    class FakeDirectus:
+        async def get_items(self, collection, params, **_kwargs):
+            assert collection == monitoring.PURCHASE_SETTLEMENT_COLLECTION
+            filters = params["filter"]["_and"]
+            assert {"completed_at": {"_gte": WINDOW_START.isoformat()}} in filters
+            assert {"completed_at": {"_lt": WINDOW_END.isoformat()}} in filters
+            return [{"credits_sold": 200}, {"credits_sold": 50}]
+
+    async def fake_watermark(_service, *, started_at):
+        assert started_at == WINDOW_END
+        return {"started_at": (WINDOW_START - timedelta(minutes=1)).isoformat()}
+
+    monkeypatch.setattr(monitoring, "ensure_purchase_ledger_watermark", fake_watermark)
+    monkeypatch.setattr(monitoring, "_directus_current_count", lambda *_args, **_kwargs: _completed_value(0))
+    result = await monitoring._purchase_ledger_totals(
+        FakeDirectus(), start=WINDOW_START, end=WINDOW_END,
+    )
+    assert result == (2, 250, True, 0)
+
+
+@pytest.mark.asyncio
+async def test_purchase_stats_atomically_update_daily_analytics():
+    calls = []
+
+    class FakePipeline:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def hincrby(self, *args):
+            calls.append(("hincrby", *args))
+            return self
+
+        def expire(self, *args):
+            calls.append(("expire", *args))
+            return self
+
+        async def execute(self):
+            calls.append(("execute",))
+
+    class FakeClient:
+        def pipeline(self, *, transaction):
+            assert transaction is True
+            return FakePipeline()
+
+    client = FakeClient()
+
+    class FakeCache(CacheStatsMixin):
+        @property
+        def client(self):
+            return _completed_value(client)
+
+    cache = FakeCache()
+    await cache.record_credit_purchase(250, "2026-08-15")
+
+    assert [call[2:] for call in calls if call[0] == "hincrby"] == [
+        ("purchase_count", 1),
+        ("credits_sold", 250),
+    ]
+    assert calls[-1] == ("execute",)
+
+
+@pytest.mark.asyncio
+async def test_atomic_daily_purchase_analytics_failure_is_visible(caplog):
+    class FailingPipeline:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def __getattr__(self, _name):
+            return lambda *_args, **_kwargs: self
+
+        async def execute(self):
+            raise RuntimeError("transaction failed")
+
+    class FakeClient:
+        def pipeline(self, *, transaction):
+            assert transaction is True
+            return FailingPipeline()
+
+    class FakeCache(CacheStatsMixin):
+        @property
+        def client(self):
+            return _completed_value(FakeClient())
+
+    with caplog.at_level(logging.ERROR), pytest.raises(RuntimeError, match="transaction failed"):
+        await FakeCache().record_credit_purchase(250)
+
+    assert "Daily purchase analytics transaction failed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_billing_ledger_failure_keeps_digest_available(monkeypatch):
+    async def fake_count(_service, _collection, **_kwargs):
+        return 0
+
+    async def unavailable_totals(*_args, **_kwargs):
+        raise RuntimeError("ledger unavailable")
+
+    async def no_open_issues(*_args, **_kwargs):
+        return 0
+
+    monkeypatch.setattr(monitoring, "_directus_count", fake_count)
+    monkeypatch.setattr(monitoring, "_directus_sum", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_directus_current_count", no_open_issues)
+    monkeypatch.setattr(monitoring, "_purchase_ledger_totals", unavailable_totals)
+
+    _, _, billing = await monitoring.collect_activity_and_transactions(
+        object(), cache_service=object(), environment="development", start=WINDOW_START, end=WINDOW_END,
+    )
+
+    assert billing["status"] == "unavailable"
+    assert billing["purchase_window_complete"] is False
+
+
+@pytest.mark.asyncio
+async def test_incomplete_settlement_withholds_partial_purchase_totals(monkeypatch):
+    monkeypatch.setattr(monitoring, "_directus_count", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_directus_sum", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_directus_current_count", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(
+        monitoring,
+        "_purchase_ledger_totals",
+        lambda *_args, **_kwargs: _completed_value((2, 250, True, 1)),
+    )
+
     _, _, billing = await monitoring.collect_activity_and_transactions(
         object(), environment="development", start=WINDOW_START, end=WINDOW_END,
     )
 
-    assert billing == {"status": "healthy", "started": 0, "completed": 0, "failed": 0}
-    assert calls.count("billing_charge_identities") == 3
+    assert billing["status"] == "unavailable"
+    assert billing["purchase_count"] == "withheld"
+    assert billing["credits_sold"] == "withheld"
+
+
+@pytest.mark.asyncio
+async def test_warming_ledger_withholds_partial_purchase_totals(monkeypatch):
+    monkeypatch.setattr(monitoring, "_directus_count", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_directus_sum", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(monitoring, "_directus_current_count", lambda *_args, **_kwargs: _completed_value(0))
+    monkeypatch.setattr(
+        monitoring,
+        "_purchase_ledger_totals",
+        lambda *_args, **_kwargs: _completed_value((2, 250, False, 0)),
+    )
+
+    _, _, billing = await monitoring.collect_activity_and_transactions(
+        object(), environment="development", start=WINDOW_START, end=WINDOW_END,
+    )
+
+    assert billing["status"] == "warming"
+    assert billing["purchase_count"] == "withheld"
+    assert billing["credits_sold"] == "withheld"
+    assert billing["purchase_window_label"] == "withheld until ledger is complete"
 
 
 @pytest.mark.asyncio
@@ -264,3 +504,7 @@ async def test_delivery_retries_are_bounded_and_report_attempts(monkeypatch):
 
 async def _completed_sleep():
     return None
+
+
+async def _completed_value(value):
+    return value

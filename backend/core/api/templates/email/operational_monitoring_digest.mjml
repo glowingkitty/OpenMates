@@ -13,9 +13,11 @@
         <mj-text font-size="13px" color="#aeb0ba" padding-bottom="18px">{{ window_start }} to {{ window_end }}</mj-text>
         <mj-image src="cid:operational-report" alt="CPU, memory and disk usage over the preceding 24 hours" padding="0 0 18px 0" />
         <mj-text font-size="16px"><strong>Activity:</strong> {{ activity.chats }} chats · {{ activity.messages }} messages · {{ activity.embeds }} embeds · {{ activity.usage_entries }} usage entries</mj-text>
-        <mj-text font-size="16px"><strong>Processing:</strong> {{ processing.started }} started · {{ processing.completed }} completed · {{ processing.failed }} failed · {{ processing.stuck }} stuck</mj-text>
+        <mj-text font-size="16px"><strong>AI response recovery jobs:</strong> {{ processing.created }} created · {{ processing.completed }} completed · {{ processing.invalidated }} invalidated · {{ processing.non_terminal_over_15m }} non-terminal &gt;15m</mj-text>
         {% if cloud %}
-        <mj-text font-size="16px"><strong>Cloud billing:</strong> {{ cloud.status }} · {{ cloud.started }} started · {{ cloud.completed }} completed · {{ cloud.failed }} failed</mj-text>
+        <mj-text font-size="16px"><strong>Cloud credit purchases ({{ cloud.purchase_window_label }}):</strong> {{ cloud.purchase_count }} purchases · {{ cloud.credits_sold }} credits sold · {{ cloud.status }}</mj-text>
+        <mj-text font-size="16px"><strong>Usage charging:</strong> {{ cloud.usage_committed }} committed · {{ cloud.usage_failed }} failed</mj-text>
+        <mj-text font-size="16px"><strong>Open purchase issues:</strong> {{ cloud.bank_review }} bank review · {{ cloud.refund_failed }} failed refunds · {{ cloud.chargebacks }} chargebacks · {{ cloud.incomplete_settlements }} incomplete settlements</mj-text>
         {% endif %}
         <mj-text font-size="14px" color="#aeb0ba"><strong>Telemetry:</strong> resources {{ freshness.resource_metrics }} · application {{ freshness.application_metrics }} · scheduler {{ freshness.report_scheduler }}</mj-text>
         <mj-text font-size="18px" font-weight="bold" padding-top="12px">Prioritized issues</mj-text>

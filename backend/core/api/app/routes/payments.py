@@ -35,6 +35,12 @@ from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from backend.core.api.app.services.referral_service import ReferralService
+from backend.core.api.app.services.purchase_settlement_ledger import (
+    begin_purchase_settlement,
+    cancel_purchase_settlement,
+    complete_purchase_settlement,
+    get_purchase_settlement,
+)
 from backend.core.api.app.utils.server_mode import validate_request_domain
 from backend.core.api.app.utils.bank_transfer_references import (
     bank_transfer_reference_lookup_variants,
@@ -135,6 +141,32 @@ def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any
         "last_opened": PAID_SIGNUP_COMPLETION_LAST_OPENED,
         "signup_completed": True,
     }
+
+
+async def _current_credit_balance_for_response(
+    user_id: str,
+    *,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> int:
+    user_cache = await cache_service.get_user_by_id(user_id) or {}
+    cached_credits = user_cache.get("credits")
+    if cached_credits is not None:
+        return int(cached_credits)
+
+    user_fields = await directus_service.get_user_fields_direct(
+        user_id,
+        ["encrypted_credit_balance", "vault_key_id"],
+    )
+    if not user_fields or not user_fields.get("encrypted_credit_balance") or not user_fields.get("vault_key_id"):
+        logger.error(f"Could not read current credit balance for processed payment user {user_id}")
+        raise HTTPException(status_code=500, detail="Could not read current balance")
+    decrypted_credits = await encryption_service.decrypt_with_user_key(
+        user_fields["encrypted_credit_balance"],
+        user_fields["vault_key_id"],
+    )
+    return int(decrypted_credits)
 
 class CreateOrderRequest(BaseModel):
     currency: str
@@ -636,19 +668,21 @@ async def verify_apple_transaction(
             tx_data.transaction_id, cache_service
         )
         if not is_new_cache:
-            logger.info(f"Apple IAP tx {tx_data.transaction_id} already processed for user {user_id}")
-            user_cache = await cache_service.get_user_by_id(user_id) or {}
-            return AppleVerifyTransactionResponse(
-                success=True,
-                credits_added=0,
-                current_credits=user_cache.get("credits", 0),
-                message="Transaction already processed",
-            )
+            logger.info(f"Apple IAP cache reports tx {tx_data.transaction_id} processed; verifying durable state")
 
         existing_transaction = await directus_service.apple_iap_transactions.get_by_transaction_id(
             tx_data.transaction_id
         )
         if existing_transaction:
+            if existing_transaction.get("state") == "reserved":
+                logger.error("Apple IAP reservation requires reconciliation before retry")
+                raise HTTPException(status_code=500, detail="Transaction fulfillment requires reconciliation")
+            existing_settlement = await get_purchase_settlement(
+                directus_service,
+                settlement_key=f"apple_iap:{tx_data.transaction_id}",
+            )
+            if existing_settlement and existing_settlement.get("state") == "pending":
+                await complete_purchase_settlement(directus_service, existing_settlement)
             logger.info(f"Apple IAP tx {tx_data.transaction_id} already durably processed")
             await apple_service.mark_transaction_processed(
                 tx_data.transaction_id,
@@ -656,11 +690,15 @@ async def verify_apple_transaction(
                 int(existing_transaction.get("credits") or 0),
                 cache_service,
             )
-            user_cache = await cache_service.get_user_by_id(user_id) or {}
             return AppleVerifyTransactionResponse(
                 success=True,
                 credits_added=0,
-                current_credits=user_cache.get("credits", 0),
+                current_credits=await _current_credit_balance_for_response(
+                    user_id,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                ),
                 message="Transaction already processed",
             )
 
@@ -694,6 +732,16 @@ async def verify_apple_transaction(
         )
         if not reserved:
             if existing_transaction:
+                existing_state = existing_transaction.get("state")
+                if existing_state == "reserved":
+                    logger.error("Apple IAP reservation requires reconciliation before retry")
+                    raise HTTPException(status_code=500, detail="Transaction fulfillment requires reconciliation")
+                existing_settlement = await get_purchase_settlement(
+                    directus_service,
+                    settlement_key=f"apple_iap:{verified.transaction_id}",
+                )
+                if existing_settlement and existing_settlement.get("state") == "pending":
+                    await complete_purchase_settlement(directus_service, existing_settlement)
                 logger.info(f"Apple IAP tx {tx_data.transaction_id} replayed during processing")
                 await apple_service.mark_transaction_processed(
                     tx_data.transaction_id,
@@ -701,18 +749,31 @@ async def verify_apple_transaction(
                     int(existing_transaction.get("credits") or 0),
                     cache_service,
                 )
-                user_cache = await cache_service.get_user_by_id(user_id) or {}
                 return AppleVerifyTransactionResponse(
                     success=True,
                     credits_added=0,
-                    current_credits=user_cache.get("credits", 0),
+                    current_credits=await _current_credit_balance_for_response(
+                        user_id,
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service,
+                    ),
                     message="Transaction already processed",
                 )
             raise HTTPException(status_code=500, detail="Failed to reserve Apple transaction")
         reserved_transaction = True
 
         # Step 3: Add credits to user balance
+        purchase_settlement = None
+        credit_update_attempted = False
         try:
+            purchase_settlement = await begin_purchase_settlement(
+                directus_service,
+                settlement_key=f"apple_iap:{verified.transaction_id}",
+                provider="apple_iap",
+                purchase_type="credit_purchase",
+                credits_sold=credits_to_add,
+            )
             user_cache_data = await cache_service.get_user_by_id(user_id)
             if user_cache_data is None:
                 user_cache_data = {}
@@ -729,6 +790,7 @@ async def verify_apple_transaction(
 
             new_total = current_credits + credits_to_add
             new_encrypted, _ = await encryption_service.encrypt_with_user_key(str(new_total), vault_key_id)
+            credit_update_attempted = True
             update_success = await directus_service.update_user(
                 user_id, {"encrypted_credit_balance": new_encrypted}
             )
@@ -737,14 +799,24 @@ async def verify_apple_transaction(
                 logger.error(f"Failed to update credits in Directus for user {user_id}")
                 raise HTTPException(status_code=500, detail="Failed to update credit balance")
         except Exception:
-            if reserved_transaction:
-                await directus_service.apple_iap_transactions.delete_processed_transaction(tx_data.transaction_id)
+            if not credit_update_attempted:
+                if purchase_settlement and purchase_settlement.get("_created"):
+                    await cancel_purchase_settlement(directus_service, purchase_settlement)
+                if reserved_transaction:
+                    await directus_service.apple_iap_transactions.delete_processed_transaction(tx_data.transaction_id)
+            elif reserved_transaction:
+                logger.error(
+                    "Apple IAP credit update outcome is ambiguous; leaving transaction reservation pending for reconciliation"
+                )
             raise
 
         # Step 4: Mark transaction as processed (idempotency)
+        if not await directus_service.apple_iap_transactions.mark_transaction_completed(verified.transaction_id):
+            raise HTTPException(status_code=500, detail="Failed to finalize Apple transaction")
         await apple_service.mark_transaction_processed(
             tx_data.transaction_id, user_id, credits_to_add, cache_service
         )
+        await complete_purchase_settlement(directus_service, purchase_settlement)
 
         # Update cache
         user_cache_data["credits"] = new_total
@@ -772,9 +844,8 @@ async def verify_apple_transaction(
         try:
             server_stats_service = request.app.state.server_stats_service
             if server_stats_service:
-                await server_stats_service.increment_stat("credits_sold", credits_to_add)
+                await server_stats_service.record_credit_purchase(credits_to_add)
                 await server_stats_service.update_liability(credits_to_add)
-                await server_stats_service.increment_stat("purchase_count")
                 await server_stats_service.increment_json_stat("purchases_by_provider", "apple_iap")
         except Exception as stats_err:
             logger.error(f"Stats update error after Apple IAP: {stats_err}")
@@ -1975,8 +2046,11 @@ async def payment_webhook(
             await cache_service.set_user(user_cache_data, user_id=user_id)
 
             directus_update_success = False
+            directus_mutation_attempted = False
+            replayed_completed_settlement = False
             new_total_credits_calculated = 0
             gift_card_code = None
+            purchase_settlement = None
 
             try:
                 # Get vault_key_id for tier system updates (needed for both gift cards and regular purchases)
@@ -1985,6 +2059,18 @@ async def payment_webhook(
                     raise Exception("Vault key ID missing from cache")
                 
                 if is_gift_card:
+                    purchase_settlement = await begin_purchase_settlement(
+                        directus_service,
+                        settlement_key=f"{effective_order_provider}:{webhook_order_id}",
+                        provider=effective_order_provider,
+                        purchase_type="gift_card_purchase",
+                        credits_sold=credits_purchased,
+                    )
+                    if purchase_settlement.get("state") == "completed":
+                        replayed_completed_settlement = True
+                        return {"status": "already_processed"}
+                    if not purchase_settlement.get("_created"):
+                        return {"status": "settlement_reconciliation_required"}
                     # For gift card purchases, create the gift card instead of updating user credits
                     logger.info(f"Processing gift card purchase for user {user_id}, credits: {credits_purchased}")
                     
@@ -1996,6 +2082,7 @@ async def payment_webhook(
                     purchaser_user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
                     
                     # Create the gift card in Directus
+                    directus_mutation_attempted = True
                     created_gift_card = await directus_service.create_gift_card(
                         code=gift_card_code,
                         credits_value=credits_purchased,
@@ -2022,9 +2109,23 @@ async def payment_webhook(
                     new_total_credits_calculated = current_credits + credits_purchased
                     new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
 
+                    purchase_settlement = await begin_purchase_settlement(
+                        directus_service,
+                        settlement_key=f"{effective_order_provider}:{webhook_order_id}",
+                        provider=effective_order_provider,
+                        purchase_type="credit_purchase",
+                        credits_sold=credits_purchased,
+                    )
+                    if purchase_settlement.get("state") == "completed":
+                        replayed_completed_settlement = True
+                        return {"status": "already_processed"}
+                    if not purchase_settlement.get("_created"):
+                        return {"status": "settlement_reconciliation_required"}
+
                     update_payload = _paid_signup_completion_update_payload(
                         encrypted_credit_balance=new_encrypted_credits
                     )
+                    directus_mutation_attempted = True
                     directus_update_success = await directus_service.update_user(user_id, update_payload)
                 
                 # Update tier system: monthly spending counter and tier progression
@@ -2081,6 +2182,7 @@ async def payment_webhook(
                     )
 
                 if directus_update_success:
+                    await complete_purchase_settlement(directus_service, purchase_settlement)
                     referral_reward_result = None
                     if not is_gift_card:
                         try:
@@ -2127,8 +2229,8 @@ async def payment_webhook(
                             if income_cents:
                                 await server_stats_service.increment_stat("income_eur_cents", income_cents)
                             
-                            # 2. Increment credits sold
-                            await server_stats_service.increment_stat("credits_sold", credits_purchased)
+                            # 2. Atomically record purchase count and credits sold
+                            await server_stats_service.record_credit_purchase(credits_purchased)
                             
                             # 3. Update liability (add credits)
                             await server_stats_service.update_liability(credits_purchased)
@@ -2143,8 +2245,7 @@ async def payment_webhook(
                                 await server_stats_service.increment_stat("new_users_finished_signup")
 
                             # 5. Financial analytics counters
-                            # purchase_count and provider breakdown
-                            await server_stats_service.increment_stat("purchase_count")
+                            # Provider breakdown
                             await server_stats_service.increment_json_stat("purchases_by_provider", effective_order_provider)
 
                             # EU vs non-EU breakdown for signup funnel analysis
@@ -2268,31 +2369,6 @@ async def payment_webhook(
                             logger.error(f"Failed to publish 'gift_card_created' event for user {user_id}: {pub_exc}", exc_info=True)
                     else:
                         logger.info(f"Successfully updated Directus credits for user {user_id}.")
-
-                        # Update Global Stats
-                        try:
-                            # 1. Income (cents)
-                            # get_price_for_credits already returns cents
-                            income_cents = get_price_for_credits(credits_purchased, order_currency)
-                            if income_cents:
-                                await cache_service.increment_stat("income_eur_cents", int(income_cents))
-                            
-                            # 2. Credits Sold
-                            await cache_service.increment_stat("credits_sold", int(credits_purchased))
-                            
-                            # 3. Liability Increase
-                            await cache_service.update_liability(int(credits_purchased))
-                            if referral_reward_result and referral_reward_result.awarded:
-                                await cache_service.update_liability(
-                                    int(referral_reward_result.referred_bonus + referral_reward_result.referrer_bonus)
-                                )
-                            
-                            # 4. Finished Signup (if this is their first payment)
-                            # We can approximate this by checking if they just completed signup
-                            if not user_cache_data.get('signup_completed'):
-                                await cache_service.increment_stat("new_users_finished_signup", 1)
-                        except Exception as stats_err:
-                            logger.error(f"Error updating global stats during payment: {stats_err}")
 
                         # Publish an event to notify websockets about the credit update
                         try:
@@ -2436,6 +2512,8 @@ async def payment_webhook(
 
             except Exception as processing_err:
                 logger.error(f"Error during payment processing for user {user_id}: {processing_err}", exc_info=True)
+                if purchase_settlement and purchase_settlement.get("_created") and not directus_mutation_attempted:
+                    await cancel_purchase_settlement(directus_service, purchase_settlement)
                 await cache_service.update_order_status(webhook_order_id, "failed_processing_error")
             finally:
                 final_cache_data = await cache_service.get_user_by_id(user_id) or {}
@@ -2447,8 +2525,8 @@ async def payment_webhook(
                     final_cache_data.pop("pending_order_id", None)
                 
                 final_order_status = "unknown"
-                if directus_update_success:
-                    if not is_gift_card:
+                if directus_update_success or replayed_completed_settlement:
+                    if directus_update_success and not is_gift_card:
                         # Only update credits in cache for regular purchases
                         final_cache_data["credits"] = new_total_credits_calculated
                     final_cache_data["last_opened"] = PAID_SIGNUP_COMPLETION_LAST_OPENED
@@ -2650,7 +2728,7 @@ async def payment_webhook(
             
             if not user_data:
                 logger.error(f"User not found for subscription {subscription_id}")
-                return {"status": "user_not_found"}
+                raise HTTPException(status_code=500, detail="Subscription user temporarily unavailable")
             
             user_id = user_data.get("id")
             subscription_credits = user_data.get("subscription_credits", 0)
@@ -2660,14 +2738,18 @@ async def payment_webhook(
             tier_info = get_tier_info(subscription_credits, subscription_currency)
             bonus_credits = tier_info['bonus_credits'] if tier_info else 0
             total_credits_to_add = subscription_credits + bonus_credits
-            
+
+            invoice_id = str(invoice_data.get("id") or "")
+            if not invoice_id:
+                logger.error("Invoice payment succeeded but no invoice id found")
+                return {"status": "received_no_invoice_id"}
             logger.info(f"Processing subscription renewal for user {user_id}: adding {total_credits_to_add} credits ({subscription_credits} + {bonus_credits} bonus)")
             
             # Get current credits and add subscription credits
             user_cache_data = await cache_service.get_user_by_id(user_id)
             if not user_cache_data:
                 logger.error(f"User {user_id} not found in cache for subscription renewal")
-                return {"status": "user_cache_miss"}
+                raise HTTPException(status_code=500, detail="Subscription user data temporarily unavailable")
             
             current_credits = user_cache_data.get('credits', 0)
             new_total_credits = current_credits + total_credits_to_add
@@ -2676,12 +2758,25 @@ async def payment_webhook(
             vault_key_id = user_cache_data.get("vault_key_id")
             if not vault_key_id:
                 logger.error(f"Vault key ID missing for user {user_id}")
-                return {"status": "vault_key_missing"}
+                raise HTTPException(status_code=500, detail="Subscription encryption key temporarily unavailable")
             
             new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(
                 str(new_total_credits),
                 vault_key_id
             )
+
+            purchase_settlement = await begin_purchase_settlement(
+                directus_service,
+                settlement_key=f"stripe_subscription:{invoice_id}",
+                provider="stripe",
+                purchase_type="subscription_renewal",
+                credits_sold=total_credits_to_add,
+            )
+            if purchase_settlement.get("state") == "completed":
+                return {"status": "already_processed"}
+            if not purchase_settlement.get("_created"):
+                logger.error("Subscription settlement requires reconciliation before retry")
+                return {"status": "settlement_reconciliation_required"}
             
             # Update Directus
             update_success = await directus_service.update_user(
@@ -2691,6 +2786,10 @@ async def payment_webhook(
             
             if update_success:
                 logger.info(f"Successfully added {total_credits_to_add} credits to user {user_id} (subscription renewal)")
+                await complete_purchase_settlement(directus_service, purchase_settlement)
+                await cache_service.record_credit_purchase(total_credits_to_add)
+                await cache_service.update_liability(total_credits_to_add)
+                await cache_service.increment_json_stat("purchases_by_provider", "stripe_subscription")
                 
                 # Update cache
                 user_cache_data["credits"] = new_total_credits
@@ -2718,6 +2817,7 @@ async def payment_webhook(
                     logger.error(f"Failed to broadcast subscription renewal credits for user {user_id}: {pub_exc}", exc_info=True)
             else:
                 logger.error(f"Failed to update credits for user {user_id} subscription renewal")
+                raise HTTPException(status_code=500, detail="Failed to update subscription credits")
         
         elif provider_name == "stripe" and event_type == "customer.subscription.deleted":
             # Handle subscription cancellation
@@ -4308,7 +4408,6 @@ async def redeem_gift_card(
         # Update Global Stats for Gift Card
         try:
             # Gift cards increase liability and count as a 'finished signup' if it's the first one
-            await cache_service.increment_stat("credits_sold", int(credits_value))
             await cache_service.update_liability(int(credits_value))
             if not was_signup_completed:
                 await cache_service.increment_stat("new_users_finished_signup", 1)
@@ -6753,12 +6852,24 @@ async def _handle_revolut_business_webhook(
         purchaser_user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
         try:
+            purchase_settlement = await begin_purchase_settlement(
+                directus_service,
+                settlement_key=f"bank_transfer:{order_id}",
+                provider="bank_transfer",
+                purchase_type="gift_card_purchase",
+                credits_sold=int(credits_amount),
+            )
+            if not purchase_settlement.get("_created"):
+                raise RuntimeError("purchase_settlement_reconciliation_required")
             created_gift_card = await directus_service.create_gift_card(
                 code=gift_card_code,
                 credits_value=credits_amount,
                 purchaser_user_id_hash=purchaser_user_id_hash,
             )
             if not created_gift_card:
+                logger.error(
+                    "Bank-transfer gift-card creation outcome is ambiguous; leaving settlement pending for reconciliation"
+                )
                 raise Exception("Failed to create gift card in Directus")
 
             await _update_bank_transfer(order_id, {
@@ -6777,6 +6888,7 @@ async def _handle_revolut_business_webhook(
                     "gift_card_code": gift_card_code,
                 },
             )
+            await complete_purchase_settlement(directus_service, purchase_settlement)
 
             try:
                 calculated_amount_cents = get_price_for_credits(credits_amount, "eur")
@@ -6797,10 +6909,9 @@ async def _handle_revolut_business_webhook(
                 income_cents = get_price_for_credits(credits_amount, "eur")
                 if income_cents:
                     await cache_service.increment_stat("income_eur_cents", int(income_cents))
-                await cache_service.increment_stat("credits_sold", int(credits_amount))
+                await cache_service.record_credit_purchase(int(credits_amount))
                 await cache_service.update_liability(int(credits_amount))
                 await cache_service.increment_stat("gift_cards_created")
-                await cache_service.increment_stat("purchase_count")
                 await cache_service.increment_json_stat("purchases_by_provider", "bank_transfer")
             except Exception as stats_err:
                 logger.error(f"Error updating stats for gift-card bank transfer {order_id}: {stats_err}")
@@ -6942,6 +7053,16 @@ async def _handle_revolut_business_webhook(
         try:
             from backend.core.api.app.services.team_billing_service import TeamBillingService
 
+            purchase_settlement = await begin_purchase_settlement(
+                directus_service,
+                settlement_key=f"bank_transfer:{order_id}",
+                provider="bank_transfer",
+                purchase_type="team_credit_purchase",
+                credits_sold=int(credits_amount),
+            )
+            if not purchase_settlement.get("_created"):
+                raise RuntimeError("purchase_settlement_reconciliation_required")
+
             await TeamBillingService(directus_service).add_credits(
                 team_id=str(team_id),
                 actor_user_id=str(user_id),
@@ -6964,11 +7085,11 @@ async def _handle_revolut_business_webhook(
                     **settlement_fields,
                 },
             )
+            await complete_purchase_settlement(directus_service, purchase_settlement)
             try:
                 await cache_service.increment_stat("income_eur_cents", int(expected_amount_cents or 0))
-                await cache_service.increment_stat("credits_sold", int(credits_amount))
+                await cache_service.record_credit_purchase(int(credits_amount))
                 await cache_service.update_liability(int(credits_amount))
-                await cache_service.increment_stat("purchase_count")
                 await cache_service.increment_json_stat("purchases_by_provider", "team_bank_transfer")
             except Exception as stats_err:
                 logger.error(f"Error updating stats for team bank transfer {order_id}: {stats_err}")
@@ -7078,6 +7199,15 @@ async def _handle_revolut_business_webhook(
         new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(
             str(new_total_credits), vault_key_id
         )
+        purchase_settlement = await begin_purchase_settlement(
+            directus_service,
+            settlement_key=f"bank_transfer:{order_id}",
+            provider="bank_transfer",
+            purchase_type="credit_purchase",
+            credits_sold=int(credits_amount),
+        )
+        if not purchase_settlement.get("_created"):
+            raise RuntimeError("purchase_settlement_reconciliation_required")
         update_payload = _paid_signup_completion_update_payload(
             encrypted_credit_balance=new_encrypted_credits
         )
@@ -7119,6 +7249,7 @@ async def _handle_revolut_business_webhook(
             status="completed",
             extra_fields={"completed_at": completed_at, **settlement_fields},
         )
+        await complete_purchase_settlement(directus_service, purchase_settlement)
 
         # Update tier system (SEPA is tier-unrestricted, but we still track for analytics)
         try:
@@ -7144,13 +7275,12 @@ async def _handle_revolut_business_webhook(
             income_cents = get_price_for_credits(credits_amount, "eur")
             if income_cents:
                 await cache_service.increment_stat("income_eur_cents", int(income_cents))
-            await cache_service.increment_stat("credits_sold", int(credits_amount))
+            await cache_service.record_credit_purchase(int(credits_amount))
             await cache_service.update_liability(int(credits_amount))
             if referral_reward_result.awarded:
                 await cache_service.update_liability(
                     int(referral_reward_result.referred_bonus + referral_reward_result.referrer_bonus)
                 )
-            await cache_service.increment_stat("purchase_count")
             await cache_service.increment_json_stat("purchases_by_provider", "bank_transfer")
         except Exception as stats_err:
             logger.error(f"Error updating stats for bank transfer {order_id}: {stats_err}")

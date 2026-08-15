@@ -134,6 +134,22 @@ from backend.core.api.app.services.payment.revolut_business_service import (
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 
+@pytest.fixture(autouse=True)
+def _stub_purchase_settlement_ledger(monkeypatch):
+    async def begin(*_args, **_kwargs):
+        return {"id": "settlement-test", "state": "pending", "_created": True}
+
+    async def complete(_service, settlement, **_kwargs):
+        return {**settlement, "state": "completed"}
+
+    async def cancel(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(payments, "begin_purchase_settlement", begin)
+    monkeypatch.setattr(payments, "complete_purchase_settlement", complete)
+    monkeypatch.setattr(payments, "cancel_purchase_settlement", cancel)
+
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -744,6 +760,9 @@ class TestPersonalBankTransferWebhook:
 
         async def increment_stat(self, name, value=None):
             self.stats.append(("increment_stat", name, value))
+
+        async def record_credit_purchase(self, credits):
+            self.stats.append(("record_credit_purchase", credits))
 
         async def increment_json_stat(self, name, key):
             self.stats.append(("increment_json_stat", name, key))
@@ -1455,6 +1474,9 @@ class TestGiftCardBankTransferWebhook:
             async def increment_stat(self, name):
                 self.stats.append(("increment_stat", name))
 
+            async def record_credit_purchase(self, credits):
+                self.stats.append(("record_credit_purchase", credits))
+
             async def increment_json_stat(self, name, key):
                 self.stats.append(("increment_json_stat", name, key))
 
@@ -1605,6 +1627,9 @@ class TestTeamBankTransferWebhook:
             async def increment_stat(self, name, value=None):
                 self.stats.append(("increment_stat", name, value))
 
+            async def record_credit_purchase(self, credits):
+                self.stats.append(("record_credit_purchase", credits))
+
             async def increment_json_stat(self, name, key):
                 self.stats.append(("increment_json_stat", name, key))
 
@@ -1703,6 +1728,7 @@ class TestTeamBankTransferWebhook:
         assert cache.user["credits"] == 500
         assert cache.set_user_calls == []
         assert cache.status_updates[0]["order_id"] == order_id
+        assert ("record_credit_purchase", 110000) in cache.stats
         assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer") in cache.stats
         assert compliance_events[0]["transaction_type"] == "team_credit_purchase"
         assert compliance_events[0]["details"]["team_id"] == team_id
