@@ -10085,6 +10085,7 @@ def _deploy_native_worktree(
     for relative_path in sorted(to_commit):
         print(f"  {relative_path}")
     print("Branch: dev")
+    _print_deployed_commit_handoff(commit_hash_full)
 
     related = _find_related_docs(to_commit)
     if related:
@@ -10442,6 +10443,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"Commit: {commit_hash}")
             print("Files: 0 (resumed previous deploy push)")
             print("Branch: dev")
+            _print_deployed_commit_handoff(commit_hash_full)
             _maybe_start_verification_session(args, sid, commit_hash_full)
 
             if getattr(args, "end_session", False):
@@ -10789,6 +10791,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     for f in sorted(to_commit):
         print(f"  {f}")
     print("Branch: dev")
+    _print_deployed_commit_handoff(commit_hash_full)
     _maybe_start_verification_session(args, sid, commit_hash_full)
 
     if worktree_metadata:
@@ -12895,6 +12898,18 @@ def _validate_spawn_prompt_contract(prompt: str, permission_mode: str) -> None:
             "Error: --mode execute-readonly cannot be combined with implementation/deploy prompt instructions. "
             "Use --mode execute for implementation workers."
         )
+
+
+def _print_deployed_commit_handoff(commit_sha: str) -> None:
+    """Print one unambiguous subject-commit handoff after a successful dev push."""
+
+    if not commit_sha:
+        return
+    print(f"Full commit: {commit_sha}")
+    print(
+        "Verify deployed spec: python3 scripts/tests.py run --spec <name>.spec.ts "
+        f"--gate-deploy --require-exact-commit --expected-commit {commit_sha}"
+    )
 
 
 def _maybe_start_verification_session(args: argparse.Namespace, source_session_id: str, commit_sha: str) -> None:

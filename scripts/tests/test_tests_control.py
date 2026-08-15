@@ -262,6 +262,7 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
         "--spec",
         "chat-flow.spec.ts",
         "--gate-deploy",
+        "--require-exact-commit",
         "--lease-required",
         "--lease-id",
         "lease-chat-123",
@@ -270,6 +271,7 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
 
     assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
     assert options.gate_deploy is True
+    assert options.require_exact_commit is True
     assert options.lease_required is True
     assert options.lease_id == "lease-chat-123"
     assert options.expected_commit == "abc123"
@@ -381,6 +383,21 @@ def test_subject_commit_accepts_ancestor_when_requested_spec_inputs_unchanged(tm
         expected,
         ["--spec", "shared-chat-embed-assets.spec.ts"],
     ) == current_dev
+
+
+def test_subject_commit_exact_mode_rejects_newer_integrated_dev(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+
+    with pytest.raises(RuntimeError, match="exact-commit verification"):
+        tests_control.resolve_test_subject_commit(
+            expected,
+            ["--spec", "chat-flow.spec.ts"],
+            require_exact=True,
+        )
 
 
 def test_subject_commit_rejects_ancestor_when_requested_spec_changed(tmp_path, monkeypatch):
@@ -879,6 +896,22 @@ def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
 
     assert tests_control.run_e2e_deploy_gate(options) is False
     assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_exact_commit_verification_cannot_skip_deploy_gate(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "example.spec.ts"],
+        expected_commit=commit,
+        require_exact_commit=True,
+        gate_deploy=True,
+    )
+    monkeypatch.setenv("OPENMATES_SKIP_E2E_DEPLOY_GATE", "true")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: commit)
+
+    with pytest.raises(RuntimeError, match="cannot skip"):
+        tests_control.run_e2e_deploy_gate(options)
 
 
 def test_normalize_playwright_report_preserves_duplicate_video_attachments(tmp_path, monkeypatch):

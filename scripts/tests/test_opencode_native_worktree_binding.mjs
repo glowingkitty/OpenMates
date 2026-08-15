@@ -16,6 +16,8 @@ import test from "node:test";
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
 const {
+  exactCommitDeployedTestForTest,
+  isApprovedControlPlaneAuditCommand,
   routeLocalToolArgsForTest,
   routingDecisionForTest,
   routingFailureForTest,
@@ -55,6 +57,51 @@ test("question sessions remain read-only without a worktree", () => {
   assert.deepEqual(
     routingDecisionForTest({ session: { mode: "question", binding_mode: "legacy_grandfathered" } }),
     { decision: "read_only", worktreePath: "" },
+  );
+});
+
+test("approved control-plane audits are narrowly parsed", () => {
+  for (const command of [
+    "python3 scripts/audit_opencode_output_quality.py",
+    "python3 scripts/audit_opencode_output_quality.py --json --telemetry-days 7",
+    "python3 scripts/audit_agent_tooling_parity.py --json",
+    "python3 scripts/audit_opencode_spec_workflow.py",
+    "python3 scripts/audit_opencode_automation_budget.py --all",
+  ]) assert.equal(isApprovedControlPlaneAuditCommand(command), true);
+
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify",
+    "python3 scripts/audit_opencode_output_quality.py --telemetry-days 999",
+    "python3 scripts/audit_agent_tooling_parity.py --write",
+    "python3 scripts/audit_opencode_spec_workflow.py && true",
+    "python3 scripts/audit_opencode_automation_budget.py --all > report.txt",
+  ]) assert.equal(isApprovedControlPlaneAuditCommand(command), false);
+});
+
+test("merged verification requires one exact gated spec command", () => {
+  const commit = "a".repeat(40);
+  const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
+  assert.deepEqual(exactCommitDeployedTestForTest(command, commit), { commit, spec: "chat-flow.spec.ts" });
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(`${command} --proof-video-profile web-phone --detach`, commit),
+    { commit, spec: "chat-flow.spec.ts" },
+  );
+  for (const rejected of [
+    `python3 scripts/tests.py run --spec chat-flow.spec.ts --expected-commit ${commit}`,
+    `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
+    "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit abc1234",
+    `python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit ${commit}`,
+    `${command} --proof-video-profile desktop`,
+    `${command} && true`,
+    `${command} > report.txt`,
+  ]) assert.equal(exactCommitDeployedTestForTest(rejected, commit), null);
+  assert.equal(exactCommitDeployedTestForTest(command, "b".repeat(40)), null);
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(
+      `python3 scripts/tests.py run --spec dev-smoke/reachability.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`,
+      commit,
+    ),
+    { commit, spec: "dev-smoke/reachability.spec.ts" },
   );
 });
 

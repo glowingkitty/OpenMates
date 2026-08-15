@@ -63,7 +63,7 @@ test("auto-discovered modules export only valid OpenCode plugin factories", asyn
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
-  assert.match(source, /workdir: \(prodSshControlPlane \|\| staleCodeReportControlPlane\) \? PROJECT_ROOT : worktreePath/);
+  assert.match(source, /workdir: \(prodSshControlPlane \|\| staleCodeReportControlPlane \|\| improvementReviewControlPlane \|\| sessionsPyControlPlane\) \? PROJECT_ROOT : worktreePath/);
   assert.match(source, /Reason:/);
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
@@ -125,7 +125,7 @@ test("canonical edit hooks preserve worktree-relative paths", () => {
   assert.match(bridge, /printf '%s\/%s\\n' "\$CALLER_CWD" "\$file"/);
   assert.match(autoTrack, /\.openmates-agent-worktrees/);
   assert.match(preEditGuard, /normalize_repo_relative/);
-  assert.match(preEditGuard, /\.sessions\[\]\?\.worktree\?\.path\?/);
+  assert.match(preEditGuard, /\.sessions\[\]\? \| \(\.worktree\.path\? \/\/ \.repo_root\?/);
 });
 
 test("opencode config allows legacy external agent worktrees", () => {
@@ -165,6 +165,63 @@ test("routing recovery allows direct prod ssh status and close only", async () =
     ),
     /repository session worktree is already merged/,
   );
+});
+
+test("merged routing allows only exact commit-bound deployed verification", async () => {
+  const commit = "a".repeat(40);
+  const hooks = await pluginModule.OpenMatesHooks({
+    routingData: {
+      sessions: {
+        stale: {
+          opencode_session_id: "stale-session",
+          binding_mode: "worktree_routed",
+          mode: "testing",
+          worktree: { path: process.cwd(), status: "merged", merged_commit: commit },
+        },
+      },
+    },
+    recordRouting: false,
+  });
+  const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
+  const output = { args: { command, workdir: "/model-selected-root" } };
+  await assert.doesNotReject(() => hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "stale-session" },
+    output,
+  ));
+  assert.equal(output.args.workdir, "/home/superdev/projects/OpenMates");
+
+  await assert.rejects(
+    () => hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "stale-session" },
+      { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } },
+    ),
+    /repository session worktree is already merged/,
+  );
+});
+
+test("question routing runs approved audits from the control plane", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({
+    routingData: {
+      sessions: {
+        question: {
+          opencode_session_id: "question-session",
+          mode: "question",
+        },
+      },
+    },
+    recordRouting: false,
+  });
+  const output = {
+    args: {
+      command: "python3 scripts/audit_agent_tooling_parity.py --json",
+      workdir: "/model-selected-root",
+    },
+  };
+  await assert.doesNotReject(() => hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "question-session" },
+    output,
+  ));
+  assert.equal(output.args.workdir, "/home/superdev/projects/OpenMates");
 });
 
 test("bash guard allows source file references that are not writes", async () => {

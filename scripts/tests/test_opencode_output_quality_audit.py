@@ -408,16 +408,61 @@ def test_tool_turn_telemetry_counts_only_conservative_batching_candidates() -> N
         ]
     )
 
+    assert report["assistant_tool_turns"] == 4
+    assert report["tool_calls"] == 4
+    assert report["singleton_tool_turns"] == 4
+    assert report["singleton_tool_turn_rate"] == 1.0
+    assert report["conservative_batchable_turns"] == 1
+    assert report["standalone_todo_turns"] == 1
+    assert report["todo_next_turn_context"] == {"tokens_input": 40, "tokens_cache_read": 400}
+    assert report["tool_error_counts"] == {}
+    assert report["per_session"]["assistant_tool_turns"]["max"] == 4
+
+
+def test_tool_turn_telemetry_attributes_agents_without_session_ids() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_tool_turns([
+        {
+            "session_id": "private-session-one",
+            "agent": "build",
+            "time_created": 1_000,
+            "tools": [{"name": "read", "args": {"filePath": "/repo/a.py"}}],
+        },
+        {
+            "session_id": "private-session-one",
+            "agent": "build",
+            "time_created": 2_000,
+            "tools": [{"name": "read", "args": {"filePath": "/repo/b.py"}}],
+        },
+        {
+            "session_id": "private-session-two",
+            "agent": "explore",
+            "time_created": 3_000,
+            "tools": [{"name": "todowrite", "args": {"todos": []}}],
+        },
+    ])
+
+    assert report["by_agent"]["build"]["conservative_batchable_turns"] == 1
+    assert report["by_agent"]["explore"]["standalone_todo_turns"] == 0
+    assert report["per_session"]["assistant_tool_turns"]["count"] == 2
+    assert "private-session" not in json.dumps(report)
+
+
+def test_child_completion_telemetry_is_aggregate_only() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_child_completions([
+        {"agent": "explore", "terminal": True, "usable_output": False, "session_id": "private-one"},
+        {"agent": "explore", "terminal": True, "usable_output": True, "session_id": "private-two"},
+        {"agent": "general", "terminal": False, "usable_output": False, "session_id": "private-three"},
+    ])
+
     assert report == {
-        "assistant_tool_turns": 4,
-        "tool_calls": 4,
-        "singleton_tool_turns": 4,
-        "singleton_tool_turn_rate": 1.0,
-        "conservative_batchable_turns": 1,
-        "standalone_todo_turns": 1,
-        "todo_next_turn_context": {"tokens_input": 40, "tokens_cache_read": 400},
-        "tool_error_counts": {},
+        "completed": 2,
+        "empty": 1,
+        "empty_rate": 0.5,
+        "by_agent": {"explore": {"completed": 2, "empty": 1}},
     }
+    assert "private-" not in json.dumps(report)
 
 
 def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
@@ -491,6 +536,7 @@ def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
                 "root_path_routing": 5,
                 "other": 999,
             },
+            "child_completion": {"empty": 2},
         },
         days=1,
     )

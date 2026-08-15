@@ -867,7 +867,77 @@ function childMutationDecisionForTest(route, tool, command = "") {
 }
 
 function routingRecoveryMessage(sessionID) {
-  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, worktree ensure, and worktree repair remain available.`;
+  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing|question> --task \"brief description\". Safe reads, searches, approved audits, status, summary, context, worktree ensure, and worktree repair remain available.`;
+}
+
+function directPythonScriptArgs(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return null;
+  const segments = commandSegmentTokens(String(command || ""));
+  if (segments.length !== 1) return null;
+  const tokens = segments[0].map(shellUnescape);
+  if (!["python", "python3"].includes(tokens[0] || "")) return null;
+  return tokens.slice(1);
+}
+
+function optionsMatch(args, { booleanOptions = new Set(), valueOptions = new Map() } = {}) {
+  const seen = new Set();
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (seen.has(option)) return false;
+    seen.add(option);
+    if (booleanOptions.has(option)) continue;
+    const validate = valueOptions.get(option);
+    if (!validate || index + 1 >= args.length || !validate(args[index + 1])) return false;
+    index += 1;
+  }
+  return true;
+}
+
+function isApprovedControlPlaneAuditCommand(command) {
+  const args = directPythonScriptArgs(command);
+  if (!args?.length) return false;
+  const [script, ...options] = args;
+  if (script === "scripts/audit_opencode_output_quality.py") {
+    return optionsMatch(options, {
+      booleanOptions: new Set(["--json"]),
+      valueOptions: new Map([["--telemetry-days", (value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 168]]),
+    });
+  }
+  if (script === "scripts/audit_agent_tooling_parity.py") {
+    return optionsMatch(options, { booleanOptions: new Set(["--json"]) });
+  }
+  if (script === "scripts/audit_opencode_spec_workflow.py") return options.length === 0;
+  if (script === "scripts/audit_opencode_automation_budget.py") {
+    return optionsMatch(options, { booleanOptions: new Set(["--all"]) });
+  }
+  return false;
+}
+
+function exactCommitDeployedTestForTest(command, expectedCommit = "") {
+  const args = directPythonScriptArgs(command);
+  if (!args || args[0] !== "scripts/tests.py" || args[1] !== "run") return null;
+  const options = args.slice(2);
+  const values = {};
+  const booleans = new Set();
+  const allowedBoolean = new Set(["--gate-deploy", "--require-exact-commit", "--detach"]);
+  const allowedValue = new Set(["--spec", "--expected-commit", "--proof-video-profile"]);
+  for (let index = 0; index < options.length; index += 1) {
+    const option = options[index];
+    if (allowedBoolean.has(option)) {
+      if (booleans.has(option)) return null;
+      booleans.add(option);
+      continue;
+    }
+    if (!allowedValue.has(option) || Object.hasOwn(values, option) || index + 1 >= options.length) return null;
+    values[option] = options[++index];
+  }
+  const commit = values["--expected-commit"] || "";
+  if (!booleans.has("--gate-deploy") || !booleans.has("--require-exact-commit")) return null;
+  if (!/^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._\/-]*\.spec\.ts$/.test(values["--spec"] || "")) return null;
+  if (!/^[0-9a-f]{40}$/i.test(commit)) return null;
+  if (expectedCommit && commit.toLowerCase() !== String(expectedCommit).toLowerCase()) return null;
+  if (values["--proof-video-profile"] && !["web-phone", "web-laptop"].includes(values["--proof-video-profile"])) return null;
+  return { commit, spec: values["--spec"] };
 }
 
 function isRecoveryBash(command) {
@@ -875,7 +945,7 @@ function isRecoveryBash(command) {
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+end\b[^;&|\n]*\s--force\b/.test(command)
-    || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
+    || isApprovedControlPlaneAuditCommand(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
 }
 
@@ -895,9 +965,12 @@ function isProdSshRecoveryCommand(command) {
   return helpers.has(executable) && args.length === 1 && ["close", "status"].includes(args[0]);
 }
 
-function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "" } = {}) {
+function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "", routeDecision = "", mergedCommit = "" } = {}) {
   if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
   if (BASH_TOOLS.has(tool) && (isRecoveryBash(command) || isReadOnlyChildBash(command))) return { decision: "allow_recovery", message: "" };
+  if (BASH_TOOLS.has(tool) && routeDecision === "merged_worktree" && exactCommitDeployedTestForTest(command, mergedCommit)) {
+    return { decision: "allow_merged_verification", message: "" };
+  }
   if (routeMessage) return { decision: "block", message: routeMessage };
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
 }
@@ -2041,8 +2114,18 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
           sessionID: input.sessionID,
           command: bashCommand(output?.args || input?.args),
           routeMessage: route.message || "",
+          routeDecision: route.decision,
+          mergedCommit: route.session?.worktree?.merged_commit || "",
         });
         if (failure.decision === "block") throw new Error(failure.message);
+      }
+
+      if (BASH_TOOLS.has(tool) && !route.worktreePath) {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (isApprovedControlPlaneAuditCommand(command) || exactCommitDeployedTestForTest(command, route.session?.worktree?.merged_commit || "")) {
+          replaceToolArgs(output, currentArgs, { ...toolInput(currentArgs), command, workdir: PROJECT_ROOT });
+        }
       }
 
       if (TASK_TOOLS.has(tool)) {
@@ -2126,6 +2209,8 @@ OpenMatesHooks.test = Object.freeze({
   editedFilesForBindingForTest,
   editedFilesForTest,
   initialPresenceForTest,
+  exactCommitDeployedTestForTest,
+  isApprovedControlPlaneAuditCommand,
   isReadOnlyChildBash,
   isTodoWriteTool,
   presenceIsLive,

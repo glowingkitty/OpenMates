@@ -421,10 +421,11 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
 
 def _percentiles(values: list[int]) -> dict[str, int]:
     if not values:
-        return {"p50": 0, "p90": 0, "max": 0}
+        return {"count": 0, "p50": 0, "p90": 0, "max": 0}
     ordered = sorted(values)
     p90_index = round((len(ordered) - 1) * 0.9)
     return {
+        "count": len(ordered),
         "p50": int(statistics.median(ordered)),
         "p90": int(ordered[p90_index]),
         "max": int(ordered[-1]),
@@ -523,7 +524,7 @@ def _batchable_pair(first: dict[str, Any], second: dict[str, Any]) -> bool:
     return False
 
 
-def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize_tool_turns(turns: list[dict[str, Any]], *, include_breakdowns: bool = True) -> dict[str, Any]:
     """Summarize privacy-safe round-trip metrics from assistant tool turns."""
 
     ordered = sorted(turns, key=lambda turn: (str(turn.get("session_id") or ""), int(turn.get("time_created") or 0)))
@@ -580,7 +581,7 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
                 category = "other"
             error_counts[category] += 1
 
-    return {
+    report = {
         "assistant_tool_turns": len(tool_turns),
         "tool_calls": tool_calls,
         "singleton_tool_turns": singleton_turns,
@@ -592,6 +593,43 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
             "tokens_cache_read": todo_next_cache_read,
         },
         "tool_error_counts": dict(sorted(error_counts.items())),
+    }
+    if not include_breakdowns:
+        return report
+
+    by_agent: dict[str, dict[str, Any]] = {}
+    for agent in sorted({str(turn.get("agent") or "<none>") for turn in ordered}):
+        agent_turns = [turn for turn in ordered if str(turn.get("agent") or "<none>") == agent]
+        by_agent[agent] = summarize_tool_turns(agent_turns, include_breakdowns=False)
+    session_reports = [
+        summarize_tool_turns(session_turns, include_breakdowns=False)
+        for session_turns in turns_by_session.values()
+    ]
+    report["by_agent"] = by_agent
+    report["per_session"] = {
+        key: _percentiles([int(session_report[key]) for session_report in session_reports])
+        for key in ("assistant_tool_turns", "conservative_batchable_turns", "standalone_todo_turns")
+    }
+    return report
+
+
+def summarize_child_completions(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return aggregate-only delegated-session completion quality metrics."""
+
+    completed = [record for record in records if record.get("terminal")]
+    empty = [record for record in completed if not record.get("usable_output")]
+    agents = sorted({str(record.get("agent") or "<none>") for record in completed})
+    return {
+        "completed": len(completed),
+        "empty": len(empty),
+        "empty_rate": round(len(empty) / len(completed), 4) if completed else 0.0,
+        "by_agent": {
+            agent: {
+                "completed": sum(str(record.get("agent") or "<none>") == agent for record in completed),
+                "empty": sum(str(record.get("agent") or "<none>") == agent for record in empty),
+            }
+            for agent in agents
+        },
     }
 
 
@@ -664,6 +702,7 @@ def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[d
             message_id,
             {
                 "session_id": session_id,
+                "agent": str(message.get("agent") or "<none>"),
                 "time_created": time_created,
                 "tokens_input": int(tokens.get("input") or 0),
                 "tokens_cache_read": int((tokens.get("cache") or {}).get("read") or 0),
@@ -685,6 +724,72 @@ def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[d
     return list(turns.values())
 
 
+def collect_child_completion_records(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[dict[str, Any]]:
+    """Collect only terminal/output booleans for delegated assistant sessions."""
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
+    project = _opencode_project_directory()
+    connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    try:
+        rows = connection.execute(
+            """
+            SELECT session.id, message.id, message.time_created, message.data, part.data
+            FROM session
+            JOIN message ON message.session_id = session.id
+            LEFT JOIN part ON part.message_id = message.id
+            WHERE COALESCE(session.parent_id, '') != ''
+              AND (session.directory = ? OR session.directory LIKE ?)
+              AND session.time_updated >= ?
+            ORDER BY session.id, message.time_created, part.time_created
+            """,
+            (str(project), f"{project}/.openmates-agent-worktrees/%", since_ms),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    messages: dict[tuple[str, str], dict[str, Any]] = {}
+    for session_id, message_id, time_created, raw_message, raw_part in rows:
+        try:
+            message = json.loads(raw_message)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        record = messages.setdefault(
+            (str(session_id), str(message_id)),
+            {
+                "session_id": str(session_id),
+                "time_created": int(time_created),
+                "agent": str(message.get("agent") or "<none>"),
+                "terminal": str(message.get("finish") or "") == "stop",
+                "usable_output": False,
+            },
+        )
+        if not raw_part:
+            continue
+        try:
+            part = json.loads(raw_part)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if part.get("type") == "text" and str(part.get("text") or "").strip():
+            record["usable_output"] = True
+        if part.get("type") == "tool":
+            state = part.get("state") if isinstance(part.get("state"), dict) else {}
+            if state.get("status") == "completed" and str(state.get("output") or "").strip():
+                record["usable_output"] = True
+
+    latest: dict[str, dict[str, Any]] = {}
+    for record in messages.values():
+        current = latest.get(record["session_id"])
+        if current is None or record["time_created"] >= current["time_created"]:
+            latest[record["session_id"]] = record
+    return [
+        {key: value for key, value in record.items() if key != "session_id"}
+        for record in latest.values()
+    ]
+
+
 def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
     return audit_instruction_surface(root)
 
@@ -698,6 +803,9 @@ def main(argv: list[str] | None = None) -> int:
     issues = audit(REPO_ROOT)
     telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 else None
     if telemetry is not None:
+        telemetry["child_completion"] = summarize_child_completions(
+            collect_child_completion_records(days=args.telemetry_days)
+        )
         issues.extend(audit_tool_turn_telemetry(telemetry, days=args.telemetry_days))
     if args.json:
         payload: Any = [issue.__dict__ for issue in issues]

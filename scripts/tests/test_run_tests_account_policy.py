@@ -291,6 +291,7 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     orchestrator.fail_fast = True
     orchestrator.use_mocks = True
     orchestrator.record_live_fixtures = False
+    orchestrator.proof_video_profile = ""
     orchestrator._discover_specs = lambda: ["regular.spec.ts"]
 
     def fake_preflight(_client, accounts=None):
@@ -356,6 +357,7 @@ def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeyp
     orchestrator.fail_fast = False
     orchestrator.use_mocks = True
     orchestrator.record_live_fixtures = False
+    orchestrator.proof_video_profile = ""
     orchestrator._discover_specs = lambda: ["regular-a.spec.ts", "regular-b.spec.ts"]
     orchestrator._merge_cookie_audits = lambda: None
 

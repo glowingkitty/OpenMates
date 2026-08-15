@@ -1109,7 +1109,12 @@ def relevant_changed_files_for_run(args: list[str], changed_files: list[str]) ->
     )
 
 
-def resolve_test_subject_commit(expected_commit: str = "", forwarded_args: list[str] | None = None) -> str:
+def resolve_test_subject_commit(
+    expected_commit: str = "",
+    forwarded_args: list[str] | None = None,
+    *,
+    require_exact: bool = False,
+) -> str:
     checkout_commit = current_git_sha()
     if not expected_commit or _matches_commit_prefix(checkout_commit, expected_commit):
         return checkout_commit
@@ -1120,6 +1125,11 @@ def resolve_test_subject_commit(expected_commit: str = "", forwarded_args: list[
     dev_commit = integrated_dev_sha()
     if _matches_commit_prefix(dev_commit, expected_commit):
         return dev_commit
+    if require_exact:
+        raise RuntimeError(
+            "Refusing to dispatch exact-commit verification: "
+            f"expected {expected_commit}, but origin/dev is {dev_commit[:9] or 'unavailable'}"
+        )
     if dev_commit and git_is_ancestor(expected_commit, dev_commit):
         changed_files = git_changed_files_between(expected_commit, dev_commit)
         relevant_changed = relevant_changed_files_for_run(forwarded_args or [], changed_files)
@@ -1141,6 +1151,7 @@ def resolve_test_subject_commit(expected_commit: str = "", forwarded_args: list[
 class ControlRunOptions:
     forwarded_args: list[str]
     expected_commit: str = ""
+    require_exact_commit: bool = False
     gate_deploy: bool = False
     detach: bool = False
     lease_required: bool = False
@@ -1154,6 +1165,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     """Remove tests.py-only run flags before delegating to run_tests.py."""
     forwarded: list[str] = []
     expected_commit = ""
+    require_exact_commit = False
     gate_deploy = False
     detach = False
     lease_required = False
@@ -1180,6 +1192,10 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
             continue
         if arg == "--gate-deploy":
             gate_deploy = True
+            index += 1
+            continue
+        if arg == "--require-exact-commit":
+            require_exact_commit = True
             index += 1
             continue
         if arg == "--proof-video-profile":
@@ -1236,6 +1252,7 @@ def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     return ControlRunOptions(
         forwarded_args=forwarded,
         expected_commit=expected_commit,
+        require_exact_commit=require_exact_commit,
         gate_deploy=gate_deploy,
         detach=detach,
         lease_required=lease_required,
@@ -4313,8 +4330,14 @@ def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
         print("E2E deploy gate: SKIPPED (run does not target Playwright)")
         return False
     expected_commit = options.expected_commit or current_git_sha()
-    subject_commit = resolve_test_subject_commit(expected_commit, options.forwarded_args)
+    subject_commit = resolve_test_subject_commit(
+        expected_commit,
+        options.forwarded_args,
+        require_exact=options.require_exact_commit,
+    )
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
+        if options.require_exact_commit:
+            raise RuntimeError("Exact-commit verification cannot skip the E2E deploy gate")
         print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
         return False
     failures = [*check_vercel_ready_for_commit(subject_commit), *check_dev_health_urls()]
@@ -4431,7 +4454,11 @@ def command_run(runner_args: list[str]) -> int:
     subject_commit = ""
     if options.expected_commit:
         try:
-            subject_commit = resolve_test_subject_commit(options.expected_commit, options.forwarded_args)
+            subject_commit = resolve_test_subject_commit(
+                options.expected_commit,
+                options.forwarded_args,
+                require_exact=options.require_exact_commit,
+            )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -4454,6 +4481,7 @@ def command_run(runner_args: list[str]) -> int:
             options = ControlRunOptions(
                 forwarded_args=forwarded_args,
                 expected_commit=options.expected_commit,
+                require_exact_commit=options.require_exact_commit,
                 gate_deploy=options.gate_deploy,
                 detach=options.detach,
                 lease_required=options.lease_required,

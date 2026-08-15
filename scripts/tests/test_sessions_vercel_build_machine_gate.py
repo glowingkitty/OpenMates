@@ -485,6 +485,17 @@ def test_deploy_can_start_verification_handoff_after_successful_push(monkeypatch
     assert "--expected-commit abc123def456" in output
 
 
+def test_deployed_commit_handoff_prints_full_sha_and_exact_test_command(capsys):
+    sessions = load_sessions_module()
+    commit = "abcdef1234567890abcdef1234567890abcdef12"
+
+    sessions._print_deployed_commit_handoff(commit)
+
+    output = capsys.readouterr().out
+    assert f"Full commit: {commit}" in output
+    assert f"--gate-deploy --require-exact-commit --expected-commit {commit}" in output
+
+
 def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
