@@ -29,6 +29,8 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
 const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
 const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
+const CHAT_PREFLIGHT_ACK_TIMEOUT_MS = 60_000;
+const SEND_ACCEPTED_TIMEOUT_MS = CHAT_PREFLIGHT_ACK_TIMEOUT_MS + 15_000;
 
 type LoginResponseDiagnostic = {
 	status: number;
@@ -169,10 +171,11 @@ async function waitForUserMessageAcceptedByServer(
 					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
 					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
 				},
-				{ timeout: 45_000 }
+				{ timeout: SEND_ACCEPTED_TIMEOUT_MS }
 			)
 			.toBeTruthy();
 	} catch (error) {
+		const lastSendDebug = await page.evaluate(() => (window as any).__lastSendDebug ?? null).catch(() => null);
 		const diagnostics = await page.evaluate(() => {
 			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
 			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
@@ -183,7 +186,7 @@ async function waitForUserMessageAcceptedByServer(
 				lastUserText: lastUser?.innerText ?? null
 			};
 		});
-		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify(diagnostics)}`);
+		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify({ diagnostics, lastSendDebug })}`);
 		throw error;
 	}
 }
