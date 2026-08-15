@@ -154,6 +154,11 @@ SOURCE_SCAN_ROOTS = (
 
 SOURCE_SCAN_SUFFIXES = {".svelte", ".ts", ".tsx", ".js", ".mjs", ".py", ".swift"}
 VERCEL_DEPLOYMENT_GATE_TEST_KEY = "playwright::vercel-deployment-gate"
+TEST_GATE_RELEVANT_FILES = {
+    "scripts/tests.py",
+    "scripts/run_tests.py",
+}
+RELATIVE_IMPORT_RE = re.compile(r"(?:require\(\s*|from\s+|import\s*\(\s*|import\s+)['\"](\.[^'\"]+)['\"]")
 _SOURCE_TEXT_CACHE: dict[str, str] | None = None
 
 
@@ -969,6 +974,38 @@ def integrated_dev_sha() -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def git_is_ancestor(ancestor: str, descendant: str) -> bool:
+    if not ancestor or not descendant:
+        return False
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=PROJECT_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode not in {0, 1}:
+        raise RuntimeError(f"Failed to compare commits {ancestor}..{descendant}: {result.stderr.strip()}")
+    return result.returncode == 0
+
+
+def git_changed_files_between(base_commit: str, head_commit: str) -> list[str]:
+    if not base_commit or not head_commit:
+        return []
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB", f"{base_commit}..{head_commit}"],
+        cwd=PROJECT_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to list changed files between {base_commit} and {head_commit}: {result.stderr.strip()}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
 def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     actual = actual_sha.strip().lower()
     expected = expected_sha.strip().lower()
@@ -981,16 +1018,117 @@ def _current_checkout_commit(fallback_commit: str = "") -> str:
     return current_git_sha()
 
 
-def resolve_test_subject_commit(expected_commit: str = "") -> str:
+def requested_playwright_spec_names(args: list[str]) -> list[str]:
+    specs: list[str] = []
+    for index, arg in enumerate(args):
+        if arg == "--spec" and index + 1 < len(args):
+            specs.append(_normalized_spec_path(args[index + 1]))
+        elif arg.startswith("--spec="):
+            specs.append(_normalized_spec_path(arg.split("=", 1)[1]))
+    return sorted({spec for spec in specs if spec})
+
+
+def _resolve_relative_module(base_path: Path, specifier: str) -> list[Path]:
+    target = (base_path.parent / specifier).resolve()
+    candidates = [target]
+    if not target.suffix:
+        candidates = [
+            *(target.with_suffix(suffix) for suffix in (".ts", ".tsx", ".js", ".mjs", ".cjs", ".svelte")),
+            *(target / f"index{suffix}" for suffix in (".ts", ".tsx", ".js", ".mjs", ".svelte")),
+        ]
+    root = PROJECT_ROOT.resolve()
+    return [path for path in candidates if path.is_file() and path.resolve().is_relative_to(root)]
+
+
+def relative_dependency_files(entry_paths: list[Path]) -> set[str]:
+    seen: set[Path] = set()
+    linked: set[str] = set()
+    stack = [path.resolve() for path in entry_paths if path.is_file()]
+    while stack and len(seen) < 40:
+        path = stack.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        linked.add(display_path(path))
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")[:250000]
+        except OSError:
+            continue
+        for match in RELATIVE_IMPORT_RE.finditer(text):
+            for dependency in _resolve_relative_module(path, match.group(1)):
+                if dependency not in seen:
+                    stack.append(dependency)
+    return linked
+
+
+def test_index_linked_files(spec_name: str) -> set[str]:
+    index = read_json(TEST_FILE_INDEX_FILE, {})
+    tests = index.get("tests") if isinstance(index, dict) else {}
+    if not isinstance(tests, dict):
+        return set()
+    candidates = {
+        spec_name,
+        f"playwright::{spec_name}",
+        f"frontend/apps/web_app/tests/{spec_name}",
+        f"playwright::frontend/apps/web_app/tests/{spec_name}",
+    }
+    linked: set[str] = set()
+    for key in candidates:
+        value = tests.get(key)
+        if isinstance(value, list):
+            linked.update(str(path) for path in value if str(path).strip())
+    return linked
+
+
+def relevant_files_for_requested_run(args: list[str]) -> set[str]:
+    relevant = set(TEST_GATE_RELEVANT_FILES)
+    for spec_name in requested_playwright_spec_names(args):
+        spec_path = SPEC_DIR / spec_name
+        relevant.add(f"frontend/apps/web_app/tests/{spec_name}")
+        relevant.update(test_index_linked_files(spec_name))
+        if spec_path.is_file():
+            relevant.update(relative_dependency_files([spec_path]))
+            try:
+                spec_text = spec_path.read_text(encoding="utf-8", errors="ignore")[:250000]
+            except OSError:
+                spec_text = ""
+            relevant.update(files_containing_tokens(extract_tokens(spec_text)))
+    return {path.replace("\\", "/").lstrip("./") for path in relevant if path}
+
+
+def relevant_changed_files_for_run(args: list[str], changed_files: list[str]) -> list[str]:
+    changed = [path.replace("\\", "/").lstrip("./") for path in changed_files]
+    relevant = relevant_files_for_requested_run(args)
+    if requested_playwright_spec_names(args):
+        return sorted(path for path in changed if path in relevant)
+    return sorted(
+        path
+        for path in changed
+        if path in relevant or path.startswith(("frontend/", "backend/", "apple/", "scripts/"))
+    )
+
+
+def resolve_test_subject_commit(expected_commit: str = "", forwarded_args: list[str] | None = None) -> str:
     checkout_commit = current_git_sha()
     if not expected_commit or _matches_commit_prefix(checkout_commit, expected_commit):
         return checkout_commit
 
-    # sessions.py deploy integrates from an isolated worktree without rebasing that
-    # worktree. Accept only the exact current dev integration ref, never an arbitrary SHA.
+    # sessions.py deploy integrates from isolated worktrees. Exact matches remain
+    # preferred, but proof runs may also target an ancestor when later dev changes
+    # did not touch the requested spec's known inputs.
     dev_commit = integrated_dev_sha()
     if _matches_commit_prefix(dev_commit, expected_commit):
         return dev_commit
+    if dev_commit and git_is_ancestor(expected_commit, dev_commit):
+        changed_files = git_changed_files_between(expected_commit, dev_commit)
+        relevant_changed = relevant_changed_files_for_run(forwarded_args or [], changed_files)
+        if not relevant_changed:
+            return dev_commit
+        raise RuntimeError(
+            "Refusing to dispatch tests for a moving target: "
+            f"expected commit {expected_commit} is an ancestor of origin/dev {dev_commit[:9]}, "
+            "but relevant files changed after it: " + ", ".join(relevant_changed[:8])
+        )
     raise RuntimeError(
         "Refusing to dispatch tests for a moving target: "
         f"expected commit {expected_commit}, current HEAD is {checkout_commit[:9]} "
@@ -4174,11 +4312,11 @@ def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
         print("E2E deploy gate: SKIPPED (run does not target Playwright)")
         return False
     expected_commit = options.expected_commit or current_git_sha()
-    subject_commit = resolve_test_subject_commit(expected_commit)
+    subject_commit = resolve_test_subject_commit(expected_commit, options.forwarded_args)
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
         print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
         return False
-    failures = [*check_vercel_ready_for_commit(expected_commit), *check_dev_health_urls()]
+    failures = [*check_vercel_ready_for_commit(subject_commit), *check_dev_health_urls()]
     if failures:
         raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
     print(f"E2E deploy gate: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
@@ -4292,7 +4430,7 @@ def command_run(runner_args: list[str]) -> int:
     subject_commit = ""
     if options.expected_commit:
         try:
-            subject_commit = resolve_test_subject_commit(options.expected_commit)
+            subject_commit = resolve_test_subject_commit(options.expected_commit, options.forwarded_args)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2

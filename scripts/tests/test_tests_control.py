@@ -347,10 +347,97 @@ def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_
     assert tests_control.resolve_test_subject_commit("deployed-commit") == "deployed-commit-123"
 
 
+def test_subject_commit_accepts_ancestor_when_requested_spec_inputs_unchanged(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    spec_dir = tests_control.SPEC_DIR
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "shared-chat-embed-assets.spec.ts").write_text(
+        "const helper = require('./helpers/chat-test-helpers');\n"
+        "await page.getByTestId('shared-chat-badge');\n",
+        encoding="utf-8",
+    )
+    (spec_dir / "helpers").mkdir()
+    (spec_dir / "helpers" / "chat-test-helpers.ts").write_text("export {};\n", encoding="utf-8")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: [
+            "docs/releases/daily/2026-08-15.md",
+            "frontend/packages/ui/src/stores/activeChatStore.ts",
+        ],
+    )
+
+    assert tests_control.resolve_test_subject_commit(
+        expected,
+        ["--spec", "shared-chat-embed-assets.spec.ts"],
+    ) == current_dev
+
+
+def test_subject_commit_rejects_ancestor_when_requested_spec_changed(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed"):
+        tests_control.resolve_test_subject_commit(expected, ["--spec", "shared-chat-embed-assets.spec.ts"])
+
+
+def test_subject_commit_rejects_ancestor_when_token_linked_source_changed(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    spec_dir = tests_control.SPEC_DIR
+    component_path = tmp_path / "frontend" / "packages" / "ui" / "src" / "components" / "ChatHeader.svelte"
+    spec_dir.mkdir(parents=True)
+    component_path.parent.mkdir(parents=True)
+    (spec_dir / "shared-chat-embed-assets.spec.ts").write_text(
+        "await page.getByTestId('shared-chat-badge');\n",
+        encoding="utf-8",
+    )
+    component_path.write_text('<span data-testid="shared-chat-badge"></span>\n', encoding="utf-8")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/packages/ui/src/components/ChatHeader.svelte"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed"):
+        tests_control.resolve_test_subject_commit(expected, ["--spec", "shared-chat-embed-assets.spec.ts"])
+
+
 def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
     monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda _ancestor, _descendant: False)
 
     with pytest.raises(RuntimeError, match="moving target"):
         tests_control.resolve_test_subject_commit("unrelated-commit")
