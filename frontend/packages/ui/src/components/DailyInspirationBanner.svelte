@@ -1768,7 +1768,7 @@
                   </button>
                 </div>
               </div>
-            {:else if !isCoordinatedGuestStory || !actionableMobileHeadingReady}
+            {:else}
               {#key current.inspiration_id}
                 <div
                   class="guest-intro-copy"
@@ -3557,7 +3557,7 @@
 
     .guest-intro-variant .banner-inner {
       width: 100%;
-      padding: 16px 48px 18px;
+      padding: 16px 40px 18px;
     }
 
     .landing-intro-expanded .banner-inner {
@@ -3647,8 +3647,8 @@
     }
 
     .guest-feature-headline {
-      font-size: clamp(2rem, 9vw, 2.75rem);
-      line-height: 1.05;
+      font-size: clamp(2rem, 8.4vw, 2.35rem);
+      line-height: 1.03;
       -webkit-line-clamp: 5;
       line-clamp: 5;
       display: -webkit-box;
@@ -3754,7 +3754,7 @@
       inset: auto;
       top: 50%;
       left: 50%;
-      width: min(calc(100% - 88px), 700px);
+      width: min(calc(100% - 64px), 700px);
       height: auto;
       padding-inline: 0;
       box-sizing: border-box;
@@ -3793,10 +3793,10 @@
 
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
       inset: auto;
-      top: 4px;
+      top: 0;
       left: 50%;
-      width: min(calc(100% - 48px), 700px);
-      max-width: min(calc(100% - 48px), 700px);
+      width: min(calc(100% - 44px), 700px);
+      max-width: min(calc(100% - 44px), 700px);
       height: auto;
       padding-inline: 0;
       flex-direction: row;
@@ -3826,6 +3826,11 @@
       max-width: min(calc(100cqi - 72px), 560px);
       margin-top: 0;
       margin-left: 0;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy :global(.landing-heading-motion.hidden) {
+      opacity: 1;
+      transform: none;
     }
 
     .banner-content.mobile-card-loop .guest-feature-inline-icon {
@@ -3874,6 +3879,10 @@
     .banner-content.mobile-card-loop.actionable-heading-hidden .guest-feature-copy {
       opacity: 0;
       transition: none;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card.actionable-heading-hidden .guest-feature-copy {
+      opacity: 1;
     }
 
   @container chat-side (max-width: 730px) {

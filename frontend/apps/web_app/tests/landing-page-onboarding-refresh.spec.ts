@@ -910,7 +910,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.demoHeight).toBeLessThanOrEqual(metrics.bannerHeight);
 		expect(metrics.demoLeftGap).toBeGreaterThanOrEqual(40);
 		expect(metrics.demoRightGap).toBeGreaterThanOrEqual(40);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
 		expect(metrics.sceneAnimation).toBe('none');
 		expect(metrics.activeStage).toBe('luma-cta');
 		expect(metrics.buttonText).toBe('Open on Luma');
@@ -950,7 +950,7 @@ test.describe('Landing page onboarding refresh', () => {
 			const headingEndY = await page.getByTestId('landing-guest-heading-motion').evaluate((heading: HTMLElement) => Number.parseFloat(getComputedStyle(heading).translate.split(' ')[1] || '0'));
 			expect(Math.abs(headingEndY - headingStartY), `${viewport.width}px: visible heading should keep moving`).toBeGreaterThan(0.25);
 			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: 4000 });
-			await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
 			await waitForActionableStage(page, 'user-request');
 
 			const metrics = await page.evaluate(() => {
@@ -1024,8 +1024,8 @@ test.describe('Landing page onboarding refresh', () => {
 		).toBeLessThanOrEqual(0.1);
 		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
 		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', { timeout: 1500 });
-		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(0);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
+		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(1);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable');
 		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveAttribute('data-playing', 'true');
 
 		await waitForActionableStage(page, 'user-request');
@@ -1060,7 +1060,7 @@ test.describe('Landing page onboarding refresh', () => {
 		});
 		expect(assistantMessageGeometry.rowLayoutWidth, 'mobile assistant message row should remain slightly wider than the demo column').toBeGreaterThanOrEqual(assistantMessageGeometry.demoLayoutWidth + 8);
 		expect(assistantMessageGeometry.fontSize, 'mobile assistant message should use the enlarged type scale').toBeGreaterThanOrEqual(13);
-		expect(demoActionable.headingCount, 'heading must stay unmounted while the demo plays').toBe(0);
+		expect(demoActionable.headingCount, 'the reduced heading should stay mounted while the demo plays').toBe(1);
 		expect(demoActionable.iconCount).toBe(0);
 		expect(demoActionable.demoOpacity, 'demo should be visible after the heading exits').toBeGreaterThanOrEqual(0.85);
 		const compactDemoOverflowY = Math.max(0, demoActionable.demoBottom - demoActionable.bannerBottom);
