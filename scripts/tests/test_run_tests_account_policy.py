@@ -195,6 +195,35 @@ def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
     assert dispatches == [("regular.spec.ts", None)]
 
 
+def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
+    run_tests = load_run_tests_module()
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def dispatch_spec(self, *_args, **_kwargs):
+            return 123
+
+        def wait_for_runs(self, run_ids, _fail_fast):
+            return {run_id: {"status": "completed", "conclusion": "cancelled"} for run_id in run_ids}
+
+        def download_artifact(self, *_args, **_kwargs):
+            return None
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["regular.spec.ts"],
+        batch_size=1,
+        fail_fast=True,
+    )
+
+    result = runner.run_all_batches()
+
+    assert result.status == "failed"
+    assert result.tests[0]["status"] == "not_started"
+    assert result.tests[0]["error"] == "Run was cancelled"
+
+
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(5)]

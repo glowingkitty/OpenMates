@@ -341,7 +341,7 @@ class SeededGiftCard:
 # Helpers
 # ---------------------------------------------------------------------------
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "not_started"}
 
 
 def _is_problem_status(status: str) -> bool:
@@ -356,6 +356,7 @@ def _problem_count(summary: dict) -> int:
         + int(summary.get("dispatch_error", 0))
         + int(summary.get("timeout", 0))
         + int(summary.get("result_unknown", 0))
+        + int(summary.get("not_started", 0))
     )
 
 
@@ -371,6 +372,8 @@ def _problem_summary_label(summary: dict) -> str:
         parts.append(f"{summary['timeout']} timed out")
     if summary.get("result_unknown", 0):
         parts.append(f"{summary['result_unknown']} unknown")
+    if summary.get("not_started", 0):
+        parts.append(f"{summary['not_started']} not started")
     return ", ".join(parts) if parts else "all passed"
 
 
