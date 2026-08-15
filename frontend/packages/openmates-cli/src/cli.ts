@@ -4300,6 +4300,7 @@ async function handleChats(
             autoApproveMemories: flags["auto-approve-memories"] === true,
             acceptTaskProposals: flags["accept-task-proposals"] === true,
             piiDetection: flags["no-pii-detection"] !== true,
+            taskUpdateJobs: flags["no-task-update-jobs"] !== true,
             responseTimeoutMs: parseResponseTimeoutMs(flags),
             ...teamContext,
             anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
@@ -4398,6 +4399,7 @@ async function handleChats(
         autoApproveMemories: flags["auto-approve-memories"] === true,
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        taskUpdateJobs: flags["no-task-update-jobs"] !== true,
         responseTimeoutMs: parseResponseTimeoutMs(flags),
         ...teamContext,
       },
@@ -12917,8 +12919,8 @@ function printChatsHelp(): void {
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--slug <slug>] [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
-  openmates chats send [--chat <id>] [--slug <slug>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
+  openmates chats new <message> [--slug <slug>] [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
+  openmates chats send [--chat <id>] [--slug <slug>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
@@ -12981,6 +12983,7 @@ Saved-chat task options for 'new', 'send', and 'answer-interactive':
   --accept-task-proposals  Explicitly save assistant task proposals as encrypted
                             Tasks V1 records scoped to the chat. Without this,
                             proposals remain review-only, like the web app card.
+  --no-task-update-jobs    Do not advertise task update job support for this chat.
 
 Guest-only options for logged-out 'new':
   --learning-mode          Opt anonymous chat into request-scoped Learning Mode.

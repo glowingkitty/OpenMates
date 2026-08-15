@@ -484,7 +484,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 			`@${pdfPath} @${imagePath} @${audioPath}`;
 		const sendResult = await runCli(
 			apiUrl,
-			['chats', 'new', message, '--slug', `shared-proof-${runMarker}`, '--json'],
+			['chats', 'new', message, '--slug', `shared-proof-${runMarker}`, '--json', '--no-task-update-jobs'],
 			600_000
 		);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);

@@ -4034,6 +4034,21 @@ describe("learning-mode command surface", () => {
 });
 
 describe("workspace ask fallback chat", () => {
+  it("lets regular chats opt out of task update jobs", async () => {
+    await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, chatMessages, clientCapabilities }) => {
+      const output = await runCliAsync(
+        ["chats", "new", "Create a deterministic test chat", "--json", "--no-task-update-jobs", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { status?: string; chatId?: string };
+
+      assert.equal(parsed.status, "completed");
+      assert.equal(typeof parsed.chatId, "string");
+      assert.deepEqual(chatMessages, ["Create a deterministic test chat"]);
+      assert.deepEqual(clientCapabilities, [[]]);
+    });
+  });
+
   it("starts a saved chat with the original instruction when workflow ask falls back", async () => {
     await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities }) => {
       const instruction = "add a Discord notification to all my workflows once they are done";
