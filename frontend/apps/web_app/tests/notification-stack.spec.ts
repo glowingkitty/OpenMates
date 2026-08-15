@@ -19,6 +19,9 @@ const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
 test('global notifications stack behind the front card and promote on dismiss', async ({ page }) => {
 	test.setTimeout(60000);
 
+	await page.addInitScript((key: string) => {
+		sessionStorage.setItem(key, JSON.stringify({ runId: 'notification-stack', token: 'local-e2e' }));
+	}, E2E_LOG_FORWARDING_SESSION_KEY);
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForFunction((key: string) => Boolean(sessionStorage.getItem(key)), E2E_LOG_FORWARDING_SESSION_KEY, {
 		timeout: 10000
