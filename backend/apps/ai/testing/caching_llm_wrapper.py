@@ -216,6 +216,8 @@ def wrap_provider_with_cache(
             return _cached_stream(**kwargs)
         return await _cached_non_stream(**kwargs)
 
+    setattr(cached_provider, "_live_mock_cache_wrapped", True)
+    setattr(cached_provider, "_live_mock_original_provider", provider_fn)
     return cached_provider
 
 

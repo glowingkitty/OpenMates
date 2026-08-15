@@ -263,6 +263,39 @@ def _build_provider_registry() -> Dict[str, Any]:
 # The registry is built once when this module is first imported and reused for all LLM requests.
 # No performance overhead on individual requests - just a simple dictionary lookup.
 PROVIDER_CLIENT_REGISTRY: Dict[str, Any] = _build_provider_registry()
+_LIVE_MOCK_REGISTRY_WRAP_CHECKED = False
+
+
+def _ensure_live_mock_provider_registry_wrapped() -> None:
+    """Wrap providers lazily if MOCK_EXTERNAL_APIS becomes available after import."""
+    global _LIVE_MOCK_REGISTRY_WRAP_CHECKED
+    if _LIVE_MOCK_REGISTRY_WRAP_CHECKED:
+        return
+    if os.getenv("MOCK_EXTERNAL_APIS") != "true" or os.getenv("SERVER_ENVIRONMENT", "production") == "production":
+        return
+
+    try:
+        from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
+        from backend.shared.testing.api_response_cache import get_shared_cache
+    except ImportError as e:
+        logger.warning(f"[LiveMock] Could not import caching wrapper: {e}")
+        _LIVE_MOCK_REGISTRY_WRAP_CHECKED = True
+        return
+
+    cache = get_shared_cache()
+    wrapped_count = 0
+    for server_id, provider_client in list(PROVIDER_CLIENT_REGISTRY.items()):
+        if getattr(provider_client, "_live_mock_cache_wrapped", False):
+            continue
+        PROVIDER_CLIENT_REGISTRY[server_id] = wrap_provider_with_cache(provider_client, cache)
+        wrapped_count += 1
+
+    if wrapped_count:
+        logger.info(
+            f"[LiveMock] Lazily wrapped {wrapped_count} LLM provider(s) with caching "
+            f"(activated per-request via TEST_LIVE_MOCK/RECORD markers)"
+        )
+    _LIVE_MOCK_REGISTRY_WRAP_CHECKED = True
 
 
 def _get_provider_client(provider_prefix: str) -> Optional[Any]:
@@ -275,6 +308,7 @@ def _get_provider_client(provider_prefix: str) -> Optional[Any]:
     Returns:
         The client function if found, None otherwise
     """
+    _ensure_live_mock_provider_registry_wrapped()
     return PROVIDER_CLIENT_REGISTRY.get(provider_prefix)
 
 
