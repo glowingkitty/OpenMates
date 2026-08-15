@@ -830,6 +830,8 @@ def review_run(
             "Review every supplied frame. Evaluate every expected assertion and independently scan for obvious visual-integrity "
             "defects including clipping, overlap, overflow, incorrect geometry or colors, stale loading, raw implementation text, "
             "broken navigation, and unresponsive controls. Never omit a supplied frame or inspect the full video."
+            " Captions may be delivered as toggleable sidecar metadata rather than burned into the reviewed frames; do not report "
+            "missing burned-in caption pixels as a defect unless the approved contract explicitly requires visible in-frame captions."
             " Read each image from read_path, but cite its canonical path field in the JSON response."
         ),
         "required_output": {

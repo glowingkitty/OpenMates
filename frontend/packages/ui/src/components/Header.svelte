@@ -15,7 +15,6 @@
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
-    import { demoMode } from '../stores/demoModeStore';
     import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
     import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
     import { isWorkspaceFeatureAvailable } from '../config/workspaceFeatureGates';
@@ -49,9 +48,7 @@
     let serverEditionLabel = $derived(
         serverEdition === 'self_hosted'
             ? $text('header.self_hosting_edition')
-            : serverEdition === 'development' && !$demoMode
-              ? $text('header.development_server')
-              : $text('signup.version_title')
+            : $text('signup.version_title')
     );
 
     let headerDiv: HTMLElement;
