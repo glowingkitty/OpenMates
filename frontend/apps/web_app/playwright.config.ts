@@ -52,6 +52,7 @@ const config: PlaywrightTestConfig = {
 		// Keep a browser recording for every spec run in GitHub artifacts.
 		// Videos stay in Actions storage; local/Obsidian processing stores links only.
 		video: videoSize ? { mode: resolvedVideoMode, size: videoSize } : resolvedVideoMode,
+		...(videoSize ? { viewport: videoSize } : {}),
 		trace: 'off',
 		launchOptions: {
 			args: [

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -927,6 +929,38 @@ def test_dispatch_can_request_exact_proof_video_profiles(monkeypatch):
             proof_video_profile=profile,
         ) == 123
         assert f"proof_video_profile={profile}" in commands[0]
+
+
+def test_proof_video_size_also_sets_browser_viewport(tmp_path):
+    config_url = (PROJECT_ROOT / "frontend/apps/web_app/playwright.config.ts").as_uri()
+    loader = tmp_path / "load-playwright-config.mjs"
+    loader.write_text(
+        f"const config = (await import('{config_url}')).default;\n"
+        "console.log(JSON.stringify({ viewport: config.use.viewport ?? null, video: config.use.video }));\n",
+        encoding="utf-8",
+    )
+
+    for width, height, expected in (("1440", "900", {"width": 1440, "height": 900}), ("390", "844", {"width": 390, "height": 844}), (None, None, None)):
+        env = os.environ.copy()
+        env["PLAYWRIGHT_TEST_BASE_URL"] = "https://example.invalid"
+        if width is None:
+            env.pop("PLAYWRIGHT_VIDEO_WIDTH", None)
+            env.pop("PLAYWRIGHT_VIDEO_HEIGHT", None)
+        else:
+            env["PLAYWRIGHT_VIDEO_WIDTH"] = width
+            env["PLAYWRIGHT_VIDEO_HEIGHT"] = height
+        result = subprocess.run(
+            ["node", "--experimental-strip-types", str(loader)],
+            cwd=PROJECT_ROOT,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        loaded = json.loads(result.stdout)
+        assert loaded["viewport"] == expected
+        if expected is not None:
+            assert loaded["video"]["size"] == expected
 
 
 def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
