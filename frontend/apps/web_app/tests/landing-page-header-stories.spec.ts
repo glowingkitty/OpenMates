@@ -11,7 +11,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const HEADING_SETTLE_MS = 4000;
-const HEADING_TRANSITION_MS = 2100 + 420;
+const HEADING_TRANSITION_MS = 2100 + 420 + 120;
 const PRIVACY_DURATION_MS = HEADING_TRANSITION_MS + 20000;
 const STORY_DURATION_MS = HEADING_TRANSITION_MS + 12000;
 const ADVANCE_GRACE_MS = 4000;
