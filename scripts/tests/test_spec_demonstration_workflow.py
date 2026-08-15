@@ -210,6 +210,51 @@ def test_verifier_rejects_missing_required_demonstration_evidence(tmp_path: Path
     assert any("demonstration" in failure and "passing" in failure for failure in failures)
 
 
+def test_verifier_accepts_user_waived_required_demonstration(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    evidence = """  evidence:
+    status: waived
+    subject_commit: abc1234
+    manifest_path: not_applicable
+    manifest_hash: not_applicable
+    privacy_status: waived
+    audio_status: not_required
+    review_status: waived
+    review_run_id: not_applicable
+    review_attempts: 0
+    timestamp: "2026-08-06T00:00:00Z"
+    publication_status: not_configured
+    actor: user
+    reason: User waived proof video after deployed tests succeeded.
+"""
+    path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), required_demonstration(evidence=evidence)))
+
+    assert spec_verify.verify_spec(path, require_red=False, require_green=True) == []
+
+
+def test_verifier_rejects_user_waived_demonstration_without_actor(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    evidence = """  evidence:
+    status: waived
+    subject_commit: abc1234
+    manifest_path: not_applicable
+    manifest_hash: not_applicable
+    privacy_status: waived
+    audio_status: not_required
+    review_status: waived
+    review_run_id: not_applicable
+    review_attempts: 0
+    publication_status: not_configured
+    timestamp: "2026-08-06T00:00:00Z"
+    reason: User waived proof video after deployed tests succeeded.
+"""
+    path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), required_demonstration(evidence=evidence)))
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("waived evidence missing actor" in failure for failure in failures)
+
+
 def test_verifier_accepts_current_review_with_delivered_discord_publication(tmp_path: Path) -> None:
     spec_verify = load_module("spec_verify")
     manifest_path, manifest_hash = write_passed_manifest(tmp_path)

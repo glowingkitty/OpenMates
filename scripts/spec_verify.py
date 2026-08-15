@@ -201,6 +201,12 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
         return ["demonstration: missing required passing evidence"]
 
     failures: list[str] = []
+    if evidence.get("status") == "waived":
+        for field in ("timestamp", "reason", "actor"):
+            if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+                failures.append(f"demonstration: waived evidence missing {field}")
+        return failures
+
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
     if evidence.get("privacy_status") != "passed":
