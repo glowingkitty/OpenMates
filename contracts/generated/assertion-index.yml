@@ -6608,12 +6608,12 @@ assertions:
       surface: gui.apple
     - &id745
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 73
+      line: 72
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id746
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 440
+      line: 443
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -6689,7 +6689,7 @@ assertions:
       surface: gui.apple
     - &id754
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 440
+      line: 443
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -6784,12 +6784,12 @@ assertions:
       surface: gui.apple
     - &id763
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 73
+      line: 72
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id764
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 109
+      line: 108
       name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     - &id769
@@ -6822,25 +6822,25 @@ assertions:
     supporting_tests:
     - &id765
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 215
+      line: 214
       name: mobile stories preserve spacing, readable copy, complete headings, and
         contained permission UI
       surface: gui.web
     - &id766
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 383
+      line: 386
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id767
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 421
+      line: 424
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id768
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 453
+      line: 456
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id773
@@ -6894,12 +6894,12 @@ assertions:
       surface: gui.apple
     - &id776
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 73
+      line: 72
       name: intro advances promptly and every heading uses the shared motion lifecycle
       surface: gui.web
     - &id777
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 440
+      line: 443
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -6928,7 +6928,7 @@ assertions:
     supporting_tests:
     - &id778
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 453
+      line: 456
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id780
@@ -6987,7 +6987,7 @@ assertions:
     supporting_tests:
     - &id785
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 383
+      line: 386
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
@@ -7019,31 +7019,31 @@ assertions:
       surface: gui.apple
     - &id789
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 109
+      line: 108
       name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     supporting_tests:
     - &id790
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 215
+      line: 214
       name: mobile stories preserve spacing, readable copy, complete headings, and
         contained permission UI
       surface: gui.web
     - &id791
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 383
+      line: 386
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id792
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 421
+      line: 424
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id793
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 453
+      line: 456
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id794
@@ -7085,7 +7085,7 @@ assertions:
       surface: gui.apple
     - &id796
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 109
+      line: 108
       name: stories use coordinated heading-only and animation-only timelines
       surface: gui.web
     - &id797

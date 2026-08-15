@@ -17,7 +17,6 @@ const STORY_DURATION_MS = HEADING_TRANSITION_MS + 12000;
 const ADVANCE_GRACE_MS = 4000;
 const INTRO_TO_ACTIONABLE_MAX_MS = 700;
 const MOBILE_MINI_HEADING_MAX_BOTTOM_OVERFLOW_PX = 1;
-const MOBILE_MATE_ROW_MIN_WIDTH_PX = 260;
 const MOBILE_TEXT_CONTRAST_MIN = 3;
 
 const PRIVACY_STAGES = [
@@ -341,20 +340,24 @@ test.describe('Landing page header stories', () => {
 			const rect = active?.getBoundingClientRect();
 			const name = active?.querySelector<HTMLElement>('.mate-text-demo strong');
 			const category = active?.querySelector<HTMLElement>('.mate-text-demo small');
+			const nameRect = name?.getBoundingClientRect();
+			const categoryRect = category?.getBoundingClientRect();
 			const nameStyle = name ? getComputedStyle(name) : null;
 			const categoryStyle = category ? getComputedStyle(category) : null;
-			return demo && rect && nameStyle && categoryStyle ? {
-				rowWidth: rect.width,
+			return demo && rect && nameRect && categoryRect && nameStyle && categoryStyle ? {
 				contained: rect.left >= demo.left - 1 && rect.right <= demo.right + 1 && rect.top >= demo.top - 1 && rect.bottom <= demo.bottom + 1,
 				categoryDisplay: categoryStyle.display,
+				nameFitsRow: nameRect.left >= rect.left && nameRect.right <= rect.right && name.clientWidth > 0 && name.scrollWidth <= name.clientWidth,
+				categoryFitsRow: categoryRect.left >= rect.left && categoryRect.right <= rect.right && category.clientWidth > 0 && category.scrollWidth <= category.clientWidth,
 				nameContrast: contrast(nameStyle.color, getComputedStyle(active).backgroundColor),
 				categoryContrast: contrast(categoryStyle.color, getComputedStyle(active).backgroundColor)
 			} : null;
 		});
 		expect(mateRowMetrics).not.toBeNull();
-		expect(mateRowMetrics!.rowWidth, 'mobile mate rows should be wide enough for the name and category').toBeGreaterThanOrEqual(MOBILE_MATE_ROW_MIN_WIDTH_PX);
 		expect(mateRowMetrics!.contained, 'mobile mate rows should stay inside the demo area').toBe(true);
 		expect(mateRowMetrics!.categoryDisplay, 'mate category should remain visible on mobile').not.toBe('none');
+		expect(mateRowMetrics!.nameFitsRow, 'mate name should fit inside the active mobile row').toBe(true);
+		expect(mateRowMetrics!.categoryFitsRow, 'mate category should fit inside the active mobile row').toBe(true);
 		expect(mateRowMetrics!.nameContrast, 'mate name should contrast with its dark-mode row background').toBeGreaterThanOrEqual(MOBILE_TEXT_CONTRAST_MIN);
 		expect(mateRowMetrics!.categoryContrast, 'mate category should contrast with its dark-mode row background').toBeGreaterThanOrEqual(MOBILE_TEXT_CONTRAST_MIN);
 
