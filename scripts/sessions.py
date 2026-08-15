@@ -7548,6 +7548,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             PROJECT_ROOT / "test-results" / "proof-videos" / args.session / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         )
         source = {
+            "source": str(deployed_run.get("source") or "scripts_tests"),
             "status": "passed",
             "command_or_spec": args.spec_name,
             "target": str(deployed_run.get("target") or args.target_environment),

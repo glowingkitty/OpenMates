@@ -233,6 +233,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
 
     assert observed["source_video"] == video
     assert observed["source"] == {
+        "source": "scripts_tests",
         "status": "passed",
         "command_or_spec": "signup-flow-passkey.spec.ts",
         "target": "https://app.dev.openmates.org",
