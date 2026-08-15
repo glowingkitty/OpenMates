@@ -6,18 +6,66 @@
   Keeping this in the UI package prevents route-specific toast layout drift.
 -->
 <script lang="ts">
+    import { onMount } from 'svelte';
     import Notification from './Notification.svelte';
     import ChatMessageNotification from './ChatMessageNotification.svelte';
-    import { notificationStore } from '../stores/notificationStore';
+    import { notificationStore, type NotificationType } from '../stores/notificationStore';
 
     const MAX_VISIBLE_NOTIFICATIONS = 3;
     const STACK_OFFSET_PX = 10;
     const STACK_SCALE_STEP = 0.045;
     const STACK_OPACITY_BY_DEPTH = [1, 0.72, 0.48] as const;
+    const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
+    const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
+
+    type E2ENotificationRequest = {
+        type?: NotificationType;
+        title?: string;
+        message?: string;
+        duration?: number;
+        dismissible?: boolean;
+        dedupeKey?: string;
+    };
 
     let visibleNotifications = $derived(
         $notificationStore.notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS),
     );
+
+    function e2eNotificationInjectionAllowed(): boolean {
+        try {
+            return typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY));
+        } catch {
+            return false;
+        }
+    }
+
+    onMount(() => {
+        if (!e2eNotificationInjectionAllowed()) return;
+
+        const handleE2ENotifications = (event: Event): void => {
+            if (!e2eNotificationInjectionAllowed()) return;
+
+            const notifications = (event as CustomEvent<{ notifications?: E2ENotificationRequest[] }>).detail?.notifications;
+            if (!Array.isArray(notifications)) {
+                console.warn('[NotificationStack] Ignoring malformed E2E notification request');
+                return;
+            }
+
+            notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS).forEach((notification, index) => {
+                if (!notification.message) return;
+                notificationStore.addNotificationWithOptions(notification.type ?? 'info', {
+                    title: notification.title,
+                    message: notification.message,
+                    duration: notification.duration ?? 0,
+                    dismissible: notification.dismissible ?? true,
+                    dedupeKey: notification.dedupeKey ?? `e2e-notification-stack-${index}`,
+                });
+            });
+        };
+
+        window.addEventListener(E2E_ADD_NOTIFICATIONS_EVENT, handleE2ENotifications);
+        return () => window.removeEventListener(E2E_ADD_NOTIFICATIONS_EVENT, handleE2ENotifications);
+    });
 
     function getStackItemStyle(depth: number): string {
         const yOffset = depth * -STACK_OFFSET_PX;

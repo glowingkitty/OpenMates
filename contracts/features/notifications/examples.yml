@@ -70,3 +70,9 @@ delivery_idempotency:
   - id: reconnect-replays-history-not-delivery
     input: {notification_id: notif-2, client_reconnected: true, delivery_state: dispatched}
     expect: {history_items: 1, delivery_replayed: false, read_state_preserved: true}
+
+web_stacked_deck:
+  - id: three-active-web-notifications
+    surface: gui.web
+    input: {active_in_app_notifications: 3, user_action: dismiss_front}
+    expect: {front_interactive: true, back_items_inert: true, back_items_faded_scaled: true, smooth_transition: true, next_promoted: true}

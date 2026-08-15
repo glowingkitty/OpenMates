@@ -141,6 +141,10 @@ assertions:
     type: behavior
     must: A non-persistent in-app web notification shows a bottom progress indicator for its configured duration and closes when that duration completes unless the user dismisses or acts on it first.
     depends_on: [surfaces.gui]
+  - id: notifications.web.stacked-deck
+    type: behavior
+    must: When multiple in-app web notifications are active, the front notification remains fully visible and interactive while the next two are visually stacked behind it with reduced opacity and scale, hidden from accessibility, and stack-state changes such as dismissal promote the next notification to the front with smooth transform and opacity transitions.
+    depends_on: [surfaces.gui, examples.web_stacked_deck]
 
 surfaces:
   rest_api:
@@ -167,4 +171,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [settings_ack, email_delivery, push_delivery, notification_history, privacy_boundaries, delivery_idempotency]
+  required_groups: [settings_ack, email_delivery, push_delivery, notification_history, privacy_boundaries, delivery_idempotency, web_stacked_deck]
