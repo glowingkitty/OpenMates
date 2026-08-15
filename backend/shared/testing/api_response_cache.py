@@ -374,11 +374,12 @@ class ApiResponseCache:
             if normalized and normalized != model:
                 categories.append(f"llm/{normalized}")
 
-        if category.startswith("llm/"):
-            category_model = category.removeprefix("llm/")
-            normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
-            if normalized and normalized != category_model:
-                categories.append(f"llm/{normalized}")
+        for prefix in ("llm/", "llm_non_stream/"):
+            if category.startswith(prefix):
+                category_model = category.removeprefix(prefix)
+                normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
+                if normalized and normalized != category_model:
+                    categories.append(f"{prefix}{normalized}")
 
         return list(dict.fromkeys(categories))
 

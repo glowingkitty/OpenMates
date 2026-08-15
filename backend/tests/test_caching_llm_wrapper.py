@@ -75,6 +75,23 @@ class FakeFallbackCache(FakeCache):
         return {"response": self.response_data}
 
 
+class FakeNonStreamCache(FakeCache):
+    def __init__(self, response_data=None):
+        self.response_data = response_data
+        self.saved_response = None
+
+    def load(self, group_id, category, fingerprint):
+        assert group_id == "fork-conversation"
+        assert category == "llm_non_stream/test-model"
+        assert fingerprint == "cached-fingerprint"
+        if self.response_data is None:
+            return None
+        return {"response": self.response_data}
+
+    def save(self, **kwargs):
+        self.saved_response = kwargs["response_data"]
+
+
 async def _replay(cache, messages):
     async def provider_fn(**_kwargs):
         raise AssertionError("mock replay should not call the real provider")
@@ -148,6 +165,73 @@ def test_cached_stream_provider_accepts_model_id_alias():
 
     assert asyncio.run(exercise_wrapper()) == ["alpha"]
     assert provider_calls == 0
+
+
+def test_cached_non_stream_provider_replays_cached_response_without_real_provider():
+    provider_calls = 0
+    cache = FakeNonStreamCache({
+        "type": "non_stream",
+        "value": {
+            "kind": "pydantic",
+            "module": "backend.apps.ai.llm_providers.openai_shared",
+            "class": "OpenAIUsageMetadata",
+            "value": {"input_tokens": 2, "output_tokens": 3, "total_tokens": 5},
+        },
+    })
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return {"success": True}
+
+    async def exercise_wrapper():
+        activate_mock_mode("mock", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+            return await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Classify this request"}],
+                stream=False,
+            )
+        finally:
+            deactivate_mock_mode()
+
+    response = asyncio.run(exercise_wrapper())
+
+    assert provider_calls == 0
+    assert isinstance(response, OpenAIUsageMetadata)
+    assert response.total_tokens == 5
+
+
+def test_record_non_stream_provider_saves_response_for_replay():
+    provider_calls = 0
+    cache = FakeNonStreamCache()
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return {"success": True, "category": "web/read"}
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+            return await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Classify this request"}],
+                stream=False,
+            )
+        finally:
+            deactivate_mock_mode()
+
+    response = asyncio.run(exercise_wrapper())
+
+    assert provider_calls == 1
+    assert response == {"success": True, "category": "web/read"}
+    assert cache.saved_response == {
+        "type": "non_stream",
+        "value": {"kind": "json", "value": {"success": True, "category": "web/read"}},
+    }
 
 
 def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():

@@ -48,6 +48,7 @@ DEFAULT_STREAM_SPEED = "instant"
 CHARS_PER_CHUNK = 20
 
 MIXED_STREAM_RESPONSE_TYPE = "mixed_stream"
+NON_STREAM_RESPONSE_TYPE = "non_stream"
 STREAM_CHUNK_FORMAT_VERSION = 1
 
 _EMBED_REF_TOKEN = r"[A-Za-z0-9][A-Za-z0-9._-]*"
@@ -171,9 +172,42 @@ def wrap_provider_with_cache(
         if not is_mock_active():
             return await provider_fn(**kwargs)
 
-        # Mock/record mode with stream=False: not supported yet, fall through to real provider
-        logger.debug("[LiveMock] Non-streaming mock not implemented, calling real provider")
-        return await provider_fn(**kwargs)
+        group_id = get_mock_group()
+        model = _model_from_kwargs(kwargs)
+        category = f"llm_non_stream/{model}"
+        messages = kwargs.get("messages", [])
+        fingerprint = cache.fingerprint_llm_call(
+            model=model,
+            messages=messages,
+            tools=kwargs.get("tools"),
+            temperature=kwargs.get("temperature"),
+            tool_choice=kwargs.get("tool_choice"),
+        )
+        request_summary = _build_llm_request_summary(kwargs, model)
+
+        cached = cache.load(group_id, category, fingerprint)
+        if cached is None and not is_record_mode():
+            compatible_loader = getattr(cache, "load_compatible_llm_response", None)
+            if callable(compatible_loader):
+                cached = compatible_loader(
+                    group_id,
+                    category,
+                    request_summary,
+                    excluded_fingerprint=fingerprint,
+                )
+        if cached is not None:
+            return _deserialize_non_stream_response(cached.get("response", {}))
+
+        if not is_record_mode():
+            raise MockCacheMiss(
+                category=category,
+                fingerprint=fingerprint,
+                details=f"model={model}, messages={len(messages)}",
+            )
+
+        response = await provider_fn(**kwargs)
+        _save_non_stream_to_cache(cache, group_id, category, fingerprint, response, kwargs)
+        return response
 
     # Dispatcher: provider clients are awaited by llm_utils. Streaming calls must
     # therefore resolve to an async iterator after the await, not return one directly.
@@ -353,6 +387,34 @@ def _save_to_cache(
         request_summary=request_summary,
         response_data=response_data,
     )
+
+
+def _save_non_stream_to_cache(
+    cache: ApiResponseCache,
+    group_id: str,
+    category: str,
+    fingerprint: str,
+    response: Any,
+    kwargs: dict,
+) -> None:
+    request_summary = _build_llm_request_summary(kwargs, _model_from_kwargs(kwargs))
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary=request_summary,
+        response_data={
+            "type": NON_STREAM_RESPONSE_TYPE,
+            "value": _serialize_stream_chunk(response),
+        },
+    )
+
+
+def _deserialize_non_stream_response(response_data: Any) -> Any:
+    if not isinstance(response_data, dict) or response_data.get("type") != NON_STREAM_RESPONSE_TYPE:
+        logger.warning("[LiveMock] Non-streaming LLM cache entry has unsupported response data")
+        return None
+    return _deserialize_stream_chunk(response_data.get("value"))
 
 
 def _split_into_chunks(text: str, chunk_size: int) -> List[str]:
