@@ -3462,7 +3462,7 @@
 
     .guest-intro-variant .banner-inner {
       width: 100%;
-      padding: 16px 40px 18px;
+      padding: 16px 20px 18px;
     }
 
     .landing-intro-expanded .banner-inner {
