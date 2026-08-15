@@ -83,7 +83,6 @@
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const HEADING_ENTRY_PAINT_DELAY_MS = 80;
   const SIGNUP_BENEFITS_HOLD_MS = 2800;
-  const SIGNUP_STAGE_TRANSITION_MS = 420;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -125,7 +124,7 @@
   type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
   type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden';
   type GuestSlidePhase = 'idle' | 'fading-out' | 'hidden' | 'fading-in';
-  type SignupSlidePhase = 'idle' | 'benefits-in' | 'benefits' | 'benefits-out' | 'cta-in' | 'cta';
+  type SignupSlidePhase = 'idle' | 'benefits' | 'cta';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -227,8 +226,6 @@
   let guestProductHeadingFallbackTimeout: number | undefined;
   let guestProductHeadingReadyTimeout: number | undefined;
   let signupStageTimeout: number | undefined;
-  let signupStageTransitionTimeout: number | undefined;
-  let signupStageAnimationFrame: number | undefined;
   let lastLandingIntroResetToken = $state(0);
   let lastLandingSignupSlideToken = $state(0);
   let skipLandingIntroApplied = $state(false);
@@ -318,8 +315,6 @@
     window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
     window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
     window.clearTimeout(signupStageTimeout);
-    window.clearTimeout(signupStageTransitionTimeout);
-    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
     introBannerVisible.set(false);
   });
 
@@ -536,12 +531,8 @@
     isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_SIGNUP_CTA_ID,
   );
   let shouldHoldOnFinalSlide = $derived(isGuestSignupCtaSlide && currentIndex === visibleInspirations.length - 1);
-  let signupBenefitsVisible = $derived(
-    signupSlidePhase === 'benefits-in'
-      || signupSlidePhase === 'benefits'
-      || signupSlidePhase === 'benefits-out',
-  );
-  let signupCtaVisible = $derived(signupSlidePhase === 'cta-in' || signupSlidePhase === 'cta');
+  let signupBenefitsVisible = $derived(signupSlidePhase === 'benefits');
+  let signupCtaVisible = $derived(signupSlidePhase === 'cta');
   let guestProductAnimationKind = $derived.by(() => {
     if (!isGuestIntroVariant || landingIntroOverlayActive) return '';
     if (current?.inspiration_id === 'openmates-privacy-safety') return 'privacy';
@@ -598,40 +589,20 @@
 
   $effect(() => {
     window.clearTimeout(signupStageTimeout);
-    window.clearTimeout(signupStageTransitionTimeout);
-    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
 
     if (!isGuestSignupCtaSlide) {
       signupSlidePhase = 'idle';
       return;
     }
 
-    signupSlidePhase = prefersReducedMotion ? 'benefits' : 'benefits-in';
-    if (!prefersReducedMotion) {
-      signupStageAnimationFrame = window.requestAnimationFrame(() => {
-        signupSlidePhase = 'benefits';
-      });
-    }
+    signupSlidePhase = 'benefits';
 
     signupStageTimeout = window.setTimeout(() => {
-      if (prefersReducedMotion) {
-        signupSlidePhase = 'cta';
-        return;
-      }
-
-      signupSlidePhase = 'benefits-out';
-      signupStageTransitionTimeout = window.setTimeout(() => {
-        signupSlidePhase = 'cta-in';
-        signupStageAnimationFrame = window.requestAnimationFrame(() => {
-          signupSlidePhase = 'cta';
-        });
-      }, SIGNUP_STAGE_TRANSITION_MS);
+      signupSlidePhase = 'cta';
     }, SIGNUP_BENEFITS_HOLD_MS);
 
     return () => {
       window.clearTimeout(signupStageTimeout);
-      window.clearTimeout(signupStageTransitionTimeout);
-      window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
     };
   });
 
@@ -1703,8 +1674,6 @@
                 <div
                   class="guest-signup-stage guest-signup-benefits-stage"
                   class:stage-visible={signupSlidePhase === 'benefits'}
-                  class:stage-entering={signupSlidePhase === 'benefits-in'}
-                  class:stage-exiting={signupSlidePhase === 'benefits-out'}
                   aria-hidden={!signupBenefitsVisible}
                 >
                   <ul
@@ -1723,7 +1692,6 @@
                 <div
                   class="guest-signup-stage guest-signup-cta"
                   class:stage-visible={signupSlidePhase === 'cta'}
-                  class:stage-entering={signupSlidePhase === 'cta-in'}
                   aria-hidden={!signupCtaVisible}
                 >
                   <h2>{current.phrase}</h2>
@@ -2679,28 +2647,14 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translateY(18px);
-    transition:
-      opacity 420ms ease,
-      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-      visibility 0s linear 420ms;
-  }
-
-  .guest-signup-stage.stage-entering,
-  .guest-signup-stage.stage-visible,
-  .guest-signup-stage.stage-exiting {
-    visibility: visible;
-    transition-delay: 0s;
+    transform: translateY(0);
+    transition: none;
   }
 
   .guest-signup-stage.stage-visible {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  .guest-signup-stage.stage-exiting {
-    transform: translateY(-18px);
   }
 
   .guest-signup-benefits-stage {
