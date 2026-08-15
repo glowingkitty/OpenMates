@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
 FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
 FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
+PROVIDER_STREAM_ERROR_PREFIX = "[ERROR"
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -112,6 +113,11 @@ def _chunk_has_substantive_output(chunk: Any) -> bool:
         return getattr(chunk, "tool_call", None) is not None
 
     return False
+
+
+def _is_provider_error_marker(chunk: Any) -> bool:
+    """Return True when a provider encoded a stream failure as text."""
+    return isinstance(chunk, str) and chunk.strip().startswith(PROVIDER_STREAM_ERROR_PREFIX)
 
 
 def _discover_server_providers_from_modules() -> Dict[str, Any]:
@@ -1832,6 +1838,17 @@ async def call_main_llm_stream(
                         if _is_usage_chunk(chunk):
                             buffered_usage_chunks.append(chunk)
                             continue
+
+                        if _is_provider_error_marker(chunk):
+                            error_msg = chunk.strip()
+                            logger.error(
+                                f"{attempt_log_prefix} Provider emitted stream error marker: {error_msg}"
+                            )
+                            last_error = error_msg
+                            if _any_content_yielded:
+                                yield STANDARDIZED_USER_ERROR_MESSAGE
+                                return
+                            raise ValueError(error_msg)
 
                         if _chunk_has_substantive_output(chunk):
                             provider_produced_substantive_output = True

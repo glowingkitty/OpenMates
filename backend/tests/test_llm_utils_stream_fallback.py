@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_llm_utils_stream_fallback.py
 #
 # Purpose: cover main-stream fallback behavior when a provider stream connects
@@ -100,6 +101,60 @@ def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch
     assert isinstance(chunks[1], GoogleUsageMetadata)
     assert chunks[1].candidates_token_count == 4
     assert len(chunks) == 2
+
+
+def test_call_main_llm_stream_falls_back_after_provider_error_marker(monkeypatch):
+    calls = []
+
+    async def primary_provider(**_kwargs):
+        async def _stream():
+            yield "[ERROR: OpenAI streaming error: Error code: 429 - quota exceeded]"
+
+        return _stream()
+
+    async def fallback_provider(**_kwargs):
+        async def _stream():
+            yield "Recovered after provider error"
+
+        return _stream()
+
+    def fake_get_provider_client(provider_prefix):
+        calls.append(provider_prefix)
+        if provider_prefix == "openai":
+            return primary_provider
+        if provider_prefix == "fallback":
+            return fallback_provider
+        raise AssertionError(f"Unexpected provider prefix: {provider_prefix}")
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", fake_get_provider_client)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(
+        llm_utils,
+        "resolve_fallback_servers_from_provider_config",
+        lambda model_id: ["fallback/gpt-5.4"] if model_id == "openai/gpt-5.4" else [],
+    )
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda message_history: message_history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: False)
+
+    async def consume_stream():
+        chunks = []
+        stream = llm_utils.call_main_llm_stream(
+            task_id="task-openai-429",
+            model_id="openai/gpt-5.4",
+            system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}],
+            temperature=0.2,
+            tools=None,
+            tool_choice="auto",
+        )
+        async for chunk in stream:
+            chunks.append(chunk)
+        return chunks
+
+    chunks = asyncio.run(consume_stream())
+
+    assert calls == ["openai", "fallback"]
+    assert chunks == ["Recovered after provider error"]
 
 
 def test_call_main_llm_stream_falls_back_after_bedrock_image_validation_error(monkeypatch):

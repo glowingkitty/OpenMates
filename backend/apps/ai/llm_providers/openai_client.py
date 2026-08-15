@@ -439,8 +439,9 @@ async def _invoke_openai_direct_api(
         except Exception as exc:
             error_msg_local = f"OpenAI streaming error: {exc}"
             logger.error(f"{log_prefix} {error_msg_local}", exc_info=True)
-            # Yield an error string to propagate to consumers without crashing the pipeline
-            yield f"[ERROR: {error_msg_local}]"
+            # Raise so the shared LLM stream wrapper can try configured server/model fallbacks
+            # before any generic user-facing error is persisted as assistant content.
+            raise RuntimeError(error_msg_local) from exc
 
     if stream:
         # Return the async generator for the calling pipeline to iterate over
