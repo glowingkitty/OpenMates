@@ -93,10 +93,10 @@ test.describe('Teams V1 web flow', () => {
 		expect(invitePayload.encrypted_recipient_hint).toBeTruthy();
 		await expect(page.getByTestId('team-invite-status')).toContainText(/invite created|invite sent/i, { timeout: 15000 });
 
-		await page.getByTestId('settings-back-button').click();
+		await page.getByTestId('banner-back-button').click();
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
 		await expect(page.getByTestId('team-settings-team-row').filter({ hasText: teamName }).first()).toBeVisible({ timeout: 15000 });
-		await page.getByTestId('settings-back-button').click();
+		await page.getByTestId('banner-back-button').click();
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'main');
 
 		await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
