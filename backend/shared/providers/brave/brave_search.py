@@ -12,6 +12,7 @@
 # - Checked every 5 minutes via Celery Beat task
 
 import logging
+import math
 import os
 import asyncio
 from email.utils import parsedate_to_datetime
@@ -101,11 +102,25 @@ def _is_monthly_quota_limited(response: httpx.Response) -> bool:
         return False
 
     meta = error.get("meta", {}) if isinstance(error, dict) else {}
-    return (
-        error.get("code") == "QUOTA_LIMITED"
-        or "quota" in str(error.get("detail", "")).lower()
-        or (isinstance(meta, dict) and meta.get("quota_limit") is not None)
-    )
+    error_code = error.get("code")
+    if error_code == "RATE_LIMITED":
+        return False
+    if error_code == "QUOTA_LIMITED":
+        return True
+
+    if isinstance(meta, dict):
+        quota_limit = meta.get("quota_limit")
+        quota_current = meta.get("quota_current")
+        quota_values_are_numeric = all(
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            for value in (quota_limit, quota_current)
+        )
+        if quota_values_are_numeric:
+            return quota_current >= quota_limit
+
+    return "quota limit exceeded" in str(error.get("detail", "")).lower()
 
 
 def _build_brave_headers(api_key: str) -> Dict[str, str]:
