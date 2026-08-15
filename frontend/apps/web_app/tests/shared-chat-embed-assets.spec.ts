@@ -405,12 +405,13 @@ async function waitForFinishedPdfEmbed(
 async function holdVisibleProofFrames(page: any): Promise<void> {
 	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
 	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
-	// The header arrows currently expose reversed labels; the right arrow advances this carousel.
-	const nextEmbedButton = page.locator('button[aria-label="Previous embed"]:visible').first();
+	const nextEmbedButton = page.locator('button.nav-arrow-right:visible').first();
 	for (let index = 0; index < 3; index += 1) {
 		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
 		if (index < 2) {
-			await nextEmbedButton.click({ force: true });
+			const box = await nextEmbedButton.boundingBox({ timeout: 5_000 });
+			if (!box) throw new Error('Shared asset proof carousel right arrow is not visible');
+			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 			await page.waitForTimeout(750);
 		}
 	}
