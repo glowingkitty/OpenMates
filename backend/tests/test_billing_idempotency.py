@@ -30,6 +30,13 @@ def _require_billing_service_class():
     return BillingService
 
 
+def _require_apps_api_route():
+    pytest.importorskip("slowapi", reason="apps API route imports rate limiter wiring")
+    from backend.core.api.app.routes import apps_api
+
+    return apps_api
+
+
 class _CapturingBillingService:
     def __init__(self) -> None:
         self.calls: list[dict] = []
@@ -88,3 +95,22 @@ def test_pdf_upload_charge_payload_uses_embed_scoped_idempotency_key() -> None:
         "embed_id": "embed-123",
         "deduplicated": True,
     }
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_app_skill_charge_payload_uses_request_scoped_idempotency_key() -> None:
+    apps_api = _require_apps_api_route()
+    from backend.core.api.app.utils.request_context import set_request_id
+
+    set_request_id("req-app-skill-1")
+
+    key = apps_api._build_app_skill_billing_idempotency_key(
+        app_id="code",
+        skill_id="get_docs",
+        user_id_hash="hash-1",
+        credits=20,
+        usage_details={"units_processed": 1, "server_provider": "Context7"},
+    )
+
+    assert key.startswith("app-skill:req-app-skill-1:code:get_docs:")
+    assert len(key) <= 255

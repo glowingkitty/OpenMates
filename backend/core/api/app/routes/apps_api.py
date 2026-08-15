@@ -13,6 +13,8 @@ import base64
 import httpx
 import hashlib
 import os
+import json
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from typing import Dict, Any, Optional, List
@@ -46,6 +48,7 @@ from backend.core.api.app.utils.api_key_auth import (
     DeviceNotApprovedError,
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.utils.request_context import get_request_id
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -72,6 +75,34 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
+MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
+
+
+def _build_app_skill_billing_idempotency_key(
+    *,
+    app_id: str,
+    skill_id: str,
+    user_id_hash: str,
+    credits: int,
+    usage_details: Optional[Dict[str, Any]],
+) -> str:
+    request_id = get_request_id()
+    if not request_id or request_id == "no-request-id":
+        request_id = uuid.uuid4().hex
+    usage_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "user_id_hash": user_id_hash,
+                "credits": credits,
+                "usage_details": usage_details or {},
+            },
+            sort_keys=True,
+            default=str,
+        ).encode()
+    ).hexdigest()[:16]
+    key = f"{APP_SKILL_BILLING_IDEMPOTENCY_PREFIX}:{request_id}:{app_id}:{skill_id}:{usage_fingerprint}"
+    return key[:MAX_BILLING_IDEMPOTENCY_KEY_LENGTH]
 
 
 def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
@@ -1381,6 +1412,13 @@ async def charge_credits_via_internal_api(
         "credits": credits,
         "skill_id": skill_id,
         "app_id": app_id,
+        "idempotency_key": _build_app_skill_billing_idempotency_key(
+            app_id=app_id,
+            skill_id=skill_id,
+            user_id_hash=user_id_hash,
+            credits=credits,
+            usage_details=usage_details,
+        ),
         "usage_details": usage_details or {},
         "api_key_hash": api_key_hash,  # API key hash for tracking
         "device_hash": device_hash,  # Device hash for tracking
