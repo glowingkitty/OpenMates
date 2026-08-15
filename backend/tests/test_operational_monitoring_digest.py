@@ -347,6 +347,26 @@ async def test_purchase_totals_sum_only_events_inside_exact_window(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_purchase_ledger_watermark_accepts_directus_naive_timestamp(monkeypatch):
+    class FakeDirectus:
+        async def get_items(self, collection, params, **_kwargs):
+            assert collection == monitoring.PURCHASE_SETTLEMENT_COLLECTION
+            return []
+
+    async def fake_watermark(_service, *, started_at):
+        assert started_at == WINDOW_END
+        return {"started_at": WINDOW_START.replace(tzinfo=None).isoformat()}
+
+    monkeypatch.setattr(monitoring, "ensure_purchase_ledger_watermark", fake_watermark)
+    monkeypatch.setattr(monitoring, "_directus_current_count", lambda *_args, **_kwargs: _completed_value(0))
+
+    result = await monitoring._purchase_ledger_totals(
+        FakeDirectus(), start=WINDOW_START, end=WINDOW_END,
+    )
+    assert result == (0, 0, True, 0)
+
+
+@pytest.mark.asyncio
 async def test_purchase_stats_atomically_update_daily_analytics():
     calls = []
 

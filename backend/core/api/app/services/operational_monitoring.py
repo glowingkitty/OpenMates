@@ -13,7 +13,7 @@ import logging
 import math
 import asyncio
 from io import BytesIO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from html import escape
 from typing import Any, Iterable, Mapping
@@ -543,6 +543,8 @@ async def _purchase_ledger_totals(
         ]},
     )
     watermark_started_at = datetime.fromisoformat(str(watermark["started_at"]).replace("Z", "+00:00"))
+    if watermark_started_at.tzinfo is None:
+        watermark_started_at = watermark_started_at.replace(tzinfo=start.tzinfo or timezone.utc)
     return len(rows), sum(int(row.get("credits_sold", 0) or 0) for row in rows), watermark_started_at <= start, incomplete
 
 
