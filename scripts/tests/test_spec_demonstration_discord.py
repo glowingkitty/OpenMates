@@ -39,16 +39,17 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     frames.mkdir(parents=True)
     video = run_dir / "demo.mp4"
     transcript = run_dir / "transcript.txt"
-    caption = run_dir / "captions.srt"
+    caption = run_dir / "captions.vtt"
     audio = run_dir / "narration-audio.mp3"
     frame = frames / "frame-001.png"
     video.write_bytes(b"synthetic-video")
     transcript.write_text("sanitized transcript", encoding="utf-8")
-    caption.write_text("sanitized captions", encoding="utf-8")
+    caption.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nSanitized captions.\n", encoding="utf-8")
     audio.write_bytes(b"synthetic-audio")
     frame.write_bytes(b"synthetic-frame")
     frame_index_hash = "sha256:" + "f" * 64
     source_artifact_hash = f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"
+    caption_artifact_hash = f"sha256:{hashlib.sha256(caption.read_bytes()).hexdigest()}"
     proof_contract_hash = "sha256:" + "c" * 64
     proof_group_id = "sha256:" + "e" * 64
     receipt = {
@@ -58,6 +59,7 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
         "proof_contract_hash": proof_contract_hash,
         "proof_group_id": proof_group_id,
         "source_artifact_hash": source_artifact_hash,
+        "caption_artifact_hash": caption_artifact_hash,
         "subject_commit": "abc1234",
         "correction_round": 0,
         "correction_kind": "none",
@@ -67,10 +69,12 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
     receipt_sha256 = f"sha256:{hashlib.sha256(receipt_path.read_bytes()).hexdigest()}"
     manifest = {
+        "schema_version": 2,
         "spec_id": "example",
         "subject_commit": "abc1234",
         "video_path": str(video),
-        "video_metadata": {"has_audio": True, "sha256": source_artifact_hash},
+        "video_metadata": {"has_audio": True, "sha256": source_artifact_hash, "captions_sha256": caption_artifact_hash},
+        "caption_artifact": {"path": str(caption), "sha256": caption_artifact_hash, "mime_type": "text/vtt", "language": "und", "label": "Captions"},
         "proof_contract_hash": proof_contract_hash,
         "proof_group_id": proof_group_id,
         "narration_audio": {
@@ -89,7 +93,7 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
             {"path": str(video), "kind": "derived_video", "sha256": f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"},
             {"path": str(frame), "kind": "review_frame", "sha256": f"sha256:{hashlib.sha256(frame.read_bytes()).hexdigest()}"},
         ],
-        "privacy": {"status": "passed"},
+        "privacy": {"status": "passed", "scan": "canonical_text"},
         "review": {"status": "passed", "frame_index_hash": frame_index_hash, "receipt_sha256": receipt_sha256},
         "publication": {"status": "pending"},
     }
@@ -98,13 +102,23 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
 
 
 def response_media_result() -> dict[str, object]:
+    caption_bytes = b"WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nSanitized captions.\n"
     return {
         "expires_in": 172800,
         "key": "opencode-responses/2026/08/14/demo.mp4",
         "kind": "video",
+        "sha256": "sha256:" + hashlib.sha256(b"synthetic-video").hexdigest(),
+        "url": "https://media.invalid/demo.mp4",
         "snippets": {
             "markdown": "[Demo](https://media.invalid/demo.mp4)",
-            "html": '<video controls width="640"><source src="https://media.invalid/demo.mp4" type="video/mp4"></video>',
+            "html": '<video controls><source src="https://media.invalid/demo.mp4" type="video/mp4"><track kind="captions" src="https://media.invalid/captions.vtt" default></video>',
+        },
+        "captions": {
+            "content_type": "text/vtt",
+            "expires_in": 172800,
+            "key": "opencode-responses/2026/08/14/captions.vtt",
+            "sha256": f"sha256:{hashlib.sha256(caption_bytes).hexdigest()}",
+            "url": "https://media.invalid/captions.vtt",
         },
     }
 
@@ -117,12 +131,21 @@ def test_response_media_upload_helper_parses_json(monkeypatch, tmp_path: Path) -
     def fake_run(command, **kwargs):
         assert command[1].endswith("opencode_response_media.py")
         assert "--output" in command
+        assert "--captions" in command
         assert kwargs == {"check": False, "capture_output": True, "text": True}
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps(response_media_result()), stderr="")
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)
 
-    result = module.upload_response_media(path=video, alt="Demo")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n", encoding="utf-8")
+    result = module.upload_response_media(
+        path=video,
+        captions_path=captions,
+        captions_language="und",
+        captions_label="Captions",
+        alt="Demo",
+    )
 
     assert result["key"] == "opencode-responses/2026/08/14/demo.mp4"
 
@@ -166,6 +189,24 @@ def test_publication_rejects_legacy_pass_without_bound_receipt(tmp_path: Path) -
         raise AssertionError("legacy free-form review unexpectedly reached publication")
 
 
+def test_publication_rejects_unscanned_schema_v2_manifest(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    manifest["privacy"] = {"status": "passed", "scan": "not_run"}
+
+    try:
+        module.publish_reviewed_video(
+            run_dir,
+            manifest,
+            now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+            uploader=lambda **_kwargs: response_media_result(),
+        )
+    except module.DemonstrationError as exc:
+        assert "canonical text privacy scan" in str(exc)
+    else:
+        raise AssertionError("unscanned schema-v2 proof unexpectedly reached publication")
+
+
 def test_publication_rejects_video_changed_after_review(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
@@ -183,7 +224,58 @@ def test_publication_rejects_video_changed_after_review(tmp_path: Path) -> None:
     else:
         raise AssertionError("modified proof video unexpectedly reached publication")
     assert (run_dir / "transcript.txt").is_file()
-    assert (run_dir / "captions.srt").is_file()
+    assert (run_dir / "captions.vtt").is_file()
+
+
+def test_publication_rejects_captions_changed_after_review(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    Path(manifest["caption_artifact"]["path"]).write_text("WEBVTT\n\nchanged\n", encoding="utf-8")
+
+    try:
+        module.publish_reviewed_video(
+            run_dir,
+            manifest,
+            now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+            uploader=lambda **_kwargs: response_media_result(),
+        )
+    except module.DemonstrationError as exc:
+        assert "WebVTT captions" in str(exc)
+    else:
+        raise AssertionError("modified captions unexpectedly reached publication")
+
+
+def test_publication_rejects_uploaded_caption_hash_mismatch(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    upload = response_media_result()
+    upload["captions"] = {**upload["captions"], "sha256": "sha256:" + "0" * 64}
+
+    result = module.publish_reviewed_video(
+        run_dir,
+        manifest,
+        now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+        uploader=lambda **_kwargs: upload,
+    )
+
+    assert result["publication"]["status"] == "publication_pending"
+    assert Path(manifest["video_path"]).is_file()
+
+
+def test_publication_rejects_uploaded_video_hash_mismatch(tmp_path: Path) -> None:
+    module = load_module("spec_demo")
+    run_dir, manifest = demo_run(tmp_path)
+    upload = {**response_media_result(), "sha256": "sha256:" + "0" * 64}
+
+    result = module.publish_reviewed_video(
+        run_dir,
+        manifest,
+        now=datetime(2026, 8, 6, tzinfo=timezone.utc),
+        uploader=lambda **_kwargs: upload,
+    )
+
+    assert result["publication"]["status"] == "publication_pending"
+    assert Path(manifest["video_path"]).is_file()
 
 
 def test_delivered_publication_is_idempotent_after_video_cleanup(tmp_path: Path) -> None:

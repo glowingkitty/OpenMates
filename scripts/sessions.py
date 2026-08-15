@@ -54,6 +54,7 @@ import fcntl
 import fnmatch
 import glob as glob_mod
 import hashlib
+import html
 import json
 import mimetypes
 import os
@@ -7364,6 +7365,8 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
 
     if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
         raise RuntimeError("OpenCode response-media publication requires passed privacy and frame review")
+    if int(manifest.get("schema_version") or 1) >= 2 and manifest.get("privacy", {}).get("scan") != "canonical_text":
+        raise RuntimeError("OpenCode response-media publication requires a canonical text privacy scan")
     try:
         require_review_receipt_integrity(run_dir, manifest)
     except Exception as exc:
@@ -7385,11 +7388,22 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
         sys.executable,
         str(PROJECT_ROOT / "scripts" / "opencode_response_media.py"),
         str(video_path),
-        "--alt",
-        alt,
-        "--output",
-        "json",
     ]
+    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+    captions_value = str(caption_artifact.get("path") or "")
+    if captions_value:
+        captions_path = Path(captions_value)
+        if not captions_path.is_absolute():
+            captions_path = run_dir / captions_path
+        command.extend([
+            "--captions",
+            str(captions_path),
+            "--captions-language",
+            str(caption_artifact.get("language") or "und"),
+            "--captions-label",
+            str(caption_artifact.get("label") or "Captions"),
+        ])
+    command.extend(["--alt", alt, "--output", "json"])
     upload = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
     if upload.returncode != 0:
         raise RuntimeError(upload.stderr.strip() or upload.stdout.strip() or "response-media upload failed")
@@ -7400,6 +7414,25 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     snippets = result.get("snippets") if isinstance(result, dict) else None
     if not isinstance(snippets, dict) or not snippets.get("html"):
         raise RuntimeError("response-media upload did not return an embeddable HTML snippet")
+    snippet_html = str(snippets.get("html", ""))
+    returned_video_url = str(result.get("url") or "")
+    if (
+        result.get("sha256") != (manifest.get("video_metadata") or {}).get("sha256")
+        or not returned_video_url
+        or html.escape(returned_video_url, quote=True) not in snippet_html
+    ):
+        raise RuntimeError("response-media upload did not return the reviewed video source")
+    if int(manifest.get("schema_version") or 1) >= 2:
+        returned_captions = result.get("captions") if isinstance(result.get("captions"), dict) else {}
+        expected_caption_hash = str(caption_artifact.get("sha256") or "")
+        returned_caption_url = str(returned_captions.get("url") or "")
+        if (
+            returned_captions.get("sha256") != expected_caption_hash
+            or not returned_caption_url
+            or html.escape(returned_caption_url, quote=True) not in snippet_html
+            or "<track kind=\"captions\"" not in snippet_html
+        ):
+            raise RuntimeError("response-media upload did not return the reviewed caption track")
 
     publication = manifest.setdefault("publication", {})
     if not isinstance(publication, dict):
@@ -7414,6 +7447,7 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
             "snippet_html": snippets.get("html"),
             "snippet_markdown": snippets.get("markdown"),
             "url": result.get("url"),
+            "captions": result.get("captions", {}),
         }
     )
     publication.pop("failure_reason", None)
@@ -7499,7 +7533,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         try:
             require_clean_worktree()
             approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=args.contract_path)
-            approved_claims = approved_render_claims(approved_contract)
+            approved_claims = approved_render_claims(approved_contract, device_profile=args.device_profile)
             deployed_run = resolve_deployed_run(
                 subject_commit=args.subject_commit,
                 spec_name=args.spec_name,

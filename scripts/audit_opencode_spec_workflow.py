@@ -55,7 +55,8 @@ SKILL_TERMS = {
     ".claude/skills/create-demo-video/SKILL.md": {
         "proof_video_workflow.py start --current",
         "audio is off by default",
-        "bottom-centered",
+        "WebVTT",
+        "Never burn captions",
         "immutable one-to-twelve-frame",
         "product_defect",
         "opencode_response_media.py",
@@ -115,7 +116,7 @@ SKILL_TERMS = {
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
 PROOF_REVIEWER_TERMS = {
-    "one to twelve image frames",
+    "one to twelve clean image frames",
     "Never request or read the\nfull video",
     "capture_defect",
     "render_defect",

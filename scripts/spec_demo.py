@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import errno
 import fcntl
 import hashlib
+import html
 import json
 import math
 import os
@@ -44,8 +45,6 @@ TERMINAL_RESULT_HOLD_SECONDS = 8.0
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
 TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
-PLAYWRIGHT_CAPTION_MIN_FONT_SIZE = 8
-PLAYWRIGHT_CAPTION_MAX_FONT_SIZE = 20
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -106,6 +105,7 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
     "playback_rate",
     "target_height",
     "target_width",
+    "captions_sha256",
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
@@ -360,24 +360,6 @@ def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
-def _playwright_caption_force_style(metadata: dict[str, Any]) -> str:
-    """Keep burned-in web proof captions readable without covering mobile controls."""
-    width = int(metadata.get("width") or 0)
-    height = int(metadata.get("height") or 0)
-    font_size = max(
-        PLAYWRIGHT_CAPTION_MIN_FONT_SIZE,
-        min(PLAYWRIGHT_CAPTION_MAX_FONT_SIZE, round(width / 72)),
-    )
-    margin_v = max(12, min(24, round(height * 0.018)))
-    outline = 1 if font_size <= PLAYWRIGHT_CAPTION_MIN_FONT_SIZE else 2
-    return (
-        "FontName=DejaVu Sans,"
-        f"FontSize={font_size},"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        f"BorderStyle=1,Outline={outline},Shadow=0,Alignment=2,MarginV={margin_v}"
-    )
-
-
 def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
     if name is None or not str(name).strip():
         return None
@@ -580,9 +562,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     _write_private(path, header + dialogues)
 
 
-def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_path: Path | None, output_path: Path) -> None:
-    """Render a readable timed terminal tutorial with canonical captions."""
-    for path in (captions_path, TERMINAL_FONT, *((audio_path,) if audio_path else ())):
+def render_terminal_video(timeline: dict[str, Any], audio_path: Path | None, output_path: Path) -> None:
+    """Render the terminal content without burning tutorial captions into its pixels."""
+    for path in (TERMINAL_FONT, *((audio_path,) if audio_path else ())):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     duration_seconds = float(timeline.get("duration_seconds", 0))
@@ -594,12 +576,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
     timeline_path = output_path.with_suffix(".terminal.ass")
     _write_terminal_timeline(timeline_path, timeline)
     terminal = _ffmpeg_filter_path(timeline_path)
-    captions = _ffmpeg_filter_path(captions_path)
-    video_filter = (
-        f"subtitles='{terminal}',"
-        f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=22,"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"
-    )
+    video_filter = f"subtitles='{terminal}'"
     audio_args = ["-i", str(audio_path)] if audio_path else []
     audio_output = ["-af", "apad", "-c:a", "aac", "-b:a", "128k"] if audio_path else ["-an"]
     result = subprocess.run(
@@ -637,9 +614,8 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, audio_p
     timeline_path.unlink(missing_ok=True)
 
 
-def render_captioned_video(
+def render_clean_video(
     source_path: Path,
-    captions_path: Path,
     audio_path: Path | None,
     output_path: Path,
     *,
@@ -647,13 +623,13 @@ def render_captioned_video(
     hold_last_frame_seconds: float = 0.0,
     demo_audio_path: Path | None = None,
 ) -> None:
-    """Burn canonical captions into a copy without mutating the raw recording."""
+    """Retime a recording without shrinking it or adding tutorial overlays."""
     optional_paths = (demo_audio_path,) if demo_audio_path else ()
-    for path in (source_path, captions_path, *((audio_path,) if audio_path else ()), *optional_paths):
+    for path in (source_path, *((audio_path,) if audio_path else ()), *optional_paths):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
-        raise DemonstrationError("Caption output must not replace the raw recording")
+        raise DemonstrationError("Proof output must not replace the raw recording")
     if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
         raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
@@ -661,16 +637,13 @@ def render_captioned_video(
     if demo_audio_path is not None and audio_path is None:
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    captions = _ffmpeg_filter_path(captions_path)
     source_duration = media_duration_seconds(source_path)
-    source_metadata = video_metadata(source_path)
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     video_filters = [f"setpts=PTS/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
-    video_filters.append(f"subtitles='{captions}':force_style='{_playwright_caption_force_style(source_metadata)}'")
     audio_inputs: list[str] = []
     input_args = ["-i", str(source_path)]
     audio_map: list[str] = []
@@ -725,7 +698,7 @@ def render_captioned_video(
         check=False,
     )
     if result.returncode != 0:
-        raise DemonstrationError(f"FFmpeg caption render failed: {result.stderr.strip()[-1000:]}")
+        raise DemonstrationError(f"FFmpeg clean render failed: {result.stderr.strip()[-1000:]}")
 
 
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
@@ -760,6 +733,16 @@ def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
         "types": types,
         "count": count,
     }
+
+
+def require_canonical_text_privacy_scan(values: dict[str, Any], *, stage: str) -> dict[str, Any]:
+    """Fail closed when retained or published proof text contains sensitive values."""
+    result = redact_text_with_canonical_scanner(json.dumps(values, sort_keys=True, default=str))
+    if result["count"]:
+        raise DemonstrationError(
+            f"Canonical proof-video privacy scan blocked {stage}: {result['count']} finding(s) of type {', '.join(result['types'])}"
+        )
+    return {"status": "passed", "findings": [], "scan": "canonical_text", "scanned_stage": stage}
 
 
 def anonymize_cli_capture(run_dir: Path, capture: dict[str, Any]) -> dict[str, Any]:
@@ -985,12 +968,12 @@ def narration_audio_not_required() -> dict[str, Any]:
     }
 
 
-def _srt_timestamp(seconds: float) -> str:
+def _vtt_timestamp(seconds: float) -> str:
     milliseconds = max(0, round(seconds * 1000))
     hours, remainder = divmod(milliseconds, 3_600_000)
     minutes, remainder = divmod(remainder, 60_000)
     whole_seconds, milliseconds = divmod(remainder, 1000)
-    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d},{milliseconds:03d}"
+    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d}.{milliseconds:03d}"
 
 
 def write_single_caption(path: Path, *, text: str, duration_seconds: float) -> None:
@@ -998,7 +981,7 @@ def write_single_caption(path: Path, *, text: str, duration_seconds: float) -> N
         raise DemonstrationError("Caption text and duration are required")
     _write_private(
         path,
-        f"1\n{_srt_timestamp(0)} --> {_srt_timestamp(duration_seconds)}\n{text.strip()}\n",
+        f"WEBVTT\n\n{_vtt_timestamp(0)} --> {_vtt_timestamp(duration_seconds)}\n{text.strip()}\n",
     )
 
 
@@ -1038,11 +1021,55 @@ def write_tutorial_captions(
             }
         )
         blocks.append(
-            f"{index}\n{_srt_timestamp(cursor)} --> {_srt_timestamp(end)}\n{sentence}\n"
+            f"{_vtt_timestamp(cursor)} --> {_vtt_timestamp(end)}\n{sentence}\n"
         )
         cursor = end
-    _write_private(path, "\n".join(blocks))
+    _write_private(path, "WEBVTT\n\n" + "\n".join(blocks))
     return segments
+
+
+def write_webvtt_segments(path: Path, segments: list[dict[str, Any]]) -> None:
+    """Write the reviewed cue model as the canonical publication sidecar."""
+    blocks = [
+        f"{_vtt_timestamp(float(segment['start']))} --> {_vtt_timestamp(float(segment['end']))}\n{str(segment['text']).strip()}\n"
+        for segment in segments
+    ]
+    _write_private(path, "WEBVTT\n\n" + "\n".join(blocks))
+
+
+def validate_webvtt_matches_segments(path: Path, segments: list[dict[str, Any]]) -> None:
+    """Fail closed when sidecar text or timing differs from the reviewed cue model."""
+    content = path.read_text(encoding="utf-8-sig")
+    if not content.startswith("WEBVTT\n"):
+        raise DemonstrationError("Canonical captions must be valid WebVTT")
+    blocks = [block for block in content.removeprefix("WEBVTT").strip().split("\n\n") if block.strip()]
+    if len(blocks) != len(segments):
+        raise DemonstrationError("WebVTT cue count does not match reviewed captions")
+    timestamp_re = re.compile(r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$")
+
+    def seconds(values: tuple[str, ...]) -> float:
+        hours, minutes, whole_seconds, milliseconds = map(int, values)
+        if minutes >= 60 or whole_seconds >= 60:
+            raise DemonstrationError("WebVTT cue contains an invalid timestamp")
+        return round(hours * 3600 + minutes * 60 + whole_seconds + milliseconds / 1000, MEDIA_TIMESTAMP_DECIMALS)
+
+    previous_end = 0.0
+    for block, segment in zip(blocks, segments, strict=True):
+        lines = block.splitlines()
+        if len(lines) != 2:
+            raise DemonstrationError("WebVTT cues must contain one timestamp line and one text line")
+        match = timestamp_re.fullmatch(lines[0])
+        if match is None:
+            raise DemonstrationError("WebVTT cue contains an invalid timestamp")
+        start = seconds(match.groups()[:4])
+        end = seconds(match.groups()[4:])
+        if start < previous_end or start >= end:
+            raise DemonstrationError("WebVTT cues must be ordered and non-overlapping")
+        if start != round(float(segment["start"]), MEDIA_TIMESTAMP_DECIMALS) or end != round(
+            float(segment["end"]), MEDIA_TIMESTAMP_DECIMALS
+        ) or lines[1] != str(segment["text"]).strip():
+            raise DemonstrationError("WebVTT content does not match reviewed captions")
+        previous_end = end
 
 
 def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds: float) -> list[dict[str, Any]]:
@@ -1079,6 +1106,7 @@ def prepare_review_artifacts(
     subject_commit: str,
     narration_id: str,
     caption_text: str,
+    captions_path: Path,
     expected_proof: str,
     acceptance_criteria: list[str],
     source: dict[str, Any],
@@ -1094,6 +1122,8 @@ def prepare_review_artifacts(
     state_change_times: Iterable[float] = (),
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
+    if not captions_path.is_file():
+        raise DemonstrationError("Canonical WebVTT captions are missing")
     if device_profile is not None:
         assert_device_profile_dimensions(metadata, device_profile)
         metadata.update(
@@ -1127,6 +1157,22 @@ def prepare_review_artifacts(
     if claim_ids:
         captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
+    write_webvtt_segments(captions_path, captions)
+    validate_webvtt_matches_segments(captions_path, captions)
+    captions_sha256 = sha256_file(captions_path)
+    metadata["captions_sha256"] = captions_sha256
+    transcript_path = run_dir / "transcript.txt"
+    privacy = require_canonical_text_privacy_scan(
+        {
+            "captions": captions,
+            "transcript": transcript_path.read_text(encoding="utf-8") if transcript_path.is_file() else caption_text,
+            "source": source,
+            "metadata": metadata,
+            "filenames": [video_path.name, captions_path.name, transcript_path.name],
+            "spec_id": spec_id,
+        },
+        stage="review",
+    )
     frame_dir = run_dir / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     frame_dir.chmod(0o700)
@@ -1187,7 +1233,7 @@ def prepare_review_artifacts(
         narration_audio=review_audio,
     )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "spec_id": spec_id,
         "subject_commit": subject_commit,
         "source": source,
@@ -1195,10 +1241,17 @@ def prepare_review_artifacts(
         "proof_group_id": request["proof_group_id"],
         "video_path": str(video_path),
         "video_metadata": metadata,
+        "caption_artifact": {
+            "path": str(captions_path),
+            "sha256": captions_sha256,
+            "mime_type": "text/vtt",
+            "language": "und",
+            "label": "Captions",
+        },
         "narration_audio": narration_audio,
         "captions": captions,
         "expected_proof": expected,
-        "privacy": {"status": "passed", "findings": [], "scan": "not_run"},
+        "privacy": privacy,
         "review": {
             "status": "pending",
             "run_id": f"review-{run_dir.name}",
@@ -1208,7 +1261,7 @@ def prepare_review_artifacts(
         "publication": {"status": "pending"},
         "retained_paths": [
             str(run_dir / "transcript.txt"),
-            str(run_dir / "captions.srt"),
+            str(captions_path),
             *([str(narration_audio["path"])] if narration_audio.get("path") else []),
         ],
         "disposable_artifacts": [
@@ -1279,7 +1332,7 @@ def produce_cli_demonstration(
         (run_dir / "events.jsonl").unlink(missing_ok=True)
     timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
     duration = float(timeline["duration_seconds"])
-    captions_path = run_dir / "captions.srt"
+    captions_path = run_dir / "captions.vtt"
     video_path = run_dir / "demo.mp4"
     narration_audio = (
         prepare_narration_audio(
@@ -1302,7 +1355,6 @@ def produce_cli_demonstration(
     )
     render_terminal_video(
         timeline,
-        captions_path,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
     )
@@ -1313,6 +1365,7 @@ def produce_cli_demonstration(
         subject_commit=subject_commit,
         narration_id=narration_id,
         caption_text=caption_text,
+        captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         source={"kind": "cli", **capture, "display_argv": display_argv},
@@ -1365,7 +1418,7 @@ def produce_playwright_demonstration(
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
-    captions_path = run_dir / "captions.srt"
+    captions_path = run_dir / "captions.vtt"
     narration_audio = (
         prepare_narration_audio(
             run_dir=run_dir,
@@ -1385,9 +1438,8 @@ def produce_playwright_demonstration(
         narration_id=narration_id,
     )
     video_path = run_dir / "demo.mp4"
-    render_captioned_video(
+    render_clean_video(
         source_video,
-        captions_path,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
         playback_rate=playback_rate,
@@ -1402,6 +1454,7 @@ def produce_playwright_demonstration(
         subject_commit=subject_commit,
         narration_id=narration_id,
         caption_text=caption_text,
+        captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
         proof_assertions=proof_assertions,
@@ -1469,7 +1522,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
         raise DemonstrationError("Review receipt frame-index hash does not match the canonical request")
 
-    allowed_receipt_fields = {
+    required_receipt_fields = {
         "status",
         "confidence",
         "frame_index_hash",
@@ -1488,10 +1541,11 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         "correction_kind",
         "workflow",
     }
-    unknown_receipt_fields = set(receipt) - allowed_receipt_fields
+    optional_receipt_fields = {"caption_artifact_hash"}
+    unknown_receipt_fields = set(receipt) - required_receipt_fields - optional_receipt_fields
     if unknown_receipt_fields:
         raise DemonstrationError(f"Review receipt contains unsupported field: {sorted(unknown_receipt_fields)[0]}")
-    missing_receipt_fields = allowed_receipt_fields - set(receipt)
+    missing_receipt_fields = required_receipt_fields - set(receipt)
     if missing_receipt_fields:
         raise DemonstrationError(f"Review receipt missing required field: {sorted(missing_receipt_fields)[0]}")
     if (
@@ -1500,6 +1554,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         or receipt.get("proof_contract_hash") != request.get("proof_contract_hash")
         or receipt.get("proof_group_id") != request.get("proof_group_id")
         or receipt.get("source_artifact_hash") != (request.get("video_metadata") or {}).get("sha256")
+        or receipt.get("caption_artifact_hash") != (request.get("video_metadata") or {}).get("captions_sha256")
         or receipt.get("subject_commit") != request.get("subject_commit")
         or receipt.get("device") != (request.get("video_metadata") or {}).get("device_profile", "unspecified-device")
         or receipt.get("correction_round") not in range(3)
@@ -2028,6 +2083,7 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
         or receipt.get("proof_contract_hash") != manifest.get("proof_contract_hash")
         or receipt.get("proof_group_id") != manifest.get("proof_group_id")
         or receipt.get("source_artifact_hash") != (manifest.get("video_metadata") or {}).get("sha256")
+        or receipt.get("caption_artifact_hash") != (manifest.get("caption_artifact") or {}).get("sha256")
         or receipt.get("subject_commit") != manifest.get("subject_commit")
         or receipt.get("correction_round") not in range(3)
         or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
@@ -2041,6 +2097,19 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
         expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
         if not video_path.is_file() or sha256_file(video_path) != expected_video_hash:
             raise DemonstrationError("Reviewed proof video is missing or its content hash changed")
+    if int(manifest.get("schema_version") or 1) >= 2:
+        caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+        captions_path = Path(str(caption_artifact.get("path") or ""))
+        if not captions_path.is_absolute():
+            captions_path = run_dir / captions_path
+        expected_captions_hash = str(caption_artifact.get("sha256") or "")
+        if (
+            caption_artifact.get("mime_type") != "text/vtt"
+            or not captions_path.is_file()
+            or not SHA256_RE.fullmatch(expected_captions_hash)
+            or sha256_file(captions_path) != expected_captions_hash
+        ):
+            raise DemonstrationError("Reviewed WebVTT captions are missing or their content hash changed")
 
 
 def publish_reviewed_video(
@@ -2052,6 +2121,8 @@ def publish_reviewed_video(
 ) -> dict[str, Any]:
     if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
         raise DemonstrationError("OpenCode response-media publication requires passed privacy and demonstration review")
+    if int(manifest.get("schema_version") or 1) >= 2 and manifest.get("privacy", {}).get("scan") != "canonical_text":
+        raise DemonstrationError("OpenCode response-media publication requires a canonical text privacy scan")
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
         raise DemonstrationError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
@@ -2078,10 +2149,29 @@ def publish_reviewed_video(
         f"Reviewed implementation demonstration for {manifest.get('spec_id', 'unknown')} "
         f"at {manifest.get('subject_commit', 'unknown')}"
     )
+    require_canonical_text_privacy_scan(
+        {
+            "publication_text": alt_text,
+            "video_filename": video_path.name,
+            "caption_filename": Path(str((manifest.get("caption_artifact") or {}).get("path") or "")).name,
+        },
+        stage="publication",
+    )
     if uploader is None:
         uploader = upload_response_media
     try:
-        upload = uploader(path=video_path, alt=alt_text)
+        captions_value = str((manifest.get("caption_artifact") or {}).get("path") or "")
+        captions_path = Path(captions_value) if captions_value else None
+        if captions_path is not None and not captions_path.is_absolute():
+            captions_path = run_dir / captions_path
+        caption_artifact = manifest.get("caption_artifact") or {}
+        upload = uploader(
+            path=video_path,
+            captions_path=captions_path,
+            captions_language=str(caption_artifact.get("language") or "und"),
+            captions_label=str(caption_artifact.get("label") or "Captions"),
+            alt=alt_text,
+        )
     except Exception as exc:
         publication["status"] = "publication_pending"
         publication["failure_reason"] = f"OpenCode response-media upload did not complete: {str(exc)[:500]}"
@@ -2091,7 +2181,28 @@ def publish_reviewed_video(
         return manifest
 
     snippets = upload.get("snippets") if isinstance(upload, dict) else None
-    if not isinstance(upload, dict) or not upload.get("key") or not isinstance(snippets, dict):
+    captions_upload = upload.get("captions") if isinstance(upload, dict) else None
+    requires_captions = int(manifest.get("schema_version") or 1) >= 2
+    expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
+    returned_video_hash = str((upload or {}).get("sha256") or "")
+    returned_video_url = str((upload or {}).get("url") or "")
+    expected_caption_hash = str((manifest.get("caption_artifact") or {}).get("sha256") or "")
+    returned_caption_hash = str((captions_upload or {}).get("sha256") or "")
+    returned_caption_url = str((captions_upload or {}).get("url") or "")
+    snippet_html = str((snippets or {}).get("html", ""))
+    if (
+        not isinstance(upload, dict)
+        or not upload.get("key")
+        or not isinstance(snippets, dict)
+        or returned_video_hash != expected_video_hash
+        or not returned_video_url
+        or html.escape(returned_video_url, quote=True) not in snippet_html
+        or (requires_captions and not isinstance(captions_upload, dict))
+        or (requires_captions and returned_caption_hash != expected_caption_hash)
+        or (requires_captions and not returned_caption_url)
+        or (requires_captions and html.escape(returned_caption_url, quote=True) not in snippet_html)
+        or (requires_captions and "<track kind=\"captions\"" not in snippet_html)
+    ):
         publication["status"] = "publication_pending"
         publication["failure_reason"] = "OpenCode response-media upload completed without usable snippets."
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
@@ -2105,6 +2216,7 @@ def publish_reviewed_video(
                 "response_media_kind": str(upload.get("kind", "media")),
                 "response_media_markdown": str(snippets.get("markdown", "")),
                 "response_media_html": str(snippets.get("html", "")),
+                "response_media_captions": captions_upload or {},
             }
         )
         if "expires_in" in upload:
@@ -2118,7 +2230,14 @@ def publish_reviewed_video(
     return manifest
 
 
-def upload_response_media(*, path: Path, alt: str) -> dict[str, Any]:
+def upload_response_media(
+    *,
+    path: Path,
+    captions_path: Path | None,
+    captions_language: str,
+    captions_label: str,
+    alt: str,
+) -> dict[str, Any]:
     command = [
         sys.executable,
         str(REPO_ROOT / "scripts/opencode_response_media.py"),
@@ -2128,6 +2247,15 @@ def upload_response_media(*, path: Path, alt: str) -> dict[str, Any]:
         "--output",
         "json",
     ]
+    if captions_path is not None:
+        command[3:3] = [
+            "--captions",
+            str(captions_path),
+            "--captions-language",
+            captions_language,
+            "--captions-label",
+            captions_label,
+        ]
     result = subprocess.run(command, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         raise DemonstrationError(result.stderr.strip() or result.stdout.strip() or "response-media upload failed")
@@ -2248,7 +2376,7 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--caption", required=True)
     cli_parser.add_argument("--expected-proof", required=True)
     cli_parser.add_argument("--acceptance-criterion", action="append", required=True)
-    cli_parser.add_argument("--audio-path", type=Path, required=True)
+    cli_parser.add_argument("--audio-path", type=Path)
     cli_parser.add_argument("--audio-provider", default=DEFAULT_NARRATION_PROVIDER)
     cli_parser.add_argument("--audio-model", default=DEFAULT_NARRATION_MODEL)
     cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)

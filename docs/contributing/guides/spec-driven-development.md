@@ -119,7 +119,7 @@ For full specs:
     debugged nightly/daily/CI failed E2E work that turns green require proof-video
     evidence after all applicable normal green gates. Write tutorial-style
     narration that explains the feature, the action, and what the viewer should
-    verify; render real Playwright or PTY evidence with burned-in captions;
+    verify; render real Playwright or PTY evidence at full device-profile size with clean pixels and hash-bound toggleable WebVTT captions;
     narration audio is optional. Scan all text entering the
     rendered artifact, and perform a demonstration review from captions plus
     bounded frames. Never place the full video in agent/model context. Default to
@@ -166,7 +166,7 @@ classification.
     Apple verification follows user confirmation. The narration should work as a
     short tutorial: explain the feature, describe the action being shown, and tell
     the viewer what visible result confirms success so review can detect obvious
-    mismatches. Caption text is canonical and captions are burned in; narration
+    mismatches. Caption text is canonical, device-scoped, and published as a player-toggleable WebVTT sidecar; captions never obscure or reduce the video frame. Narration
     audio is optional. Raw evidence and edited demonstration
     media remain distinct, and reconstructed terminal segments must match a real
     sanitized transcript hash and show a reconstruction label.

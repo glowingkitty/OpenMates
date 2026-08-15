@@ -171,14 +171,15 @@ def test_resolve_current_context_accepts_same_run_with_multiple_video_sources() 
 
 def test_contract_hash_is_canonical_and_approval_is_exact(tmp_path: Path) -> None:
     contract = {
+        "schema_version": 2,
         "title": "Maps Search fullscreen",
         "transcript": [
-            "Maps Search opens in the regular fullscreen shell.",
-            "The place list and map stay inside the same parent fullscreen.",
+            {"text": "Maps Search opens in the regular fullscreen shell.", "devices": ["web-phone", "web-laptop"]},
+            {"text": "The place list and map stay inside the same parent fullscreen.", "devices": ["web-phone", "web-laptop"]},
         ],
         "assertions": [
-            {"id": "header-visible", "description": "The regular embed header is visible."},
-            {"id": "no-nested-fullscreen", "description": "No nested fullscreen appears."},
+            {"id": "header-visible", "description": "The regular embed header is visible.", "devices": ["web-phone", "web-laptop"]},
+            {"id": "no-nested-fullscreen", "description": "No nested fullscreen appears.", "devices": ["web-phone", "web-laptop"]},
         ],
         "devices": ["web-phone", "web-laptop"],
     }
@@ -190,6 +191,63 @@ def test_contract_hash_is_canonical_and_approval_is_exact(tmp_path: Path) -> Non
     workflow.require_approved_contract(first, first["contract_hash"])
     with pytest.raises(workflow.WorkflowError, match="approved contract hash"):
         workflow.require_approved_contract(first, "sha256:stale")
+
+
+def test_multidevice_contract_requires_device_scoped_transcript_and_assertions() -> None:
+    contract = {
+        "title": "Responsive proof",
+        "transcript": ["The responsive result is visible."],
+        "assertions": [{"id": "visible", "description": "The result is visible."}],
+        "devices": ["web-phone", "web-laptop"],
+    }
+
+    with pytest.raises(workflow.WorkflowError, match="schema_version 2"):
+        workflow.canonical_contract(contract)
+
+
+def test_device_scoped_contract_selects_only_applicable_claims() -> None:
+    contract = {
+        "schema_version": 2,
+        "title": "Responsive proof",
+        "transcript": [
+            {"text": "The shared shell is visible.", "devices": ["web-phone", "web-laptop"]},
+            {"text": "The phone board scrolls horizontally.", "devices": ["web-phone"]},
+            {"text": "The laptop board stays below the header.", "devices": ["web-laptop"]},
+        ],
+        "assertions": [
+            {"id": "shared", "description": "The shared shell is visible.", "devices": ["web-phone", "web-laptop"]},
+            {"id": "phone-scroll", "description": "The phone board scrolls horizontally.", "devices": ["web-phone"]},
+            {"id": "laptop-header", "description": "The laptop board stays below the header.", "devices": ["web-laptop"]},
+        ],
+        "devices": ["web-phone", "web-laptop"],
+    }
+
+    phone = workflow.approved_render_claims(contract, device_profile="web-phone")
+    laptop = workflow.approved_render_claims(contract, device_profile="web-laptop")
+
+    assert phone["acceptance_criteria"] == ["shared", "phone-scroll"]
+    assert [item["id"] for item in phone["assertions"]] == ["shared", "phone-scroll"]
+    assert "phone board" in phone["caption_text"]
+    assert "laptop board" not in phone["caption_text"]
+    assert laptop["acceptance_criteria"] == ["shared", "laptop-header"]
+    assert "laptop board" in laptop["caption_text"]
+    assert "phone board" not in laptop["caption_text"]
+
+
+def test_device_scoped_contract_rejects_unknown_or_uncovered_devices() -> None:
+    base = {
+        "schema_version": 2,
+        "title": "Responsive proof",
+        "transcript": [{"text": "The result is visible.", "devices": ["web-phone"]}],
+        "assertions": [{"id": "visible", "description": "The result is visible.", "devices": ["web-phone"]}],
+        "devices": ["web-phone", "web-laptop"],
+    }
+
+    with pytest.raises(workflow.WorkflowError, match="at least one assertion"):
+        workflow.canonical_contract(base)
+    base["assertions"][0]["devices"] = ["web-tablet"]
+    with pytest.raises(workflow.WorkflowError, match="contract devices"):
+        workflow.canonical_contract(base)
 
 
 def test_approved_contract_rejects_tampered_payload_with_embedded_old_hash(tmp_path: Path) -> None:
@@ -443,7 +501,6 @@ def test_review_bundle_is_frame_only_and_bounded(tmp_path: Path) -> None:
     ("defect", "expected_stage", "automatic"),
     [
         ("blank_first_frame", "render", True),
-        ("caption_alignment", "render", True),
         ("unexplained_scroll_state", "capture", False),
         ("clipped_header", "implementation", False),
     ],
@@ -559,6 +616,18 @@ def test_review_budget_reuses_cached_unchanged_device_evidence() -> None:
             frame_index_hash="sha256:frames",
             source_artifact_hash="sha256:video",
         )
+
+    changed_captions = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=1,
+        correction_kind="capture",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+        caption_artifact_hash="sha256:changed-captions",
+    )
+    assert changed_captions["ai_review_calls"] == 2
 
 
 def test_review_budget_retries_incomplete_unchanged_device_reservation() -> None:

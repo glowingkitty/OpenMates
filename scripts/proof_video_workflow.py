@@ -65,6 +65,13 @@ MAX_PRODUCT_CODE_CORRECTION_ROUNDS = 1
 MIN_PLAYBACK_RATE = 0.75
 READING_WORDS_PER_SECOND = 2.5
 MARKER_TRIM_LEAD_SECONDS = 0.15
+SUPPORTED_DEVICE_PROFILES = {
+    "apple-ipad-landscape",
+    "apple-iphone-portrait",
+    "cli-terminal",
+    "web-laptop",
+    "web-phone",
+}
 
 
 class WorkflowError(RuntimeError):
@@ -143,28 +150,78 @@ def deployed_subject_commit(session: dict[str, Any]) -> str:
 
 
 def canonical_contract(contract: dict[str, Any]) -> dict[str, Any]:
+    schema_version = contract.get("schema_version", 1)
     title = contract.get("title")
     transcript = contract.get("transcript")
     assertions = contract.get("assertions")
     devices = contract.get("devices")
     if not isinstance(title, str) or not title.strip():
         raise WorkflowError("proof contract requires a title")
-    if not isinstance(transcript, list) or not transcript or not all(isinstance(item, str) and item.strip() for item in transcript):
-        raise WorkflowError("proof contract requires a non-empty tutorial transcript")
+    if schema_version not in {1, 2}:
+        raise WorkflowError("proof contract schema_version must be 1 or 2")
     if not isinstance(assertions, list) or not 1 <= len(assertions) <= 5:
         raise WorkflowError("proof contract requires one to five visible assertions")
-    for assertion in assertions:
-        if not isinstance(assertion, dict) or not all(
-            isinstance(assertion.get(field), str) and assertion[field].strip() for field in ("id", "description")
-        ):
-            raise WorkflowError("every proof assertion requires id and description")
-    if not isinstance(devices, list) or not devices or not all(isinstance(item, str) and item for item in devices):
+    if not isinstance(devices, list) or not devices or not all(isinstance(item, str) and item.strip() for item in devices):
         raise WorkflowError("proof contract requires at least one device")
+    canonical_devices = [item.strip() for item in devices]
+    if len(canonical_devices) != len(set(canonical_devices)):
+        raise WorkflowError("proof contract devices must be unique")
+    unknown_devices = set(canonical_devices) - SUPPORTED_DEVICE_PROFILES
+    if unknown_devices:
+        raise WorkflowError(f"proof contract contains unsupported device: {sorted(unknown_devices)[0]}")
+    if schema_version == 1:
+        if len(canonical_devices) > 1:
+            raise WorkflowError("multi-device proof contracts require schema_version 2 with device-scoped transcript and assertions")
+        if not isinstance(transcript, list) or not transcript or not all(isinstance(item, str) and item.strip() for item in transcript):
+            raise WorkflowError("proof contract requires a non-empty tutorial transcript")
+        for assertion in assertions:
+            if not isinstance(assertion, dict) or not all(
+                isinstance(assertion.get(field), str) and assertion[field].strip() for field in ("id", "description")
+            ):
+                raise WorkflowError("every proof assertion requires id and description")
+        return {
+            "title": title.strip(),
+            "transcript": [item.strip() for item in transcript],
+            "assertions": [{"id": item["id"].strip(), "description": item["description"].strip()} for item in assertions],
+            "devices": canonical_devices,
+        }
+
+    def scoped_items(items: Any, *, label: str, text_fields: tuple[str, ...]) -> list[dict[str, Any]]:
+        if not isinstance(items, list) or not items:
+            raise WorkflowError(f"proof contract requires a non-empty {label}")
+        canonical_items: list[dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, dict) or not all(
+                isinstance(item.get(field), str) and item[field].strip() for field in text_fields
+            ):
+                raise WorkflowError(f"every proof {label} item requires {', '.join(text_fields)}")
+            item_devices = item.get("devices")
+            if not isinstance(item_devices, list) or not item_devices or not all(
+                isinstance(device, str) and device.strip() for device in item_devices
+            ):
+                raise WorkflowError(f"every proof {label} item requires target devices")
+            targets = [device.strip() for device in item_devices]
+            if len(targets) != len(set(targets)) or not set(targets).issubset(canonical_devices):
+                raise WorkflowError(f"proof {label} target devices must be unique members of the contract devices")
+            canonical_items.append({**{field: item[field].strip() for field in text_fields}, "devices": targets})
+        return canonical_items
+
+    canonical_transcript = scoped_items(transcript, label="transcript", text_fields=("text",))
+    canonical_assertions = scoped_items(assertions, label="assertion", text_fields=("id", "description"))
+    assertion_ids = [item["id"] for item in canonical_assertions]
+    if len(assertion_ids) != len(set(assertion_ids)):
+        raise WorkflowError("proof assertion ids must be unique")
+    for device in canonical_devices:
+        if not any(device in item["devices"] for item in canonical_assertions):
+            raise WorkflowError(f"proof device {device} requires at least one assertion")
+        if not any(device in item["devices"] for item in canonical_transcript):
+            raise WorkflowError(f"proof device {device} requires at least one transcript item")
     return {
+        "schema_version": 2,
         "title": title.strip(),
-        "transcript": [item.strip() for item in transcript],
-        "assertions": [{"id": item["id"].strip(), "description": item["description"].strip()} for item in assertions],
-        "devices": list(devices),
+        "transcript": canonical_transcript,
+        "assertions": canonical_assertions,
+        "devices": canonical_devices,
     }
 
 
@@ -227,13 +284,25 @@ def require_recorded_approval(*, session_id: str, spec_name: str, contract_path:
     return contract
 
 
-def approved_render_claims(contract: dict[str, Any]) -> dict[str, Any]:
+def approved_render_claims(contract: dict[str, Any], *, device_profile: str | None = None) -> dict[str, Any]:
     canonical = canonical_contract(contract)
+    if canonical.get("schema_version") == 2:
+        if device_profile not in canonical["devices"]:
+            raise WorkflowError("render device must be one of the approved proof contract devices")
+        transcript = [item["text"] for item in canonical["transcript"] if device_profile in item["devices"]]
+        assertions = [
+            {"id": item["id"], "description": item["description"]}
+            for item in canonical["assertions"]
+            if device_profile in item["devices"]
+        ]
+    else:
+        transcript = canonical["transcript"]
+        assertions = canonical["assertions"]
     return {
-        "caption_text": " ".join(canonical["transcript"]),
-        "expected_proof": " ".join(assertion["description"] for assertion in canonical["assertions"]),
-        "acceptance_criteria": [assertion["id"] for assertion in canonical["assertions"]],
-        "assertions": canonical["assertions"],
+        "caption_text": " ".join(transcript),
+        "expected_proof": " ".join(assertion["description"] for assertion in assertions),
+        "acceptance_criteria": [assertion["id"] for assertion in assertions],
+        "assertions": assertions,
         "contract_hash": contract_hash(canonical),
     }
 
@@ -309,7 +378,7 @@ def build_review_bundle(
 
 
 def route_defect(defect: str, *, prior_automatic_rerenders: int) -> dict[str, Any]:
-    mechanical = defect in {"blank_first_frame", "caption_alignment"}
+    mechanical = defect == "blank_first_frame"
     if mechanical and prior_automatic_rerenders < MAX_AUTOMATIC_CORRECTION_ROUNDS:
         return {
             "verdict": "render_defect",
@@ -348,6 +417,7 @@ def reserve_review_budget(
     correction_kind: str,
     frame_index_hash: str = "",
     source_artifact_hash: str = "",
+    caption_artifact_hash: str = "",
 ) -> dict[str, Any]:
     """Reserve one persisted AI review call before inference starts."""
     if correction_round not in range(MAX_AUTOMATIC_CORRECTION_ROUNDS + 1):
@@ -379,6 +449,7 @@ def reserve_review_budget(
         item.get("device") == device
         and item.get("frame_index_hash") == frame_index_hash
         and item.get("source_artifact_hash") == source_artifact_hash
+        and item.get("caption_artifact_hash", "") == caption_artifact_hash
         and item.get("receipt_path")
         for item in reservations
         if isinstance(item, dict)
@@ -389,6 +460,7 @@ def reserve_review_budget(
         "correction_round": correction_round,
         "frame_index_hash": frame_index_hash,
         "source_artifact_hash": source_artifact_hash,
+        "caption_artifact_hash": caption_artifact_hash,
     }
     if reservation in reservations:
         raise WorkflowError("this device and correction round were already reviewed")
@@ -413,6 +485,7 @@ def reserve_persisted_review_budget(
     correction_kind: str,
     frame_index_hash: str,
     source_artifact_hash: str,
+    caption_artifact_hash: str,
 ) -> dict[str, Any]:
     """Atomically reserve shared proof-review budget across device processes."""
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -430,6 +503,7 @@ def reserve_persisted_review_budget(
             correction_kind=correction_kind,
             frame_index_hash=frame_index_hash,
             source_artifact_hash=source_artifact_hash,
+            caption_artifact_hash=caption_artifact_hash,
         )
         budget["proof_identity"] = proof_identity
         path.write_text(json.dumps(budget, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -459,6 +533,7 @@ def load_cached_review(
     source_artifact_hash: str,
     subject_commit: str,
     proof_contract_hash: str,
+    caption_artifact_hash: str,
 ) -> dict[str, Any] | None:
     if not path.is_file():
         return None
@@ -473,6 +548,7 @@ def load_cached_review(
                 reservation.get("device") != device
                 or reservation.get("frame_index_hash") != frame_index_hash
                 or reservation.get("source_artifact_hash") != source_artifact_hash
+                or reservation.get("caption_artifact_hash", "") != caption_artifact_hash
             ):
                 continue
             receipt_path = Path(str(reservation.get("receipt_path") or ""))
@@ -499,6 +575,7 @@ def load_cached_review(
                 cached_request.get("proof_group_id") != proof_identity
                 or cached_request.get("frame_index_hash") != frame_index_hash
                 or (cached_request.get("video_metadata") or {}).get("sha256") != source_artifact_hash
+                or str((cached_request.get("video_metadata") or {}).get("captions_sha256") or "") != caption_artifact_hash
                 or cached_request.get("subject_commit") != subject_commit
                 or cached_request.get("proof_contract_hash") != proof_contract_hash
                 or cached_request.get("subject_commit") != cached_manifest.get("subject_commit")
@@ -525,6 +602,7 @@ def record_cached_review(
     correction_round: int,
     frame_index_hash: str,
     source_artifact_hash: str,
+    caption_artifact_hash: str,
     run_dir: Path,
     status: str,
 ) -> dict[str, Any]:
@@ -538,6 +616,7 @@ def record_cached_review(
                 or reservation.get("correction_round") != correction_round
                 or reservation.get("frame_index_hash") != frame_index_hash
                 or reservation.get("source_artifact_hash") != source_artifact_hash
+                or reservation.get("caption_artifact_hash", "") != caption_artifact_hash
             ):
                 continue
             receipt_path = run_dir / "review-receipt.json"
@@ -714,6 +793,7 @@ def review_run(
     budget_path = REVIEW_BUDGETS_DIR / f"{proof_identity.removeprefix('sha256:')}.json"
     frame_hash = str(request.get("frame_index_hash") or "")
     source_hash = str((request.get("video_metadata") or {}).get("sha256") or "")
+    caption_hash = str((request.get("video_metadata") or {}).get("captions_sha256") or "")
     cached = load_cached_review(
         budget_path,
         proof_identity=proof_identity,
@@ -722,6 +802,7 @@ def review_run(
         source_artifact_hash=source_hash,
         subject_commit=str(request.get("subject_commit") or ""),
         proof_contract_hash=str(request.get("proof_contract_hash") or ""),
+        caption_artifact_hash=caption_hash,
     )
     if cached is not None:
         cached_receipt = {
@@ -741,6 +822,7 @@ def review_run(
         correction_kind=correction_kind,
         frame_index_hash=frame_hash,
         source_artifact_hash=source_hash,
+        caption_artifact_hash=caption_hash,
     )
 
     prompt = {
@@ -775,6 +857,7 @@ def review_run(
     receipt["proof_contract_hash"] = request.get("proof_contract_hash")
     receipt["proof_group_id"] = request.get("proof_group_id")
     receipt["source_artifact_hash"] = (request.get("video_metadata") or {}).get("sha256")
+    receipt["caption_artifact_hash"] = (request.get("video_metadata") or {}).get("captions_sha256")
     receipt["subject_commit"] = request.get("subject_commit")
     receipt["correction_round"] = correction_round
     receipt["correction_kind"] = correction_kind
@@ -790,6 +873,7 @@ def review_run(
         correction_round=correction_round,
         frame_index_hash=frame_hash,
         source_artifact_hash=source_hash,
+        caption_artifact_hash=caption_hash,
         run_dir=run_dir,
         status=str(receipt.get("status") or ""),
     )

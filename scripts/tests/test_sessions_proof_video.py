@@ -42,7 +42,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
     module.WorkflowError = SyntheticDemonstrationError
     module.approved_render_claims = functions.get(
         "approved_render_claims",
-        lambda _contract: {
+        lambda _contract, **_kwargs: {
             "caption_text": "Approved caption.",
             "expected_proof": "Approved proof.",
             "acceptance_criteria": ["approved"],
@@ -382,6 +382,7 @@ def test_proof_video_publish_uploads_response_media_without_discord(
                 "review": {"status": "passed"},
                 "narration_audio": {"status": "not_required"},
                 "video_path": "proof.mp4",
+                "video_metadata": {"sha256": "sha256:" + hashlib.sha256(b"video").hexdigest()},
             }
         ),
         encoding="utf-8",
@@ -398,6 +399,7 @@ def test_proof_video_publish_uploads_response_media_without_discord(
                 {
                     "expires_in": 172800,
                     "key": "opencode-responses/proof.mp4",
+                    "sha256": "sha256:" + hashlib.sha256(b"video").hexdigest(),
                     "snippets": {
                         "html": "<video controls><source src=\"https://example.invalid/proof.mp4\"></video>",
                         "markdown": "[Proof](https://example.invalid/proof.mp4)",
@@ -788,10 +790,8 @@ def test_proof_video_manifest_requires_exact_device_profile_dimensions(tmp_path:
     assert "web-phone proof video must be 390x844" in problems
 
 
-def test_playwright_caption_style_is_bottom_centered() -> None:
-    from scripts import spec_demo
+def test_playwright_proof_instructions_require_clean_player_caption_tracks() -> None:
+    source = (Path(__file__).resolve().parents[2] / ".claude" / "skills" / "create-demo-video" / "SKILL.md").read_text(encoding="utf-8")
 
-    style = spec_demo._playwright_caption_force_style({"width": 390, "height": 844})
-
-    assert "Alignment=2" in style
-    assert "Alignment=8" not in style
+    assert "WebVTT" in source
+    assert "burned-in" not in source

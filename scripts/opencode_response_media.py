@@ -34,6 +34,9 @@ MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
 CONTAINER_TMP_DIR = "/tmp/opencode-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
+WEBVTT_TIMESTAMP_RE = re.compile(
+    r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$"
+)
 
 CONTENT_TYPES = {
     ".gif": "image/gif",
@@ -43,6 +46,7 @@ CONTENT_TYPES = {
     ".mp4": "video/mp4",
     ".png": "image/png",
     ".svg": "image/svg+xml",
+    ".vtt": "text/vtt",
     ".webm": "video/webm",
     ".webp": "image/webp",
 }
@@ -243,6 +247,35 @@ def ensure_expires(value: int) -> int:
     return value
 
 
+def validate_webvtt(text: str) -> None:
+    """Validate the canonical cue subset used by proof-video sidecars."""
+    if not text.startswith("WEBVTT\n"):
+        raise ValueError("WebVTT captions must start with WEBVTT")
+    blocks = [block for block in text.removeprefix("WEBVTT").strip().split("\n\n") if block.strip()]
+    if not blocks:
+        raise ValueError("WebVTT captions require at least one cue")
+
+    def seconds(values: tuple[str, ...]) -> float:
+        hours, minutes, whole_seconds, milliseconds = map(int, values)
+        if minutes >= 60 or whole_seconds >= 60:
+            raise ValueError("WebVTT captions contain an invalid timestamp")
+        return hours * 3600 + minutes * 60 + whole_seconds + milliseconds / 1000
+
+    previous_end = 0.0
+    for block in blocks:
+        lines = block.splitlines()
+        if len(lines) != 2 or not lines[1].strip():
+            raise ValueError("WebVTT cues require one timestamp line and one text line")
+        match = WEBVTT_TIMESTAMP_RE.fullmatch(lines[0])
+        if match is None:
+            raise ValueError("WebVTT captions contain an invalid timestamp")
+        start = seconds(match.groups()[:4])
+        end = seconds(match.groups()[4:])
+        if start < previous_end or start >= end:
+            raise ValueError("WebVTT cues must be ordered and non-overlapping")
+        previous_end = end
+
+
 def run_command(command: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
@@ -281,7 +314,16 @@ def upload_via_api_container(
     return json.loads(lines[-1])
 
 
-def build_snippets(url: str, *, content_type: str, alt: str, width: int | None) -> dict[str, str]:
+def build_snippets(
+    url: str,
+    *,
+    content_type: str,
+    alt: str,
+    width: int | None,
+    captions_url: str = "",
+    captions_language: str = "und",
+    captions_label: str = "Captions",
+) -> dict[str, str]:
     kind = media_kind(content_type)
     escaped_url = html.escape(url, quote=True)
     escaped_alt = html.escape(alt, quote=True)
@@ -291,12 +333,23 @@ def build_snippets(url: str, *, content_type: str, alt: str, width: int | None) 
             "markdown": f"![{alt}]({url})",
             "html": f'<img src="{escaped_url}" alt="{escaped_alt}"{width_attr}>',
         }
-    width_attr = f' width="{width}"' if width else ' width="640"'
+    style = "width: 100%; height: auto;"
+    if width:
+        style += f" max-width: {width}px;"
+    track = ""
+    if captions_url:
+        escaped_captions_url = html.escape(captions_url, quote=True)
+        track = (
+            f'  <track kind="captions" src="{escaped_captions_url}" '
+            f'srclang="{html.escape(captions_language, quote=True)}" '
+            f'label="{html.escape(captions_label, quote=True)}" default>\n'
+        )
     return {
         "markdown": f"[{alt}]({url})",
         "html": (
-            f"<video controls{width_attr} preload=\"metadata\" playsinline>\n"
+            f'<video controls crossorigin="anonymous" style="{style}" preload="metadata" playsinline>\n'
             f"  <source src=\"{escaped_url}\" type=\"{html.escape(content_type, quote=True)}\">\n"
+            f"{track}"
             "  Video fallback text.\n"
             "</video>"
         ),
@@ -350,6 +403,54 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         "sha256": sha256,
     }
 
+    captions_result: dict[str, object] | None = None
+    captions_source: Path | None = None
+    captions_request: dict[str, object] | None = None
+    if args.captions:
+        if kind != "video":
+            raise ValueError("--captions is only supported for video media")
+        captions_source = Path(args.captions).expanduser().resolve()
+        if not captions_source.is_file():
+            raise ValueError(f"Caption file does not exist: {captions_source}")
+        captions_content = captions_source.read_bytes()
+        if not captions_content:
+            raise ValueError("Caption file is empty")
+        try:
+            captions_text = captions_content.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+        except UnicodeDecodeError as exc:
+            raise ValueError("WebVTT captions must be UTF-8") from exc
+        validate_webvtt(captions_text)
+        captions_content_type = guess_content_type(captions_source)
+        if captions_content_type != "text/vtt":
+            raise ValueError("--captions requires a WebVTT .vtt file")
+        captions_key = object_key(captions_source, captions_content)
+        captions_request = {
+            **request,
+            "container_path": container_path_for(captions_source, captions_key),
+            "content_type": captions_content_type,
+            "key": captions_key,
+            "sha256": hashlib.sha256(captions_content).hexdigest(),
+        }
+    if not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", args.captions_language):
+        raise ValueError("--captions-language must be a valid BCP-47 language tag")
+    if not args.captions_label.strip():
+        raise ValueError("--captions-label must not be empty")
+
+    captions_upload: dict[str, object] | None = None
+    if captions_source is not None and captions_request is not None:
+        if dry_run:
+            captions_upload = {
+                "bucket": DEV_BUCKET_NAME,
+                "key": captions_request["key"],
+                "url": f"https://example.invalid/{captions_request['key']}?X-Amz-Expires={expires_in}",
+            }
+        else:
+            captions_upload = upload_via_api_container(
+                source=captions_source,
+                container=args.container,
+                request=captions_request,
+            )
+
     if dry_run:
         upload = {
             "bucket": DEV_BUCKET_NAME,
@@ -359,12 +460,26 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
     else:
         upload = upload_via_api_container(source=source, container=args.container, request=request)
 
+    if captions_upload is not None and captions_request is not None:
+        captions_result = {
+            "content_type": "text/vtt",
+            "expires_in": expires_in,
+            "key": captions_upload["key"],
+            "sha256": f"sha256:{captions_request['sha256']}",
+            "url": captions_upload["url"],
+            "language": args.captions_language,
+            "label": args.captions_label.strip(),
+        }
+
     alt = args.alt or source.stem.replace("-", " ").replace("_", " ")
     snippets = build_snippets(
         upload["url"],
         content_type=content_type,
         alt=alt,
         width=args.width,
+        captions_url=str(captions_result["url"]) if captions_result else "",
+        captions_language=args.captions_language,
+        captions_label=args.captions_label.strip(),
     )
     return {
         "bucket": upload["bucket"],
@@ -372,9 +487,10 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         "expires_in": expires_in,
         "key": upload["key"],
         "kind": kind,
-        "sha256": sha256,
+        "sha256": f"sha256:{sha256}",
         "snippets": snippets,
         "url": upload["url"],
+        **({"captions": captions_result} if captions_result else {}),
     }
 
 
@@ -392,6 +508,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Presigned URL lifetime in seconds; max/default is 48 hours",
     )
     parser.add_argument("--width", type=int, help="Width attribute for generated HTML")
+    parser.add_argument("--captions", help="Optional WebVTT caption sidecar for video media")
+    parser.add_argument("--captions-language", default="und", help="BCP-47 caption language tag")
+    parser.add_argument("--captions-label", default="Captions", help="Caption track label shown by the video player")
     parser.add_argument(
         "--output",
         choices=("text", "json", "url", "markdown", "html"),

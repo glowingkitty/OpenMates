@@ -44,7 +44,7 @@ Each task must include:
 - File ownership and shared-file ownership
 - Whether it is independently deployable
 
-For required proof videos, put capture, exact burned-in captions, optional narration audio,
+For required proof videos, put capture, exact device-scoped WebVTT captions, optional narration audio,
 local privacy scan, frame-only review, repair routing, and OpenCode response-media
 embedding after applicable normal green gates. Add a final evidence task that
 retains sanitized transcripts, response-media snippets, and optional audio

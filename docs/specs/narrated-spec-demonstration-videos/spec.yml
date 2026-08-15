@@ -1,9 +1,9 @@
 schema_version: 2
 id: narrated-spec-demonstration-videos
 title: Strict Narrated Proof Videos For OpenCode Work
-status: verified
+status: implementing
 goal: 'Make completed OpenCode implementation work visibly understandable by requiring planned narration points, real execution
-  recordings, ElevenLabs narration audio, canonical burned-in captions, and an AI-reviewed proof video before eligible specs
+  recordings, optional narration audio, canonical player-toggleable captions, and an AI-reviewed proof video before eligible specs
   or plans are considered complete, then publish the reviewed result to Discord when a destination is configured.
 
   '
@@ -20,7 +20,8 @@ scope:
     matches a sanitized real transcript, and the video labels the segment as reconstructed.
   - Generate ElevenLabs narration audio with the fast, low-cost eleven_flash_v2_5 model and render that audio track into
     every final video.
-  - Generate canonical timestamped captions and burn them into every final video.
+  - Generate canonical timestamped WebVTT captions as a hash-bound sidecar without shrinking or obscuring the video frame.
+  - Scope every assertion and caption cue to the device profiles where it applies.
   - Reuse the same narration transcript and ElevenLabs audio across viewport recordings unless the narration must change.
   - Keep web/spec/example-chat proof as separate phone and laptop videos, Apple proof as separate iPhone portrait and iPad
     landscape videos, and CLI proof as one terminal video.
@@ -32,13 +33,13 @@ scope:
     actions; generic success narration is not accepted.
   - Support source retiming, final-frame holds, and quiet product-audio mixing when a real recording moves too quickly or audio
     playback is itself part of the claim.
-  - Review the finished video indirectly using the full narration transcript, synchronized captions, sampled frames at the
+  - Review the finished video indirectly using the full device-applicable narration transcript, synchronized captions, clean sampled frames at the
     default three-second cadence plus exact requested timestamps, recording metadata, and linked acceptance criteria without
     placing the full video in model context.
   - Classify review failures as implementation, test coverage, recording, narration, composition, or environment defects and
     return to the responsible stage.
   - Retry failed demonstration review automatically at most three times before recording a structured user-input blocker.
-  - Prevent eligible session/spec completion until required proof-video review passes and audio/caption provenance is recorded;
+  - Prevent eligible session/spec completion until required proof-video review passes and caption plus optional-audio provenance is recorded;
     only the approved non-visual not-applicable classification may bypass video production.
   - Post the reviewed video and sanitized implementation summary to Discord when a webhook is configured, and treat confirmed
     Discord delivery as a hard completion gate for configured destinations.
@@ -109,7 +110,7 @@ clarification:
     answer: Discord delivery is a hard completion gate when a destination is configured; a passed frame review alone is insufficient
       for configured destinations.
   - question: Should proof videos require captions, audio, or both?
-    answer: Every proof video requires both burned-in captions and an audio track generated with ElevenLabs eleven_flash_v2_5.
+    answer: Every proof video requires player-toggleable WebVTT captions; narration audio is optional.
   - question: How autonomous should the post-render mismatch loop be?
     answer: Classify the mismatch, repair the responsible stage, and retry up to three times before asking the user.
   - question: Should the user-facing OpenMates Plans product be included?
@@ -200,9 +201,9 @@ approvals:
     status: approved
     approved_at: '2026-08-06T01:11:41Z'
   implementation_plan:
-    status: not_required
-    reason: The plan uses existing local FFmpeg, Playwright, Discord, and active OpenCode capabilities; the user separately
-      approved frame-only review and the video deletion policy, so no unapproved material technical decision remains.
+    status: approved
+    approved_at: '2026-08-15T00:00:00Z'
+    reason: The user explicitly approved device-specific assertions, clean caption-free review frames, player-toggleable captions, and removal of caption-reserved video scaling on 2026-08-15.
 decisions:
 - id: D-1
   status: active
@@ -219,7 +220,7 @@ decisions:
     which changed during development.
   decided_at: '2026-08-06T00:00:00Z'
 - id: D-3
-  status: active
+  status: superseded
   decision: Require both burned-in captions and ElevenLabs eleven_flash_v2_5 narration audio for every proof video.
   reason: Captions provide deterministic, accessible, machine-reviewable text, while the audio track makes the proof video
     self-contained for human review and Discord delivery.
@@ -292,6 +293,16 @@ decisions:
   decision: Proof videos use declared device profiles with exact output dimensions, no black bars, realistic visible-state narration, optional retiming or end-state holds, and quiet product-audio mixing when playback is part of the claim.
   reason: Mobile and iPad proofs must not be hidden inside landscape wrappers, and reviewers need concrete narration plus readable timing to catch mismatches instead of accepting generic success videos.
   decided_at: '2026-08-12T00:00:00Z'
+- id: D-16
+  status: active
+  decision: Keep proof-video pixels free of tutorial captions and any caption-reserved scaling; publish canonical WebVTT as a hash-bound player track that defaults on and can be disabled.
+  reason: Burned-in captions obscured product evidence and caused the renderer to reduce usable video area. A sidecar preserves accessibility while allowing clean full-frame inspection and viewer control.
+  decided_at: '2026-08-15T00:00:00Z'
+- id: D-17
+  status: active
+  decision: Every proof assertion and caption cue declares the exact device profiles where it applies, and each device review receives only its applicable claims and text.
+  reason: Applying every assertion to every device incorrectly required laptop recordings to prove phone-only behavior and vice versa.
+  decided_at: '2026-08-15T00:00:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -319,13 +330,25 @@ attempts:
   outcome: succeeded
   recorded_at: '2026-08-06T11:49:05Z'
   reason: Skill parity, tooling parity, workflow audit, lint, and 68 focused tests passed; the stay-logged-in-enabled signup case from GitHub Actions run 31094417221 passed, its 31.04-second tutorial review passed, and Discord confirmed delivery.
+- id: ATTEMPT-5
+  task_id: TASK-15
+  approach: Add device-scope, clean-frame, WebVTT, and paired-publication assertions before changing the implementation.
+  outcome: failed_as_expected
+  recorded_at: '2026-08-15T00:00:00Z'
+  reason: Eight focused tests failed because multi-device scope, clean rendering, WebVTT sidecars, and caption-track publication were not implemented.
+- id: ATTEMPT-6
+  task_id: TASK-17
+  approach: Implement schema-v2 device filtering, clean full-frame rendering, strict WebVTT integrity, caption-aware review caching, and paired response-media publication.
+  outcome: succeeded
+  recorded_at: '2026-08-15T00:00:00Z'
+  reason: The focused 119-test suite, broader 249-test workflow suite, lint, Python compilation, spec validation, workflow audit, output-quality audit, tooling parity audit, and agent parity check passed.
 handoff:
-  current_task_id: TASK-14
-  next_action: No further implementation action; reuse create-demo-video for future CLI or passing Playwright tutorials.
-  command: python3 scripts/sync_agent_parity.py --check
-  expected_outcome: Skill parity remains current and the retained signup tutorial evidence remains reviewable.
+  current_task_id: TASK-15
+  next_action: Add red tests for device-scoped proof contracts, clean full-size rendering, WebVTT integrity, and paired publication.
+  command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
+  expected_outcome: New focused assertions fail before implementation while existing proof-video regressions remain isolated.
   blocker: null
-  last_verified_commit: 1b6bedc
+  last_verified_commit: 59a5468e9
 scenarios:
 - id: S-1
   title: Full spec declares what its final demonstration must prove
@@ -381,8 +404,8 @@ scenarios:
   - It writes exact narration text based only on verified behavior.
   - It rejects generic narration that fails to name visible UI, terminal output, controls, playback state, messages, or follow-up
     actions.
-  - It creates ElevenLabs eleven_flash_v2_5 audio for that narration.
-  - It creates canonical timestamped burned-in captions and a final video with a readable caption layer and audio track.
+  - It may create ElevenLabs eleven_flash_v2_5 audio for that narration when audio is requested.
+  - It creates canonical timestamped WebVTT captions alongside a clean full-frame video.
   - Every factual caption claim maps to an acceptance criterion and a visible or terminal evidence interval.
   - The raw recording remains separate from the derived narrated demonstration artifact.
   - Browser and Apple recordings declare a device profile, preserve exact profile dimensions in the raw and rendered video,
@@ -431,6 +454,19 @@ scenarios:
     without exposing private data.
   - A delivery failure records publication_pending with retry details, keeps the session incomplete while the destination is
     configured, and does not change a passed implementation or demonstration review back to failed.
+- id: S-9
+  title: Each device uses clean full-frame evidence with optional player captions
+  given:
+  - An approved proof contract targets more than one device profile.
+  - Some assertions or tutorial sentences apply to only one target device.
+  when:
+  - The renderer, frame reviewer, and response-media publisher process each device.
+  then:
+  - Every assertion and caption cue declares a non-empty subset of the approved device profiles.
+  - Each device review receives only its applicable assertions and the complete applicable timed caption text.
+  - Review frames contain the clean product or terminal composition without burned-in tutorial captions.
+  - The rendered video retains the full source dimensions and uses the complete frame without caption-reserved scaling, borders, or padding.
+  - Publication uploads a hash-bound WebVTT sidecar and emits a caption track that defaults on and can be disabled by the viewer.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -578,6 +614,33 @@ acceptance_criteria:
   verification_scope: custom
   verification_ids:
   - T-OPENCODE-WORKFLOW
+- id: AC-14
+  scenario: S-9
+  text: Multi-device proof contracts require device-scoped assertions and caption cues, and each device review contains exactly the applicable claim and cue IDs.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PROOF-CONTRACT-V2
+- id: AC-15
+  scenario: S-9
+  text: Proof rendering preserves the exact device-profile dimensions and complete frame area without burned-in tutorial captions or caption-reserved scaling, borders, or padding.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-PIPELINE
+- id: AC-16
+  scenario: S-9
+  text: Publication validates and uploads a hash-bound WebVTT sidecar and emits a cross-origin caption track that defaults on and remains viewer-toggleable.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-RESPONSE-MEDIA-CAPTIONS
 assumptions:
 - id: A-1
   text: Passing Playwright runs already retain usable browser recordings and step artifacts for demonstration composition.
@@ -655,8 +718,8 @@ contracts:
     captions, ElevenLabs audio provenance, claim-to-acceptance-criterion mappings, raw and derived artifacts, review attempts,
     privacy result, and publication status.
   - Each narration bullet has a stable ID, purpose, expected proof, and linked scenario or acceptance criterion.
-  - Each final caption segment has start and end timestamps, exact text, visible claims, linked acceptance criteria, and evidence
-    interval references.
+  - Each final caption segment has start and end timestamps, exact text, target device profiles, visible claims, linked acceptance criteria, and evidence interval references.
+  - Each assertion has a non-empty target-device list that is a subset of the proof contract devices.
   - Artifact records include path or approved URL, media hash, source run ID, subject commit, creation timestamp, and whether
     the artifact is raw, edited, or reconstructed.
   - A Playwright source record includes test command or spec, deployed target, deployment reference, run ID, subject commit,
@@ -672,9 +735,10 @@ contracts:
   - Reconstructed output is demonstration material only and cannot satisfy a test or verification gate.
   captions:
   - Exact narration and captions are written only after existing required implementation gates are green.
-  - Captions are the canonical text source and must be paired with generated ElevenLabs eleven_flash_v2_5 speech audio.
-  - Captions must be readable at the target Discord playback size and synchronized to the evidence they describe.
-  - Every final proof video must contain a real audio stream; caption-only video cannot satisfy completion.
+  - Captions are the canonical text source and are published as WebVTT; ElevenLabs eleven_flash_v2_5 speech audio is optional.
+  - Captions default to showing in the response-media player and remain viewer-toggleable.
+  - Tutorial captions are never burned into video pixels and never reserve frame area through scaling, borders, or padding.
+  - Each caption cue declares the device profiles where it applies and remains synchronized to the evidence it describes.
   - Claims cannot exceed what the linked acceptance criteria and visible evidence prove.
   review:
   - The review bundle contains final video metadata, captions, narration bullets, expected proof, acceptance-criterion links,
@@ -683,6 +747,7 @@ contracts:
     a default three-second periodic interval that may be configured to a shorter interval.
   - The reviewer may request bounded additional individual frames by exact timestamp; the local extractor returns only those
     sanitized frames and records each request in review evidence.
+  - Each device review contains only device-applicable claims and complete device-applicable caption cues.
   - Claim verdicts are supported, contradicted, not_visible, ambiguous, or wrong_time.
   - Defect classes are implementation, test_coverage, recording, narration, composition, or environment.
   - Only implementation defects and material test-contract defects invalidate linked implementation evidence; all other defects
@@ -695,7 +760,7 @@ contracts:
     model with documented authorization, retention, and training-use policy.
   completion:
   - spec_verify rejects completion when a required demonstration is missing, stale for the subject commit, privacy-failed,
-    missing passed ElevenLabs audio, not review-passed, or not delivered when Discord is configured.
+    missing hash-bound captions, has invalid requested audio, is not review-passed, or is not delivered when publication is required.
   - A valid not-applicable classification satisfies the demonstration gate only for eligible non-visual work.
   - Visual browser, native, and CLI demonstrations have no general waiver path; only a valid pre-implementation non-visual
     not-applicable classification can satisfy the gate without video review.
@@ -961,6 +1026,66 @@ tests:
       timestamp: '2026-08-06T01:50:55Z'
       summary: Fourteen workflow fixtures, direct spec workflow audit, output-quality audit, tooling parity audit, and generated
         mirror sync check passed.
+- id: T-PROOF-CONTRACT-V2
+  type: pytest
+  file: scripts/tests/test_proof_video_workflow.py
+  command: python3 -m pytest scripts/tests/test_proof_video_workflow.py
+  covers: [AC-14]
+  assertions:
+  - multi-device contracts reject assertions or caption cues without target devices
+  - target devices must be known members of the approved contract device list
+  - each device receives exactly its applicable assertions and caption text
+  - single-device legacy contracts remain unambiguous while multi-device legacy contracts require re-approval
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
+      run_id: local-2026-08-15-proof-captions-red
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Eight focused assertions failed before device-scoped contracts, clean rendering, and WebVTT publication existed.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
+      run_id: local-2026-08-15-proof-captions-green
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Device filtering, cache identity, clean rendering, and WebVTT generation tests passed.
+- id: T-RESPONSE-MEDIA-CAPTIONS
+  type: pytest
+  file: scripts/tests/test_opencode_response_media.py
+  command: python3 -m pytest scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+  covers: [AC-16]
+  assertions:
+  - WebVTT is uploaded with text/vtt and the same expiry as its video
+  - generated video HTML includes crossorigin anonymous and a default captions track
+  - publication records both hashes and refuses missing or changed caption files
+  - cleanup retains canonical captions while deleting disposable video and review frames
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_opencode_response_media.py
+      run_id: local-2026-08-15-response-captions-red
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Full-width player and paired WebVTT assertions failed before implementation.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+      run_id: local-2026-08-15-response-captions-green
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Strict WebVTT upload, paired hash verification, toggleable track HTML, and cleanup tests passed.
 verifications:
 - id: V-PLAYWRIGHT-DEMO
   kind: artifact_review
@@ -1053,9 +1178,7 @@ verifications:
     summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while sanitized text evidence was retained.
 implementation_plan:
   spec_path: docs/specs/narrated-spec-demonstration-videos/spec.yml
-  first_slice: 'Enforce the demonstration eligibility and completion contract in fixture specs, then prove one synthetic CLI
-    transcript can be captured, captioned, scanned, frame-sampled, reviewed, and represented in a manifest before integrating
-    real Playwright recordings or Discord delivery.
+  first_slice: 'Add failing contract and renderer tests that prove each device receives only applicable claims and cues, clean video retains exact profile dimensions and full frame area, and publication emits a hash-bound WebVTT track.
 
     '
   existing_patterns:
@@ -1069,8 +1192,9 @@ implementation_plan:
   - test-results is gitignored and existing Playwright recording bundles already use run IDs, commit SHAs, videos, screenshots,
     and manifest metadata.
   - The external create-video skill separates polished marketing production from product verification recordings.
-  architecture: 'Add scripts/spec_demo.py as one repository-local orchestration CLI around a versioned JSON manifest in test-results/spec-demos/<spec>/<run-id>/.
-    Use ffmpeg/ffprobe subprocesses for media metadata, caption composition, terminal rendering, compression, and frame extraction;
+  architecture: 'Keep scripts/spec_demo.py as the repository-local orchestration CLI around a versioned JSON manifest in test-results/spec-demos/<spec>/<run-id>/.
+    Use ffmpeg/ffprobe subprocesses for media metadata, full-frame retiming, terminal rendering, compression, and clean frame extraction;
+    generate canonical WebVTT as a separate hash-bound artifact; filter approved assertions and cues by exact device profile;
     use a Python stdlib PTY recorder for exact argv/output/timing/exit events; invoke the canonical TypeScript secret scanner
     for command arguments and all retained or published text before creating the bounded frame bundle read by the active OpenCode
     agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
@@ -1093,10 +1217,9 @@ implementation_plan:
   - For CLI evidence, the PTY adapter runs argv such as `[openmates, plans, show, demo-plan, --json]`, records timestamped
     input/output events and exit code 0, strips ANSI control sequences for the sanitized transcript, and hashes both event
     and transcript artifacts.
-  - The post-green caption step writes an exact segment such as `After reload, the first item remains complete.` from 12.4
-    to 17.1 seconds and links it to `NARR-1`, `AC-5`, and the matching evidence interval.
-  - FFmpeg renders captions over the browser video or renders terminal state events on a fixed DejaVu Sans Mono canvas, then
-    ffprobe records duration, dimensions, codecs, and final SHA-256.
+  - The post-green caption step writes an exact WebVTT cue such as `After reload, the first item remains complete.` from 12.4
+    to 17.1 seconds and links it to `NARR-1`, `AC-5`, the matching evidence interval, and applicable device profiles.
+  - FFmpeg retimes the browser video without scale, crop, overlay, border, or padding filters; terminal state events remain content on a fixed DejaVu Sans Mono canvas. ffprobe records duration, dimensions, codecs, and final SHA-256.
   - The privacy pass scans command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical
     secret scanner before review and publication.
   - The review-bundle builder extracts default three-second frames plus scene, action, caption-boundary, and before-after
@@ -1112,7 +1235,7 @@ implementation_plan:
   - Root: test-results/spec-demos/<spec-or-plan-slug>/<run-id>/ with owner-only directory and file permissions.
   - manifest.json is versioned and stores eligibility, subject commit, source evidence, narration outline, caption segments,
     artifact hashes, privacy counts, frame index, review attempts, publication state, and deletion timestamps.
-  - transcript.txt, captions.srt or captions.ass, review.json, and publication.json are sanitized retained text artifacts;
+  - transcript.txt, captions.vtt, review.json, and publication.json are sanitized retained text artifacts;
     unsanitized PTY events exist only in a private temporary directory until sanitization succeeds.
   - demo.mp4 or demo.webm and extracted frame files are disposable; frames are deleted after review and video is deleted after
     confirmed Discord delivery or the 24-hour undelivered limit.
@@ -1754,6 +1877,104 @@ tasks:
     - scripts/spec_demo.py
     - docs/specs/narrated-spec-demonstration-videos/spec.yml
   independently_deployable: true
+- id: TASK-15
+  title: Add red device-scope clean-frame and WebVTT publication tests
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-9]
+    acceptance_criteria: [AC-14, AC-15, AC-16]
+  expected_files:
+  - scripts/tests/test_proof_video_workflow.py
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  - scripts/tests/test_opencode_response_media.py
+  - scripts/tests/test_spec_demonstration_discord.py
+  - scripts/tests/test_sessions_proof_video.py
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-RESPONSE-MEDIA-CAPTIONS]
+  dependencies: [TASK-14]
+  blockers: []
+  follow_up_tasks: [TASK-16]
+  ownership:
+    files:
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_sessions_proof_video.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-16
+  title: Implement device filtering clean full-frame render and WebVTT integrity
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-5, S-6, S-9]
+    acceptance_criteria: [AC-5, AC-6, AC-7, AC-14, AC-15]
+  expected_files:
+  - scripts/proof_video_workflow.py
+  - scripts/spec_demo.py
+  - scripts/sessions.py
+  - .claude/agents/proof-video-reviewer.md
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-VERIFY]
+  dependencies: [TASK-15]
+  blockers: []
+  follow_up_tasks: [TASK-17]
+  ownership:
+    files:
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/sessions.py
+    - .claude/agents/proof-video-reviewer.md
+    shared_files: [scripts/spec_demo.py, scripts/sessions.py]
+  independently_deployable: false
+- id: TASK-17
+  title: Publish paired video and toggleable captions and align workflow instructions
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-8, S-9]
+    acceptance_criteria: [AC-10, AC-11, AC-12, AC-13, AC-16]
+  expected_files:
+  - scripts/opencode_response_media.py
+  - scripts/spec_demo.py
+  - .claude/skills/create-demo-video/SKILL.md
+  - docs/contributing/guides/agent-workflow-core.md
+  - docs/contributing/guides/spec-driven-development.md
+  - .claude/rules/testing.md
+  verification_ids: [T-RESPONSE-MEDIA-CAPTIONS, T-OPENCODE-WORKFLOW]
+  dependencies: [TASK-16]
+  blockers: []
+  follow_up_tasks: [TASK-18]
+  ownership:
+    files:
+    - scripts/opencode_response_media.py
+    - scripts/spec_demo.py
+    - .claude/skills/create-demo-video/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - .claude/rules/testing.md
+    shared_files: [scripts/spec_demo.py, docs/contributing/guides/agent-workflow-core.md]
+  independently_deployable: false
+- id: TASK-18
+  title: Verify synthetic full-size caption toggle and clean-frame reviewer bundle
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios: [S-9]
+    acceptance_criteria: [AC-14, AC-15, AC-16]
+  expected_files:
+  - docs/specs/narrated-spec-demonstration-videos/spec.yml
+  - test-results/proof-videos
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-DEMO-REVIEW, T-RESPONSE-MEDIA-CAPTIONS, T-OPENCODE-WORKFLOW]
+  dependencies: [TASK-17]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - test-results/proof-videos
+    shared_files: [docs/specs/narrated-spec-demonstration-videos/spec.yml]
+  independently_deployable: true
 risks:
 - Video rendering and multimodal review can add material completion latency and compute cost; bounded retries and eligibility
   rules limit the impact.
@@ -1765,7 +1986,7 @@ risks:
   rules must prevent unrelated code churn.
 - Discord attachment limits and outages can disrupt delivery; publication state remains independent and retryable, and public
   temporary links are disallowed by default.
-- Caption wording can overclaim security, privacy, performance, or completeness; every factual claim must trace to acceptance
+  - Caption wording can overclaim security, privacy, performance, or completeness; every factual claim must trace to acceptance
   criteria and visible evidence.
 - Reusing the marketing video workflow would mix promotional conventions with engineering evidence and may create public artifacts;
   the engineering pipeline must remain separate.

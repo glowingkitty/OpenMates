@@ -26,6 +26,7 @@ before capture:
 - Three to five short tutorial-style caption sentences.
 - One to five assertions describing what must be visibly or terminally true.
 - Required device profiles.
+- Every caption sentence and assertion lists the exact device profiles where it applies.
 
 Save the canonical contract only after explicit approval, then persist the approval
 record before rendering:
@@ -49,7 +50,7 @@ audio is off by default and `--audio-path` is an explicit opt-in.
   until a product defect disappears.
 - Exact profiles remain mandatory: web phone `390x844`, web laptop `1440x900`,
   iPhone portrait `393x852`, iPad landscape `1366x1024`, CLI `1280x720`.
-- Captions are sentence-level and bottom-centered. Pacing may use only whole-video
+- Captions are sentence-level WebVTT cues delivered through the video player's toggleable captions track. Never burn captions into video pixels or shrink, pad, border, or otherwise reserve frame area for captions. Pacing may use only whole-video
   slowdown to `0.75x` and a final hold, with a 35-second output cap.
 - Process one device at a time. Do not use OCR or place the full video in model
   context. Sample periodically every five seconds, prioritize event boundaries,
@@ -65,8 +66,8 @@ claim verdicts:
 python3 scripts/proof_video_workflow.py review --run-dir <path> --correction-round 0 --correction-kind none
 ```
 
-Review every frame in the immutable one-to-twelve-frame device index plus the
-approved contract and deterministic metadata. Return exactly one status:
+Review every clean frame in the immutable one-to-twelve-frame device index plus the
+complete device-applicable WebVTT cue text, approved device-applicable assertions, and deterministic metadata. Return exactly one status:
 
 - `passed`
 - `capture_defect`
@@ -74,8 +75,7 @@ approved contract and deterministic metadata. Return exactly one status:
 - `product_defect`
 - `uncertain`
 
-Every verdict needs frame-grounded observations. Blank opening frames and caption
-alignment may be corrected mechanically once. Unexplained scroll state returns to
+Every verdict needs frame-grounded observations. Blank opening frames may be corrected mechanically once. Caption syntax, ordering, and bounds are deterministic checks rather than visual-review concerns. Unexplained scroll state returns to
 capture. Clipping, broken headers, wrong UI state, raw implementation text, stale
 loading, and broken navigation are product defects: add or strengthen a failing
 test, fix the product, deploy, and recapture. Never hide them through trimming,
@@ -87,7 +87,7 @@ automatic correction rounds, including at most one product-code correction round
 Re-review only changed device hashes. Uncertain findings, repeated defect
 fingerprints, or exhausted budgets require immediate user input.
 
-After a passed frame review, upload the approved proof video or representative
+After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
 proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt
 "..."` and paste the returned image Markdown or `<video>` HTML in the final
 OpenCode response. Do not send proof media to Discord unless the user explicitly

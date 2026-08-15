@@ -112,7 +112,7 @@ requires proof-video evidence before completion. A test report, screenshots, or
 visual-smoke evidence alone never satisfies this gate. Use `create-demo-video`
 and `python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts`
 with passing deployed Playwright, Apple, or real OpenMates CLI evidence and
-burned-in captions; narration audio is optional. Web/spec/example chat proof uses
+device-scoped, hash-bound WebVTT captions that are toggleable in the player and never reduce or obscure the clean frame; narration audio is optional. Web/spec/example chat proof uses
 separate phone and laptop videos, Apple proof uses separate iPhone portrait and
 iPad landscape videos, and CLI proof uses one terminal video only for the actual `openmates` CLI product surface being demonstrated or fixed. Do not ask for CLI proof videos for generic smoke scripts, pytest helpers, Node scripts, or shell wrappers that do not visibly execute the OpenMates CLI.
 Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,

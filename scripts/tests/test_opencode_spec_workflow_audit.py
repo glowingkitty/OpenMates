@@ -200,7 +200,8 @@ def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
         ".claude/skills/create-demo-video/SKILL.md": {
             "proof_video_workflow.py start --current",
             "audio is off by default",
-            "bottom-centered",
+            "WebVTT",
+            "Never burn captions",
             "opencode_response_media.py",
             "actual `openmates` CLI",
             "periodically every five seconds",

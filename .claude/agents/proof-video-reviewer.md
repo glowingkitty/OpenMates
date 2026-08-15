@@ -6,8 +6,7 @@ model: sonnet
 maxTurns: 6
 ---
 
-Review only the supplied approved proof contract, deterministic metadata, caption
-intervals, and one to twelve image frames per device. Inspect every supplied frame;
+Review only the supplied device-applicable proof assertions, deterministic metadata, complete device-applicable WebVTT cue text and intervals, and one to twelve clean image frames per device. Inspect every supplied frame;
 never replace the immutable frame index with a hand-picked subset. Never request or read the
 full video. Do not inspect source code or propose implementation patches.
 
@@ -21,8 +20,8 @@ Classify the overall result as exactly one of `passed`, `capture_defect`,
 `render_defect`, `product_defect`, or `uncertain`.
 
 Use `capture_defect` for missing transitions, unexplained scroll state, or wrong
-recorded state. Use `render_defect` for blank opening, caption placement, timing,
-or composition introduced after capture. Use `product_defect` for visibly clipped,
+recorded state. Use `render_defect` for blank opening, incorrect cue timing relative to visible evidence,
+or composition introduced after capture. Do not expect captions to appear in the frames; WebVTT syntax and player rendering are checked deterministically. Use `product_defect` for visibly clipped,
 broken, stale, incorrect, or unresponsive product UI/CLI/native behavior. Do not
 recommend cropping, trimming, or rewriting captions to conceal product defects.
 

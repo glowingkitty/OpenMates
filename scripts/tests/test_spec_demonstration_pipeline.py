@@ -203,21 +203,16 @@ def test_reconstruction_requires_visible_label_and_matching_transcript_hash() ->
         module.mark_reconstructed(source, displayed_transcript_hash="sha256:different")
 
 
-def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
+def test_ffmpeg_terminal_render_uses_full_terminal_frame(tmp_path: Path) -> None:
     module = load_module()
     timeline = module.build_cli_terminal_timeline(
         argv=["openmates", "demo"],
         events=[{"time_seconds": 0.8, "stream": "output", "text": "exact terminal output\n"}],
     )
-    captions = tmp_path / "captions.srt"
-    captions.write_text(
-        "1\n00:00:00,000 --> 00:00:01,000\nThe exact output is visible.\n",
-        encoding="utf-8",
-    )
     output = tmp_path / "demo.mp4"
     audio = write_synthetic_audio(tmp_path / "narration.wav")
 
-    module.render_terminal_video(timeline, captions, audio, output)
+    module.render_terminal_video(timeline, audio, output)
 
     assert output.is_file() and output.stat().st_size > 0
     probe = subprocess.run(
@@ -363,7 +358,7 @@ def test_teams_cli_proof_helper_validates_visible_chat_isolation() -> None:
 
 def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
     module = load_module()
-    path = tmp_path / "captions.srt"
+    path = tmp_path / "captions.vtt"
 
     segments = module.write_tutorial_captions(
         path,
@@ -387,6 +382,8 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     module = load_module()
     video = tmp_path / "demo.mp4"
     video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:15.967\nVisible.\n", encoding="utf-8")
     monkeypatch.setattr(
         module,
         "video_metadata",
@@ -416,6 +413,7 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
         subject_commit="abc1234",
         narration_id="NARR-1",
         caption_text="First, the terminal shows team creation output. Next, visible context output confirms the selected team. Finally, credits output stays visible for review.",
+        captions_path=captions,
         expected_proof="The terminal shows team CLI output.",
         acceptance_criteria=["AC-1"],
         source={"kind": "cli", "argv": ["openmates", "teams", "create"]},
@@ -437,7 +435,7 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
 
     assert manifest["captions"][0]["end"] == 15.967
     assert manifest["expected_proof"][0]["evidence_intervals"] == [[0.0, 15.967]]
-    assert manifest["privacy"] == {"status": "passed", "findings": [], "scan": "not_run"}
+    assert manifest["privacy"] == {"status": "passed", "findings": [], "scan": "canonical_text", "scanned_stage": "review"}
     request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
     assert request["captions"][0]["end"] == 15.967
     timestamps = {frame["timestamp_seconds"] for frame in request["frames"]}
@@ -467,7 +465,7 @@ def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -
 
     with pytest.raises(module.DemonstrationError, match="too generic|visible action"):
         module.write_tutorial_captions(
-            tmp_path / "captions.srt",
+            tmp_path / "captions.vtt",
             text="The feature works correctly.",
             duration_seconds=5,
             narration_id="NARR-1",
@@ -603,13 +601,11 @@ def test_playwright_render_input_must_match_selected_artifact(tmp_path: Path) ->
         module.verify_playwright_render_input(selected, other_video)
 
 
-def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
+def test_clean_render_strips_source_metadata_without_caption_or_scale_filters(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
-    captions = tmp_path / "captions.srt"
     output = tmp_path / "output.mp4"
     audio = write_synthetic_audio(tmp_path / "narration.wav")
-    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
     subprocess.run(
         [
             "ffmpeg", "-y", "-f", "lavfi", "-i", "color=black:s=320x240:r=10", "-t", "1",
@@ -620,28 +616,59 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
     )
 
     assert module.video_metadata(source)["tags"]["comment"] == "private synthetic metadata"
-    module.render_captioned_video(source, captions, audio, output)
+    observed: list[list[str]] = []
+    real_run = module.subprocess.run
+
+    def capture_run(command, **kwargs):
+        observed.append(command)
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "run", capture_run)
+    module.render_clean_video(source, audio, output)
 
     assert "comment" not in module.video_metadata(output)["tags"]
     assert module.video_metadata(output)["has_audio"] is True
+    render_command = next(command for command in observed if command and command[0] == "ffmpeg" and str(output) in command)
+    filters = " ".join(render_command)
+    assert "subtitles=" not in filters
+    assert "scale=" not in filters
+    assert "pad=" not in filters
+    assert module.video_metadata(output)["width"] == module.video_metadata(source)["width"]
+    assert module.video_metadata(output)["height"] == module.video_metadata(source)["height"]
 
 
-def test_caption_render_defaults_to_video_without_audio(tmp_path: Path) -> None:
+def test_clean_render_defaults_to_video_without_audio(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
-    captions = tmp_path / "captions.srt"
     output = tmp_path / "output.mp4"
-    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
     subprocess.run(
         ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
         check=True,
         capture_output=True,
     )
 
-    module.render_captioned_video(source, captions, None, output)
+    module.render_clean_video(source, None, output)
 
     assert output.is_file()
     assert module.video_metadata(output)["has_audio"] is False
+
+
+def test_tutorial_captions_are_written_as_webvtt(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "captions.vtt"
+
+    segments = module.write_tutorial_captions(
+        path,
+        text="The screen shows the first visible action and its controls. The selected result remains clearly visible for careful review. The final screen confirms the expected completed state for the viewer.",
+        duration_seconds=9.0,
+        narration_id="NARR-1",
+    )
+
+    content = path.read_text(encoding="utf-8")
+    assert content.startswith("WEBVTT\n\n")
+    assert "00:00:00.000 -->" in content
+    assert ",000" not in content
+    assert len(segments) == 3
 
 
 def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Path) -> None:
@@ -708,9 +735,7 @@ def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) ->
 def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
-    captions = tmp_path / "captions.srt"
     product_audio = write_synthetic_audio(tmp_path / "product.wav")
-    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
     subprocess.run(
         ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
         check=True,
@@ -718,35 +743,17 @@ def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None
     )
 
     with pytest.raises(module.DemonstrationError, match="Product audio requires explicit narration audio"):
-        module.render_captioned_video(source, captions, None, tmp_path / "output.mp4", demo_audio_path=product_audio)
+        module.render_clean_video(source, None, tmp_path / "output.mp4", demo_audio_path=product_audio)
 
 
 def test_terminal_render_rejects_output_over_35_seconds(tmp_path: Path) -> None:
     module = load_module()
-    captions = tmp_path / "captions.srt"
-    captions.write_text("1\n00:00:00,000 --> 00:00:01,000\nSafe caption.\n", encoding="utf-8")
-
     with pytest.raises(module.DemonstrationError, match="35 seconds"):
         module.render_terminal_video(
             {"duration_seconds": 35.1, "states": [{"start": 0.0, "end": 35.1, "text": "$ safe"}]},
-            captions,
             None,
             tmp_path / "output.mp4",
         )
-
-
-def test_playwright_caption_style_scales_down_for_phone_frames() -> None:
-    module = load_module()
-
-    phone_style = module._playwright_caption_force_style({"width": 390, "height": 844})
-    laptop_style = module._playwright_caption_force_style({"width": 1440, "height": 900})
-
-    assert "FontSize=8" in phone_style
-    assert "MarginV=15" in phone_style
-    assert "Alignment=2" in phone_style
-    assert "FontSize=20" in laptop_style
-    assert "MarginV=16" in laptop_style
-    assert "Alignment=2" in laptop_style
 
 
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:

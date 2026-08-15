@@ -93,7 +93,7 @@ Pass only when:
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
-- Required proof videos have current-commit privacy, burned-in captions,
+- Required proof videos have current-commit privacy, hash-bound toggleable WebVTT captions,
   intentional audio status, frame-only review, and OpenCode response-media embed
   evidence. The review bundle contains captions and selected images but never the
   full video. Missing response-media snippets block completion without invalidating
