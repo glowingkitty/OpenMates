@@ -16,13 +16,13 @@ metadata:
   unranked_models: 11
 rankings:
   - rank: 1
-    model_id: gemini-3.6-flash
-    name: Gemini 3.6 Flash
+    model_id: gemini-3.7-flash
+    name: Gemini 3.7 Flash
     provider_id: google
     country_origin: US
     composite_score: 98.2
-    lmarena_elo: null
-    lmarena_rank: null
+    lmarena_elo: 1490
+    lmarena_rank: 9
     openrouter_rank: null
   - rank: 2
     model_id: gpt-5.5

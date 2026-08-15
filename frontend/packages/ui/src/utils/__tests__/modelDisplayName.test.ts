@@ -1,4 +1,5 @@
 // frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+// contract-test-file: infrastructure
 //
 // Regression coverage for model labels stored on assistant messages. The
 // backend and older clients may persist provider-prefixed IDs or display names
@@ -19,7 +20,7 @@ describe("model display metadata", () => {
     );
 
     expect(aiAskModelIds.has("gemini-3.5-flash-lite")).toBe(true);
-    expect(aiAskModelIds.has("gemini-3.6-flash")).toBe(true);
+    expect(aiAskModelIds.has("gemini-3.7-flash")).toBe(true);
   });
 
   it("resolves Gemini model ids, provider-qualified ids, and display-name variants", () => {
@@ -27,11 +28,11 @@ describe("model display metadata", () => {
     expect(getModelByNameOrId("google/gemini-3.5-flash-lite")?.id).toBe("gemini-3.5-flash-lite");
     expect(getModelByNameOrId("gemini-3.5-flash-lite:google")?.id).toBe("gemini-3.5-flash-lite");
     expect(getModelByNameOrId("Gemini 3.5 Flash Lite")?.id).toBe("gemini-3.5-flash-lite");
-    expect(getModelByNameOrId("Gemini 3.6 Flash")?.id).toBe("gemini-3.6-flash");
+    expect(getModelByNameOrId("Gemini 3.7 Flash")?.id).toBe("gemini-3.7-flash");
   });
 
   it("formats provider-qualified model ids as canonical display names", () => {
     expect(getModelDisplayName("google/gemini-3.5-flash-lite")).toBe("Gemini 3.5 Flash-Lite");
-    expect(getModelDisplayName("google/gemini-3.6-flash")).toBe("Gemini 3.6 Flash");
+    expect(getModelDisplayName("google/gemini-3.7-flash")).toBe("Gemini 3.7 Flash");
   });
 });

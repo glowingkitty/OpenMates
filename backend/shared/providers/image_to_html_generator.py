@@ -26,7 +26,7 @@ from backend.shared.python_utils.code_html_validation import validate_inline_htm
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_IMAGE_TO_HTML_MODEL = "gemini-3.6-flash"
+DEFAULT_IMAGE_TO_HTML_MODEL = "gemini-3.7-flash"
 DEFAULT_RENDER_WIDTH = 1440
 DEFAULT_RENDER_HEIGHT = 1200
 MAX_EXTRACTED_ASSETS = 8
@@ -39,7 +39,7 @@ MAX_WIDE_UI_CONTROL_ASPECT_RATIO = 3.0
 MIN_WIDE_UI_CONTROL_WIDTH = 120
 MAX_LAYOUT_REGIONS = 12
 MAX_TEXT_LINE_HEIGHTS = 6
-ASSET_EXTRACTION_MODEL = "gemini-3.6-flash"
+ASSET_EXTRACTION_MODEL = "gemini-3.7-flash"
 SYSTEM_PROMPT = """You turn screenshots into one standalone index.html file.
 
 Rules:

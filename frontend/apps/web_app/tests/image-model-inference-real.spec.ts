@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+// contract-test-file: infrastructure
 export {};
 
 /**
@@ -102,7 +103,7 @@ const MODELS: ModelCase[] = [
 	},
 	{
 		provider: 'google',
-		model: 'gemini-3.6-flash',
+		model: 'gemini-3.7-flash',
 		label: 'gemini-36-flash',
 		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true

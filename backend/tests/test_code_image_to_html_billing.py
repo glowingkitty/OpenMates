@@ -12,6 +12,7 @@ from backend.apps.code.skills.image_to_html_skill import (
 )
 
 
+# contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 def test_skill_response_usage_includes_actual_charge_metadata() -> None:
     from backend.apps.code.skills.image_to_html_skill import ImageToHtmlGenerationResult, _direct_result_payload
 
@@ -19,7 +20,7 @@ def test_skill_response_usage_includes_actual_charge_metadata() -> None:
         ImageToHtmlGenerationResult(
             html="<!doctype html><html><body>Hello</body></html>",
             correction_passes_used=1,
-            usage={"model": "gemini-3.6-flash", "input_tokens": 1_000, "output_tokens": 500, "e2b_render_seconds": 61.0},
+            usage={"model": "gemini-3.7-flash", "input_tokens": 1_000, "output_tokens": 500, "e2b_render_seconds": 61.0},
         ),
         max_correction_passes=2,
     )
@@ -29,9 +30,10 @@ def test_skill_response_usage_includes_actual_charge_metadata() -> None:
     assert payload["usage"]["credits_refunded"] >= 0
 
 
+# contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 def test_actual_cost_credit_calculation_includes_tokens_e2b_and_minimum() -> None:
     usage = ImageToHtmlUsage(
-        model="gemini-3.6-flash",
+        model="gemini-3.7-flash",
         input_tokens=40_000,
         output_tokens=8_000,
         cache_read_tokens=20_000,
@@ -50,9 +52,10 @@ def test_actual_cost_credit_calculation_includes_tokens_e2b_and_minimum() -> Non
     assert result.model_credits == 382
     assert result.e2b_credits == 5
     assert result.credits_charged == 387
-    assert result.usage.model == "gemini-3.6-flash"
+    assert result.usage.model == "gemini-3.7-flash"
 
 
+# contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 def test_credit_calculation_charges_each_started_e2b_minute() -> None:
     usage = ImageToHtmlUsage(model="gemini", e2b_render_seconds=61.0)
 

@@ -1,4 +1,5 @@
 # backend/tests/test_model_selection.py
+# contract-test-file: infrastructure
 #
 # Unit tests for the AI model selection system:
 # - ModelSelector: Intelligent model selection based on leaderboard rankings
@@ -35,8 +36,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
         "rankings": [
             {
                 "rank": 1,
-                "model_id": "gemini-3.6-flash",
-                "name": "Gemini 3.6 Flash",
+                "model_id": "gemini-3.7-flash",
+                "name": "Gemini 3.7 Flash",
                 "provider_id": "google",
                 "country_origin": "US",
                 "composite_score": 97.8,
@@ -153,7 +154,7 @@ class TestModelSelector:
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="complex")
 
-        assert result.primary_model_id == "google/gemini-3.6-flash"
+        assert result.primary_model_id == "google/gemini-3.7-flash"
 
     def test_select_models_simple_task_prefers_economical(self, mock_leaderboard_data, monkeypatch):
         """Simple tasks should prefer economical models."""

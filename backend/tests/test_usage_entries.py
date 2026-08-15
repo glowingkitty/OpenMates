@@ -49,6 +49,7 @@ class FakeEncryption:
         return ciphertext
 
 
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 @pytest.mark.anyio
 async def test_user_usage_entries_query_requests_newest_first_page() -> None:
     sdk = FakeDirectusSDK([
@@ -80,6 +81,7 @@ async def test_user_usage_entries_query_requests_newest_first_page() -> None:
     assert params["offset"] == 0
 
 
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
 @pytest.mark.anyio
 async def test_create_usage_entry_allows_benchmark_source() -> None:
     sdk = FakeDirectusSDK([])
@@ -109,6 +111,7 @@ async def test_create_usage_entry_allows_benchmark_source() -> None:
     assert created["chat_id"] == "chat-1"
 
 
+# contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 @pytest.mark.anyio
 async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second() -> None:
     sdk = FakeDirectusSDK([])
@@ -128,7 +131,7 @@ async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second
         timestamp=1780000000,
         credits_charged=123,
         user_vault_key_id="vault-key",
-        model_used="google/gemini-3.6-flash",
+        model_used="google/gemini-3.7-flash",
         actual_input_tokens=1000,
         actual_output_tokens=500,
         duration_second=61.25,

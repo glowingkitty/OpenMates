@@ -569,7 +569,7 @@ skills:
       remote image URLs; pass source_image with the uploaded image embed_ref in
       chat, or image_base64 for REST/API calls.
     class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
-    full_model_reference: google/gemini-3.6-flash
+    full_model_reference: google/gemini-3.7-flash
     providers:
       - name: google
         display_name: Google

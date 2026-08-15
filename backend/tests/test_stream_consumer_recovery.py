@@ -429,7 +429,7 @@ def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
             user_vault_key_id="vault-key",
             task_id="88888888-8888-4888-8888-888888888888",
             log_prefix="test",
-            model_name="Gemini 3.6 Flash",
+            model_name="Gemini 3.7 Flash",
         )
     )
 

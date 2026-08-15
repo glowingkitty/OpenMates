@@ -1,4 +1,5 @@
 # backend/tests/test_image_to_html_generator.py
+# contract-test-file: infrastructure
 #
 # Unit tests for the provider-level Code image-to-HTML orchestration. The real
 # implementation uses Gemini and E2B, but these tests inject deterministic fakes
@@ -269,7 +270,7 @@ async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monk
     monkeypatch.setitem(sys.modules, "backend.apps.ai.llm_providers.google_client", fake_google_client)
 
     result = await _generate_html_with_gemini(
-        model_id="gemini-3.6-flash",
+        model_id="gemini-3.7-flash",
         secrets_manager=object(),
         prompt="Create HTML",
         image_bytes=PNG_BYTES,
@@ -281,7 +282,7 @@ async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monk
     assert result.html.startswith("<!doctype html>")
     assert result.usage.input_tokens == 11
     assert result.usage.output_tokens == 7
-    assert captured["model_id"] == "gemini-3.6-flash"
+    assert captured["model_id"] == "gemini-3.7-flash"
     assert captured["temperature"] == 0.2
     assert captured["max_tokens"] == 50000
     assert captured["stream"] is False

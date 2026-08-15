@@ -69,7 +69,7 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
     is_thinking_gemini = (
         "gemini-2.5-" in model_lower
         or "gemini-3-" in model_lower
-        or "gemini-3." in model_lower  # e.g. gemini-3.6-flash
+        or "gemini-3." in model_lower  # e.g. gemini-3.7-flash
     )
     if is_thinking_gemini and temperature < GEMINI_THINKING_MIN_TEMPERATURE:
         logger.info(
