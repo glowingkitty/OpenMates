@@ -2010,6 +2010,20 @@
         </div>
       </div><!-- /.banner-inner -->
 
+      {#if isGuestIntroVariant && !landingIntroOverlayActive && guestSlidePhase !== 'idle'}
+        <div class="guest-transition-ghost" aria-hidden="true">
+          <div class="guest-intro-ai-icon guest-transition-ghost-icon"></div>
+          <div class="guest-transition-ghost-copy">
+            {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
+              <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
+              <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
+            {:else}
+              <span>{current.phrase}</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
       <div class="mounted-slide-sentinels" aria-hidden="true">
         {#each reachableSlideIndexes as slideIndex (slideIndex)}
           <span
@@ -2286,6 +2300,42 @@
     width: 100%;
     transform: translateZ(0);
     contain: layout;
+  }
+
+  .guest-transition-ghost {
+    position: absolute;
+    inset: 0;
+    z-index: calc(var(--z-index-dropdown-1) + 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 1vw, 14px);
+    padding: clamp(18px, 2.5vw, 32px) 48px;
+    box-sizing: border-box;
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.96);
+    text-align: center;
+  }
+
+  .guest-transition-ghost-icon {
+    width: clamp(36px, 3.6vw, 60px);
+    height: clamp(36px, 3.6vw, 60px);
+    margin-bottom: 0;
+    opacity: 0.92;
+    filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.2));
+  }
+
+  .guest-transition-ghost-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: min(100% - 48px, 760px);
+    font-size: clamp(2rem, 4vw, 4.75rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-shadow: 0 8px 38px rgba(0, 0, 0, 0.22);
   }
 
   .landing-intro-expanded .banner-inner {
