@@ -371,6 +371,7 @@ def test_subject_commit_accepts_ancestor_when_requested_spec_inputs_unchanged(tm
         tests_control,
         "git_changed_files_between",
         lambda _base, _head: [
+            "scripts/tests.py",
             "docs/releases/daily/2026-08-15.md",
             "frontend/packages/ui/src/stores/activeChatStore.ts",
         ],

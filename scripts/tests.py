@@ -1081,8 +1081,9 @@ def test_index_linked_files(spec_name: str) -> set[str]:
 
 
 def relevant_files_for_requested_run(args: list[str]) -> set[str]:
-    relevant = set(TEST_GATE_RELEVANT_FILES)
-    for spec_name in requested_playwright_spec_names(args):
+    spec_names = requested_playwright_spec_names(args)
+    relevant = set() if spec_names else set(TEST_GATE_RELEVANT_FILES)
+    for spec_name in spec_names:
         spec_path = SPEC_DIR / spec_name
         relevant.add(f"frontend/apps/web_app/tests/{spec_name}")
         relevant.update(test_index_linked_files(spec_name))
