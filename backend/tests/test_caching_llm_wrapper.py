@@ -1,4 +1,5 @@
 # backend/tests/test_caching_llm_wrapper.py
+# contract-test-file: infrastructure
 #
 # Purpose: verify the live-mock LLM cache wrapper preserves provider call contracts.
 # Providers are awaited by llm_utils and resolve to stream iterators for streaming calls.
@@ -190,6 +191,29 @@ def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
         "last_message_hash": "5a3782b74653d86b",
         "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
     }
+
+
+def test_cached_stream_provider_strips_fetched_at_from_fallback_summary():
+    cache_a = FakeFallbackCache()
+    cache_b = FakeFallbackCache()
+
+    content_template = (
+        "[user]: Read this page and summarize it:\n"
+        "```toon\n"
+        "url: \"https://example.com\"\n"
+        "title: Example Domain\n"
+        "fetched_at: \"{timestamp}\"\n"
+        "body: Example body\n"
+        "```"
+    )
+
+    asyncio.run(_replay(cache_a, [{"role": "user", "content": content_template.format(timestamp="2026-08-15T12:10:00Z")}]))
+    asyncio.run(_replay(cache_b, [{"role": "user", "content": content_template.format(timestamp="2026-08-15T12:50:00Z")}]))
+
+    assert cache_a.fallback_summary["last_message_hash"] == cache_b.fallback_summary["last_message_hash"]
+    preview_content = cache_a.fallback_summary["last_message_preview"]["content"]
+    assert "fetched_at" not in preview_content
+    assert "body: Example body" in preview_content
 
 
 def test_compatible_fallback_remaps_stale_embed_refs_in_body_and_mixed_text_chunks():
@@ -598,6 +622,55 @@ def test_api_response_cache_loads_compatible_llm_response(tmp_path):
             "temperature": 0.4,
             "tool_choice": "auto",
             "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+        },
+        excluded_fingerprint="new-fingerprint",
+    )
+
+    assert cached is not None
+    assert cached["fingerprint"] == "old-fingerprint"
+    assert cached["response"] == response_data
+
+
+def test_api_response_cache_loads_compatible_llm_response_with_volatile_fetched_at_hash(tmp_path):
+    cache = ApiResponseCache(root=tmp_path)
+    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
+    old_prompt = (
+        "[user]: Read this page and summarize it:\n"
+        "```toon\n"
+        "url: \"https://example.com\"\n"
+        "title: Example Domain\n"
+        "fetched_at: \"2026-08-15T12:10:00Z\"\n"
+        "body: Example body\n"
+        "```"
+    )
+    new_prompt = old_prompt.replace("12:10:00Z", "12:50:00Z")
+    cache.save(
+        group_id="web_read_web",
+        category="llm/gemini-3.5-flash-lite",
+        fingerprint="old-fingerprint",
+        request_summary={
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 4,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_hash": "old-volatile-hash",
+            "last_message_preview": {"role": "user", "content": old_prompt[:200] + "..."},
+        },
+        response_data=response_data,
+    )
+
+    cached = cache.load_compatible_llm_response(
+        "web_read_web",
+        "llm/gemini-3.5-flash-lite",
+        {
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 4,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_hash": "new-stable-hash",
+            "last_message_preview": {"role": "user", "content": new_prompt[:200] + "..."},
         },
         excluded_fingerprint="new-fingerprint",
     )

@@ -555,8 +555,9 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
     if messages:
         last_msg = messages[-1]
         content = last_msg.get("content", "")
+        canonical_content = ApiResponseCache._normalize_llm_text_for_match(content)
         canonical_last_message = json.dumps(
-            {"role": last_msg.get("role", ""), "content": content},
+            {"role": last_msg.get("role", ""), "content": canonical_content},
             sort_keys=True,
             ensure_ascii=False,
             default=str,
@@ -564,6 +565,8 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
         request_summary["last_message_hash"] = hashlib.sha256(
             canonical_last_message.encode("utf-8")
         ).hexdigest()[:16]
+        if isinstance(canonical_content, str):
+            content = canonical_content
         if isinstance(content, str) and len(content) > 200:
             content = content[:200] + "..."
         request_summary["last_message_preview"] = {
