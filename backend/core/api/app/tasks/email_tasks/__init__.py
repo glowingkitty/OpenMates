@@ -39,6 +39,7 @@ from . import error_digest_task  # Import weekly error digest task
 from . import daily_issue_digest_task  # Import daily reliability digest task
 from . import referral_reward_email_task  # Import referral reward notification task
 from . import free_testing_budget_email_task  # Import Free testing credits budget alerts task
+from . import health_status_alert_email_task  # Import operational health status alerts task
 from . import bank_transfer_reminder_email_task
 from . import bank_transfer_amount_notice_email_task
 from . import bank_transfer_duplicate_reference_email_task
@@ -82,6 +83,7 @@ __all__ = [
     'daily_issue_digest_task',
     'referral_reward_email_task',
     'free_testing_budget_email_task',
+    'health_status_alert_email_task',
     'bank_transfer_reminder_email_task',
     'bank_transfer_amount_notice_email_task',
     'bank_transfer_duplicate_reference_email_task',

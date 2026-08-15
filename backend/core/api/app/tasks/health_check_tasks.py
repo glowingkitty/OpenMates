@@ -82,7 +82,7 @@ async def _record_health_event_if_changed(
         # We do this lazily to avoid circular imports and startup issues
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         directus = DirectusService(cache_service=CacheService())
         
@@ -121,7 +121,7 @@ async def _record_health_event_if_changed(
             if previous_check_timestamp:
                 duration_seconds = int(time.time()) - previous_check_timestamp
             
-            await directus.health_event.record_health_event(
+            event_recorded = await directus.health_event.record_health_event(
                 service_type=service_type,
                 service_id=service_id,
                 previous_status=previous_status,
@@ -130,6 +130,17 @@ async def _record_health_event_if_changed(
                 response_time_ms=response_time_ms,
                 duration_seconds=duration_seconds
             )
+            if event_recorded:
+                await _dispatch_health_status_alerts(
+                    service_type=service_type,
+                    service_id=service_id,
+                    previous_status=previous_status,
+                    new_status=new_status,
+                    error_message=error_message,
+                    response_time_ms=response_time_ms,
+                    duration_seconds=duration_seconds,
+                    occurred_at=datetime.now(timezone.utc).isoformat(),
+                )
         finally:
             await directus.close()
             
@@ -159,6 +170,11 @@ HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 1800  # 30 minutes for providers withou
 # and gets re-checked on the next interval. Only when N checks in a row fail do we
 # mark it unhealthy. Credential errors bypass this threshold — they are never transient.
 HEALTH_CHECK_FAILURE_THRESHOLD = 3
+HEALTH_ALERT_STATUSES = {"degraded", "unhealthy"}
+HEALTH_ALERT_EMAIL_TASK_NAME = (
+    "app.tasks.email_tasks.health_status_alert_email_task.send_health_status_alert_email"
+)
+TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 # Sightengine is throttled independently: one live API call per 2 hours max.
 # The external-services Celery task fires every 5 min; without this guard we
@@ -169,6 +185,162 @@ CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
 CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
 GOOGLE_PROVIDER_HEALTH_ID = "google"
 GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
+
+
+def _is_truthy_env(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in TRUTHY_ENV_VALUES
+
+
+def _get_health_alert_email_recipient() -> Optional[str]:
+    """Return the configured health-alert email recipient when email is opted in."""
+    if not _is_truthy_env("OPENMATES_HEALTH_ALERT_EMAIL_ENABLED"):
+        return None
+    return (
+        os.getenv("OPENMATES_HEALTH_ALERT_EMAIL_TO")
+        or os.getenv("OPENMATES_RUNTIME_HEALTH_EMAIL_TO")
+        or os.getenv("SERVER_OWNER_EMAIL")
+        or os.getenv("ADMIN_NOTIFY_EMAIL")
+        or None
+    )
+
+
+def _get_health_alert_discord_webhook(environment: str) -> Optional[str]:
+    """Return the Discord webhook for health transition alerts, if configured."""
+    explicit = os.getenv("OPENMATES_HEALTH_ALERT_DISCORD_WEBHOOK_URL", "").strip()
+    if explicit:
+        return explicit
+
+    self_host = os.getenv("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL", "").strip()
+    if self_host:
+        return self_host
+
+    return select_degraded_report_webhook_url(environment)
+
+
+def _should_send_health_status_alert(previous_status: Optional[str], new_status: str) -> bool:
+    """Alert on newly alert-worthy states and recoveries, never repeated same-state checks."""
+    if previous_status == new_status:
+        return False
+    if new_status in HEALTH_ALERT_STATUSES:
+        return True
+    return bool(previous_status in HEALTH_ALERT_STATUSES and new_status == "healthy")
+
+
+def _format_health_status_discord_message(
+    *,
+    environment: str,
+    service_type: str,
+    service_id: str,
+    previous_status: Optional[str],
+    new_status: str,
+    error_message: Optional[str],
+    response_time_ms: Optional[float],
+    duration_seconds: Optional[int],
+    occurred_at: str,
+) -> str:
+    safe_error = error_message or "none"
+    safe_previous = previous_status or "initial"
+    safe_response = f"{response_time_ms:.2f}ms" if response_time_ms is not None else "n/a"
+    safe_duration = f"{duration_seconds}s" if duration_seconds is not None else "n/a"
+    return (
+        f"OpenMates {environment} health transition\n"
+        f"Service: {service_type}/{service_id}\n"
+        f"Status: {safe_previous} -> {new_status}\n"
+        f"Error: {safe_error}\n"
+        f"Response: {safe_response}\n"
+        f"Previous duration: {safe_duration}\n"
+        f"At: {occurred_at}"
+    )
+
+
+async def _dispatch_health_status_alerts(
+    *,
+    service_type: str,
+    service_id: str,
+    previous_status: Optional[str],
+    new_status: str,
+    error_message: Optional[str],
+    response_time_ms: Optional[float],
+    duration_seconds: Optional[int],
+    occurred_at: str,
+) -> None:
+    if not _should_send_health_status_alert(previous_status, new_status):
+        return
+
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    discord_webhook = None
+    if not _is_truthy_env("OPENMATES_HEALTH_ALERT_DISCORD_DISABLED"):
+        discord_webhook = _get_health_alert_discord_webhook(environment)
+    if discord_webhook:
+        try:
+            await send_discord_degraded_report(
+                _format_health_status_discord_message(
+                    environment=environment,
+                    service_type=service_type,
+                    service_id=service_id,
+                    previous_status=previous_status,
+                    new_status=new_status,
+                    error_message=error_message,
+                    response_time_ms=response_time_ms,
+                    duration_seconds=duration_seconds,
+                    occurred_at=occurred_at,
+                ),
+                discord_webhook,
+            )
+            logger.info(
+                "[HEALTH_EVENT] Sent Discord status alert for %s/%s: %s -> %s",
+                service_type,
+                service_id,
+                previous_status or "initial",
+                new_status,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[HEALTH_EVENT] Failed to send Discord status alert for %s/%s: %s",
+                service_type,
+                service_id,
+                exc,
+            )
+
+    admin_email = _get_health_alert_email_recipient()
+    if not admin_email:
+        logger.info(
+            "[HEALTH_EVENT] Status alert email disabled for %s/%s",
+            service_type,
+            service_id,
+        )
+        return
+    try:
+        app.send_task(
+            HEALTH_ALERT_EMAIL_TASK_NAME,
+            kwargs={
+                "admin_email": admin_email,
+                "service_type": service_type,
+                "service_id": service_id,
+                "previous_status": previous_status,
+                "new_status": new_status,
+                "error_message": error_message,
+                "response_time_ms": response_time_ms,
+                "duration_seconds": duration_seconds,
+                "occurred_at": occurred_at,
+                "environment": environment,
+            },
+            queue="email",
+        )
+        logger.info(
+            "[HEALTH_EVENT] Queued status alert email for %s/%s: %s -> %s",
+            service_type,
+            service_id,
+            previous_status or "initial",
+            new_status,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[HEALTH_EVENT] Failed to queue status alert email for %s/%s: %s",
+            service_type,
+            service_id,
+            exc,
+        )
 
 # Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
