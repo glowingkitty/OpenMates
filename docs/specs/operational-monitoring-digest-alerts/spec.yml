@@ -272,7 +272,7 @@ acceptance_criteria:
     scenario: S-1
     text: Official-cloud dev and production digests contain a real preceding-24-hour resource graph, aggregate activity and processing outcomes, billing health/outcomes, monitoring freshness, and at most three prioritized issues.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-DIGEST-UNIT, V-DEV-REAL-DELIVERY]
@@ -281,7 +281,7 @@ acceptance_criteria:
     scenario: S-2
     text: Self-host install/update idempotently activates daily email only when admin email and email service availability are confirmed, and missing prerequisites never appear as successful delivery.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-MONITORING, T-SELFHOST-CONTRACT]
@@ -290,7 +290,7 @@ acceptance_criteria:
     scenario: S-2
     text: Every self-host operational monitoring inventory and output entirely omits billing fields, sections, labels, check IDs, incidents, credential reads, and payment-provider calls.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-SELFHOST-CONTRACT, T-CLI-MONITORING]
@@ -317,7 +317,7 @@ acceptance_criteria:
     scenario: S-5
     text: Alert rules reject zero, absent, infinite, and invalid utilization denominators and use environment-scoped, sustained thresholds that do not alert on unrelated containers.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-ALERT-RULES]
@@ -445,7 +445,7 @@ tests:
       - Dev, production, and self-host report subjects and namespaces are isolated.
       - One channel failure preserves the other channel result and yields partial failure.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "red:operational-digest-import-missing-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Collection failed because the planned operational_monitoring service does not exist."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py backend/tests/test_operational_monitoring_tasks.py backend/tests/test_verify_operational_monitoring.py -q", run_id: "local:operational-monitoring-pytest-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
   - id: T-ALERT-RULES
     type: lint
     file: backend/core/monitoring/prometheus/alert_rule_tests.yml
@@ -457,7 +457,7 @@ tests:
       - Resource alerts are scoped to approved OpenMates targets and environment labels.
       - Disk warning, disk critical, API down, monitoring stale, and recovery transitions follow thresholds.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "docker run --rm --entrypoint /bin/promtool -v <WORKTREE>/backend/core/monitoring/prometheus:/etc/prometheus:ro prom/prometheus:v3.2.1 test rules /etc/prometheus/alert_rule_tests.yml", run_id: "red:promtool-operational-alerts-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Current rules fired +Inf memory usage for a zero limit and lacked disk and stale-report alerts."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "docker exec prometheus promtool test rules /etc/prometheus/alert_rule_tests.yml", run_id: "local:promtool-operational-alerts-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
   - id: T-CLI-MONITORING
     type: unit
     file: frontend/packages/openmates-cli/tests/server.test.ts
@@ -470,7 +470,7 @@ tests:
       - Self-host inventory and structured/human output contain no billing fields, labels, or check IDs.
       - Independent notification retries, deduplication, and recovery remain deterministic.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts", run_id: "red:cli-operational-monitoring-exports-missing-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "CLI test import failed because operational planning, receipt, and freshness helpers are not implemented."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "npm --prefix frontend/packages/openmates-cli run test:unit:server", run_id: "local:cli-server-tests-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
   - id: T-SELFHOST-CONTRACT
     type: lint
     file: scripts/audit_operational_monitoring_contract.py
@@ -482,7 +482,7 @@ tests:
       - Self-host report schema, code paths, templates, docs, and fixtures contain no billing section or billing inventory.
       - Self-host collection cannot resolve payment-provider secrets or clients.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py", run_id: "red:selfhost-operational-contract-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Audit reported missing collector/task, node metrics, alert rules, and host scheduling/freshness helpers."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py", run_id: "local:selfhost-operational-contract-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
   - id: T-PRIVACY-AUDIT
     type: lint
     file: scripts/audit_operational_monitoring_contract.py
@@ -493,7 +493,7 @@ tests:
       - Snapshot, graph, email, Discord, receipt, and log models reject forbidden private fields.
       - Destination values and secrets are never rendered or persisted.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "red:operational-privacy-contract-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Audit reported missing privacy denylist, receipt integrity fields, and operational service implementation."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:operational-privacy-contract-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
 
 verifications:
   - id: V-DEV-REAL-DELIVERY
@@ -501,9 +501,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-4]
-    status: pending
+    status: passed
     command: python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord
-    evidence: {status: "", summary: "Must use current dev telemetry and record independent accepted receipts plus artifact hash.", timestamp: ""}
+    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord", run_id: "test-results/operational-monitoring/verification-dev-20260814T231153Z.json", subject_commit: "3763a29", summary: "Current dev 24-hour telemetry produced independently accepted email and Discord receipts on attempt 1; redacted evidence records report hash a00ddec020e510bcf73ed945ab6bc9c5646427f006fe91eda359b88202b5dbc5.", timestamp: "2026-08-14T23:11:53Z"}
   - id: V-DEV-ARTIFACT-REVIEW
     kind: artifact_review
     phase: green
@@ -612,7 +612,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red contract, rule, privacy, and self-host tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]}
     expected_files: [backend/tests/test_operational_monitoring_digest.py, backend/core/monitoring/prometheus/alert_rule_tests.yml, frontend/packages/openmates-cli/tests/server.test.ts, scripts/audit_operational_monitoring_contract.py]
@@ -623,7 +623,7 @@ tasks:
     follow_up_tasks: [TASK-2]
   - id: TASK-2
     title: Add trustworthy host metrics and correct urgent alert rules
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-5, AC-6, AC-9]}
     expected_files: [backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml, backend/core/monitoring/prometheus/prometheus.yml, backend/core/monitoring/prometheus/alert_rules.yml, backend/core/monitoring/alertmanager/alertmanager.yml]
@@ -634,7 +634,7 @@ tasks:
     follow_up_tasks: [TASK-3]
   - id: TASK-3
     title: Implement privacy-safe snapshot collection and compact rendering
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-3, AC-8, AC-9]}
     expected_files: [backend/core/api/app/services/operational_monitoring.py, backend/core/api/app/tasks/operational_monitoring_tasks.py, backend/core/api/app/tasks/celery_config.py]
@@ -645,7 +645,7 @@ tasks:
     follow_up_tasks: [TASK-4]
   - id: TASK-4
     title: Implement host delivery, receipts, self-host activation, and stale-report monitoring
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-2, S-3, S-4, S-6], acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-7, AC-9]}
     expected_files: [frontend/packages/openmates-cli/src/serverHealth.ts, frontend/packages/openmates-cli/src/server.ts, scripts/verify_operational_monitoring.py, docs/specs/post-update-runtime-health-alerting/spec.yml]
@@ -656,7 +656,7 @@ tasks:
     follow_up_tasks: [TASK-5]
   - id: TASK-5
     title: Prove real dev delivery and complete the dev burn-in gate
-    status: pending
+    status: in_progress
     phase: running_checks
     covers: {scenarios: [S-1, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
     expected_files: [docs/specs/operational-monitoring-digest-alerts/spec.yml]
