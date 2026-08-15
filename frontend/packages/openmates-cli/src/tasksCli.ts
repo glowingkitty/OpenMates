@@ -175,7 +175,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
   const assignee = parseAssignee(input.assign);
   const linkedProjectIds = input.projectIds ?? [];
   const labels = normalizeLabels(input.labels ?? input.tags ?? []);
-  const status = input.status ?? (assignee.assigneeType === "ai" && !input.dueAt ? "in_progress" : "todo");
+  const status = input.status ?? "todo";
   const slugMetadata = await buildEncryptedObjectSlugMetadata({
     value: input.slug ?? input.title,
     encryptionKey: taskKey,
@@ -205,6 +205,8 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     position: timestamp,
     created_at: timestamp,
     updated_at: timestamp,
+    plaintext_title: assignee.assigneeType === "ai" ? input.title : undefined,
+    plaintext_description: assignee.assigneeType === "ai" ? input.description : undefined,
   } as UserTaskCreateInput;
 }
 

@@ -445,7 +445,8 @@ async def _update_user_task_execution_state(
         patch["completed_at"] = completed_at
 
     try:
-        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id)
+        team_id = getattr(request_data, "team_id", None)
+        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id, team_id)
         if not current_task:
             logger.warning("User task %s was not found while updating execution state", user_task_id)
             return
@@ -458,6 +459,7 @@ async def _update_user_task_execution_state(
             request_data.user_id,
             {**patch, "version": int(current_version)},
             int(current_version),
+            team_id=team_id,
         )
         if not updated_task:
             logger.warning("User task %s changed before execution state update", user_task_id)
@@ -468,6 +470,13 @@ async def _update_user_task_execution_state(
             user_task_id,
             ai_execution_state,
         )
+        if status in {"blocked", "done"} or ai_execution_state in {"failed", "cancelled"}:
+            await UserTaskQueueService(directus_service.user_task).admission_service.admit_available(
+                request_data.user_id,
+                team_id=team_id,
+                now=now,
+                preferred_chat_id=current_task.get("primary_chat_id"),
+            )
     except Exception as exc:
         logger.warning(
             "Failed to update user task %s execution state to %s: %s",
@@ -488,7 +497,8 @@ async def _complete_user_task_execution(
         return
 
     try:
-        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id)
+        team_id = getattr(request_data, "team_id", None)
+        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id, team_id)
         if not current_task:
             logger.warning("User task %s was not found while completing execution", user_task_id)
             return
@@ -500,6 +510,7 @@ async def _complete_user_task_execution(
             user_task_id,
             request_data.user_id,
             version=int(current_version),
+            team_id=team_id,
             now=int(time.time()),
         )
         logger.info(

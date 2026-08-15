@@ -111,22 +111,28 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     assert created["priority_level"] == "high"
     assert "encrypted" not in created
     assert client.tasks.list(labels=["sdk", "urgent"], priority="high")[0]["title"] == "SDK parity task"
-    edited = client.tasks.edit("TASK-1", {"title": "SDK parity task edited", "status": "in_progress", "add_labels": ["docs"], "remove_labels": ["urgent"], "priority": "urgent"})
+    client.tasks.list(team_id="team-1")
+    edited = client.tasks.edit("TASK-1", {"title": "SDK parity task edited", "status": "in_progress", "add_labels": ["docs"], "remove_labels": ["urgent"], "priority": "urgent"}, team_id="team-1")
     assert edited["title"] == "SDK parity task edited"
     assert edited["status"] == "in_progress"
     assert edited["labels"] == ["sdk", "docs"]
     assert edited["priority_level"] == "urgent"
-    assert client.tasks.start_ai("TASK-1")["status"] == "in_progress"
-    assert client.tasks.block("TASK-1", "needs_input")["status"] == "blocked"
-    assert client.tasks.unblock("TASK-1")["status"] == "todo"
-    assert client.tasks.skip("TASK-1")["queue_state"] == "skipped"
-    assert client.tasks.done("TASK-1")["status"] == "done"
-    assert client.tasks.move("TASK-1", {"position": 42, "status": "todo"})[0]["position"] == 42
+    assert client.tasks.start_ai("TASK-1", {"team_id": "team-1"})["status"] == "in_progress"
+    assert client.tasks.block("TASK-1", "needs_input", team_id="team-1")["status"] == "blocked"
+    assert client.tasks.unblock("TASK-1", team_id="team-1")["status"] == "todo"
+    assert client.tasks.skip("TASK-1", team_id="team-1")["queue_state"] == "skipped"
+    assert client.tasks.done("TASK-1", team_id="team-1")["status"] == "done"
+    assert client.tasks.move("TASK-1", {"position": 42, "status": "todo"}, team_id="team-1")[0]["position"] == 42
     assert client.tasks.add_to_project("TASK-1", "project-1")["linked_project_ids"] == ["project-1"]
     assert client.tasks.remove_from_project("TASK-1", "project-1")["linked_project_ids"] == []
-    assert client.tasks.delete_by_id("TASK-1", confirmed=True)["deleted"] is True
+    assert client.tasks.delete_by_id("TASK-1", confirmed=True, team_id="team-1")["deleted"] is True
     assert any(request["url"].endswith("/v1/sdk/session") for request in requests_seen)
     assert any("priority=3" in request["url"] and request["url"].count("label_hash=") == 2 for request in requests_seen if request["method"] == "GET")
+    assert any(request["method"] == "PATCH" and "team_id=team-1" in request["url"] for request in requests_seen)
+    assert any(request["url"].endswith("/start-ai") and request["json"].get("team_id") == "team-1" for request in requests_seen)
+    assert any(request["url"].endswith("/complete") and request["json"].get("team_id") == "team-1" for request in requests_seen)
+    assert any(request["url"].endswith("/reorder") and request["json"].get("team_id") == "team-1" for request in requests_seen)
+    assert any(request["method"] == "DELETE" and "team_id=team-1" in request["url"] for request in requests_seen)
 
 
 # contract-test: direct surface=sdks.pip assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.tasks
-version: 1
-status: approved
+version: 2
+status: draft
 title: Tasks
 summary: >
   OpenMates Tasks are authenticated, user-owned work items with client-encrypted
@@ -17,6 +17,8 @@ scope:
     - Client-encrypted titles, descriptions, labels/tags, activity summaries, latest instructions, linked Project id lists, and per-task key material.
     - Server-visible safe routing and filter metadata, including primary_chat_id, hashed_primary_chat_id, linked_project_hashes, plan_id, task_type, verification_id, label_hashes, priority, assignee_type, assignee_hash, and team routing metadata.
     - Workflow run projection items returned by the Tasks view as read-only task-shaped cards without creating user_tasks rows.
+    - Capacity-scoped AI task admission with separate personal and Team pools, reserved urgent capacity, restart-safe waiting, and automatic admission when capacity is released.
+    - Ordered execution lanes where chat ordering, Plan dependency readiness, and explicit user reordering determine eligibility before priority or capacity is applied.
     - Task-to-Project link mutations that keep safe Project hashes, encrypted raw Project ids, and authorized Task key wrappers in sync.
     - Task key wrappers for owner/master, chat, Project, Plan, and Team contexts where currently supported by backend storage and validation; client surfaces may still use row-level master-wrapped encrypted_task_key while wrapper parity is completed.
     - REST, CLI, npm SDK, and pip SDK semantics for encrypted task content, lifecycle actions, labels/priority metadata, Project links, and workflow projection handling where those surfaces expose the operation.
@@ -25,7 +27,8 @@ scope:
     - Plan subresource behavior except Plan-created task references, plan_id, task_type=verification, verification_id, and Plan key-wrapper contexts for connected tasks.
     - Workflow run execution semantics beyond read-only task projections and scheduled-run skip/delete behavior exposed through Tasks.
     - GUI layout, Figma visual parity, drag/drop mechanics, and Apple-native task UI.
-    - Public task sharing, team collaboration semantics, or durable share-specific task wrappers.
+    - Public task sharing, Team collaboration semantics beyond Team-owned task admission capacity, or durable share-specific task wrappers.
+    - Workflow run concurrency limits; Workflow execution is independent from user Task admission capacity.
     - Server-side full-text search or decryption over private task title, description, labels, activity, latest instruction, or encrypted linked Project ids.
 
 models:
@@ -89,6 +92,28 @@ models:
       type: unix_timestamp_or_null
     completed_at:
       type: unix_timestamp_or_null
+
+  TaskExecutionAdmission:
+    capacity_scope:
+      type: enum
+      values: [personal, team]
+      constraints: {personal_and_team_pools_independent: true}
+    execution_lane:
+      type: derived_identifier
+      constraints:
+        precedence: [plan_id, primary_chat_id, standalone_task_id]
+        one_active_ai_task_per_chat: true
+    waiting_state:
+      type: enum
+      values: [waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity]
+    official_cloud_limits:
+      type: fixed_capacity_policy
+      constraints:
+        personal: {normal: 5, urgent_reserve: 2, hard_maximum: 7}
+        team: {normal: 8, urgent_reserve: 2, hard_maximum: 10}
+    self_host_limits:
+      type: positive_integer_environment_configuration
+      constraints: {normal_and_urgent_reserve_configurable: true, invalid_values_fail_visibly: true}
 
   TaskKeyWrapper:
     key_type:
@@ -166,6 +191,14 @@ assertions:
     type: parity
     must: REST, CLI, npm SDK, and pip SDK surfaces preserve the same encrypted-content, label/priority metadata, lifecycle, Project-link, workflow-projection, version-conflict, and local-decryption semantics for every Task operation that surface implements; unsupported contexts must fail visibly or remain explicitly out of scope.
     depends_on: [models, examples, surfaces]
+  - id: tasks.execution.capacity-scoped
+    type: behavior
+    must: AI-assigned user Tasks use independent owner-scoped personal or Team admission pools; official cloud admits at most five normal plus two additional urgent personal Tasks and eight normal plus two additional urgent Team Tasks, self-host deployments may configure both pool sizes, capacity-full Tasks remain todo with waiting_for_capacity until automatically reconsidered, and Workflow runs or projections never consume these slots.
+    depends_on: [models.TaskExecutionAdmission, examples.task_execution_capacity]
+  - id: tasks.execution.order-preserved
+    type: invariant
+    must: Capacity and priority are applied only after lane eligibility; chat Tasks follow user-editable chat position, Plan Tasks follow user-editable Plan order and Plan dependency readiness, standalone Tasks are independent, no two AI Tasks execute concurrently in one chat, and neither urgent priority nor a free capacity slot may skip an unfinished predecessor or interleave ordinary chat Tasks into an active Plan lane.
+    depends_on: [models.TaskExecutionAdmission, examples.task_execution_order]
 
 surfaces:
   rest_api:
@@ -190,4 +223,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_project_links, task_workflow_projections, task_surface_parity]
+  required_groups: [task_private_content, task_lifecycle, task_project_links, task_workflow_projections, task_surface_parity, task_execution_capacity, task_execution_order]

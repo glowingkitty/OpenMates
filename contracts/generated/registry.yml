@@ -193,10 +193,10 @@ contracts:
     required_surfaces:
     - gui.web
   feature.tasks:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/tasks
-    fingerprint: 5e289452b8bfd44fcc83c4f0413bf27471c3246b6cb3acf6cb9c37ff61906d75
+    fingerprint: c64e1eb6f71c6f4b2648609738d84c102cfb51d1987dbe24a486080a72b61fe9
     required_surfaces:
     - rest_api
     - cli
@@ -1813,7 +1813,7 @@ assertions:
     required_surfaces:
     - gui.web
   tasks.content.client-encrypted:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: privacy
     fingerprint: e6fc398c991570fc06386096638457f60510e20d135ff612ebdc37b503db32e8
@@ -1823,7 +1823,7 @@ assertions:
     - sdks.npm
     - sdks.pip
   tasks.lifecycle.visible:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: behavior
     fingerprint: 3a1262b916d9b0b2fab31c487ab1166d23012ff6310dd90745880cd6856dfb7d
@@ -1833,7 +1833,7 @@ assertions:
     - sdks.npm
     - sdks.pip
   tasks.project-links.encrypted:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: invariant
     fingerprint: 57c1abc2d98e76ee877c83e89fc2ac0144c5650e7c0462019c2563e1665c0fc2
@@ -1843,7 +1843,7 @@ assertions:
     - sdks.npm
     - sdks.pip
   tasks.key-wrappers.context-scoped:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: security
     fingerprint: 45d7dace1ef42880916d6f6c529bcbbeb58ba7f1eff178f2f2e85fe369a168bf
@@ -1853,7 +1853,7 @@ assertions:
     - sdks.npm
     - sdks.pip
   tasks.workflow-projections.read-only:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: invariant
     fingerprint: 8294dc751574a7ef32a7480e4dad0d111cddc6c2e9f14e3dd6cd5145db4ece92
@@ -1863,10 +1863,30 @@ assertions:
     - sdks.npm
     - sdks.pip
   tasks.surface.semantic-parity:
-    contract: feature.tasks@1
+    contract: feature.tasks@2
     contract_id: feature.tasks
     type: parity
-    fingerprint: 04d056d2827a339c8bccdeb45c8fecddc35c6f155b588b10c7c923f18f8e6df0
+    fingerprint: 428bfaa952f7e745cea3a3ca9f701a01c2050f7996968ad8bf2ed4dd5d7e9933
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.execution.capacity-scoped:
+    contract: feature.tasks@2
+    contract_id: feature.tasks
+    type: behavior
+    fingerprint: 7d3ff83a06028e80d8115bec0e045cba9b4b213faae91db613e36b084004f9dc
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  tasks.execution.order-preserved:
+    contract: feature.tasks@2
+    contract_id: feature.tasks
+    type: invariant
+    fingerprint: 0682e46e405bebef9cb3f915bd07e905e7b9c954a931ccdd1f617022c1e18103
     required_surfaces:
     - rest_api
     - cli

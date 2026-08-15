@@ -24,6 +24,7 @@ class TaskToolContext:
 
     user_id: str
     chat_id: str
+    team_id: str | None = None
     attached_tasks: list[dict[str, Any]] = field(default_factory=list)
     referenced_tasks: list[dict[str, Any]] = field(default_factory=list)
     missing_reference_ids: list[str] = field(default_factory=list)
@@ -66,10 +67,15 @@ async def resolve_task_tool_context(
     user_id: str,
     chat_id: str,
     message_text: str | None,
+    team_id: str | None = None,
     attached_limit: int = DEFAULT_ATTACHED_TASK_LIMIT,
 ) -> TaskToolContext:
     """Resolve chat-attached tasks and explicitly mentioned owned tasks."""
-    attached_tasks = await task_methods.list_tasks(user_id, chat_id=chat_id, limit=attached_limit)
+    attached_tasks = (
+        await task_methods.list_tasks(user_id, chat_id=chat_id, team_id=team_id, limit=attached_limit)
+        if team_id
+        else await task_methods.list_tasks(user_id, chat_id=chat_id, limit=attached_limit)
+    )
     if not isinstance(attached_tasks, list):
         attached_tasks = []
 
@@ -86,9 +92,9 @@ async def resolve_task_tool_context(
         if task_id in attached_ids:
             continue
         get_by_short_id = getattr(task_methods, "get_task_by_short_id", None)
-        task = await get_by_short_id(task_id, user_id) if get_by_short_id else None
+        task = await get_by_short_id(task_id, user_id, team_id) if get_by_short_id and team_id else await get_by_short_id(task_id, user_id) if get_by_short_id else None
         if not task:
-            task = await task_methods.get_task(task_id, user_id)
+            task = await task_methods.get_task(task_id, user_id, team_id) if team_id else await task_methods.get_task(task_id, user_id)
         if isinstance(task, dict) and task.get("task_id"):
             if task.get("primary_chat_id") == chat_id:
                 attached_tasks.append(task)
@@ -102,6 +108,7 @@ async def resolve_task_tool_context(
     return TaskToolContext(
         user_id=user_id,
         chat_id=chat_id,
+        team_id=team_id,
         attached_tasks=attached_tasks,
         referenced_tasks=referenced_tasks,
         missing_reference_ids=missing_reference_ids,
@@ -115,6 +122,7 @@ async def refresh_task_tool_context(
     user_id: str,
     chat_id: str,
     message_text: str | None,
+    team_id: str | None = None,
     attached_limit: int = DEFAULT_ATTACHED_TASK_LIMIT,
 ) -> TaskToolContext:
     """Reload attached tasks while preserving same-turn staged task bookkeeping."""
@@ -123,6 +131,7 @@ async def refresh_task_tool_context(
         user_id=user_id,
         chat_id=chat_id,
         message_text=message_text,
+        team_id=team_id,
         attached_limit=attached_limit,
     )
     if existing_context is None:

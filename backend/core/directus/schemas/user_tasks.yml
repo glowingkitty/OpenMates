@@ -144,7 +144,7 @@ user_tasks:
     ai_execution_state:
       type: string
       nullable: true
-      note: "Safe state for AI execution orchestration, e.g. queued, running, waiting, completed."
+      note: "Safe state for AI execution orchestration, e.g. queued, running, waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity, completed."
 
     encrypted_title:
       type: text

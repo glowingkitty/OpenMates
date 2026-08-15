@@ -1364,7 +1364,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
     project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
     labels = _normalize_task_labels(payload.get("labels") if "labels" in payload else payload.get("tags"))
-    status = str(payload.get("status") or ("in_progress" if assignee_type == "ai" and not payload.get("due_at") else "todo"))
+    status = str(payload.get("status") or "todo")
     slug_metadata = _encrypted_object_slug_metadata(
         str(payload.get("slug") or title),
         encryption_key=task_key,
@@ -1394,10 +1394,13 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
     }
+    if assignee_type == "ai":
+        task["plaintext_title"] = title
+        task["plaintext_description"] = str(payload.get("description") or "")
     return task
 
 
-def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any]) -> dict[str, Any]:
+def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
     result = dict(payload)
     chat_value = result.get("chat_id") if "chat_id" in result else result.get("primary_chat_id")
     if isinstance(chat_value, str) and chat_value:
@@ -1408,9 +1411,12 @@ def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any]) -> di
             result["primary_chat_id"] = resolved_chat_id
     if "project_ids" in result or "linked_project_ids" in result:
         key = "project_ids" if "project_ids" in result else "linked_project_ids"
-        result[key] = [_resolve_project_id(client, project_id) for project_id in _string_list(result.get(key) or [])]
+        result[key] = [
+            _resolve_project_id(client, project_id, personal=not bool(team_id), team_id=team_id)
+            for project_id in _string_list(result.get(key) or [])
+        ]
     plan_value = result.get("plan_id") if "plan_id" in result else result.get("plan")
-    if isinstance(plan_value, str) and plan_value:
+    if isinstance(plan_value, str) and plan_value and not team_id:
         resolved_plan_id = _resolve_plan_id(client, plan_value)
         if "plan_id" in result:
             result["plan_id"] = resolved_plan_id
@@ -3773,10 +3779,11 @@ class OpenMatesTasks:
         labels: list[str] | None = None,
         tags: list[str] | None = None,
         priority: str | int | None = None,
+        team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         return [
             _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority, team_id=team_id)
         ]
 
     def _list_raw(
@@ -3789,12 +3796,17 @@ class OpenMatesTasks:
         labels: list[str] | None = None,
         tags: list[str] | None = None,
         priority: str | int | None = None,
+        team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         label_values = labels if labels is not None else tags
         label_hashes = _task_label_hashes(self._client._get_master_key(), _normalize_task_labels(label_values)) if label_values else None
         resolved_chat_id = _resolve_chat_id(self._client, chat_id) if isinstance(chat_id, str) and chat_id else chat_id
-        resolved_project_id = _resolve_project_id(self._client, project_id) if isinstance(project_id, str) and project_id else project_id
-        resolved_plan_id = _resolve_plan_id(self._client, plan_id) if isinstance(plan_id, str) and plan_id else plan_id
+        resolved_project_id = (
+            _resolve_project_id(self._client, project_id, personal=not bool(team_id), team_id=team_id)
+            if isinstance(project_id, str) and project_id
+            else project_id
+        )
+        resolved_plan_id = _resolve_plan_id(self._client, plan_id) if isinstance(plan_id, str) and plan_id and not team_id else plan_id
         return self._client._get(
             _with_query(
                 "/v1/user-tasks",
@@ -3804,6 +3816,7 @@ class OpenMatesTasks:
                 plan_id=resolved_plan_id,
                 label_hash=label_hashes,
                 priority=_normalize_task_priority(priority),
+                team_id=team_id,
             )
         ).get("tasks", [])
 
@@ -3847,13 +3860,15 @@ class OpenMatesTasks:
         if update is not None:
             task_id = str(update.get("task_id") or update.get("taskId") or "")
             task = self._resolve(task_id, dict(update.get("filters") or {}))
-            payload["encrypted_update"] = {"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(update.get("patch") or {})))}
+            update_team_id = (update.get("filters") or {}).get("team_id")
+            payload["encrypted_update"] = {"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(update.get("patch") or {}), team_id=update_team_id))}
         if updates is not None:
             payload["encrypted_updates"] = []
             for item in updates:
                 task_id = str(item.get("task_id") or item.get("taskId") or "")
                 task = self._resolve(task_id, dict(item.get("filters") or {}))
-                payload["encrypted_updates"].append({"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(item.get("patch") or {})))})
+                item_team_id = (item.get("filters") or {}).get("team_id")
+                payload["encrypted_updates"].append({"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, dict(item.get("patch") or {}), team_id=item_team_id))})
         if exact_delete is not None:
             payload["exact_delete"] = exact_delete
         if exact_deletes is not None:
@@ -3874,15 +3889,19 @@ class OpenMatesTasks:
     def update(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
         return self.edit(task_id, payload, **filters)
 
-    def _update_raw(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-tasks/{_quote(task_id)}", payload).get("task", {})
+    def _update_raw(self, task_id: str, payload: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
+        return self._client._patch(_with_query(f"/v1/user-tasks/{_quote(task_id)}", team_id=team_id), payload).get("task", {})
 
     def edit(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
         task = self._resolve(task_id, filters)
         master_key = self._client._get_master_key()
         for attempt in range(2):
             try:
-                updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, payload)))
+                updated = self._update_raw(
+                    str(task["task_id"]),
+                    _build_task_update_input(task, master_key, _canonicalize_task_payload(self._client, payload, team_id=filters.get("team_id"))),
+                    team_id=filters.get("team_id"),
+                )
                 return _public_task(_decrypt_task_record(updated, master_key))
             except OpenMatesApiError as exc:
                 if attempt > 0 or not _is_task_version_conflict(exc):
@@ -3899,9 +3918,13 @@ class OpenMatesTasks:
     ) -> dict[str, Any]:
         task = self._resolve(task_id, filters)
         master_key = self._client._get_master_key()
+        team_id = filters.get("team_id")
         updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
-            "linked_project_ids": _append_unique_id(_string_list(task.get("linked_project_ids") or []), _resolve_project_id(self._client, project_id)),
-        }))
+            "linked_project_ids": _append_unique_id(
+                _string_list(task.get("linked_project_ids") or []),
+                _resolve_project_id(self._client, project_id, personal=not bool(team_id), team_id=team_id),
+            ),
+        }), team_id=team_id)
         return _public_task(_decrypt_task_record(updated, master_key))
 
     def remove_from_project(
@@ -3912,13 +3935,17 @@ class OpenMatesTasks:
     ) -> dict[str, Any]:
         task = self._resolve(task_id, filters)
         master_key = self._client._get_master_key()
+        team_id = filters.get("team_id")
         updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
-            "linked_project_ids": _remove_id(_string_list(task.get("linked_project_ids") or []), _resolve_project_id(self._client, project_id)),
-        }))
+            "linked_project_ids": _remove_id(
+                _string_list(task.get("linked_project_ids") or []),
+                _resolve_project_id(self._client, project_id, personal=not bool(team_id), team_id=team_id),
+            ),
+        }), team_id=team_id)
         return _public_task(_decrypt_task_record(updated, master_key))
 
     def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self.start(task_id)
+        return self.start(task_id, **(payload or {}))
 
     def _start_ai_raw(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/user-tasks/{_quote(task_id)}/start-ai", payload or {}).get("task", {})
@@ -3934,6 +3961,7 @@ class OpenMatesTasks:
                     "plaintext_title": task.get("title") or "",
                     "plaintext_description": task.get("description") or "",
                     "plaintext_latest_instruction": task.get("latest_instruction") or "",
+                    "team_id": filters.get("team_id"),
                 })
                 return _public_task(_decrypt_task_record(started, self._client._get_master_key()))
             except OpenMatesApiError as exc:
@@ -3948,7 +3976,11 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         for attempt in range(2):
             try:
-                return self._client._delete(f"/v1/user-tasks/{_quote(str(task['task_id']))}?version={_quote(str(task['version']))}")
+                return self._client._delete(_with_query(
+                    f"/v1/user-tasks/{_quote(str(task['task_id']))}",
+                    version=task["version"],
+                    team_id=filters.get("team_id"),
+                ))
             except OpenMatesApiError as exc:
                 if attempt > 0 or not _is_task_version_conflict(exc):
                     raise
@@ -3981,7 +4013,10 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         for attempt in range(2):
             try:
-                updated = self._client._post("/v1/user-tasks/reorder", {"moves": [{**move, "task_id": task["task_id"], "version": task["version"]}]}).get("tasks", [])
+                updated = self._client._post("/v1/user-tasks/reorder", {
+                    "moves": [{**move, "task_id": task["task_id"], "version": task["version"]}],
+                    "team_id": filters.get("team_id"),
+                }).get("tasks", [])
                 master_key = self._client._get_master_key()
                 return [_public_task(_decrypt_task_record(record, master_key)) for record in updated if isinstance(record, dict)]
             except OpenMatesApiError as exc:
@@ -3998,7 +4033,11 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         for attempt in range(2):
             try:
-                updated = self._action_raw(str(task["task_id"]), action, {"version": task["version"], **patch})
+                updated = self._action_raw(
+                    str(task["task_id"]),
+                    action,
+                    {"version": task["version"], "team_id": filters.get("team_id"), **patch},
+                )
                 return _public_task(_decrypt_task_record(updated, self._client._get_master_key()))
             except OpenMatesApiError as exc:
                 if attempt > 0 or not _is_task_version_conflict(exc):

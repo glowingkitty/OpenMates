@@ -42,11 +42,13 @@ class FakeCache:
         return self.client_value
 
 
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_process_due_ai_tasks_starts_due_rows() -> None:
     directus = SimpleNamespace()
     directus.cache = FakeCache()
-    directus.get_items = AsyncMock(return_value=[{"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "version": 2}])
+    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
+    directus.get_items = AsyncMock(return_value=[task])
     directus.update_item_if_version = AsyncMock(return_value={"id": "row-1", "status": "in_progress"})
 
     result = await process_due_ai_tasks(UserTaskMethods(directus), now=200)
@@ -63,6 +65,7 @@ async def test_process_due_ai_tasks_starts_due_rows() -> None:
     assert update["version"] == 3
 
 
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_due_ai_query_uses_durable_filters() -> None:
     directus = SimpleNamespace()
@@ -73,9 +76,10 @@ async def test_due_ai_query_uses_durable_filters() -> None:
     params = directus.get_items.await_args.kwargs["params"]
     assert params["filter[assignee_type][_eq]"] == "ai"
     assert params["filter[due_at][_lte]"] == 200
-    assert params["filter[status][_in]"] == ["backlog", "todo"]
+    assert params["filter[status][_eq]"] == "todo"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_process_due_ai_tasks_skips_rows_without_version() -> None:
     directus = SimpleNamespace()
@@ -87,3 +91,17 @@ async def test_process_due_ai_tasks_skips_rows_without_version() -> None:
 
     assert result == {"checked": 1, "started": 0, "failed_task_ids": []}
     directus.update_item_if_version.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.execution.order-preserved
+@pytest.mark.asyncio
+async def test_scheduler_reconciles_waiting_todo_scope_without_due_task() -> None:
+    task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
+    directus = SimpleNamespace(cache=FakeCache())
+    directus.get_items = AsyncMock(side_effect=[[], [task], [task]])
+    directus.update_item_if_version = AsyncMock(return_value={**task, "status": "in_progress", "version": 3})
+
+    result = await process_due_ai_tasks(UserTaskMethods(directus), now=200)
+
+    assert result == {"checked": 0, "started": 1, "failed_task_ids": []}
+    assert directus.update_item_if_version.await_args.args[2]["ai_execution_state"] == "queued"

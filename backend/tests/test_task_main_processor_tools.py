@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
 
@@ -43,6 +44,7 @@ def _tool_names(tools: list[dict]) -> set[str]:
     return {str(tool["function"]["name"]) for tool in tools}
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks() -> None:
     task_methods = AsyncMock()
@@ -60,6 +62,7 @@ async def test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks(
     task_methods.list_tasks.assert_awaited_once_with("user-1", chat_id="chat-1", limit=50)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_attached_tasks_enable_update_reorder_block_complete_and_move_tools() -> None:
     task_methods = AsyncMock()
@@ -92,6 +95,7 @@ async def test_attached_tasks_enable_update_reorder_block_complete_and_move_tool
     assert TASK_TOOL_UNBLOCK not in names
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached() -> None:
     task_methods = AsyncMock()
@@ -117,6 +121,46 @@ async def test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached() ->
     task_methods.get_task_by_short_id.assert_awaited_once_with("TASK-101", "user-1")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.lifecycle.visible
+@pytest.mark.asyncio
+async def test_team_task_context_and_completion_stay_in_team_scope() -> None:
+    task = {
+        "task_id": "team-task",
+        "short_id": "TASK-TEAM",
+        "primary_chat_id": "team-chat",
+        "status": "in_progress",
+        "version": 3,
+    }
+    task_methods = AsyncMock()
+    task_methods.list_tasks.return_value = [task]
+    task_methods.get_task.return_value = task
+    task_methods.update_task_if_version.return_value = {**task, "status": "done", "version": 4}
+    directus_service = SimpleNamespace(user_task=task_methods)
+    context = await resolve_task_tool_context(
+        task_methods=task_methods,
+        user_id="actor-1",
+        chat_id="team-chat",
+        message_text="Complete the Team task.",
+        team_id="team-1",
+    )
+    assert TASK_TOOL_CREATE not in _tool_names(build_task_runtime_tools(context))
+
+    await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "team-task", "expected_version": 3},
+        context=context,
+        cache_service=AsyncMock(),
+        directus_service=directus_service,
+        encryption_service=AsyncMock(),
+        user_vault_key_id="vault-key",
+        message_id="message-1",
+    )
+
+    task_methods.list_tasks.assert_any_await("actor-1", chat_id="team-chat", team_id="team-1", limit=50)
+    assert task_methods.update_task_if_version.await_args.kwargs["team_id"] == "team-1"
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_blocked_attached_tasks_enable_unblock_tool() -> None:
     task_methods = AsyncMock()
@@ -142,6 +186,7 @@ async def test_blocked_attached_tasks_enable_unblock_tool() -> None:
     assert TASK_TOOL_BLOCK not in names
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_task_runtime_tools_merge_with_existing_main_processor_tools_without_duplicates() -> None:
     existing_tools = [
         {
@@ -177,6 +222,7 @@ def test_task_runtime_tools_merge_with_existing_main_processor_tools_without_dup
     assert [tool["function"]["name"] for tool in merged] == ["web_search", TASK_TOOL_CREATE]
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 def test_reorder_tool_is_not_advertised_until_atomic_persistence_exists() -> None:
     names = _tool_names(build_task_runtime_tools(TaskToolContext(
         user_id="user-1",
@@ -187,11 +233,13 @@ def test_reorder_tool_is_not_advertised_until_atomic_persistence_exists() -> Non
     assert "task_reorder" not in names
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 def test_task_tool_expected_version_is_required_before_mutation() -> None:
     with pytest.raises(UserTaskConflictError, match="version is required"):
         _check_expected_version({"task_id": "task-1", "version": 2}, None)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_task_tool_allow_list_preserves_provider_emitted_name() -> None:
     allowed_names = task_tool_name_variants(TASK_TOOL_CREATE)
 
@@ -201,6 +249,7 @@ def test_task_tool_allow_list_preserves_provider_emitted_name() -> None:
     assert is_task_tool_name("task-create")
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_tasks_app_skill_names_are_not_legacy_task_runtime_tools() -> None:
     assert is_legacy_task_runtime_tool_name("task_create")
     assert is_legacy_task_runtime_tool_name("task-create")
@@ -208,6 +257,7 @@ def test_tasks_app_skill_names_are_not_legacy_task_runtime_tools() -> None:
     assert not is_legacy_task_runtime_tool_name("tasks-create")
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools() -> None:
     assert should_suppress_task_runtime_tools_for_app_skill(
         {"tasks-create"},
@@ -227,18 +277,21 @@ def test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools() -> None
     )
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_tasks_app_skill_mentions_resolve_from_backend_wire_syntax() -> None:
     assert task_app_skill_ids_from_message_text("@skill:tasks:create create three tasks") == {"tasks-create"}
     assert task_app_skill_ids_from_message_text("@skill:tasks:search find launch tasks") == {"tasks-search"}
     assert task_app_skill_ids_from_message_text("@skill:tasks:unknown do something") == set()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_tasks_app_skill_mentions_resolve_from_user_overrides() -> None:
     assert task_app_skill_ids_from_user_override_skills([("tasks", "create")]) == {"tasks-create"}
     assert task_app_skill_ids_from_user_override_skills([("tasks", "search")]) == {"tasks-search"}
     assert task_app_skill_ids_from_user_override_skills([("web", "search"), ("tasks", "unknown")]) == set()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_explicit_tasks_app_skill_expands_assigned_app_allowlist() -> None:
     assert assigned_app_ids_with_task_app_for_explicit_skill(
         ["sheets"],
@@ -252,12 +305,14 @@ def test_explicit_tasks_app_skill_expands_assigned_app_allowlist() -> None:
     assert assigned_app_ids_with_task_app_for_explicit_skill(["sheets"], set()) == ["sheets"]
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases() -> None:
     assert explicit_task_app_skill_tool_name("task_create", {"tasks-create"}) == "tasks-create"
     assert explicit_task_app_skill_tool_name("task-search", {"tasks-search"}) == "tasks-search"
     assert explicit_task_app_skill_tool_name("task_create", {"tasks-search"}) == "task-create"
 
 
+# contract-test: tooling
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:
     schema = build_task_runtime_tools(TaskToolContext(user_id="user-1", chat_id="chat-1"))[0]["function"]["parameters"]
 
@@ -266,12 +321,14 @@ def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_proper
     assert "additionalProperties" not in sanitized
 
 
+# contract-test: tooling
 def test_google_thought_signature_serializer_handles_candidate_fallback_values() -> None:
     assert serialize_thought_signature(b"signature") == "c2lnbmF0dXJl"
     assert serialize_thought_signature("already-encoded") == "already-encoded"
     assert serialize_thought_signature(None) is None
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_client_persisted_task_update_sequences_later_completion_in_same_turn() -> None:
     stored_jobs: list[dict] = []
@@ -331,6 +388,7 @@ async def test_client_persisted_task_update_sequences_later_completion_in_same_t
     directus_service.user_task.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn() -> None:
     stored_jobs: list[dict] = []
@@ -380,6 +438,7 @@ async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn()
     assert len(set(staged_positions)) == 3
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_move_job_includes_source_task_chat_for_client_lookup() -> None:
     stored_jobs: list[dict] = []
@@ -424,6 +483,7 @@ async def test_task_move_job_includes_source_task_chat_for_client_lookup() -> No
     assert stored_jobs[0]["chat_id"] == "target-chat"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_repeated_client_persisted_task_calls_are_same_turn_noops() -> None:
     stored_jobs: list[dict] = []
@@ -517,6 +577,7 @@ async def test_repeated_client_persisted_task_calls_are_same_turn_noops() -> Non
     directus_service.user_task.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_repeated_direct_task_complete_returns_event_noop() -> None:
     directus_service = AsyncMock()
@@ -586,6 +647,7 @@ async def test_repeated_direct_task_complete_returns_event_noop() -> None:
     directus_service.user_task.update_task_if_version.assert_awaited_once()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_direct_task_complete_marks_next_task_active_in_turn_context() -> None:
     directus_service = AsyncMock()
@@ -597,11 +659,12 @@ async def test_direct_task_complete_marks_next_task_active_in_turn_context() -> 
             {"task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 1},
         ]
     )
+    next_task = {"id": "row-2", "task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "ai", "status": "todo", "version": 1}
+    directus_service.user_task.list_open_tasks_for_admission = AsyncMock(return_value=[next_task])
+    directus_service.user_task.acquire_admission_lock = AsyncMock(return_value="scope-lock")
+    directus_service.user_task.claim_ai_task = AsyncMock(return_value={**next_task, "status": "in_progress", "queue_state": "active", "version": 2})
     directus_service.user_task.update_task_if_version = AsyncMock(
-        side_effect=[
-            {"task_id": "task-1", "short_id": "TASK-1", "primary_chat_id": "chat-1", "status": "done", "version": 2},
-            {"task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "status": "in_progress", "queue_state": "active", "version": 2},
-        ]
+        return_value={"task_id": "task-1", "short_id": "TASK-1", "primary_chat_id": "chat-1", "status": "done", "version": 2}
     )
     context = TaskToolContext(
         user_id="user-1",
@@ -629,6 +692,7 @@ async def test_direct_task_complete_marks_next_task_active_in_turn_context() -> 
     assert context.attached_tasks[1]["queue_state"] == "active"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_direct_task_complete_uses_store_already_applied_state_after_conflict() -> None:
     completed_task = {
@@ -673,6 +737,7 @@ async def test_direct_task_complete_uses_store_already_applied_state_after_confl
     assert context.attached_tasks[0]["status"] == "done"
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_task_tool_accepts_model_formatted_task_id_and_version() -> None:
     stored_jobs: list[dict] = []

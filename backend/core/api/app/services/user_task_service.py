@@ -10,6 +10,8 @@ from typing import Any, Awaitable, Callable
 
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods, hash_id
+from backend.core.api.app.services.user_task_admission_service import TaskAdmissionService
+from backend.core.api.app.services.user_task_execution_service import UserTaskExecutionService
 
 
 TRANSIENT_AI_FIELDS = {
@@ -38,44 +40,80 @@ class UserTaskService:
         *,
         cache_service: Any | None = None,
         ai_dispatcher: AiDispatcher | None = None,
+        admission_service: TaskAdmissionService | None = None,
+        encryption_service: Any | None = None,
     ):
         self.task_methods = task_methods
         self.cache_service = cache_service
         self.ai_dispatcher = ai_dispatcher
+        self.execution_service = (
+            UserTaskExecutionService(
+                task_methods,
+                encryption_service=encryption_service,
+                cache_service=cache_service,
+                ai_dispatcher=ai_dispatcher,
+            )
+            if encryption_service is not None
+            else None
+        )
+        self.admission_service = admission_service or TaskAdmissionService(
+            task_methods,
+            on_admitted=self.execution_service.dispatch_admitted if self.execution_service else None,
+        )
 
     async def list_tasks(self, user_id: str, **filters: Any) -> list[dict[str, Any]]:
         return await self.task_methods.list_tasks(user_id, **filters)
 
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = dict(payload)
+        transient = {key: payload.pop(key) for key in TRANSIENT_AI_FIELDS if key in payload}
         payload.setdefault("status", "todo")
         payload.setdefault("assignee_type", "user")
-        if payload.get("assignee_type") == "ai" and payload.get("due_at") is None:
-            now = payload.get("updated_at") or payload.get("created_at")
-            primary_chat_id = payload.get("primary_chat_id")
-            active_tasks = []
-            if primary_chat_id:
-                active_tasks = await self.task_methods.list_active_ai_tasks_for_chat(user_id, primary_chat_id)
-            if active_tasks:
-                payload["status"] = "todo"
-                payload.setdefault("ai_execution_state", "waiting_for_previous_task")
-            else:
-                payload["status"] = "in_progress"
-                payload.setdefault("ai_execution_state", "queued")
-                payload.setdefault("started_at", now)
+        if payload.get("assignee_type") == "ai":
+            payload["status"] = "todo"
+            payload.setdefault("queue_state", "waiting")
+            payload.setdefault("ai_execution_state", "waiting_for_capacity")
         created = await self.task_methods.create_task(user_id, payload)
         if not created:
             raise ValueError("Failed to create task")
+        if payload.get("assignee_type") == "ai" and transient:
+            now = int(payload.get("updated_at") or payload.get("created_at") or time.time())
+            due_at = payload.get("due_at")
+            start_patch = {
+                **transient,
+                "version": int(created.get("version") or payload.get("version") or 1),
+                "primary_chat_id": payload.get("primary_chat_id"),
+                "updated_at": now,
+            }
+            if due_at is None or int(due_at) <= now:
+                return await self.start_ai(str(created.get("task_id") or payload.get("task_id")), user_id, start_patch)
+            instruction = self._build_transient_ai_instruction(transient)
+            chat_id = payload.get("primary_chat_id")
+            if instruction and chat_id and self.execution_service:
+                await self.execution_service.stage(
+                    task_id=str(created.get("task_id") or payload.get("task_id")),
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    instruction=instruction,
+                    current_chat_title=transient.get("plaintext_chat_title"),
+                    created_at=now,
+                )
         return created
 
-    async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+    async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
         update = dict(patch)
         expected_version = update.get("version")
         if expected_version is None:
             raise ValueError("Task update requires expected version")
-        updated = await self.task_methods.update_task_if_version(task_id, user_id, update, int(expected_version))
+        updated = await self.task_methods.update_task_if_version(
+            task_id,
+            user_id,
+            update,
+            int(expected_version),
+            team_id=team_id,
+        )
         if not updated:
-            current = await self.task_methods.get_task(task_id, user_id)
+            current = await self.task_methods.get_task(task_id, user_id, team_id)
             if not current:
                 raise UserTaskNotFoundError("Task not found")
             current_version = current.get("version")
@@ -84,8 +122,15 @@ class UserTaskService:
             raise ValueError("Failed to update task")
         return updated
 
-    async def start_ai(self, task_id: str, user_id: str, patch: dict[str, Any] | None = None) -> dict[str, Any]:
-        existing = await self.task_methods.get_task(task_id, user_id)
+    async def start_ai(
+        self,
+        task_id: str,
+        user_id: str,
+        patch: dict[str, Any] | None = None,
+        *,
+        team_id: str | None = None,
+    ) -> dict[str, Any]:
+        existing = await self.task_methods.get_task(task_id, user_id, team_id)
         if not existing:
             raise UserTaskNotFoundError("Task not found")
 
@@ -104,31 +149,94 @@ class UserTaskService:
         chat_id = raw_patch.get("primary_chat_id") or existing.get("primary_chat_id")
         if instruction and not chat_id:
             raise ValueError("primary_chat_id is required to start a task with AI")
-        if chat_id:
-            active_tasks = await self.task_methods.list_active_ai_tasks_for_chat(user_id, chat_id, exclude_task_id=task_id)
-            active_tasks = [task for task in active_tasks if task.get("task_id") != task_id]
-            if active_tasks:
-                raise UserTaskConflictError("Another AI task is already active in this chat")
-
         update = {
             key: value
             for key, value in raw_patch.items()
             if key not in TRANSIENT_AI_FIELDS and key != "version"
         }
+        requires_staging = bool(instruction and chat_id and self.execution_service)
         update.update(
             {
-                "status": "in_progress",
+                "status": "todo",
                 "assignee_type": "ai",
-                "ai_execution_state": "queued",
-                "started_at": existing.get("started_at") or now,
+                "queue_state": "staging" if requires_staging else "waiting",
+                "ai_execution_state": "preparing_execution_context" if requires_staging else "waiting_for_capacity",
                 "updated_at": now,
             }
         )
-        updated = await self.task_methods.update_task_if_version(task_id, user_id, update, int(existing_version))
+        updated = await self.task_methods.update_task_if_version(
+            task_id,
+            user_id,
+            update,
+            int(existing_version),
+            team_id=team_id,
+        )
         if not updated:
             raise UserTaskConflictError("Task was modified by another client")
 
-        if instruction and chat_id:
+        if requires_staging and self.execution_service:
+            try:
+                await self.execution_service.stage(
+                    task_id=task_id,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    instruction=instruction,
+                    current_chat_title=raw_patch.get("plaintext_chat_title"),
+                    created_at=now,
+                    team_id=team_id,
+                )
+                prepared_version = updated.get("version")
+                if prepared_version is None:
+                    raise UserTaskConflictError("Task version is required after execution context staging")
+                updated = await self.task_methods.update_task_if_version(
+                    task_id,
+                    user_id,
+                    {
+                        "status": "todo",
+                        "assignee_type": "ai",
+                        "queue_state": "waiting",
+                        "ai_execution_state": "waiting_for_capacity",
+                        "updated_at": now,
+                    },
+                    int(prepared_version),
+                    team_id=team_id,
+                )
+                if not updated:
+                    raise UserTaskConflictError("Task was modified while staging its execution context")
+            except Exception:
+                current = await self.task_methods.get_task(task_id, user_id, team_id)
+                current_version = (current or {}).get("version")
+                if (current or {}).get("queue_state") == "staging" and current_version is not None:
+                    await self.task_methods.update_task_if_version(
+                        task_id,
+                        user_id,
+                        {
+                            "status": "blocked",
+                            "queue_state": "waiting_for_user",
+                            "ai_execution_state": "failed",
+                            "blocked_reason_code": "execution_context_staging_failed",
+                            "updated_at": int(time.time()),
+                        },
+                        int(current_version),
+                        team_id=team_id,
+                    )
+                raise
+
+        admission = await self.admission_service.admit_available(
+            user_id,
+            team_id=team_id,
+            now=now,
+            preferred_chat_id=chat_id,
+        )
+        admitted = next(
+            (task for task in admission.get("admitted_tasks", []) if task.get("task_id") == task_id),
+            None,
+        )
+        if not admitted:
+            return updated
+        updated = admitted
+
+        if instruction and chat_id and self.execution_service is None:
             try:
                 ai_task_id = await self._dispatch_transient_ai_task(
                     task_id=task_id,
@@ -137,6 +245,7 @@ class UserTaskService:
                     instruction=instruction,
                     created_at=now,
                     current_chat_title=raw_patch.get("plaintext_chat_title"),
+                    team_id=team_id,
                 )
                 if ai_task_id and self.cache_service:
                     await self.cache_service.set_active_ai_task(chat_id, ai_task_id)
@@ -151,6 +260,13 @@ class UserTaskService:
                         "updated_at": int(time.time()),
                     },
                     int(updated["version"]),
+                    team_id=team_id,
+                )
+                await self.admission_service.admit_available(
+                    user_id,
+                    team_id=team_id,
+                    now=int(time.time()),
+                    preferred_chat_id=chat_id,
                 )
                 raise
 
@@ -181,6 +297,7 @@ class UserTaskService:
         instruction: str,
         created_at: int,
         current_chat_title: str | None = None,
+        team_id: str | None = None,
     ) -> str | None:
         dispatcher = self.ai_dispatcher
         if dispatcher is None:
@@ -209,6 +326,8 @@ class UserTaskService:
                 "current_chat_title": current_chat_title,
                 "user_preferences": {},
                 "user_task_id": task_id,
+                "team_id": team_id,
+                "team_id_hash": hash_id(team_id) if team_id else None,
             },
         )
         return response.get("task_id") if isinstance(response, dict) else None

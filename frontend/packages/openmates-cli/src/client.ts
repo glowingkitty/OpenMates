@@ -872,18 +872,26 @@ export interface UserTaskProposalRecord {
   assignee_type?: UserTaskAssigneeType;
 }
 
-export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & { version: number };
+export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
+  version: number;
+  plaintext_title?: string;
+  plaintext_description?: string;
+  plaintext_latest_instruction?: string;
+  plaintext_chat_title?: string;
+  plaintext_project_context?: string;
+};
 
 export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at" | "version">> & { version: number };
 
 export type UserTaskStartAIInput = UserTaskUpdateInput & {
+  team_id?: string | null;
   plaintext_title?: string;
   plaintext_description?: string;
   plaintext_latest_instruction?: string;
   plaintext_chat_title?: string;
 };
 
-export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null };
+export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null; team_id?: string | null };
 export type UserTaskReorderInput = {
   moves: Array<{
     task_id: string;

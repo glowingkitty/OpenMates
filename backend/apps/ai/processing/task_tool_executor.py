@@ -226,6 +226,7 @@ async def execute_task_tool_call(
             context.user_id,
             safe_metadata,
             _task_version(task),
+            team_id=context.team_id,
         )
         if not updated:
             raise UserTaskConflictError("Task version changed before the tool call")
@@ -272,11 +273,12 @@ async def execute_task_tool_call(
                 now=now,
             )
         try:
-            updated = await UserTaskQueueService(directus_service.user_task).block_task(
+            updated = await UserTaskQueueService(directus_service.user_task, inline_chat_id=context.chat_id).block_task(
                 str(task["task_id"]),
                 context.user_id,
                 version=_task_version(task),
                 blocked_reason_code=str(args.get("blocked_reason_code") or "needs_input"),
+                team_id=context.team_id,
                 now=now,
             )
         except UserTaskConflictError:
@@ -335,10 +337,11 @@ async def execute_task_tool_call(
                 now=now,
             )
         try:
-            updated = await UserTaskQueueService(directus_service.user_task).complete_task(
+            updated = await UserTaskQueueService(directus_service.user_task, inline_chat_id=context.chat_id).complete_task(
                 str(task["task_id"]),
                 context.user_id,
                 version=_task_version(task),
+                team_id=context.team_id,
                 now=now,
             )
         except UserTaskConflictError:
@@ -396,10 +399,11 @@ async def execute_task_tool_call(
                 now=now,
             )
         try:
-            updated = await UserTaskQueueService(directus_service.user_task).unblock_task(
+            updated = await UserTaskQueueService(directus_service.user_task, inline_chat_id=context.chat_id).unblock_task(
                 str(task["task_id"]),
                 context.user_id,
                 version=_task_version(task),
+                team_id=context.team_id,
                 now=now,
             )
         except UserTaskConflictError:
@@ -511,6 +515,7 @@ async def _stage_client_persisted_task_change(
     job = {
         "job_id": f"task-update-job-{uuid.uuid4()}",
         "owner_hash": hash_id(context.user_id),
+        "team_id": context.team_id,
         "task_id": task_id,
         "chat_id": context.chat_id,
         "source_task_chat_id": source_task_chat_id,
@@ -653,7 +658,7 @@ async def _already_applied_direct_result_from_store(
     task_id = str(task.get("task_id") or "")
     if not task_id or task_id in context.client_persisted_task_ids:
         return None
-    current = await directus_service.user_task.get_task(task_id, context.user_id)
+    current = await directus_service.user_task.get_task(task_id, context.user_id, context.team_id)
     if not current or not _task_matches_patch(current, safe_metadata, ignored_keys={"updated_at"}):
         return None
     _apply_turn_task_update(context, current)

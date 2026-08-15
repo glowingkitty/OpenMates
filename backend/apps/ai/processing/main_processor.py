@@ -2629,6 +2629,7 @@ async def handle_main_processing(
                     user_id=request_data.user_id,
                     chat_id=request_data.chat_id,
                     message_text=request_data.current_user_content,
+                    team_id=getattr(request_data, "team_id", None),
                 )
                 task_context_prompt = build_task_context_prompt(task_tool_context)
                 logger.info(
@@ -4473,6 +4474,7 @@ async def handle_main_processing(
                             user_id=request_data.user_id,
                             chat_id=request_data.chat_id,
                             message_text=request_data.current_user_content,
+                            team_id=getattr(request_data, "team_id", None),
                         )
                         retry_task_context_prompt = build_task_context_prompt(task_tool_context)
                         if task_tools_enabled and not suppress_task_runtime_tools:

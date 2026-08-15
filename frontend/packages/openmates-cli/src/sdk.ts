@@ -447,7 +447,7 @@ const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
 const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
 const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; teamId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
@@ -1444,12 +1444,12 @@ async function canonicalizeTaskCreateInput(client: OpenMates, input: TaskPlainCr
   };
 }
 
-async function canonicalizeTaskUpdateInput(client: OpenMates, input: TaskPlainUpdateOptions): Promise<TaskPlainUpdateOptions> {
+async function canonicalizeTaskUpdateInput(client: OpenMates, input: TaskPlainUpdateOptions, teamId?: string): Promise<TaskPlainUpdateOptions> {
   return {
     ...input,
     chatId: typeof input.chatId === "string" && input.chatId ? await resolveSdkChatId(client, input.chatId) : input.chatId,
-    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId))) : input.projectIds,
-    planId: typeof input.planId === "string" && input.planId ? await resolveSdkPlanId(client, input.planId) : input.planId,
+    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId, teamId ? { teamId } : { personal: true }))) : input.projectIds,
+    planId: typeof input.planId === "string" && input.planId && !teamId ? await resolveSdkPlanId(client, input.planId) : input.planId,
   };
 }
 
@@ -1457,8 +1457,8 @@ async function canonicalizeTaskFilters(client: OpenMates, filters: TaskListFilte
   return {
     ...filters,
     chatId: typeof filters.chatId === "string" && filters.chatId ? await resolveSdkChatId(client, filters.chatId) : filters.chatId,
-    projectId: typeof filters.projectId === "string" && filters.projectId ? await resolveSdkProjectId(client, filters.projectId) : filters.projectId,
-    planId: typeof filters.planId === "string" && filters.planId ? await resolveSdkPlanId(client, filters.planId) : filters.planId,
+    projectId: typeof filters.projectId === "string" && filters.projectId ? await resolveSdkProjectId(client, filters.projectId, filters.teamId ? { teamId: filters.teamId } : { personal: true }) : filters.projectId,
+    planId: typeof filters.planId === "string" && filters.planId && !filters.teamId ? await resolveSdkPlanId(client, filters.planId) : filters.planId,
   };
 }
 
@@ -3426,14 +3426,14 @@ export class OpenMatesTasks {
     const encryptedUpdates = options.updates
       ? await Promise.all(options.updates.map(async (update) => {
         const task = await this.resolve(update.taskId, update.filters ?? {});
-        return { task_id: task.taskId, patch: await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, update.patch)) };
+        return { task_id: task.taskId, patch: await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, update.patch, update.filters?.teamId)) };
       }))
       : undefined;
     const update = options.update;
     const encryptedUpdate = update
       ? await (async () => {
         const task = await this.resolve(update.taskId, update.filters ?? {});
-        return { task_id: task.taskId, patch: await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, update.patch)) };
+        return { task_id: task.taskId, patch: await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, update.patch, update.filters?.teamId)) };
       })()
       : undefined;
     const response = await this.client.request<Record<string, unknown>>("/v1/user-tasks/ask", {
@@ -3460,7 +3460,7 @@ export class OpenMatesTasks {
     const masterKey = await this.client.masterKey();
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, input)));
+        const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, await canonicalizeTaskUpdateInput(this.client, input, filters.teamId)), filters.teamId);
         return toPublicTask(await decryptUserTask(updated, masterKey));
       } catch (error) {
         if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
@@ -3478,20 +3478,20 @@ export class OpenMatesTasks {
   async addToProject(id: string, projectId: string, options: { filters?: TaskListFilters } = {}): Promise<TaskRecord> {
     const task = await this.resolve(id, options.filters ?? {});
     const masterKey = await this.client.masterKey();
-    const resolvedProjectId = await resolveSdkProjectId(this.client, projectId);
+    const resolvedProjectId = await resolveSdkProjectId(this.client, projectId, options.filters?.teamId ? { teamId: options.filters.teamId } : { personal: true });
     const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, {
       projectIds: appendUniqueProjectId(task.linkedProjectIds, resolvedProjectId),
-    }));
+    }), options.filters?.teamId);
     return toPublicTask(await decryptUserTask(updated, masterKey));
   }
 
   async removeFromProject(id: string, projectId: string, options: { filters?: TaskListFilters } = {}): Promise<TaskRecord> {
     const task = await this.resolve(id, options.filters ?? {});
     const masterKey = await this.client.masterKey();
-    const resolvedProjectId = await resolveSdkProjectId(this.client, projectId);
+    const resolvedProjectId = await resolveSdkProjectId(this.client, projectId, options.filters?.teamId ? { teamId: options.filters.teamId } : { personal: true });
     const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, {
       projectIds: removeProjectId(task.linkedProjectIds, resolvedProjectId),
-    }));
+    }), options.filters?.teamId);
     return toPublicTask(await decryptUserTask(updated, masterKey));
   }
 
@@ -3506,6 +3506,7 @@ export class OpenMatesTasks {
           plaintext_title: task.title,
           plaintext_description: task.description,
           plaintext_latest_instruction: task.latestInstruction,
+          team_id: filters.teamId,
         });
         return toPublicTask(await decryptUserTask(started, await this.client.masterKey()));
       } catch (error) {
@@ -3526,7 +3527,10 @@ export class OpenMatesTasks {
     let task = await this.resolve(id, options.filters ?? {});
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        return await this.client.delete<{ deleted?: boolean; task_id?: string }>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}?version=${encodeURIComponent(String(task.version))}`);
+        return await this.client.delete<{ deleted?: boolean; task_id?: string }>(withQuery(`/v1/user-tasks/${encodeURIComponent(task.taskId)}`, {
+          version: task.version,
+          team_id: options.filters?.teamId,
+        }));
       } catch (error) {
         if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
         await delay(1000);
@@ -3566,6 +3570,7 @@ export class OpenMatesTasks {
       try {
         const response = await this.client.request<{ tasks?: UserTaskRecord[] }>("/v1/user-tasks/reorder", {
           moves: [{ ...move, task_id: task.taskId, version: task.version }],
+          team_id: filters.teamId,
         });
         return (await decryptUserTasks(response.tasks ?? [], await this.client.masterKey())).map(toPublicTask);
       } catch (error) {
@@ -3591,6 +3596,7 @@ export class OpenMatesTasks {
       plan_id: canonicalFilters.planId,
       label_hash: masterKey ? labelHashes(masterKey, normalizeLabels(filters.labels ?? filters.tags ?? [])) : undefined,
       priority: normalizeTaskPriority(canonicalFilters.priority),
+      team_id: canonicalFilters.teamId,
     }));
     return response.tasks ?? [];
   }
@@ -3601,8 +3607,8 @@ export class OpenMatesTasks {
     return response.task;
   }
 
-  private async updateRaw(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
-    const response = await this.client.patch<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}`, input);
+  private async updateRaw(taskId: string, input: UserTaskUpdateInput, teamId?: string): Promise<UserTaskRecord> {
+    const response = await this.client.patch<{ task?: UserTaskRecord }>(withQuery(`/v1/user-tasks/${encodeURIComponent(taskId)}`, { team_id: teamId }), input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;
   }
@@ -3631,7 +3637,7 @@ export class OpenMatesTasks {
     let task = await this.resolve(id, filters);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const updated = await this.actionRaw(task.taskId, action, { version: task.version, ...patch });
+        const updated = await this.actionRaw(task.taskId, action, { version: task.version, team_id: filters.teamId, ...patch });
         return toPublicTask(await decryptUserTask(updated, await this.client.masterKey()));
       } catch (error) {
         if (attempt > 0 || !isTaskVersionConflict(error)) throw error;

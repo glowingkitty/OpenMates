@@ -125,7 +125,12 @@ async def evaluate_task_queue_post_turn(
     task_methods = getattr(directus_service, "user_task", None)
     if task_methods is None:
         return None
-    queue_result = await UserTaskQueueService(task_methods).evaluate_chat_queue(user_id, chat_id, now=now)
+    queue_result = await UserTaskQueueService(task_methods, inline_chat_id=chat_id).evaluate_chat_queue(
+        user_id,
+        chat_id,
+        now=now,
+        team_id=getattr(task_tool_context, "team_id", None),
+    )
     state = str(queue_result.get("state") or "")
     if state in {"no_chat", "no_work"}:
         return None

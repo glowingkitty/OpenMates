@@ -154,7 +154,7 @@ def _move_tool() -> dict[str, Any]:
 
 def build_task_runtime_tools(context: TaskToolContext) -> list[dict[str, Any]]:
     """Return task tools appropriate for the visible task context."""
-    tools = [_create_tool()]
+    tools = [] if context.team_id else [_create_tool()]
     if not context.attached_tasks:
         return tools
 

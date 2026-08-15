@@ -627,22 +627,50 @@ async def test_update_task_rejects_project_relink_with_empty_replacement_wrapper
     directus.update_item_if_version.assert_not_awaited()
 
 
-# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
-async def test_ai_task_without_due_date_starts_immediately() -> None:
+async def test_ai_task_without_execution_context_waits_without_consuming_capacity() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[])
     directus.create_item = AsyncMock(side_effect=lambda _collection, record: (True, record))
 
-    service = UserTaskService(UserTaskMethods(directus))
+    admission = AsyncMock()
+    service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
     created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
 
-    assert created["status"] == "in_progress"
-    assert created["ai_execution_state"] == "queued"
-    assert created["started_at"] == 100
+    assert created["status"] == "todo"
+    assert created["ai_execution_state"] == "waiting_for_capacity"
+    admission.admit_available.assert_not_awaited()
 
 
-# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.execution.capacity-scoped
+@pytest.mark.asyncio
+async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> None:
+    created = {**task_payload(assignee_type="ai"), "id": "row-1", "version": 1}
+    queued = {**created, "status": "todo", "queue_state": "waiting", "ai_execution_state": "waiting_for_capacity", "version": 2}
+    admitted = {**queued, "status": "in_progress", "queue_state": "active", "ai_execution_state": "queued", "version": 3}
+    methods = AsyncMock()
+    methods.create_task.return_value = created
+    methods.get_task.return_value = created
+    methods.update_task_if_version.return_value = queued
+    admission = AsyncMock()
+    admission.admit_available.return_value = {"admitted_tasks": [admitted]}
+    dispatcher = AsyncMock(return_value={"task_id": "ai-run-1"})
+    cache = SimpleNamespace(set_active_ai_task=AsyncMock())
+    service = UserTaskService(methods, admission_service=admission, ai_dispatcher=dispatcher, cache_service=cache)
+
+    result = await service.create_task(
+        "user-1",
+        task_payload(assignee_type="ai", plaintext_title="Draft launch plan"),
+    )
+
+    assert result["status"] == "in_progress"
+    assert "plaintext_title" not in methods.create_task.await_args.args[1]
+    dispatcher.assert_awaited_once()
+    cache.set_active_ai_task.assert_awaited_once_with("chat-1", "ai-run-1")
+
+
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> None:
     active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="ai")}
@@ -650,11 +678,13 @@ async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> N
     directus.get_items = AsyncMock(return_value=[active_other])
     directus.create_item = AsyncMock(side_effect=lambda _collection, record: (True, record))
 
-    service = UserTaskService(UserTaskMethods(directus))
+    admission = AsyncMock()
+    admission.admit_available.return_value = {"admitted_tasks": []}
+    service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
     created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
 
     assert created["status"] == "todo"
-    assert created["ai_execution_state"] == "waiting_for_previous_task"
+    assert created["ai_execution_state"] == "waiting_for_capacity"
     assert "started_at" not in created
 
 
@@ -690,7 +720,11 @@ async def test_start_ai_dispatches_transient_plaintext_without_persisting() -> N
         UserTaskMethods(with_lock_cache(directus)),
         cache_service=cache,
         ai_dispatcher=fake_dispatcher,
+        admission_service=AsyncMock(),
     )
+    service.admission_service.admit_available.return_value = {
+        "admitted_tasks": [{**existing, "status": "in_progress", "ai_execution_state": "queued", "version": 4}]
+    }
 
     updated = await service.start_ai(
         "task-1",
@@ -707,7 +741,7 @@ async def test_start_ai_dispatches_transient_plaintext_without_persisting() -> N
 
     persisted_patch = directus.update_item_if_version.await_args_list[0].args[2]
     assert updated["ai_execution_state"] == "queued"
-    assert persisted_patch["status"] == "in_progress"
+    assert persisted_patch["status"] == "todo"
     assert "plaintext_title" not in persisted_patch
     assert "plaintext_description" not in persisted_patch
 
@@ -723,27 +757,166 @@ async def test_start_ai_dispatches_transient_plaintext_without_persisting() -> N
     cache.set_active_ai_task.assert_awaited_once_with("chat-1", "ai-task-1")
 
 
-# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
-async def test_start_ai_rejects_second_active_task_in_same_chat() -> None:
-    existing = {"id": "row-1", "version": 2, **task_payload(task_id="task-1")}
-    active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="ai")}
+async def test_start_ai_waits_when_another_task_is_active_in_same_chat() -> None:
+    existing = {**task_payload(task_id="task-1"), "id": "row-1", "version": 2}
     directus = SimpleNamespace()
-    directus.get_items = AsyncMock(side_effect=[[existing], [active_other]])
-    directus.update_item_if_version = AsyncMock()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock(
+        side_effect=lambda _collection, _row_id, patch, _expected_version, **_kwargs: {**existing, **patch, "version": 3}
+    )
 
-    service = UserTaskService(UserTaskMethods(with_lock_cache(directus)))
+    admission = AsyncMock()
+    admission.admit_available.return_value = {"admitted_tasks": []}
+    service = UserTaskService(UserTaskMethods(with_lock_cache(directus)), admission_service=admission)
 
-    with pytest.raises(UserTaskConflictError):
+    waiting = await service.start_ai(
+        "task-1",
+        "user-1",
+        {
+            "version": 2,
+            "primary_chat_id": "chat-1",
+            "plaintext_title": "Do this after the active task",
+            "updated_at": 200,
+        },
+    )
+
+    assert waiting["status"] == "todo"
+    assert waiting["ai_execution_state"] == "waiting_for_capacity"
+    directus.update_item_if_version.assert_awaited_once()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.lifecycle.visible
+@pytest.mark.asyncio
+async def test_team_start_ai_scopes_update_admission_and_dispatch_payload() -> None:
+    team_id = "team-1"
+    existing = {
+        **task_payload(task_id="team-task"),
+        "id": "row-1",
+        "version": 2,
+        "hashed_team_id": hash_id(team_id),
+    }
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock(
+        side_effect=lambda _collection, _row_id, patch, _expected_version, **_kwargs: {**existing, **patch, "version": 3}
+    )
+    dispatched: dict[str, object] = {}
+
+    async def fake_dispatcher(app_id: str, skill_id: str, payload: dict[str, object]) -> dict[str, str]:
+        dispatched.update({"app_id": app_id, "skill_id": skill_id, "payload": payload})
+        return {"task_id": "ai-team-run-1"}
+
+    admission = AsyncMock()
+    admission.admit_available.return_value = {
+        "admitted_tasks": [{**existing, "status": "in_progress", "ai_execution_state": "queued", "version": 4}]
+    }
+    service = UserTaskService(
+        UserTaskMethods(with_lock_cache(directus)),
+        ai_dispatcher=fake_dispatcher,
+        admission_service=admission,
+    )
+
+    await service.start_ai(
+        "team-task",
+        "actor-1",
+        {
+            "version": 2,
+            "primary_chat_id": "chat-1",
+            "plaintext_title": "Run Team task",
+            "updated_at": 200,
+        },
+        team_id=team_id,
+    )
+
+    assert directus.update_item_if_version.await_args.kwargs == {
+        "owner_hash_field": "hashed_team_id",
+        "owner_hash": hash_id(team_id),
+    }
+    admission.admit_available.assert_awaited_once_with(
+        "actor-1",
+        team_id=team_id,
+        now=200,
+        preferred_chat_id="chat-1",
+    )
+    payload = dispatched["payload"]
+    assert isinstance(payload, dict)
+    assert payload["team_id"] == team_id
+    assert payload["team_id_hash"] == hash_id(team_id)
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.lifecycle.visible
+@pytest.mark.asyncio
+async def test_team_task_updates_share_one_team_scoped_write_lock() -> None:
+    methods = UserTaskMethods(SimpleNamespace())
+    methods._acquire_task_lock = AsyncMock(return_value="lock-token")
+    methods._release_task_lock = AsyncMock()
+    methods.get_task = AsyncMock(return_value={"task_id": "team-task", "version": 1})
+    methods._update_task_unlocked = AsyncMock(return_value={"task_id": "team-task", "version": 2})
+
+    await methods.update_task_if_version("team-task", "member-1", {"status": "done"}, 1, team_id="team-1")
+    await methods.update_task_if_version("team-task", "member-2", {"status": "done"}, 1, team_id="team-1")
+
+    lock_keys = [call.args[0] for call in methods._acquire_task_lock.await_args_list]
+    assert lock_keys == [lock_keys[0], lock_keys[0]]
+    assert hash_id("team-1") in lock_keys[0]
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.content.client-encrypted
+@pytest.mark.asyncio
+async def test_start_ai_stages_execution_context_before_becoming_admission_eligible() -> None:
+    existing = {**task_payload(task_id="task-1"), "version": 2}
+    events: list[str] = []
+    methods = AsyncMock()
+    methods.get_task.return_value = existing
+
+    async def update_side_effect(_task_id, _user_id, patch, _version, **_kwargs):
+        events.append(str(patch["queue_state"]))
+        return {**existing, **patch, "version": 3 if patch["queue_state"] == "staging" else 4}
+
+    methods.update_task_if_version.side_effect = update_side_effect
+    methods.create_task_execution_context.side_effect = lambda **_kwargs: events.append("context_staged") or {"id": "context-1"}
+    encryption = AsyncMock()
+    encryption.encrypt.return_value = ("vault:v1:ciphertext", "v1")
+    admission = AsyncMock()
+
+    async def admit_side_effect(*_args, **_kwargs):
+        events.append("admission")
+        return {"admitted_tasks": []}
+
+    admission.admit_available.side_effect = admit_side_effect
+    service = UserTaskService(methods, encryption_service=encryption, admission_service=admission)
+
+    await service.start_ai(
+        "task-1",
+        "user-1",
+        {"version": 2, "primary_chat_id": "chat-1", "plaintext_title": "Do the work", "updated_at": 200},
+    )
+
+    assert events == ["staging", "context_staged", "waiting", "admission"]
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped,tasks.lifecycle.visible
+@pytest.mark.asyncio
+async def test_start_ai_staging_failure_moves_task_to_visible_blocked_state() -> None:
+    existing = {**task_payload(task_id="task-1"), "version": 2}
+    staging = {**existing, "queue_state": "staging", "ai_execution_state": "preparing_execution_context", "version": 3}
+    methods = AsyncMock()
+    methods.get_task.side_effect = [existing, staging]
+    methods.update_task_if_version.side_effect = [staging, {**staging, "status": "blocked", "version": 4}]
+    methods.create_task_execution_context.side_effect = RuntimeError("context store unavailable")
+    encryption = AsyncMock()
+    encryption.encrypt.return_value = ("vault:v1:ciphertext", "v1")
+    service = UserTaskService(methods, encryption_service=encryption, admission_service=AsyncMock())
+
+    with pytest.raises(RuntimeError, match="context store unavailable"):
         await service.start_ai(
             "task-1",
             "user-1",
-            {
-                "version": 2,
-                "primary_chat_id": "chat-1",
-                "plaintext_title": "Do this after the active task",
-                "updated_at": 200,
-            },
+            {"version": 2, "primary_chat_id": "chat-1", "plaintext_title": "Do the work", "updated_at": 200},
         )
 
-    directus.update_item_if_version.assert_not_awaited()
+    failure_patch = methods.update_task_if_version.await_args_list[-1].args[2]
+    assert failure_patch["status"] == "blocked"
+    assert failure_patch["blocked_reason_code"] == "execution_context_staging_failed"

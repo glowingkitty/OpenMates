@@ -66,6 +66,8 @@ USER_TASK_MIGRATION_PATH = os.getenv(
 USER_TASK_INDEXES = (
     'user_tasks_owner_status_position_idx',
     'user_tasks_owner_priority_idx',
+    'user_tasks_team_admission_idx',
+    'user_tasks_ai_admission_idx',
     'user_tasks_owner_completed_idx',
     'user_tasks_due_ai_idx',
     'user_tasks_owner_chat_idx',

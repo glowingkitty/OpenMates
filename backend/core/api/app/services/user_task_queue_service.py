@@ -9,16 +9,48 @@ import time
 from typing import Any
 
 from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods
+from backend.core.api.app.services.user_task_admission_service import TaskAdmissionService
+from backend.core.api.app.services.user_task_execution_service import UserTaskExecutionService
 from backend.core.api.app.services.user_task_service import UserTaskConflictError, UserTaskNotFoundError
 
 
 class UserTaskQueueService:
-    def __init__(self, task_methods: UserTaskMethods):
+    def __init__(
+        self,
+        task_methods: UserTaskMethods,
+        *,
+        admission_service: TaskAdmissionService | None = None,
+        inline_chat_id: str | None = None,
+    ):
         self.task_methods = task_methods
+        directus = getattr(task_methods, "directus_service", None)
+        execution_service = (
+            UserTaskExecutionService(
+                task_methods,
+                encryption_service=directus.encryption_service,
+                cache_service=directus.cache,
+            )
+            if isinstance(task_methods, UserTaskMethods)
+            and directus is not None
+            and getattr(directus, "encryption_service", None) is not None
+            else None
+        )
 
-    async def complete_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
+        async def dispatch_or_continue_inline(task: dict[str, Any], now: int) -> bool:
+            if inline_chat_id and task.get("primary_chat_id") == inline_chat_id:
+                return True
+            if execution_service is None:
+                return True
+            return await execution_service.dispatch_admitted(task, now)
+
+        self.admission_service = admission_service or TaskAdmissionService(
+            task_methods,
+            on_admitted=dispatch_or_continue_inline,
+        )
+
+    async def complete_task(self, task_id: str, user_id: str, *, version: int, team_id: str | None = None, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
-        existing = await self._get_existing(task_id, user_id)
+        existing = await self._get_existing(task_id, user_id, team_id=team_id)
         task = await self._update(task_id, user_id, {
             "version": version,
             "status": "done",
@@ -27,8 +59,21 @@ class UserTaskQueueService:
             "updated_at": current_time,
             "blocked_reason_code": None,
             "ai_execution_state": "completed",
-        })
-        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
+        }, team_id=team_id)
+        admission = await self.admission_service.admit_available(
+            user_id,
+            team_id=team_id,
+            now=current_time,
+            preferred_chat_id=existing.get("primary_chat_id"),
+        )
+        queue_result = await self.evaluate_chat_queue(
+            user_id,
+            existing.get("primary_chat_id"),
+            exclude_task_id=task_id,
+            now=current_time,
+            admission=admission,
+            team_id=team_id,
+        )
         task["queue_result"] = queue_result
         if queue_result.get("state") == "started_next_ai_task":
             task["next_task_id"] = queue_result.get("task_id")
@@ -41,21 +86,30 @@ class UserTaskQueueService:
         *,
         version: int,
         blocked_reason_code: str | None = None,
+        team_id: str | None = None,
         now: int | None = None,
     ) -> dict[str, Any]:
         current_time = now or int(time.time())
-        return await self._update(task_id, user_id, {
+        existing = await self._get_existing(task_id, user_id, team_id=team_id)
+        task = await self._update(task_id, user_id, {
             "version": version,
             "status": "blocked",
             "queue_state": "waiting_for_user",
             "blocked_reason_code": blocked_reason_code or "needs_user_input",
             "ai_execution_state": "waiting_for_user",
             "updated_at": current_time,
-        })
+        }, team_id=team_id)
+        task["queue_result"] = await self._admit_released_capacity(
+            user_id,
+            team_id=team_id,
+            existing_chat_id=existing.get("primary_chat_id"),
+            now=current_time,
+        )
+        return task
 
-    async def unblock_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
+    async def unblock_task(self, task_id: str, user_id: str, *, version: int, team_id: str | None = None, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
-        existing = await self._get_existing(task_id, user_id)
+        existing = await self._get_existing(task_id, user_id, team_id=team_id)
         task = await self._update(task_id, user_id, {
             "version": version,
             "status": "todo",
@@ -63,16 +117,28 @@ class UserTaskQueueService:
             "blocked_reason_code": None,
             "ai_execution_state": None,
             "updated_at": current_time,
-        })
-        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), now=current_time)
+        }, team_id=team_id)
+        admission = await self.admission_service.admit_available(
+            user_id,
+            team_id=team_id,
+            now=current_time,
+            preferred_chat_id=existing.get("primary_chat_id"),
+        )
+        queue_result = await self.evaluate_chat_queue(
+            user_id,
+            existing.get("primary_chat_id"),
+            now=current_time,
+            admission=admission,
+            team_id=team_id,
+        )
         task["queue_result"] = queue_result
         if queue_result.get("state") == "started_next_ai_task":
             task["next_task_id"] = queue_result.get("task_id")
         return task
 
-    async def skip_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
+    async def skip_task(self, task_id: str, user_id: str, *, version: int, team_id: str | None = None, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
-        existing = await self._get_existing(task_id, user_id)
+        existing = await self._get_existing(task_id, user_id, team_id=team_id)
         task = await self._update(task_id, user_id, {
             "version": version,
             "status": "backlog",
@@ -80,24 +146,43 @@ class UserTaskQueueService:
             "blocked_reason_code": None,
             "ai_execution_state": "skipped",
             "updated_at": current_time,
-        })
-        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
+        }, team_id=team_id)
+        admission = await self.admission_service.admit_available(
+            user_id,
+            team_id=team_id,
+            now=current_time,
+            preferred_chat_id=existing.get("primary_chat_id"),
+        )
+        queue_result = await self.evaluate_chat_queue(
+            user_id,
+            existing.get("primary_chat_id"),
+            exclude_task_id=task_id,
+            now=current_time,
+            admission=admission,
+            team_id=team_id,
+        )
         task["queue_result"] = queue_result
         if queue_result.get("state") == "started_next_ai_task":
             task["next_task_id"] = queue_result.get("task_id")
         return task
 
-    async def _get_existing(self, task_id: str, user_id: str) -> dict[str, Any]:
-        existing = await self.task_methods.get_task(task_id, user_id)
+    async def _get_existing(self, task_id: str, user_id: str, *, team_id: str | None = None) -> dict[str, Any]:
+        existing = await self.task_methods.get_task(task_id, user_id, team_id)
         if not existing:
             raise UserTaskNotFoundError("Task not found")
         return existing
 
-    async def _update(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+    async def _update(self, task_id: str, user_id: str, patch: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
         expected_version = patch.get("version")
         if expected_version is None:
             raise ValueError("Task update requires expected version")
-        updated = await self.task_methods.update_task_if_version(task_id, user_id, patch, int(expected_version))
+        updated = await self.task_methods.update_task_if_version(
+            task_id,
+            user_id,
+            patch,
+            int(expected_version),
+            team_id=team_id,
+        )
         if not updated:
             raise UserTaskConflictError("Task version changed before the action")
         return updated
@@ -109,10 +194,12 @@ class UserTaskQueueService:
         *,
         exclude_task_id: str | None = None,
         now: int,
+        admission: dict[str, Any] | None = None,
+        team_id: str | None = None,
     ) -> dict[str, Any]:
         if not chat_id:
             return {"state": "no_chat"}
-        candidates = await self.task_methods.list_tasks(user_id, chat_id=chat_id, limit=500)
+        candidates = await self.task_methods.list_tasks(user_id, chat_id=chat_id, team_id=team_id, limit=500)
         for task in self._ordered_workable_tasks(candidates, exclude_task_id=exclude_task_id):
             task_id = str(task.get("task_id") or "")
             if self._is_blocking_task(task):
@@ -124,7 +211,13 @@ class UserTaskQueueService:
                     "blocked_reason_code": task.get("blocked_reason_code") or "needs_user_input",
                 }
             if task.get("assignee_type") != "ai":
-                continue
+                return {
+                    "state": "blocked_by_human_task",
+                    "task_id": task_id,
+                    **self._short_id_field(task),
+                    "chat_id": chat_id,
+                    "blocked_reason_code": "waiting_for_previous_task",
+                }
             if self._task_status(task) == "in_progress":
                 return {
                     "state": "active_ai_task",
@@ -132,23 +225,58 @@ class UserTaskQueueService:
                     **self._short_id_field(task),
                     "chat_id": chat_id,
                 }
-            if self._task_status(task) != "todo":
+            break
+        if admission is None:
+            admission = await self.admission_service.admit_available(
+                user_id,
+                team_id=team_id,
+                now=now,
+                preferred_chat_id=chat_id,
+            )
+        for admitted in admission.get("admitted_tasks", []):
+            if admitted.get("primary_chat_id") != chat_id:
                 continue
-            updated = await self._update(task_id, user_id, {
-                "version": task.get("version"),
-                "status": "in_progress",
-                "queue_state": "active",
-                "ai_execution_state": "queued",
-                "started_at": task.get("started_at") or now,
-                "updated_at": now,
-            })
             return {
                 "state": "started_next_ai_task",
-                "task_id": updated.get("task_id"),
-                **self._short_id_field(updated, fallback=task),
+                "task_id": admitted.get("task_id"),
+                **self._short_id_field(admitted),
+                "chat_id": chat_id,
+            }
+        waiting_in_chat = next(
+            (
+                task
+                for task in candidates
+                if task.get("assignee_type") == "ai" and self._task_status(task) == "todo"
+            ),
+            None,
+        )
+        if waiting_in_chat:
+            return {
+                "state": str(waiting_in_chat.get("ai_execution_state") or "waiting_for_capacity"),
+                "task_id": waiting_in_chat.get("task_id"),
+                **self._short_id_field(waiting_in_chat),
                 "chat_id": chat_id,
             }
         return {"state": "no_work", "chat_id": chat_id}
+
+    async def _admit_released_capacity(
+        self,
+        user_id: str,
+        *,
+        team_id: str | None = None,
+        existing_chat_id: str | None,
+        now: int,
+    ) -> dict[str, Any]:
+        result = await self.admission_service.admit_available(
+            user_id,
+            team_id=team_id,
+            now=now,
+            preferred_chat_id=existing_chat_id,
+        )
+        return {
+            "state": "capacity_reconciled",
+            "admitted_task_ids": result.get("admitted_task_ids", []),
+        }
 
     def _ordered_workable_tasks(self, tasks: list[dict[str, Any]], *, exclude_task_id: str | None = None) -> list[dict[str, Any]]:
         return sorted(
