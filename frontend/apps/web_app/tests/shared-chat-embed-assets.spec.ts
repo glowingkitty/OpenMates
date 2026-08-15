@@ -29,7 +29,7 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
-const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'sample.png');
+const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'golden_gate_bridge.jpg');
 const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
 const PROOF_FRAME_HOLD_MS = 5_500;
 
@@ -456,7 +456,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 
 		const runMarker = randomUUID().slice(0, 8);
 		const pdfPath = path.join(tmpDir, `shared-proof-${runMarker}-document.pdf`);
-		const imagePath = path.join(tmpDir, `shared-proof-${runMarker}-image.png`);
+		const imagePath = path.join(tmpDir, `shared-proof-${runMarker}-image.jpg`);
 		const audioPath = path.join(tmpDir, `shared-proof-${runMarker}-recording.wav`);
 		fs.copyFileSync(SAMPLE_PDF, pdfPath);
 		fs.copyFileSync(SAMPLE_IMAGE, imagePath);
@@ -543,7 +543,32 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(audioEmbed).toBeVisible({ timeout: 120_000 });
 		await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
 
-		await expect(imageEmbed.locator('img').first()).toBeVisible({ timeout: 60_000 });
+		const renderedImage = imageEmbed.locator('img').first();
+		await expect(renderedImage).toBeVisible({ timeout: 60_000 });
+		await expect
+			.poll(
+				() =>
+					renderedImage.evaluate(async (image: HTMLImageElement) => {
+						if (!image.complete) await image.decode();
+						if (image.naturalWidth < 2 || image.naturalHeight < 2) return false;
+						const canvas = document.createElement('canvas');
+						canvas.width = 16;
+						canvas.height = 16;
+						const context = canvas.getContext('2d');
+						if (!context) return false;
+						context.drawImage(image, 0, 0, canvas.width, canvas.height);
+						const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+						let minimum = 255;
+						let maximum = 0;
+						for (let index = 0; index < pixels.length; index += 4) {
+							minimum = Math.min(minimum, pixels[index], pixels[index + 1], pixels[index + 2]);
+							maximum = Math.max(maximum, pixels[index], pixels[index + 1], pixels[index + 2]);
+						}
+						return maximum - minimum >= 32;
+					}),
+				{ timeout: 60_000 }
+			)
+			.toBe(true);
 		await expect(pdfEmbed.locator('img').first()).toBeVisible({ timeout: 120_000 });
 		await expect(sharedPage.getByTestId('recording-preview-audio').first()).toHaveAttribute('src', /blob:/, {
 			timeout: 60_000
