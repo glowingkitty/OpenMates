@@ -37,7 +37,7 @@ context_discovery:
     - docs/contributing/guides/spec-driven-development.md
     - .claude/skills/create-demo-video/SKILL.md
   code_patterns:
-    - scripts/spec_demo.py already owns FFmpeg rendering, device profiles, frame extraction, privacy scanning, and Discord publication.
+    - scripts/spec_demo.py already owns FFmpeg rendering, device profiles, frame extraction, and OpenCode response-media publication.
     - scripts/sessions.py already owns proof-video session evidence and the completion gate.
     - scripts/tests.py stores passing run IDs, subject commits, and GitHub run URLs.
     - Recent OpenCode sessions repeatedly rediscovered 800x450 source incompatibility, audio setup, blank opening frames, manual trimming, and narration pacing.
@@ -217,13 +217,13 @@ contracts:
       auth: Existing local filesystem, GitHub CLI, and configured test tooling access only.
       rate_limits: No product rate limit; fixed local CPU and frame limits apply.
       credit_budget: No product credits; audio provider use is disabled by default.
-      encryption_boundary: No client-encrypted product content contract changes; existing proof privacy scanning remains fail-closed.
+      encryption_boundary: No client-encrypted product content contract changes; proof videos do not run proof-specific PII/sensitive-data detection or replacement.
   data:
     - Proof contracts and workflow manifests are local gitignored evidence; only the executable spec and tooling are tracked.
     - Full videos never enter agent/model context.
     - Source and contract hashes make cached processing reusable and detect stale approval.
   privacy_security:
-    - Existing secret scanner and owner-only artifact permissions remain required.
+    - Owner-only artifact permissions remain required.
     - The workflow never prints webhook URLs, credentials, raw private test data, or unsanitized source metadata.
 
 phase_gates:

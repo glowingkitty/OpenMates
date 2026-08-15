@@ -169,15 +169,16 @@ classification.
     mismatches. Caption text is canonical, device-scoped, and published as a player-toggleable WebVTT sidecar; captions never obscure or reduce the video frame. Narration
     audio is optional. Raw evidence and edited demonstration
     media remain distinct, and reconstructed terminal segments must match a real
-    sanitized transcript hash and show a reconstruction label.
+    transcript hash and show a reconstruction label.
 
 The active OpenCode agent receives a frame-only review bundle, never the full
-video. Deterministic text privacy scanning runs before selected frames enter agent
-context. Review failures are classified as implementation, test coverage,
-recording, narration, composition, or environment defects and return only to the
-responsible stage. A proof whose response-media upload is still waiting records
-`publication_pending`; completed proof embeds approved media through the private
-48-hour OpenCode response-media bucket.
+video. Proof videos intentionally do not run proof-specific PII/sensitive-data
+detection or replacement before selected frames enter agent context. Review
+failures are classified as implementation, test coverage, recording, narration,
+composition, or environment defects and return only to the responsible stage. A
+proof whose response-media upload is still waiting records `publication_pending`;
+completed proof embeds approved media through the private 48-hour OpenCode
+response-media bucket.
 
 ## Apple Impact And Parity
 

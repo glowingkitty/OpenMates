@@ -56,7 +56,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
     return module
 
 
-def test_proof_video_produce_always_enables_typed_anonymization(
+def test_proof_video_produce_does_not_enable_typed_anonymization(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -64,7 +64,7 @@ def test_proof_video_produce_always_enables_typed_anonymization(
 
     def produce(**kwargs: object) -> dict[str, object]:
         observed.update(kwargs)
-        return {"privacy": {"status": "passed"}}
+        return {"privacy": {"status": "not_applicable", "scan": "disabled"}}
 
     monkeypatch.setitem(sys.modules, "spec_demo", fake_spec_demo(produce=produce))
     monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {"abcd": {}}})
@@ -98,7 +98,7 @@ def test_proof_video_produce_always_enables_typed_anonymization(
     sessions.cmd_proof_video(args)
 
     assert observed["argv"] == ["openmates", "plans", "create"]
-    assert observed["anonymize_sensitive"] is True
+    assert "anonymize_sensitive" not in observed
     assert observed["timeout_seconds"] == 240.0
     assert observed["narration_audio_path"] is None
 

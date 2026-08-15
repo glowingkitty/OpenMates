@@ -198,7 +198,7 @@ def test_reconstruction_requires_visible_label_and_matching_transcript_hash() ->
     reconstructed = module.mark_reconstructed(source, displayed_transcript_hash="sha256:exact")
 
     assert reconstructed["reconstructed"] is True
-    assert reconstructed["visible_label"] == "Reconstructed from exact sanitized terminal transcript"
+    assert reconstructed["visible_label"] == "Reconstructed from exact terminal transcript"
     with pytest.raises(module.DemonstrationError, match="transcript hash"):
         module.mark_reconstructed(source, displayed_transcript_hash="sha256:different")
 
@@ -416,11 +416,7 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
         captions_path=captions,
         expected_proof="The terminal shows team CLI output.",
         acceptance_criteria=["AC-1"],
-        source={
-            "source": "scripts_tests",
-            "run_id": "31883135611",
-            "source_run_id": "31883135611",
-        },
+        source={"kind": "cli", "argv": ["openmates", "teams", "create"]},
         narration_audio=module.narration_audio_not_required(),
         caption_segments=[
             {
@@ -439,38 +435,15 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
 
     assert manifest["captions"][0]["end"] == 15.967
     assert manifest["expected_proof"][0]["evidence_intervals"] == [[0.0, 15.967]]
-    assert manifest["privacy"] == {"status": "passed", "findings": [], "scan": "canonical_text", "scanned_stage": "review"}
+    assert manifest["privacy"] == {
+        "status": "not_applicable",
+        "scan": "disabled",
+        "reason": "proof_video_pii_detection_disabled",
+    }
     request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
     assert request["captions"][0]["end"] == 15.967
     timestamps = {frame["timestamp_seconds"] for frame in request["frames"]}
     assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
-
-
-def test_privacy_scan_source_only_masks_validated_github_run_ids() -> None:
-    module = load_module()
-
-    assert module.privacy_scan_source(
-        {"source": "scripts_tests", "run_id": "31883135611", "source_run_id": "31883135611"}
-    ) == {"source": "scripts_tests", "run_id": "<GITHUB_RUN_ID>", "source_run_id": "<GITHUB_RUN_ID>"}
-    assert module.privacy_scan_source({"source": "scripts_tests", "run_id": "sensitive-value"})["run_id"] == "sensitive-value"
-    assert module.privacy_scan_source({"kind": "cli", "run_id": "31883135611"})["run_id"] == "31883135611"
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        {"source": "scripts_tests", "run_id": "+1 202-555-0123"},
-        {"kind": "cli", "run_id": "31883135611"},
-    ],
-)
-def test_privacy_scan_source_keeps_untrusted_phone_values_blocked(source: dict[str, str]) -> None:
-    module = load_module()
-
-    with pytest.raises(module.DemonstrationError, match="PHONE"):
-        module.require_canonical_text_privacy_scan(
-            {"source": module.privacy_scan_source(source)},
-            stage="test",
-        )
 
 
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -536,66 +509,8 @@ def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
         module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
 
 
-def test_cli_anonymization_uses_visible_typed_placeholders(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = load_module()
-    secret = "synthetic-webhook-value-without-vendor-pattern"
-    monkeypatch.setenv("SYNTHETIC_WEBHOOK_TOKEN", secret)
-    transcript = tmp_path / "transcript.txt"
-    transcript.write_text(f"token={secret}\n", encoding="utf-8")
-    capture = {
-        "argv": ["example", secret],
-        "transcript_hash": module.sha256_file(transcript),
-    }
-
-    anonymized = module.anonymize_cli_capture(tmp_path, capture)
-    rendered = transcript.read_text(encoding="utf-8")
-
-    assert secret not in rendered
-    assert secret[-8:] not in rendered
-    assert "[REDACTED_GENERIC_SECRET_1]" in rendered
-    assert all(secret not in value for value in anonymized["argv"])
-    assert all(secret[-8:] not in value for value in anonymized["argv"])
-    assert anonymized["anonymization"]["applied"] is True
-    assert anonymized["transcript_hash"] == module.sha256_file(transcript)
-
-
-def test_cli_anonymization_failure_removes_raw_capture(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = load_module()
-    monkeypatch.setattr(
-        module,
-        "anonymize_cli_capture",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(module.DemonstrationError("scanner failed")),
-    )
-
-    with pytest.raises(module.DemonstrationError, match="scanner failed"):
-        module.produce_cli_demonstration(
-            run_dir=tmp_path,
-            argv=[sys.executable, "-c", "print('raw sensitive output')"],
-            spec_id="example",
-            subject_commit="abc1234",
-            run_id="run-1",
-            target_environment="local fixture",
-            test_account_provenance="no account used",
-            narration_id="NARR-1",
-            caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
-            expected_proof="Safe output is visible.",
-            acceptance_criteria=["AC-1"],
-            narration_audio_path=tmp_path / "narration.wav",
-            anonymize_sensitive=True,
-        )
-
-    assert not (tmp_path / "transcript.txt").exists()
-    assert not (tmp_path / "events.jsonl").exists()
-
-
 @pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])
-def test_cli_anonymization_never_retains_secret_punctuation_suffixes(
+def test_canonical_redaction_helper_never_retains_secret_punctuation_suffixes(
     suffix: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -610,7 +525,7 @@ def test_cli_anonymization_never_retains_secret_punctuation_suffixes(
     assert "[REDACTED_" in result["text"]
 
 
-def test_cli_anonymization_preserves_benign_placeholder_shaped_output() -> None:
+def test_canonical_redaction_helper_preserves_benign_placeholder_shaped_output() -> None:
     module = load_module()
     text = "Build completed [BUILD_abc] without findings."
 
@@ -949,7 +864,7 @@ def test_cli_production_renders_user_facing_openmates_command(
     assert observed["source"]["display_argv"] == ["openmates", "teams", "list", "--json"]
 
 
-def test_cli_production_anonymizes_sensitive_argv_before_review(
+def test_cli_production_preserves_captured_argv_before_review(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -983,10 +898,8 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
         narration_audio_path=tmp_path / "narration.wav",
-        anonymize_sensitive=True,
     )
 
     assert result["status"] == "review_ready"
-    assert secret not in json.dumps(observed["source"])
-    assert secret[-8:] not in json.dumps(observed["source"])
-    assert "[REDACTED_" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+    assert secret in json.dumps(observed["source"])
+    assert secret in (tmp_path / "transcript.txt").read_text(encoding="utf-8")

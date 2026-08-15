@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build privacy-safe implementation demonstration evidence.
+"""Build implementation demonstration evidence.
 
 This local-only tool captures explicit CLI argv through a pseudo-terminal,
 renders terminal/caption media with FFmpeg, and prepares bounded frame evidence.
@@ -109,6 +109,12 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
+PROOF_PRIVACY_SCAN_DISABLED = {
+    "status": "not_applicable",
+    "scan": "disabled",
+    "reason": "proof_video_pii_detection_disabled",
+}
+PROOF_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
 DEVICE_PROFILES = {
     "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
     "web-phone": {"width": 390, "height": 844, "surface": "web", "label": "phone web"},
@@ -352,7 +358,7 @@ def mark_reconstructed(source: dict[str, Any], *, displayed_transcript_hash: str
     return {
         **source,
         "reconstructed": True,
-        "visible_label": "Reconstructed from exact sanitized terminal transcript",
+        "visible_label": "Reconstructed from exact terminal transcript",
     }
 
 
@@ -732,47 +738,6 @@ def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
         "text": redacted,
         "types": types,
         "count": count,
-    }
-
-
-def require_canonical_text_privacy_scan(values: dict[str, Any], *, stage: str) -> dict[str, Any]:
-    """Fail closed when retained or published proof text contains sensitive values."""
-    result = redact_text_with_canonical_scanner(json.dumps(values, sort_keys=True, default=str))
-    if result["count"]:
-        raise DemonstrationError(
-            f"Canonical proof-video privacy scan blocked {stage}: {result['count']} finding(s) of type {', '.join(result['types'])}"
-        )
-    return {"status": "passed", "findings": [], "scan": "canonical_text", "scanned_stage": stage}
-
-
-def privacy_scan_source(source: dict[str, Any]) -> dict[str, Any]:
-    """Exclude validated GitHub run IDs without trusting arbitrary provenance fields."""
-    if source.get("source") != "scripts_tests":
-        return source
-    sanitized = dict(source)
-    for key in ("run_id", "source_run_id"):
-        value = source.get(key)
-        if isinstance(value, str) and re.fullmatch(r"[1-9]\d{10}", value):
-            sanitized[key] = "<GITHUB_RUN_ID>"
-    return sanitized
-
-
-def anonymize_cli_capture(run_dir: Path, capture: dict[str, Any]) -> dict[str, Any]:
-    """Replace sensitive values with conspicuous typed placeholders before rendering."""
-    transcript_path = run_dir / "transcript.txt"
-    transcript = redact_text_with_canonical_scanner(transcript_path.read_text(encoding="utf-8"))
-    _write_private(transcript_path, transcript["text"])
-    redacted_argv = [redact_text_with_canonical_scanner(str(value))["text"] for value in capture.get("argv", [])]
-    return {
-        **capture,
-        "argv": redacted_argv,
-        "transcript_hash": sha256_file(transcript_path),
-        "anonymization": {
-            "applied": transcript["count"] > 0,
-            "finding_count": transcript["count"],
-            "finding_types": transcript["types"],
-            "placeholder_style": "typed_and_numbered",
-        },
     }
 
 
@@ -1173,18 +1138,7 @@ def prepare_review_artifacts(
     validate_webvtt_matches_segments(captions_path, captions)
     captions_sha256 = sha256_file(captions_path)
     metadata["captions_sha256"] = captions_sha256
-    transcript_path = run_dir / "transcript.txt"
-    privacy = require_canonical_text_privacy_scan(
-        {
-            "captions": captions,
-            "transcript": transcript_path.read_text(encoding="utf-8") if transcript_path.is_file() else caption_text,
-            "source": privacy_scan_source(source),
-            "metadata": metadata,
-            "filenames": [video_path.name, captions_path.name, transcript_path.name],
-            "spec_id": spec_id,
-        },
-        stage="review",
-    )
+    privacy = dict(PROOF_PRIVACY_SCAN_DISABLED)
     frame_dir = run_dir / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     frame_dir.chmod(0o700)
@@ -1311,7 +1265,6 @@ def produce_cli_demonstration(
     narration_audio_model: str = DEFAULT_NARRATION_MODEL,
     narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
     narration_audio_reused_from: str = "",
-    anonymize_sensitive: bool = False,
     timeout_seconds: float = 120.0,
 ) -> dict[str, Any]:
     if timeout_seconds <= 0 or timeout_seconds > 600:
@@ -1328,18 +1281,9 @@ def produce_cli_demonstration(
         raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
     terminal_events: list[dict[str, Any]] = []
     try:
-        if anonymize_sensitive:
-            capture = anonymize_cli_capture(run_dir, capture)
         display_argv = user_facing_cli_argv(list(capture["argv"]))
         for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
-            event = json.loads(line)
-            if event.get("stream") == "output" and anonymize_sensitive:
-                event["text"] = redact_text_with_canonical_scanner(str(event.get("text", "")))["text"]
-            terminal_events.append(event)
-    except Exception:
-        if anonymize_sensitive:
-            (run_dir / "transcript.txt").unlink(missing_ok=True)
-        raise
+            terminal_events.append(json.loads(line))
     finally:
         (run_dir / "events.jsonl").unlink(missing_ok=True)
     timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
@@ -2131,10 +2075,9 @@ def publish_reviewed_video(
     now: datetime,
     uploader: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
-        raise DemonstrationError("OpenCode response-media publication requires passed privacy and demonstration review")
-    if int(manifest.get("schema_version") or 1) >= 2 and manifest.get("privacy", {}).get("scan") != "canonical_text":
-        raise DemonstrationError("OpenCode response-media publication requires a canonical text privacy scan")
+    privacy_status = manifest.get("privacy", {}).get("status")
+    if privacy_status not in PROOF_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
+        raise DemonstrationError("OpenCode response-media publication requires finalized proof privacy state and demonstration review")
     audio_status = manifest.get("narration_audio", {}).get("status")
     if audio_status not in {"passed", "not_required"}:
         raise DemonstrationError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
@@ -2160,14 +2103,6 @@ def publish_reviewed_video(
     alt_text = (
         f"Reviewed implementation demonstration for {manifest.get('spec_id', 'unknown')} "
         f"at {manifest.get('subject_commit', 'unknown')}"
-    )
-    require_canonical_text_privacy_scan(
-        {
-            "publication_text": alt_text,
-            "video_filename": video_path.name,
-            "caption_filename": Path(str((manifest.get("caption_artifact") or {}).get("path") or "")).name,
-        },
-        stage="publication",
     )
     if uploader is None:
         uploader = upload_response_media
@@ -2393,7 +2328,6 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--audio-model", default=DEFAULT_NARRATION_MODEL)
     cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)
     cli_parser.add_argument("--audio-reused-from", default="")
-    cli_parser.add_argument("--anonymize-sensitive", action="store_true")
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
     publish_parser = subparsers.add_parser("publish")
     publish_parser.add_argument("--run-dir", type=Path, required=True)
@@ -2427,7 +2361,6 @@ def main(argv: list[str] | None = None) -> int:
             narration_audio_model=args.audio_model,
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
-            anonymize_sensitive=args.anonymize_sensitive,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
         return 0

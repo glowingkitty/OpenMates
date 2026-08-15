@@ -17,7 +17,7 @@ scope:
     normal tests are green.
   - Reuse real deployed Playwright recordings for browser flows and real pseudo-terminal command/output capture for CLI flows.
   - Permit a Remotion terminal reconstruction only when direct recording is impractical, the displayed input/output exactly
-    matches a sanitized real transcript, and the video labels the segment as reconstructed.
+    matches a real transcript, and the video labels the segment as reconstructed.
   - Generate ElevenLabs narration audio with the fast, low-cost eleven_flash_v2_5 model and render that audio track into
     every final video.
   - Generate canonical timestamped WebVTT captions as a hash-bound sidecar without shrinking or obscuring the video frame.
@@ -41,9 +41,9 @@ scope:
   - Retry failed demonstration review automatically at most three times before recording a structured user-input blocker.
   - Prevent eligible session/spec completion until required proof-video review passes and caption plus optional-audio provenance is recorded;
     only the approved non-visual not-applicable classification may bypass video production.
-  - Post the reviewed video and sanitized implementation summary to Discord when a webhook is configured, and treat confirmed
+  - Post the reviewed video and implementation summary to Discord when a webhook is configured, and treat confirmed
     Discord delivery as a hard completion gate for configured destinations.
-  - Add deterministic workflow audits, fixtures, and privacy checks for the demonstration contract and completion gate.
+  - Add deterministic workflow audits, fixtures, and proof-privacy state checks for the demonstration contract and completion gate.
   out:
   - User-facing OpenMates Plans product persistence, API, playback UI, or status expansion.
   - Marketing videos, release trailers, polished promotional editing, or changes to the external openmates-marketing Remotion
@@ -52,7 +52,7 @@ scope:
   - Requiring videos for Tier 0 work, non-visual work, broad bug fixes without a failed-to-green E2E proof requirement, or
     legacy completed specs that are not materially resumed.
   - Treating reconstructed UI or terminal output as automated verification evidence.
-  - Publishing raw test logs, credentials, user data, private URLs, reasoning traces, or unsanitized terminal history to Discord.
+  - Publishing raw test logs, credentials, user data, private URLs, reasoning traces, or unrelated terminal history to Discord.
 context_discovery:
   github_issues:
   - GitHub MCP authentication returned 401 Bad credentials during discovery.
@@ -146,7 +146,7 @@ demonstration:
     - AC-6
   - id: NARR-2
     purpose: Show that CLI input and output come from a real execution.
-    expected_proof: The terminal segment displays the captured command, exact sanitized output, exit status, and matching
+    expected_proof: The terminal segment displays the captured command, exact output, exit status, and matching
       transcript provenance.
     scenario_ids:
     - S-4
@@ -162,9 +162,8 @@ demonstration:
     - AC-7
     - AC-8
   - id: NARR-4
-    purpose: Show privacy scanning and bounded mismatch repair.
-    expected_proof: Deterministic text privacy scanning passes before review and a seeded mismatch routes to the responsible stage with retry
-      accounting.
+    purpose: Show bounded mismatch repair.
+    expected_proof: A seeded mismatch routes to the responsible stage with retry accounting.
     scenario_ids:
     - S-6
     - S-7
@@ -174,7 +173,7 @@ demonstration:
     - AC-10
   - id: NARR-5
     purpose: Show Discord delivery and disk cleanup behavior.
-    expected_proof: Confirmed Discord delivery removes generated video while retaining sanitized transcript and manifest evidence.
+    expected_proof: Confirmed Discord delivery removes generated video while retaining transcript and manifest evidence.
     scenario_ids:
     - S-8
     acceptance_criteria:
@@ -264,19 +263,19 @@ decisions:
   decided_at: '2026-08-06T01:12:50Z'
 - id: D-10
   status: active
-  decision: Retain sanitized transcripts, captions, manifests, hashes, and review results; delete generated video after confirmed
+  decision: Retain transcripts, captions, manifests, hashes, and review results; delete generated video after confirmed
     Discord delivery or after 24 hours if delivery remains unsuccessful.
   reason: The user wants the transcript retained but does not want video files accumulating on disk.
   decided_at: '2026-08-06T01:12:50Z'
 - id: D-11
-  status: active
+  status: superseded
   decision: Expose CLI proof production, frame review, and dev-smoke publication through sessions.py; preserve exact CLI input and output unless the canonical scanner replaces detected sensitive values with conspicuous typed placeholders.
-  reason: The user requires operationally useful one-to-one CLI recordings while allowing clearly visible anonymization for scanner-detected credentials and personal data before Discord delivery.
+  reason: Superseded by D-18; proof videos no longer run proof-specific PII/sensitive-data detection or replacement.
   decided_at: '2026-08-06T04:20:00Z'
 - id: D-12
-  status: active
+  status: superseded
   decision: Remove OCR and decoded-frame privacy scanning; scan command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical scanner instead.
-  reason: The user determined that the added calculation and latency are disproportionate to the sensitive-data exposure risk for reviewed implementation demonstrations.
+  reason: Superseded by D-18; proof videos no longer run proof-specific PII/sensitive-data detection or replacement.
   decided_at: '2026-08-06T09:20:00Z'
 - id: D-13
   status: active
@@ -303,10 +302,15 @@ decisions:
   decision: Every proof assertion and caption cue declares the exact device profiles where it applies, and each device review receives only its applicable claims and text.
   reason: Applying every assertion to every device incorrectly required laptop recordings to prove phone-only behavior and vice versa.
   decided_at: '2026-08-15T00:00:00Z'
+- id: D-18
+  status: active
+  decision: Do not run proof-video-specific PII or sensitive-data detection, anonymization, replacement, or publication scans; review captured proof media and approved captions as-is.
+  reason: The user confirmed this workflow added latency, token cost, and agent cycles without enough proof-review value.
+  decided_at: '2026-08-15T13:05:00Z'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
-  approach: Define the narration, capture, review, privacy, and publication contract before selecting the concrete media pipeline.
+  approach: Define the narration, capture, review, proof-privacy state, and publication contract before selecting the concrete media pipeline.
   outcome: planned
   recorded_at: '2026-08-06T00:00:00Z'
 - id: ATTEMPT-2
@@ -318,7 +322,7 @@ attempts:
     unsafe cleanup/publication boundaries.
 - id: ATTEMPT-3
   task_id: TASK-5
-  approach: Add deterministic regression coverage and close every pre-deploy privacy, process-boundary, review, cleanup, and
+  approach: Add deterministic regression coverage and close every pre-deploy proof-privacy state, process-boundary, review, cleanup, and
     publication finding.
   outcome: succeeded
   recorded_at: '2026-08-06T02:10:20Z'
@@ -388,8 +392,8 @@ scenarios:
   when:
   - The demonstration pipeline builds the CLI segment.
   then:
-  - It captures the actual pseudo-terminal input, output, timing, and exit status after sanitization.
-  - If direct video capture is impractical, a Remotion reconstruction uses the exact sanitized transcript and is visibly labeled
+  - It captures the actual pseudo-terminal input, output, timing, and exit status without proof-specific anonymization.
+  - If direct video capture is impractical, a Remotion reconstruction uses the exact transcript and is visibly labeled
     as reconstructed.
   - The raw transcript hash and run identifier remain linked to the rendered segment.
 - id: S-5
@@ -502,7 +506,7 @@ acceptance_criteria:
   - V-PLAYWRIGHT-DEMO
 - id: AC-4
   scenario: S-4
-  text: CLI demonstrations visibly type the exact sanitized command, preserve the captured delay and output timing, render only
+  text: CLI demonstrations visibly type the exact captured command, preserve the captured delay and output timing, render only
     command and output at a readable scale, and retain exit status, transcript hash, and run provenance in evidence rather than
     adding them to the visible terminal; reconstructions are labeled and never replace verification evidence.
   required: true
@@ -573,8 +577,8 @@ acceptance_criteria:
   - T-DEMO-REVIEW
 - id: AC-10
   scenario: S-8
-  text: Command, caption, transcript, metadata, filename, and Discord message inputs pass deterministic secret and
-    private-data checks before publication.
+  text: Proof-video privacy state is explicitly recorded as not_applicable because proof-specific secret and private-data checks
+    do not run before review or publication.
   required: true
   status: pending
   coverage_status: covered
@@ -673,8 +677,8 @@ assumptions:
     summary: FFmpeg and ffprobe 6.1.1 are installed with libass, fontconfig, and common MP4/WebM codecs; DejaVu Sans Mono
       is available for terminal rendering.
 - id: A-4
-  text: An explicitly approved multimodal reviewer can inspect only the bounded sanitized frame-and-caption bundle under documented
-    authorization, retention, and no-training requirements without receiving raw private logs or full unredacted recordings.
+  text: An explicitly approved multimodal reviewer can inspect only the bounded frame-and-caption bundle under documented
+    authorization, retention, and no-training requirements without receiving raw private logs or the full recording.
   category: ai_review
   required_before: task_execution
   status: confirmed
@@ -702,7 +706,7 @@ assumptions:
   status: confirmed
   evidence:
   - source: user decisions on 2026-08-06
-    summary: Keep sanitized transcripts, delete video after confirmed Discord delivery, and delete an undelivered video after
+    summary: Keep transcripts, delete video after confirmed Discord delivery, and delete an undelivered video after
       24 hours.
   - source: .gitignore
     summary: test-results is excluded from git and is the established local evidence-artifact root.
@@ -716,7 +720,7 @@ contracts:
   demonstration_manifest:
   - The manifest identifies spec or plan ID, subject commit, eligibility decision, narration bullets, source runs, segments,
     captions, ElevenLabs audio provenance, claim-to-acceptance-criterion mappings, raw and derived artifacts, review attempts,
-    privacy result, and publication status.
+    proof privacy state, and publication status.
   - Each narration bullet has a stable ID, purpose, expected proof, and linked scenario or acceptance criterion.
   - Each final caption segment has start and end timestamps, exact text, target device profiles, visible claims, linked acceptance criteria, and evidence interval references.
   - Each assertion has a non-empty target-device list that is a subset of the proof contract devices.
@@ -728,9 +732,9 @@ contracts:
     transcript hash, artifact hash, and synthetic or approved test-account provenance.
   capture:
   - Browser capture uses the passing deployed Playwright recording for the required subject commit.
-  - CLI capture uses a real pseudo-terminal and records input, output, timing, and exit status before sanitization and rendering.
+  - CLI capture uses a real pseudo-terminal and records input, output, timing, and exit status before rendering.
   - Raw sensitive capture is short-lived and must not be committed, uploaded, or included in model review bundles.
-  - A reconstructed terminal segment must match the sanitized transcript hash and carry a persistent visible reconstruction
+  - A reconstructed terminal segment must match the transcript hash and carry a persistent visible reconstruction
     label.
   - Reconstructed output is demonstration material only and cannot satisfy a test or verification gate.
   captions:
@@ -742,11 +746,11 @@ contracts:
   - Claims cannot exceed what the linked acceptance criteria and visible evidence prove.
   review:
   - The review bundle contains final video metadata, captions, narration bullets, expected proof, acceptance-criterion links,
-    raw run references, and bounded sanitized frames, but never the full video file or bytes.
+    raw run references, and bounded frames, but never the full video file or bytes.
   - Frame selection includes scene boundaries, action boundaries, caption boundaries, before and after state changes, and
     a default three-second periodic interval that may be configured to a shorter interval.
   - The reviewer may request bounded additional individual frames by exact timestamp; the local extractor returns only those
-    sanitized frames and records each request in review evidence.
+    frames and records each request in review evidence.
   - Each device review contains only device-applicable claims and complete device-applicable caption cues.
   - Claim verdicts are supported, contradicted, not_visible, ambiguous, or wrong_time.
   - Defect classes are implementation, test_coverage, recording, narration, composition, or environment.
@@ -756,10 +760,10 @@ contracts:
     a structured user-input blocker.
   - Every failed result and retry records one approved defect class, the responsible return stage, and the affected claim
     IDs.
-  - The reviewer receives only the sanitized bounded review bundle and must use an implementation-approved provider or local
+  - The reviewer receives only the bounded review bundle and must use an implementation-approved provider or local
     model with documented authorization, retention, and training-use policy.
   completion:
-  - spec_verify rejects completion when a required demonstration is missing, stale for the subject commit, privacy-failed,
+  - spec_verify rejects completion when a required demonstration is missing, stale for the subject commit,
     missing hash-bound captions, has invalid requested audio, is not review-passed, or is not delivered when publication is required.
   - A valid not-applicable classification satisfies the demonstration gate only for eligible non-visual work.
   - Visual browser, native, and CLI demonstrations have no general waiver path; only a valid pre-implementation non-visual
@@ -771,26 +775,24 @@ contracts:
     when explicitly configured by repository policy.
   - Prefer direct video attachment within configured limits; otherwise use an approved access-controlled artifact URL rather
     than a public temporary marketing URL.
-  - Message content includes sanitized spec or plan ID, subject commit, covered scenarios, review result, duration, and canonical
+  - Message content includes spec or plan ID, subject commit, covered scenarios, review result, duration, and canonical
     evidence reference.
   - Webhook URLs and response bodies containing identifiers are never stored in spec evidence.
   - Confirm delivery through a wait-for-response webhook request before deleting generated video or ending configured proof-video
     work; a request write without a confirmed Discord message is not delivery evidence.
   - Retry failed delivery for at most 24 hours, then delete the undelivered video and record expired_deleted while retaining
-    sanitized text evidence and hashes.
+    text evidence and hashes.
   privacy_security:
   - Do not intentionally capture or publish login, signup, verification codes, passkeys, credentials, account emails, unrelated
     chats, share URL keys, API keys, webhook URLs, private infrastructure identifiers, or agent reasoning.
-  - Scan command arguments, caption text, transcripts, filenames, container metadata, and Discord text before review and again
-    before publication.
+  - Do not run proof-video-specific PII or sensitive-data detection, anonymization, replacement, or publication scans.
   - Use synthetic or approved test-account data and placeholders in demonstrations.
-  - Keep raw recordings and transcripts out of git; specs store only sanitized metadata, hashes, run IDs, and artifact references.
-  - Never send a raw or final full video to a multimodal provider or place it in agent context; only a sanitized bounded frame-and-caption
+  - Keep raw recordings and transcripts out of git; specs store only metadata, hashes, run IDs, and artifact references.
+  - Never send a raw or final full video to a multimodal provider or place it in agent context; only a bounded frame-and-caption
     review bundle may leave the local evidence store after the reviewer authorization and retention assumptions are confirmed.
-  - Raw and derived artifacts use owner-only gitignored storage. Retain sanitized transcripts and manifests; delete generated
+  - Raw and derived artifacts use owner-only gitignored storage. Retain transcripts and manifests; delete generated
     video after confirmed Discord delivery or after 24 hours of unsuccessful delivery.
-  - A privacy scan failure blocks review and publication and returns to sanitization or capture rather than being silently
-    redacted after upload.
+  - Proof-video privacy status is recorded as not_applicable because this workflow intentionally keeps captured proof evidence as-is.
   no_product_api_change:
   - No REST API or WebSocket endpoint is added or changed.
   - Endpoint access model, auth, rate limits, credit budgets, and encrypted-data boundaries are not applicable to this repo-local
@@ -842,7 +844,7 @@ tests:
   assertions:
   - required demonstration with missing or stale review evidence keeps spec completion false
   - passed review for the current subject commit satisfies the completion gate
-  - privacy failure keeps completion false
+  - unfinished proof privacy state keeps completion false
   - initial review plus three classified retries are allowed and the fourth unresolved result requires a structured user-input
     blocker
   - Discord publication_pending blocks configured completion without invalidating passed implementation or review evidence
@@ -881,14 +883,13 @@ tests:
   - Playwright adapter selects a passing recording whose run and subject commit match the manifest
   - Playwright source record requires command or spec, deployed target, deployment reference, run ID, subject commit, artifact
     hash, and test-account provenance
-  - CLI adapter records exact pseudo-terminal input, output, timing, exit status, and sanitized transcript hash
+  - CLI adapter records exact pseudo-terminal input, output, timing, exit status, and transcript hash
   - CLI source record requires command, target environment, run ID, exit status, transcript and artifact hashes, and test-account
     provenance
-  - reconstructed terminal fixture is visibly and structurally labeled and matches the sanitized transcript
+  - reconstructed terminal fixture is visibly and structurally labeled and matches the transcript
   - caption renderer preserves exact text and timing in the output media
   - raw and derived artifacts remain distinct and hash-addressed
-  - secret and private-data fixtures fail before review or publication
-  - deterministic scans reject sensitive command, transcript, caption, metadata, filename, and publication text
+  - proof-video privacy status is recorded as not_applicable without running proof-specific detection or replacement
   red_phase:
     required: true
     expected: fail
@@ -909,8 +910,8 @@ tests:
       run_id: local-2026-08-06-demo-pipeline-green
       subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
       timestamp: '2026-08-06T01:38:24Z'
-      summary: Eight PTY, Playwright provenance, FFmpeg, reconstruction, frame privacy, and artifact fixtures passed within
-        a 38-test focused regression run; secret-scanner typecheck also passed.
+      summary: Eight PTY, Playwright provenance, FFmpeg, reconstruction, proof-privacy state, and artifact fixtures passed within
+        a 38-test focused regression run.
 - id: T-DEMO-REVIEW
   type: pytest
   file: scripts/tests/test_spec_demonstration_review.py
@@ -959,14 +960,14 @@ tests:
   - AC-11
   - AC-12
   assertions:
-  - configured webhook receives multipart video attachment and sanitized metadata
+  - configured webhook receives multipart video attachment and metadata
   - oversized video uses only an approved access-controlled artifact reference
   - missing webhook records not_configured without exposing environment values
   - network or webhook failure records publication_pending and retry metadata
-  - no webhook URL, private response body, or unsanitized identifier enters spec evidence
-  - confirmed delivery deletes generated video and frames but retains sanitized transcript, captions, manifest, hashes, and
+  - no webhook URL, private response body, or private identifier enters spec evidence
+  - confirmed delivery deletes generated video and frames but retains transcript, captions, manifest, hashes, and
     delivery identifiers
-  - unsuccessful delivery retries for 24 hours and then deletes video with expired_deleted status while retaining the sanitized
+  - unsuccessful delivery retries for 24 hours and then deletes video with expired_deleted status while retaining the
     failure record
   red_phase:
     required: true
@@ -1159,8 +1160,9 @@ verifications:
     run_id: plans-create-tutorial-final
     subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
     timestamp: '2026-08-06T10:07:38Z'
-    reason: Canonical text scanning found no sensitive content in the reviewed tutorial demonstration.
-    findings: []
+    reason: The manifest records proof privacy as not_applicable because proof-video-specific detection and replacement are disabled.
+    privacy_status: not_applicable
+    scan: disabled
     status: passed
 - id: V-DISCORD-DELIVERY
   kind: manual_check
@@ -1175,7 +1177,7 @@ verifications:
     subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
     timestamp: '2026-08-06T10:07:38Z'
     publication_status: delivered
-    summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while sanitized text evidence was retained.
+    summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while text evidence was retained.
 - id: V-CAPTION-PLAYER-SMOKE
   kind: artifact_review
   phase: final
@@ -1204,19 +1206,17 @@ implementation_plan:
     attachments.
   - frontend/apps/web_app/playwright.config.ts records every deployed Playwright run by default.
   - scripts/audit_opencode_spec_workflow.py audits OpenCode Plan Mode, canonical skills, generated mirrors, and workflow instructions.
-  - frontend/packages/secret-scanner provides the canonical vendor-secret and general-PII pattern registry for scanning extracted
-    text.
+  - frontend/packages/secret-scanner remains product tooling and is not part of proof-video capture, render, review, or publication.
   - test-results is gitignored and existing Playwright recording bundles already use run IDs, commit SHAs, videos, screenshots,
     and manifest metadata.
   - The external create-video skill separates polished marketing production from product verification recordings.
   architecture: 'Keep scripts/spec_demo.py as the repository-local orchestration CLI around a versioned JSON manifest in test-results/spec-demos/<spec>/<run-id>/.
     Use ffmpeg/ffprobe subprocesses for media metadata, full-frame retiming, terminal rendering, compression, and clean frame extraction;
     generate canonical WebVTT as a separate hash-bound artifact; filter approved assertions and cues by exact device profile;
-    use a Python stdlib PTY recorder for exact argv/output/timing/exit events; invoke the canonical TypeScript secret scanner
-    for command arguments and all retained or published text before creating the bounded frame bundle read by the active OpenCode
-    agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
+    use a Python stdlib PTY recorder for exact argv/output/timing/exit events; record proof-video privacy as not_applicable without
+    scanning or replacing captured proof text before creating the bounded frame bundle read by the active OpenCode agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
     a small shared webhook helper extracted from run_tests.py. Raw test artifacts remain immutable, generated videos are deleted
-    after confirmed delivery or 24 hours, and sanitized text evidence remains.
+    after confirmed delivery or 24 hours, and text evidence remains.
 
     '
   boundaries:
@@ -1225,46 +1225,44 @@ implementation_plan:
   - No external marketing Remotion workspace or E2B Remotion renderer is used for engineering evidence.
   - No shell interpolation is used for CLI capture; the PTY recorder launches an explicit argv list and records combined terminal
     events.
-  - No implementation video is committed to git; only the YAML ledger stores sanitized hashes, run IDs, statuses, and references.
+  - No implementation video is committed to git; only the YAML ledger stores hashes, run IDs, statuses, and references.
   data_flow:
   - A spec records `NARR-1` with purpose `Show persisted completion`, expected proof `checked item after reload`, and link
     `AC-5`; exact caption text remains empty during implementation.
   - Existing tests pass for subject commit `abc1234`; the browser adapter resolves run `30999`, target `app.dev.openmates.org`,
     deployment `abc1234`, and the matching WebM hash without copying or modifying the source bundle.
   - For CLI evidence, the PTY adapter runs argv such as `[openmates, plans, show, demo-plan, --json]`, records timestamped
-    input/output events and exit code 0, strips ANSI control sequences for the sanitized transcript, and hashes both event
+    input/output events and exit code 0, strips ANSI control sequences for the transcript, and hashes both event
     and transcript artifacts.
   - The post-green caption step writes an exact WebVTT cue such as `After reload, the first item remains complete.` from 12.4
     to 17.1 seconds and links it to `NARR-1`, `AC-5`, the matching evidence interval, and applicable device profiles.
   - FFmpeg retimes the browser video without scale, crop, overlay, border, or padding filters; terminal state events remain content on a fixed DejaVu Sans Mono canvas. ffprobe records duration, dimensions, codecs, and final SHA-256.
-  - The privacy pass scans command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical
-    secret scanner before review and publication.
+  - The proof-video privacy state is recorded as not_applicable without scanning or replacing captured proof text.
   - The review-bundle builder extracts default three-second frames plus scene, action, caption-boundary, and before-after
     frames. The active agent reads only those images and may request a bounded exact timestamp such as 14.8 seconds.
   - The agent records supported, contradicted, not_visible, ambiguous, or wrong_time for each claim and one defect class for
     each failure. One initial review plus three classified repair retries are allowed.
-  - spec_verify accepts completion only after the current-commit privacy and review records pass, or after a valid pre-implementation
+  - spec_verify accepts completion only after the current-commit privacy state and review records are finalized, or after a valid pre-implementation
     non-visual not-applicable classification.
   - Discord publication uses `wait=true`, records the returned message and attachment identifiers without the webhook URL,
     then deletes generated MP4/WebM files after confirmed delivery. Failed delivery retries for 24 hours, then deletes video
-    while retaining sanitized transcripts, captions, manifest, hashes, review result, and publication failure.
+    while retaining transcripts, captions, manifest, hashes, review result, and publication failure.
   artifact_contract:
   - Root: test-results/spec-demos/<spec-or-plan-slug>/<run-id>/ with owner-only directory and file permissions.
   - manifest.json is versioned and stores eligibility, subject commit, source evidence, narration outline, caption segments,
-    artifact hashes, privacy counts, frame index, review attempts, publication state, and deletion timestamps.
-  - transcript.txt, captions.vtt, review.json, and publication.json are sanitized retained text artifacts;
-    unsanitized PTY events exist only in a private temporary directory until sanitization succeeds.
+    artifact hashes, privacy state, frame index, review attempts, publication state, and deletion timestamps.
+  - transcript.txt, captions.vtt, review.json, and publication.json are retained text artifacts;
+    raw PTY event logs stay private and are deleted after the transcript is written.
   - demo.mp4 or demo.webm and extracted frame files are disposable; frames are deleted after review and video is deleted after
     confirmed Discord delivery or the 24-hour undelivered limit.
   - Browser source recordings remain governed by the existing Playwright artifact and test-recording retention rather than
     being duplicated into the spec-demo directory.
   privacy_security_impact:
-  - Canonical text scanning is local and fail-closed; a scanner error or finding blocks review and publication.
-  - The canonical secret-scanner patterns are reused through a small Node bridge; findings expose type and location only,
-    never matched values.
-  - Environment values, webhook URLs, raw Discord response bodies, login/setup flows, and unsanitized terminal events never
+  - Proof-video-specific PII and sensitive-data scanning is disabled; manifests record privacy status as not_applicable.
+  - The canonical secret-scanner patterns remain product tooling and are not called by proof-video capture, review, or publication.
+  - Environment values, webhook URLs, raw Discord response bodies, login/setup flows, and unrelated terminal events never
     enter retained manifests or agent context.
-  - The active OpenCode session sees sanitized captions and selected image frames only; it never receives the complete video.
+  - The active OpenCode session sees approved captions and selected image frames only; it never receives the complete video.
   - Cleanup is idempotent and hash-aware so it cannot delete the original Playwright artifact or files outside the manifest-owned
     run directory.
   migration_rollout:
@@ -1275,13 +1273,13 @@ implementation_plan:
   - Roll out in fixture mode first, then one synthetic CLI proof, then one real deployed Playwright proof, and only then enable
     completion enforcement by default.
   observability:
-  - Every spec_demo command prints one redacted JSON result with manifest path, stage, status, run ID, subject commit, and
+  - Every spec_demo command prints one structured JSON result with manifest path, stage, status, run ID, subject commit, and
     next action.
   - Manifest attempts record stage duration, source and output hashes, frame counts, retry count, defect class,
     and deletion timestamps without text bodies or private values.
   - Publication records `not_configured`, `pending`, `delivered`, `publication_pending`, or `expired_deleted`; only delivered
-    includes sanitized Discord message and attachment IDs.
-  - The doctor command reports missing ffmpeg, ffprobe, font, Node secret-scanner build, and webhook configuration
+    includes Discord message and attachment IDs.
+  - The doctor command reports missing ffmpeg, ffprobe, font, and webhook configuration
     without printing paths containing credentials or secret values.
   affected_files:
   - path: docs/contributing/guides/spec-driven-development.md
@@ -1311,29 +1309,25 @@ implementation_plan:
   - path: scripts/spec_validate.py
     reason: Validate the demonstration contract, eligibility, narration bullets, manifests, and references.
   - path: scripts/spec_verify.py
-    reason: Enforce current-commit privacy, audio, review, and configured Discord delivery evidence.
+    reason: Enforce current-commit proof privacy state, audio, review, and configured Discord delivery evidence.
   - path: scripts/spec_evidence.py
     reason: Record structured demonstration and publication evidence without hand-editing YAML.
   - path: scripts/spec_demo.py
-    reason: Provide the focused capture, caption, render, review-bundle, privacy, retry, and publication orchestration entry
+    reason: Provide the focused capture, caption, render, review-bundle, proof-privacy state, retry, and publication orchestration entry
       point.
   - path: scripts/discord_webhook.py
     reason: Extract the existing multipart webhook request logic into a small reusable helper with wait-for-confirmation support
-      and redacted results.
-  - path: frontend/packages/secret-scanner/src/cli.ts
-    reason: Add a value-redacting JSON stdin/stdout bridge so repository scripts reuse canonical secret and PII patterns.
-  - path: frontend/packages/secret-scanner/package.json
-    reason: Expose the scanner bridge through a deterministic package script used by spec_demo privacy checks.
+      and structured results.
   - path: scripts/audit_opencode_spec_workflow.py
     reason: Deterministically audit demonstration workflow wiring and mirrored skills.
   - path: scripts/tests/test_spec_demonstration_workflow.py
     reason: Test eligibility, schema, verifier completion, retries, audio, and configured Discord delivery.
   - path: scripts/tests/test_spec_demonstration_pipeline.py
-    reason: Test exact Playwright and pseudo-terminal provenance, captions, reconstruction labels, hashes, and privacy failures.
+    reason: Test exact Playwright and pseudo-terminal provenance, captions, reconstruction labels, hashes, and proof-privacy state.
   - path: scripts/tests/test_spec_demonstration_review.py
     reason: Test frame selection, claim verdicts, mismatch classification, and evidence invalidation routing.
   - path: scripts/tests/test_spec_demonstration_discord.py
-    reason: Test sanitized attachment/link publication, delivered gating, and retryable failures.
+    reason: Test attachment/link publication, delivered gating, and retryable failures.
   - path: scripts/tests/test_opencode_spec_workflow_audit.py
     reason: Test workflow instructions, Plan Mode prompt, completion gates, and skill parity.
   verification_strategy:
@@ -1343,9 +1337,9 @@ implementation_plan:
   - Run python3 scripts/audit_opencode_spec_workflow.py and the focused demonstration workflow tests.
   - Produce and review one real deployed Playwright demonstration and one real pseudo-terminal demonstration using synthetic
     data.
-  - Run a privacy-negative fixture and confirm review and Discord publication remain blocked.
-  - Exercise one sanitized Discord delivery when configured; keep completion blocked with publication_pending until delivered.
-  - Verify delivered cleanup removes only generated video and frames while retaining sanitized transcripts and manifests;
+  - Run a fixture confirming proof-video privacy status is not_applicable without proof-specific detection or replacement.
+  - Exercise one Discord delivery when configured; keep completion blocked with publication_pending until delivered.
+  - Verify delivered cleanup removes only generated video and frames while retaining transcripts and manifests;
     verify failed delivery deletes video at the 24-hour boundary.
   - Run python3 scripts/spec_verify.py docs/specs/narrated-spec-demonstration-videos/spec.yml only after all required evidence
     is recorded.
@@ -1354,10 +1348,10 @@ implementation_plan:
   - Add red schema, verifier, pipeline, review, Discord, and workflow-audit tests.
   - Implement manifest validation and completion enforcement.
   - Implement real Playwright and pseudo-terminal capture plus caption rendering.
-  - Implement privacy scanning, review bundles, classification, and bounded retries.
+  - Implement review bundles, classification, bounded retries, and not_applicable proof privacy state.
   - Implement Discord publication and retry state independently of completion.
   - Synchronize agent skill mirrors and run deterministic audits.
-  - Run real Playwright and CLI demonstration artifact reviews, deterministic text privacy review, and optional configured Discord
+  - Run real Playwright and CLI demonstration artifact reviews and optional configured Discord
     delivery.
   - No product REST/API, SDK, web UI, user-confirmation, or Apple phase is required for this repo-local first slice.
   required_assumption_checks:
@@ -1375,14 +1369,14 @@ implementation_plan:
   - AC-4 maps to T-DEMO-PIPELINE and V-CLI-DEMO.
   - AC-5 and AC-6 map to T-DEMO-PIPELINE plus both real artifact reviews.
   - AC-7, AC-8, and AC-9 map to T-DEMO-REVIEW, T-DEMO-VERIFY, V-PLAYWRIGHT-DEMO, and V-CLI-DEMO.
-  - AC-10 maps to T-DEMO-PIPELINE and V-PRIVACY-REVIEW.
+  - AC-10 maps to T-DEMO-PIPELINE and V-PRIVACY-REVIEW as a not_applicable proof-privacy state check.
   - AC-11 and AC-12 map to T-DEMO-DISCORD, T-DEMO-VERIFY, and required live V-DISCORD-DELIVERY evidence when configured.
   - AC-13 maps to T-OPENCODE-WORKFLOW and agent parity sync evidence.
   approval_boundary:
   - Product-contract approval is already recorded.
   - The user explicitly approved frame-only review, ElevenLabs audio, retained transcripts, deletion after confirmed Discord
     delivery, and deletion after 24 hours of failed delivery.
-  - FFmpeg, stdlib PTY capture, and reuse of existing Discord and secret-scanner patterns are minimal implementation
+  - FFmpeg, stdlib PTY capture, and reuse of existing Discord patterns are minimal implementation
     choices and introduce no additional material approval gate.
   open_questions:
   - After this workflow is implemented and tested, discuss user-facing OpenMates Plans persistence, playback, and status integration.
@@ -1497,7 +1491,7 @@ tasks:
     - scripts/spec_verify.py
   independently_deployable: false
 - id: TASK-4
-  title: Add red PTY media and privacy pipeline fixtures
+  title: Add red PTY media and proof privacy state fixtures
   status: done
   phase: working_tasks
   covers:
@@ -1520,14 +1514,14 @@ tasks:
   - TASK-3
   blockers: []
   follow_up_tasks:
-  - TASK-5 implements the capture, render, and privacy contracts exposed by these expected failures.
+  - TASK-5 implements the capture, render, and review contracts exposed by these expected failures.
   ownership:
     files:
     - scripts/tests/test_spec_demonstration_pipeline.py
     shared_files: []
   independently_deployable: false
 - id: TASK-5
-  title: Implement PTY capture FFmpeg rendering and deterministic text privacy scan
+  title: Implement PTY capture FFmpeg rendering and bounded frame review
   status: done
   phase: working_tasks
   covers:
@@ -1544,8 +1538,6 @@ tasks:
     - AC-10
   expected_files:
   - scripts/spec_demo.py
-  - frontend/packages/secret-scanner/src/cli.ts
-  - frontend/packages/secret-scanner/package.json
   - scripts/tests/test_spec_demonstration_pipeline.py
   verification_ids:
   - T-DEMO-PIPELINE
@@ -1556,12 +1548,9 @@ tasks:
   ownership:
     files:
     - scripts/spec_demo.py
-    - frontend/packages/secret-scanner/src/cli.ts
-    - frontend/packages/secret-scanner/package.json
     - scripts/tests/test_spec_demonstration_pipeline.py
     shared_files:
     - scripts/spec_demo.py
-    - frontend/packages/secret-scanner/package.json
   independently_deployable: false
 - id: TASK-6
   title: Add red frame-only review and retry fixtures
@@ -1995,8 +1984,8 @@ tasks:
 risks:
 - Video rendering and multimodal review can add material completion latency and compute cost; bounded retries and eligibility
   rules limit the impact.
-- Recordings can expose credentials or private account content that text-only test evidence does not; canonical scanning must replace detected values with conspicuous typed placeholders before review and publication while preserving all unaffected CLI input and output exactly.
-- Visual-only sensitive content in browser recordings can evade deterministic text scanning because decoded-frame OCR was removed by explicit user decision to reduce calculation and latency; use controlled dev accounts and avoid sensitive screens during capture.
+- Recordings can expose credentials or private account content that text-only test evidence does not; proof-video-specific detection is disabled, so use controlled dev accounts and avoid sensitive screens during capture.
+- Visual-only sensitive content in browser recordings is not scanned because decoded-frame OCR and proof-video text scanning were removed by explicit user decision to reduce calculation and latency.
 - Fixed-interval frames can miss brief errors or state changes; action, scene, and caption-boundary sampling plus bounded
   exact-timestamp follow-up requests are required in addition to periodic frames.
 - An AI reviewer may misclassify a video-production defect as an implementation defect; structured categories and evidence-invalidation

@@ -63,7 +63,7 @@ VALID_DEMONSTRATION_ELIGIBILITY = {"required", "not_applicable"}
 VALID_DEMONSTRATION_SURFACES = {"visual", "cli", "native", "mixed", "non_visual"}
 VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked", "waived"}
 VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked", "waived"}
-VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked", "waived"}
+VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked", "waived", "not_applicable"}
 VALID_DEMONSTRATION_AUDIO_STATUSES = {"pending", "passed", "not_required", "failed", "blocked"}
 VALID_DEMONSTRATION_PUBLICATION_STATUSES = {
     "pending",

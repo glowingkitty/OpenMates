@@ -220,6 +220,7 @@ PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
 )
 PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
 PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
+PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
 PROOF_VIDEO_DEVICE_PROFILES = {
     "cli-terminal": (1280, 720),
     "web-phone": (390, 844),
@@ -7363,10 +7364,9 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     """Upload reviewed proof media for final OpenCode response embedding."""
     from spec_demo import require_review_receipt_integrity
 
-    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
-        raise RuntimeError("OpenCode response-media publication requires passed privacy and frame review")
-    if int(manifest.get("schema_version") or 1) >= 2 and manifest.get("privacy", {}).get("scan") != "canonical_text":
-        raise RuntimeError("OpenCode response-media publication requires a canonical text privacy scan")
+    privacy_status = manifest.get("privacy", {}).get("status")
+    if privacy_status not in PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
+        raise RuntimeError("OpenCode response-media publication requires finalized proof privacy state and frame review")
     try:
         require_review_receipt_integrity(run_dir, manifest)
     except Exception as exc:
@@ -7504,7 +7504,6 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             narration_audio_model=args.audio_model,
             narration_audio_voice=args.audio_voice,
             narration_audio_reused_from=args.audio_reused_from,
-            anonymize_sensitive=True,
             timeout_seconds=getattr(args, "timeout_seconds", 120.0),
         )
         record = _upsert_proof_video_record(session, run_dir, result)
@@ -9187,8 +9186,8 @@ def _proof_video_manifest_problems(
     run_dir: Path | None = None,
 ) -> list[str]:
     problems: list[str] = []
-    if manifest.get("privacy", {}).get("status") != "passed":
-        problems.append("privacy review has not passed")
+    if manifest.get("privacy", {}).get("status") not in PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES:
+        problems.append("proof privacy state is not finalized")
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     if review.get("status") != "passed":
         problems.append("frame review has not passed")

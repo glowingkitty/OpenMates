@@ -43,7 +43,7 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     audio = run_dir / "narration-audio.mp3"
     frame = frames / "frame-001.png"
     video.write_bytes(b"synthetic-video")
-    transcript.write_text("sanitized transcript", encoding="utf-8")
+    transcript.write_text("captured transcript", encoding="utf-8")
     caption.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nSanitized captions.\n", encoding="utf-8")
     audio.write_bytes(b"synthetic-audio")
     frame.write_bytes(b"synthetic-frame")
@@ -93,7 +93,7 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
             {"path": str(video), "kind": "derived_video", "sha256": f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"},
             {"path": str(frame), "kind": "review_frame", "sha256": f"sha256:{hashlib.sha256(frame.read_bytes()).hexdigest()}"},
         ],
-        "privacy": {"status": "passed", "scan": "canonical_text"},
+        "privacy": {"status": "not_applicable", "scan": "disabled"},
         "review": {"status": "passed", "frame_index_hash": frame_index_hash, "receipt_sha256": receipt_sha256},
         "publication": {"status": "pending"},
     }
@@ -189,10 +189,10 @@ def test_publication_rejects_legacy_pass_without_bound_receipt(tmp_path: Path) -
         raise AssertionError("legacy free-form review unexpectedly reached publication")
 
 
-def test_publication_rejects_unscanned_schema_v2_manifest(tmp_path: Path) -> None:
+def test_publication_rejects_unfinished_privacy_state(tmp_path: Path) -> None:
     module = load_module("spec_demo")
     run_dir, manifest = demo_run(tmp_path)
-    manifest["privacy"] = {"status": "passed", "scan": "not_run"}
+    manifest["privacy"] = {"status": "pending", "scan": "disabled"}
 
     try:
         module.publish_reviewed_video(
@@ -202,9 +202,9 @@ def test_publication_rejects_unscanned_schema_v2_manifest(tmp_path: Path) -> Non
             uploader=lambda **_kwargs: response_media_result(),
         )
     except module.DemonstrationError as exc:
-        assert "canonical text privacy scan" in str(exc)
+        assert "finalized proof privacy state" in str(exc)
     else:
-        raise AssertionError("unscanned schema-v2 proof unexpectedly reached publication")
+        raise AssertionError("unfinished proof privacy state unexpectedly reached publication")
 
 
 def test_publication_rejects_video_changed_after_review(tmp_path: Path) -> None:

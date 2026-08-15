@@ -111,13 +111,18 @@ def passed_evidence(**overrides: object) -> str:
 """.format(**values)
 
 
-def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") -> tuple[Path, str]:
+def write_passed_manifest(
+    tmp_path: Path,
+    *,
+    subject_commit: str = "abc1234",
+    privacy_status: str = "passed",
+) -> tuple[Path, str]:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(
         json.dumps(
             {
                 "subject_commit": subject_commit,
-                "privacy": {"status": "passed"},
+                "privacy": {"status": privacy_status},
                 "narration_audio": {"status": "passed", "provider": "elevenlabs", "model": "eleven_flash_v2_5"},
                 "video_metadata": {"has_audio": True},
                 "review": {"status": "passed", "run_id": "review-1", "attempt_count": 1},
@@ -332,6 +337,26 @@ def test_verifier_normalizes_decorated_commits_but_requires_exact_match(tmp_path
             required_demonstration(
                 evidence=passed_evidence(
                     subject_commit="working-tree@abc1234",
+                    manifest_path=manifest_path,
+                    manifest_hash=manifest_hash,
+                )
+            ),
+        ),
+    )
+
+    assert spec_verify.verify_spec(path, require_red=False, require_green=True) == []
+
+
+def test_verifier_accepts_disabled_proof_privacy_scan(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    manifest_path, manifest_hash = write_passed_manifest(tmp_path, privacy_status="not_applicable")
+    path = write_spec(
+        tmp_path,
+        with_demonstration(
+            schema_v2_spec(),
+            required_demonstration(
+                evidence=passed_evidence(
+                    privacy_status="not_applicable",
                     manifest_path=manifest_path,
                     manifest_hash=manifest_hash,
                 )

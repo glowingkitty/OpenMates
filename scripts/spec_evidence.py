@@ -23,6 +23,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+ACCEPTED_PROOF_PRIVACY_STATUSES = {"passed", "not_applicable"}
 
 
 def utc_now() -> str:
@@ -110,12 +111,12 @@ def record_demonstration(data: dict[str, Any], payload: dict[str, str], args: ar
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
     if payload["status"] == "passed" and (
-        privacy.get("status") != "passed"
+        privacy.get("status") not in ACCEPTED_PROOF_PRIVACY_STATUSES
         or audio.get("status") not in {"passed", "not_required"}
         or review.get("status") != "passed"
         or publication.get("status") != "delivered"
     ):
-        raise RuntimeError("Passing demonstration evidence requires privacy, audio intent, review, and OpenCode response-media publication states")
+        raise RuntimeError("Passing demonstration evidence requires finalized privacy, audio intent, review, and OpenCode response-media publication states")
     manifest_commit = manifest.get("subject_commit")
     if manifest_commit != payload["subject_commit"]:
         raise RuntimeError("Demonstration manifest subject commit does not match recorded evidence")

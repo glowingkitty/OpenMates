@@ -33,6 +33,7 @@ RED_EVIDENCE_STATUSES = {
 }
 FINAL_ACCEPTED_STATUSES = {"passed", "passed_after_deploy", "user_confirmed", "waived", "blocked"}
 EVIDENCE_REASON_STATUSES = {"missing_test", "skipped_with_reason", "waived", "blocked"}
+ACCEPTED_PROOF_PRIVACY_STATUSES = {"passed", "not_applicable"}
 UI_VISUAL_SMOKE_IDS = {"V-UI-VISUAL-SMOKE", "V-FIRECRAWL-VISUAL-SMOKE"}
 UI_VISUAL_SMOKE_REQUIRED_VIEWPORTS = {"laptop", "mobile"}
 VISUAL_SMOKE_REVIEW_RE = re.compile(r"\bscreenshot\w*\b.*\breview\w*\b|\breview\w*\b.*\bscreenshot\w*\b", re.IGNORECASE | re.DOTALL)
@@ -209,8 +210,8 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
 
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
-    if evidence.get("privacy_status") != "passed":
-        failures.append("demonstration: privacy review has not passed")
+    if evidence.get("privacy_status") not in ACCEPTED_PROOF_PRIVACY_STATUSES:
+        failures.append("demonstration: proof privacy state is not finalized")
     if evidence.get("audio_status") not in {"passed", "not_required"}:
         failures.append("demonstration: narration audio is neither passed nor intentionally disabled")
     if evidence.get("review_status") != "passed":
