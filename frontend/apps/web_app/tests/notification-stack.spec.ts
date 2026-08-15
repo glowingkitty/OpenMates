@@ -14,6 +14,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
 const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
+const PROOF_VISIBLE_STATE_MS = 2000;
 
 // contract-test: direct surface=gui.web assertions=notifications.web.stacked-deck
 test('global notifications stack behind the front card and promote on dismiss', async ({ page }) => {
@@ -105,9 +106,12 @@ test('global notifications stack behind the front card and promote on dismiss', 
 	expect(stackMetrics[2].scale).toBeCloseTo(0.91, 2);
 	expect(stackMetrics[2].top).toBeLessThan(stackMetrics[1].top);
 
+	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
+
 	await items.nth(0).getByTestId('notification-dismiss').click();
 	await expect(items).toHaveCount(2, { timeout: 2000 });
 	await expect(items.nth(0)).toContainText('Second stacked notification');
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
 	await expect(items.nth(1)).toContainText('Third stacked notification');
+	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
 });
