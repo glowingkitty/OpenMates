@@ -447,7 +447,7 @@
 
     .landing-actionable-message-stage {
       position: relative;
-      width: min(calc(100% + 20px), 320px);
+      width: min(calc(100% + 20px), 360px);
       left: auto;
       justify-self: center;
       margin-inline: auto;
