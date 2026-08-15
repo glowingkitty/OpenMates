@@ -47,7 +47,6 @@ export { default as WorkflowTemplateShare } from "./src/components/workflows/Wor
 export { default as TaskDetailPage } from "./src/components/tasks/TaskDetailPage.svelte";
 export { default as PlanDetailPage } from "./src/components/plans/PlanDetailPage.svelte";
 export { default as PlansWorkspacePage } from "./src/components/plans/PlansWorkspacePage.svelte";
-export { default as TeamsWorkspacePage } from "./src/components/teams/TeamsWorkspacePage.svelte";
 export * from "./src/components/workspace/detailMetadataAdapters";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";

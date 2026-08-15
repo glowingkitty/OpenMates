@@ -206,7 +206,7 @@ contracts:
     version: 1
     status: approved
     path: features/teams
-    fingerprint: 22150109d37379b076cd0ba56b3de68f88eb0f7e4d72fc154290f69a44fc480a
+    fingerprint: 104c804adcc36433bd3e6789132535dd74172c0fd7ac009b57aef6c4557a10f6
     required_surfaces:
     - rest_api
     - cli
@@ -1930,7 +1930,7 @@ assertions:
     contract: feature.teams@1
     contract_id: feature.teams
     type: parity
-    fingerprint: 6e558045d191ffb4a816adb0ac47e1a30471e7e5f3cb2c7fe611a0c15ccbb5e1
+    fingerprint: 59e7716c15444364b9f3be94388ba9c21c4f07c2be428ef0526bfe9c1217dfe8
     required_surfaces:
     - rest_api
     - cli

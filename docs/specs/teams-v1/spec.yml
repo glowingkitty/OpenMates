@@ -16,6 +16,12 @@ scope:
   - Invite notification emails with one-time invite links that open the web accept flow and are also consumable from CLI/SDK.
   - Multi-team membership for one user.
   - Active context switching between personal and one selected team.
+  - Web Teams management lives only under Settings, with a Settings root Teams item and one sub-settings entry per joined
+    team.
+  - >-
+    Web active team switching lives in the user profile menu: the selected team's small avatar overlays the bottom-right of
+    the user profile image, and opening the menu moves the team avatar below the user profile image while showing joined
+    teams for switching.
   - Context-scoped list/read/create behavior for chats, tasks, projects, plans, workflows, and memories.
   - Team-wide visibility in V1: every team member/viewer can see all team chats, tasks, projects, plans, workflows, and team
       memories.
@@ -39,6 +45,7 @@ scope:
     removal.
   - Web app and Apple app parity after CLI and SDK gates are green.
   out:
+  - A top-level Teams workspace, `/teams` route, workspace navigation Teams item, or Teams-as-workspace surface.
   - Private team chats, project ACLs, item-specific permissions, or participant lists.
   - Per-member credit limits or user groups.
   - SSO, SAML, domain-restricted teams, public team discovery, or public community teams.
@@ -246,6 +253,12 @@ decisions:
   reason: V1 revokes future server sync/access and clears managed local caches, but does not promise cryptographic erasure
     of already-synced data.
   decided_at: '2026-07-18'
+- id: D-14
+  status: active
+  decision: Web Teams management is settings-only, not a workspace.
+  reason: User clarified Teams were always intended as account/team settings. Context switching belongs in the user profile
+    menu with selected team avatar overlay semantics, while all team-specific management belongs under Settings > Teams.
+  decided_at: '2026-08-14'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
@@ -516,6 +529,25 @@ scenarios:
     personal context.
   - Imported encrypted rows use the destination team's team-key/wrapper path or are rejected before persistence if they cannot
     be safely rewrapped.
+- id: S-15
+  title: Web manages Teams only from Settings and switches context from the profile menu
+  given:
+  - Alice is signed in on the web app and belongs to one or more teams.
+  - Alice may have a personal profile image and one active team context.
+  when:
+  - Alice opens Settings.
+  - Alice opens the Teams settings root item and a team-specific sub-settings entry.
+  - Alice opens the user profile menu and switches between Personal and a joined team.
+  then:
+  - There is no top-level `/teams` workspace route and no Teams workspace navigation item.
+  - Settings has a Teams root item, and each joined team appears as a sub-settings entry under it.
+  - Team creation, team details, invite/member controls, billing, profile image, and privacy/data-boundary settings are shown
+    under Settings > Teams, not in workspace content.
+  - When a team context is active and the profile menu is closed, the team profile image appears as a smaller circle over
+    the bottom-right of the user's profile image.
+  - When the profile menu opens, the team circle moves below the user profile image and the menu shows Personal plus joined
+    teams for switching context.
+  - Switching context updates the active context without exposing personal memories or connected accounts in team context.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -689,6 +721,17 @@ acceptance_criteria:
   - T-CLI-TEAM-DATA-PORTABILITY-DEV
   - T-NPM-SDK-TEAMS-PARITY
   - T-PIP-SDK-TEAMS-PARITY
+- id: AC-16
+  scenario: S-15
+  text: Web Teams UI is settings-only, with no `/teams` workspace route; Settings contains Teams root and per-team sub-settings,
+    while the user profile menu handles Personal/team context switching and team-avatar overlay states.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-NO-WORKSPACE-GUARD
 assumptions:
 - id: A-1
   text: The unified-key-wrappers spec is completed and can be treated as the encryption prerequisite for Teams V1.
@@ -840,6 +883,10 @@ contracts:
       default: personal
       cli_persistence: per authenticated local account
       sdk_persistence: caller-managed in client instance
+      web_switcher: user_profile_menu
+      web_closed_indicator: selected team profile image overlays the bottom-right of the user profile image as a smaller circle
+      web_open_indicator: selected team profile image moves below the user profile image while Personal and joined teams are
+        listed for switching
       cli_primary_commands:
         list_contexts: openmates switch-to
         switch_personal: openmates switch-to personal
@@ -910,6 +957,19 @@ contracts:
       team_route_behavior: reject_with_TEAM_CONNECTED_ACCOUNTS_DISABLED
       token_broker_team_behavior: reject_with_TEAM_CONNECTED_ACCOUNTS_DISABLED
       ai_request_scope: personal_context_only_for_connected_accounts
+    web_ui:
+      teams_workspace_route_allowed: false
+      route: settings
+      settings_root_item: Teams
+      team_sub_settings_entries: one per joined team under Settings > Teams
+      team_management_surfaces:
+      - create_team
+      - team_details
+      - members_and_invites
+      - billing
+      - profile_image
+      - data_boundaries
+      context_switcher_surface: user_profile_menu
   data:
   - collection: teams
     purpose: Team account root with encrypted metadata and billing identity.
@@ -2131,37 +2191,67 @@ tests:
   - AC-10
   - AC-12
   - AC-13
+  - AC-16
   assertions:
-  - web app can create/switch/read team context after deploy.
-  - viewer read-only and team credit behavior match CLI contract.
+  - web app manages teams only from Settings > Teams, with no top-level `/teams` workspace surface.
+  - Settings root contains a Teams item, and joined teams appear as sub-settings entries for team-specific settings.
+  - user profile menu switches between Personal and joined teams, with closed/open team-avatar overlay states.
   - no personal data, personal memories, or personal connected accounts appear in team context.
   red_phase:
     required: true
     expected: fail_or_missing
     evidence:
-      status: failed_as_expected
-      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit c73f069
-      run_id: teams-flow-spec-red-31816099367
-      subject_commit: c73f069
-      reason: Spec-only deploy proved /teams was not implemented yet; teams-flow.spec.ts failed on missing teams-page after
-        preflight run 31815870763 and Vercel deployment dpl_3PzKKqHWnnJoLLQjd68QDLgn8DrP.
-      timestamp: '2026-08-14'
+      status: pending
+      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit <settings-only-spec-commit>
+      run_id: ''
+      subject_commit: ''
+      reason: Previous `/teams` workspace evidence was invalidated by the 2026-08-14 product correction; the replacement spec
+        must fail until Teams are settings-only and profile-menu switched.
+      timestamp: ''
   green_phase:
     required: true
     expected: pass_after_deploy
     evidence:
+      status: pending
+      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit <settings-only-implementation-commit>
+      run_id: ''
+      subject_commit: ''
+      target: https://app.dev.openmates.org/settings
+      deployment_reference: ''
+      reason: Must pass only after the top-level Teams workspace is fully removed and Settings/profile-menu Teams behavior is
+        deployed.
+      timestamp: ''
+- id: T-WEB-TEAMS-NO-WORKSPACE-GUARD
+  type: pytest
+  file: scripts/tests/test_teams_settings_only_guard.py
+  command: python3 -m pytest scripts/tests/test_teams_settings_only_guard.py
+  target: source tree
+  covers:
+  - AC-16
+  assertions:
+  - source tree has no `frontend/apps/web_app/src/routes/teams` route.
+  - workspace navigation does not expose Teams as a workspace item.
+  - Teams management components live under Settings, not workspace components.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence:
+      status: pending
+      command: python3 -m pytest scripts/tests/test_teams_settings_only_guard.py
+      run_id: ''
+      timestamp: ''
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
       status: passed
-      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit f9e4c8ad2
-      run_id: teams-flow-spec-green-31820560581
-      subject_commit: f9e4c8ad2
-      target: https://app.dev.openmates.org/teams
-      deployment_reference: Vercel dpl_6Ld9Mk4Cqoti4Zge7tLUnGWQvtow READY for f9e4c8ad2; GitHub Actions run
-        31820560581 passed.
-      reason: Deployed Playwright passed on app.dev.openmates.org after Vercel deployment dpl_6Ld9Mk4Cqoti4Zge7tLUnGWQvtow
-        reached Ready. The run created an encrypted team, switched visible team context, confirmed personal memory/account guards,
-        verified team billing/memory/connected-account panels, and created an encrypted email invite request. Visual smoke was
-        recorded for /teams in session 765a using run test-results/visual-smoke/2026-08-14T16-46-04-130150+00-00/summary.json.
-      timestamp: '2026-08-14T16:44:28Z'
+      command: python3 -m pytest scripts/tests/test_teams_settings_only_guard.py
+      run_id: teams-settings-only-guard-green-20260815
+      subject_commit: 795526266c44d67aca9a25d6aa48e8d408c026f3-plus-local-edits
+      reason: Four deterministic checks passed for route/export removal, workspace navigation removal, Settings registration,
+        and feature-gated logout-safe profile team loading.
+      timestamp: '2026-08-15T09:00:17Z'
+      timestamp: ''
 - id: T-APPLE-TEAMS-PARITY
   type: manual
   file: apple/OpenMates
@@ -2352,10 +2442,11 @@ verifications:
   required_for_done: true
   covers:
   - AC-10
+  - AC-16
   status: pending
   evidence:
     status: ''
-    summary: User confirms deployed dev web Teams flow works and looks correct.
+    summary: User confirms deployed dev web Teams settings and profile-menu context switching work and look correct.
     timestamp: ''
 implementation_plan:
   spec_path: docs/specs/teams-v1/spec.yml
@@ -2430,9 +2521,17 @@ implementation_plan:
   - path: packages/openmates-python/openmates/sdk.py
     reason: pip SDK Teams parity.
   - path: frontend/packages/ui/src/services
-    reason: Later web team context, local cleanup, and team workspace sync.
+    reason: Web Settings Teams and profile-menu context switching use shared encrypted Teams API logic.
+  - path: frontend/packages/ui/src/components/settings
+    reason: Settings root Teams item and per-team sub-settings entries are the only web team management surface.
+  - path: frontend/packages/ui/src/components/profile
+    reason: User profile menu owns Personal/team context switching and team-avatar overlay states.
+  - path: frontend/apps/web_app/src/routes/teams
+    reason: Must be removed; Teams must not have a top-level workspace route.
   - path: frontend/apps/web_app/tests/teams-flow.spec.ts
-    reason: Web parity after CLI and SDK gates.
+    reason: Web settings-only Teams parity after CLI and SDK gates.
+  - path: scripts/tests/test_teams_settings_only_guard.py
+    reason: Deterministic guard prevents Teams workspace route/navigation from returning.
   - path: apple/OpenMates
     reason: Apple parity or explicit deferral.
   verification_strategy:
@@ -2444,8 +2543,9 @@ implementation_plan:
   - Captioned CLI proof video using human-readable OpenMates commands, not --json output.
   - Wire real CLI proof into daily tests after dev pass.
   - npm and pip SDK tests plus python3 scripts/audit_sdk_cli_parity.py.
-  - Web Playwright against app.dev.openmates.org after deploy.
-  - User confirmation of deployed dev web Teams behavior.
+  - Deterministic no-workspace Teams guard.
+  - Web Settings Teams Playwright against app.dev.openmates.org after deploy.
+  - User confirmation of deployed dev web Teams settings/profile-menu behavior.
   - Apple build/test or explicit deferral after web/user confirmation.
   verification_order:
   - Spec validation.
@@ -2458,7 +2558,8 @@ implementation_plan:
   - Daily-test wiring for the CLI dev coverage.
   - npm SDK parity.
   - pip SDK parity.
-  - Web Playwright after deploy.
+  - Deterministic no-workspace Teams guard.
+  - Web Settings Teams Playwright after deploy.
   - User confirmation.
   - Apple parity or deferral.
   risks:
@@ -2860,7 +2961,7 @@ tasks:
   independently_deployable: false
 - id: TASK-7
   title: Implement web Teams parity after CLI and SDK gates
-  status: pending
+  status: in_progress
   phase: working_tasks
   covers:
     scenarios:
@@ -2869,27 +2970,33 @@ tasks:
     - S-12
     - S-13
     - S-14
+    - S-15
     acceptance_criteria:
     - AC-10
     - AC-12
     - AC-13
     - AC-14
     - AC-15
+    - AC-16
   expected_files:
   - frontend/packages/ui/src/services
   - frontend/packages/ui/src/components
   - frontend/apps/web_app/tests/teams-flow.spec.ts
+  - scripts/tests/test_teams_settings_only_guard.py
   verification:
   - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-NO-WORKSPACE-GUARD
   - V-USER-CONFIRMATION
   verification_ids:
   - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-NO-WORKSPACE-GUARD
   - V-USER-CONFIRMATION
   dependencies:
   - TASK-6
   ownership:
     files:
     - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - scripts/tests/test_teams_settings_only_guard.py
     shared_files:
     - frontend/packages/ui/src/services
     - frontend/packages/ui/src/components

@@ -7,6 +7,7 @@ import type { TeamViewModel } from '../services/teamService';
 export const teamEnabled = writable<boolean>(true);
 
 const ACTIVE_TEAM_ID_STORAGE_KEY = 'openmates:active-team-id';
+export const TEAMS_UPDATED_EVENT = 'openmates:teams-updated';
 
 function readActiveTeamId(): string | null {
   if (typeof window === 'undefined') return null;
@@ -28,4 +29,9 @@ activeTeamId.subscribe((teamId) => {
 export function setActiveTeamContext(team: TeamViewModel | null): void {
   activeTeam.set(team);
   activeTeamId.set(team?.team_id ?? null);
+}
+
+export function notifyTeamsUpdated(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(TEAMS_UPDATED_EVENT));
 }

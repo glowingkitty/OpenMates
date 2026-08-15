@@ -83,7 +83,7 @@ team_surface_parity:
     expect: {rest_contract_first: true, cli_green_before_sdk: true, sdk_green_before_web: true, web_spec_after_deploy: true}
   - id: web-settings-full-cli-parity
     input: {surface: gui.web, settings_sections: [overview, create, profile_image, members, invites, access_requests, billing, usage, export_import, delete]}
-    expect: {roles_and_failures_visible: true, owner_admin_actions_available: true, viewer_actions_disabled: true}
+    expect: {roles_and_failures_visible: true, owner_admin_actions_available: true, viewer_actions_disabled: true, top_level_teams_workspace: absent, context_switcher: user_profile_menu}
   - id: apple-deferred-until-web-confirmed
     input: {surface: gui.apple, web_user_confirmation: missing}
     expect: {apple_implementation_blocked: true, stale_personal_only_assumptions_allowed: false}

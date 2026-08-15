@@ -167,6 +167,7 @@
     const SETTINGS_VIEW_ICON_OVERRIDES: Record<string, string> = {
         'learning-mode/setup': 'study',
         'projects': 'project',
+        'teams': 'team',
     };
 
     function showSettingsView(viewName, event) {
@@ -197,8 +198,13 @@
     }
 
     function isSettingsViewFeatureEnabled(key: string): boolean {
-        if (key !== 'projects') return true;
-        return disabledFeatures !== null && disabledFeatures['platform:projects'] !== true;
+        if (key === 'projects') {
+            return disabledFeatures !== null && disabledFeatures['platform:projects'] !== true;
+        }
+        if (key === 'teams') {
+            return disabledFeatures !== null && disabledFeatures['platform:teams'] !== true;
+        }
+        return true;
     }
 
     function isVisibleTopLevelView(key: string): boolean {
@@ -443,8 +449,9 @@
             {#each Object.entries(settingsViews).filter(([key]) => isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem
                     type="submenu"
-                    icon={key === 'logs' ? 'server' : key}
+                    icon={SETTINGS_VIEW_ICON_OVERRIDES[key] ?? (key === 'logs' ? 'server' : key)}
                     title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
+                    data-testid={key === 'teams' ? 'settings-teams-item' : undefined}
                     onClick={() => showSettingsView(key, null)}
                 />
             {/each}

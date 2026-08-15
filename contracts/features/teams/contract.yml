@@ -18,6 +18,7 @@ scope:
     - Uploaded team profile image processing with the same crop/resize, content-safety scan, storage, and authenticated retrieval guarantees as user profile images.
     - Invite-link acceptance from web URLs containing a fragment secret, including login/signup handoff, recipient email binding for encrypted team-key unwrap, pending approval, decline, and joined states.
     - Full active-context switch in the web app: chats, billing, tasks, plans, projects, workflows, memories, and new-resource creation resolve to exactly Personal or the selected Team.
+    - Web Teams management is settings-only: Settings contains the Teams root and per-team pages, while Personal/Team switching lives in the user profile menu with closed/open team-avatar states.
     - Team chats require explicit @openmates mention to trigger AI, preserve per-human sender attribution, and consume team credits only.
     - Team-wide visibility in V1 for chats, tasks, plans, projects, workflows, and memories to every active team member/viewer, with viewer read-only restrictions.
     - Semantic parity across REST/API, OpenMates CLI, npm SDK, pip SDK, and web for every Teams operation each surface exposes.
@@ -27,6 +28,7 @@ scope:
     - Team connected-account credential management and team-owned provider token brokerage.
     - Automatic team key rotation, historical rewrap, public-key member key distribution, or strict cryptographic erasure of already-synced data.
     - Apple-native Teams implementation before REST/API, CLI, SDK, web, visual-smoke, and user-confirmation gates are complete or explicitly deferred.
+    - A top-level Teams workspace route, workspace navigation tab, or Teams-as-workspace web surface.
 
 models:
   TeamRecord:
@@ -160,7 +162,7 @@ assertions:
     depends_on: [examples.team_chat_billing]
   - id: teams.workspace.surface-parity
     type: parity
-    must: REST/API, CLI, npm SDK, pip SDK, and web preserve the same team lifecycle, profile-image, invite, role, billing, active-context, chat, task, plan, project, workflow, memory, export/import, and visible-failure semantics for every Teams operation that surface implements; unsupported Apple Teams behavior remains deferred until web/user-confirmation gates are complete.
+    must: REST/API, CLI, npm SDK, pip SDK, and web preserve the same team lifecycle, profile-image, invite, role, billing, active-context, chat, task, plan, project, workflow, memory, export/import, and visible-failure semantics for every Teams operation that surface implements; web management exists only under Settings with context switching in the user profile menu and no Teams workspace route or navigation tab; unsupported Apple Teams behavior remains deferred until web/user-confirmation gates are complete.
     depends_on: [models, examples, surfaces]
 
 surfaces:

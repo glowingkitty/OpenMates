@@ -93,6 +93,9 @@ import SettingsMemoriesHub from "./SettingsMemoriesHub.svelte";
 // Projects
 import SettingsProjects from "./SettingsProjects.svelte";
 
+// Teams
+import SettingsTeams from "./SettingsTeams.svelte";
+
 // Shared / Social
 import SettingsShared from "./SettingsShared.svelte";
 import SettingsShare from "./share/SettingsShare.svelte";
@@ -163,6 +166,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/share-debug-logs": SettingsShareDebugLogs,
   // Projects — Project-specific remote source permissions and status
   projects: SettingsProjects,
+  // Teams — settings-only team management; no top-level Teams workspace route.
+  teams: SettingsTeams,
   // Mates
   mates: SettingsMates,
   // Billing & Usage
@@ -268,6 +273,9 @@ export { AppDetailsWrapper };
 
 /** Re-export Projects settings for dynamic projects/{projectId} routes. */
 export { SettingsProjects };
+
+/** Re-export Teams settings for dynamic teams/{teamId} routes. */
+export { SettingsTeams };
 
 /**
  * Re-export MateDetailsWrapper for use in the dynamic route builder

@@ -22,7 +22,6 @@ describe("isWorkspaceFeatureAvailable", () => {
   it("shows released optional workspaces when backend omits disabled IDs", () => {
     expect(isWorkspaceFeatureAvailable("platform:projects", {})).toBe(true);
     expect(isWorkspaceFeatureAvailable("platform:plans", {})).toBe(true);
-    expect(isWorkspaceFeatureAvailable("platform:teams", {})).toBe(true);
     expect(isWorkspaceFeatureAvailable("platform:tasks", {})).toBe(true);
     expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(true);
   });
@@ -32,16 +31,19 @@ describe("isWorkspaceFeatureAvailable", () => {
     const disabled = {
       "platform:projects": true,
       "platform:plans": true,
-      "platform:teams": true,
       "platform:tasks": true,
       "platform:workflows": true,
     } as const;
 
     expect(isWorkspaceFeatureAvailable("platform:projects", disabled)).toBe(false);
     expect(isWorkspaceFeatureAvailable("platform:plans", disabled)).toBe(false);
-    expect(isWorkspaceFeatureAvailable("platform:teams", disabled)).toBe(false);
     expect(isWorkspaceFeatureAvailable("platform:tasks", disabled)).toBe(false);
     expect(isWorkspaceFeatureAvailable("platform:workflows", disabled)).toBe(false);
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.workspace.surface-parity
+  it("does not expose Teams as a top-level workspace", () => {
+    expect(isWorkspaceFeatureAvailable("platform:teams", {})).toBe(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible

@@ -5,9 +5,9 @@ import type { Page, Response } from '@playwright/test';
 /**
  * Teams V1 web flow coverage.
  *
- * Verifies the deployed web app can create encrypted Teams from /teams, switch
- * the visible workspace context, keep personal memories/accounts out of the
- * team context, and create an email invite request through the Teams UI.
+ * Verifies the deployed web app can create encrypted Teams only from Settings,
+ * switch personal/team context from the profile menu, keep personal
+ * memories/accounts out of team context, and create an email invite request.
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -26,7 +26,7 @@ function isApiPath(response: Response, method: string, matcher: (pathname: strin
 
 test.describe('Teams V1 web flow', () => {
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.invites.fragment-key-web-flow,teams.context.full-switch-local,teams.chat-billing.team-credit-boundary,teams.workspace.surface-parity
-	test('creates an encrypted team, switches context, and creates an email invite request', async ({ page }: { page: Page }) => {
+	test('creates a settings-only encrypted team and switches context from the profile menu', async ({ page }: { page: Page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:teams']);
@@ -40,11 +40,13 @@ test.describe('Teams V1 web flow', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page);
-		await page.goto(getE2EDebugUrl('/teams'), { waitUntil: 'domcontentloaded' });
 
-		await expect(page.getByTestId('teams-page')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('teams-workspace-home')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('teams-nav-link')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('teams-nav-link')).toHaveCount(0);
+		await page.getByTestId('profile-container').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('settings-teams-item').click();
+		await expect(page.getByTestId('teams-settings-page')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
 
 		const createResponse = page.waitForResponse((response) => {
 			if (!isApiPath(response, 'POST', (pathname) => pathname === '/v1/teams')) return false;
@@ -65,22 +67,14 @@ test.describe('Teams V1 web flow', () => {
 		expect(createPayload.encrypted_team_key).toBeTruthy();
 		expect(createPayload.encrypted_zero_balance).toBeTruthy();
 
-		const teamCard = page.getByTestId('team-card').filter({ hasText: teamName }).first();
-		await expect(teamCard).toBeVisible({ timeout: 30000 });
-		await expect(teamCard).toHaveAttribute('data-team-role', 'owner');
-		await teamCard.click();
-
-		await expect(page.getByTestId('active-team-name')).toContainText(teamName, { timeout: 15000 });
-		await expect(page.getByTestId('active-team-description')).toContainText(teamDescription, { timeout: 15000 });
-		await expect(page.getByTestId('team-role-badge')).toContainText(/owner/i, { timeout: 15000 });
-		await expect(page.getByTestId('team-context-badge')).toContainText(/team context/i, { timeout: 15000 });
-
-		await expect(page.getByTestId('team-billing-panel')).toContainText(/team credits/i, { timeout: 30000 });
-		await expect(page.getByTestId('team-credit-balance')).toContainText(/0/i, { timeout: 30000 });
-		await expect(page.getByTestId('team-memories-panel')).toContainText(/team memories/i, { timeout: 30000 });
-		await expect(page.getByTestId('team-connected-accounts-panel')).toContainText(/team connected accounts/i, { timeout: 30000 });
-		await expect(page.getByTestId('team-personal-data-guard')).toContainText(/personal memories stay in personal context/i, { timeout: 15000 });
-		await expect(page.getByTestId('team-personal-data-guard')).toContainText(/personal connected accounts stay in personal context/i, { timeout: 15000 });
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /teams\//, { timeout: 30000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(teamName, { timeout: 30000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(teamDescription, { timeout: 15000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(/owner/i, { timeout: 15000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(/team credits/i, { timeout: 30000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(/team memories/i, { timeout: 30000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(/connected accounts/i, { timeout: 30000 });
+		await expect(page.getByTestId('teams-settings-detail')).toContainText(/personal memories and personal connected accounts stay outside team context/i, { timeout: 15000 });
 
 		const inviteResponse = page.waitForResponse((response) => {
 			if (!isApiPath(response, 'POST', (pathname) => /^\/v1\/teams\/[^/]+\/invites$/.test(pathname))) return false;
@@ -98,5 +92,19 @@ test.describe('Teams V1 web flow', () => {
 		expect(invitePayload.recipient_email).toBe(inviteEmail);
 		expect(invitePayload.encrypted_recipient_hint).toBeTruthy();
 		await expect(page.getByTestId('team-invite-status')).toContainText(/invite created|invite sent/i, { timeout: 15000 });
+
+		await page.getByTestId('settings-back-button').click();
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
+		await expect(page.getByTestId('team-settings-team-row').filter({ hasText: teamName }).first()).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('settings-back-button').click();
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'main');
+
+		await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
+		await page.getByTestId('team-context-dropdown').selectOption({ label: teamName });
+		await expect(page.getByTestId('profile-open-active-team-avatar')).toBeVisible({ timeout: 15000 });
+
+		await page.getByTestId('icon-button-close').click();
+		await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
 	});
 });

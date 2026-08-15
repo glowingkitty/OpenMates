@@ -238,6 +238,30 @@ team:
   sv: Team
   he: צוות
   verified_by_human: []
+teams:
+  context: Settings menu item for managing joined teams
+  en: Teams
+  de: Teams
+  zh: 团队
+  es: Equipos
+  fr: Équipes
+  pt: Equipes
+  ru: Команды
+  ja: チーム
+  ko: 팀
+  it: Team
+  tr: Takımlar
+  vi: Nhóm
+  id: Tim
+  pl: Zespoły
+  nl: Teams
+  ar: الفرق
+  hi: टीमें
+  th: ทีม
+  cs: Týmy
+  sv: Team
+  he: צוותים
+  verified_by_human: []
 projects:
   context: Settings menu entry for project settings
   en: Projects
