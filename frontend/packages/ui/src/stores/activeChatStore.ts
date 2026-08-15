@@ -88,11 +88,7 @@ function updateUrlHash(chatId: string | null) {
   });
   if (window.location.hash !== nextHash) {
     lastProgrammaticHashUpdate = Date.now();
-    window.history.replaceState(
-      window.history.state,
-      "",
-      window.location.pathname + window.location.search + nextHash,
-    );
+    replaceState(window.location.pathname + window.location.search + nextHash, {});
   }
 }
 
