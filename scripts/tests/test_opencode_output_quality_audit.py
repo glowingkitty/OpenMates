@@ -23,12 +23,14 @@ RETROSPECTIVE_GUIDANCE = """
 ## Agent Workflow Retrospective
 
 For every non-trivial task-closing summary, cover the agentic process, not about the request's product results.
-Report only observed preventable process problems.
-Include research, delegated agents, and sub-chats.
+Report only observed preventable process problems and inefficiencies.
+Include research, delegated agents, sub-chats, unnecessary retries, avoidable context growth,
+wasted subagent runs, agent cycles, inference tokens, and focused audits/tests.
 Do not repeat implementation results or test outcomes. Ordinary task difficulty is not a workflow issue.
 Check existing hooks, skills, agents, agent instructions,
 and deterministic audits/tests before recommending the smallest concrete workflow improvement.
 Do not recommend new prompt prose when a deterministic guard is more reliable.
+Ground efficiency claims in observable actions only; do not estimate token counts or durations.
 State when no change is warranted. Use None observed. Do not invent problems, expose hidden reasoning,
 guess durations, or include raw private logs or private chat content.
 Simple requests, clarification-only turns, and progress updates are excluded.
