@@ -1212,6 +1212,7 @@ tests:
       - Plan-linked Tasks require matching Plan current_task_id before admission.
       - completing, blocking, skipping, cancelling, or failing an active Task automatically admits waiting eligible work under a scope lock.
       - a recovery sweep admits eligible waiting Tasks after missed callbacks or restart.
+      - queued dispatches that exceed the worker lease are blocked and free capacity, while delayed workers must win the queued-to-running fence before inference.
     red_phase:
       required: true
       expected: fail_or_missing
@@ -1226,11 +1227,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local-pytest-task-admission-green-2026-08-15
-        subject_commit: b2a64e45ec46fc3dd10bd66f9670f1730a0ed7f3-working-tree
+        run_id: local-pytest-task-admission-recovery-green-2026-08-15
+        subject_commit: 4ee355ed986e4d75a09c05cfd7a582fbec314c6d-working-tree
         timestamp: "2026-08-15"
         command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py
-        result: 133 passed
+        result: 138 passed
 
   - id: T-PYTEST-TASK-SHARE-BUNDLE
     type: pytest

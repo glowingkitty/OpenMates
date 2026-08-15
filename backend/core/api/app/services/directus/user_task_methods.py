@@ -21,6 +21,10 @@ SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
+class TaskLockBusyError(RuntimeError):
+    """Raised when another task lifecycle transition owns the short write lease."""
+
+
 USER_TASK_FIELDS = (
     "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
     "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
@@ -344,6 +348,20 @@ class UserTaskMethods:
             "sort": "hashed_team_id,hashed_user_id",
         }
         return await self._list_all_admission_rows(params, page_size=limit)
+
+    async def list_stale_queued_ai_tasks(self, started_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "filter[assignee_type][_eq]": "ai",
+            "filter[status][_eq]": "in_progress",
+            "filter[queue_state][_eq]": "active",
+            "filter[ai_execution_state][_eq]": "queued",
+            "filter[started_at][_lte]": started_before,
+            "fields": USER_TASK_ADMISSION_FIELDS,
+            "sort": "started_at,task_id",
+            "limit": max(1, min(limit, 500)),
+        }
+        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
 
     async def list_active_ai_tasks_for_chat(
         self,
@@ -881,7 +899,7 @@ class UserTaskMethods:
         token = secrets.token_urlsafe(16)
         acquired = await client.set(key, token, nx=True, ex=30)
         if not acquired:
-            raise RuntimeError("Task is already being updated")
+            raise TaskLockBusyError("Task is already being updated")
         return token
 
     async def _release_task_lock(self, key: str, token: str | None) -> None:
@@ -1015,6 +1033,71 @@ class UserTaskMethods:
                 int(version),
                 owner_hash_field=owner_hash_field,
                 owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def fail_stale_queued_ai_task(self, task: dict[str, Any], now: int) -> dict[str, Any] | None:
+        row_id = task.get("id")
+        task_id = str(task.get("task_id") or "")
+        version = task.get("version")
+        team_hash = str(task.get("hashed_team_id") or "")
+        user_hash = str(task.get("hashed_user_id") or "")
+        owner_hash_field = "hashed_team_id" if team_hash else "hashed_user_id"
+        owner_hash = team_hash or user_hash
+        if not row_id or not task_id or version is None or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                {
+                    "status": "blocked",
+                    "queue_state": "waiting_for_user",
+                    "ai_execution_state": "failed",
+                    "blocked_reason_code": "ai_dispatch_timeout",
+                    "updated_at": now,
+                    "version": int(version) + 1,
+                },
+                int(version),
+                owner_hash_field=owner_hash_field,
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def claim_queued_ai_task_execution(
+        self,
+        task_id: str,
+        user_id: str,
+        *,
+        team_id: str | None = None,
+        now: int,
+    ) -> dict[str, Any] | None:
+        lock_key = self._task_lock_key(team_id or user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id, team_id)
+            if (
+                not existing
+                or existing.get("status") != "in_progress"
+                or existing.get("queue_state") != "active"
+                or existing.get("ai_execution_state") != "queued"
+            ):
+                return None
+            return await self._update_task_unlocked(
+                task_id,
+                user_id,
+                {
+                    "status": "in_progress",
+                    "queue_state": "active",
+                    "ai_execution_state": "running",
+                    "updated_at": now,
+                },
+                existing=existing,
+                team_id=team_id,
             )
         finally:
             await self._release_task_lock(lock_key, lock_token)

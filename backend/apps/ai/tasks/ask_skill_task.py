@@ -426,13 +426,26 @@ async def _update_user_task_execution_state(
     status: Optional[str] = None,
     blocked_reason_code: Optional[str] = None,
     completed_at: Optional[int] = None,
-) -> None:
+) -> bool:
     """Best-effort product task state update for AI asks launched from Tasks V1."""
     user_task_id = getattr(request_data, "user_task_id", None)
     if not user_task_id or not directus_service:
-        return
+        return True
 
     now = int(time.time())
+    team_id = getattr(request_data, "team_id", None)
+    if ai_execution_state == "running":
+        claimed = await directus_service.user_task.claim_queued_ai_task_execution(
+            user_task_id,
+            request_data.user_id,
+            team_id=team_id,
+            now=now,
+        )
+        if not claimed:
+            logger.info("User task %s is no longer queued; skipping delayed dispatch", user_task_id)
+            return False
+        return True
+
     patch: dict[str, Any] = {
         "ai_execution_state": ai_execution_state,
         "updated_at": now,
@@ -445,15 +458,14 @@ async def _update_user_task_execution_state(
         patch["completed_at"] = completed_at
 
     try:
-        team_id = getattr(request_data, "team_id", None)
         current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id, team_id)
         if not current_task:
             logger.warning("User task %s was not found while updating execution state", user_task_id)
-            return
+            return False
         current_version = current_task.get("version")
         if current_version is None:
             logger.warning("User task %s has no version while updating execution state", user_task_id)
-            return
+            return False
         updated_task = await directus_service.user_task.update_task_if_version(
             user_task_id,
             request_data.user_id,
@@ -463,7 +475,7 @@ async def _update_user_task_execution_state(
         )
         if not updated_task:
             logger.warning("User task %s changed before execution state update", user_task_id)
-            return
+            return False
         logger.info(
             "[Task ID: %s] Updated user task %s execution state to %s",
             getattr(request_data, "message_id", "unknown"),
@@ -477,6 +489,7 @@ async def _update_user_task_execution_state(
                 now=now,
                 preferred_chat_id=current_task.get("primary_chat_id"),
             )
+        return True
     except Exception as exc:
         logger.warning(
             "Failed to update user task %s execution state to %s: %s",
@@ -485,6 +498,7 @@ async def _update_user_task_execution_state(
             exc,
             exc_info=True,
         )
+        return False
 
 
 async def _complete_user_task_execution(
@@ -763,12 +777,22 @@ async def _async_process_ai_skill_ask_task(
                     "_celery_task_state": "SUCCESS",
                 }
 
-        await _update_user_task_execution_state(
+        user_task_claimed = await _update_user_task_execution_state(
             request_data,
             directus_service_instance,
             ai_execution_state="running",
             status="in_progress",
         )
+        if request_data.user_task_id and not user_task_claimed:
+            return {
+                "status": "stale_user_task_dispatch_ignored",
+                "preprocessing_summary": {},
+                "main_processing_output": None,
+                "postprocessing_summary": {},
+                "interrupted_by_soft_time_limit": False,
+                "interrupted_by_revocation": False,
+                "_celery_task_state": "SUCCESS",
+            }
 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Failed to initialize services: {e}", exc_info=True)
