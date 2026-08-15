@@ -9407,7 +9407,7 @@ assertions:
       surface: rest_api
     - &id1036
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 29
+      line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
@@ -9739,7 +9739,7 @@ assertions:
       surface: rest_api
     - &id1073
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 29
+      line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
@@ -9777,7 +9777,7 @@ assertions:
     direct_tests:
     - &id1076
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 29
+      line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
@@ -9835,7 +9835,7 @@ assertions:
       surface: rest_api
     - &id1084
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 29
+      line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
@@ -9886,7 +9886,7 @@ assertions:
       surface: rest_api
     - &id1095
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 29
+      line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web

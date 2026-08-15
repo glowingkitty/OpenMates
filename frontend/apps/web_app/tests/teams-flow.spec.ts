@@ -15,6 +15,13 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
+const PROOF_STATE_HOLD_MS = 1200;
+const isProofCapture = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
+
+async function holdProofState(page: Page): Promise<void> {
+	if (isProofCapture) await page.waitForTimeout(PROOF_STATE_HOLD_MS);
+}
+
 function isApiPath(response: Response, method: string, matcher: (pathname: string) => boolean): boolean {
 	if (response.request().method() !== method) return false;
 	try {
@@ -47,6 +54,7 @@ test.describe('Teams V1 web flow', () => {
 		await page.getByTestId('settings-teams-item').click();
 		await expect(page.getByTestId('teams-settings-page')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
+		await holdProofState(page);
 
 		const createResponse = page.waitForResponse((response) => {
 			if (!isApiPath(response, 'POST', (pathname) => pathname === '/v1/teams')) return false;
@@ -75,6 +83,9 @@ test.describe('Teams V1 web flow', () => {
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/team memories/i, { timeout: 30000 });
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/connected accounts/i, { timeout: 30000 });
 		await expect(page.getByTestId('teams-settings-detail')).toContainText(/personal memories and personal connected accounts stay outside team context/i, { timeout: 15000 });
+		await holdProofState(page);
+		await page.getByText(/personal memories and personal connected accounts stay outside team context/i).scrollIntoViewIfNeeded();
+		await holdProofState(page);
 
 		const inviteResponse = page.waitForResponse((response) => {
 			if (!isApiPath(response, 'POST', (pathname) => /^\/v1\/teams\/[^/]+\/invites$/.test(pathname))) return false;
@@ -92,6 +103,7 @@ test.describe('Teams V1 web flow', () => {
 		expect(invitePayload.recipient_email).toBe(inviteEmail);
 		expect(invitePayload.encrypted_recipient_hint).toBeTruthy();
 		await expect(page.getByTestId('team-invite-status')).toContainText(/invite created|invite sent/i, { timeout: 15000 });
+		await holdProofState(page);
 
 		await page.getByTestId('banner-back-button').click();
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
@@ -100,11 +112,14 @@ test.describe('Teams V1 web flow', () => {
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'main');
 
 		await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
+		await holdProofState(page);
 		await page.getByTestId('team-context-dropdown').selectOption({ label: teamName });
 		await expect(page.getByTestId('profile-open-active-team-avatar')).toBeVisible({ timeout: 15000 });
+		await holdProofState(page);
 
 		await page.getByTestId('icon-button-close').click();
 		await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
+		await holdProofState(page);
 	});
 });
