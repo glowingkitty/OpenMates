@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import hashlib
 import json
 import os
 import shutil
@@ -483,11 +484,16 @@ def _run_isolated() -> dict:
                 "collision_warning_seen": provider.warning_seen.is_set(),
                 "task_child_role": child_record["child_role"],
                 "task_child_shell_seen": provider.child_tool_seen.is_set(),
+                "hook_runtime_hash": child_record.get("hook_runtime_hash"),
+                "hook_source_hash": hashlib.sha256(
+                    (fixture / ".opencode" / "plugins" / "openmates-hooks.js").read_bytes()
+                ).hexdigest(),
                 "owner_chat_unchanged": True,
                 "bridge_isolated": str(fixture) in (fixture / ".codex" / "hooks" / "claude-hook-bridge.sh").read_text(encoding="utf-8"),
                 "normal_server_used": False,
                 "external_model_used": False,
             }
+            assert result["hook_runtime_hash"] == result["hook_source_hash"]
         finally:
             for session_id in reversed(created_sessions):
                 try:

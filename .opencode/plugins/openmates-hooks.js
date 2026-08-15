@@ -5,7 +5,7 @@
 // with the small set of canonical Claude guards.
 
 import { spawn, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -66,6 +66,17 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Email encryption key is missing\. Run [`']openmates login[`'] again/i,
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
+const HOOK_SOURCE_URL = new URL(import.meta.url);
+
+function hashHookSource() {
+  try {
+    return createHash("sha256").update(readFileSync(HOOK_SOURCE_URL)).digest("hex");
+  } catch {
+    return "unavailable";
+  }
+}
+
+const HOOK_RUNTIME_HASH = hashHookSource();
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
@@ -351,6 +362,26 @@ function childRoleFromAgent(agent) {
   if (READ_ONLY_SUBAGENTS.has(agent)) return "read_only";
   if (WRITABLE_SUBAGENTS.has(agent)) return "writable";
   return "unknown";
+}
+
+function hookRuntimeDiagnosticForTest(runtimeHash = HOOK_RUNTIME_HASH, sourceHash = hashHookSource()) {
+  const validHash = (value) => /^[a-f0-9]{64}$/.test(value);
+  return {
+    runtimeHash,
+    sourceHash,
+    status: !validHash(runtimeHash) || !validHash(sourceHash)
+      ? "unavailable"
+      : (runtimeHash === sourceHash ? "current" : "stale_runtime"),
+  };
+}
+
+function repeatedRoutingFailureMessageForTest(message, count, diagnostic = hookRuntimeDiagnosticForTest()) {
+  if (count < 2) return message;
+  const hashes = `hook runtime=${diagnostic.runtimeHash} source=${diagnostic.sourceHash} status=${diagnostic.status}`;
+  const next = ["stale_runtime", "unavailable"].includes(diagnostic.status)
+    ? "restart the OpenCode runtime once so it loads the current hook, then retry once."
+    : "run python3 scripts/sessions.py status --json and return the routing diagnostics to the parent.";
+  return `${message} Circuit breaker: Do not retry the same tool call. ${hashes}. Next: ${next}`;
 }
 
 function eventSessionID(event) {
@@ -942,11 +973,36 @@ function exactCommitDeployedTestForTest(command, expectedCommit = "") {
 
 function isRecoveryBash(command) {
   if (isProdSshRecoveryCommand(command)) return true;
+  if (improvementReviewCommandIsSafe(command)) return true;
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+end\b[^;&|\n]*\s--force\b/.test(command)
     || isApprovedControlPlaneAuditCommand(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
+}
+
+function improvementReviewCommandIsSafe(command) {
+  const segments = commandSegmentTokens(String(command || "").replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1 || hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const tokens = segments[0].map(shellUnescape);
+  if (!["python", "python3"].includes(tokens[0]) || tokens[1] !== "scripts/opencode_chat_improvement_review.py") return false;
+  const args = tokens.slice(2);
+  let dryRunSeen = false;
+  let hoursSeen = false;
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--dry-run-notify" && !dryRunSeen) {
+      dryRunSeen = true;
+      continue;
+    }
+    if (args[index] === "--hours" && /^\d+$/.test(args[index + 1] || "")) {
+      if (hoursSeen || Number(args[index + 1]) < 1 || Number(args[index + 1]) > 168) return false;
+      hoursSeen = true;
+      index += 1;
+      continue;
+    }
+    return false;
+  }
+  return dryRunSeen;
 }
 
 function isProdSshRecoveryCommand(command) {
@@ -1082,24 +1138,7 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
       ["python", "python3"].includes(shellUnescape(tokens[0]))
       && shellUnescape(tokens[1]) === "scripts/opencode_chat_improvement_review.py"
     ));
-    const improvementReviewTokens = improvementReviewSegment >= 0 ? commandSegments[improvementReviewSegment] : [];
-    const improvementReviewArgs = improvementReviewTokens.slice(2);
-    let improvementReviewArgsSafe = improvementReviewArgs.includes("--dry-run-notify");
-    for (let index = 0; index < improvementReviewArgs.length && improvementReviewArgsSafe; index += 1) {
-      if (improvementReviewArgs[index] === "--dry-run-notify") continue;
-      if (improvementReviewArgs[index] === "--hours" && /^\d+$/.test(improvementReviewArgs[index + 1] || "")) {
-        index += 1;
-        continue;
-      }
-      improvementReviewArgsSafe = false;
-    }
-    const improvementReviewControlPlane = improvementReviewTokens.length >= 3
-      && commandSegments.length === 1
-      && ["python", "python3"].includes(shellUnescape(improvementReviewTokens[0]))
-      && shellUnescape(improvementReviewTokens[1]) === "scripts/opencode_chat_improvement_review.py"
-      && improvementReviewArgsSafe
-      && !hasTopLevelSeparator
-      && !unsafeControlSyntax;
+    const improvementReviewControlPlane = improvementReviewCommandIsSafe(command);
     if (improvementReviewSegment >= 0 && !improvementReviewControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
     }
@@ -1192,6 +1231,23 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
   }
   return rewriteEditArgsForTest(input, worktreePath);
+}
+
+function routeLocalToolArgsWithCircuitBreakerForTest(
+  tool,
+  args,
+  worktreePath,
+  { sessionID = "", counts = new Map() } = {},
+) {
+  try {
+    return routeLocalToolArgsForTest(tool, args, worktreePath);
+  } catch (error) {
+    const command = bashCommand(args);
+    const key = `isolation:${sessionID}:${tool}:${command}:${error.message}`;
+    const count = (counts.get(key) || 0) + 1;
+    counts.set(key, count);
+    throw new Error(repeatedRoutingFailureMessageForTest(error.message, count));
+  }
 }
 
 function recordWorktreeRouting(opencodeSessionID) {
@@ -1986,6 +2042,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const recordedRoutes = new Set();
   const presenceStates = new Map();
   const notifierLiveSessions = new Set();
+  const routingBlockCounts = new Map();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
   let presenceSequence = 0;
@@ -2007,6 +2064,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const schedulePresence = (state) => {
     const record = {
       ...state,
+      hook_runtime_hash: HOOK_RUNTIME_HASH,
       source_id: presenceSourceID,
       generation: presenceGeneration,
       sequence: ++presenceSequence,
@@ -2097,7 +2155,12 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
       if (BASH_TOOLS.has(tool)) guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
-      if (childMutation.decision === "block") throw new Error(childMutation.message);
+      if (childMutation.decision === "block") {
+        const key = `child:${input.sessionID}:${tool}:${bashCommand(output?.args || input?.args)}`;
+        const count = (routingBlockCounts.get(key) || 0) + 1;
+        routingBlockCounts.set(key, count);
+        throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
+      }
       if (
         recordRouting
         &&
@@ -2109,15 +2172,37 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
       if (route.decision !== "worktree_routed") {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (BASH_TOOLS.has(tool) && improvementReviewCommandIsSafe(command)) {
+          replaceToolArgs(output, currentArgs, { ...currentArgs, workdir: PROJECT_ROOT });
+        }
         const failure = routingFailureForTest({
           tool,
           sessionID: input.sessionID,
-          command: bashCommand(output?.args || input?.args),
+          command,
           routeMessage: route.message || "",
           routeDecision: route.decision,
           mergedCommit: route.session?.worktree?.merged_commit || "",
         });
-        if (failure.decision === "block") throw new Error(failure.message);
+        if (failure.decision === "block") {
+          const key = `route:${input.sessionID}:${tool}:${command}`;
+          const count = (routingBlockCounts.get(key) || 0) + 1;
+          routingBlockCounts.set(key, count);
+          throw new Error(repeatedRoutingFailureMessageForTest(failure.message, count));
+        }
+      }
+
+      if (BASH_TOOLS.has(tool) && !route.worktreePath) {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (
+          improvementReviewCommandIsSafe(command)
+          || isApprovedControlPlaneAuditCommand(command)
+          || exactCommitDeployedTestForTest(command, route.session?.worktree?.merged_commit || "")
+        ) {
+          replaceToolArgs(output, currentArgs, { ...toolInput(currentArgs), command, workdir: PROJECT_ROOT });
+        }
       }
 
       if (BASH_TOOLS.has(tool) && !route.worktreePath) {
@@ -2134,7 +2219,12 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       if (route.worktreePath) {
         const currentArgs = output?.args || input?.args;
-        const routedArgs = routeLocalToolArgsForTest(tool, currentArgs, route.worktreePath);
+        const routedArgs = routeLocalToolArgsWithCircuitBreakerForTest(
+          tool,
+          currentArgs,
+          route.worktreePath,
+          { sessionID: input.sessionID, counts: routingBlockCounts },
+        );
         replaceToolArgs(output, currentArgs, routedArgs);
       }
       if (EDIT_TOOLS.has(tool)) {
@@ -2208,6 +2298,7 @@ OpenMatesHooks.test = Object.freeze({
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
   editedFilesForTest,
+  hookRuntimeDiagnosticForTest,
   initialPresenceForTest,
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,
@@ -2215,10 +2306,12 @@ OpenMatesHooks.test = Object.freeze({
   isTodoWriteTool,
   presenceIsLive,
   readConflictWarningForTest,
+  repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
   notifierEventArgsForTest,
   reducePresenceEventForTest,
   resolveWorktreeRouteForTest,
+  routeLocalToolArgsWithCircuitBreakerForTest,
   rewriteEditArgsForTest,
   rootGuardDecisionForTest,
   routedEditRelativePathForTest,

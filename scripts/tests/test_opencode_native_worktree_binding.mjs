@@ -19,6 +19,7 @@ const {
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,
   routeLocalToolArgsForTest,
+  routeLocalToolArgsWithCircuitBreakerForTest,
   routingDecisionForTest,
   routingFailureForTest,
   resolveWorktreeRouteForTest,
@@ -241,6 +242,10 @@ test("OpenCode improvement review generation uses the current root control plane
     "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify > report.json",
     "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify && true",
     'python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify "$(touch injected)"',
+    "python3 scripts/opencode_chat_improvement_review.py --hours 0 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 169 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 48 --hours 72 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --dry-run-notify",
   ]) {
     assert.throws(
       () => routeLocalToolArgsForTest("bash", { command }, WORKTREE),
@@ -258,6 +263,19 @@ test("root absolute paths in shell commands are rejected with an actionable alte
       assert.match(error.message, /relative paths/);
       return true;
     },
+  );
+});
+
+test("repeated isolation blocks stop identical retries", () => {
+  const counts = new Map();
+  const args = { command: `git -C ${ROOT} status` };
+  assert.throws(
+    () => routeLocalToolArgsWithCircuitBreakerForTest("bash", args, WORKTREE, { sessionID: "ses-a", counts }),
+    (error) => !error.message.includes("Do not retry the same tool call"),
+  );
+  assert.throws(
+    () => routeLocalToolArgsWithCircuitBreakerForTest("bash", args, WORKTREE, { sessionID: "ses-a", counts }),
+    /Do not retry the same tool call/,
   );
 });
 
@@ -455,6 +473,20 @@ test("unresolved sessions can run the bounded OpenCode workflow audit", () => {
     command: "python3 scripts/audit_opencode_output_quality.py --telemetry-days 1 --json",
   });
   assert.equal(audit.decision, "allow_recovery");
+});
+
+test("unresolved sessions can run the bounded report-only OpenCode review", () => {
+  const review = routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_missing",
+    command: "python3 scripts/opencode_chat_improvement_review.py --hours 48 --dry-run-notify",
+  });
+  assert.equal(review.decision, "allow_recovery");
+  assert.equal(routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_missing",
+    command: "python scripts/opencode_chat_improvement_review.py --dry-run-notify",
+  }).decision, "allow_recovery");
 });
 
 test("question sessions can run bounded observational shell commands without a worktree", () => {

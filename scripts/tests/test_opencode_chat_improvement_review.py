@@ -147,6 +147,95 @@ def test_collector_applies_exclusions_before_sql_limit(tmp_path, monkeypatch) ->
     assert evidence["sessions"][0]["session_id"] == "ses-parent"
 
 
+def test_collector_reports_unknown_finish_resume_clusters_without_summary_content() -> None:
+    helper = load_module(WORKFLOW_HELPER_PATH, "workflow_review_unknown_finish")
+    evidence = {
+        "sessions": [
+            {
+                "session_id": f"ses-{index}",
+                "messages": [
+                        {
+                            "message_ordinal": 0,
+                            "time_created": 1_783_073_000_000 + index * 1_000,
+                        "data": {
+                            "role": "assistant",
+                            "finish": "unknown",
+                            "token_total": 0,
+                            "lifecycle_only": True,
+                        },
+                        "parts": [],
+                    },
+                        {
+                            "message_ordinal": 1,
+                            "time_created": 1_783_073_060_000 + index * 1_000,
+                        "data": {"role": "user", "has_summary": True},
+                        "parts": [],
+                    },
+                ],
+            }
+            for index in range(3)
+        ]
+    }
+
+    clusters = helper.detect_unknown_finish_clusters(evidence)
+
+    assert clusters == [{
+        "kind": "synthetic_summary_unknown_finish",
+        "session_count": 3,
+        "event_count": 3,
+        "first_seen": "2026-07-03T10:03:20Z",
+        "last_seen": "2026-07-03T10:03:22Z",
+    }]
+    assert "summary" not in json.dumps(clusters).lower().replace("synthetic_summary", "")
+
+
+def test_unknown_finish_clusters_reject_wrong_order_truncation_and_single_session() -> None:
+    helper = load_module(WORKFLOW_HELPER_PATH, "workflow_review_unknown_finish_negative")
+    base = 1_783_073_000_000
+    evidence = {
+        "sessions": [
+            {
+                "session_id": "summary-first",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "user", "has_summary": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "truncated",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": False}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "single",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "intervening",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 500, "data": {"role": "user", "has_summary": False}, "parts": []},
+                    {"message_ordinal": 2, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "trimmed-gap",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 2, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+        ]
+    }
+
+    assert helper.detect_unknown_finish_clusters(evidence) == []
+
+
 def test_dispatch_passes_explicit_luna_model(tmp_path, monkeypatch) -> None:
     helper = load_module(OPENCODE_HELPER_PATH, "opencode_utils_model")
     captured: dict[str, object] = {}

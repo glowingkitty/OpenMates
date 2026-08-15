@@ -14,7 +14,13 @@ import test from "node:test";
 
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
-const { childMutationDecisionForTest, resolveWorktreeRouteForTest, taskChildClassificationForTest } = OpenMatesHooks.test;
+const {
+  childMutationDecisionForTest,
+  hookRuntimeDiagnosticForTest,
+  repeatedRoutingFailureMessageForTest,
+  resolveWorktreeRouteForTest,
+  taskChildClassificationForTest,
+} = OpenMatesHooks.test;
 
 test("task child derives its role from explicit session agent metadata before completion", async () => {
   const data = {
@@ -89,4 +95,34 @@ test("classified children still cannot mutate the inherited parent worktree", ()
       "block",
     );
   }
+});
+
+test("hook runtime diagnostics distinguish current and stale loaded source", () => {
+  assert.deepEqual(
+    hookRuntimeDiagnosticForTest("a".repeat(64), "a".repeat(64)),
+    { runtimeHash: "a".repeat(64), sourceHash: "a".repeat(64), status: "current" },
+  );
+  assert.equal(
+    hookRuntimeDiagnosticForTest("a".repeat(64), "b".repeat(64)).status,
+    "stale_runtime",
+  );
+  assert.equal(hookRuntimeDiagnosticForTest("unavailable", "unavailable").status, "unavailable");
+});
+
+test("second routing block stops blind retries and reports runtime attestation", () => {
+  const first = repeatedRoutingFailureMessageForTest("blocked", 1, {
+    runtimeHash: "a".repeat(64),
+    sourceHash: "a".repeat(64),
+    status: "current",
+  });
+  const second = repeatedRoutingFailureMessageForTest("blocked", 2, {
+    runtimeHash: "a".repeat(64),
+    sourceHash: "b".repeat(64),
+    status: "stale_runtime",
+  });
+
+  assert.equal(first, "blocked");
+  assert.match(second, /Do not retry the same tool call/);
+  assert.match(second, /stale_runtime/);
+  assert.match(second, /restart the OpenCode runtime/);
 });

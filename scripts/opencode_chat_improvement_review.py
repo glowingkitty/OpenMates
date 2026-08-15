@@ -42,7 +42,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from _opencode_utils import run_opencode_session  # noqa: E402
-from _workflow_review_helper import collect_transcript_evidence  # noqa: E402
+from _workflow_review_helper import collect_transcript_evidence, detect_unknown_finish_clusters  # noqa: E402
 from discord_webhook import post_attachment  # noqa: E402
 from _nightly_report import write_nightly_report  # noqa: E402
 from spec_demo import redact_text_with_canonical_scanner  # noqa: E402
@@ -340,6 +340,7 @@ def run_review(
             project_directory=canonical_checkout_root(root),
             exclude_session_ids=excluded_session_ids,
         )
+        evidence["unknown_finish_clusters"] = detect_unknown_finish_clusters(evidence)
         raw_output_path = root / "scripts" / ".tmp" / f"opencode-improvement-output-{os.getpid()}.jsonl"
         template = PROMPT_TEMPLATE.read_text(encoding="utf-8")
         prompt = (
@@ -398,6 +399,7 @@ def run_review(
             },
             "collection_limits": evidence.get("limits") or {},
             "collection_truncated": evidence.get("truncated") or {},
+            "unknown_finish_clusters": evidence.get("unknown_finish_clusters") or [],
             "summary": _bounded_string(draft.get("summary") or "", MAX_SUMMARY_CHARS),
             "recommendations": _validate_recommendations(draft.get("recommendations")),
             "error": error or None,
