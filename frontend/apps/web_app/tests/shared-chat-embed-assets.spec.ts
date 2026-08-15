@@ -31,6 +31,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
 const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'sample.png');
 const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
+const PROOF_FRAME_HOLD_MS = 1_500;
 
 const consoleLogs: string[] = [];
 
@@ -426,6 +427,15 @@ async function resetRecordedPageToLoggedOut(page: any, baseUrl: string): Promise
 	await page.context().clearCookies();
 }
 
+async function holdVisibleProofFrames(page: any, targets: any[]): Promise<void> {
+	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
+	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
+	for (const target of targets) {
+		await target.scrollIntoViewIfNeeded();
+		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
+	}
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -460,14 +470,18 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 	try {
 		await loginCliViaBrowser(page, apiUrl, logCheckpoint);
 
-		const audioPath = path.join(tmpDir, 'shared-chat-recording.wav');
+		const runMarker = randomUUID().slice(0, 8);
+		const pdfPath = path.join(tmpDir, `shared-proof-${runMarker}-document.pdf`);
+		const imagePath = path.join(tmpDir, `shared-proof-${runMarker}-image.png`);
+		const audioPath = path.join(tmpDir, `shared-proof-${runMarker}-recording.wav`);
+		fs.copyFileSync(SAMPLE_PDF, pdfPath);
+		fs.copyFileSync(SAMPLE_IMAGE, imagePath);
 		writeTinyWav(audioPath);
-		logCheckpoint('Created audio fixture for upload.');
+		logCheckpoint('Created temporary asset fixtures for upload.');
 
-		const runMarker = randomUUID();
 		const message =
-			`Run marker ${runMarker}: create a short response confirming these uploaded files are attached. ` +
-			`@${SAMPLE_PDF} @${SAMPLE_IMAGE} @${audioPath}`;
+			'Create a short shared-chat note confirming the attached PDF, image, and audio recording are ready to preview. ' +
+			`@${pdfPath} @${imagePath} @${audioPath}`;
 		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
 		consoleLogs.push(`Create chat stderr: ${sendResult.stderr.slice(0, 2000)}`);
@@ -541,6 +555,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(sharedPage.getByTestId('recording-preview-waveform').first()).toBeVisible({
 			timeout: 60_000
 		});
+		await holdVisibleProofFrames(sharedPage, [imageEmbed, pdfEmbed, audioEmbed]);
 
 		await expect
 			.poll(() => presignedResponses.length, { timeout: 60_000 })

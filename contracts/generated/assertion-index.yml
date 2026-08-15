@@ -4742,7 +4742,7 @@ assertions:
       surface: gui.web
     - &id513
       path: frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
-      line: 443
+      line: 453
       name: shared chat loads uploaded PDF, image, and audio recording assets while
         logged out
       surface: gui.web
