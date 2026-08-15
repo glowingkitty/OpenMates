@@ -405,7 +405,8 @@ async function waitForFinishedPdfEmbed(
 async function holdVisibleProofFrames(page: any): Promise<void> {
 	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
 	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
-	const nextEmbedButton = page.locator('button[aria-label="Next embed"]:visible').first();
+	// The header arrows currently expose reversed labels; the right arrow advances this carousel.
+	const nextEmbedButton = page.locator('button[aria-label="Previous embed"]:visible').first();
 	for (let index = 0; index < 3; index += 1) {
 		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
 		if (index < 2) {
