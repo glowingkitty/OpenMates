@@ -21,9 +21,9 @@ const PLAN_COLUMNS = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
 const PROOF_RECORDING_DIR = 'test-results/proof-video-source/tasks-plans-workspace';
 const LAPTOP_PROOF_VIEWPORT = { name: 'web-laptop', width: 1440, height: 900 };
 const PHONE_PROOF_VIEWPORT = { name: 'web-phone', width: 390, height: 844 };
-const PROOF_STATE_SETTLE_MS = 2500;
-const PROOF_SCROLL_STEP_SETTLE_MS = 900;
-const PROOF_SCROLL_SETTLE_MS = 2200;
+const PROOF_STATE_SETTLE_MS = 600;
+const PROOF_SCROLL_STEP_SETTLE_MS = 350;
+const PROOF_SCROLL_SETTLE_MS = 700;
 const PROOF_READY_TRIM_LEAD_SECONDS = 0.15;
 const TOP_LEVEL_WORKSPACES = [
 	{
