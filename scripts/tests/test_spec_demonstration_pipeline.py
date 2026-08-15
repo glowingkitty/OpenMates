@@ -33,6 +33,26 @@ def load_module():
     return module
 
 
+def test_resolve_run_artifact_path_accepts_run_local_and_repository_relative_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "__file__", str(tmp_path / "scripts" / "spec_demo.py"))
+    run_dir = tmp_path / "test-results" / "proof-videos" / "session" / "proof"
+
+    assert module.resolve_run_artifact_path(run_dir, "demo.mp4") == run_dir / "demo.mp4"
+    assert module.resolve_run_artifact_path(
+        run_dir,
+        "test-results/proof-videos/session/proof/demo.mp4",
+    ) == run_dir / "demo.mp4"
+    assert module.resolve_run_artifact_path(run_dir, run_dir / "demo.mp4") == run_dir / "demo.mp4"
+    with pytest.raises(module.DemonstrationError, match="escapes the run directory"):
+        module.resolve_run_artifact_path(run_dir, "../outside.mp4")
+    with pytest.raises(module.DemonstrationError, match="escapes the run directory"):
+        module.resolve_run_artifact_path(run_dir, tmp_path / "outside.mp4")
+
+
 def write_synthetic_audio(path: Path, *, duration: float = 1.0) -> Path:
     subprocess.run(
         [

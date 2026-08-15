@@ -21,6 +21,7 @@ import pytest
 
 from scripts import sessions
 from scripts import proof_video_workflow
+from scripts import spec_demo
 
 
 class SyntheticDemonstrationError(RuntimeError):
@@ -33,6 +34,7 @@ def fake_spec_demo(**functions: object) -> ModuleType:
     module.produce_cli_demonstration = functions.get("produce", lambda **_kwargs: {})
     module.produce_playwright_demonstration = functions.get("produce_playwright", lambda **_kwargs: {})
     module.require_review_receipt_integrity = functions.get("require_receipt", lambda *_args: None)
+    module.resolve_run_artifact_path = functions.get("resolve_path", lambda run_dir, value: Path(run_dir) / value)
     module.publish_reviewed_video = functions.get("publish", lambda *_args, **_kwargs: {})
     return module
 
@@ -788,6 +790,35 @@ def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: P
     assert blocker_media["media_status"] == "available"
     assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
     assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+
+
+def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "test-results" / "proof-videos" / "session" / "proof"
+    run_dir.mkdir(parents=True)
+    video = run_dir / "demo.mp4"
+    captions = run_dir / "captions.vtt"
+    video.write_bytes(b"video")
+    captions.write_text("WEBVTT\n", encoding="utf-8")
+    monkeypatch.setattr(spec_demo, "__file__", str(tmp_path / "scripts" / "spec_demo.py"))
+    manifest = {
+        "spec_id": "proof",
+        "review": {"status": "product_defect"},
+        "video_path": "test-results/proof-videos/session/proof/demo.mp4",
+        "caption_artifact": {
+            "path": "test-results/proof-videos/session/proof/captions.vtt",
+            "language": "en",
+            "label": "Captions",
+        },
+    }
+
+    blocker_media = sessions._proof_video_blocker_media_record(run_dir, manifest)
+
+    assert blocker_media["media_status"] == "available"
+    assert blocker_media["video_path"] == str(video)
+    assert blocker_media["captions_path"] == str(captions)
 
 
 def test_proof_video_manifest_requires_exact_device_profile_dimensions(tmp_path: Path) -> None:

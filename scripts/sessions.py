@@ -7401,7 +7401,7 @@ def _command_invokes_openmates_cli(argv: list[str]) -> bool:
 
 def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Upload reviewed proof media for final OpenCode response embedding."""
-    from spec_demo import require_review_receipt_integrity
+    from spec_demo import require_review_receipt_integrity, resolve_run_artifact_path
 
     privacy_status = manifest.get("privacy", {}).get("status")
     if privacy_status not in PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
@@ -7416,9 +7416,7 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
         raise RuntimeError("OpenCode response-media publication requires the requested narration audio track")
 
-    video_path = Path(str(manifest.get("video_path") or ""))
-    if not video_path.is_absolute():
-        video_path = run_dir / video_path
+    video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
     if not video_path.is_file():
         raise RuntimeError("Reviewed proof video does not exist")
 
@@ -7431,9 +7429,7 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
     if captions_value:
-        captions_path = Path(captions_value)
-        if not captions_path.is_absolute():
-            captions_path = run_dir / captions_path
+        captions_path = resolve_run_artifact_path(run_dir, captions_value)
         command.extend([
             "--captions",
             str(captions_path),
@@ -7505,14 +7501,17 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
 def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Return response-ready media metadata when a proof-video record is blocked."""
 
+    try:
+        from scripts.spec_demo import resolve_run_artifact_path
+    except ModuleNotFoundError:
+        from spec_demo import resolve_run_artifact_path
+
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     review_status = str(review.get("status") or "pending")
     if review_status == "passed":
         return {}
     video_value = str(manifest.get("video_path") or "")
-    video_path = Path(video_value)
-    if video_value and not video_path.is_absolute():
-        video_path = run_dir / video_path
+    video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
     record: dict[str, Any] = {
         "status": "required",
         "reason": "Proof review did not pass; include this recording when reporting the blocker.",
@@ -7523,9 +7522,7 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
 
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
-    captions_path = Path(captions_value) if captions_value else None
-    if captions_path is not None and not captions_path.is_absolute():
-        captions_path = run_dir / captions_path
+    captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
     command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
     if captions_path is not None and captions_path.is_file():

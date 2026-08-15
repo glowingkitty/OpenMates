@@ -2034,6 +2034,20 @@ def delete_disposable_artifacts(run_dir: Path, manifest: dict[str, Any]) -> list
     return deleted
 
 
+def resolve_run_artifact_path(run_dir: Path, value: str | Path) -> Path:
+    """Resolve run-local names and repository-relative manifest artifact paths."""
+    path = Path(value)
+    run_dir = run_dir.resolve()
+    if path.is_absolute():
+        resolved = path.resolve()
+    else:
+        repository_path = (Path(__file__).resolve().parent.parent / path).resolve()
+        resolved = repository_path if repository_path == run_dir or run_dir in repository_path.parents else (run_dir / path).resolve()
+    if resolved != run_dir and run_dir not in resolved.parents:
+        raise DemonstrationError("Proof artifact path escapes the run directory")
+    return resolved
+
+
 def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *, verify_video: bool = True) -> None:
     """Reject legacy or modified review records before any proof publication."""
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
@@ -2059,17 +2073,13 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
     ):
         raise DemonstrationError("AI review receipt does not match the passed manifest review")
     if verify_video:
-        video_path = Path(str(manifest.get("video_path") or ""))
-        if not video_path.is_absolute():
-            video_path = run_dir / video_path
+        video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
         expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
         if not video_path.is_file() or sha256_file(video_path) != expected_video_hash:
             raise DemonstrationError("Reviewed proof video is missing or its content hash changed")
     if int(manifest.get("schema_version") or 1) >= 2:
         caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
-        captions_path = Path(str(caption_artifact.get("path") or ""))
-        if not captions_path.is_absolute():
-            captions_path = run_dir / captions_path
+        captions_path = resolve_run_artifact_path(run_dir, str(caption_artifact.get("path") or ""))
         expected_captions_hash = str(caption_artifact.get("sha256") or "")
         if (
             caption_artifact.get("mime_type") != "text/vtt"
@@ -2104,7 +2114,7 @@ def publish_reviewed_video(
         _write_run_json(run_dir / "manifest.json", manifest)
         return manifest
     require_review_receipt_integrity(run_dir, manifest)
-    video_path = Path(str(manifest.get("video_path", "")))
+    video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path", "")))
     if not video_path.is_file():
         raise DemonstrationError("Reviewed demonstration video does not exist")
     now_text = _utc_text(now)
@@ -2120,9 +2130,7 @@ def publish_reviewed_video(
         uploader = upload_response_media
     try:
         captions_value = str((manifest.get("caption_artifact") or {}).get("path") or "")
-        captions_path = Path(captions_value) if captions_value else None
-        if captions_path is not None and not captions_path.is_absolute():
-            captions_path = run_dir / captions_path
+        captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
         caption_artifact = manifest.get("caption_artifact") or {}
         upload = uploader(
             path=video_path,
