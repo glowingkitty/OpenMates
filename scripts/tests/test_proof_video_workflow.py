@@ -134,6 +134,55 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     assert result["context"]["source_run_id"] == "run-current"
 
 
+def test_start_current_disambiguates_numeric_cli_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deployed_commit = "a" * 40
+    sessions_file = tmp_path / "control" / ".claude" / "sessions.json"
+    proof_sources = tmp_path / "worktree" / "test-results" / "proof-video-sources"
+    proof_sources.mkdir(parents=True)
+    sessions_file.parent.mkdir(parents=True)
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "opencode_session_id": "ses_current",
+                        "worktree": {"merged_commit": deployed_commit},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (proof_sources / "run-current.json").write_text(
+        json.dumps(
+            {
+                "run_id": 31889726729,
+                "git_sha": deployed_commit,
+                "deployment_reference": deployed_commit,
+                "status": "passed",
+                "spec": "example.spec.ts",
+                "source": "scripts_tests",
+                "deployment_verified": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path / "worktree")
+    monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: [])
+    monkeypatch.setattr(workflow, "_current_git_sha", lambda: "b" * 40)
+
+    result = workflow.start_current("example.spec.ts", run_id="31889726729")
+
+    assert result["context"]["source_run_id"] == "31889726729"
+
+
 def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
     commit = "a" * 40
     runs = [

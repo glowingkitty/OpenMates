@@ -976,7 +976,7 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
         subject_commit = _current_git_sha()
     runs = _local_test_runs()
     if run_id:
-        runs = [run for run in runs if run.get("run_id") == run_id]
+        runs = [run for run in runs if str(run.get("run_id") or "") == str(run_id)]
     context = resolve_current_context(
         sessions,
         opencode_session_id=opencode_session_id,
