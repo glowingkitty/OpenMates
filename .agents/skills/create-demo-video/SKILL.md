@@ -87,6 +87,13 @@ automatic correction rounds, including at most one product-code correction round
 Re-review only changed device hashes. Uncertain findings, repeated defect
 fingerprints, or exhausted budgets require immediate user input.
 
+If review returns any blocker status (`capture_defect`, `render_defect`,
+`product_defect`, or `uncertain`), inspect the returned `blocker_media` metadata
+before responding. Run its `upload_command` and paste the returned `<video>` HTML
+in the blocker response so the user can see the exact failed recording. If
+`blocker_media.media_status` is `missing`, state that as a workflow defect and
+include the missing `video_path`; do not report the blocker with text alone.
+
 After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
 proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt
 "..."` and paste the returned image Markdown or `<video>` HTML in the final

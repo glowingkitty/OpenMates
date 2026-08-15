@@ -293,6 +293,13 @@ def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
     assert options.expected_commit == "abc123"
 
 
+def test_playwright_proof_video_size_also_sets_viewport() -> None:
+    config = (PROJECT_ROOT / "frontend" / "apps" / "web_app" / "playwright.config.ts").read_text(encoding="utf-8")
+
+    assert "const videoSize" in config
+    assert "viewport: videoSize" in config
+
+
 def test_run_options_consume_detach_before_forwarding(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 

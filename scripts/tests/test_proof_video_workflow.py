@@ -834,6 +834,43 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
     spec_demo.require_review_receipt_integrity(second_dir, cached["manifest"])
 
 
+def test_review_run_includes_blocker_media_for_failed_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "blocked")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "render_defect",
+                "confidence": 0.95,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "assertions": [{"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Blank frame."}],
+                "incidental_findings": [],
+                "return_stage": "render",
+                "next_action": "Regenerate the video.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=reviewer,
+    )
+
+    blocker_media = result["blocker_media"]
+    assert blocker_media["media_status"] == "available"
+    assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
+    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
+
+
 def test_review_run_rejects_tampered_cached_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")

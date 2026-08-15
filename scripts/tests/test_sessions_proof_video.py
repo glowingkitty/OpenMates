@@ -773,6 +773,21 @@ def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path)
     assert session["proof_video_pending"] == [{"status": "pending", "subject_commit": "other"}]
 
 
+def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: Path) -> None:
+    manifest_path = write_passed_manifest(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["review"]["status"] = "render_defect"
+    manifest["video_path"] = str(tmp_path / "demo.mp4")
+    (tmp_path / "demo.mp4").write_bytes(b"video")
+
+    record = sessions._proof_video_manifest_record(tmp_path, manifest)
+
+    blocker_media = record["blocker_media"]
+    assert blocker_media["media_status"] == "available"
+    assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
+    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+
+
 def test_proof_video_manifest_requires_exact_device_profile_dimensions(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

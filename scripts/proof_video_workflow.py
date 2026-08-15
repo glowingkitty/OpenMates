@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 from typing import Any
 
@@ -684,6 +685,56 @@ def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: lis
     }
 
 
+def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: str) -> dict[str, Any]:
+    """Return response-ready media metadata for failed or blocked proof reviews."""
+
+    if review_status == "passed":
+        return {}
+    video_value = str(manifest.get("video_path") or "")
+    if not video_value:
+        source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
+        video_value = str(source.get("artifact_path") or "")
+    video_path = Path(video_value)
+    if video_value and not video_path.is_absolute():
+        video_path = run_dir / video_path
+
+    record: dict[str, Any] = {
+        "status": "required",
+        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
+        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
+    }
+    if not video_value or not video_path.is_file():
+        return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
+
+    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+    captions_value = str(caption_artifact.get("path") or "")
+    captions_path = Path(captions_value) if captions_value else None
+    if captions_path is not None and not captions_path.is_absolute():
+        captions_path = run_dir / captions_path
+
+    alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
+    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+    if captions_path is not None and captions_path.is_file():
+        command.extend(
+            [
+                "--captions",
+                str(captions_path),
+                "--captions-language",
+                str(caption_artifact.get("language") or "und"),
+                "--captions-label",
+                str(caption_artifact.get("label") or "Captions"),
+            ]
+        )
+        record["captions_path"] = str(captions_path)
+    command.extend(["--alt", alt])
+    return {
+        **record,
+        "media_status": "available",
+        "video_path": str(video_path),
+        "upload_command": " ".join(shlex.quote(part) for part in command),
+    }
+
+
 def _parse_reviewer_output(output: str) -> dict[str, Any]:
     candidates: list[str] = []
     for line in output.splitlines():
@@ -770,6 +821,7 @@ def review_run(
     if not run_dir.resolve().is_relative_to(canonical_runs_root):
         raise WorkflowError(f"review run directory must be inside {canonical_runs_root}")
     request = _load_json(run_dir / "review-request.json")
+    existing_manifest = _load_json(run_dir / "manifest.json")
     try:
         validate_review_request_files(run_dir, request)
     except Exception as exc:
@@ -810,6 +862,12 @@ def review_run(
             for key, value in cached["receipt"].items()
             if key != "attempt_number"
         }
+        blocker_media = proof_blocker_media(run_dir, existing_manifest, str(cached_receipt.get("status") or ""))
+        if blocker_media:
+            workflow_record = cached_receipt.get("workflow") if isinstance(cached_receipt.get("workflow"), dict) else {}
+            workflow_record["blocker_media"] = blocker_media
+            cached_receipt["workflow"] = workflow_record
+            cached["blocker_media"] = blocker_media
         cached["receipt"] = cached_receipt
         cached["manifest"] = record_review_receipt(run_dir, cached_receipt)
         return cached
@@ -865,6 +923,9 @@ def review_run(
     receipt["correction_kind"] = correction_kind
     prior_fingerprints = [str(value) for value in budget.get("defect_fingerprints", [])]
     decision = review_next_action(receipt, prior_defect_fingerprints=prior_fingerprints)
+    blocker_media = proof_blocker_media(run_dir, existing_manifest, str(receipt.get("status") or ""))
+    if blocker_media:
+        decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision
     if receipt.get("status") != "passed":
         budget = append_persisted_defect_fingerprint(budget_path, decision["defect_fingerprint"])
@@ -879,7 +940,10 @@ def review_run(
         run_dir=run_dir,
         status=str(receipt.get("status") or ""),
     )
-    return {"status": receipt.get("status"), "receipt": receipt, "manifest": manifest, "budget": budget}
+    result = {"status": receipt.get("status"), "receipt": receipt, "manifest": manifest, "budget": budget}
+    if blocker_media:
+        result["blocker_media"] = blocker_media
+    return result
 
 
 def _current_git_sha() -> str:

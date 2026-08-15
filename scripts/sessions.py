@@ -60,6 +60,7 @@ import mimetypes
 import os
 import re
 import secrets
+import shlex
 import shutil
 import socket
 import sqlite3
@@ -7463,6 +7464,53 @@ def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str,
     return manifest
 
 
+def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    """Return response-ready media metadata when a proof-video record is blocked."""
+
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    review_status = str(review.get("status") or "pending")
+    if review_status == "passed":
+        return {}
+    video_value = str(manifest.get("video_path") or "")
+    video_path = Path(video_value)
+    if video_value and not video_path.is_absolute():
+        video_path = run_dir / video_path
+    record: dict[str, Any] = {
+        "status": "required",
+        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
+        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
+    }
+    if not video_value or not video_path.is_file():
+        return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
+
+    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+    captions_value = str(caption_artifact.get("path") or "")
+    captions_path = Path(captions_value) if captions_value else None
+    if captions_path is not None and not captions_path.is_absolute():
+        captions_path = run_dir / captions_path
+    alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
+    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+    if captions_path is not None and captions_path.is_file():
+        command.extend(
+            [
+                "--captions",
+                str(captions_path),
+                "--captions-language",
+                str(caption_artifact.get("language") or "und"),
+                "--captions-label",
+                str(caption_artifact.get("label") or "Captions"),
+            ]
+        )
+        record["captions_path"] = str(captions_path)
+    command.extend(["--alt", alt])
+    return {
+        **record,
+        "media_status": "available",
+        "video_path": str(video_path),
+        "upload_command": " ".join(shlex.quote(part) for part in command),
+    }
+
+
 def cmd_proof_video(args: argparse.Namespace) -> None:
     """Produce, review, or publish narrated CLI and Playwright proof videos."""
     from spec_demo import (
@@ -9194,7 +9242,10 @@ def _proof_video_manifest_problems(
         problems.append("frame review has not passed")
     elif run_dir is not None:
         try:
-            from spec_demo import require_review_receipt_integrity
+            try:
+                from scripts.spec_demo import require_review_receipt_integrity
+            except ModuleNotFoundError:
+                from spec_demo import require_review_receipt_integrity
 
             publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
             require_review_receipt_integrity(
@@ -9291,7 +9342,7 @@ def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dic
         delivery_required=delivery_required,
         run_dir=run_dir,
     )
-    return {
+    record = {
         "status": "passed" if not manifest_problems else "pending",
         "proof_id": manifest.get("spec_id", "session-proof"),
         "run_dir": str(run_dir),
@@ -9309,6 +9360,10 @@ def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dic
         "problems": manifest_problems,
         "timestamp": _now_iso(),
     }
+    blocker_media = _proof_video_blocker_media_record(run_dir, manifest)
+    if blocker_media:
+        record["blocker_media"] = blocker_media
+    return record
 
 
 def _upsert_proof_video_record(session: dict, run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
