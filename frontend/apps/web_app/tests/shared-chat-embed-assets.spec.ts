@@ -405,11 +405,11 @@ async function waitForFinishedPdfEmbed(
 async function holdVisibleProofFrames(page: any): Promise<void> {
 	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
 	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
-	const nextEmbedButton = page.getByLabel('Next embed').first();
+	const nextEmbedButton = page.locator('button[aria-label="Next embed"]:visible').first();
 	for (let index = 0; index < 3; index += 1) {
 		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
 		if (index < 2) {
-			await nextEmbedButton.click();
+			await nextEmbedButton.click({ force: true });
 			await page.waitForTimeout(750);
 		}
 	}
