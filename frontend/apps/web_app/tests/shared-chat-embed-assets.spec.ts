@@ -482,7 +482,11 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		const message =
 			'Create a short shared-chat note confirming the attached PDF, image, and audio recording are ready to preview. ' +
 			`@${pdfPath} @${imagePath} @${audioPath}`;
-		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
+		const sendResult = await runCli(
+			apiUrl,
+			['chats', 'new', message, '--slug', `shared-proof-${runMarker}`, '--json'],
+			600_000
+		);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
 		consoleLogs.push(`Create chat stderr: ${sendResult.stderr.slice(0, 2000)}`);
 		expect(sendResult.code).toBe(0);
