@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.core.api.app.services import operational_monitoring as monitoring
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 
 WINDOW_END = datetime(2026, 8, 14, 12, 0, tzinfo=timezone.utc)
@@ -213,6 +214,19 @@ async def test_usage_count_filters_integer_created_at_timestamps():
         end=WINDOW_END,
     )
     assert count == 12
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.content.privacy-boundary
+def test_sensitive_log_filter_redacts_discord_webhook_destinations():
+    webhook_id = "123456789012345678"
+    webhook_token = "secret_webhook_token"
+    filtered = SensitiveDataFilter()._redact_sensitive_data(
+        f"HTTP Request: POST https://discord.com/api/webhooks/{webhook_id}/{webhook_token}"
+    )
+
+    assert webhook_id not in filtered
+    assert webhook_token not in filtered
+    assert filtered.endswith("https://discord.com/api/webhooks/[REDACTED]")
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,13 @@ class SensitiveDataFilter(logging.Filter):
             "token": re.compile(r'"?(?:api_?key|token|secret|jwt)"?\s*[:=]\s*"?[^",\s]+"?', re.IGNORECASE),
             
             # Bearer auth header pattern
-            "bearer": re.compile(r'[Bb]earer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*')
+            "bearer": re.compile(r'[Bb]earer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*'),
+
+            # Discord webhook URLs contain a destination ID and bearer-equivalent token.
+            "discord_webhook": re.compile(
+                r'https://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9._-]+',
+                re.IGNORECASE,
+            ),
         }
         
         # Replacement templates
@@ -45,7 +51,8 @@ class SensitiveDataFilter(logging.Filter):
             "uuid": "[REDACTED_ID]",
             "password": '"password": "[REDACTED]"',
             "token": '"token": "[REDACTED]"',
-            "bearer": "Bearer [REDACTED]"
+            "bearer": "Bearer [REDACTED]",
+            "discord_webhook": "https://discord.com/api/webhooks/[REDACTED]",
         }
     
     def filter(self, record: logging.LogRecord) -> bool:
