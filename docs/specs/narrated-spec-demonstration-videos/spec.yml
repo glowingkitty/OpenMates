@@ -1051,11 +1051,11 @@ tests:
     expected: pass
     evidence:
       status: passed
-      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
-      run_id: local-2026-08-15-proof-captions-green
-      subject_commit: working-tree@59a5468e9
-      timestamp: '2026-08-15T00:00:00Z'
-      summary: Device filtering, cache identity, clean rendering, and WebVTT generation tests passed.
+      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+      run_id: local-2026-08-15-proof-captions-green-e270eb8
+      subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+      timestamp: '2026-08-15T11:30:00Z'
+      summary: All 123 device filtering, cache identity, clean rendering, WebVTT generation, publication, and session integration tests passed.
 - id: T-RESPONSE-MEDIA-CAPTIONS
   type: pytest
   file: scripts/tests/test_opencode_response_media.py
@@ -1082,10 +1082,10 @@ tests:
     evidence:
       status: passed
       command: python3 -m pytest scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
-      run_id: local-2026-08-15-response-captions-green
-      subject_commit: working-tree@59a5468e9
-      timestamp: '2026-08-15T00:00:00Z'
-      summary: Strict WebVTT upload, paired hash verification, toggleable track HTML, and cleanup tests passed.
+      run_id: local-2026-08-15-response-captions-green-e270eb8
+      subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+      timestamp: '2026-08-15T11:30:00Z'
+      summary: All 123 strict WebVTT upload, paired hash verification, toggleable track HTML, cleanup, and session integration tests passed.
 verifications:
 - id: V-PLAYWRIGHT-DEMO
   kind: artifact_review
@@ -1176,6 +1176,23 @@ verifications:
     timestamp: '2026-08-06T10:07:38Z'
     publication_status: delivered
     summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while sanitized text evidence was retained.
+- id: V-CAPTION-PLAYER-SMOKE
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-14
+  - AC-15
+  - AC-16
+  status: passed
+  evidence:
+    command: python3 test-results/proof-caption-smoke/verify_player.py
+    run_id: proof-caption-player-smoke-2026-08-15
+    subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+    timestamp: '2026-08-15T11:25:00Z'
+    video_hash: sha256:3735be5ff6ff4b489f46e72c5d7d5cc463e1076a15d377b175e5cb1f146801bc
+    captions_hash: sha256:1189b3f23868ca016e0fcf87d38c4aff8bda66b12a68d89f4763f47b4139ff3c
+    summary: Chromium loaded the real uploaded 1440x900 clean-frame WebM at full 1000px container width, loaded the default WebVTT cue, and toggled captions from showing to disabled and back to showing.
 implementation_plan:
   spec_path: docs/specs/narrated-spec-demonstration-videos/spec.yml
   first_slice: 'Add failing contract and renderer tests that prove each device receives only applicable claims and cues, clean video retains exact profile dimensions and full frame area, and publication emits a hash-bound WebVTT track.
@@ -1957,7 +1974,7 @@ tasks:
   independently_deployable: false
 - id: TASK-18
   title: Verify synthetic full-size caption toggle and clean-frame reviewer bundle
-  status: in_progress
+  status: done
   phase: running_checks
   covers:
     scenarios: [S-9]
