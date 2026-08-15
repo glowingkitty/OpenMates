@@ -50,7 +50,7 @@
   @keyframes landingSubslideFlow {
     0% {
       opacity: 0;
-      transform: translate3d(0, 36px, 0) scale(0.72);
+      transform: translate3d(0, 24px, 0) scale(0.96);
       animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
     30% {
