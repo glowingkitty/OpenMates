@@ -89,6 +89,7 @@
 
     .notification-stack-item :global(.notification) {
         margin: 0;
+        animation: none;
     }
 
     @media (max-width: 730px) {
