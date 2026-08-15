@@ -27,37 +27,39 @@ test('global notifications stack behind the front card and promote on dismiss', 
 		timeout: 10000
 	});
 
-	await page.evaluate((eventName: string) => {
-		window.dispatchEvent(
-			new CustomEvent(eventName, {
-				detail: {
-					notifications: [
-						{
-							type: 'info',
-							title: 'First stacked notification',
-							message: 'This front notification stays readable and interactive.',
-							duration: 0
-						},
-						{
-							type: 'success',
-							title: 'Second stacked notification',
-							message: 'This notification waits behind the front card.',
-							duration: 0
-						},
-						{
-							type: 'warning',
-							title: 'Third stacked notification',
-							message: 'Only a slim strip remains visible at the back.',
-							duration: 0
-						}
-					]
-				}
-			})
-		);
-	}, E2E_ADD_NOTIFICATIONS_EVENT);
-
 	const stack = page.getByTestId('notification-stack');
 	const items = page.getByTestId('notification-stack-item');
+	for (let attempt = 0; attempt < 8; attempt += 1) {
+		await page.evaluate((eventName: string) => {
+			window.dispatchEvent(
+				new CustomEvent(eventName, {
+					detail: {
+						notifications: [
+							{
+								type: 'info',
+								title: 'First stacked notification',
+								message: 'This front notification stays readable and interactive.',
+								duration: 0
+							},
+							{
+								type: 'success',
+								title: 'Second stacked notification',
+								message: 'This notification waits behind the front card.',
+								duration: 0
+							},
+							{
+								type: 'warning',
+								title: 'Third stacked notification',
+								message: 'Only a slim strip remains visible at the back.',
+								duration: 0
+							}
+						]
+					}
+				})
+			);
+		}, E2E_ADD_NOTIFICATIONS_EVENT);
+		if (await stack.isVisible({ timeout: 500 }).catch(() => false)) break;
+	}
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
 	await expect(items.nth(0)).toContainText('First stacked notification');
