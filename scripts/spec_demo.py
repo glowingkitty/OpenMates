@@ -745,6 +745,18 @@ def require_canonical_text_privacy_scan(values: dict[str, Any], *, stage: str) -
     return {"status": "passed", "findings": [], "scan": "canonical_text", "scanned_stage": stage}
 
 
+def privacy_scan_source(source: dict[str, Any]) -> dict[str, Any]:
+    """Exclude validated GitHub run IDs without trusting arbitrary provenance fields."""
+    if source.get("source") != "scripts_tests":
+        return source
+    sanitized = dict(source)
+    for key in ("run_id", "source_run_id"):
+        value = source.get(key)
+        if isinstance(value, str) and re.fullmatch(r"[1-9]\d{10}", value):
+            sanitized[key] = "<GITHUB_RUN_ID>"
+    return sanitized
+
+
 def anonymize_cli_capture(run_dir: Path, capture: dict[str, Any]) -> dict[str, Any]:
     """Replace sensitive values with conspicuous typed placeholders before rendering."""
     transcript_path = run_dir / "transcript.txt"
@@ -1166,7 +1178,7 @@ def prepare_review_artifacts(
         {
             "captions": captions,
             "transcript": transcript_path.read_text(encoding="utf-8") if transcript_path.is_file() else caption_text,
-            "source": source,
+            "source": privacy_scan_source(source),
             "metadata": metadata,
             "filenames": [video_path.name, captions_path.name, transcript_path.name],
             "spec_id": spec_id,

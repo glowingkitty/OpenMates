@@ -416,7 +416,11 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
         captions_path=captions,
         expected_proof="The terminal shows team CLI output.",
         acceptance_criteria=["AC-1"],
-        source={"kind": "cli", "argv": ["openmates", "teams", "create"]},
+        source={
+            "source": "scripts_tests",
+            "run_id": "31883135611",
+            "source_run_id": "31883135611",
+        },
         narration_audio=module.narration_audio_not_required(),
         caption_segments=[
             {
@@ -440,6 +444,33 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     assert request["captions"][0]["end"] == 15.967
     timestamps = {frame["timestamp_seconds"] for frame in request["frames"]}
     assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
+
+
+def test_privacy_scan_source_only_masks_validated_github_run_ids() -> None:
+    module = load_module()
+
+    assert module.privacy_scan_source(
+        {"source": "scripts_tests", "run_id": "31883135611", "source_run_id": "31883135611"}
+    ) == {"source": "scripts_tests", "run_id": "<GITHUB_RUN_ID>", "source_run_id": "<GITHUB_RUN_ID>"}
+    assert module.privacy_scan_source({"source": "scripts_tests", "run_id": "sensitive-value"})["run_id"] == "sensitive-value"
+    assert module.privacy_scan_source({"kind": "cli", "run_id": "31883135611"})["run_id"] == "31883135611"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"source": "scripts_tests", "run_id": "+1 202-555-0123"},
+        {"kind": "cli", "run_id": "31883135611"},
+    ],
+)
+def test_privacy_scan_source_keeps_untrusted_phone_values_blocked(source: dict[str, str]) -> None:
+    module = load_module()
+
+    with pytest.raises(module.DemonstrationError, match="PHONE"):
+        module.require_canonical_text_privacy_scan(
+            {"source": module.privacy_scan_source(source)},
+            stage="test",
+        )
 
 
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
