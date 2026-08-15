@@ -67,6 +67,87 @@ def test_routing_repair_migrates_obsolete_mode_and_touches_session(monkeypatch) 
     assert data["sessions"]["abcd"]["last_active"] == "now"
 
 
+def test_routing_repair_refreshes_a_fast_forwarded_worktree_base(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    worktree = {"path": "/repo/agent-abcd", "status": "active", "base_commit": "old-base"}
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "worktree_routed",
+                "worktree": worktree,
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "new-head")
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd",
+        lambda command, **_kwargs: (0, "new-head\n" if command[1] == "rev-parse" else "", ""),
+    )
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+
+    sessions.repair_worktree_routing("ses_parent")
+
+    assert worktree["base_commit"] == "new-head"
+
+
+def test_routing_repair_preserves_an_unintegrated_local_commit(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    worktree = {"path": "/repo/agent-abcd", "status": "active", "base_commit": "old-base"}
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "worktree_routed",
+                "worktree": worktree,
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "local-commit")
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "upstream-commit\n", ""))
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+
+    with pytest.raises(RuntimeError, match="HEAD does not match origin/dev"):
+        sessions.repair_worktree_routing("ses_parent")
+
+    assert worktree["base_commit"] == "old-base"
+
+
+def test_routing_repair_preserves_a_divergent_recorded_base(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    worktree = {"path": "/repo/agent-abcd", "status": "active", "base_commit": "divergent-base"}
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "binding_mode": "worktree_routed",
+                "worktree": worktree,
+            }
+        }
+    }
+
+    def run_command(command, **_kwargs):
+        if command[1] == "rev-parse":
+            return 0, "upstream-head\n", ""
+        return 1, "", "not an ancestor"
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "upstream-head")
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+
+    with pytest.raises(RuntimeError, match="diverged from its recorded base"):
+        sessions.repair_worktree_routing("ses_parent")
+
+    assert worktree["base_commit"] == "divergent-base"
+
+
 def test_routing_repair_rejects_merged_worktree_after_deploy(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {

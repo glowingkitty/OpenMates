@@ -1196,7 +1196,7 @@ tests:
   - id: T-PYTEST-TASK-ADMISSION
     type: pytest
     file: backend/tests/test_user_task_admission.py
-    command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py
+    command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py backend/tests/test_billing_worker_compose.py
     covers:
       - AC-4
       - AC-5
@@ -1213,6 +1213,7 @@ tests:
       - completing, blocking, skipping, cancelling, or failing an active Task automatically admits waiting eligible work under a scope lock.
       - a recovery sweep admits eligible waiting Tasks after missed callbacks or restart.
       - queued dispatches that exceed the worker lease are blocked and free capacity, while delayed workers must win the queued-to-running fence before inference.
+      - periodic reconciliation uses a dedicated user_tasks worker queue so unrelated persistence backlog cannot starve capacity repair.
     red_phase:
       required: true
       expected: fail_or_missing
@@ -1228,10 +1229,10 @@ tests:
       evidence:
         status: passed
         run_id: local-pytest-task-admission-recovery-green-2026-08-15
-        subject_commit: 4ee355ed986e4d75a09c05cfd7a582fbec314c6d-working-tree
+        subject_commit: 4230b9500f63dd22a24035d43b0f05ea64c979a0-working-tree
         timestamp: "2026-08-15"
-        command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py
-        result: 138 passed
+        command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py backend/tests/test_billing_worker_compose.py
+        result: 142 passed
 
   - id: T-PYTEST-TASK-SHARE-BUNDLE
     type: pytest

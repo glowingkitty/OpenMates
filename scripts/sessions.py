@@ -6567,6 +6567,37 @@ def record_worktree_binding(
     return _mutate_sessions(update)
 
 
+def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
+    """Align deploy metadata after a managed worktree is safely fast-forwarded."""
+    worktree_path = str(worktree.get("path") or "")
+    recorded_base = str(worktree.get("base_commit") or "")
+    if not worktree_path or not recorded_base:
+        return ""
+    current_head = _current_git_sha(Path(worktree_path))
+    if not current_head or current_head == recorded_base:
+        return ""
+    rc, upstream_head, stderr = _run_cmd(
+        ["git", "rev-parse", "refs/remotes/origin/dev"],
+        cwd=worktree_path,
+    )
+    if rc != 0 or current_head != upstream_head.strip():
+        raise RuntimeError(
+            "Reason: managed worktree HEAD does not match origin/dev. "
+            f"Next: preserve the worktree and inspect its commits before repair. {stderr}".strip()
+        )
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", recorded_base, current_head],
+        cwd=worktree_path,
+    )
+    if rc != 0:
+        raise RuntimeError(
+            "Reason: managed worktree HEAD diverged from its recorded base. "
+            f"Next: preserve the worktree and inspect both commits before repair. {stderr}".strip()
+        )
+    worktree["base_commit"] = current_head
+    return recorded_base
+
+
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
     def update(data: dict) -> dict:
@@ -6587,6 +6618,7 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
                 f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
             )
         shared_runtime_resources = link_shared_worktree_resources(worktree_path)
+        refresh_worktree_base_after_fast_forward(worktree)
         session["binding_mode"] = "worktree_routed"
         session["binding_updated_at"] = _now_iso()
         session["binding_failure_reason"] = ""

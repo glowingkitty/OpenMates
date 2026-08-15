@@ -238,3 +238,15 @@ def test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence() -> None:
     assert 'ai_execution_state="running"' in claim_block
     assert "if request_data.user_task_id and not user_task_claimed:" in claim_block
     assert '"status": "stale_user_task_dispatch_ignored"' in claim_block
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped
+def test_reconciliation_uses_dedicated_user_tasks_queue() -> None:
+    source = (Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "tasks" / "celery_config.py").read_text()
+    schedule = source.split("'process-due-ai-user-tasks':", maxsplit=1)[1].split("'archive-completed-user-tasks-daily':", maxsplit=1)[0]
+
+    assert "'task': 'user_tasks.process_due_ai_tasks'" in schedule
+    assert "'options': {'queue': 'user_tasks'}" in schedule
+    assert "{'name': 'user_tasks', 'module': 'backend.core.api.app.tasks.user_task_scheduler'}" in source
+    assert '"user_tasks.process_due_ai_tasks": {\'queue\': \'user_tasks\'}' in source
+    assert '"user_tasks.archive_completed_tasks": {\'queue\': \'persistence\'}' in source
