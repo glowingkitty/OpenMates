@@ -2283,6 +2283,18 @@ export class ChatSynchronizationService extends EventTarget {
     );
 
     this.phasedSyncTimeout = setTimeout(() => {
+      this.phasedSyncTimeout = null;
+
+      if (!this.cachePrimed && this.cacheStatusServerChatCount > 0) {
+        console.warn(
+          `[ChatSyncService] Phased sync timeout reached while server still reports ${this.cacheStatusServerChatCount} chat(s). ` +
+            "Keeping sync pending and retrying cache status instead of dispatching synthetic completion.",
+        );
+        phasedSyncState.markSyncPending();
+        this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
+        return;
+      }
+
       console.warn(
         `[ChatSyncService] ⚠️ Phased sync timeout reached (${this.PHASED_SYNC_TIMEOUT_MS}ms) - dispatching synthetic completion event`,
       );
