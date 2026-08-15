@@ -1,0 +1,78 @@
+{
+  "fingerprint": "424d306ca0284cb7",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "news_search_web",
+  "recorded_at": "2026-08-15T11:03:32.751072+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "298eea1bae3aa253",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,page_age,profile_name,thumbnail_src,extra_snippets,embed_ref}:\n  OpenMates E2E AI News Fixture,\"https://app.dev.openmates.org/news/fixtures/ai-progress\",A deterministi..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the latest news items for your search:\n\n* [OpenMates E2E AI News Fixture](embed:app.dev.openmates.org-q37)\n> [A deterministic AI news fixture used by the OpenMates E2E news search flow.](embed:app.dev.openmates.org-q37)\n\n* [AI Research Fixture Update](embed:app.dev.openmates.org-hVE)\n> [A second deterministic article card for testing grouped news search results.](embed:app.dev.openmates.org-hVE)\n\n```embeds_results_view\ntitle: OpenMates E2E News\nembeds: app.dev.openmates.org-q37, app.dev.openmates.org-hVE\n```\n\n***\n\nWould you like to search for other AI topics or learn more about how OpenMates news search works?",
+    "chunk_count": 11,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the latest news items for your search:\n\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [OpenMates E2E AI News Fixture](embed:app.dev.openmates.org-q37)\n>"
+      },
+      {
+        "kind": "text",
+        "value": " [A deterministic AI news fixture used by the OpenMates E2E news search flow.](embed:app.dev.openmates.org-"
+      },
+      {
+        "kind": "text",
+        "value": "q37)\n\n* [AI Research Fixture Update](embed:app.dev.openmates.org-hVE)"
+      },
+      {
+        "kind": "text",
+        "value": "\n> [A second deterministic article card for testing grouped news search results.](embed:app.dev.openmates"
+      },
+      {
+        "kind": "text",
+        "value": ".org-hVE)\n\n```embeds_results_view\ntitle: OpenMates E2E News"
+      },
+      {
+        "kind": "text",
+        "value": "\nembeds: app.dev.openmates.org-q37, app.dev.openmates.org"
+      },
+      {
+        "kind": "text",
+        "value": "-hVE\n```\n\n***\n\nWould you like to search for other AI topics or learn more about how OpenMates news"
+      },
+      {
+        "kind": "text",
+        "value": " search works?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14637,
+          "candidates_token_count": 201,
+          "total_token_count": 14838,
+          "user_input_tokens": 229,
+          "system_prompt_tokens": 13353
+        }
+      }
+    ]
+  }
+}
