@@ -10406,6 +10406,33 @@ def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> N
         )
 
 
+def _sync_deployed_files_to_source(
+    source_metadata: dict,
+    checkout_root: Path,
+    files: list[str],
+    patch_files: list[str],
+    expected_patch_id: str,
+) -> str:
+    """Align deployed files without overwriting edits made during integration."""
+    source_root = Path(str(source_metadata.get("path") or ""))
+    try:
+        if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
+            return "Source worktree changed during deploy; deployed files were not synchronized."
+        for relative_path in files:
+            deployed_path = checkout_root / relative_path
+            source_path = source_root / relative_path
+            if deployed_path.is_file():
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                temporary = source_path.with_name(f".{source_path.name}.{os.getpid()}.deploy-sync")
+                shutil.copy2(deployed_path, temporary)
+                temporary.replace(source_path)
+            elif source_path.exists() or source_path.is_symlink():
+                source_path.unlink()
+    except (OSError, RuntimeError) as exc:
+        return f"Could not synchronize deployed files into the source worktree: {exc}"
+    return ""
+
+
 def _deploy_native_worktree(
     args: argparse.Namespace,
     session: dict,
@@ -10422,6 +10449,7 @@ def _deploy_native_worktree(
     deploy_lock_held = False
     commit_hash_full = ""
     control_plane_warning = ""
+    source_sync_warning = ""
 
     try:
         prepared_base = _fetch_origin_dev_commit()
@@ -10518,6 +10546,13 @@ def _deploy_native_worktree(
             )
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
+            source_sync_warning = _sync_deployed_files_to_source(
+                worktree_metadata,
+                checkout_root,
+                commit_files,
+                to_commit,
+                patch_id,
+            )
             control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
             deploy_lock_held = False
@@ -10549,6 +10584,8 @@ def _deploy_native_worktree(
     _mark_worktree_deployed(sid, patch_id, commit_hash_full, integration=integration)
     if control_plane_warning:
         print(control_plane_warning, file=sys.stderr)
+    if source_sync_warning:
+        print(source_sync_warning, file=sys.stderr)
     commit_hash = commit_hash_full[:7]
     print()
     print("== DEPLOYED ==")

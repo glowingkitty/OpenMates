@@ -550,6 +550,50 @@ def test_chat_deduplication_blocks_fresh_inspection_failure(monkeypatch):
     assert data.get("worktree_deletion_manifests", []) == []
 
 
+def test_deploy_sync_copies_integrated_files_when_source_patch_is_unchanged(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "source"
+    integration = tmp_path / "integration"
+    (source / "scripts").mkdir(parents=True)
+    (integration / "scripts").mkdir(parents=True)
+    (source / "scripts" / "sessions.py").write_text("source\n", encoding="utf-8")
+    (integration / "scripts" / "sessions.py").write_text("deployed\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "patch-1")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": "base"},
+        integration,
+        ["scripts/sessions.py"],
+        ["scripts/sessions.py"],
+        "patch-1",
+    )
+
+    assert warning == ""
+    assert (source / "scripts" / "sessions.py").read_text(encoding="utf-8") == "deployed\n"
+
+
+def test_deploy_sync_preserves_source_edits_made_during_integration(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "source"
+    integration = tmp_path / "integration"
+    source.mkdir()
+    integration.mkdir()
+    (source / "file.txt").write_text("new edit\n", encoding="utf-8")
+    (integration / "file.txt").write_text("deployed\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "changed-patch")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": "base"},
+        integration,
+        ["file.txt"],
+        ["file.txt"],
+        "original-patch",
+    )
+
+    assert "changed during deploy" in warning
+    assert (source / "file.txt").read_text(encoding="utf-8") == "new edit\n"
+
+
 def test_chat_deduplication_blocks_lease_acquired_after_discovery(monkeypatch):
     sessions = load_sessions_module()
     data = {
