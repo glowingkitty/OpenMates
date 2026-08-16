@@ -24,6 +24,7 @@ SPEC_SUFFIXES = (".spec.ts", ".test.ts")
 CSS_LOCATOR_RE = re.compile(r"\b(?:page|\w+)\.locator\(\s*(['\"`])\.[^'\"`]*\1")
 WAIT_RE = re.compile(r"\bwaitForTimeout\s*\(")
 SERIAL_CONFIG_RE = re.compile(r"test\.describe\.configure\s*\(\s*\{[^}]*mode\s*:\s*['\"]serial['\"]", re.DOTALL)
+RAW_BROWSER_CONTEXT_RE = re.compile(r"\bbrowser\.newContext\s*\(")
 ALLOW_MARKERS = (
     "playwright-determinism: allow",
     "deterministic-audit: allow",
@@ -37,6 +38,7 @@ RESERVED_ACCOUNT_SPEC_NAMES = {
     "settings-change-email.spec.ts",
     "api-keys-flow.spec.ts",
 }
+STATE_ISOLATION_SPEC_NAMES = {"shared-chat-embed-assets.spec.ts"}
 
 
 @dataclass(frozen=True)
@@ -116,6 +118,26 @@ def audit_spec(path: Path) -> list[AuditIssue]:
                 )
             )
 
+    if path.name in STATE_ISOLATION_SPEC_NAMES:
+        text = "\n".join(lines)
+        if "declareTestState" not in text or "createIsolatedBrowserContext" not in text:
+            issues.append(
+                AuditIssue(
+                    rel_path,
+                    1,
+                    "cross-auth Playwright specs require a complete state declaration and isolated context helper",
+                )
+            )
+        for index, line in enumerate(lines):
+            if RAW_BROWSER_CONTEXT_RE.search(line) and not _has_allow_marker(lines, index):
+                issues.append(
+                    AuditIssue(
+                        rel_path,
+                        index + 1,
+                        "raw browser.newContext bypasses the declared empty-storage isolation boundary",
+                    )
+                )
+
     return issues
 
 
@@ -165,6 +187,14 @@ def audit_added_lines(lines: list[tuple[str, int, str]]) -> list[AuditIssue]:
                     path,
                     line_no,
                     "waitForTimeout is timing-based; wait for UI state, network response, or add an explicit allow marker",
+                )
+            )
+        if RAW_BROWSER_CONTEXT_RE.search(line) and not has_allow_marker:
+            issues.append(
+                AuditIssue(
+                    path,
+                    line_no,
+                    "new browser contexts must use a shared state declaration and isolation helper",
                 )
             )
     return issues

@@ -20,7 +20,11 @@ const {
 	getTestAccount,
 	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	createIsolatedBrowserContext,
+	declareTestState,
+	loginToTestAccount
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
@@ -34,6 +38,14 @@ const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.js
 const PROOF_FRAME_HOLD_MS = 5_500;
 
 const consoleLogs: string[] = [];
+const TEST_STATE = declareTestState({
+	auth: 'authenticated setup followed by logged-out share',
+	browserStorage: 'fresh',
+	account: 'shared fixture used only to create and clean up the source chat',
+	chat: 'source chat created and deleted in this test',
+	notifications: 'unchanged',
+	securityReminders: 'unchanged'
+});
 
 function deriveApiUrl(baseUrl: string): string {
 	try {
@@ -404,14 +416,17 @@ async function waitForFinishedPdfEmbed(
 
 async function holdVisibleProofFrames(page: any): Promise<void> {
 	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
+	// playwright-determinism: allow - proof recording requires a fixed visible-frame hold.
 	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
 	const nextEmbedButton = page.locator('button.nav-arrow-right:visible').first();
 	for (let index = 0; index < 3; index += 1) {
+		// playwright-determinism: allow - each carousel item must remain visible in the proof recording.
 		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
 		if (index < 2) {
 			const box = await nextEmbedButton.boundingBox({ timeout: 5_000 });
 			if (!box) throw new Error('Shared asset proof carousel right arrow is not visible');
 			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+			// playwright-determinism: allow - allow the proof carousel transition to finish before capture.
 			await page.waitForTimeout(750);
 		}
 	}
@@ -499,7 +514,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		expect(shareUrl).toContain('#key=');
 		logCheckpoint('Generated share URL.');
 
-		proofContext = await browser.newContext({
+		proofContext = await createIsolatedBrowserContext(browser, TEST_STATE, {
 			permissions: ['microphone'],
 			viewport: { width: 390, height: 844 },
 			recordVideo: {

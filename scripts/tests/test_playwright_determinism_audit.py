@@ -78,3 +78,26 @@ def test_prod_smoke_card_uses_exact_mailbox_identity() -> None:
     assert "allowed_email_identity_hash" in schema
     assert "Cards with only this field set fail closed" in schema
     assert "_email_identity_hash" in service
+
+
+def test_shared_context_helper_declares_and_enforces_empty_browser_state() -> None:
+    helper = (REPO_ROOT / "frontend/apps/web_app/tests/helpers/chat-test-helpers.ts").read_text(
+        encoding="utf-8"
+    )
+
+    assert "declareTestState" in helper
+    assert "createIsolatedBrowserContext" in helper
+    assert "storageState: { cookies: [], origins: [] }" in helper
+
+
+def test_logged_out_shared_chat_uses_declared_isolated_context() -> None:
+    spec = (REPO_ROOT / "frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts").read_text(
+        encoding="utf-8"
+    )
+    audit = (REPO_ROOT / "scripts/audit_playwright_determinism.py").read_text(encoding="utf-8")
+
+    assert "declareTestState" in spec
+    assert "createIsolatedBrowserContext" in spec
+    assert "browser.newContext" not in spec
+    assert "RAW_BROWSER_CONTEXT_RE" in audit
+    assert "state declaration" in audit.lower()

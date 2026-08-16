@@ -54,7 +54,37 @@ type LastSendState = {
 	assistantLastText: string;
 };
 
+type TestStateDeclaration = {
+	auth: string;
+	browserStorage: 'fresh';
+	account: string;
+	chat: string;
+	notifications: string;
+	securityReminders: string;
+};
+
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
+
+export function declareTestState(declaration: TestStateDeclaration): Readonly<TestStateDeclaration> {
+	for (const [field, value] of Object.entries(declaration)) {
+		if (!value) throw new Error(`Test state declaration requires ${field}`);
+	}
+	return Object.freeze({ ...declaration });
+}
+
+export async function createIsolatedBrowserContext(
+	browser: any,
+	declaration: Readonly<TestStateDeclaration>,
+	options: Record<string, unknown> = {}
+): Promise<any> {
+	if (declaration.browserStorage !== 'fresh') {
+		throw new Error('Isolated browser contexts require fresh browser storage');
+	}
+	return browser.newContext({
+		...options,
+		storageState: { cookies: [], origins: [] }
+	});
+}
 
 async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
@@ -1551,6 +1581,8 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 }
 
 module.exports = {
+	declareTestState,
+	createIsolatedBrowserContext,
 	fillMessageEditor,
 	focusMessageEditor,
 	loginToTestAccount,
