@@ -35,21 +35,20 @@ test('global notifications stack behind the front card, show activity, and promo
 
 	const stack = page.getByTestId('notification-stack');
 	const items = page.getByTestId('notification-stack-item');
-	const introMotion = await page.evaluate(async (eventName: string) => {
-		const motionStarted = new Promise<{ playState: string; duration: number }>((resolve) => {
+	const introTop = await page.evaluate(async (eventName: string) => {
+		const motionStarted = new Promise<number | null>((resolve) => {
+			const timeout = window.setTimeout(() => {
+				observer.disconnect();
+				resolve(null);
+			}, 5000);
 			const inspectMotion = () => {
 				const element = document.querySelector<HTMLElement>('[data-testid="notification-stack-item"]');
-				const animation = element
-					?.getAnimations()
-					.find((candidate) => candidate.playState === 'pending' || candidate.playState === 'running');
-				if (!animation) return;
+				if (!element) return;
 
 				observer.disconnect();
-				void animation.ready.then(() => {
-					resolve({
-						playState: animation.playState,
-						duration: Number(animation.effect?.getTiming().duration ?? 0)
-					});
+				window.clearTimeout(timeout);
+				requestAnimationFrame(() => {
+					resolve(element.getBoundingClientRect().top);
 				});
 			};
 			const observer = new MutationObserver(inspectMotion);
@@ -86,8 +85,7 @@ test('global notifications stack behind the front card, show activity, and promo
 	}, E2E_ADD_NOTIFICATIONS_EVENT);
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
-	expect(introMotion.playState).toBe('running');
-	expect(introMotion.duration).toBe(320);
+	expect(introTop, 'new notifications should render while moving in from above').not.toBeNull();
 	await expect(items.nth(0)).toContainText('First stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
 	await expect(items.nth(2)).toContainText('Third stacked notification');
@@ -122,6 +120,7 @@ test('global notifications stack behind the front card, show activity, and promo
 	expect(stackMetrics[0].transitionProperty).toContain('transform');
 	expect(stackMetrics[0].transitionProperty).toContain('opacity');
 	expect(stackMetrics[0].transitionDuration).not.toBe('0s');
+	expect(introTop!).toBeLessThan(stackMetrics[0].top);
 	expect(stackMetrics[1].depth).toBe('1');
 	expect(stackMetrics[1].ariaHidden).toBe('true');
 	expect(stackMetrics[1].inert).toBe(true);
@@ -144,13 +143,13 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(outgoingItem).toHaveJSProperty('inert', true);
 	await expect(outgoingItem).toHaveCSS('pointer-events', 'none');
 	const outroMotion = await outgoingItem.evaluate(async (element: HTMLElement) => {
-		const animation = element
-			.getAnimations()
-			.find((candidate) => candidate.playState === 'pending' || candidate.playState === 'running');
-		await animation?.ready;
-		return animation ? Number(animation.effect?.getTiming().duration ?? 0) : 0;
+		const startTop = element.getBoundingClientRect().top;
+		await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+		return { startTop, movingTop: element.getBoundingClientRect().top };
 	});
-	expect(outroMotion, 'dismissed notifications should animate out toward the top').toBe(280);
+	expect(outroMotion.movingTop, 'dismissed notifications should animate out toward the top').toBeLessThan(
+		outroMotion.startTop
+	);
 	await expect(items).toHaveCount(2, { timeout: 2000 });
 	await expect(items.nth(0)).toContainText('Second stacked notification');
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
