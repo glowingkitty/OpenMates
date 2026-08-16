@@ -34,24 +34,22 @@ const routedSession = (bindingMode = "pending") => ({
   binding_mode: bindingMode,
   worktree: { path: WORKTREE, status: "active", bootstrap: { status: "ready" } },
 });
+const routedDecision = (session) => routingDecisionForTest({ session, pathExists: () => true });
 
 test("active worktree routes regardless of obsolete binding label", () => {
   for (const mode of ["pending", "native", "pilot_fallback", "worktree_routed"]) {
-    assert.deepEqual(routingDecisionForTest({ session: routedSession(mode) }), {
+    assert.deepEqual(routedDecision(routedSession(mode)), {
       decision: "worktree_routed",
       worktreePath: WORKTREE,
     });
   }
 });
 
-test("merged worktree blocks post-deploy mutation routing", () => {
-  const decision = routingDecisionForTest({
-    session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged", merged_commit: "abc123456789" } },
-  });
-  assert.equal(decision.decision, "merged_worktree");
-  assert.equal(decision.worktreePath, "");
-  assert.match(decision.message, /already merged at abc123456/);
-  assert.match(decision.message, /start a new sessions\.py session/);
+test("merged worktree remains routed for post-deploy continuation", () => {
+  const decision = routedDecision(
+    { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged", merged_commit: "abc123456789" } },
+  );
+  assert.deepEqual(decision, { decision: "worktree_routed", worktreePath: WORKTREE });
 });
 
 test("question sessions remain read-only without a worktree", () => {
@@ -417,6 +415,7 @@ test("child session resolves the top-level repository worktree", async () => {
     sessionID: "ses_child",
     data,
     getSession: async (sessionID) => sessions[sessionID],
+    pathExists: () => true,
   });
   assert.equal(result.repositorySessionID, "abcd");
   assert.equal(result.topLevelOpenCodeSessionID, "ses_parent");
@@ -440,8 +439,8 @@ test("restart recovery reconstructs the same route without plugin-local state", 
       abcd: { ...routedSession("native"), opencode_session_id: "ses_parent" },
     },
   };
-  const first = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
-  const afterRestart = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
+  const first = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null, pathExists: () => true });
+  const afterRestart = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null, pathExists: () => true });
   assert.deepEqual(afterRestart, first);
   assert.equal(afterRestart.worktreePath, WORKTREE);
 });

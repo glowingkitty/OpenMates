@@ -189,7 +189,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
   );
 });
 
-test("merged routing allows only exact commit-bound deployed verification", async () => {
+test("merged routing continues through the source worktree", async () => {
   const commit = "a".repeat(40);
   const hooks = await pluginModule.OpenMatesHooks({
     routingData: {
@@ -210,15 +210,16 @@ test("merged routing allows only exact commit-bound deployed verification", asyn
     { tool: "bash", sessionID: "stale-session" },
     output,
   ));
-  assert.equal(output.args.workdir, "/home/superdev/projects/OpenMates");
+  assert.equal(output.args.workdir, process.cwd());
 
-  await assert.rejects(
+  const followUp = { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } };
+  await assert.doesNotReject(
     () => hooks["tool.execute.before"](
       { tool: "bash", sessionID: "stale-session" },
-      { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } },
+      followUp,
     ),
-    /repository session worktree is already merged/,
   );
+  assert.equal(followUp.args.workdir, process.cwd());
 });
 
 test("question routing runs approved audits from the control plane", async () => {

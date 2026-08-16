@@ -667,7 +667,7 @@ async function openCodeSession(client, sessionID) {
   }
 }
 
-async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
+async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession, pathExists = existsSync }) {
   let currentID = sessionID;
   let inheritedParentRoute = false;
   let childRole = childRoles?.[sessionID]?.role || "unknown";
@@ -676,7 +676,7 @@ async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = 
     visited.add(currentID);
     const record = activeSessionRecord(currentID, data);
     if (record) {
-      const decision = routingDecisionForTest({ session: record.session });
+      const decision = routingDecisionForTest({ session: record.session, pathExists });
       return {
         ...decision,
         repositorySessionID: record.id,

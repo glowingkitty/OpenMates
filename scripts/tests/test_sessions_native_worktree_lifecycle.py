@@ -53,6 +53,7 @@ def test_routing_repair_migrates_obsolete_mode_and_touches_session(monkeypatch) 
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda path: [".env"] if path == "/repo/agent-abcd" else [])
 
     result = sessions.repair_worktree_routing("ses_parent")
@@ -87,6 +88,7 @@ def test_routing_repair_refreshes_a_fast_forwarded_worktree_base(monkeypatch) ->
         lambda command, **_kwargs: (0, "new-head\n" if command[1] == "rev-parse" else "", ""),
     )
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
 
     sessions.repair_worktree_routing("ses_parent")
@@ -110,6 +112,7 @@ def test_routing_repair_preserves_an_unintegrated_local_commit(monkeypatch) -> N
     monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "local-commit")
     monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "upstream-commit\n", ""))
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
 
     with pytest.raises(RuntimeError, match="HEAD does not match origin/dev"):
@@ -140,6 +143,7 @@ def test_routing_repair_preserves_a_divergent_recorded_base(monkeypatch) -> None
     monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "upstream-head")
     monkeypatch.setattr(sessions, "_run_cmd", run_command)
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
 
     with pytest.raises(RuntimeError, match="diverged from its recorded base"):
@@ -148,7 +152,7 @@ def test_routing_repair_preserves_a_divergent_recorded_base(monkeypatch) -> None
     assert worktree["base_commit"] == "divergent-base"
 
 
-def test_routing_repair_rejects_merged_worktree_after_deploy(monkeypatch) -> None:
+def test_routing_repair_reactivates_merged_worktree_after_deploy(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {
         "sessions": {
@@ -161,10 +165,13 @@ def test_routing_repair_rejects_merged_worktree_after_deploy(monkeypatch) -> Non
     }
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env", "logs/nightly-reports"])
 
-    with pytest.raises(RuntimeError, match="already merged at abc123456"):
-        sessions.repair_worktree_routing("ses_parent")
+    result = sessions.repair_worktree_routing("ses_parent")
+
+    assert result["session_id"] == "abcd"
+    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
 
 
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
@@ -203,6 +210,7 @@ def test_routing_repair_does_not_commit_metadata_when_runtime_linking_fails(monk
     monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
     monkeypatch.setattr(sessions, "is_valid_managed_worktree_path", lambda _path: True)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
 
     with pytest.raises(RuntimeError, match="Refusing to replace existing worktree runtime resource"):
         sessions.repair_worktree_routing("ses_parent")
@@ -224,10 +232,10 @@ def test_existing_opencode_session_is_reused_after_restart() -> None:
     assert result[1]["worktree"]["path"] == "/repo/agent-abcd"
 
 
-def test_merged_opencode_session_is_not_reused_for_start() -> None:
+def test_merged_opencode_session_is_reused_for_start() -> None:
     sessions = load_sessions_module()
 
-    assert not sessions.opencode_session_reusable_for_start({"worktree": {"status": "merged"}})
+    assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "merged"}})
     assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "active"}})
     assert sessions.opencode_session_reusable_for_start({})
 
