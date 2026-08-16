@@ -117,7 +117,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e8d0203ddb3961aa7402e39b570e8946322c9494
+  subject_commit: 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646
 
 approvals:
   product_contract:
@@ -261,7 +261,7 @@ tests:
       - Welcome disappears and the selected chat shell/local count becomes visible before the delayed request completes.
       - Cold local history remains target-specific while hydration is pending.
       - Rapid A-to-B selection rejects stale A completion and preserves unique ordered B messages.
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec startup-sync-contract.spec.ts --gate-deploy --expected-commit 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", run_id: "31959715689", subject_commit: "106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", target: app.dev.openmates.org, timestamp: "2026-08-16T16:51:03Z", summary: "The delayed real bounded-window response kept welcome-content visible after the short cached chat was selected, reproducing R5L8Q."}}
     green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
   - id: T-WEB-MESSAGE-SYNC
     type: playwright
@@ -376,7 +376,7 @@ tasks:
   - id: T-1
     title: Reproduce incoherent delayed-repair opening
     phase: working_tasks
-    status: in_progress
+    status: done
     covers:
       scenarios: [S-1, S-2]
       acceptance_criteria: [AC-1, AC-2]
@@ -393,7 +393,7 @@ tasks:
   - id: T-2
     title: Commit local-first target shell and background repair
     phase: working_tasks
-    status: pending
+    status: in_progress
     covers:
       scenarios: [S-1, S-2, S-3]
       acceptance_criteria: [AC-1, AC-2, AC-3]
@@ -485,11 +485,17 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-16T15:13:47Z"
     evidence: The recheck closes a real cross-device stale-window race introduced by stale local messages_v and IndexedDB state.
+  - id: ATTEMPT-2
+    task_id: T-1
+    approach: Hold route.continue behind a test gate and unroute immediately after release.
+    outcome: blocked
+    recorded_at: "2026-08-16T15:48:04Z"
+    evidence: Run 31956558622 failed with Route is already handled because active route teardown raced the resumed continue call; the test now fetches the real response and fulfills it once after the gate.
 
 handoff:
-  current_task_id: T-1
-  next_action: Add the delayed real-window regression to startup-sync-contract.spec.ts, deploy the test-only change, and record expected red evidence.
+  current_task_id: T-2
+  next_action: Commit the target chat shell before awaited hydration and move short-window completeness repair off the local first-paint path.
   command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
-  expected_outcome: The current deployed implementation fails because welcome remains visible while the delayed short-window repair is pending.
+  expected_outcome: The same deployed regression passes after the selected shell and local window render before repair completion.
   blocker: null
-  last_verified_commit: e8d0203ddb3961aa7402e39b570e8946322c9494
+  last_verified_commit: 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646

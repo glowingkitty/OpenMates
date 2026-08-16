@@ -5299,6 +5299,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
+        initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
+     );
+     let currentMessageIdsAreUnique = $derived(
+        new Set(currentMessages.map((message) => message.message_id)).size === currentMessages.length,
+     );
+     let currentMessagesBelongToCurrentChat = $derived(
+        !currentChat?.chat_id || currentMessages.every((message) => message.chat_id === currentChat?.chat_id),
+     );
+     let currentMessagesAreChronological = $derived.by(() => currentMessages.every((message, index) => {
+        if (index === 0) return true;
+        const previous = currentMessages[index - 1];
+        return previous.created_at < message.created_at ||
+            (previous.created_at === message.created_at && previous.message_id.localeCompare(message.message_id) <= 0);
+     }));
      let isActiveDraftOnlyChat = $derived(
         isDraftOnlyChatSurface(
             currentChat,
@@ -8979,6 +8994,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
     }
 
+    const backgroundMessageWindowRepairs = new Map<
+        string,
+        Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null>
+    >();
+
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         const { firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
@@ -9172,8 +9192,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                  isNewChatCreditsError,
                  hasStreamingMessages,
                  headerAlreadyLoadedForSameChat,
-             });
-         }
+              });
+          }
+
+          if (!isSameActiveChat) {
+              currentChat = chat;
+              currentMessages = [];
+              chatLoadState = 'loading';
+              showWelcome = false;
+          }
 
          // Ensure the chatNavigationStore has up-to-date prev/next state even when
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
@@ -9419,7 +9446,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                   const hasPlaintextCategory = !!chatForHeader.category;
                   if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
                       try {
-                          const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                          const { decryptWithChatKey } = await import('../services/cryptoService');
                           // Safe key retrieval — critical for secondary devices that receive chats
                           // via phased sync (where the in-memory cache may be cold).
                           //
@@ -9434,14 +9461,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           //   3. Only generate a new key if there is genuinely no stored key
                           //      (brand-new chat created on this device before server confirmed).
                            let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatForHeader.chat_id) ?? chatDB.getChatKey(chatForHeader.chat_id);
-                          if (!chatKey && chatForHeader.encrypted_chat_key) {
-                              try {
-                                  const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
-                                  if (k) {
-                                      chatKey = k;
-                                      chatDB.setChatKey(chatForHeader.chat_id, k);
-                                      console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
-                                  }
+                           if (!chatKey && chatForHeader.encrypted_chat_key) {
+                               try {
+                                   chatKey = await chatKeyManager.receiveKeyFromServer(
+                                       chatForHeader.chat_id,
+                                       chatForHeader.encrypted_chat_key,
+                                   );
+                                   if (chatKey) {
+                                       console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
+                                   }
                               } catch (keyErr) {
                                   console.error(`[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key: chat_id=${chatForHeader.chat_id} field=encrypted_chat_key`, keyErr);
                               }
@@ -9482,7 +9510,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                   activeChatDecryptedCategory = c;
                                   activeChatDecryptedIcon = ic;
                                   activeChatDecryptedSummary = s;
-                                  console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                                  console.debug('[ActiveChat] loadChat: Restored encrypted chat header for', chatForHeader.chat_id);
                               }
                           }
                       } catch (err) {
@@ -9542,6 +9570,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         thinkingPlaceholderMessageIds = new Set();
         
         let newMessages: ChatMessageModel[] = [];
+        let messageLoadFailed = false;
+        let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
         if (currentChat?.chat_id) {
             // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
             if (isPublicChat(currentChat.chat_id)) {
@@ -9668,7 +9698,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         windowResult.messages.length > 0 &&
                         !windowResult.hasMoreBefore &&
                         windowResult.messages.length < MESSAGE_WINDOW_LIMIT;
-                    if (windowResult.messages.length === 0 || latestWindowIsShort || latestWindowMayBePartial || (options?.messageId && !windowResult.anchorFound)) {
+                    const localWindowCannotRenderTarget = windowResult.messages.length === 0 ||
+                        (options?.messageId && !windowResult.anchorFound);
+                    if (localWindowCannotRenderTarget) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
                                 direction: options?.messageId ? 'around' : 'latest',
@@ -9678,8 +9710,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     : undefined,
                             });
                         } catch (windowError) {
+                            messageLoadFailed = true;
                             console.warn(`[ActiveChat] Bounded server message window failed for ${currentChat.chat_id}:`, windowError);
                         }
+                    } else if (latestWindowIsShort || latestWindowMayBePartial) {
+                        const repairChatId = currentChat.chat_id;
+                        const existingRepair = backgroundMessageWindowRepairs.get(repairChatId);
+                        const repairRequest = existingRepair ?? fetchAuthenticatedMessageWindow(repairChatId, {
+                                direction: options?.messageId ? 'around' : 'latest',
+                                anchorMessageId: options?.messageId ?? undefined,
+                                compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                                    ? latestCheckpoint.compressed_up_to_timestamp
+                                    : undefined,
+                            }).catch((windowError) => {
+                            console.warn(`[ActiveChat] Background bounded server message window failed for ${repairChatId}:`, windowError);
+                            return null;
+                        });
+                        if (!existingRepair) {
+                            backgroundMessageWindowRepairs.set(repairChatId, repairRequest);
+                            void repairRequest.then(() => {
+                                if (backgroundMessageWindowRepairs.get(repairChatId) === repairRequest) {
+                                    backgroundMessageWindowRepairs.delete(repairChatId);
+                                }
+                            });
+                        }
+                        backgroundMessageWindowRepair = repairRequest;
                     }
                     newMessages = windowResult.messages;
                     currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
@@ -9721,6 +9776,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 const hydratedWindow = await chatDB.getMessageWindowForChat(onDemandChatId, { direction: 'latest' });
                                 if (hydratedWindow.messages.length > 0) {
                                     newMessages = hydratedWindow.messages;
+                                    messageLoadFailed = false;
                                     currentMessageWindowHasMoreBefore = hydratedWindow.hasMoreBefore;
                                     const hydratedChat = await chatDB.getChat(onDemandChatId).catch(() => null);
                                     if (currentChat?.chat_id === onDemandChatId) {
@@ -9740,10 +9796,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             }
                         }
                     } catch (err) {
+                        messageLoadFailed = true;
                         console.error(`[ActiveChat] Failed to request messages from server for ${onDemandChatId}:`, err);
                     }
                 }
             }
+        }
+
+        if (backgroundMessageWindowRepair && currentChat?.chat_id) {
+            const repairChatId = currentChat.chat_id;
+            void backgroundMessageWindowRepair.then((repairedWindow) => {
+                if (thisLoadGeneration !== loadChatGeneration || currentChat?.chat_id !== repairChatId) {
+                    return;
+                }
+                if (!repairedWindow) {
+                    chatLoadState = 'ready';
+                    return;
+                }
+
+                const repairedById = new Map(
+                    repairedWindow.messages.map((message) => [message.message_id, message]),
+                );
+                for (const currentMessage of currentMessages) {
+                    if (currentMessage.chat_id !== repairChatId) continue;
+                    const repairedMessage = repairedById.get(currentMessage.message_id);
+                    if (
+                        !repairedMessage ||
+                        ['streaming', 'sending', 'processing', 'waiting_for_user', 'failed'].includes(currentMessage.status)
+                    ) {
+                        repairedById.set(currentMessage.message_id, currentMessage);
+                    }
+                }
+
+                const mergedMessages = Array.from(repairedById.values()).sort((left, right) =>
+                    left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
+                );
+                currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
+                currentMessages = pruneCurrentDecryptedMessageWindow(mergedMessages);
+                chatLoadState = 'ready';
+                chatHistoryRef?.updateMessages(currentMessages);
+            });
         }
         
         if (
@@ -9932,20 +10024,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
             ? pruneCurrentDecryptedMessageWindow(newMessages)
             : newMessages;
+        chatLoadState = currentMessages.length === 0 && messageLoadFailed
+            ? 'error'
+            : backgroundMessageWindowRepair
+                ? 'repairing'
+                : 'ready';
 
-        // Hide welcome screen when we have messages to display
-        // This ensures public chats (demo + legal, like welcome chat) show their content immediately
-        // CRITICAL: For public chats, always hide welcome screen if chat is loaded
-        // (even if messages are empty, we still want to show the chat interface)
-        if (currentChat?.chat_id && (isPublicChat(currentChat.chat_id) || currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id))) {
-            // Public and anonymous chats should always show the chat surface, never the guest welcome screen.
+        if (currentChat?.chat_id) {
+            // Every selected chat owns the active surface, including empty or still-hydrating chats.
             showWelcome = false;
-            console.debug(`[ActiveChat] Public/anonymous chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
         } else {
-            // Draft-only chats have no messages yet, but they still need the active
-            // chat surface so the persisted encrypted draft restores into the editor.
-            const hasPersistedDraft = !!(currentChat?.encrypted_draft_md || currentChat?.encrypted_draft_preview);
-            showWelcome = currentMessages.length === 0 && !hasPersistedDraft;
+            showWelcome = currentMessages.length === 0;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
 
@@ -12454,8 +12543,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class="active-chat-container"
     data-testid="active-chat-container"
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
+    data-current-chat-id={currentChat?.chat_id ?? ''}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
+    data-current-message-chat-consistent={currentMessagesBelongToCurrentChat ? 'true' : 'false'}
+    data-current-message-ids-unique={currentMessageIdsAreUnique ? 'true' : 'false'}
+    data-current-message-order-valid={currentMessagesAreChronological ? 'true' : 'false'}
+    data-chat-load-state={chatLoadState}
     data-processing={showProcessingRainbow ? 'true' : 'false'}
     class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
@@ -13332,6 +13426,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             on:accepted={clearPendingTaskProposals}
                             on:dismissed={clearPendingTaskProposals}
                         />
+                    {/if}
+
+                    {#if !showWelcome && currentChat?.chat_id && currentMessages.length === 0 && chatLoadState === 'loading'}
+                        <div class="active-chat-history-state" data-testid="active-chat-history-loading" role="status">
+                            <span class="active-chat-history-state-dot" aria-hidden="true"></span>
+                            <span>{$text('chat.loading')}</span>
+                        </div>
+                    {:else if !showWelcome && currentChat?.chat_id && currentMessages.length === 0 && chatLoadState === 'error'}
+                        <button
+                            type="button"
+                            class="active-chat-history-state active-chat-history-retry"
+                            data-testid="active-chat-history-retry"
+                            onclick={() => void loadChat(currentChat!)}
+                        >
+                            {$text('common.try_again')}
+                        </button>
                     {/if}
 
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
@@ -15838,6 +15948,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .chat-side.welcome-chat-side .daily-inspiration-area:not(.welcome-hiding) {
         pointer-events: auto;
+    }
+
+    .active-chat-history-state {
+        position: absolute;
+        z-index: var(--z-index-raised-1);
+        top: 50%;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-3);
+        transform: translate(-50%, -50%);
+        color: var(--color-grey-70);
+        font-size: var(--font-size-sm);
+    }
+
+    .active-chat-history-state-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: chat-history-loading-pulse 1.2s ease-in-out infinite;
+    }
+
+    .active-chat-history-retry {
+        min-width: unset;
+        height: auto;
+        padding: var(--spacing-3) var(--spacing-5);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--border-radius-full);
+        background: var(--color-grey-10);
+        cursor: pointer;
+    }
+
+    @keyframes chat-history-loading-pulse {
+        0%, 100% { opacity: 0.35; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1); }
     }
 
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.

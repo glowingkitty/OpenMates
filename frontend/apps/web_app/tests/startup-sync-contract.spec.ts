@@ -19,6 +19,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
+const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
 
 function tail<T>(items: T[]): T[] {
 	return items.slice(Math.max(0, items.length - STARTUP_SYNC_DIAGNOSTIC_TAIL));
@@ -69,46 +70,7 @@ async function waitForStartupSyncFrames(
 	}
 }
 
-async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
-	return await page.evaluate(async () => {
-		const db = await new Promise<IDBDatabase>((resolve, reject) => {
-			const request = indexedDB.open('chats_db');
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-
-		try {
-			const chats = await new Promise<any[]>((resolve, reject) => {
-				const tx = db.transaction(['chats'], 'readonly');
-				const request = tx.objectStore('chats').getAll();
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve(request.result || []);
-			});
-
-			for (const chat of chats) {
-				const chatId = chat.chat_id || chat.id;
-				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
-
-				const messageCount = await new Promise<number>((resolve, reject) => {
-					const tx = db.transaction(['messages'], 'readonly');
-					const index = tx.objectStore('messages').index('chat_id');
-					const request = index.count(chatId);
-					request.onerror = () => reject(request.error);
-					request.onsuccess = () => resolve(request.result || 0);
-				});
-
-				if (messageCount === 0) return chatId;
-			}
-			return null;
-		} finally {
-			db.close();
-		}
-	});
-}
-
-async function getLocalShortChatWithMessages(
-	page: any
-): Promise<{ chatId: string; messageCount: number } | null> {
+async function prepareLocalMetadataOnlyChat(page: any): Promise<string | null> {
 	return await page.evaluate(async () => {
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open('chats_db');
@@ -128,15 +90,27 @@ async function getLocalShortChatWithMessages(
 			for (const chat of chats) {
 				const chatId = chat.chat_id || chat.id;
 				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+				if (Number(chat.messages_v || 0) <= 0) continue;
+				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
 
-				const messageCount = await new Promise<number>((resolve, reject) => {
+				const messages = await new Promise<any[]>((resolve, reject) => {
 					const tx = db.transaction(['messages'], 'readonly');
 					const index = tx.objectStore('messages').index('chat_id');
-					const request = index.count(chatId);
+					const request = index.getAll(chatId);
 					request.onerror = () => reject(request.error);
-					request.onsuccess = () => resolve(request.result || 0);
+					request.onsuccess = () => resolve(request.result || []);
 				});
-				if (messageCount > 0 && messageCount < 30) return { chatId, messageCount };
+				if (messages.length > 0) {
+					await new Promise<void>((resolve, reject) => {
+						const tx = db.transaction(['messages'], 'readwrite');
+						const store = tx.objectStore('messages');
+						for (const message of messages) store.delete(message.message_id);
+						tx.oncomplete = () => resolve();
+						tx.onerror = () => reject(tx.error);
+						tx.onabort = () => reject(tx.error);
+					});
+				}
+				return chatId;
 			}
 			return null;
 		} finally {
@@ -145,8 +119,72 @@ async function getLocalShortChatWithMessages(
 	});
 }
 
+async function getLocalChatSwitchPair(
+	page: any
+): Promise<Array<{ chatId: string; messageCount: number }>> {
+	return await page.evaluate(async (targetCount: number) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+
+		try {
+			const chats = await new Promise<any[]>((resolve, reject) => {
+				const tx = db.transaction(['chats'], 'readonly');
+				const request = tx.objectStore('chats').getAll();
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result || []);
+			});
+			chats.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
+
+			let firstShortChat: { chatId: string; messageCount: number } | null = null;
+			for (const chat of chats) {
+				const chatId = chat.chat_id || chat.id;
+				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+				if (Number(chat.messages_v || 0) <= 0) continue;
+				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
+
+				const messages = await new Promise<any[]>((resolve, reject) => {
+					const tx = db.transaction(['messages'], 'readonly');
+					const index = tx.objectStore('messages').index('chat_id');
+					const request = index.getAll(chatId);
+					request.onerror = () => reject(request.error);
+					request.onsuccess = () => resolve(request.result || []);
+				});
+				if (messages.length === 0) continue;
+
+				messages.sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0));
+				const messagesToDelete = messages.slice(0, Math.max(0, messages.length - targetCount));
+				if (messagesToDelete.length > 0) {
+					await new Promise<void>((resolve, reject) => {
+						const tx = db.transaction(['messages'], 'readwrite');
+						const store = tx.objectStore('messages');
+						for (const message of messagesToDelete) store.delete(message.message_id);
+						tx.oncomplete = () => resolve();
+						tx.onerror = () => reject(tx.error);
+						tx.onabort = () => reject(tx.error);
+					});
+				}
+				firstShortChat = { chatId, messageCount: Math.min(messages.length, targetCount) };
+				break;
+			}
+			if (!firstShortChat) return [];
+			const secondChat = chats.find((chat) => {
+				const chatId = chat.chat_id || chat.id;
+				return chatId && chatId !== firstShortChat!.chatId &&
+					!chatId.startsWith('demo-') && !chatId.startsWith('legal-');
+			});
+			const secondChatId = secondChat?.chat_id || secondChat?.id;
+			return secondChatId ? [firstShortChat, { chatId: secondChatId, messageCount: -1 }] : [];
+		} finally {
+			db.close();
+		}
+	}, LOCAL_SHORT_WINDOW_TARGET_COUNT);
+}
+
 // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
-test('startup sync is bounded and older content hydrates on demand', async ({ page }: { page: any }) => {
+test('startup sync is bounded and older content hydrates on demand', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
 	test.setTimeout(180000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -261,14 +299,69 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		}
 	}
 
-	const metadataOnlyChatId = await getLocalChatWithNoMessages(page);
+	const metadataOnlyChatId = await prepareLocalMetadataOnlyChat(page);
 	if (!metadataOnlyChatId) {
 		console.log('No local metadata-only chat found; startup sync boundary verified, skipping hydration check.');
 		return;
 	}
 
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || new URL(page.url()).origin;
-	await page.goto(`${baseUrl}/#chat-id=${metadataOnlyChatId}`);
+	const coldWindowRoute = `**/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window**`;
+	let releaseColdWindow: () => void = () => undefined;
+	const coldWindowGate = new Promise<void>((resolve) => {
+		releaseColdWindow = resolve;
+	});
+	let coldWindowRequested = false;
+	let coldWindowReleased = false;
+	let failColdWindow = false;
+	let finishColdWindow: () => void = () => undefined;
+	const coldWindowFinished = new Promise<void>((resolve) => {
+		finishColdWindow = resolve;
+	});
+	const delayColdWindowResponse = async (route: any) => {
+		coldWindowRequested = true;
+		try {
+			const realResponse = await route.fetch();
+			await coldWindowGate;
+			if (failColdWindow) {
+				await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"test_unavailable"}' });
+			} else {
+				await route.fulfill({ response: realResponse });
+			}
+		} finally {
+			finishColdWindow();
+		}
+	};
+	await page.route(coldWindowRoute, delayColdWindowResponse, { times: 1 });
+
+	try {
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, metadataOnlyChatId);
+		await expect.poll(() => coldWindowRequested, {
+			timeout: 10000,
+			message: 'Opening metadata-only chat should request its real bounded window'
+		}).toBe(true);
+		await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			metadataOnlyChatId,
+			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
+		);
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('active-chat-history-loading')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+
+		failColdWindow = true;
+		await context.setOffline(true);
+		coldWindowReleased = true;
+		releaseColdWindow();
+		await coldWindowFinished;
+		await expect(page.getByTestId('active-chat-history-retry')).toBeVisible({ timeout: 15000 });
+	} finally {
+		if (!coldWindowReleased) releaseColdWindow();
+		if (coldWindowRequested) await coldWindowFinished;
+		await page.unroute(coldWindowRoute, delayColdWindowResponse);
+		await context.setOffline(false);
+	}
 
 	await expect.poll(() => {
 		const expectedRestPath = `/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window`;
@@ -289,15 +382,15 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	await loginToTestAccount(page);
 	await waitForChatReady(page, undefined, 60000);
 
-	let localChat: { chatId: string; messageCount: number } | null = null;
+	let localChats: Array<{ chatId: string; messageCount: number }> = [];
 	await expect.poll(async () => {
-		localChat = await getLocalShortChatWithMessages(page);
-		return localChat !== null;
+		localChats = await getLocalChatSwitchPair(page);
+		return localChats.length;
 	}, {
 		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
-		message: 'Startup sync should cache at least one recent short chat with messages'
-	}).toBe(true);
-	if (!localChat) throw new Error('No locally cached short chat was available after startup sync');
+		message: 'Startup sync should cache a short chat plus another navigation target'
+	}).toBeGreaterThanOrEqual(2);
+	const [firstLocalChat, secondLocalChat] = localChats;
 
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -305,12 +398,13 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	}
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
 
-	const windowRoute = `**/v1/chats/${encodeURIComponent(localChat.chatId)}/messages/window**`;
+	const windowRoute = `**/v1/chats/${encodeURIComponent(firstLocalChat.chatId)}/messages/window**`;
 	let releaseRepair: () => void = () => undefined;
 	const repairGate = new Promise<void>((resolve) => {
 		releaseRepair = resolve;
 	});
 	let repairRequested = false;
+	let repairReleased = false;
 	let finishRepair: () => void = () => undefined;
 	const repairFinished = new Promise<void>((resolve) => {
 		finishRepair = resolve;
@@ -330,7 +424,7 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	try {
 		await page.evaluate((chatId: string) => {
 			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-		}, localChat.chatId);
+		}, firstLocalChat.chatId);
 
 		await expect.poll(() => repairRequested, {
 			timeout: 10000,
@@ -343,14 +437,39 @@ test('cached short chat opens coherently before delayed completeness repair', as
 		await expect(page.getByTestId('chat-header-banner')).toBeVisible({
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
 		});
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			firstLocalChat.chatId,
+			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
+		);
 		await expect.poll(async () =>
 			Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0),
 		{
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
 			message: 'The bounded local message window should render before repair completes'
 		}).toBeGreaterThan(0);
-	} finally {
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			secondLocalChat.chatId,
+			{ timeout: 10000 }
+		);
+
+		repairReleased = true;
 		releaseRepair();
+		await repairFinished;
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+	} finally {
+		if (!repairReleased) releaseRepair();
 		if (repairRequested) await repairFinished;
 		await page.unroute(windowRoute, delayRepairResponse);
 	}

@@ -104,6 +104,7 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let pendingAuthenticatedDeepLinkCleanup: (() => void) | null = null;
 	let isReplayingPendingDeepLink = false;
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
@@ -631,6 +632,8 @@
 		embedId?: string | null,
 		autoplayVideo?: boolean
 	) {
+		pendingAuthenticatedDeepLinkCleanup?.();
+		pendingAuthenticatedDeepLinkCleanup = null;
 		console.debug(
 			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}${autoplayVideo ? ' (autoplay-video)' : ''}`
 		);
@@ -1059,13 +1062,30 @@
 				// a bounded fallback can safely load chats that already exist locally once
 				// cryptoReady has loaded IndexedDB keys.
 				let authDeepLinkFallbackTimeout: number | null = null;
+				let authDeepLinkLoadStarted = false;
+				let authDeepLinkCancelled = false;
 				const clearDeepLinkWaiters = () => {
+					authDeepLinkCancelled = true;
 					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
 					if (authDeepLinkFallbackTimeout !== null) {
 						window.clearTimeout(authDeepLinkFallbackTimeout);
 						authDeepLinkFallbackTimeout = null;
 					}
+					if (pendingAuthenticatedDeepLinkCleanup === clearDeepLinkWaiters) {
+						pendingAuthenticatedDeepLinkCleanup = null;
+					}
 				};
+				const loadAuthDeepLinkOnce = async (source: string) => {
+					if (authDeepLinkCancelled || authDeepLinkLoadStarted) return;
+					authDeepLinkLoadStarted = true;
+					console.debug(`[+page.svelte] Loading authenticated deep-linked chat from ${source}: ${chatId}`);
+					try {
+						await loadChatFromIndexedDB();
+					} finally {
+						clearDeepLinkWaiters();
+					}
+				};
+				pendingAuthenticatedDeepLinkCleanup = clearDeepLinkWaiters;
 				const handlePhasedSyncComplete = async () => {
 					if (skipStaleChatNavigationTarget(chatId, 'phased-sync deep-link load')) {
 						clearDeepLinkWaiters();
@@ -1083,17 +1103,33 @@
 						clearDeepLinkWaiters();
 						return;
 					}
-					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
-					await loadChatFromIndexedDB();
-					clearDeepLinkWaiters();
+					await loadAuthDeepLinkOnce('completed phased sync');
 				};
 				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+
+				void (async () => {
+					try {
+						await cryptoReady;
+						if (authDeepLinkCancelled) return;
+						if (activeChatStore.getChatIdFromHash() !== chatId) {
+							clearDeepLinkWaiters();
+							return;
+						}
+						await chatDB.init();
+						const localChat =
+							mergeCachedDraftFields(await chatDB.getRawChat(chatId).catch(() => null), chatId) ??
+							(await chatDB.getChat(chatId));
+						if (localChat) await loadAuthDeepLinkOnce('local encrypted cache');
+					} catch (error) {
+						console.warn(`[+page.svelte] Immediate local auth deep-link load failed for ${chatId}:`, error);
+					}
+				})();
 
 				authDeepLinkFallbackTimeout = window.setTimeout(() => {
 					void (async () => {
 						try {
 							await cryptoReady;
-							if (window.location.hash !== `#chat-id=${chatId}`) {
+							if (activeChatStore.getChatIdFromHash() !== chatId) {
 								console.debug(
 									`[+page.svelte] Auth deep-link fallback skipped because hash changed for: ${chatId}`
 								);
@@ -1113,13 +1149,9 @@
 								return;
 							}
 
-							console.debug(
-								`[+page.svelte] Auth deep-link fallback loading local chat after sync wait: ${chatId}`
-							);
-							await loadChatFromIndexedDB();
+							await loadAuthDeepLinkOnce('bounded sync-wait fallback');
 						} catch (error) {
 							console.warn(`[+page.svelte] Auth deep-link fallback failed for ${chatId}:`, error);
-						} finally {
 							clearDeepLinkWaiters();
 						}
 					})();
@@ -3050,6 +3082,8 @@
 
 	// Cleanup function for onDestroy
 	onDestroy(() => {
+		pendingAuthenticatedDeepLinkCleanup?.();
+		pendingAuthenticatedDeepLinkCleanup = null;
 		window.removeEventListener('hashchange', handleHashChange);
 		document.documentElement.removeAttribute('data-hash-router-ready');
 		if (handleWebSocketAuthError) {
