@@ -6123,6 +6123,7 @@ class TestOrchestrator:
         duration = time.time() - start_time
         flags = {
             "suite": self.suite,
+            "daily": self.daily,
             "only_failed": self.only_failed,
             "fail_fast": self.fail_fast,
             "use_mocks": self.use_mocks,

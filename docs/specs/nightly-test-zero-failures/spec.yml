@@ -98,7 +98,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: c0efd2e1fa7dca2e2964b59405c151be08d5ba70
+  subject_commit: d71e8f3e21e7b200c9e842a6488450a75cbdc07f
 
 approvals:
   product_contract:
@@ -196,14 +196,26 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-16T14:52:04Z"
     note: Raw failure text persisted before display sanitization and lexical tie sorting lost last-good evidence; both are fixed with 158 focused tests passing.
+  - id: ATTEMPT-10
+    task_id: TASK-4
+    approach: Persist sanitized run evidence and expose one bounded investigate command with parent, revision, artifact, and diagnostic metadata.
+    outcome: succeeded
+    recorded_at: "2026-08-16T14:53:35Z"
+    note: Investigation and privacy coverage passed 158 tests and deployed as d71e8f3e21e7b200c9e842a6488450a75cbdc07f.
+  - id: ATTEMPT-11
+    task_id: TASK-5
+    approach: Add campaign overlap and final full-run assertions before changing completion semantics.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T14:59:07Z"
+    note: Four expected assertions exposed string-only overlap handling, immediate completion, and the missing finalizer; the green implementation passes 174 related tests.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Deploy the canonical investigate bundle and bind green evidence to the resulting commit.
-  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: add canonical investigation bundles" --message "Return bounded redacted test evidence and validated diagnostics from one command."'
-  expected_outcome: Task 4 source, regression tests, and synchronized investigator guidance deploy to dev.
+  current_task_id: TASK-5
+  next_action: Deploy hardened campaign selection and final full-run completion semantics.
+  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: require full campaign verification" --message "Fail closed on overlap and require both lanes in a full daily run."'
+  expected_outcome: Task 5 control-plane, runner, regression, and synchronized skill changes deploy to dev.
   blocker: null
-  last_verified_commit: c0efd2e1fa7dca2e2964b59405c151be08d5ba70
+  last_verified_commit: d71e8f3e21e7b200c9e842a6488450a75cbdc07f
 
 scenarios:
   - id: S-1
@@ -376,7 +388,7 @@ acceptance_criteria:
     scenario: S-8
     text: tests.py investigate returns a bounded privacy-safe evidence bundle with durable artifact resolution and validated diagnostics from one canonical test key and run ID.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-INVESTIGATE]
@@ -400,7 +412,7 @@ acceptance_criteria:
     scenario: S-1
     text: Test reliability evidence and records redact credentials, tokens, raw email addresses, message bodies, cookies, and private URLs while preserving actionable categories, hashes, paths, revisions, and failure classes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PRIVACY]
@@ -539,7 +551,7 @@ tests:
       - Ambiguous overlap does not mutate state.
       - All groups green transitions to verification_pending.
       - Final full zero run completes the campaign and new failures create child groups.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q", run_id: "local-task5-campaigns-red-20260816", subject_commit: "d71e8f3e21e7b200c9e842a6488450a75cbdc07f", timestamp: "2026-08-16T14:59:07Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-INVESTIGATE
     type: pytest
@@ -551,7 +563,7 @@ tests:
       - Missing artifacts and revision uncertainty are explicit.
       - Diagnostic presets are validated and output is redacted.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py -q", run_id: "local-task4-investigate-red-20260816", subject_commit: "c0efd2e1fa7dca2e2964b59405c151be08d5ba70", timestamp: "2026-08-16T14:50:19Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_opencode_output_quality_audit.py -q", run_id: "local-task4-investigate-green-20260816", subject_commit: "d71e8f3e21e7b200c9e842a6488450a75cbdc07f", timestamp: "2026-08-16T14:53:35Z"}}
   - id: T-COVERAGE-AUDIT
     type: lint
     file: scripts/audit_playwright_determinism.py
@@ -570,7 +582,7 @@ tests:
     assertions:
       - Reliability records and evidence bundles redact sensitive fields.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_opencode_output_quality_audit.py -q", run_id: "local-task4-privacy-red-20260816", subject_commit: "c0efd2e1fa7dca2e2964b59405c151be08d5ba70", timestamp: "2026-08-16T14:52:04Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_opencode_output_quality_audit.py -q", run_id: "local-task4-privacy-green-20260816", subject_commit: "d71e8f3e21e7b200c9e842a6488450a75cbdc07f", timestamp: "2026-08-16T14:53:35Z"}}
 
 verifications:
   - id: V-FULL-NIGHTLY
@@ -673,7 +685,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Add canonical investigation bundles
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-12]}
     expected_files: [scripts/tests.py, .claude/agents/e2e-test-investigator.md]
@@ -686,10 +698,10 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Harden campaign selection and full-run completion
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-7, S-9], acceptance_criteria: [AC-8, AC-10]}
-    expected_files: [scripts/tests.py, scripts/tests/test_tests_control_campaigns.py, .claude/skills/fix-tests/SKILL.md]
+    expected_files: [scripts/tests.py, scripts/run_tests.py, scripts/tests/test_tests_control_campaigns.py, .claude/skills/fix-tests/SKILL.md]
     verification: [T-CAMPAIGNS]
     verification_ids: [T-CAMPAIGNS]
     dependencies: [TASK-2]

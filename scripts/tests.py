@@ -2737,7 +2737,11 @@ def start_debug_campaign(
             {"session_id": session_id, "updated_at": utc_now()},
         )
     if len(resumable) > 1:
-        raise RuntimeError(_format_resumable_campaigns_error(resumable, session_id))
+        return {
+            "status": "selection_required",
+            "candidate_campaign_keys": sorted(str(campaign["campaign_key"]) for campaign in resumable),
+            "selected_test_keys": sorted(requested_keys),
+        }
 
     _require_session_identity(session_id, "campaign start")
     campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
@@ -2751,7 +2755,7 @@ def start_debug_campaign(
         "selected_test_keys": sorted({str(entry["key"]) for entry in entries}),
         "selected_group_keys": [],
         "current_group_key": None,
-        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": False},
+        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": True},
         "blocker": None,
         "metadata": {"scope_amendments": []},
         "created_at": now,
@@ -3586,7 +3590,16 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
     groups = debug_groups_for_campaign(campaign_key)
     blocked = next((group for group in groups if group.get("status") == "blocked"), None)
     all_green = bool(groups) and all(group.get("status") == "green" for group in groups)
-    status = "blocked" if blocked else "completed" if all_green else "active"
+    final_run = (campaign.get("metadata") or {}).get("final_full_run") or {}
+    requires_full_run = bool((campaign.get("completion_policy") or {}).get("combined_final_run_required"))
+    if blocked:
+        status = "blocked"
+    elif all_green and requires_full_run and final_run.get("status") != "passed":
+        status = "verification_pending"
+    elif all_green:
+        status = "completed"
+    else:
+        status = "active"
     blocker = blocked.get("blocker") if blocked else None
     next_group = next((group for group in groups if group.get("status") != "green"), None)
     fields = {
@@ -3636,6 +3649,51 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
         "workers": workers,
         "next_action": str((blocker or {}).get("next_action") or (next_group or {}).get("verification_command") or ""),
     }
+
+
+def finalize_debug_campaign(campaign_key: str, run_key: str) -> dict[str, Any]:
+    """Complete a campaign only from a full run with both lanes represented."""
+    campaign = _debug_campaign(campaign_key)
+    _require_campaign_coordinator_for_campaign(campaign_key, os.environ.get("OPENCODE_SESSION_ID", ""), "campaign finalize")
+    groups = debug_groups_for_campaign(campaign_key)
+    if not groups or any(group.get("status") != "green" for group in groups):
+        raise RuntimeError("Campaign finalization requires every selected and child group to be green")
+    run = get_store().get_test_run(run_key)
+    run_data = run.get("record_json") if isinstance(run.get("record_json"), dict) else {}
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    is_full_nightly = flags.get("daily") is True and flags.get("suite") == "all" and flags.get("only_failed") is False
+    if not is_full_nightly:
+        raise RuntimeError("Campaign finalization requires a marked full nightly-equivalent run")
+    run_tests = {
+        test_key(suite, test): {**test, "lane": test.get("lane") or "deterministic"}
+        for suite, test in iter_tests(run_data)
+    }
+    summary = summarize_current_tests(run_tests)
+    if any(int(summary["lanes"][lane].get("total") or 0) == 0 for lane in TEST_LANES):
+        raise RuntimeError("Full campaign verification must execute deterministic and live-probe lanes")
+    failed_count = sum(int(summary["lanes"][lane].get(status) or 0) for lane in TEST_LANES for status in (*PROBLEM_STATUSES, BLOCKED_BY_PARENT_STATUS))
+    parent_group_key = str(groups[-1].get("group_key") or "")
+    if failed_count:
+        add_debug_child_groups(campaign_key, parent_group_key, run_data)
+        campaign = _debug_campaign(campaign_key)
+        metadata = dict(campaign.get("metadata") or {})
+        metadata["final_full_run"] = {"status": "failed", "run_key": run_key, "lanes": summary["lanes"]}
+        get_store().update_debug_campaign(campaign_key, {
+            "status": "active",
+            "metadata": metadata,
+            "completed_at": None,
+            "updated_at": utc_now(),
+        })
+        return debug_campaign_status(campaign_key)
+    metadata = dict(campaign.get("metadata") or {})
+    metadata["final_full_run"] = {"status": "passed", "run_key": run_key, "lanes": summary["lanes"]}
+    get_store().update_debug_campaign(campaign_key, {
+        "status": "completed",
+        "metadata": metadata,
+        "completed_at": utc_now(),
+        "updated_at": utc_now(),
+    })
+    return debug_campaign_status(campaign_key)
 
 
 def select_parallel_debug_groups(
@@ -5026,6 +5084,9 @@ def main(argv: list[str] | None = None) -> int:
     campaign_complete = campaign_sub.add_parser("complete-group", help="Complete a group after all members pass")
     campaign_complete.add_argument("--group", required=True)
     campaign_complete.add_argument("--commit", default="")
+    campaign_finalize = campaign_sub.add_parser("finalize", help="Complete a campaign from a full nightly-equivalent run")
+    campaign_finalize.add_argument("--campaign", required=True)
+    campaign_finalize.add_argument("--run", required=True)
     campaign_intent = campaign_sub.add_parser("intent", help="Record a worker fix intent before source edits")
     campaign_intent.add_argument("--group", required=True)
     campaign_intent.add_argument("--lease", required=True)
@@ -5222,6 +5283,8 @@ def main(argv: list[str] | None = None) -> int:
                 )
             elif args.campaign_command == "complete-group":
                 payload = complete_debug_group(args.group, commit=args.commit)
+            elif args.campaign_command == "finalize":
+                payload = finalize_debug_campaign(args.campaign, args.run)
             elif args.campaign_command == "intent":
                 payload = submit_worker_fix_intent(
                     args.group,

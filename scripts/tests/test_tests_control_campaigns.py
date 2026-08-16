@@ -249,6 +249,39 @@ def test_campaign_list_surfaces_resumable_active_campaigns(tmp_path, monkeypatch
     )
 
 
+def test_ambiguous_campaign_overlap_returns_structured_selection_without_mutation(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    first_key, _ = create_parallel_campaign(control, group_count=1, campaign_key="campaign-first")
+    second_key, _ = create_parallel_campaign(
+        control,
+        group_count=1,
+        campaign_key="campaign-second",
+        group_prefix="second-group",
+    )
+    monkeypatch.setattr(control, "build_triage", lambda: {"entries": [{
+        "key": "vitest::frontend/test-1.test.ts",
+        "group_id": "test_infra-shared",
+    }]})
+    before = (
+        control.get_store().test_debug_campaigns.copy(),
+        control.get_store().test_debug_groups.copy(),
+        control.get_store().test_claims.copy(),
+    )
+
+    result = control.start_debug_campaign(session_id="session-new")
+
+    assert result == {
+        "status": "selection_required",
+        "candidate_campaign_keys": [first_key, second_key],
+        "selected_test_keys": ["vitest::frontend/test-1.test.ts"],
+    }
+    assert before == (
+        control.get_store().test_debug_campaigns,
+        control.get_store().test_debug_groups,
+        control.get_store().test_claims,
+    )
+
+
 def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, _groups = create_parallel_campaign(control, group_count=1)
@@ -462,7 +495,72 @@ def test_complete_group_requires_green_evidence_for_every_member(tmp_path, monke
 
     assert completed["status"] == "green"
     assert {item["test_key"] for item in completed["green_evidence"]} == set(group["member_test_keys"])
-    assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "completed"
+    assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "verification_pending"
+
+
+def test_campaign_completes_only_after_full_zero_failure_run(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts"))
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "session-1")
+    campaign = control.start_debug_campaign(session_id="session-1")
+    group = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    control.record_run_result(passed_run(
+        ["first.spec.ts"], "run-group-green", "fix111abc", campaign["campaign_key"], group["group_key"]
+    ))
+    control.complete_debug_group(group["group_key"], commit="fix111abc")
+    full_run = {
+        "run_id": "run-full-green",
+        "campaign_key": campaign["campaign_key"],
+        "flags": {"daily": True, "suite": "all", "only_failed": False},
+        "suites": {
+            "playwright": {"status": "passed", "lane": "deterministic", "tests": [
+                {"name": "first.spec.ts", "file": "first.spec.ts", "status": "passed"},
+            ]},
+            "api_live": {"status": "passed", "lane": "live_probe", "tests": [
+                {"name": "gmail_delivery", "status": "passed"},
+            ]},
+        },
+    }
+    control.record_run_result(full_run)
+
+    result = control.finalize_debug_campaign(campaign["campaign_key"], "run-full-green")
+
+    assert result["campaign"]["status"] == "completed"
+    assert result["campaign"]["metadata"]["final_full_run"]["run_key"] == "run-full-green"
+
+
+def test_failed_full_run_adds_new_child_group_to_same_campaign(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    control.record_run_result(failed_run("first.spec.ts"))
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "session-1")
+    campaign = control.start_debug_campaign(session_id="session-1")
+    parent = control.debug_groups_for_campaign(campaign["campaign_key"])[0]
+    control.record_run_result(passed_run(
+        ["first.spec.ts"], "run-group-green", "fix111abc", campaign["campaign_key"], parent["group_key"]
+    ))
+    control.complete_debug_group(parent["group_key"], commit="fix111abc")
+    full_run = {
+        "run_id": "run-full-red",
+        "campaign_key": campaign["campaign_key"],
+        "flags": {"daily": True, "suite": "all", "only_failed": False},
+        "suites": {
+            "playwright": {"status": "failed", "lane": "deterministic", "tests": [
+                {"name": "first.spec.ts", "file": "first.spec.ts", "status": "passed"},
+                {"name": "new.spec.ts", "file": "new.spec.ts", "status": "failed", "error": "new regression"},
+            ]},
+            "api_live": {"status": "passed", "lane": "live_probe", "tests": [
+                {"name": "gmail_delivery", "status": "passed"},
+            ]},
+        },
+    }
+    control.record_run_result(full_run)
+
+    result = control.finalize_debug_campaign(campaign["campaign_key"], "run-full-red")
+
+    assert result["campaign"]["status"] == "active"
+    children = [group for group in result["groups"] if group.get("parent_group_key") == parent["group_key"]]
+    assert len(children) == 1
+    assert children[0]["member_test_keys"] == ["playwright::new.spec.ts"]
 
 
 def test_complete_vercel_gate_child_from_later_successful_parent_dispatch(tmp_path, monkeypatch):
@@ -641,7 +739,7 @@ def test_complete_vercel_gate_child_from_later_successful_parent_dispatch(tmp_pa
         "subject_commit": "fix222abc",
         "timestamp": completed_child["green_evidence"][0]["timestamp"],
     }]
-    assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "completed"
+    assert control.debug_campaign_status(campaign["campaign_key"])["campaign"]["status"] == "verification_pending"
 
 
 def test_campaign_bound_failure_is_added_as_child_group(tmp_path, monkeypatch):
