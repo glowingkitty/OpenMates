@@ -608,24 +608,18 @@ function readConflictWarningForTest({ path = "", sessionID = "", data = {}, pres
   return `[OpenMates presence conflict] ${relativePath} currently has a live edit by repository session ${lease.session_id}. This read remains allowed; re-read after the lease releases before editing.`;
 }
 
-function routingDecisionForTest({ session = {} } = {}) {
+function routingDecisionForTest({ session = {}, pathExists = existsSync } = {}) {
   const repoRoot = typeof session?.repo_root === "string" ? session.repo_root : "";
   if (repoRoot && resolve(repoRoot) !== resolve(PROJECT_ROOT) && session?.mode !== "question") {
     return { decision: "worktree_routed", worktreePath: repoRoot, repoRoot, repoName: session.repo_name || "external" };
   }
-  if (session?.worktree?.status === "merged") {
-    return {
-      decision: "merged_worktree",
-      worktreePath: "",
-      message: actionable(
-        ROUTING_GUARD_MARKER,
-        `repository session worktree is already merged${session.worktree.merged_commit ? ` at ${String(session.worktree.merged_commit).slice(0, 9)}` : ""}`,
-        "start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence; safe reads, searches, status, doctor, summary, context, worktree ensure, worktree repair, and end --force remain available.",
-      ),
-    };
-  }
-  const worktreePath = ["active", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
-  if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
+  const worktreePath = ["active", "changes_pending", "merged"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
+  if (
+    worktreePath
+    && isDirectManagedWorktree(worktreePath)
+    && pathExists(worktreePath)
+    && pathExists(resolve(worktreePath, ".git"))
+  ) return { decision: "worktree_routed", worktreePath };
   if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
   return { decision: "unresolved", worktreePath: "" };
 }

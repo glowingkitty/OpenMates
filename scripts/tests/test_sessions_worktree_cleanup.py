@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 import pytest
@@ -239,3 +240,384 @@ def test_worktree_capacity_refuses_before_creation_when_limits_are_breached(monk
 
     with pytest.raises(RuntimeError, match="worktree count limit"):
         sessions._enforce_worktree_creation_capacity()
+
+
+def test_chat_deduplication_removes_integrated_older_worktree_and_rebinds_latest(monkeypatch):
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "old1": {"opencode_session_id": None, "worktree": {"path": "/tmp/agent-old1"}},
+            "new1": {"opencode_session_id": None, "worktree": {"path": "/tmp/agent-new1"}},
+        },
+        "deploy_queue": [],
+        "edit_leases": {},
+    }
+    candidates = [
+        {
+            "session_id": "old1",
+            "path": "/tmp/agent-old1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 10,
+            "changed_files": ["source.py"],
+            "metadata": {"merged_commit": "commit-1", "status": "merged"},
+        },
+        {
+            "session_id": "new1",
+            "path": "/tmp/agent-new1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 20,
+            "changed_files": [],
+            "metadata": {"status": "active"},
+        },
+    ]
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (0, "target-commit", ""))
+    monkeypatch.setattr(sessions, "_chat_lineage_worktree_candidates", lambda **_kwargs: candidates)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(
+        sessions,
+        "_classify_worktree_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "integrated"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_refresh_reconciliation_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "integrated"},
+    )
+    removed: list[str] = []
+    monkeypatch.setattr(sessions, "_remove_reconciled_worktree", lambda candidate: removed.append(candidate["session_id"]))
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", lambda _session_id: nullcontext())
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+
+    report = sessions.deduplicate_chat_worktrees(target_ref="origin/dev", apply=True)
+
+    assert removed == ["old1"]
+    assert report["deleted"] == ["old1"]
+    assert report["checkpointed"] == []
+    assert set(data["sessions"]) == {"new1"}
+    assert data["sessions"]["new1"]["opencode_session_id"] == "ses_chat"
+    assert data["sessions"]["new1"]["opencode_top_level_session_id"] == "ses_chat"
+    assert data["worktree_deletion_manifests"][0]["reason_code"] == "duplicate_chat_lineage"
+
+
+def test_chat_deduplication_checkpoints_unique_older_work_before_removal(monkeypatch):
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "old1": {"worktree": {"path": "/tmp/agent-old1", "base_commit": "base"}},
+            "new1": {"worktree": {"path": "/tmp/agent-new1"}},
+        },
+        "deploy_queue": [],
+        "edit_leases": {},
+    }
+    candidates = [
+        {
+            "session_id": "old1",
+            "path": "/tmp/agent-old1",
+            "head": "base",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 10,
+            "changed_files": ["source.py"],
+            "metadata": {"path": "/tmp/agent-old1", "base_commit": "base"},
+        },
+        {
+            "session_id": "new1",
+            "path": "/tmp/agent-new1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 20,
+            "changed_files": [],
+            "metadata": {"status": "active"},
+        },
+    ]
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (0, "target-commit", ""))
+    monkeypatch.setattr(sessions, "_chat_lineage_worktree_candidates", lambda **_kwargs: candidates)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(
+        sessions,
+        "_classify_worktree_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "unique_stale"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_refresh_reconciliation_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "unique_stale"},
+    )
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "patch-1")
+    checkpoints: list[str] = []
+    monkeypatch.setattr(
+        sessions,
+        "_create_worktree_checkpoint_commit",
+        lambda session_id, *_args: checkpoints.append(session_id) or "checkpoint-1",
+    )
+    monkeypatch.setattr(sessions, "_remove_reconciled_worktree", lambda _candidate: None)
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", lambda _session_id: nullcontext())
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+
+    report = sessions.deduplicate_chat_worktrees(target_ref="origin/dev", apply=True)
+
+    assert checkpoints == ["old1"]
+    assert report["deleted"] == ["old1"]
+    assert report["checkpointed"] == [
+        {
+            "session_id": "old1",
+            "checkpoint_ref": "refs/openmates/checkpoints/old1",
+            "checkpoint_commit": "checkpoint-1",
+        }
+    ]
+
+
+def test_chat_deduplication_blocks_partially_removed_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    old_path = tmp_path / "agent-old1"
+    old_path.mkdir()
+    (old_path / ".git").write_text("gitdir: /removed/worktree\n", encoding="utf-8")
+    data = {
+        "sessions": {
+            "old1": {"worktree": {"path": str(old_path), "base_commit": "base"}},
+            "new1": {"worktree": {"path": "/tmp/agent-new1"}},
+        },
+        "deploy_queue": [],
+        "edit_leases": {},
+    }
+    candidates = [
+        {
+            "session_id": "old1",
+            "path": str(old_path),
+            "head": "",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 10,
+            "changed_files": [],
+            "inspection_error": "invalid gitdir",
+            "metadata": {"path": str(old_path), "base_commit": "base"},
+        },
+        {
+            "session_id": "new1",
+            "path": "/tmp/agent-new1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 20,
+            "changed_files": [],
+            "metadata": {"status": "active"},
+        },
+    ]
+
+    def run_command(command, **_kwargs):
+        if command[:3] == ["git", "rev-parse", "origin/dev"]:
+            return 0, "target-commit", ""
+        if command[:3] == ["git", "rev-parse", "--verify"]:
+            return 0, "checkpoint-1", ""
+        raise AssertionError(command)
+
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "_chat_lineage_worktree_candidates", lambda **_kwargs: candidates)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(
+        sessions,
+        "_classify_worktree_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "malformed"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_refresh_reconciliation_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "malformed"},
+    )
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", lambda _session_id: nullcontext())
+    removed: list[str] = []
+    monkeypatch.setattr(sessions, "_remove_reconciled_worktree", lambda candidate: removed.append(candidate["session_id"]))
+
+    report = sessions.deduplicate_chat_worktrees(target_ref="origin/dev", apply=True)
+
+    assert removed == []
+    assert report["deleted"] == []
+    assert report["checkpointed"] == []
+    assert report["blocked"] == [{"session_id": "old1", "reason": "invalid_or_missing_worktree"}]
+
+
+def test_checkpoint_ref_refuses_unverified_session_id_reuse(monkeypatch):
+    sessions = load_sessions_module()
+    checkpoint_ref = sessions._worktree_checkpoint_ref("abcd")
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "old-checkpoint", ""))
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {"sessions": {"abcd": {"auto_integration": {"checkpoint_commit": "different"}}}},
+    )
+
+    with pytest.raises(RuntimeError, match="unverified provenance"):
+        sessions._checkpoint_ref_expected_commit("abcd", checkpoint_ref, "new-checkpoint")
+
+
+def test_ensure_reactivates_valid_merged_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "managed" / "agent-abcd"
+    worktree.mkdir(parents=True)
+    data = {
+        "sessions": {
+            "abcd": {
+                "worktree": {
+                    "path": str(worktree),
+                    "status": "merged",
+                    "merged_commit": "abc123456789",
+                    "base_commit": "base123",
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [".env"])
+
+    result = sessions.ensure_session_worktree("abcd")
+
+    assert result["status"] == "active"
+    assert result["merged_commit"] == "abc123456789"
+
+
+def test_ensure_rejects_missing_merged_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    missing = tmp_path / "managed" / "agent-abcd"
+    data = {"sessions": {"abcd": {"worktree": {"path": str(missing), "status": "merged"}}}}
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+
+    with pytest.raises(RuntimeError, match="invalid or missing managed worktree"):
+        sessions.ensure_session_worktree("abcd")
+
+
+def test_chat_deduplication_blocks_fresh_inspection_failure(monkeypatch):
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "old1": {"worktree": {"path": "/tmp/agent-old1"}},
+            "new1": {"worktree": {"path": "/tmp/agent-new1"}},
+        },
+        "deploy_queue": [],
+        "edit_leases": {},
+    }
+    candidates = [
+        {
+            "session_id": "old1",
+            "path": "/tmp/agent-old1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 10,
+            "changed_files": [],
+            "metadata": {},
+        },
+        {
+            "session_id": "new1",
+            "path": "/tmp/agent-new1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 20,
+            "changed_files": [],
+            "metadata": {},
+        },
+    ]
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "target-commit", ""))
+    monkeypatch.setattr(sessions, "_chat_lineage_worktree_candidates", lambda **_kwargs: candidates)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", lambda _session_id: nullcontext())
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(
+        sessions,
+        "_refresh_reconciliation_candidate",
+        lambda candidate, *_args: {**candidate, "classification": "malformed", "inspection_error": "unreadable"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_checkpoint_duplicate_worktree",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("malformed worktree was checkpointed")),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_remove_reconciled_worktree",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("malformed worktree was removed")),
+    )
+
+    report = sessions.deduplicate_chat_worktrees(target_ref="origin/dev", apply=True)
+
+    assert report["deleted"] == []
+    assert report["blocked"] == [{"session_id": "old1", "reason": "inspection_failed"}]
+    assert "old1" in data["sessions"]
+    assert data.get("worktree_deletion_manifests", []) == []
+
+
+def test_chat_deduplication_blocks_lease_acquired_after_discovery(monkeypatch):
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "old1": {"worktree": {"path": "/tmp/agent-old1"}},
+            "new1": {"worktree": {"path": "/tmp/agent-new1"}},
+        },
+        "deploy_queue": [],
+        "edit_leases": {},
+    }
+    candidates = [
+        {
+            "session_id": "old1",
+            "path": "/tmp/agent-old1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 10,
+            "changed_files": [],
+            "metadata": {},
+        },
+        {
+            "session_id": "new1",
+            "path": "/tmp/agent-new1",
+            "worktree_kind": "source",
+            "chat_lineage": "ses_chat",
+            "lineage_created_ms": 20,
+            "changed_files": [],
+            "metadata": {},
+        },
+    ]
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (0, "target-commit", ""))
+    monkeypatch.setattr(sessions, "_chat_lineage_worktree_candidates", lambda **_kwargs: candidates)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+
+    mutation_count = 0
+    lock_held = False
+
+    @contextmanager
+    def checkpoint_lock(_session_id):
+        nonlocal lock_held
+        assert not lock_held
+        lock_held = True
+        try:
+            yield
+        finally:
+            lock_held = False
+
+    def mutate(callback):
+        nonlocal mutation_count
+        if callback.__name__ != "remove_duplicate":
+            assert not lock_held
+            return callback(data)
+        assert lock_held
+        mutation_count += 1
+        if mutation_count == 1:
+            data["edit_leases"]["source.py"] = {"session_id": "old1"}
+        return callback(data)
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", mutate)
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", checkpoint_lock)
+    monkeypatch.setattr(
+        sessions,
+        "_remove_reconciled_worktree",
+        lambda _candidate: (_ for _ in ()).throw(AssertionError("leased worktree was removed")),
+    )
+
+    report = sessions.deduplicate_chat_worktrees(target_ref="origin/dev", apply=True)
+
+    assert report["deleted"] == []
+    assert report["blocked"] == [{"session_id": "old1", "reason": "live_edit"}]
+    assert "old1" in data["sessions"]

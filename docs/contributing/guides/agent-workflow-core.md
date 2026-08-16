@@ -4,6 +4,13 @@ OpenCode is the primary OpenMates coding runtime. Claude Code remains the
 canonical authoring source for project skills, subagents, hooks, and shared
 rules; Codex and OpenCode consume generated or bridged mirrors.
 
+Each top-level OpenCode chat owns at most one physical source worktree per
+repository. Repeated starts and post-deploy continuation reuse that worktree;
+temporary integration worktrees exist only for the bounded deploy operation.
+OpenCode Web itself is stopped and started only inside the existing Zellij
+`code` session through `scripts/start-opencode-server.sh`, never through a
+detached process or systemd unit.
+
 Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.

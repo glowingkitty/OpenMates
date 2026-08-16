@@ -2129,18 +2129,15 @@ def ensure_session_worktree(session_id: str) -> dict:
         if not session:
             raise RuntimeError(f"Session {session_id} not found")
         metadata = session.get("worktree")
-        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") == "active":
+        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") in {"active", "merged"}:
+            worktree_path = Path(str(metadata["path"]))
+            if not _existing_direct_managed_worktree(worktree_path):
+                raise RuntimeError(f"Session {session_id} has an invalid or missing managed worktree: {worktree_path}")
+            if metadata.get("status") == "merged":
+                metadata["status"] = "active"
             metadata["last_active"] = _now_iso()
             session["last_active"] = _now_iso()
             return dict(metadata)
-        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") == "merged":
-            merged_commit = str(metadata.get("merged_commit") or "")[:9]
-            raise RuntimeError(
-                f"Session {session_id} worktree is already merged"
-                f"{f' at {merged_commit}' if merged_commit else ''}. "
-                "Start a new session/worktree for follow-up edits or evidence; "
-                "do not keep using the stale detached worktree."
-            )
         return None
 
     current = _mutate_sessions(existing)
@@ -3235,6 +3232,27 @@ def _worktree_checkpoint_ref(session_id: str) -> str:
     return f"refs/openmates/checkpoints/{safe_session_id}"
 
 
+def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_commit: str) -> str:
+    """Return the compare-and-swap value without overwriting unrelated recovery state."""
+    rc, previous_commit, _stderr = _run_cmd(
+        ["git", "rev-parse", "--verify", checkpoint_ref],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        return "0" * 40
+    previous_commit = previous_commit.strip()
+    if previous_commit == new_commit:
+        return previous_commit
+    session = _load_sessions().get("sessions", {}).get(session_id, {})
+    auto_integration = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+    if (
+        auto_integration.get("checkpoint_ref") == checkpoint_ref
+        and auto_integration.get("checkpoint_commit") == previous_commit
+    ):
+        return previous_commit
+    raise RuntimeError(f"Refusing to overwrite checkpoint ref with unverified provenance: {checkpoint_ref}")
+
+
 def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "") -> bool:
     """Delete a local checkpoint ref after its exact patch is integrated."""
     command = ["git", "update-ref", "-d", _worktree_checkpoint_ref(session_id)]
@@ -3309,17 +3327,20 @@ def _create_worktree_checkpoint_commit(
             timeout=300,
         )
         if rc != 0:
-            raise RuntimeError(f"Could not create worktree checkpoint commit: {stderr}")
-        rc, commit_hash, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
-        commit_hash = commit_hash.strip()
-        if rc != 0 or not commit_hash:
-            raise RuntimeError(f"Could not resolve worktree checkpoint commit: {stderr}")
+            diff_rc, _diff_stdout, diff_stderr = _run_cmd(
+                ["git", "diff", "--cached", "--quiet"],
+                cwd=str(checkout_root),
+            )
+            if diff_rc != 0:
+                raise RuntimeError(f"Could not create worktree checkpoint commit: {stderr or _stdout or diff_stderr}")
+            commit_hash = source_base
+        else:
+            rc, commit_hash, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
+            commit_hash = commit_hash.strip()
+            if rc != 0 or not commit_hash:
+                raise RuntimeError(f"Could not resolve worktree checkpoint commit: {stderr}")
         checkpoint_ref = _worktree_checkpoint_ref(session_id)
-        rc, previous_commit, _stderr = _run_cmd(
-            ["git", "rev-parse", "--verify", checkpoint_ref],
-            cwd=str(CONTROL_PLANE_ROOT),
-        )
-        expected_commit = previous_commit.strip() if rc == 0 else "0" * 40
+        expected_commit = _checkpoint_ref_expected_commit(session_id, checkpoint_ref, commit_hash)
         rc, _stdout, stderr = _run_cmd(
             ["git", "update-ref", checkpoint_ref, commit_hash, expected_commit],
             cwd=str(CONTROL_PLANE_ROOT),
@@ -3725,6 +3746,20 @@ def _validate_managed_worktree_path(path: str | Path) -> Path:
     return managed_path
 
 
+def _existing_direct_managed_worktree(path: str | Path, *, linked_paths: set[Path] | None = None) -> bool:
+    """Return whether a path is a linked worktree of the control-plane repository."""
+    candidate = Path(path)
+    if not is_valid_managed_worktree_path(candidate) or not candidate.is_dir():
+        return False
+    if linked_paths is None:
+        linked_paths = {
+            Path(str(item.get("path") or "")).resolve()
+            for item in _linked_git_worktrees()
+            if item.get("path")
+        }
+    return candidate.resolve() in linked_paths
+
+
 def _remove_git_worktree(metadata: dict) -> None:
     path = metadata.get("path")
     if not path:
@@ -3848,7 +3883,7 @@ def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -
     paths.update({path: {"path": path, **entry} for path, entry in by_path.items() if path not in paths})
 
     candidates: list[dict] = []
-    root = PROJECT_ROOT.resolve()
+    root = CONTROL_PLANE_ROOT.resolve()
     for resolved_path, linked_item in sorted(paths.items()):
         path = Path(resolved_path)
         if path == root:
@@ -3878,6 +3913,7 @@ def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -
                 "head": linked_item.get("head", ""),
                 "linked": bool(linked_item.get("head")),
                 "registered": bool(registered),
+                "session": session,
                 "metadata": metadata,
                 "worktree_kind": worktree_kind,
                 "binding_mode": validate_worktree_binding_mode(session) if registered else "",
@@ -3940,6 +3976,302 @@ def _worktree_target_files_match(candidate: dict, target_ref: str) -> bool:
         elif target_bytes is not None or target_mode is not None:
             return False
     return True
+
+
+def _legacy_worktree_chat_lineage(db_path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Reconstruct legacy worktree ownership from bounded session-start outputs."""
+    try:
+        connection = _opencode_readonly_connection(db_path)
+    except (FileNotFoundError, sqlite3.Error):
+        return {}
+    try:
+        parents = {
+            str(row["id"]): str(row["parent_id"]) if row["parent_id"] else None
+            for row in connection.execute("SELECT id, parent_id FROM session")
+        }
+
+        def top_level(session_id: str) -> str:
+            current = session_id
+            seen = {current}
+            while parents.get(current) and parents[current] not in seen:
+                current = str(parents[current])
+                seen.add(current)
+            return current
+
+        events: dict[str, dict[str, Any]] = {}
+        rows = connection.execute(
+            """
+            SELECT session_id, time_created, data
+            FROM part
+            WHERE data LIKE '%== SESSION %' AND data LIKE '%Worktree:%'
+            """
+        )
+        for row in rows:
+            decoded = _decode_opencode_json(row["data"])
+            if not isinstance(decoded, dict) or decoded.get("type") != "tool":
+                continue
+            state = decoded.get("state") if isinstance(decoded.get("state"), dict) else {}
+            output = str(state.get("output") or "")
+            session_match = re.search(r"== SESSION ([0-9a-f]{4})\b", output)
+            worktree_match = re.search(r"^\s*Worktree:\s+(.+?)\s*$", output, re.MULTILINE)
+            if not session_match or not worktree_match or not worktree_match.group(1).strip().startswith("/"):
+                continue
+            repository_session_id = session_match.group(1)
+            created_ms = int(row["time_created"] or 0)
+            previous = events.get(repository_session_id)
+            if previous and int(previous["lineage_created_ms"]) >= created_ms:
+                continue
+            events[repository_session_id] = {
+                "chat_lineage": top_level(str(row["session_id"])),
+                "lineage_created_ms": created_ms,
+            }
+        return events
+    except sqlite3.Error:
+        return {}
+    finally:
+        connection.close()
+
+
+def _plan_duplicate_chat_worktrees(candidates: list[dict]) -> dict:
+    """Keep only the newest source worktree for each known chat lineage."""
+    grouped: dict[str, list[dict]] = {}
+    lineage_unknown: list[str] = []
+    integration_excluded: list[str] = []
+    invalid_path_excluded: list[str] = []
+    for candidate in candidates:
+        session_id = str(candidate.get("session_id") or "")
+        if candidate.get("worktree_kind") == "integration":
+            integration_excluded.append(session_id)
+            continue
+        if candidate.get("lineage_path_valid") is False:
+            invalid_path_excluded.append(session_id)
+            continue
+        lineage = str(candidate.get("chat_lineage") or "")
+        if not lineage:
+            lineage_unknown.append(session_id)
+            continue
+        grouped.setdefault(lineage, []).append(candidate)
+
+    retained: list[str] = []
+    remove: list[str] = []
+    groups: list[dict] = []
+    authoritative: dict[str, str] = {}
+    for lineage, items in sorted(grouped.items()):
+        ordered = sorted(
+            items,
+            key=lambda item: (
+                int(item.get("lineage_created_ms") or 0),
+                str((item.get("metadata") or {}).get("created_at") or ""),
+                str(item.get("last_active") or ""),
+                bool(item.get("lineage_bound")),
+                str(item.get("path") or ""),
+            ),
+        )
+        keep = ordered[-1]
+        authoritative[lineage] = str(keep.get("session_id") or "")
+        if len(items) < 2:
+            continue
+        discarded = ordered[:-1]
+        retained.append(str(keep.get("session_id") or ""))
+        remove.extend(str(item.get("session_id") or "") for item in discarded)
+        groups.append(
+            {
+                "chat_lineage": lineage,
+                "retained": str(keep.get("session_id") or ""),
+                "remove": [str(item.get("session_id") or "") for item in discarded],
+            }
+        )
+    return {
+        "duplicate_chat_count": len(groups),
+        "groups": groups,
+        "authoritative": authoritative,
+        "retained": sorted(retained),
+        "remove": sorted(remove),
+        "lineage_unknown": sorted(lineage_unknown),
+        "integration_excluded": sorted(integration_excluded),
+        "invalid_path_excluded": sorted(invalid_path_excluded),
+    }
+
+
+def _chat_lineage_worktree_candidates(*, db_path: Path | None = None) -> list[dict]:
+    """Enrich current worktree candidates with durable or reconstructed chat lineage."""
+    legacy = _legacy_worktree_chat_lineage(db_path)
+    linked_paths = {
+        Path(str(item.get("path") or "")).resolve()
+        for item in _linked_git_worktrees()
+        if item.get("path")
+    }
+    enriched: list[dict] = []
+    for candidate in _discover_worktree_candidates():
+        item = dict(candidate)
+        session = item.get("session") if isinstance(item.get("session"), dict) else {}
+        event = legacy.get(str(item.get("session_id") or ""), {})
+        lineage = str(session.get("opencode_top_level_session_id") or event.get("chat_lineage") or "")
+        created_ms = int(event.get("lineage_created_ms") or 0)
+        if not created_ms:
+            created_at = str((item.get("metadata") or {}).get("created_at") or session.get("started") or "")
+            try:
+                created_ms = int(_parse_iso(created_at).timestamp() * 1000) if created_at else 0
+            except (TypeError, ValueError):
+                created_ms = 0
+        item["chat_lineage"] = lineage
+        item["lineage_created_ms"] = created_ms
+        item["lineage_bound"] = bool(lineage and session.get("opencode_session_id") == lineage)
+        item["lineage_path_valid"] = _existing_direct_managed_worktree(
+            str(item.get("path") or ""),
+            linked_paths=linked_paths,
+        )
+        enriched.append(item)
+    return enriched
+
+
+def _retain_worktree_head_checkpoint(session_id: str, candidate: dict) -> str:
+    """Retain one clean but unproven worktree head before duplicate cleanup."""
+    head = str(candidate.get("head") or "")
+    if not head:
+        raise RuntimeError(f"Cannot checkpoint duplicate worktree {session_id} without a head commit")
+    checkpoint_ref = _worktree_checkpoint_ref(session_id)
+    expected = _checkpoint_ref_expected_commit(session_id, checkpoint_ref, head)
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "update-ref", checkpoint_ref, head, expected],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not retain duplicate worktree head: {stderr}")
+    return head
+
+
+def _checkpoint_duplicate_worktree(session_id: str, candidate: dict) -> str:
+    """Retain the latest readable state before deleting one duplicate worktree."""
+    files = list(candidate.get("changed_files") or [])
+    if files:
+        metadata = dict(candidate.get("metadata") or {})
+        metadata["path"] = str(candidate.get("path") or "")
+        if not metadata.get("base_commit") and not metadata.get("merged_commit"):
+            metadata["base_commit"] = str(candidate.get("head") or _current_git_sha(metadata["path"]))
+        patch_id = _worktree_patch_id(metadata, files)
+        return _create_worktree_checkpoint_commit(session_id, metadata, files, patch_id)
+    if not candidate.get("head"):
+        checkpoint_ref = _worktree_checkpoint_ref(session_id)
+        rc, existing_checkpoint, _stderr = _run_cmd(
+            ["git", "rev-parse", "--verify", checkpoint_ref],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if rc == 0:
+            return existing_checkpoint.strip()
+        if not (Path(str(candidate.get("path") or "")) / ".git").exists():
+            return ""
+    return _retain_worktree_head_checkpoint(session_id, candidate)
+
+
+def deduplicate_chat_worktrees(
+    *,
+    target_ref: str = "origin/dev",
+    apply: bool = False,
+    db_path: Path | None = None,
+) -> dict:
+    """Report or remove older source worktrees owned by the same top-level chat."""
+    rc, target_commit, stderr = _run_cmd(["git", "rev-parse", target_ref])
+    if rc != 0:
+        raise RuntimeError(f"Failed to resolve {target_ref}: {stderr}")
+    target_commit = target_commit.strip()
+    candidates = _chat_lineage_worktree_candidates(db_path=db_path)
+    plan = _plan_duplicate_chat_worktrees(candidates)
+    report = {
+        "target_ref": target_ref,
+        "target_commit": target_commit,
+        "apply": apply,
+        **plan,
+        "deleted": [],
+        "checkpointed": [],
+        "blocked": [],
+    }
+    if not apply:
+        return report
+
+    candidates_by_id = {str(item.get("session_id") or ""): item for item in candidates}
+    retained_by_lineage = dict(plan["authoritative"])
+    for session_id in plan["remove"]:
+        candidate = candidates_by_id[session_id]
+        lineage = str(candidate.get("chat_lineage") or "")
+        retained_session_id = retained_by_lineage[lineage]
+        def remove_duplicate(data: dict) -> dict:
+            session = data.get("sessions", {}).get(session_id, {})
+            live_lease = any(
+                isinstance(lease, dict) and lease.get("session_id") == session_id
+                for lease in data.get("edit_leases", {}).values()
+            )
+            if session.get("writing") or live_lease:
+                return {"blocked": "live_edit"}
+            fresh = _refresh_reconciliation_candidate(candidate, data, target_commit, 0, set())
+            if not _existing_direct_managed_worktree(str(fresh.get("path") or "")):
+                return {"blocked": "invalid_or_missing_worktree"}
+            if fresh.get("classification") == "malformed":
+                return {"blocked": "inspection_failed"}
+            checkpoint_commit = ""
+            if fresh.get("classification") not in {"integrated", "duplicated", "superseded"}:
+                checkpoint_commit = _checkpoint_duplicate_worktree(session_id, fresh)
+            _remove_reconciled_worktree(fresh)
+            _prune_deletion_manifests(data)
+            data.setdefault("sessions", {}).pop(session_id, None)
+            data["deploy_queue"] = [
+                item for item in data.setdefault("deploy_queue", [])
+                if str(item.get("session_id") or "") != session_id
+            ]
+            data["edit_leases"] = {
+                path: lease
+                for path, lease in data.setdefault("edit_leases", {}).items()
+                if str(lease.get("session_id") or "") != session_id
+            }
+            data.setdefault("worktree_deletion_manifests", []).append(
+                {
+                    "session_id": session_id,
+                    "worktree_name": Path(str(candidate.get("path") or "")).name,
+                    "classification": "duplicate_chat_worktree",
+                    "reason": "older_worktree_for_same_chat",
+                    "reason_code": "duplicate_chat_lineage",
+                    "chat_lineage": lineage,
+                    "retained_session_id": retained_session_id,
+                    "checkpoint_ref": _worktree_checkpoint_ref(session_id) if checkpoint_commit else "",
+                    "checkpoint_commit": checkpoint_commit,
+                    "changed_file_count": len(fresh.get("changed_files") or []),
+                    "head": str(fresh.get("head") or ""),
+                    "target_commit": target_commit,
+                    "deleted_at": _now_iso(),
+                }
+            )
+            return {"deleted": True, "checkpoint_commit": checkpoint_commit}
+
+        try:
+            with _worktree_checkpoint_lock(session_id):
+                outcome = _mutate_sessions(remove_duplicate)
+        except (OSError, RuntimeError) as exc:
+            report["blocked"].append({"session_id": session_id, "reason": f"cleanup_failed:{exc}"})
+            continue
+        if outcome.get("blocked"):
+            report["blocked"].append({"session_id": session_id, "reason": str(outcome["blocked"])})
+            continue
+        checkpoint_commit = str(outcome.get("checkpoint_commit") or "")
+        if checkpoint_commit:
+            report["checkpointed"].append(
+                {
+                    "session_id": session_id,
+                    "checkpoint_ref": _worktree_checkpoint_ref(session_id),
+                    "checkpoint_commit": checkpoint_commit,
+                }
+            )
+        report["deleted"].append(session_id)
+
+    def bind_authoritative(data: dict) -> None:
+        sessions = data.setdefault("sessions", {})
+        for lineage, session_id in retained_by_lineage.items():
+            if session_id not in sessions:
+                continue
+            sessions[session_id]["opencode_top_level_session_id"] = lineage
+            bind_opencode_session(data, session_id, lineage)
+
+    _mutate_sessions(bind_authoritative)
+    return report
 
 
 def _classify_worktree_candidate(
@@ -6514,15 +6846,25 @@ def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str)
         if other_id != session_id and session.get("opencode_session_id") == opencode_session_id:
             session["opencode_session_id"] = None
     sessions[session_id]["opencode_session_id"] = opencode_session_id
+    sessions[session_id].setdefault("opencode_top_level_session_id", opencode_session_id)
 
 
-def session_for_opencode(data: dict, opencode_session_id: str) -> tuple[str, dict] | None:
+def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str = "") -> tuple[str, dict] | None:
     """Return the one repository session already bound to an OpenCode chat."""
+    sessions = data.get("sessions", {})
     matches = [
         (session_id, session)
-        for session_id, session in data.get("sessions", {}).items()
+        for session_id, session in sessions.items()
         if session.get("opencode_session_id") == opencode_session_id
+        and (not repo_id or _session_repo_id(session) == repo_id)
     ]
+    if not matches:
+        matches = [
+            (session_id, session)
+            for session_id, session in sessions.items()
+            if session.get("opencode_top_level_session_id") == opencode_session_id
+            and (not repo_id or _session_repo_id(session) == repo_id)
+        ]
     if len(matches) > 1:
         raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
     return matches[0] if matches else None
@@ -6530,8 +6872,7 @@ def session_for_opencode(data: dict, opencode_session_id: str) -> tuple[str, dic
 
 def opencode_session_reusable_for_start(session: dict) -> bool:
     """Return whether `sessions.py start` may keep using this chat binding."""
-    worktree = session.get("worktree") or {}
-    return worktree.get("status") != "merged"
+    return True
 
 
 def record_worktree_binding(
@@ -6611,14 +6952,11 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session = data["sessions"][session_id]
         worktree = session.get("worktree") or {}
         worktree_path = str(worktree.get("path") or "")
-        if worktree.get("status") == "merged":
-            merged_commit = str(worktree.get("merged_commit") or "")[:9]
-            raise RuntimeError(
-                f"Reason: session {session_id} worktree is already merged"
-                f"{f' at {merged_commit}' if merged_commit else ''}. "
-                "Next: start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence."
-            )
-        if worktree.get("status") not in {"active", "changes_pending"} or not worktree_path or not is_valid_managed_worktree_path(worktree_path):
+        if (
+            worktree.get("status") not in {"active", "changes_pending", "merged"}
+            or not worktree_path
+            or not _existing_direct_managed_worktree(worktree_path)
+        ):
             raise RuntimeError(
                 f"Reason: session {session_id} has no active worktree to route tools into. "
                 f"Next: run python3 scripts/sessions.py worktree ensure --session {session_id}."
@@ -6629,7 +6967,7 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session["binding_updated_at"] = _now_iso()
         session["binding_failure_reason"] = ""
         session["last_active"] = _now_iso()
-        if worktree.get("status") == "changes_pending":
+        if worktree.get("status") in {"changes_pending", "merged"}:
             worktree["status"] = "active"
         worktree["last_active"] = session["last_active"]
         return {
@@ -6645,12 +6983,23 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
-) -> tuple[str, list[str], list[str], dict]:
+) -> tuple[str, list[str], list[str], dict, bool]:
     """Atomically register one repo session and its authoritative OpenCode chat."""
-    def register(data: dict) -> tuple[str, list[str], list[str], dict]:
+    def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
+        if opencode_session_id:
+            existing = session_for_opencode(
+                data,
+                opencode_session_id,
+                repo_id=str(session_record.get("repo_id") or ""),
+            )
+            if existing:
+                existing_id, existing_session = existing
+                bind_opencode_session(data, existing_id, opencode_session_id)
+                existing_session["last_active"] = _now_iso()
+                return existing_id, pruned, cleared_locks, data, False
         session_id = secrets.token_hex(2)
         attempts = 0
         while session_id in data.get("sessions", {}) and attempts < 10:
@@ -6661,7 +7010,7 @@ def register_session_record(
         data["sessions"][session_id] = dict(session_record)
         if opencode_session_id:
             bind_opencode_session(data, session_id, opencode_session_id)
-        return session_id, pruned, cleared_locks, data
+        return session_id, pruned, cleared_locks, data, True
 
     return _mutate_sessions(register)
 
@@ -6730,7 +7079,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     # than the previous race-prone max(last_active) fallback that caused
     # ghost ownership across unrelated sessions.
     opencode_session_id = getattr(args, "opencode_session", None)
-    existing = session_for_opencode(_load_sessions(), opencode_session_id) if opencode_session_id else None
+    existing = session_for_opencode(
+        _load_sessions(),
+        opencode_session_id,
+        repo_id=repo["repo_id"],
+    ) if opencode_session_id else None
     if existing and not opencode_session_reusable_for_start(existing[1]):
         existing = None
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
@@ -6742,6 +7095,12 @@ def cmd_start(args: argparse.Namespace) -> None:
         def refresh_existing(data: dict) -> dict:
             session = data["sessions"][sid]
             session["last_active"] = _now_iso()
+            if opencode_session_id:
+                session.setdefault("opencode_top_level_session_id", opencode_session_id)
+            session["mode"] = mode
+            session["tags"] = tags
+            session["binding_mode"] = "pending" if repo["repo_kind"] == "control_plane" else "repo_routed"
+            session["auto_integration_policy"] = "enabled" if repo["repo_kind"] == "control_plane" else "disabled"
             if args.task:
                 session["task"] = args.task
             return data
@@ -6763,6 +7122,7 @@ def cmd_start(args: argparse.Namespace) -> None:
             "linear_issue_id": None,
             "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
             "opencode_session_id": None,
+            "opencode_top_level_session_id": opencode_session_id,
             "binding_mode": (
                 "repo_routed"
                 if opencode_session_id and mode != "question" and repo["repo_kind"] != "control_plane"
@@ -6770,10 +7130,11 @@ def cmd_start(args: argparse.Namespace) -> None:
             ),
             "auto_integration_policy": "enabled" if opencode_session_id and mode != "question" and repo["repo_kind"] == "control_plane" else "disabled",
         }
-        sid, pruned, cleared_locks, data = register_session_record(
+        sid, pruned, cleared_locks, data, registered_new = register_session_record(
             session_record,
             opencode_session_id,
         )
+        is_new_session = registered_new
     worktree_metadata: dict | None = None
     worktree_error = ""
     if mode != "question" and repo["repo_kind"] == "control_plane":
@@ -11032,6 +11393,31 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         for session_id in deleted:
             print(f"  - {session_id}")
         return
+    if args.worktree_action == "deduplicate-chats":
+        try:
+            report = deduplicate_chat_worktrees(
+                target_ref=args.target,
+                apply=args.apply,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.format == "json":
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print("== WORKTREE CHAT DEDUPLICATION ==")
+            print(f"Target: {report['target_ref']} ({report['target_commit'][:10]})")
+            print(f"Duplicate chats: {report['duplicate_chat_count']}")
+            print(f"Planned removals: {len(report['remove'])}")
+            print(f"Deleted: {len(report['deleted'])}")
+            print(f"Checkpointed: {len(report['checkpointed'])}")
+            print(f"Blocked: {len(report['blocked'])}")
+            print(f"Unknown lineage: {len(report['lineage_unknown'])}")
+            for item in report["blocked"]:
+                print(f"  ! {item['session_id']}: {item['reason']}")
+        if report["blocked"]:
+            sys.exit(1)
+        return
     if args.worktree_action == "reconcile":
         if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS and not args.only:
             print(
@@ -13945,6 +14331,13 @@ def main() -> None:
         default=WORKTREE_CLEANUP_IDLE_HOURS,
         help="Hours before safely classified stale worktrees may be deleted (default: 48)",
     )
+    p_worktree_deduplicate = p_worktree_sub.add_parser(
+        "deduplicate-chats",
+        help="Keep only the newest source worktree for each top-level OpenCode chat",
+    )
+    p_worktree_deduplicate.add_argument("--target", default="origin/dev", help="Exact integration ref")
+    p_worktree_deduplicate.add_argument("--apply", action="store_true", help="Checkpoint and remove older duplicates")
+    p_worktree_deduplicate.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
     p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
     p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)

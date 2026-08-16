@@ -140,6 +140,8 @@ For each observed preventable process problem or inefficiency, check the relevan
 ## OpenCode Behavior
 
 - Prefer OpenCode-native config in `opencode.json` for this repo.
+- One top-level OpenCode chat may own at most one physical source worktree per repository. Repeated `sessions.py start` calls and post-deploy follow-ups must reuse the chat's existing repository session/worktree; never create a replacement worktree merely because the previous deploy marked it merged.
+- OpenCode Web runs inside the existing Zellij `code` session. Stop or start `opencode web` only from that Zellij session through the existing `scripts/start-opencode-server.sh` workflow. Never restart it with `systemd-run`, a user service, `nohup`, a detached shell, or a second terminal session.
 - OpenCode is the primary agentic coding workflow for this repository. Keep Claude files as compatibility/shared-rule sources for other contributors and because OpenCode loads the shared `.claude/rules/` guidance through `opencode.json`.
 - Existing Claude Code skills in `.claude/skills/` are intentionally retained; OpenCode uses the `.agents/skills/` mirror and must not call the Claude Code runtime.
 - Codex discovers repo skills from `.agents/skills/`. Keep `.agents/skills/` as the Codex/OpenCode-compatible mirror of `.claude/skills/`, using Agent Skills compliant names (`lowercase-hyphenated`, matching the folder name).

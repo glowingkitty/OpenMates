@@ -60,6 +60,28 @@ test("auto-discovered modules export only valid OpenCode plugin factories", asyn
   assert.equal(typeof await cliAutoLoginPluginModule.CliAutoLogin({}), "object");
 });
 
+test("merged worktree routing requires an existing Git worktree", () => {
+  const { routingDecisionForTest } = pluginModule.OpenMatesHooks.test;
+  const worktreePath = process.cwd();
+  assert.deepEqual(
+    routingDecisionForTest({
+      session: { worktree: { path: worktreePath, status: "merged", merged_commit: "abc123456789" } },
+    }),
+    { decision: "worktree_routed", worktreePath },
+  );
+  assert.deepEqual(
+    routingDecisionForTest({
+      session: {
+        worktree: {
+          path: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-missing",
+          status: "merged",
+        },
+      },
+    }),
+    { decision: "unresolved", worktreePath: "" },
+  );
+});
+
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
@@ -146,7 +168,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
         stale: {
           opencode_session_id: "stale-session",
           binding_mode: "worktree_routed",
-          worktree: { path: process.cwd(), status: "merged", merged_commit: "abc123456789" },
+          worktree: { path: process.cwd(), status: "missing", merged_commit: "abc123456789" },
         },
       },
     },
@@ -163,7 +185,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
       { tool: "bash", sessionID: "stale-session" },
       { args: { command: "./scripts/prod-ssh.sh 'docker ps'", workdir: "/model-selected-root" } },
     ),
-    /repository session worktree is already merged/,
+    /no active sessions\.py worktree could be resolved/,
   );
 });
 
