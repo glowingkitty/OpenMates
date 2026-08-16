@@ -233,6 +233,14 @@
         >
             <div class="notification-progress-fill"></div>
         </div>
+    {:else if notification.isProcessing}
+        <div
+            class="notification-activity"
+            data-testid="notification-activity"
+            aria-hidden="true"
+        >
+            <div class="notification-activity-fill"></div>
+        </div>
     {/if}
 </div>
 
@@ -509,12 +517,18 @@
         opacity: 1;
     }
 
-    .notification-progress {
+    .notification-progress,
+    .notification-activity {
         position: absolute;
         inset-inline: 0;
         bottom: 0;
         height: 4px;
         pointer-events: none;
+    }
+
+    .notification-activity {
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
     }
 
     .notification-progress-fill {
@@ -526,14 +540,31 @@
         animation: notificationProgressFill var(--notification-duration) linear forwards;
     }
 
+    .notification-activity-fill {
+        width: 38%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+        animation: notificationActivityFill 1.35s ease-in-out infinite;
+    }
+
     @keyframes notificationProgressFill {
         from { transform: scaleX(0); }
         to { transform: scaleX(1); }
     }
 
+    @keyframes notificationActivityFill {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(280%); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .notification-progress-fill {
             animation-timing-function: steps(20, end);
+        }
+
+        .notification-activity-fill {
+            animation-duration: 2.4s;
         }
     }
     

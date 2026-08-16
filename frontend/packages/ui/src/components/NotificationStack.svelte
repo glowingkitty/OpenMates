@@ -24,6 +24,7 @@
         message?: string;
         duration?: number;
         dismissible?: boolean;
+        isProcessing?: boolean;
         dedupeKey?: string;
     };
 
@@ -58,6 +59,7 @@
                     message: notification.message,
                     duration: notification.duration ?? 0,
                     dismissible: notification.dismissible ?? true,
+                    isProcessing: notification.isProcessing ?? false,
                     dedupeKey: notification.dedupeKey ?? `e2e-notification-stack-${index}`,
                 });
             });

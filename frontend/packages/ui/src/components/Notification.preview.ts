@@ -78,6 +78,7 @@ export const variants = {
       message: "Reconnecting to the server...",
       duration: 0,
       dismissible: false,
+      isProcessing: true,
     },
   },
 

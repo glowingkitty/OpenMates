@@ -188,6 +188,7 @@
         notificationStore.updateNotification(offlineNotificationId, {
             title: texts.reconnectingTitle,
             message: texts.reconnectingMessage,
+            isProcessing: true,
             onAction: undefined,
             actionLabel: undefined,
         });
@@ -204,11 +205,34 @@
                 notificationStore.updateNotification(offlineNotificationId, {
                     title: texts.title,
                     message: texts.message,
+                    isProcessing: false,
                     onAction: handleReconnectTap,
                     actionLabel: texts.reconnectLabel,
                 });
             }
         }, RECONNECT_ATTEMPT_TIMEOUT_MS);
+    }
+
+    function showReconnectingNotification(): void {
+        const texts = getOfflineText();
+        const changes = {
+            title: texts.reconnectingTitle,
+            message: texts.reconnectingMessage,
+            isProcessing: true,
+            onAction: undefined,
+            actionLabel: undefined,
+        };
+
+        if (offlineNotificationId !== null) {
+            notificationStore.updateNotification(offlineNotificationId, changes);
+            return;
+        }
+
+        offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
+            ...changes,
+            duration: 0,
+            dismissible: true,
+        });
     }
 
     /**
@@ -228,6 +252,7 @@
                 message: texts.message,
                 duration: 0, // Persistent until reconnected
                 dismissible: true,
+                isProcessing: true,
             });
         } else {
             console.info('[OfflineBanner] Showing offline notification');
@@ -377,9 +402,15 @@
                     // Double-check we're still disconnected and not in grace period before showing
                     if (wsDisconnectedSince !== null && !isInResumeGracePeriod) {
                         console.info('[OfflineBanner] WebSocket disconnected for', WS_OFFLINE_DELAY_MS, 'ms — showing offline notification');
-                        showOfflineNotification();
+                        if ($websocketStatus.status === 'reconnecting') {
+                            showReconnectingNotification();
+                        } else {
+                            showOfflineNotification();
+                        }
                     }
                 }, WS_OFFLINE_DELAY_MS);
+            } else if (wsState.status === 'reconnecting' && offlineNotificationId !== null) {
+                showReconnectingNotification();
             }
         }
     });
@@ -497,6 +528,7 @@
                 notificationStore.updateNotification(offlineNotificationId, {
                     title: texts.title,
                     message: texts.message,
+                    isProcessing: true,
                     onAction: undefined,
                     actionLabel: undefined,
                 });

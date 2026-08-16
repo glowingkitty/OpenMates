@@ -17,7 +17,7 @@ const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
 const PROOF_VISIBLE_STATE_MS = 2000;
 
 // contract-test: direct surface=gui.web assertions=notifications.web.stacked-deck
-test('global notifications stack behind the front card and promote on dismiss', async ({ page }) => {
+test('global notifications stack behind the front card, show activity, and promote on dismiss', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await page.addInitScript((key: string) => {
@@ -40,7 +40,8 @@ test('global notifications stack behind the front card and promote on dismiss', 
 								type: 'info',
 								title: 'First stacked notification',
 								message: 'This front notification stays readable and interactive.',
-								duration: 0
+								duration: 0,
+								isProcessing: true
 							},
 							{
 								type: 'success',
@@ -66,6 +67,8 @@ test('global notifications stack behind the front card and promote on dismiss', 
 	await expect(items.nth(0)).toContainText('First stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
 	await expect(items.nth(2)).toContainText('Third stacked notification');
+	await expect(items.nth(0).getByTestId('notification-activity')).toBeVisible();
+	await expect(items.nth(0).getByTestId('notification-progress')).toHaveCount(0);
 
 	await page.waitForTimeout(500);
 	const stackMetrics = await items.evaluateAll((elements: HTMLElement[]) =>

@@ -43,6 +43,7 @@ export type NotificationType =
  * - onAction: Optional callback for an action button (e.g., "Tap to reconnect")
  * - actionLabel: Label text for the action button
  * - onSecondaryAction/actionSecondaryLabel: Optional rejection/secondary action
+ * - isProcessing: Shows an indeterminate activity bar for background work
  */
 export interface Notification {
   id: string;
@@ -52,6 +53,7 @@ export interface Notification {
   messageSecondary?: string; // Secondary message (displayed in bold)
   duration?: number; // Duration in ms, if undefined, notification is persistent until dismissed
   dismissible?: boolean; // Whether the notification can be dismissed by the user
+  isProcessing?: boolean; // Whether background work is actively running with no known finish time
 
   // Action button support (e.g., "Tap to reconnect" on connection notifications)
   onAction?: () => void; // Callback when action button is clicked
@@ -76,6 +78,7 @@ export interface NotificationOptions {
   messageSecondary?: string;
   duration?: number;
   dismissible?: boolean;
+  isProcessing?: boolean;
   onAction?: () => void; // Optional callback for action button
   actionLabel?: string; // Label text for the action button
   onSecondaryAction?: () => void;
