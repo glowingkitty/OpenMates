@@ -206,8 +206,10 @@ def audit_skills(root: Path = REPO_ROOT) -> list[str]:
             failures.append(f"missing canonical skill: {rel_path}")
             continue
         text = path.read_text(encoding="utf-8")
+        normalized_paragraphs = [" ".join(paragraph.split()) for paragraph in re.split(r"\n\s*\n", text)]
         for term in sorted(terms):
-            if term not in text:
+            normalized_term = " ".join(term.split())
+            if not any(normalized_term in paragraph for paragraph in normalized_paragraphs):
                 failures.append(f"{rel_path} missing required term: {term}")
     return failures
 

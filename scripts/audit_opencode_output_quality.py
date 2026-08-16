@@ -199,6 +199,9 @@ FIRECRAWL_SAFE_PERMISSION_ACTIONS = {"ask", "deny"}
 MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY = 80
 MAX_STANDALONE_TODO_TURNS_PER_DAY = 80
 MAX_ROUTING_ERROR_TURNS_PER_DAY = 20
+MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY = 5
+MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY = 20
+MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY = 10
 
 
 @dataclass(frozen=True)
@@ -574,7 +577,7 @@ def summarize_tool_turns(turns: list[dict[str, Any]], *, include_breakdowns: boo
                 category = "missing_session"
             elif "Ripgrep JSON record exceeded" in error:
                 category = "grep_output_too_large"
-            elif "File not found" in error or "BadResource" in error:
+            elif tool.get("name") == "read" and "File not found" in error:
                 category = "missing_runtime_artifact"
             elif "stale-read guard" in error:
                 category = "stale_read"
@@ -689,6 +692,27 @@ def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[A
         issues.append(AuditIssue(
             "opencode-telemetry",
             f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role_unknown/missing_session/root_path_routing categories",
+        ))
+    grep_errors = int(error_counts.get("grep_output_too_large") or 0)
+    grep_budget = MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY * days
+    if grep_errors > grep_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"oversized grep errors {grep_errors} exceed {days}d budget {grep_budget}; narrow the pattern and file scope or read long matching records directly",
+        ))
+    missing_artifacts = int(error_counts.get("missing_runtime_artifact") or 0)
+    missing_artifact_budget = MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY * days
+    if missing_artifacts > missing_artifact_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"missing runtime artifact errors {missing_artifacts} exceed {days}d budget {missing_artifact_budget}; discover generated paths before reading them",
+        ))
+    child_mutation_blocks = int(error_counts.get("child_mutation_block") or 0)
+    child_mutation_budget = MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY * days
+    if child_mutation_blocks > child_mutation_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"child mutation blocks {child_mutation_blocks} exceed {days}d budget {child_mutation_budget}; keep session, lease, dispatch, and deploy mutations parent-owned",
         ))
     if empty_unknown > MAX_TOP_LEVEL_EMPTY_UNKNOWN_COMPLETIONS:
         issues.append(AuditIssue(

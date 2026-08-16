@@ -593,6 +593,30 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
                     }
                 ],
             },
+            {
+                "session_id": "one",
+                "time_created": 4_000,
+                "tools": [
+                    {
+                        "name": "read",
+                        "args": {},
+                        "status": "error",
+                        "error": "File not found: generated/report.json",
+                    }
+                ],
+            },
+            {
+                "session_id": "one",
+                "time_created": 5_000,
+                "tools": [
+                    {
+                        "name": "webfetch",
+                        "args": {},
+                        "status": "error",
+                        "error": "BadResource: remote page unavailable",
+                    }
+                ],
+            },
         ]
     )
 
@@ -600,6 +624,8 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
         "child_mutation_block": 1,
         "child_role_unknown": 1,
         "grep_output_too_large": 1,
+        "missing_runtime_artifact": 1,
+        "other": 1,
     }
 
 
@@ -619,7 +645,9 @@ def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
             "standalone_todo_turns": 82,
             "tool_error_counts": {
                 "child_role_unknown": 10,
-                "child_mutation_block": 999,
+                "child_mutation_block": audit.MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY + 1,
+                "grep_output_too_large": audit.MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY + 1,
+                "missing_runtime_artifact": audit.MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY + 1,
                 "missing_session": 6,
                 "root_path_routing": 5,
                 "other": 999,
@@ -633,6 +661,9 @@ def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
     assert any("conservative batchable" in message for message in messages)
     assert any("standalone todo" in message for message in messages)
     assert any("routing errors" in message for message in messages)
+    assert any("oversized grep" in message for message in messages)
+    assert any("missing runtime artifact" in message for message in messages)
+    assert any("child mutation blocks" in message for message in messages)
     assert not any("other" in message for message in messages)
 
 
@@ -651,6 +682,22 @@ def test_telemetry_audit_ignores_raw_singleton_rate() -> None:
     )
 
     assert issues == []
+
+
+def test_telemetry_audit_scales_non_routing_error_budgets_by_days() -> None:
+    audit = load_audit_module()
+    days = 3
+    categories = (
+        ("child_mutation_block", audit.MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY, "child mutation blocks"),
+        ("grep_output_too_large", audit.MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY, "oversized grep"),
+        ("missing_runtime_artifact", audit.MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY, "missing runtime artifact"),
+    )
+
+    for category, daily_budget, message_fragment in categories:
+        budget = daily_budget * days
+        assert audit.audit_tool_turn_telemetry({"tool_error_counts": {category: budget}}, days=days) == []
+        issues = audit.audit_tool_turn_telemetry({"tool_error_counts": {category: budget + 1}}, days=days)
+        assert any(message_fragment in issue.message for issue in issues)
 
 
 def test_tool_turn_telemetry_keeps_dependent_same_file_reads_sequential() -> None:
