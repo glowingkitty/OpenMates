@@ -32,7 +32,7 @@ python3 scripts/tests.py run --only-failed --dry-run
 1. **Parse all failures** — extract test name, error message first line, and suite.
 2. **Mark CLI contract gaps** — for chat, AI pipeline, settings-backed chat behavior, app skill, embed, or sync Playwright failures, note whether an OpenMates CLI contract likely exists. If no matching CLI coverage is obvious and the symptom is not browser-only, recommend adding/running the CLI contract before web-spec edits.
 3. **Mark Apple verification needs** — for failures or fixes that affect chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, note whether Apple verification is likely required after CLI and Playwright are green. The parent agent should use `scripts/apple_remote.py test-ios` when a targeted native test exists, otherwise `build-ios`.
-4. **Group by root cause signature** — tests that fail for the same underlying reason belong in one group. Common signatures:
+4. **Group by dependency evidence first** — preserve `dependency_group_id`, `correlation_evidence`, and parent incidents returned by `tests.py triage`; only use normalized error signatures when no dependency group exists. Tests that fail for the same underlying reason belong in one group. Common signatures:
    - Selector not found → component or selector change
    - `console.error` / `pageerror` surfaced → real app bug
    - `data-status="finished"` not visible → skill embed not completing
@@ -53,6 +53,7 @@ python3 scripts/tests.py run --only-failed --dry-run
 ## Rules
 
 - **Verify before claiming.** Read the actual failure report before asserting a root cause — never guess from the test name alone.
+- **Do not split dependency groups.** Treat `blocked_by_parent` tests as visible dependants, not independent failures or passes.
 - **Never run tests.** You do not invoke `scripts/tests.py run`, `run_tests.py`, or any test binary. Triage only.
 - **Never edit files.** Return findings; main Claude will apply fixes.
 - **CLI-first parity:** For shared chat/app behavior, include a CLI contract gap or status in the group so the parent agent can test backend parity before Playwright/web UI behavior.

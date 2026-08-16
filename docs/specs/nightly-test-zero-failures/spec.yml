@@ -98,7 +98,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d9bb421e9410b1149f94b4078b7dc02713dc69a2
+  subject_commit: 49953011585be487014f11a566274c4cbb76d208
 
 approvals:
   product_contract:
@@ -166,14 +166,26 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-16T14:38:24Z"
     note: The red run failed exactly four new assertions while 112 existing focused tests passed.
+  - id: ATTEMPT-5
+    task_id: TASK-2
+    approach: Normalize failed prerequisites into parent incidents, persist lane metadata, and evaluate feature-scoped verification from required and attributable keys.
+    outcome: succeeded
+    recorded_at: "2026-08-16T14:42:50Z"
+    note: Focused control-plane and Directus compatibility coverage passed 128 tests and deployed as 49953011585be487014f11a566274c4cbb76d208.
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Add a focused assertion that correlated embed-delivery failures group before downstream error signatures.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T14:45:05Z"
+    note: The red assertion split correlated failures into app_skill and embed_rendering; the dependency-aware implementation now passes 129 focused tests.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Deploy the green Task 2 control-plane slice and bind its evidence to the resulting commit.
-  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: add prerequisite incidents and lanes" --message "Record parent incidents, separate test lanes, and keep scoped gates independent from historical failures."'
-  expected_outcome: Task 2 source and regression tests deploy to dev through the scoped session workflow.
+  current_task_id: TASK-3
+  next_action: Deploy dependency-aware triage and bind green evidence to the resulting commit.
+  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: group correlated dependency failures" --message "Prefer explicit dependency evidence over downstream error signatures."'
+  expected_outcome: Task 3 source, regression test, and synchronized triager instructions deploy to dev.
   blocker: null
-  last_verified_commit: d9bb421e9410b1149f94b4078b7dc02713dc69a2
+  last_verified_commit: 49953011585be487014f11a566274c4cbb76d208
 
 scenarios:
   - id: S-1
@@ -298,7 +310,7 @@ acceptance_criteria:
     scenario: S-2
     text: A failed prerequisite creates one parent incident and visible blocked_by_parent dependants without converting them to independent failures or passes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CONTROL-PLANE]
@@ -322,7 +334,7 @@ acceptance_criteria:
     scenario: S-5
     text: Status and triage report deterministic and live-probe counts separately while preserving an incomplete global status whenever either lane is not zero.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CONTROL-PLANE]
@@ -330,7 +342,7 @@ acceptance_criteria:
     scenario: S-6
     text: Historical unrelated failures remain visible but are excluded from a feature's scoped verification decision; newly attributable failures still block that feature's verification.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-SCOPED-GATES]
@@ -388,7 +400,7 @@ assumptions:
     text: Existing Directus campaign and group metadata can represent parent incidents and lane information without a new public API.
     category: architecture
     required_before: implementation
-    status: checking
+    status: confirmed
     evidence:
       - source: docs/specs/test-debug-campaigns/spec.yml
         summary: Durable campaign groups already persist metadata, parent relationships, evidence, attempts, and child groups.
@@ -459,7 +471,7 @@ tests:
       - Parent incidents retain visible blocked dependants.
       - Status reports deterministic, live-probe, blocked, and global counts.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py -q", run_id: "local-task2-control-plane-red-20260816", subject_commit: "d9bb421e9410b1149f94b4078b7dc02713dc69a2", timestamp: "2026-08-16T14:38:24Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_directus_auth.py -q", run_id: "local-task2-control-plane-green-20260816", subject_commit: "49953011585be487014f11a566274c4cbb76d208", timestamp: "2026-08-16T14:42:50Z"}}
   - id: T-TRIAGE
     type: pytest
     file: scripts/tests/test_tests_control.py
@@ -468,7 +480,7 @@ tests:
     assertions:
       - Dependency categories group correlated failures before error signatures.
       - Every failure or blocked dependant links to one parent group.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py -q", run_id: "local-task3-triage-red-20260816", subject_commit: "49953011585be487014f11a566274c4cbb76d208", timestamp: "2026-08-16T14:45:05Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-DETERMINISM-AUDIT
     type: pytest
@@ -499,7 +511,7 @@ tests:
       - Historical unrelated failures do not alter scoped feature verification.
       - Attributable new failures remain blocking for the scoped feature.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py -q", run_id: "local-task2-control-plane-red-20260816", subject_commit: "d9bb421e9410b1149f94b4078b7dc02713dc69a2", timestamp: "2026-08-16T14:38:24Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_directus_auth.py -q", run_id: "local-task2-control-plane-green-20260816", subject_commit: "49953011585be487014f11a566274c4cbb76d208", timestamp: "2026-08-16T14:42:50Z"}}
   - id: T-CAMPAIGNS
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
@@ -617,7 +629,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add prerequisite incidents and test lanes
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-2, S-5, S-6], acceptance_criteria: [AC-3, AC-6, AC-7]}
     expected_files: [scripts/tests.py, scripts/tests/test_tests_control.py, scripts/tests/test_tests_control_campaigns.py]
@@ -630,7 +642,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Make triage dependency-aware
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
     expected_files: [scripts/tests.py, .claude/agents/test-failure-triager.md]

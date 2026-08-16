@@ -82,6 +82,7 @@ CATEGORY_PRIORITY = {
     "chat_send_receive": 40,
     "payments_billing": 50,
     "ai_response": 60,
+    "embed_delivery": 65,
     "embed_rendering": 70,
     "app_skill": 80,
     "cli_auth": 90,
@@ -1465,6 +1466,24 @@ def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]
         for key in prerequisite.get("dependant_test_keys") or []:
             blocked_by_test_key[str(key)] = parent_key
 
+    correlation_by_test_key: dict[str, dict[str, Any]] = {}
+    for correlation in normalized.get("correlations") or []:
+        if not isinstance(correlation, dict):
+            continue
+        correlation_id = str(correlation.get("id") or "").strip()
+        category = str(correlation.get("category") or "").strip()
+        if not correlation_id or category not in CATEGORY_PRIORITY:
+            raise RuntimeError("Test correlations require an id and known category")
+        for key in correlation.get("test_keys") or []:
+            test_key_value = str(key)
+            if test_key_value in correlation_by_test_key:
+                raise RuntimeError(f"Test belongs to multiple correlation groups: {test_key_value}")
+            correlation_by_test_key[test_key_value] = {
+                "dependency_category": category,
+                "dependency_group_id": f"dependency-{correlation_id}",
+                "correlation_evidence": sorted({str(item) for item in correlation.get("evidence") or []}),
+            }
+
     default_lane = str((normalized.get("flags") or {}).get("lane") or "deterministic")
     if default_lane not in TEST_LANES:
         raise RuntimeError(f"Unknown test lane: {default_lane}")
@@ -1485,6 +1504,9 @@ def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]
             if parent_key:
                 test["status"] = BLOCKED_BY_PARENT_STATUS
                 test["parent_incident_key"] = parent_key
+            correlation = correlation_by_test_key.get(test_key(str(suite), test))
+            if correlation:
+                test.update(correlation)
 
     if failed_prerequisites:
         prerequisite_suite = suites.setdefault("prerequisite", {"status": "failed", "tests": []})
@@ -1947,6 +1969,9 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
             "parent_incident": bool(test.get("parent_incident")),
             "parent_incident_key": test.get("parent_incident_key"),
             "dependant_test_keys": [str(key) for key in test.get("dependant_test_keys") or []],
+            "dependency_category": test.get("dependency_category"),
+            "dependency_group_id": test.get("dependency_group_id"),
+            "correlation_evidence": [str(item) for item in test.get("correlation_evidence") or []],
             "updated_at": timestamp,
         }
         tests[key] = current
@@ -2181,6 +2206,11 @@ def _shell_command(parts: list[str]) -> str:
 
 
 def classify_failure(test: dict[str, Any]) -> str:
+    dependency_category = str(test.get("dependency_category") or "")
+    if dependency_category:
+        if dependency_category not in CATEGORY_PRIORITY:
+            raise RuntimeError(f"Unknown dependency category: {dependency_category}")
+        return dependency_category
     text = normalize_text(" ".join(str(test.get(key) or "") for key in (
         "suite",
         "test",
@@ -2369,7 +2399,7 @@ def build_triage(days: int = 7, category_filter: str = "", suite_filter: str = "
     for failure in failures:
         category = classify_failure(failure)
         reason = short_reason(str(failure.get("error") or ""))
-        group_id = f"{category}-{root_signature(category, reason)}"
+        group_id = str(failure.get("dependency_group_id") or f"{category}-{root_signature(category, reason)}")
         group_sizes[group_id] = group_sizes.get(group_id, 0) + 1
         staged_entries.append((failure, category, reason, group_id))
 
@@ -2399,6 +2429,7 @@ def build_triage(days: int = 7, category_filter: str = "", suite_filter: str = "
             "github_run_id": failure.get("github_run_id"),
             "github_run_url": failure.get("github_run_url"),
             "linked_files": linked_files,
+            "correlation_evidence": sorted({str(item) for item in failure.get("correlation_evidence") or []}),
             "verification_command": verification_command(failure),
         })
 
@@ -2438,12 +2469,15 @@ def build_group_summary(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "reason": entry["reason"],
             "tests": [],
             "linked_files": [],
+            "correlation_evidence": [],
         })
         group["tests"].append(entry["test"])
         group["linked_files"].extend(entry.get("linked_files") or [])
+        group["correlation_evidence"].extend(entry.get("correlation_evidence") or [])
     for group in groups.values():
         group["count"] = len(group["tests"])
         group["linked_files"] = sorted(set(group["linked_files"]))[:MAX_LINKED_FILES]
+        group["correlation_evidence"] = sorted(set(group["correlation_evidence"]))
     return sorted(groups.values(), key=lambda group: (group["priority"], -group["count"], group["group_id"]))
 
 

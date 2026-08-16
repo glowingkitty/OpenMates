@@ -271,6 +271,47 @@ def test_triage_ranks_account_and_chat_failures_with_linked_files(tmp_path, monk
     assert "frontend/packages/ui/src/components/enter_message/MessageInput.svelte" in entries[1]["linked_files"]
 
 
+def test_triage_groups_correlated_dependency_failures_before_error_signatures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = {
+        "run_id": "run-embed-delivery",
+        "correlations": [{
+            "id": "embed-delivery",
+            "category": "embed_delivery",
+            "test_keys": [
+                "playwright::skill-music.spec.ts",
+                "playwright::skill-images.spec.ts",
+            ],
+            "evidence": ["websocket_disconnect", "embed_persistence_failed"],
+        }],
+        "suites": {"playwright": {"status": "failed", "tests": [
+            {
+                "name": "skill-music.spec.ts",
+                "file": "skill-music.spec.ts",
+                "status": "failed",
+                "error": "Locator: getByTestId('music-player') Expected: visible",
+            },
+            {
+                "name": "skill-images.spec.ts",
+                "file": "skill-images.spec.ts",
+                "status": "failed",
+                "error": "WebSocket disconnected before the parent embed persisted",
+            },
+        ]}},
+    }
+
+    tests_control.record_run_result(run)
+    triage = tests_control.build_triage()
+
+    assert {entry["category"] for entry in triage["entries"]} == {"embed_delivery"}
+    assert {entry["group_id"] for entry in triage["entries"]} == {"dependency-embed-delivery"}
+    assert triage["groups"][0]["count"] == 2
+    assert triage["groups"][0]["correlation_evidence"] == [
+        "embed_persistence_failed",
+        "websocket_disconnect",
+    ]
+
+
 def test_classification_avoids_authenticity_false_positive(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
