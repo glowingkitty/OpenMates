@@ -27,8 +27,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, should_trigger_team_ai
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, parse_team_message_transport, should_trigger_team_ai
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
+from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -283,11 +285,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         team_ai_context = extract_team_ai_context(payload, message_payload_from_client)
         team_id = team_ai_context.get("team_id")
         is_team_chat = bool(team_id)
-        raw_team_message_content = message_payload_from_client.get("content")
-        team_should_trigger_ai = should_trigger_team_ai(
-            raw_team_message_content if isinstance(raw_team_message_content, str) else "",
-            is_team_chat=is_team_chat,
-        )
+        team_transport = None
+        team_should_trigger_ai = False
         if is_team_chat:
             try:
                 await directus_service.team.require_team_role(str(team_id), user_id, TEAM_CHAT_WRITE_ROLES)
@@ -307,6 +306,36 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     device_fingerprint_hash,
                 )
                 return
+            try:
+                team_transport = parse_team_message_transport(payload, message_payload_from_client)
+            except ValueError as exc:
+                logger.warning("Rejected invalid Team message transport for team %s: %s", team_id, exc)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "invalid_team_message_transport",
+                            "message": str(exc),
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id"),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            team_should_trigger_ai = team_transport.should_trigger_ai
+            if team_should_trigger_ai:
+                message_payload_from_client = dict(message_payload_from_client)
+                message_payload_from_client["content"] = team_transport.inference_history[-1].content
+                payload = dict(payload)
+                payload["message_history"] = [item.model_dump(mode="json") for item in team_transport.inference_history]
+        else:
+            raw_message_content = message_payload_from_client.get("content")
+            team_should_trigger_ai = should_trigger_team_ai(
+                raw_message_content if isinstance(raw_message_content, str) else "",
+                is_team_chat=False,
+            )
 
         recovery_enqueue_result: dict[str, Any] | None = None
         protocol_epoch = 0
@@ -344,7 +373,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             active_recovery_task_id = await cache_service.get_active_ai_task(chat_id)
-            if active_recovery_task_id:
+            if active_recovery_task_id and (not is_team_chat or team_should_trigger_ai):
                 await manager.send_personal_message(
                     {
                         "type": "error",
@@ -402,6 +431,25 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # For now, shared chats are read-only for non-owners (group chat support will be added later)
             try:
                 chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
+                if (
+                    chat_metadata_from_db
+                    and is_team_chat
+                    and chat_metadata_from_db.get("hashed_team_id") != team_ai_context.get("team_id_hash")
+                ):
+                    logger.warning("User %s attempted cross-Team chat write for chat %s", user_id, chat_id)
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": "team_chat_scope_mismatch",
+                                "message": "This chat does not belong to the selected team.",
+                                "chat_id": chat_id,
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
                 if chat_metadata_from_db and not is_team_chat:
                     # Check if user owns this chat
                     is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
@@ -446,6 +494,43 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
         else:
             logger.info(f"Processing incognito chat message {message_payload_from_client.get('message_id')} for chat {chat_id} - skipping Directus operations")
+
+        if is_team_chat:
+            active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
+            await broadcast_team_event(
+                manager=manager,
+                active_member_user_ids=(),
+                event_name="team_chat_message_created",
+                payload={
+                    "team_id": team_id,
+                    "chat_id": chat_id,
+                    "message_id": message_payload_from_client.get("message_id"),
+                    "role": message_payload_from_client.get("role"),
+                    "encrypted_content": team_transport.encrypted_content,
+                    "encrypted_sender_name": message_payload_from_client.get("encrypted_sender_name"),
+                    "created_at": message_payload_from_client.get("created_at"),
+                    "encrypted_chat_key": encrypted_chat_key_from_client,
+                },
+                cache_service=cache_service,
+                active_member_hashes=active_member_hashes,
+            )
+            mentioned_active_user_ids = {
+                mentioned_user_id
+                for mentioned_user_id in team_transport.mentioned_user_ids
+                if hash_id(mentioned_user_id) in active_member_hashes
+            }
+            await notify_team_member_mentions(
+                notification_sink=TeamMemberMentionNotificationSink(cache_service),
+                team_id=str(team_id),
+                chat_id=chat_id,
+                message_id=str(message_payload_from_client.get("message_id")),
+                sender_user_id=user_id,
+                mentioned_user_ids=team_transport.mentioned_user_ids,
+                active_member_user_ids=mentioned_active_user_ids,
+            )
+        if is_team_chat and not team_transport.should_trigger_ai:
+            logger.info("Team chat message %s relayed as ciphertext without AI processing", message_payload_from_client.get("message_id"))
+            return
 
         message_id = message_payload_from_client.get("message_id")
         role = message_payload_from_client.get("role") 
@@ -902,7 +987,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # NO PERMANENT STORAGE happens here - storage is handled by separate encrypted_chat_metadata handler
         
         # Validate that client is NOT sending encrypted content (wrong handler)
-        if message_payload_from_client.get("encrypted_content"):
+        if message_payload_from_client.get("encrypted_content") and not is_team_chat:
             logger.error("Client sent encrypted content to chat_message_added handler. This should go to encrypted_chat_metadata handler instead.")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Encrypted content should be sent to encrypted_chat_metadata endpoint"}},
@@ -1212,7 +1297,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # CRITICAL: For incognito chats, DO NOT broadcast to other devices
         # Incognito chats are device-specific and should not be synced
-        if not is_incognito:
+        if not is_incognito and not is_team_chat:
             # Fetch encrypted_chat_key for device sync if not provided by client
             # This is critical for zero-knowledge architecture across multiple devices
             encrypted_chat_key_for_broadcast = encrypted_chat_key_from_client
@@ -1257,12 +1342,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
         else:
             logger.debug(f"Skipping broadcast for incognito chat {chat_id} - incognito chats are not synced to other devices")
-
-        if is_team_chat and not team_should_trigger_ai:
-            logger.info("Team chat message %s completed storage path without AI dispatch", message_id)
-            handler_total_time = time.time() - handler_start_time
-            logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for team chat storage-only message")
-            return
 
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
@@ -2090,6 +2169,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash
                 )
+                if is_team_chat:
+                    active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
+                    await broadcast_team_event(
+                        manager=manager,
+                        active_member_user_ids=(),
+                        event_name="team_ai_processing",
+                        payload={
+                            "team_id": team_id,
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "ai_task_id": ai_task_id,
+                            "status": "processing_started",
+                        },
+                        cache_service=cache_service,
+                        active_member_hashes=active_member_hashes,
+                    )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:
                 raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")

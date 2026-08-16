@@ -397,6 +397,7 @@ async def _run_explicit_chat_key_rotation_is_broadcast_with_rotation_flag(monkey
         task_id: str,
         hashed_user_id: str,
         user_id: str,
+        hashed_team_id: str | None = None,
     ) -> bool:
         persisted_payloads.append(dict(encrypted_metadata))
         return True

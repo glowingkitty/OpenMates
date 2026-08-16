@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.token_broker import TokenBrokerService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
@@ -24,7 +24,6 @@ from backend.core.api.app.models.user import User
 from backend.shared.python_utils.connected_account_registry import is_connected_account_action_allowed
 
 router = APIRouter(prefix="/v1/token-broker", tags=["Token Broker"])
-TEAM_CONNECTED_ACCOUNTS_DISABLED = "TEAM_CONNECTED_ACCOUNTS_DISABLED"
 
 
 class CreateTurnTokenRefItem(BaseModel):
@@ -146,13 +145,22 @@ async def _assert_connected_account_context(
     allowed_actions: list[str],
 ) -> None:
     if team_id:
-        raise HTTPException(status_code=501, detail=TEAM_CONNECTED_ACCOUNTS_DISABLED)
-    params = {
-        "filter[id][_eq]": account_id,
-        "filter[hashed_user_id][_eq]": hash_id(user_id),
-        "filter[hashed_team_id][_null]": True,
-        "limit": 1,
-    }
+        try:
+            await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="Team connected account use denied") from exc
+        params = {
+            "filter[id][_eq]": account_id,
+            "filter[hashed_team_id][_eq]": hash_id(team_id),
+            "limit": 1,
+        }
+    else:
+        params = {
+            "filter[id][_eq]": account_id,
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[hashed_team_id][_null]": True,
+            "limit": 1,
+        }
     rows = await directus_service.get_items("connected_accounts", params=params)
     if not rows:
         raise HTTPException(status_code=403, detail="Connected account not found for current context")
@@ -237,7 +245,10 @@ async def exchange_turn_token_ref(
 
     vault_key_id = _require_vault_key_id(current_user)
     if body.team_id:
-        raise HTTPException(status_code=501, detail=TEAM_CONNECTED_ACCOUNTS_DISABLED)
+        try:
+            await directus_service.team.require_team_role(body.team_id, current_user.id, {"owner", "admin", "member"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="Team connected account use denied") from exc
     broker = _build_token_broker(cache_service, encryption_service, provider_id=body.provider_id or body.app_id)
     try:
         handle = await broker.exchange_turn_token_ref(

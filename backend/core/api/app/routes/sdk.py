@@ -44,8 +44,11 @@ from backend.core.api.app.routes.ideabucket import (
     reject_ideabucket_cleartext_payload,
     store_ideabucket_encrypted_add,
 )
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
+from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
+from backend.shared.python_utils.client_ciphertext import validate_client_encrypted_chat_payload
 from backend.shared.providers.google_calendar.oauth import GoogleOAuthTokenExchangeError
 from backend.shared.providers.revolut_business.oauth import RevolutBusinessTokenExchangeError
 
@@ -141,6 +144,8 @@ class SdkChatCreateRequest(BaseModel):
     team_id_hash: str | None = Field(default=None)
     team_workspace_type: str | None = Field(default="chat")
     team_object_id_hash: str | None = Field(default=None)
+    team_ai_invocation: dict[str, Any] | None = Field(default=None)
+    team_member_mentions: list[str] = Field(default_factory=list)
     connected_account_directory: list[dict[str, Any]] = Field(default_factory=list)
     connected_account_token_ref_inputs: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -1477,7 +1482,7 @@ async def create_sdk_chat(
     if request_body.memory_ids:
         _require_memory_scope(api_key_info)
 
-    if not request_body.message:
+    if not request_body.message and not (request_body.team_id and request_body.encrypted_user_message):
         return {"persistent": request_body.save_to_account, "chat_id": None}
 
     if request_body.save_to_account:
@@ -1520,20 +1525,42 @@ async def create_sdk_chat(
             inference_request = json.loads(canonicalize_inference_request(request_body.inference_request or {}))
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail={"error": "invalid_inference_request"}) from exc
-        inference_messages = inference_request.get("messages")
-        if not isinstance(inference_messages, list) or not inference_messages:
-            raise HTTPException(status_code=400, detail={"error": "invalid_inference_request"})
-        current_message = inference_messages[-1]
-        if not isinstance(current_message, dict) or current_message.get("content") != request_body.message:
-            raise HTTPException(status_code=400, detail={"error": "inference_request_mismatch"})
         team_id = request_body.team_id or inference_request.get("team_id")
         is_team_chat = bool(team_id)
+        inference_messages = inference_request.get("messages")
+        current_message = None
         if is_team_chat:
             try:
                 await request.app.state.directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
             except TeamPermissionError as exc:
                 raise HTTPException(status_code=403, detail={"error": "team_permission_denied"}) from exc
-        team_should_trigger_ai = should_trigger_team_ai(request_body.message or "", is_team_chat=is_team_chat)
+            try:
+                validate_client_encrypted_chat_payload(
+                    str(request_body.message_id), str(encrypted_user_message.get("encrypted_content") or "")
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail={"error": "invalid_encrypted_user_message"}) from exc
+            if request_body.message is not None:
+                raise HTTPException(status_code=400, detail={"error": "team_plaintext_message_forbidden"})
+            invocation = request_body.team_ai_invocation
+            if invocation is not None:
+                invocation_history = invocation.get("history") if isinstance(invocation, dict) else None
+                if not isinstance(invocation_history, list) or not invocation_history:
+                    raise HTTPException(status_code=400, detail={"error": "team_ai_history_required"})
+                current_message = invocation_history[-1]
+                if not isinstance(current_message, dict) or not should_trigger_team_ai(str(current_message.get("content") or ""), is_team_chat=True):
+                    raise HTTPException(status_code=400, detail={"error": "team_ai_mention_required"})
+                inference_messages = invocation_history
+                inference_request["messages"] = invocation_history
+                inference_request["team_id"] = str(team_id)
+            team_should_trigger_ai = invocation is not None
+        else:
+            if not isinstance(inference_messages, list) or not inference_messages:
+                raise HTTPException(status_code=400, detail={"error": "invalid_inference_request"})
+            current_message = inference_messages[-1]
+            if not isinstance(current_message, dict) or current_message.get("content") != request_body.message:
+                raise HTTPException(status_code=400, detail={"error": "inference_request_mismatch"})
+            team_should_trigger_ai = True
         try:
             preflight = await ChatRecoveryService(request.app.state.directus_service).execute(
                 "prepare_preflight",
@@ -1569,6 +1596,39 @@ async def create_sdk_chat(
                 )
         except ChatRecoveryProtocolError as exc:
             raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
+        if is_team_chat:
+            active_member_hashes = await request.app.state.directus_service.team.list_active_member_hashes(str(team_id))
+            await broadcast_team_event(
+                manager=getattr(request.app.state, "connection_manager", None),
+                active_member_user_ids=(),
+                active_member_hashes=active_member_hashes,
+                cache_service=request.app.state.cache_service,
+                event_name="team_chat_message_created",
+                payload={
+                    "team_id": str(team_id),
+                    "chat_id": str(request_body.chat_id),
+                    "message_id": str(request_body.message_id),
+                    "role": "user",
+                    "encrypted_content": encrypted_user_message["encrypted_content"],
+                    "encrypted_sender_name": encrypted_user_message.get("encrypted_sender_name"),
+                    "created_at": encrypted_user_message.get("created_at"),
+                    "encrypted_chat_key": request_body.encrypted_chat_key,
+                },
+            )
+            mentioned_active_user_ids = {
+                mentioned_user_id
+                for mentioned_user_id in request_body.team_member_mentions
+                if hash_id(mentioned_user_id) in active_member_hashes
+            }
+            await notify_team_member_mentions(
+                notification_sink=TeamMemberMentionNotificationSink(request.app.state.cache_service),
+                team_id=str(team_id),
+                chat_id=str(request_body.chat_id),
+                message_id=str(request_body.message_id),
+                sender_user_id=user_id,
+                mentioned_user_ids=request_body.team_member_mentions,
+                active_member_user_ids=mentioned_active_user_ids,
+            )
         if not team_should_trigger_ai:
             return {
                 "persistent": True,
@@ -1602,7 +1662,7 @@ async def create_sdk_chat(
             "user_preferences": {"model": inference_request.get("model"), "apps_enabled": True},
             "memory_ids": inference_request.get("memory_ids", []),
             "team_id": team_id,
-            "team_id_hash": request_body.team_id_hash or inference_request.get("team_id_hash") or (hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None),
+            "team_id_hash": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None,
             "team_workspace_type": request_body.team_workspace_type or inference_request.get("team_workspace_type") or "chat",
             "team_object_id_hash": request_body.team_object_id_hash or inference_request.get("team_object_id_hash"),
             "recovery_task_id": enqueue.get("inference_task_id"),

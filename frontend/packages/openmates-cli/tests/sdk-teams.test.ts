@@ -17,6 +17,7 @@ import {
   createApiKeyCryptoMaterial,
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  encryptBytesWithAesGcm,
 } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -211,6 +212,52 @@ describe("OpenMates SDK Teams", () => {
           ["PATCH", "/v1/teams/team-1"],
           ["GET", "/v1/teams/team-1/profile-image"],
         ]);
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=teams.chat.encrypted-until-invoked,teams.workspace.surface-parity
+  it("sends ordinary Team chat turns as ciphertext without an inference envelope", async () => {
+    const masterKey = Buffer.alloc(32, 9);
+    const teamKey = Buffer.alloc(32, 7);
+    const material = await createApiKeyCryptoMaterial("sdk teams chat", bytesToBase64(masterKey));
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+
+    await withServer(
+      (request, body) => {
+        if (request.method === "POST" && request.url === "/v1/sdk/session") {
+          return { user: { id: "user-1" }, key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.method === "GET" && request.url === "/v1/teams/team-1") {
+          return { team: { team_id: "team-1", encrypted_team_key: encryptedTeamKey } };
+        }
+        if (request.method === "POST" && request.url === "/v1/sdk/chats") {
+          const payload = body as Record<string, unknown>;
+          assert.equal("message" in payload, false);
+          assert.equal("team_ai_invocation" in payload, false);
+          assert.equal(payload.team_id, "team-1");
+          assert.deepEqual(payload.team_member_mentions, ["user-2"]);
+          return { persistent: true, chat_id: payload.chat_id, task_id: null, ai_dispatched: false };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        const result = await client.chats.send("private team note", {
+          teamId: "team-1",
+          senderName: "Alice",
+          teamMemberMentions: ["user-2"],
+        });
+        assert.equal(result.raw.ai_dispatched, false);
+
+        const payload = seen[2]?.body as Record<string, unknown>;
+        const encryptedMessage = payload.encrypted_user_message as Record<string, unknown>;
+        const chatKey = await decryptBytesWithAesGcm(String(payload.encrypted_chat_key), teamKey);
+        assert.ok(chatKey);
+        assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_content), chatKey), "private team note");
+        assert.equal(await decryptWithAesGcmCombined(String(encryptedMessage.encrypted_sender_name), chatKey), "Alice");
+        assert.deepEqual((payload.inference_request as Record<string, unknown>).messages, []);
       },
       `Bearer ${material.apiKey}`,
     );

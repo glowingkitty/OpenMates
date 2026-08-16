@@ -4,7 +4,6 @@
 import logging
 import asyncio
 import base64
-import binascii
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -18,10 +17,12 @@ from backend.core.api.app.schemas.chat import CachedChatListItemData, CachedChat
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.shared.python_utils.client_ciphertext import (
+    is_client_encrypted_base64 as _is_client_encrypted_base64,
+    validate_client_encrypted_chat_payload as _validate_client_encrypted_chat_payload,
+)
 
 logger = logging.getLogger(__name__)
-
-MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
 
 
 def _version_int(value: Any) -> int:
@@ -196,34 +197,6 @@ def cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
     except Exception:
         logger.exception("Periodic chat recovery cleanup failed")
         raise
-
-
-def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: str) -> None:
-    """Reject non-client-encrypted payloads before they reach chat history."""
-    if not encrypted_content:
-        raise ValueError(
-            f"Message {message_id} is missing client-encrypted base64 content."
-        )
-
-    try:
-        decoded = base64.b64decode(encrypted_content, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError(
-            f"Message {message_id} must contain client-encrypted base64 content."
-        ) from exc
-
-    if len(decoded) < MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES:
-        raise ValueError(
-            f"Message {message_id} client-encrypted base64 content is too short."
-        )
-
-
-def _is_client_encrypted_base64(value: str) -> bool:
-    try:
-        decoded = base64.b64decode(value, validate=True)
-    except (binascii.Error, ValueError):
-        return False
-    return len(decoded) >= MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES
 
 
 def _sanitize_optional_client_encrypted_field(
@@ -645,6 +618,7 @@ async def _async_persist_new_chat_message_task(
     encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
     user_message_id: Optional[str] = None, # Links system message to its triggering user message
     message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
+    hashed_team_id: Optional[str] = None,
 ):
     """
     Async logic for:
@@ -773,6 +747,8 @@ async def _async_persist_new_chat_message_task(
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
 
         if chat_metadata:
+            if hashed_team_id and chat_metadata.get("hashed_team_id") != hashed_team_id:
+                raise PermissionError(f"Chat {chat_id} does not belong to the selected Team")
             # Chat exists, will update its metadata after message creation
             logger.info(f"Chat {chat_id} found. Will update metadata after message creation (task_id: {task_id}).")
         else:
@@ -794,6 +770,7 @@ async def _async_persist_new_chat_message_task(
             minimal_chat_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
                 "created_at": created_at or now_ts,
                 "updated_at": now_ts,
                 "messages_v": new_chat_messages_version or 1,
@@ -937,6 +914,7 @@ def persist_new_chat_message_task(
     encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
     user_message_id: Optional[str] = None, # Links system message to its triggering user message
     message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
+    hashed_team_id: Optional[str] = None,
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -957,6 +935,7 @@ def persist_new_chat_message_task(
             encrypted_pii_mappings,  # Pass encrypted PII mappings for cross-device restoration
             user_message_id,  # Links system message to triggering user message
             message_status,   # Preserves client status (e.g., "waiting_for_user") across devices
+            hashed_team_id,
         ))
     except Exception as e:
         logger.error(
@@ -2001,7 +1980,8 @@ async def _async_persist_encrypted_chat_metadata(
     encrypted_metadata: Dict[str, Any],
     task_id: str,
     hashed_user_id: Optional[str] = None,
-    user_id: Optional[str] = None  # User ID for cache updates (not hashed)
+    user_id: Optional[str] = None,  # User ID for cache updates (not hashed)
+    hashed_team_id: Optional[str] = None,
 ) -> bool:
     """
     Async logic for persisting encrypted chat metadata from the dual-phase architecture.
@@ -2028,6 +2008,9 @@ async def _async_persist_encrypted_chat_metadata(
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
         
         if chat_metadata:
+            if hashed_team_id and chat_metadata.get("hashed_team_id") != hashed_team_id:
+                logger.error("Rejected cross-Team metadata persistence for chat %s", chat_id)
+                return False
             # Chat exists - update with encrypted metadata
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
             
@@ -2066,6 +2049,7 @@ async def _async_persist_encrypted_chat_metadata(
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
             # These fields should be updated whenever provided, regardless of version
             update_fields = encrypted_metadata.copy()
+            update_fields.pop("hashed_team_id", None)
             # Rotation control flags are internal only - never persist to Directus.
             allow_chat_key_rotation = bool(update_fields.pop("allow_chat_key_rotation", False))
             chat_key_rotation_reason = update_fields.pop("chat_key_rotation_reason", None)
@@ -2323,6 +2307,7 @@ async def _async_persist_encrypted_chat_metadata(
             chat_creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
                 "created_at": encrypted_metadata.get("created_at") or now_ts,
                 "updated_at": encrypted_metadata.get("updated_at", now_ts),
                 # Version tracking - use actual values, never 0

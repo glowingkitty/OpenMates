@@ -1,7 +1,37 @@
-schema_version: 2
+schema_version: 3
 id: teams-v1
 title: Teams V1
 status: approved
+contract_refs:
+- id: feature.teams
+  version: 1
+  role: primary
+contract_impact:
+  classification: semantic_change
+  contract_update_required: true
+  affected_assertions:
+  - teams.lifecycle.encrypted-profiled
+  - teams.membership.role-gated
+  - teams.invites.fragment-key-web-flow
+  - teams.context.full-switch-local
+  - teams.connected-accounts.team-owned-isolation
+  - teams.collaboration.realtime-team-sync
+  - teams.chat-billing.team-credit-boundary
+  - teams.workspace.surface-parity
+  reason: User expanded Teams V1 to make selected context replace every personal data surface, enable team-owned connected accounts, and prove two-user realtime collaboration.
+documentation_impact:
+  generated_reference:
+    status: regenerate
+    reason: Generated indexes must include the approved Teams assertion amendments.
+    documents: [contracts/generated/registry.yml, contracts/generated/assertion-index.yml, contracts/generated/coverage.yml]
+  user_docs:
+    status: update_required
+    reason: Users need one guide for full context switching, team roles, team-owned connected accounts, @openmates behavior, and notification privacy.
+    documents: [docs/user-guide/teams.md]
+  semantic_layer:
+    status: update_required
+    reason: The architecture and permanent contract must describe ciphertext-only ordinary chat, explicit inference release, team-owned accounts, and realtime collaboration.
+    documents: [docs/architecture/teams.md, contracts/features/teams/contract.yml, contracts/features/teams/examples.yml]
 goal: 'Implement OpenMates Teams for small groups with shared team credits, team-wide workspace data, CLI/SDK-first context
   switching, and team chat collaboration while preserving personal/team data isolation and the existing encrypted object key
   architecture.
@@ -15,23 +45,26 @@ scope:
   - Direct email/code invite, accept, decline, remove member, leave team, and role update flows.
   - Invite notification emails with one-time invite links that open the web accept flow and are also consumable from CLI/SDK.
   - Multi-team membership for one user.
-  - Active context switching between personal and one selected team.
+  - Active context switching between personal and one selected team replaces chats, billing, usage, tasks, plans, projects,
+    workflows, memories, connected accounts, and all new-resource creation.
   - Web Teams management lives only under Settings, with a Settings root Teams item and one sub-settings entry per joined
     team.
   - >-
     Web active team switching lives in the user profile menu: the selected team's small avatar overlays the bottom-right of
     the user profile image, and opening the menu moves the team avatar below the user profile image while showing joined
     teams for switching.
-  - Context-scoped list/read/create behavior for chats, tasks, projects, plans, workflows, and memories.
-  - Team-wide visibility in V1: every team member/viewer can see all team chats, tasks, projects, plans, workflows, and team
-      memories.
+  - Context-scoped list/read/create behavior for chats, billing, usage, tasks, projects, plans, workflows, memories, and connected accounts.
+  - >-
+    Team-wide visibility in V1 means every team member/viewer can see all team chats, tasks, projects, plans, workflows,
+    memories, and approved team-connected-account capabilities, subject to viewer read-only restrictions.
   - Team memories encrypted with the specific team's team key or a per-memory object key wrapped by that team key.
   - Personal memories and personal connected accounts are inaccessible to all team-context requests, including AI requests.
-  - Team connected accounts are explicitly disabled in V1; team-context connected-account routes fail closed until a later
-    version ships team-owned credential management.
+  - Team-owned connected accounts use team-scoped encrypted credentials; owner/admin manage them, members use approved capabilities,
+    viewers remain read-only, and Personal connected-account fallback is forbidden.
   - Confirmed move commands for chats, tasks, projects, plans, and workflows from personal context into a team.
   - Team chats require an explicit @openmates mention to trigger AI processing.
   - Team chat LLM context includes per-human sender attribution so the model can distinguish speakers.
+  - Active members receive newly created team chats, human messages, AI processing state, and completed AI responses in realtime.
   - Shared team credit balance and team billing profile.
   - Team AI usage consumes team credits only, never personal credits.
   - Owner/admin team credit purchase by bank-transfer order from CLI/SDK; card payment starts remain web/Apple-only.
@@ -53,7 +86,7 @@ scope:
   - Team key rotation, historical rewrap, public-key member key distribution, connected-account secret rewrap after every
     role change, or strict cryptographic erasure of already-synced data.
   - Team exports for viewers.
-  - Team connected-account import/list/use/token brokerage.
+  - Sharing, copying, importing, or falling back to a member's Personal connected account in Team context.
   - Importing team data into a personal account context or implicitly merging team data with personal memories, connected
     accounts, chats, tasks, projects, plans, or workflows.
   - Web or Apple implementation before CLI and SDK contracts are verified.
@@ -102,6 +135,8 @@ context_discovery:
   - packages/openmates-python/tests/test_tasks.py
   - frontend/apps/web_app/tests/chat-flow.spec.ts
   - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+  - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+  - frontend/apps/web_app/tests/teams-realtime-chat.spec.ts
 apple_impact:
   affected_files:
   - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
@@ -114,6 +149,7 @@ apple_impact:
   - Apple must not implement team UI or behavior until CLI, SDK, web, and user-confirmation gates are complete.
   - Apple must eventually support personal/team context selection and must fail closed if a team context is unavailable.
   - Apple must respect viewer read-only semantics and team credit charging once team parity begins.
+  - Apple must eventually replace every context-scoped collection and support team-owned connected-account isolation without Personal fallback.
   verification:
   - python3 scripts/apple_remote.py status
   - python3 scripts/apple_remote.py build-ios after web/user confirmation or a documented Apple deferral.
@@ -154,12 +190,12 @@ clarification:
   - question: Can teams exist with zero credits?
     answer: Yes. Team creation and collaboration are free; credit-consuming AI actions are blocked when team credits are insufficient.
   - question: How should memories and connected accounts behave in team context?
-    answer: Team memories should be encrypted with the specific team's team key, and personal memories plus personal connected
-      accounts must be inaccessible for all team-context requests. Team connected accounts are deferred for V1 and should
-      fail closed until later explicit team-owned credential management ships.
+    answer: Team memories and team-owned connected accounts use the selected team's encryption path. Owner/admin manage team
+      connections, members use approved capabilities, viewers remain read-only, and Personal memories or connected accounts
+      are inaccessible from Team context.
   vision_summary: 'Teams V1 makes OpenMates useful for small groups without per-seat subscriptions: users can create teams,
     invite members, switch context, collaborate in team-wide workspaces, use shared team credits, and keep personal context
-    separate from team memories. Team connected accounts are intentionally disabled in V1. The first implementation proves
+    separate from team memories and team-owned connected accounts. The first implementation proves
     the contract through CLI and SDKs before web and Apple UI. Encryption relies on the completed unified-key-wrappers spec,
     with team_key_epoch fixed to 1 in V1.
 
@@ -222,11 +258,26 @@ decisions:
     separation must be enforced in storage, sync, AI request assembly, and client context selection.
   decided_at: '2026-07-18'
 - id: D-9
-  status: active
+  status: superseded
   decision: Team connected accounts are disabled in V1.
   reason: Personal connected accounts must never leak into team context, and explicit team-owned credential management is
     deferred until a later version with dedicated UI/API/permission review.
   decided_at: '2026-07-18'
+- id: D-15
+  status: active
+  decision: Teams V1 includes team-owned encrypted connected accounts and never falls back to member Personal connections.
+  reason: A selected Team is a complete data context. Owner/admin manage connections, members use approved capabilities, and viewers remain read-only.
+  decided_at: '2026-08-15'
+- id: D-16
+  status: active
+  decision: Teams V1 must prove two-user realtime chat creation, attributed messages, AI processing state, and completed responses.
+  reason: Team collaboration is incomplete if another active member must refresh to discover a chat or message.
+  decided_at: '2026-08-15'
+- id: D-17
+  status: active
+  decision: Every Teams E2E creates isolated resources and cleans them in finally; a bounded sweeper removes stale E2E-prefixed teams.
+  reason: Persistent test teams polluted the dev account and made context-switch evidence ambiguous.
+  decided_at: '2026-08-15'
 - id: D-10
   status: active
   decision: Clients store decrypted team keys locally using the same protected local/keychain-backed storage tier as personal
@@ -316,17 +367,25 @@ attempts:
   notes: Local real-API CLI verifiers pass for lifecycle, membership, chat, workspace context, move, billing, offboarding,
     memory isolation with disabled team connected accounts, and data portability. Dev verification waits for deployment.
   recorded_at: '2026-07-18'
+- id: ATTEMPT-10
+  task_id: TASK-11
+  approach: Amend the permanent Teams contract and executable spec for complete context replacement, team-owned connected accounts, realtime collaboration, team-only billing UI, and deterministic E2E cleanup.
+  outcome: succeeded
+  notes: Disabled-connected-account evidence and the shallow single-page web proof are superseded for the amended assertions.
+  recorded_at: '2026-08-15'
+- id: ATTEMPT-11
+  task_id: TASK-11
+  approach: Add focused direct-surface tests for ciphertext-only Team transport, explicit full-history inference release, active-member realtime fanout, and plaintext-free member mention notifications.
+  outcome: failed_as_expected
+  notes: Pytest collection failed only on the intentionally missing parse_team_message_transport, team_realtime_service, and team_member_mention_service implementation seams.
+  recorded_at: '2026-08-16'
 handoff:
-  current_task_id: TASK-5
-  next_action: Deploy the Teams V1 changes, then rerun the CLI verifier suite against api.dev.openmates.org.
-  command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org
-  expected_outcome: Real CLI dev-server lifecycle proof passes, followed by membership, chat, billing, memory, connected-account,
-    export/import, SDK, and web gates.
-  blocker:
-    reason: Local real-API verification is green; deployed dev verification requires the latest backend/CLI changes.
-    blocking_tasks:
-    - TASK-5
-  last_verified_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+  current_task_id: TASK-11
+  next_action: Write and record red REST/WebSocket tests for full context replacement, team connected accounts, realtime collaboration, and cleanup before implementation.
+  command: python3 -m pytest backend/tests/test_teams_full_context.py backend/tests/test_teams_connected_accounts.py backend/tests/test_teams_realtime_sync.py backend/tests/test_teams_cleanup.py
+  expected_outcome: New contract tests fail on the currently missing behavior and preserve red evidence before implementation.
+  blocker: null
+  last_verified_commit: 66911511019fc798616bde8ac6e92416553b22d9
 scenarios:
 - id: S-1
   title: Alice creates a team and switches context from CLI
@@ -340,7 +399,7 @@ scenarios:
   then:
   - A team is created with Alice as owner.
   - The active CLI context is the new team.
-  - Personal chats/tasks/projects/plans/workflows are not listed while the team context is active.
+  - Personal chats, billing, usage, tasks, projects, plans, workflows, memories, and connected accounts are not listed while the team context is active.
   - Alice can switch back to personal context.
 - id: S-2
   title: Alice invites Bob and Bob accepts into the team
@@ -369,10 +428,12 @@ scenarios:
   - Bob's message triggers AI processing.
   - The AI response consumes Team Acme credits, not Bob's personal credits.
   - The LLM input history identifies which human sent each team message.
+  - Alice and Bob receive the new chat, attributed human messages, AI processing state, and completed response without refreshing.
+  - Personal clients and clients active in another team receive none of those team updates.
 - id: S-4
   title: Active context scopes every workspace
   given:
-  - Alice has personal chats, tasks, projects, plans, and workflows.
+  - Alice has personal chats, billing, usage, tasks, projects, plans, workflows, memories, and connected accounts.
   - Alice also belongs to Team Acme with team-owned records in each workspace.
   when:
   - Alice lists each workspace in personal context.
@@ -381,6 +442,7 @@ scenarios:
   - Personal context lists only personal records.
   - Team context lists only Team Acme records.
   - Commands with --personal or --team override the persisted active context for that invocation only.
+  - New resources are always created in the active or explicitly overridden context.
 - id: S-5
   title: Alice moves personal records into a team with confirmation
   given:
@@ -397,7 +459,7 @@ scenarios:
   title: Viewer can read but cannot write or export
   given:
   - Vera is a viewer in Team Acme.
-  - Team Acme has chats, tasks, projects, plans, and workflows.
+  - Team Acme has chats, tasks, projects, plans, workflows, memories, and connected accounts.
   when:
   - Vera lists and reads team records.
   - Vera tries to send a team chat message, trigger @openmates, create a task, move an item, invite a member, buy credits,
@@ -406,6 +468,7 @@ scenarios:
   - Read/list commands succeed.
   - Every write, AI-trigger, billing, invite, move, and export action fails with a clear permission error.
   - No server-side team state changes are created by denied viewer actions.
+  - Vera can inspect safe connected-account metadata but cannot manage connections, receive provider credentials, perform provider writes, or trigger connected-account AI use.
 - id: S-7
   title: Owner/admin manage shared team credits
   given:
@@ -420,6 +483,8 @@ scenarios:
   - Team creation and non-AI collaboration remain allowed with zero credits.
   - After funding the team balance, AI processing succeeds and deducts team credits.
   - Team-to-personal credit transfer is unavailable.
+  - Web Billing & Usage shows only Team Acme balance and usage while Team Acme is active and tells Alice to switch to Personal to see Personal billing.
+  - Personal credits, purchases, invoices, and usage rows are absent from Team context.
 - id: S-8
   title: Member removal revokes future access and local data is cleaned
   given:
@@ -434,6 +499,7 @@ scenarios:
   - Bob can no longer fetch team records, wrappers, or billing data from the server.
   - Bob's managed client deletes local Team Acme data.
   - Team key rotation does not happen in V1.
+  - Leaving, removal, and team deletion revoke team-connected-account token access and reset affected managed clients to Personal.
 - id: S-9
   title: SDKs expose the same context and permission semantics as CLI
   given:
@@ -472,20 +538,21 @@ scenarios:
   - Bob's team AI request can include approved Team Acme memories but cannot include Alice's personal memories.
   - Team memory rows are decryptable through Team Acme's team key path, not Alice's personal master-key-only path.
 - id: S-12
-  title: Team connected accounts are disabled while personal accounts stay private
+  title: Team connected accounts are team-owned while personal accounts stay private
   given:
   - Alice has a personal Google Calendar connected account.
   - Alice owns Team Acme.
-  - Team Acme does not support connected accounts in V1.
+  - Team Acme has a team-owned Google Calendar connection created by Alice as owner.
   when:
   - Alice switches to Team Acme and asks @openmates to read calendar events.
-  - Alice tries to import or list a connected account in Team Acme context.
+  - Alice manages the Team Acme connection and Bob uses its approved calendar-read capability.
   - Bob uses Team Acme context to ask for calendar events.
   then:
-  - The first team request cannot use Alice's personal Google Calendar connected account.
-  - Team connected-account import, list, token-broker, and AI request paths fail closed with a clear unsupported message.
-  - Bob cannot use Alice's personal connected account from Team Acme context.
-  - Viewers and removed members also cannot use team connected accounts because the feature is disabled for every team role.
+  - Team requests use only Team Acme's encrypted connected account and never Alice's personal Google Calendar connection.
+  - Owner/admin can create, update, revoke, and authorize team connections.
+  - Members can use approved capabilities without receiving raw provider credentials.
+  - Viewers see safe metadata only and cannot manage, write through, or trigger AI use of a connection.
+  - Removed members cannot list, broker, or use the team connection.
 - id: S-13
   title: Invite emails deliver one-time team accept links without leaking team secrets
   given:
@@ -548,9 +615,23 @@ scenarios:
   - When the profile menu opens, the team circle moves below the user profile image and the menu shows Personal plus joined
     teams for switching context.
   - Switching context updates the active context without exposing personal memories or connected accounts in team context.
+  - Every visible chat, project, task, plan, workflow, memory, connected account, Billing & Usage row, and new-resource action changes to the selected context.
+  - Billing & Usage in Team context shows only team values and explains that Personal billing requires switching to Personal.
+- id: S-16
+  title: Team E2E resources are cleaned after success, failure, or interruption
+  given:
+  - A deployed test creates uniquely prefixed teams, chats, invites, and connected accounts.
+  when:
+  - The test passes, fails, times out, retries, or encounters a stale resource from an older run.
+  then:
+  - finally cleanup switches to Personal, deletes created chats and dependent resources, deletes the team through the authorized API path, and verifies absence.
+  - Cleanup failure is attached without hiding the original assertion failure.
+  - A bounded preflight sweeper deletes only stale E2E-prefixed teams older than the configured safety threshold.
+  - Non-E2E teams are never deleted by automated cleanup.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.context.full-switch-local]
   text: Authenticated users can create, list, get, update, delete, switch to, and inspect teams from CLI, with personal as
     the default context.
   required: true
@@ -563,6 +644,7 @@ acceptance_criteria:
   - T-CLI-TEAM-PROFILE-IMAGES-DEV
 - id: AC-2
   scenario: S-2
+  contract_assertions: [teams.membership.role-gated, teams.invites.fragment-key-web-flow]
   text: Invite and accept flows create memberships and team key wrappers without exposing personal records.
   required: true
   status: pending
@@ -573,8 +655,9 @@ acceptance_criteria:
   - T-CLI-TEAM-MEMBERSHIP-DEV
 - id: AC-3
   scenario: S-3
-  text: Team chats trigger AI only when @openmates is mentioned, pass sender-attributed history to inference, and charge team
-    credits only.
+  contract_assertions: [teams.chat.encrypted-until-invoked, teams.collaboration.realtime-team-sync, teams.chat-billing.team-credit-boundary]
+  text: Ordinary team messages remain ciphertext-only and do not refresh inference cache; @openmates sends the full current
+    attributed history, charges only team credits, and publishes processing plus the completed response to active members.
   required: true
   status: pending
   coverage_status: covered
@@ -582,9 +665,12 @@ acceptance_criteria:
   verification_ids:
   - T-BACKEND-TEAM-CHAT-AI
   - T-CLI-TEAM-CHAT-DEV
+  - T-WEB-TEAMS-REALTIME
 - id: AC-4
   scenario: S-4
-  text: Chats, tasks, projects, plans, and workflows are scoped by active context across CLI and SDKs.
+  contract_assertions: [teams.context.full-switch-local, teams.workspace.surface-parity]
+  text: Chats, billing, usage, tasks, projects, plans, workflows, memories, connected accounts, and new-resource creation are
+    fully replaced by active context across REST/WebSocket, CLI, SDKs, and web.
   required: true
   status: pending
   coverage_status: covered
@@ -595,6 +681,7 @@ acceptance_criteria:
   - T-PIP-SDK-TEAMS-PARITY
 - id: AC-5
   scenario: S-5
+  contract_assertions: [teams.context.full-switch-local, teams.workspace.surface-parity]
   text: Move commands transfer personal chats, tasks, projects, plans, and workflows into a team after explicit confirmation
     and without content re-encryption.
   required: true
@@ -606,7 +693,9 @@ acceptance_criteria:
   - T-CLI-TEAM-MOVE-DEV
 - id: AC-6
   scenario: S-6
-  text: Viewers can read team-wide records but cannot write, export, trigger AI, move objects, or manage billing/settings/members.
+  contract_assertions: [teams.membership.role-gated, teams.connected-accounts.team-owned-isolation]
+  text: Viewers can read team-wide records and safe connected-account metadata but cannot write, export, trigger AI, move objects,
+    manage settings/members/connections, receive provider credentials, or perform provider writes.
   required: true
   status: pending
   coverage_status: covered
@@ -616,8 +705,9 @@ acceptance_criteria:
   - T-CLI-VIEWER-PERMISSIONS
 - id: AC-7
   scenario: S-7
-  text: Team credits are separate from personal credits; team AI usage requires and deducts team credits while team creation
-    remains free.
+  contract_assertions: [teams.chat-billing.team-credit-boundary, teams.context.full-switch-local]
+  text: Team Billing & Usage shows only team balance and attribution, hides Personal billing and purchase data with a switch-to-Personal
+    notice, and team AI deducts team credits without changing Personal credits.
   required: true
   status: pending
   coverage_status: covered
@@ -627,6 +717,7 @@ acceptance_criteria:
   - T-CLI-TEAM-BILLING-DEV
 - id: AC-8
   scenario: S-8
+  contract_assertions: [teams.membership.role-gated, teams.lifecycle.encrypted-profiled]
   text: Removing a member revokes server/sync access, revokes their team key wrapper, deletes local managed-client team data,
     and does not rotate the team key in V1.
   required: true
@@ -638,6 +729,7 @@ acceptance_criteria:
   - T-CLI-TEAM-OFFBOARDING-DEV
 - id: AC-9
   scenario: S-9
+  contract_assertions: [teams.workspace.surface-parity, teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation]
   text: npm and pip SDKs expose non-destructive team lifecycle, context, workspace, permission, and bank-transfer billing
     semantics equivalent to the CLI; team deletion and team-owned move helpers are not public SDK methods.
   required: true
@@ -650,17 +742,20 @@ acceptance_criteria:
   - T-SDK-CLI-PARITY-AUDIT
 - id: AC-10
   scenario: S-10
+  contract_assertions: [teams.workspace.surface-parity]
   text: Web and Apple implementations wait for CLI/SDK green evidence and reuse the same backend contracts.
   required: true
   status: pending
   coverage_status: covered
   verification_scope: custom
   verification_ids:
-  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-CONTEXT
+  - T-WEB-TEAMS-REALTIME
   - V-USER-CONFIRMATION
   - T-APPLE-TEAMS-PARITY
 - id: AC-11
   scenario: S-1
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.chat.encrypted-until-invoked, teams.connected-accounts.team-owned-isolation]
   text: Team routes, sync payloads, billing events, and logs never expose raw team keys, object keys, share fragments, plaintext
     private metadata, or private emails beyond explicitly authorized notification delivery.
   required: true
@@ -671,6 +766,7 @@ acceptance_criteria:
   - T-TEAM-PRIVACY-AUDIT
 - id: AC-12
   scenario: S-11
+  contract_assertions: [teams.context.full-switch-local, teams.workspace.surface-parity]
   text: Team memories are context-owned, encrypted with the team's team-key path, synced only to active team members/viewers,
     and never mixed with personal memories in team-context list, mention, AI-request, export, or sync flows.
   required: true
@@ -684,8 +780,9 @@ acceptance_criteria:
   - T-PIP-SDK-TEAMS-PARITY
 - id: AC-13
   scenario: S-12
-  text: Team connected accounts are disabled in V1; team-context connected-account import/list/token-broker/AI paths fail
-    closed and cannot access personal connected accounts.
+  contract_assertions: [teams.connected-accounts.team-owned-isolation, teams.membership.role-gated, teams.context.full-switch-local]
+  text: Team-owned connected accounts use encrypted team credentials; owner/admin manage them, members use approved capabilities,
+    viewers remain metadata-only, removed members lose access, and Personal fallback is forbidden.
   required: true
   status: pending
   coverage_status: covered
@@ -697,6 +794,7 @@ acceptance_criteria:
   - T-PIP-SDK-TEAMS-PARITY
 - id: AC-14
   scenario: S-13
+  contract_assertions: [teams.invites.fragment-key-web-flow, teams.membership.role-gated]
   text: Owner/admin email invites show the current OpenMates domain, send one-time accept links, prevent account-existence
     enumeration, require recipient authentication/signup plus owner/admin access approval before active membership, and never
     expose team secrets or personal data in email, logs, or invite payloads.
@@ -707,9 +805,10 @@ acceptance_criteria:
   verification_ids:
   - T-BACKEND-TEAM-INVITE-EMAIL
   - T-CLI-TEAM-MEMBERSHIP-DEV
-  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-CONTEXT
 - id: AC-15
   scenario: S-14
+  contract_assertions: [teams.workspace.surface-parity, teams.connected-accounts.team-owned-isolation]
   text: Owner/admin can export and import team data with personal/team isolation, viewer export denial, encrypted/redacted
     artifacts, and destination-team key wrapping on import.
   required: true
@@ -723,15 +822,37 @@ acceptance_criteria:
   - T-PIP-SDK-TEAMS-PARITY
 - id: AC-16
   scenario: S-15
-  text: Web Teams UI is settings-only, with no `/teams` workspace route; Settings contains Teams root and per-team sub-settings,
-    while the user profile menu handles Personal/team context switching and team-avatar overlay states.
+  contract_assertions: [teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation, teams.chat.sender-identity-layout, teams.workspace.surface-parity]
+  text: Web Teams UI is settings-only; profile switching replaces every data surface, Team Billing & Usage is isolated, team
+    connected-account states are role-aware, and human/assistant messages follow the approved sender layout.
   required: true
   status: pending
   coverage_status: covered
   verification_scope: custom
   verification_ids:
-  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-CONTEXT
+  - T-WEB-TEAMS-REALTIME
   - T-WEB-TEAMS-NO-WORKSPACE-GUARD
+- id: AC-17
+  scenario: S-3
+  contract_assertions: [teams.chat.member-mentions-notify, teams.chat.sender-identity-layout, teams.chat.encrypted-until-invoked]
+  text: Active member username mentions send plaintext-free in-app and default-on email notifications without triggering AI;
+    own messages stay right without an avatar, other humans render left with non-AI identity, and assistants remain left.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-BACKEND-TEAM-MENTIONS, T-WEB-TEAMS-REALTIME]
+- id: AC-18
+  scenario: S-16
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.workspace.surface-parity]
+  text: Every Teams E2E cleans created resources in finally and a bounded preflight sweeper removes only stale E2E-prefixed teams,
+    preserving non-test teams and the original failure.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids: [T-TEAMS-E2E-CLEANUP, T-WEB-TEAMS-CONTEXT, T-WEB-TEAMS-REALTIME]
 assumptions:
 - id: A-1
   text: The unified-key-wrappers spec is completed and can be treated as the encryption prerequisite for Teams V1.
@@ -776,15 +897,15 @@ assumptions:
   - source: user clarification 2026-07-18
     summary: User confirmed team memories should instead use the team key for the specific team.
 - id: A-6
-  text: Team connected accounts are disabled in V1 rather than implicitly sharing a member's personal connected account.
+  text: Team connected accounts are team-owned, encrypted with the team path, and never reuse or fall back to a member's Personal connection.
   category: privacy
   required_before: implementation
   status: confirmed
   evidence:
   - source: user clarification 2026-07-18
     summary: User confirmed personal connected accounts must be inaccessible for all requests while in team context.
-  - source: user clarification 2026-07-18
-    summary: User chose to keep connected accounts deactivated for teams until a later version.
+  - source: user clarification 2026-08-15
+    summary: User explicitly expanded Teams V1 to team-owned connections with owner/admin management, member approved use, and viewer read-only metadata.
 - id: A-7
   text: Email invite flows must not let a team owner/admin probe whether an email address has an account on a cloud or self-hosted
     OpenMates domain.
@@ -844,8 +965,8 @@ contracts:
         can_use_team_credits: true
         can_export_team_data: true
         can_write_team_memories: true
-        can_manage_team_connected_accounts: false
-        can_use_team_connected_accounts: false
+        can_manage_team_connected_accounts: true
+        can_use_team_connected_accounts: true
       admin:
         can_delete_team: false
         can_transfer_ownership: false
@@ -855,8 +976,8 @@ contracts:
         can_use_team_credits: true
         can_export_team_data: true
         can_write_team_memories: true
-        can_manage_team_connected_accounts: false
-        can_use_team_connected_accounts: false
+        can_manage_team_connected_accounts: true
+        can_use_team_connected_accounts: true
       member:
         can_delete_team: false
         can_transfer_ownership: false
@@ -867,7 +988,7 @@ contracts:
         can_export_team_data: false
         can_write_team_memories: true
         can_manage_team_connected_accounts: false
-        can_use_team_connected_accounts: false
+        can_use_team_connected_accounts: true
       viewer:
         can_delete_team: false
         can_transfer_ownership: false
@@ -878,7 +999,7 @@ contracts:
         can_export_team_data: false
         can_write_team_memories: false
         can_manage_team_connected_accounts: false
-        can_use_team_connected_accounts: false
+        can_use_team_connected_accounts: read_only_metadata
     active_context:
       default: personal
       cli_persistence: per authenticated local account
@@ -903,6 +1024,10 @@ contracts:
       - plans
       - workflows
       - memories
+      - billing
+      - usage
+      - connected_accounts
+      - new_resource_creation
     team_visibility:
       v1: team_wide
       private_items: false
@@ -912,6 +1037,13 @@ contracts:
       no_trigger_behavior: store_user_message_without_ai
       viewer_behavior: reject_message_before_store
       llm_history_format: include sender display label or stable team member alias in user-role content before message text
+      no_trigger_transport: client_ciphertext_only
+      no_trigger_processing: [no_preprocessing, no_postprocessing, no_title_extraction, no_memory_lookup, no_connected_account_lookup]
+      trigger_history_scope: full_current_chat_history
+      inference_cache_refresh: only_on_openmates_mention
+      default_title: client_encrypted_prefix_of_first_human_message
+      reminder_position: below_chat_header_above_first_message
+      member_mentions: in_app_and_email_default_on_without_plaintext
     team_chat_keys:
       chat_key_generation: per_chat_random_key
       team_chat_key_wrapping: encrypted_with_team_key
@@ -951,12 +1083,15 @@ contracts:
     connected_accounts:
       personal_available_in_team_context: false
       team_available_in_personal_context: false
-      team_rows_are_explicit: false
-      team_enabled_v1: false
+      team_rows_are_explicit: true
+      team_enabled_v1: true
       personal_account_reference_from_team_row: false
-      team_route_behavior: reject_with_TEAM_CONNECTED_ACCOUNTS_DISABLED
-      token_broker_team_behavior: reject_with_TEAM_CONNECTED_ACCOUNTS_DISABLED
-      ai_request_scope: personal_context_only_for_connected_accounts
+      management_roles: [owner, admin]
+      approved_use_roles: [owner, admin, member]
+      viewer_behavior: safe_metadata_only
+      token_broker_team_behavior: authorize_selected_team_account_and_capability_only
+      ai_request_scope: active_context_only
+      personal_fallback: forbidden
     web_ui:
       teams_workspace_route_allowed: false
       route: settings
@@ -967,6 +1102,8 @@ contracts:
       - team_details
       - members_and_invites
       - billing
+      - usage
+      - connected_accounts
       - profile_image
       - data_boundaries
       context_switcher_surface: user_profile_menu
@@ -1105,7 +1242,7 @@ contracts:
       or hashed_team_id.
     - update/delete must verify ownership/context by row id plus owner_context plus owner hash, never by id alone.
   - collection: connected_accounts
-    purpose: Personal encrypted connected-account rows; team context is disabled in V1.
+    purpose: Context-owned encrypted Personal or Team connected-account rows.
     fields:
     - id
     - owner_context
@@ -1133,11 +1270,11 @@ contracts:
     notes:
     - owner_context defaults to personal for existing rows.
     - existing personal rows require hashed_user_id and no hashed_team_id.
-    - team connected-account rows are not created or used in V1.
-    - token broker and connected-account permission continuation must reject team context and must never fall back to personal
-      accounts.
+    - team rows require hashed_team_id, team_key_epoch 1, team-key-path encryption, and no hashed_user_id owner fallback.
+    - token broker and permission continuation authorize the selected team row and approved capability only.
+    - raw provider credentials are never returned to members/viewers and Personal fallback is forbidden.
   - collection: team_connected_account_grants
-    purpose: Deferred later-version grants and wrapper state for team connected-account use; unused in V1.
+    purpose: Role/capability authorization metadata for team connected-account use without per-member plaintext provider secrets.
     fields:
     - connected_account_id_hash
     - team_id_hash
@@ -1149,8 +1286,8 @@ contracts:
     - created_at
     - revoked_at
     notes:
-    - No V1 route creates or consumes team connected-account grants.
-    - A later version must re-review grant encryption and role semantics before enabling this collection.
+    - Owner/admin create and revoke grants; members consume approved capabilities; viewers receive safe metadata only.
+    - Revocation, removal, leave, and team deletion invalidate grants and active token refs.
   - collection: team_data_exports
     purpose: Auditable team export/import jobs and artifacts without plaintext team content.
     fields:
@@ -1243,8 +1380,8 @@ contracts:
     auth: authenticated
     allowed_roles: owner_admin
     behavior: Create an encrypted/redacted team export artifact containing only selected-team rows across team metadata, memberships,
-      invites, billing/usage metadata, chats, tasks, projects, plans, workflows, and memories. Connected accounts are excluded
-      because team connected accounts are disabled in V1.
+      invites, billing/usage metadata, chats, tasks, projects, plans, workflows, memories, and encrypted team connected-account
+      metadata without raw provider credentials or active token refs.
   - route: GET /v1/teams/{team_id}/export/{export_id}
     auth: authenticated
     allowed_roles: owner_admin
@@ -1267,19 +1404,35 @@ contracts:
   - route: GET /v1/connected-accounts
     auth: authenticated
     allowed_roles: authenticated_user_or_team_member_by_context
-    behavior: List only personal connected accounts in personal context; reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+    behavior: List only Personal rows in Personal context or selected-Team rows after membership authorization; viewers receive safe metadata only.
   - route: POST /v1/connected-accounts
     auth: authenticated
     allowed_roles: personal_user_or_team_owner_admin_by_context
-    behavior: Create or import a personal connected account only; reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+    behavior: Create Personal rows for the user or encrypted Team rows for owner/admin; never copy or reference Personal credentials into a Team.
   - route: PATCH /v1/connected-accounts/{account_id}
     auth: authenticated
     allowed_roles: personal_user_or_team_owner_admin_by_context
-    behavior: Update only personal connected accounts; reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+    behavior: Update Personal rows for their owner or Team rows for owner/admin after context ownership authorization.
   - route: POST /v1/token-broker/connected-accounts
     auth: authenticated
     allowed_roles: personal_user_or_authorized_team_user_by_context
-    behavior: Mint active-turn token refs only for personal connected accounts in personal context; reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+    behavior: Mint active-turn refs only for the selected context row and approved capability; reject viewer mutation/AI use and all Personal fallback in Team context.
+  - route: POST /v1/sdk/chats
+    access_model: developer_api_key_rest
+    auth: approved_device_api_key_with_chat_create_scope
+    allowed_roles: team_owner_admin_member
+    rate_limit: existing SDK chat-create limit
+    credit_budget: Team balance only when an explicit team_ai_invocation is present; ordinary collaboration is free.
+    encryption_boundary: Ordinary Team turns accept client ciphertext only. Explicit @openmates turns carry ciphertext plus full current sender-attributed inference history in a separate transient envelope.
+    behavior: Persist the encrypted Team turn, relay it to active members, notify authorized member mentions without content, and dispatch AI only for explicit @openmates history.
+  - route: WS chat_message_added
+    access_model: first_party_client_only
+    auth: authenticated approved device session
+    allowed_roles: team_owner_admin_member
+    rate_limit: existing authenticated WebSocket message limits
+    credit_budget: Team balance only for explicit @openmates inference.
+    encryption_boundary: Ordinary Team messages never include plaintext; explicit AI history is transient and replaces prior inference cache.
+    behavior: Validate canonical Team scope, persist/relay client ciphertext, deliver member notifications, and fan out encrypted human, processing, and final response events through Redis.
   - route: POST /v1/teams/{team_id}/billing/bank-transfer-orders
     auth: authenticated
     allowed_roles: owner_admin
@@ -1331,8 +1484,9 @@ contracts:
     - openmates settings memories update --team <team> --id <entry-id> --app-id <id> --item-type <type> --data <json>
     - openmates settings memories delete --team <team> --id <entry-id>
     - openmates connected-accounts import --payload <payload>
-    - openmates connected-accounts import --team <team> --payload <payload> rejects with Team connected accounts are not supported
-      yet.
+    - openmates connected-accounts import --team <team> --payload <payload>
+    - openmates connected-accounts list --team <team>
+    - openmates connected-accounts revoke --team <team> <account>
     invite_ux:
     - Invite commands must show the current OpenMates domain/deployment before sending, for example api.openmates.org, api.dev.openmates.org,
       or the configured self-host URL.
@@ -1361,25 +1515,33 @@ contracts:
     master key.
   - Invite fragments and invite-derived key material must never be sent to OpenMates API, Vercel, logs, email, analytics,
     or traces.
-  - Team connected-account token material must not exist in V1; all team-context connected-account routes and token-broker
-    calls fail closed with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+  - Team connected-account credentials and display metadata are client-encrypted through the team key path; raw provider credentials
+    are never exposed to members/viewers, email, logs, or traces.
   - Connected-account routes, token broker, and permission-continuation handlers must never fall back to personal connected
     accounts when active_context is team.
+  - Ordinary team messages remain ciphertext-only through API storage and realtime relay; plaintext enters inference cache only
+    when @openmates is explicitly mentioned, using the full current chat history supplied by the invoking client.
+  - Inference cache is not updated by ordinary follow-ups and is replaced only on a later @openmates invocation.
+  - Team member mention notifications and default-on emails contain no message plaintext or private chat content.
   rollout:
     phases:
     - Backend schema, permission helpers, and route contract tests.
-    - Team memory isolation and disabled team connected-account backend tests.
+    - Team memory isolation, team-owned connected-account authorization, encrypted chat relay, member mention, and realtime backend tests.
     - Team invite email-link and team data export/import backend tests.
     - CLI lifecycle/membership/context proof against dev API/WebSocket.
-    - CLI team memory isolation and disabled team connected-account proof against dev API/WebSocket.
+    - CLI team memory isolation and team connected-account proof against dev API/WebSocket.
     - CLI team chat and team billing proof against dev API/WebSocket.
     - Wire CLI coverage into daily tests after dev CLI success.
     - npm SDK and pip SDK parity.
-    - Web implementation and Playwright after deploy.
+    - Deterministic stale E2E-team cleanup guard.
+    - Independent web context/settings/billing/connected-account Playwright after deploy.
+    - Independent two-user encrypted/realtime chat and member-notification Playwright after deploy.
+    - Reviewed laptop/mobile visual smoke and proof video.
     - User confirmation on deployed dev web behavior.
     - Apple parity or documented Apple deferral.
 tests:
 - id: T-BACKEND-TEAM-LIFECYCLE
+  contract_assertions: [teams.lifecycle.encrypted-profiled]
   type: pytest
   file: backend/tests/test_teams_lifecycle.py
   command: python3 -m pytest backend/tests/test_teams_lifecycle.py
@@ -1409,6 +1571,7 @@ tests:
       subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-MEMBERSHIP
+  contract_assertions: [teams.membership.role-gated]
   type: pytest
   file: backend/tests/test_teams_membership.py
   command: python3 -m pytest backend/tests/test_teams_membership.py
@@ -1438,6 +1601,7 @@ tests:
       subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-INVITE-EMAIL
+  contract_assertions: [teams.invites.fragment-key-web-flow]
   type: pytest
   file: backend/tests/test_teams_invite_email.py
   command: python3 -m pytest backend/tests/test_teams_invite_email.py
@@ -1473,36 +1637,41 @@ tests:
       subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-CHAT-AI
+  contract_assertions: [teams.chat.encrypted-until-invoked, teams.collaboration.realtime-team-sync, teams.chat-billing.team-credit-boundary]
   type: pytest
   file: backend/tests/test_teams_chat_ai.py
   command: python3 -m pytest backend/tests/test_teams_chat_ai.py
   covers:
   - AC-3
   - AC-7
+  - AC-17
   assertions:
-  - team chat messages without @openmates do not enqueue AI processing.
-  - team chat messages with @openmates enqueue AI processing only when team credits are sufficient.
-  - AI request context includes sender-attributed team history.
+  - ordinary team messages arrive and persist as client ciphertext without plaintext entering AI preprocessing, postprocessing, memory, title, account lookup, billing, logs, or traces.
+  - team chat messages with @openmates explicitly release full current sender-attributed history to transient inference processing only when team credits are sufficient.
+  - each @openmates invocation replaces the transient inference cache; ordinary follow-ups do not refresh it.
+  - ordinary messages and @openmates processing/final states are broadcast to all active team members without refresh.
   - credit deduction uses team account and records actor usage.
   red_phase:
     required: true
     expected: fail_or_missing
     evidence:
-      status: pending
-      run_id: pending-teams-chat-ai-red
-      timestamp: ''
+      status: failed_as_expected
+      command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_realtime_sync.py backend/tests/test_team_member_mentions.py
+      run_id: teams-amendment-backend-red-20260816
+      reason: Collection fails because parse_team_message_transport and the realtime/mention services required by the approved contract do not exist.
+      timestamp: '2026-08-16T13:13:55Z'
   green_phase:
     required: true
     expected: pass
     evidence:
-      status: passed
-      command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_connected_accounts.py
-      run_id: teams-chat-ai-connected-accounts-isolation-green-2026-07-18
-      subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
-      reason: Focused backend isolation regression passed after adding a guard that team AI credit charging uses the team
-        billing endpoint and excludes personal billing/device identifiers from the team branch.
-      timestamp: '2026-07-18'
+      status: pending
+      command: python3 -m pytest backend/tests/test_teams_chat_ai.py
+      run_id: ''
+      subject_commit: ''
+      reason: The approved ciphertext-only and multi-user realtime amendment invalidated the prior plaintext-capable backend evidence.
+      timestamp: ''
 - id: T-BACKEND-TEAM-MOVE-AUTHZ
+  contract_assertions: [teams.context.full-switch-local]
   type: pytest
   file: backend/tests/test_teams_move_authorization.py
   command: python3 -m pytest backend/tests/test_teams_move_authorization.py
@@ -1534,6 +1703,7 @@ tests:
       subject_commit: cb035b68a72e1b572047a81967b170a97301371a
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-PERMISSIONS
+  contract_assertions: [teams.membership.role-gated]
   type: pytest
   file: backend/tests/test_teams_permissions.py
   command: python3 -m pytest backend/tests/test_teams_permissions.py
@@ -1563,6 +1733,7 @@ tests:
       subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-BILLING
+  contract_assertions: [teams.chat-billing.team-credit-boundary]
   type: pytest
   file: backend/tests/test_teams_billing.py
   command: python3 -m pytest backend/tests/test_teams_billing.py
@@ -1595,6 +1766,7 @@ tests:
         manual approve_bank_transfer.py team settlement, and Revolut webhook team settlement without personal credit mutation.
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-OFFBOARDING
+  contract_assertions: [teams.membership.role-gated, teams.connected-accounts.team-owned-isolation, teams.collaboration.realtime-team-sync]
   type: pytest
   file: backend/tests/test_teams_offboarding.py
   command: python3 -m pytest backend/tests/test_teams_offboarding.py
@@ -1626,6 +1798,7 @@ tests:
       subject_commit: cb035b68a72e1b572047a81967b170a97301371a
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-MEMORY-ISOLATION
+  contract_assertions: [teams.context.full-switch-local]
   type: pytest
   file: backend/tests/test_teams_memory_isolation.py
   command: python3 -m pytest backend/tests/test_teams_memory_isolation.py
@@ -1659,6 +1832,7 @@ tests:
       subject_commit: cb035b68a72e1b572047a81967b170a97301371a
       timestamp: '2026-07-18'
 - id: T-BACKEND-TEAM-CONNECTED-ACCOUNTS
+  contract_assertions: [teams.connected-accounts.team-owned-isolation]
   type: pytest
   file: backend/tests/test_teams_connected_accounts.py
   command: python3 -m pytest backend/tests/test_teams_connected_accounts.py
@@ -1667,10 +1841,10 @@ tests:
   - AC-11
   assertions:
   - personal connected accounts require owner_context personal and hashed_user_id.
-  - team connected-account list/create/update routes reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
-  - team token-broker requests reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
-  - team context list/select/token-broker requests cannot access personal connected accounts.
-  - no V1 path creates team connected-account rows or grants.
+  - owner/admin can create, update, revoke, and authorize team-owned connected accounts through the selected team's encryption path.
+  - members can use only approved team-account capabilities; viewers receive safe metadata only.
+  - team context list/select/token-broker requests cannot access or fall back to personal connected accounts.
+  - team account grants, provider metadata, and token references remain team-scoped and expose no plaintext secrets.
   red_phase:
     required: true
     expected: fail_or_missing
@@ -1682,14 +1856,14 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: passed
-      command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_connected_accounts.py
-      run_id: teams-chat-ai-connected-accounts-isolation-green-2026-07-18
-      subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
-      reason: Focused backend isolation regression passed for disabled team connected accounts and no personal connected-account
-        fallback while team context is active.
-      timestamp: '2026-07-18'
+      status: pending
+      command: python3 -m pytest backend/tests/test_teams_connected_accounts.py
+      run_id: ''
+      subject_commit: ''
+      reason: The approved team-owned connected-account amendment invalidated the prior disabled-feature evidence.
+      timestamp: ''
 - id: T-BACKEND-TEAM-DATA-PORTABILITY
+  contract_assertions: [teams.workspace.surface-parity, teams.connected-accounts.team-owned-isolation]
   type: pytest
   file: backend/tests/test_teams_data_portability.py
   command: python3 -m pytest backend/tests/test_teams_data_portability.py
@@ -1727,6 +1901,7 @@ tests:
       subject_commit: 37431391e7204c7f16c1f6d2d8458ad82992dc50-plus-local-edits
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-LIFECYCLE-DEV
+  contract_assertions: [teams.lifecycle.encrypted-profiled]
   type: manual
   file: scripts/verify_teams_cli_lifecycle.py
   command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org
@@ -1755,6 +1930,7 @@ tests:
         health; team delete cleanup used interactive destructive step-up.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-PROFILE-IMAGES-DEV
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.workspace.surface-parity]
   type: manual
   file: scripts/verify_teams_cli_profile_images.py
   command: python3 scripts/verify_teams_cli_profile_images.py --api-url https://api.dev.openmates.org
@@ -1798,6 +1974,7 @@ tests:
         publication_artifact_key: opencode-responses/2026/08/14/4d5852f654a8-43a4de01edb39841-demo.mp4
         timestamp: '2026-08-14T14:56:15Z'
 - id: T-CLI-TEAM-MEMBERSHIP-DEV
+  contract_assertions: [teams.membership.role-gated, teams.invites.fragment-key-web-flow]
   type: manual
   file: scripts/verify_teams_cli_membership.py
   command: python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org
@@ -1831,6 +2008,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-CHAT-DEV
+  contract_assertions: [teams.chat.encrypted-until-invoked, teams.collaboration.realtime-team-sync, teams.chat-billing.team-credit-boundary]
   type: manual
   file: scripts/verify_teams_cli_chat.py
   command: python3 scripts/verify_teams_cli_chat.py --api-url https://api.dev.openmates.org
@@ -1861,6 +2039,7 @@ tests:
         bank-transfer order approval and team AI kept personal credits unchanged.
       timestamp: '2026-07-18'
 - id: T-CLI-WORKSPACE-CONTEXT-DEV
+  contract_assertions: [teams.context.full-switch-local]
   type: manual
   file: scripts/verify_teams_cli_workspace_context.py
   command: python3 scripts/verify_teams_cli_workspace_context.py --api-url https://api.dev.openmates.org
@@ -1888,6 +2067,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-MOVE-DEV
+  contract_assertions: [teams.context.full-switch-local]
   type: manual
   file: scripts/verify_teams_cli_move.py
   command: python3 scripts/verify_teams_cli_move.py --api-url https://api.dev.openmates.org
@@ -1915,6 +2095,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-CLI-VIEWER-PERMISSIONS
+  contract_assertions: [teams.membership.role-gated, teams.connected-accounts.team-owned-isolation]
   type: unit
   file: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
   command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/teams-permissions.test.ts
@@ -1940,6 +2121,7 @@ tests:
       subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-BILLING-DEV
+  contract_assertions: [teams.chat-billing.team-credit-boundary]
   type: manual
   file: scripts/verify_teams_cli_billing.py
   command: python3 scripts/verify_teams_cli_billing.py --api-url https://api.dev.openmates.org
@@ -1969,6 +2151,7 @@ tests:
         order create/list/status; direct public team credit grants remain absent.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-OFFBOARDING-DEV
+  contract_assertions: [teams.membership.role-gated, teams.collaboration.realtime-team-sync]
   type: manual
   file: scripts/verify_teams_cli_offboarding.py
   command: python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org
@@ -1996,6 +2179,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-MEMORY-ACCOUNTS-DEV
+  contract_assertions: [teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation]
   type: manual
   file: scripts/verify_teams_cli_memory_accounts.py
   command: python3 scripts/verify_teams_cli_memory_accounts.py --api-url https://api.dev.openmates.org
@@ -2026,6 +2210,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-CLI-TEAM-DATA-PORTABILITY-DEV
+  contract_assertions: [teams.workspace.surface-parity, teams.connected-accounts.team-owned-isolation]
   type: manual
   file: scripts/verify_teams_cli_data_portability.py
   command: python3 scripts/verify_teams_cli_data_portability.py --api-url https://api.dev.openmates.org
@@ -2055,6 +2240,7 @@ tests:
       reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
       timestamp: '2026-07-18'
 - id: T-NPM-SDK-TEAMS-PARITY
+  contract_assertions: [teams.workspace.surface-parity, teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation]
   type: unit
   file: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
   command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-teams.test.ts
@@ -2090,6 +2276,7 @@ tests:
       reason: Npm SDK exposes team bank-transfer create/status/list and does not expose addCredits, delete, or move team methods.
       timestamp: '2026-07-18'
 - id: T-PIP-SDK-TEAMS-PARITY
+  contract_assertions: [teams.workspace.surface-parity, teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation]
   type: pytest
   file: packages/openmates-python/tests/test_teams.py
   command: python3 -m pytest packages/openmates-python/tests/test_teams.py
@@ -2125,6 +2312,7 @@ tests:
         methods.
       timestamp: '2026-07-18'
 - id: T-SDK-TEAM-BILLING-DEV
+  contract_assertions: [teams.chat-billing.team-credit-boundary]
   type: manual
   file: scripts/verify_teams_sdk_billing.py
   command: python3 scripts/verify_teams_sdk_billing.py --api-url https://api.dev.openmates.org --skip-build
@@ -2155,6 +2343,7 @@ tests:
         npm/pip API-key devices, and exercising team bank-transfer create/list/status.
       timestamp: '2026-07-18'
 - id: T-SDK-CLI-PARITY-AUDIT
+  contract_assertions: [teams.workspace.surface-parity]
   type: manual
   file: scripts/audit_sdk_cli_parity.py
   command: python3 scripts/audit_sdk_cli_parity.py
@@ -2182,27 +2371,31 @@ tests:
       subject_commit: ce08dd1821d5f8336ddf0645e4a7e98b7cc482fb-plus-local-edits
       reason: Parity audit passed after replacing public team add-credits SDK/CLI surface with team bank-transfer order methods.
       timestamp: '2026-07-18'
-- id: T-WEB-TEAMS-PARITY
+- id: T-WEB-TEAMS-CONTEXT
+  contract_assertions: [teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation, teams.chat.sender-identity-layout, teams.workspace.surface-parity]
   type: playwright
-  file: frontend/apps/web_app/tests/teams-flow.spec.ts
-  command: python3 scripts/tests.py run --spec teams-flow.spec.ts
+  file: frontend/apps/web_app/tests/teams-settings-context.spec.ts
+  command: python3 scripts/tests.py run --spec teams-settings-context.spec.ts
   target: app.dev.openmates.org
   covers:
   - AC-10
   - AC-12
   - AC-13
   - AC-16
+  - AC-18
   assertions:
   - web app manages teams only from Settings > Teams, with no top-level `/teams` workspace surface.
   - Settings root contains a Teams item, and joined teams appear as sub-settings entries for team-specific settings.
   - user profile menu switches between Personal and joined teams, with closed/open team-avatar overlay states.
-  - no personal data, personal memories, or personal connected accounts appear in team context.
+  - switching replaces chats, billing, usage, tasks, projects, plans, workflows, memories, connected accounts, and creation targets.
+  - Team Billing & Usage contains only team values and a switch-to-Personal notice.
+  - every created resource is deleted through finally cleanup.
   red_phase:
     required: true
     expected: fail_or_missing
     evidence:
       status: pending
-      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit <settings-only-spec-commit>
+      command: python3 scripts/tests.py run --spec teams-settings-context.spec.ts --gate-deploy --expected-commit <red-commit>
       run_id: ''
       subject_commit: ''
       reason: Previous `/teams` workspace evidence was invalidated by the 2026-08-14 product correction; the replacement spec
@@ -2213,7 +2406,7 @@ tests:
     expected: pass_after_deploy
     evidence:
       status: pending
-      command: python3 scripts/tests.py run --spec teams-flow.spec.ts --gate-deploy --expected-commit <settings-only-implementation-commit>
+      command: python3 scripts/tests.py run --spec teams-settings-context.spec.ts --gate-deploy --expected-commit <implementation-commit>
       run_id: ''
       subject_commit: ''
       target: https://app.dev.openmates.org/settings
@@ -2221,7 +2414,92 @@ tests:
       reason: Must pass only after the top-level Teams workspace is fully removed and Settings/profile-menu Teams behavior is
         deployed.
       timestamp: ''
+- id: T-WEB-TEAMS-REALTIME
+  contract_assertions: [teams.chat.encrypted-until-invoked, teams.chat.member-mentions-notify, teams.chat.sender-identity-layout, teams.collaboration.realtime-team-sync, teams.chat-billing.team-credit-boundary]
+  type: playwright
+  file: frontend/apps/web_app/tests/teams-realtime-chat.spec.ts
+  command: python3 scripts/tests.py run --spec teams-realtime-chat.spec.ts
+  target: app.dev.openmates.org
+  covers: [AC-3, AC-10, AC-16, AC-17, AC-18]
+  assertions:
+  - two authenticated browser contexts join one team and receive encrypted chat creation and messages without refresh.
+  - ordinary team messages send ciphertext only, leave inference cache unchanged, and trigger no preprocessing/postprocessing or billing.
+  - "@openmates sends full current history, refreshes inference cache, and shares processing plus final response in realtime."
+  - own messages stay right without avatar; other humans render left with username/profile image and no AI badge; assistant stays left.
+  - member mention sends plaintext-free in-app and default-on email notification without triggering AI by itself.
+  - team reminder and client-encrypted first-message title are visible.
+  - finally cleanup removes chats, notifications, invites, connected accounts, and team.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence: {status: pending, command: 'python3 scripts/tests.py run --spec teams-realtime-chat.spec.ts --gate-deploy --expected-commit <red-commit>', run_id: '', timestamp: ''}
+  green_phase:
+    required: true
+    expected: pass_after_deploy
+    evidence: {status: pending, command: 'python3 scripts/tests.py run --spec teams-realtime-chat.spec.ts --gate-deploy --expected-commit <implementation-commit>', run_id: '', timestamp: ''}
+- id: T-BACKEND-TEAM-REALTIME
+  contract_assertions: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked]
+  type: pytest
+  file: backend/tests/test_teams_realtime_sync.py
+  command: python3 -m pytest backend/tests/test_teams_realtime_sync.py
+  covers: [AC-3, AC-17]
+  assertions:
+  - encrypted human message, processing, and final response events reach every active member once without plaintext.
+  - inactive/non-members receive no team events.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_realtime_sync.py backend/tests/test_team_member_mentions.py
+      run_id: teams-amendment-backend-red-20260816
+      reason: Collection fails because team_realtime_service is not implemented.
+      timestamp: '2026-08-16T13:13:55Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: pending, run_id: '', timestamp: ''}
+- id: T-BACKEND-TEAM-MENTIONS
+  contract_assertions: [teams.chat.member-mentions-notify, teams.chat.encrypted-until-invoked]
+  type: pytest
+  file: backend/tests/test_team_member_mentions.py
+  command: python3 -m pytest backend/tests/test_team_member_mentions.py
+  covers: [AC-11, AC-17]
+  assertions:
+  - active member IDs receive in-app and default-on email notifications with no message plaintext.
+  - removed/non-members receive nothing and member mentions alone do not trigger AI.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_realtime_sync.py backend/tests/test_team_member_mentions.py
+      run_id: teams-amendment-backend-red-20260816
+      reason: Collection fails because team_member_mention_service is not implemented.
+      timestamp: '2026-08-16T13:13:55Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: pending, run_id: '', timestamp: ''}
+- id: T-TEAMS-E2E-CLEANUP
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.workspace.surface-parity]
+  type: pytest
+  file: scripts/tests/test_teams_e2e_cleanup.py
+  command: python3 -m pytest scripts/tests/test_teams_e2e_cleanup.py
+  covers: [AC-18]
+  assertions:
+  - cleanup is idempotent, preserves the original failure, and deletes only resources registered by the current test.
+  - stale sweeper deletes only E2E-prefixed teams older than the safety threshold and never touches non-test teams.
+  red_phase:
+    required: true
+    expected: fail_or_missing
+    evidence: {status: pending, run_id: pending-teams-cleanup-red, timestamp: ''}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {status: pending, run_id: '', timestamp: ''}
 - id: T-WEB-TEAMS-NO-WORKSPACE-GUARD
+  contract_assertions: [teams.workspace.surface-parity]
   type: pytest
   file: scripts/tests/test_teams_settings_only_guard.py
   command: python3 -m pytest scripts/tests/test_teams_settings_only_guard.py
@@ -2253,6 +2531,7 @@ tests:
       timestamp: '2026-08-15T09:00:17Z'
       timestamp: ''
 - id: T-APPLE-TEAMS-PARITY
+  contract_assertions: [teams.workspace.surface-parity, teams.context.full-switch-local]
   type: manual
   file: apple/OpenMates
   command: python3 scripts/apple_remote.py build-ios
@@ -2280,6 +2559,7 @@ tests:
       subject_commit: ''
       timestamp: ''
 - id: T-TEAM-PRIVACY-AUDIT
+  contract_assertions: [teams.lifecycle.encrypted-profiled, teams.chat.encrypted-until-invoked, teams.connected-accounts.team-owned-isolation]
   type: pytest
   file: scripts/tests/test_teams_privacy_audit.py
   command: python3 -m pytest scripts/tests/test_teams_privacy_audit.py
@@ -2304,13 +2584,14 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: passed
-      command: python3 -m pytest backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py
-        backend/tests/test_teams_routes.py scripts/tests/test_teams_privacy_audit.py
-      run_id: teams-task1-backend-green-2026-07-18
-      subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
-      timestamp: '2026-07-18'
+      status: pending
+      command: python3 -m pytest scripts/tests/test_teams_privacy_audit.py
+      run_id: ''
+      subject_commit: ''
+      reason: The amended ciphertext-only chat, team-account, and plaintext-free notification boundaries require replacement audit evidence.
+      timestamp: ''
 - id: T-CLI-TEAMS-PROOF-VIDEO
+  contract_assertions: [teams.workspace.surface-parity, teams.context.full-switch-local]
   type: manual
   file: scripts/proof_video_workflow.py
   command: python3 scripts/proof_video_workflow.py approve --session 95c9 --spec docs/specs/teams-v1/spec.yml --contract <contract.json>
@@ -2347,68 +2628,69 @@ tests:
 demonstration:
   eligibility:
     status: required
-    surface: cli
-    reason: Teams V1 is user-visible in the CLI and needs a captioned terminal proof showing context switching, team chat
-      isolation, and credit context without machine-only JSON output.
-    classified_at: '2026-08-13T00:00:00Z'
+    surface: visual
+    reason: The material Teams amendment requires separate deployed phone and laptop proof of full context replacement and two-user encrypted realtime collaboration; prior CLI proof is insufficient.
+    classified_at: '2026-08-16T00:00:00Z'
   narration_outline:
   - id: NARR-1
-    purpose: Create a new team before any other visible proof step.
-    expected_proof: The first visible terminal command is openmates teams create --name <team name> --slug <team slug> --switch,
-      followed by the created team slug in human-readable output.
+    purpose: Show that switching from Personal to a Team replaces the complete product context.
+    expected_proof: Laptop and phone captures switch from Personal to Team through the profile menu, then show team-only chats, projects, tasks, plans, workflows, memories, billing, usage, and connected accounts without Personal fallback.
     scenario_ids:
-    - S-1
     - S-4
+    - S-7
+    - S-12
     acceptance_criteria:
-    - AC-1
     - AC-4
+    - AC-7
+    - AC-12
+    - AC-13
   - id: NARR-2
-    purpose: Show intuitive team switching and the Teams alias.
-    expected_proof: The terminal shows openmates switch-to listing personal and team contexts, then openmates switch-to <team
-      slug>, openmates teams <team slug> switch-to, and openmates switch-to personal changing the active context.
+    purpose: Show ciphertext-only ordinary team collaboration across two authenticated users.
+    expected_proof: Two browser contexts receive team chat creation and ordinary human messages without refresh; sender layout, first-message title, and @openmates reminder are visibly correct while no AI response appears.
     scenario_ids:
-    - S-1
-    - S-4
+    - S-3
+    - S-16
     acceptance_criteria:
-    - AC-1
-    - AC-4
+    - AC-3
+    - AC-16
+    - AC-17
   - id: NARR-3
-    purpose: Show that team chat and credits are tied to the active team context.
-    expected_proof: The terminal shows openmates chats new followed by openmates chats list in the active team context, plus
-      openmates credits reporting the active team balance separately from personal credits.
+    purpose: Show explicit @openmates inference and realtime processing/final response delivery.
+    expected_proof: One user invokes @openmates; both browser contexts receive processing state and the final AI response without refresh, and Team billing reflects only Team usage.
     scenario_ids:
     - S-3
     - S-7
+    - S-16
     acceptance_criteria:
     - AC-3
     - AC-7
+    - AC-17
   - id: NARR-4
-    purpose: Confirm the proof is user-readable terminal output.
-    expected_proof: The captured commands and output are human-readable and contain no visible --json command or raw JSON
-      response.
+    purpose: Show team-owned accounts, member mention notification, and deterministic cleanup.
+    expected_proof: Owner/admin manages a Team connection, a member uses only approved capability, a viewer sees safe metadata, a member mention produces content-free notification UI, and the test-created Team disappears during cleanup.
     scenario_ids:
-    - S-1
-    - S-3
+    - S-6
+    - S-12
+    - S-16
     acceptance_criteria:
-    - AC-1
-    - AC-3
+    - AC-6
+    - AC-13
+    - AC-17
+    - AC-18
   evidence:
-    status: passed
-    subject_commit: f2e7a45
-    manifest_path: test-results/proof-videos/95c9/teams-v1-cli-proof-20260814115847/manifest.json
-    manifest_hash: sha256:ed5187f782f4445250ef42c52eb58a4c94da42de80238843d5f7237f9583ff68
-    privacy_status: passed
+    status: pending
+    subject_commit: ''
+    manifest_path: ''
+    manifest_hash: ''
+    privacy_status: pending
     audio_status: not_required
-    review_status: passed
-    review_run_id: review-teams-v1-cli-proof-20260814115847
-    review_attempts: 1
-    timestamp: '2026-08-14T12:03:46Z'
-    publication_status: delivered
-    command: python3 scripts/sessions.py proof-video produce --session 95c9 --run-dir test-results/proof-videos/95c9/teams-v1-cli-proof-20260814115847
-      --proof-id teams-v1-cli-proof --subject-commit f2e7a45 --timeout-seconds 300 -- node scripts/teams_cli_proof.mjs; python3
-      scripts/sessions.py proof-video review --session 95c9 --run-dir test-results/proof-videos/95c9/teams-v1-cli-proof-20260814115847;
-      python3 scripts/sessions.py proof-video publish --session 95c9 --run-dir test-results/proof-videos/95c9/teams-v1-cli-proof-20260814115847
-    run_id: teams-v1-cli-proof-20260814115847
+    review_status: pending
+    review_run_id: ''
+    review_attempts: 0
+    timestamp: ''
+    publication_status: pending
+    command: python3 scripts/proof_video_workflow.py start --current --spec teams-settings-context.spec.ts; python3 scripts/proof_video_workflow.py start --current --spec teams-realtime-chat.spec.ts
+    run_id: ''
 verifications:
 - id: V-SPEC-VALIDATE
   kind: deterministic_check
@@ -2428,14 +2710,32 @@ verifications:
   - AC-11
   - AC-12
   - AC-13
-  status: passed
+  - AC-14
+  - AC-15
+  - AC-16
+  - AC-17
+  - AC-18
+  status: pending
   evidence:
-    status: passed
+    status: pending
     command: python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
-    run_id: teams-spec-validate-profile-images-proof-video-20260814
-    subject_commit: f2e7a45
-    summary: Spec validation passed after adding real dev Teams CLI profile-image verifier evidence and reviewed proof-video metadata.
-    timestamp: '2026-08-14T15:10:22Z'
+    run_id: ''
+    subject_commit: ''
+    summary: Material contract amendment invalidated prior validation evidence.
+    timestamp: ''
+- id: V-UI-VISUAL-SMOKE
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers: [AC-3, AC-4, AC-7, AC-13, AC-16, AC-17]
+  status: pending
+  viewports: [laptop, mobile]
+  evidence:
+    status: pending
+    command: python3 scripts/sessions.py visual-smoke --session <id> --method playwright --viewport laptop --viewport mobile
+    run_id: ''
+    summary: 'Review deployed full-context, team-only billing/accounts, encrypted team chat, sender layout, reminder, and two-user realtime states. Defects: pending. Accepted differences: pending.'
+    timestamp: ''
 - id: V-USER-CONFIRMATION
   kind: user_confirmation
   phase: final
@@ -2443,10 +2743,12 @@ verifications:
   covers:
   - AC-10
   - AC-16
+  - AC-17
+  - AC-18
   status: pending
   evidence:
     status: ''
-    summary: User confirms deployed dev web Teams settings and profile-menu context switching work and look correct.
+    summary: User confirms full context replacement, team-only billing/accounts, ciphertext-only ordinary chat, member notifications, sender layout, and two-user realtime collaboration work and look correct.
     timestamp: ''
 implementation_plan:
   spec_path: docs/specs/teams-v1/spec.yml
@@ -2463,8 +2765,9 @@ implementation_plan:
   architecture: 'Add team identity, membership, permission, billing, and context-scoping as a backend-first capability, then
     expose it through CLI and SDKs before web and Apple UI. Personal and team records share workspace primitives but are always
     filtered by explicit context. Team encryption grants use team_key_wrappers and unified object wrappers with team_key_epoch
-    fixed to 1 in V1. Team memories are context-owned resources; team connected accounts are disabled. Team context never
-    falls back to personal memories or personal connected accounts.
+    fixed to 1 in V1. Team memories and connected accounts are context-owned resources. Ordinary team chat is ciphertext-only;
+    @openmates explicitly releases full current history to transient inference processing. Team context never falls back to
+    Personal data, credentials, billing, or caches.
 
     '
   data_flow:
@@ -2476,8 +2779,10 @@ implementation_plan:
   - CLI/SDK active context selects personal or team before workspace list/create/move commands.
   - Team memory create/list/update/delete uses hashed_team_id and team-key-path encryption; personal memory flows continue
     to use hashed_user_id and user master-key encryption.
-  - Team connected-account create/list/use/token broker routes reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
-  - Team chat stores human messages without AI unless @openmates is present.
+  - Team connected-account create/list/use/token broker routes authorize selected-team encrypted rows and approved capabilities only.
+  - Team chat stores and relays ordinary human messages as client ciphertext; client generates the encrypted first-message title.
+  - "@openmates sends full current attributed history, replaces transient inference cache, and runs team-scoped pre/post-processing."
+  - Ordinary follow-ups do not refresh inference cache; member mentions route plaintext-free in-app and default-on email notifications.
   - Team AI request checks team credits atomically, builds sender-attributed LLM history, includes only active-team memory
     context, deducts team credits, and records usage attribution.
   - Member removal revokes membership and team key wrapper, emits cleanup event, and prevents future team sync access.
@@ -2489,16 +2794,15 @@ implementation_plan:
   - path: backend/core/directus/schemas/user_app_settings_and_memories.yml
     reason: Add owner_context, hashed_team_id, team_key_epoch, and encryption_context for team memories.
   - path: backend/core/directus/schemas/connected_accounts.yml
-    reason: Keep personal connected-account storage separated and fail closed for team context in V1.
+    reason: Support context-owned encrypted Team rows while preserving strict Personal isolation.
   - path: backend/core/api/app/routes/teams.py
     reason: Team lifecycle, membership, billing, and usage REST API.
   - path: backend/core/api/app/routes/settings.py
     reason: Context-scoped memory export/list behavior.
   - path: backend/core/api/app/routes/connected_accounts.py
-    reason: Personal connected-account list/create/update behavior plus explicit V1 team-context rejection.
+    reason: Context-filtered Personal/Team lifecycle with owner/admin management and viewer-safe metadata.
   - path: backend/core/api/app/routes/token_broker.py
-    reason: Deny personal connected-account token refs in team context and reject team connected-account token brokerage in
-      V1.
+    reason: Broker selected-team approved capabilities without Personal fallback or raw credential exposure.
   - path: backend/core/api/app/services/directus/team_methods.py
     reason: Directus persistence and fail-closed team authorization helpers.
   - path: backend/core/api/app/services/team_billing_service.py
@@ -2508,8 +2812,8 @@ implementation_plan:
   - path: backend/core/api/app/services/team_data_portability_service.py
     reason: Team-scoped export/import artifact construction, validation, and destination-team rewrap checks.
   - path: backend/core/api/app/routes/handlers/websocket_handlers
-    reason: Team context sync, team memory sync, connected-account fail-closed team context, team cleanup events, and team
-      chat AI trigger behavior.
+    reason: Ciphertext-only ordinary chat relay, explicit inference release, realtime member sync, notifications, context sync,
+      team memory/account sync, and cleanup events.
   - path: backend/apps/ai/processing/main_processor.py
     reason: Team chat sender-attributed history and team billing context for AI processing.
   - path: frontend/packages/openmates-cli/src/client.ts
@@ -2528,8 +2832,12 @@ implementation_plan:
     reason: User profile menu owns Personal/team context switching and team-avatar overlay states.
   - path: frontend/apps/web_app/src/routes/teams
     reason: Must be removed; Teams must not have a top-level workspace route.
-  - path: frontend/apps/web_app/tests/teams-flow.spec.ts
-    reason: Web settings-only Teams parity after CLI and SDK gates.
+  - path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    reason: Independent full-context, settings, team-only billing, connected-account, and cleanup proof.
+  - path: frontend/apps/web_app/tests/teams-realtime-chat.spec.ts
+    reason: Independent two-user ciphertext-only chat, realtime AI, sender layout, and member-notification proof.
+  - path: frontend/apps/web_app/tests/helpers/team-test-cleanup.ts
+    reason: finally cleanup registry and bounded stale E2E-team sweeper.
   - path: scripts/tests/test_teams_settings_only_guard.py
     reason: Deterministic guard prevents Teams workspace route/navigation from returning.
   - path: apple/OpenMates
@@ -2538,28 +2846,31 @@ implementation_plan:
   - python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
   - Backend pytest contract tests for lifecycle, membership, invite email links, data portability, permissions, billing, offboarding,
     team chat, and move behavior.
-  - Backend pytest contract tests for team memory isolation and team connected-account isolation.
+  - Backend pytest contract tests for team memory isolation, team-owned connected accounts, encrypted chat boundary, realtime sync, mentions, and cleanup.
   - Real CLI dev-server scripts against api.dev.openmates.org with real test-account auth.
   - Captioned CLI proof video using human-readable OpenMates commands, not --json output.
   - Wire real CLI proof into daily tests after dev pass.
   - npm and pip SDK tests plus python3 scripts/audit_sdk_cli_parity.py.
   - Deterministic no-workspace Teams guard.
-  - Web Settings Teams Playwright against app.dev.openmates.org after deploy.
-  - User confirmation of deployed dev web Teams settings/profile-menu behavior.
+  - Independent deployed teams-settings-context.spec.ts and teams-realtime-chat.spec.ts runs.
+  - Reviewed laptop/mobile visual smoke and proof videos showing actual context replacement and two-user collaboration.
+  - User confirmation of deployed full-context and realtime behavior.
   - Apple build/test or explicit deferral after web/user confirmation.
   verification_order:
   - Spec validation.
   - Backend red/green tests.
   - Real CLI dev lifecycle and membership.
-  - Real CLI dev memory and connected-account isolation.
+  - Real CLI dev memory and team-owned connected-account isolation/use.
   - Real CLI dev invite email-link and team data export/import proof.
   - Real CLI dev team chat, billing, workspace context, move, and offboarding.
   - User-approved CLI proof-video contract, capture, bounded frame review, and Discord publication.
   - Daily-test wiring for the CLI dev coverage.
   - npm SDK parity.
   - pip SDK parity.
-  - Deterministic no-workspace Teams guard.
-  - Web Settings Teams Playwright after deploy.
+  - Deterministic no-workspace and stale E2E cleanup guards.
+  - Deployed web context/settings/billing/accounts Playwright.
+  - Deployed two-user encrypted/realtime chat Playwright.
+  - Reviewed laptop/mobile visual smoke and proof video.
   - User confirmation.
   - Apple parity or deferral.
   risks:
@@ -2571,6 +2882,10 @@ implementation_plan:
   - Leaking personal memories into team AI prompts or team memory mention metadata.
   - Letting team token-broker requests use a member's personal connected account.
   - Encrypting team connected-account token material in a way that lets viewers decrypt provider secrets.
+  - Sending ordinary team plaintext, sender display metadata, or notification content to the server before @openmates consent.
+  - Updating inference cache from ordinary follow-ups or using stale history after a later @openmates invocation.
+  - Cross-context realtime leakage or notification delivery to removed/non-members.
+  - Cleanup deleting non-E2E teams or hiding the original test failure.
   - Sending invite emails that expose raw team keys, wrapped team keys, private emails in logs, or team/private content.
   - Export/import accidentally merging team rows into personal context or carrying rows from the wrong team.
   - Billing transfer races between personal and team credit balances.
@@ -2580,8 +2895,7 @@ implementation_plan:
     to existing account data policies until legal review.
   - Should team invoices use a default personal account identifier when optional team billing profile is absent, or only a
     team account ID? V1 should use team account ID unless payment law requires more.
-  - Should V1 expose a confirmed copy flow from personal memory or connected account into a team? Current contract keeps this
-    out of scope and requires explicit team creation/import instead.
+  - No Personal memory or connected-account copy/fallback flow is in scope; Team resources are created explicitly under Team context.
 tasks:
 - id: TASK-1
   title: Add backend team schemas, authorization helper, and lifecycle tests
@@ -2725,8 +3039,8 @@ tasks:
   follow_up_tasks: []
   independently_deployable: false
 - id: TASK-9
-  title: Add context-scoped memories and connected accounts
-  status: done
+  title: Implement team-owned connected-account isolation
+  status: needs_fix
   phase: working_tasks
   covers:
     scenarios:
@@ -2769,7 +3083,7 @@ tasks:
     - backend/core/api/app/routes/handlers/websocket_handlers/delete_app_settings_memories_handler.py
     - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
   blockers: []
-  follow_up_tasks: []
+  follow_up_tasks: [TASK-11]
   independently_deployable: false
 - id: TASK-10
   title: Implement team invite email links and team data portability backend
@@ -2820,7 +3134,7 @@ tasks:
   independently_deployable: false
 - id: TASK-5
   title: Implement CLI Teams commands and real dev verification scripts
-  status: in_progress
+  status: needs_fix
   phase: working_tasks
   covers:
     scenarios:
@@ -2895,6 +3209,7 @@ tasks:
   - TASK-4
   - TASK-9
   - TASK-10
+  - TASK-11
   ownership:
     files:
     - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
@@ -2960,8 +3275,8 @@ tasks:
   follow_up_tasks: []
   independently_deployable: false
 - id: TASK-7
-  title: Implement web Teams parity after CLI and SDK gates
-  status: in_progress
+  title: Implement web full-context Teams settings, billing, accounts, and cleanup
+  status: pending
   phase: working_tasks
   covers:
     scenarios:
@@ -2971,6 +3286,7 @@ tasks:
     - S-13
     - S-14
     - S-15
+    - S-16
     acceptance_criteria:
     - AC-10
     - AC-12
@@ -2978,30 +3294,36 @@ tasks:
     - AC-14
     - AC-15
     - AC-16
+    - AC-18
   expected_files:
   - frontend/packages/ui/src/services
   - frontend/packages/ui/src/components
-  - frontend/apps/web_app/tests/teams-flow.spec.ts
+  - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+  - frontend/apps/web_app/tests/helpers/team-test-cleanup.ts
   - scripts/tests/test_teams_settings_only_guard.py
   verification:
-  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-CONTEXT
+  - T-TEAMS-E2E-CLEANUP
   - T-WEB-TEAMS-NO-WORKSPACE-GUARD
   - V-USER-CONFIRMATION
   verification_ids:
-  - T-WEB-TEAMS-PARITY
+  - T-WEB-TEAMS-CONTEXT
+  - T-TEAMS-E2E-CLEANUP
   - T-WEB-TEAMS-NO-WORKSPACE-GUARD
   - V-USER-CONFIRMATION
   dependencies:
   - TASK-6
+  - TASK-14
   ownership:
     files:
-    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/apps/web_app/tests/helpers/team-test-cleanup.ts
     - scripts/tests/test_teams_settings_only_guard.py
     shared_files:
     - frontend/packages/ui/src/services
     - frontend/packages/ui/src/components
   blockers: []
-  follow_up_tasks: []
+  follow_up_tasks: [TASK-15, TASK-16]
   independently_deployable: false
 - id: TASK-8
   title: Apple Teams parity or explicit deferral
@@ -3023,11 +3345,93 @@ tasks:
   verification_ids:
   - T-APPLE-TEAMS-PARITY
   dependencies:
-  - TASK-7
+  - TASK-16
   ownership:
     files:
     - apple/OpenMates
     shared_files: []
   blockers: []
   follow_up_tasks: []
+  independently_deployable: false
+- id: TASK-11
+  title: Implement encrypted team chat boundary, team accounts, realtime sync, mentions, and cleanup contracts
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios: [S-3, S-4, S-6, S-7, S-8, S-11, S-12, S-16]
+    acceptance_criteria: [AC-3, AC-4, AC-6, AC-7, AC-8, AC-11, AC-12, AC-13, AC-17, AC-18]
+  expected_files:
+  - backend/core/directus/schemas/connected_accounts.yml
+  - backend/core/api/app/routes/connected_accounts.py
+  - backend/core/api/app/routes/token_broker.py
+  - backend/core/api/app/routes/handlers/websocket_handlers
+  - backend/apps/ai/processing
+  - backend/tests/test_teams_full_context.py
+  - backend/tests/test_teams_connected_accounts.py
+  - backend/tests/test_teams_realtime_sync.py
+  - backend/tests/test_team_member_mentions.py
+  - backend/tests/test_teams_cleanup.py
+  verification: [T-BACKEND-TEAM-CHAT-AI, T-BACKEND-TEAM-CONNECTED-ACCOUNTS, T-BACKEND-TEAM-OFFBOARDING, T-BACKEND-TEAM-REALTIME, T-BACKEND-TEAM-MENTIONS, T-TEAM-PRIVACY-AUDIT]
+  verification_ids: [T-BACKEND-TEAM-CHAT-AI, T-BACKEND-TEAM-CONNECTED-ACCOUNTS, T-BACKEND-TEAM-OFFBOARDING, T-BACKEND-TEAM-REALTIME, T-BACKEND-TEAM-MENTIONS, T-TEAM-PRIVACY-AUDIT]
+  dependencies: [TASK-1, TASK-2, TASK-3, TASK-4]
+  ownership:
+    files: [backend/tests/test_teams_full_context.py, backend/tests/test_teams_connected_accounts.py, backend/tests/test_teams_realtime_sync.py, backend/tests/test_team_member_mentions.py, backend/tests/test_teams_cleanup.py]
+    shared_files: [backend/core/directus/schemas/connected_accounts.yml, backend/core/api/app/routes/connected_accounts.py, backend/core/api/app/routes/token_broker.py, backend/core/api/app/routes/handlers/websocket_handlers, backend/apps/ai/processing]
+  blockers: []
+  follow_up_tasks: [TASK-5, TASK-14]
+  independently_deployable: true
+- id: TASK-14
+  title: Add deterministic Teams E2E cleanup and stale test-team sweeper
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios: [S-16]
+    acceptance_criteria: [AC-18]
+  expected_files: [frontend/apps/web_app/tests/helpers/team-test-cleanup.ts, scripts/cleanup_dev_test_teams.py, scripts/tests/test_teams_e2e_cleanup.py]
+  verification: [T-TEAMS-E2E-CLEANUP]
+  verification_ids: [T-TEAMS-E2E-CLEANUP]
+  dependencies: [TASK-11]
+  ownership:
+    files: [frontend/apps/web_app/tests/helpers/team-test-cleanup.ts, scripts/cleanup_dev_test_teams.py, scripts/tests/test_teams_e2e_cleanup.py]
+    shared_files: []
+  blockers: []
+  follow_up_tasks: [TASK-7, TASK-15]
+  independently_deployable: true
+- id: TASK-15
+  title: Implement two-user encrypted and realtime team chat web flow
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios: [S-2, S-3, S-6, S-16]
+    acceptance_criteria: [AC-2, AC-3, AC-6, AC-10, AC-16, AC-17, AC-18]
+  expected_files:
+  - frontend/packages/ui/src/services/sendersChatMessages.ts
+  - frontend/packages/ui/src/components/ChatMessage.svelte
+  - frontend/packages/ui/src/components/ChatHistory.svelte
+  - frontend/apps/web_app/tests/teams-realtime-chat.spec.ts
+  verification: [T-WEB-TEAMS-REALTIME]
+  verification_ids: [T-WEB-TEAMS-REALTIME]
+  dependencies: [TASK-6, TASK-14]
+  ownership:
+    files: [frontend/apps/web_app/tests/teams-realtime-chat.spec.ts]
+    shared_files: [frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/components/ChatMessage.svelte, frontend/packages/ui/src/components/ChatHistory.svelte]
+  blockers: []
+  follow_up_tasks: [TASK-16]
+  independently_deployable: true
+- id: TASK-16
+  title: Verify both deployed web flows, visual smoke, proof videos, and user confirmation
+  status: pending
+  phase: running_checks
+  covers:
+    scenarios: [S-3, S-4, S-7, S-12, S-15, S-16]
+    acceptance_criteria: [AC-3, AC-4, AC-7, AC-10, AC-13, AC-16, AC-17, AC-18]
+  expected_files: [docs/specs/teams-v1/spec.yml, test-results/proof-videos]
+  verification: [T-WEB-TEAMS-CONTEXT, T-WEB-TEAMS-REALTIME, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+  verification_ids: [T-WEB-TEAMS-CONTEXT, T-WEB-TEAMS-REALTIME, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+  dependencies: [TASK-7, TASK-15]
+  ownership:
+    files: [docs/specs/teams-v1/spec.yml]
+    shared_files: [test-results/proof-videos]
+  blockers: []
+  follow_up_tasks: [TASK-8]
   independently_deployable: false

@@ -10230,6 +10230,102 @@ ai_response_notification.open_chat_button:
   sv: Öppna chatt
   he: "פתיחת הצ'אט"
   verified_by_human: []
+team_member_mention_notification.subject:
+  context: Email subject for a privacy-safe Team member mention notification
+  en: You were mentioned in a Team chat
+  de: Du wurdest in einem Team-Chat erwähnt
+  zh: 您在团队聊天中被提及
+  es: Te mencionaron en un chat de equipo
+  fr: Vous avez été mentionné dans une discussion d'équipe
+  pt: Você foi mencionado em um chat de equipe
+  ru: Вас упомянули в командном чате
+  ja: チームチャットでメンションされました
+  ko: 팀 채팅에서 회원님이 언급되었습니다
+  it: Sei stato menzionato in una chat del team
+  tr: Bir ekip sohbetinde sizden bahsedildi
+  vi: Bạn đã được nhắc đến trong cuộc trò chuyện nhóm
+  id: Anda disebut dalam obrolan tim
+  pl: Wspomniano o Tobie na czacie zespołu
+  nl: Je bent genoemd in een teamchat
+  ar: تمت الإشارة إليك في دردشة فريق
+  hi: टीम चैट में आपका उल्लेख किया गया
+  th: มีการกล่าวถึงคุณในแชททีม
+  cs: Byli jste zmíněni v týmovém chatu
+  sv: Du nämndes i en teamchatt
+  he: אזכרו אותך בצ'אט צוות
+  verified_by_human: []
+team_member_mention_notification.header:
+  context: Header for a Team member mention notification email
+  en: New Team Mention
+  de: Neue Team-Erwähnung
+  zh: 新的团队提及
+  es: Nueva mención de equipo
+  fr: Nouvelle mention d'équipe
+  pt: Nova menção de equipe
+  ru: Новое командное упоминание
+  ja: 新しいチームメンション
+  ko: 새 팀 멘션
+  it: Nuova menzione del team
+  tr: Yeni Ekip Bahsi
+  vi: Lượt nhắc nhóm mới
+  id: Sebutan Tim Baru
+  pl: Nowa wzmianka zespołu
+  nl: Nieuwe teamvermelding
+  ar: إشارة جديدة من الفريق
+  hi: नया टीम उल्लेख
+  th: การกล่าวถึงทีมใหม่
+  cs: Nová týmová zmínka
+  sv: Ny teamomnämning
+  he: אזכור צוות חדש
+  verified_by_human: []
+team_member_mention_notification.description:
+  context: Privacy-safe description that intentionally excludes message content and sender identity
+  en: A team member mentioned you in a Team chat. Open OpenMates to read the encrypted message.
+  de: Ein Teammitglied hat dich in einem Team-Chat erwähnt. Öffne OpenMates, um die verschlüsselte Nachricht zu lesen.
+  zh: 一位团队成员在团队聊天中提及了您。打开 OpenMates 阅读加密消息。
+  es: Un miembro del equipo te mencionó en un chat de equipo. Abre OpenMates para leer el mensaje cifrado.
+  fr: Un membre de l'équipe vous a mentionné dans une discussion. Ouvrez OpenMates pour lire le message chiffré.
+  pt: Um membro da equipe mencionou você em um chat. Abra o OpenMates para ler a mensagem criptografada.
+  ru: Участник команды упомянул вас в чате. Откройте OpenMates, чтобы прочитать зашифрованное сообщение.
+  ja: チームメンバーがチームチャットであなたをメンションしました。暗号化されたメッセージを読むには OpenMates を開いてください。
+  ko: 팀원이 팀 채팅에서 회원님을 언급했습니다. 암호화된 메시지를 읽으려면 OpenMates를 여세요.
+  it: Un membro del team ti ha menzionato in una chat. Apri OpenMates per leggere il messaggio crittografato.
+  tr: Bir ekip üyesi ekip sohbetinde sizden bahsetti. Şifreli mesajı okumak için OpenMates'i açın.
+  vi: Một thành viên đã nhắc đến bạn trong cuộc trò chuyện nhóm. Mở OpenMates để đọc tin nhắn được mã hóa.
+  id: Seorang anggota menyebut Anda dalam obrolan tim. Buka OpenMates untuk membaca pesan terenkripsi.
+  pl: Członek zespołu wspomniał o Tobie na czacie. Otwórz OpenMates, aby przeczytać zaszyfrowaną wiadomość.
+  nl: Een teamlid heeft je genoemd in een teamchat. Open OpenMates om het versleutelde bericht te lezen.
+  ar: أشار إليك أحد أعضاء الفريق في دردشة. افتح OpenMates لقراءة الرسالة المشفرة.
+  hi: टीम के एक सदस्य ने टीम चैट में आपका उल्लेख किया। एन्क्रिप्टेड संदेश पढ़ने के लिए OpenMates खोलें।
+  th: สมาชิกทีมกล่าวถึงคุณในแชททีม เปิด OpenMates เพื่ออ่านข้อความที่เข้ารหัส
+  cs: Člen týmu vás zmínil v týmovém chatu. Otevřete OpenMates a přečtěte si šifrovanou zprávu.
+  sv: En teammedlem nämnde dig i en teamchatt. Öppna OpenMates för att läsa det krypterade meddelandet.
+  he: חבר צוות אזכר אותך בצ'אט צוות. יש לפתוח את OpenMates כדי לקרוא את ההודעה המוצפנת.
+  verified_by_human: []
+team_member_mention_notification.open_chat_button:
+  context: Button text for opening the Team chat from a mention email
+  en: Open Team Chat
+  de: Team-Chat öffnen
+  zh: 打开团队聊天
+  es: Abrir chat de equipo
+  fr: Ouvrir la discussion d'équipe
+  pt: Abrir chat de equipe
+  ru: Открыть командный чат
+  ja: チームチャットを開く
+  ko: 팀 채팅 열기
+  it: Apri chat del team
+  tr: Ekip Sohbetini Aç
+  vi: Mở cuộc trò chuyện nhóm
+  id: Buka Obrolan Tim
+  pl: Otwórz czat zespołu
+  nl: Teamchat openen
+  ar: فتح دردشة الفريق
+  hi: टीम चैट खोलें
+  th: เปิดแชททีม
+  cs: Otevřít týmový chat
+  sv: Öppna teamchatt
+  he: פתיחת צ'אט הצוות
+  verified_by_human: []
 referral_reward.subject:
   context: Email subject for referral reward notification
   en: "Someone used your referral code"

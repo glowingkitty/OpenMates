@@ -1,6 +1,7 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
 import hashlib
 import logging
+import asyncio
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
@@ -15,6 +16,8 @@ from backend.core.api.app.tasks.persistence_tasks import (
 )
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
     authoritative_chat_fingerprint,
     validate_message_matches_authoritative_fingerprint,
@@ -87,6 +90,7 @@ async def handle_ai_response_completed(
                 )
                 return
             chat_id = payload.get("chat_id")
+            team_id = payload.get("team_id")
             message_payload_from_client = payload.get("message")
             versions = payload.get("versions")  # Get version info for multi-device sync
 
@@ -167,8 +171,26 @@ async def handle_ai_response_completed(
             # Fallback: if the chat doesn't exist in Directus at all, the user is almost
             # certainly the creator and the task just hasn't written yet — allow it through.
             # If the row exists but belongs to someone else, reject as usual.
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
             chat_metadata_for_validation = None
+            if isinstance(team_id, str) and team_id:
+                await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                for attempt in range(3):
+                    chat_metadata_for_validation = await directus_service.chat.get_chat_metadata(chat_id)
+                    if chat_metadata_for_validation:
+                        break
+                    if attempt < 2:
+                        await asyncio.sleep(0.1)
+                if not chat_metadata_for_validation or chat_metadata_for_validation.get("hashed_team_id") != hash_id(team_id):
+                    logger.warning("User %s attempted cross-Team AI response write for chat %s", user_id, chat_id)
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "team_chat_scope_mismatch", "message": "This chat does not belong to the selected team."}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                is_owner = True
+            else:
+                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
             if not is_owner:
                 import hashlib as _hashlib
                 existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
@@ -376,6 +398,21 @@ async def handle_ai_response_completed(
                 user_id,
                 device_fingerprint_hash
             )
+
+            if isinstance(team_id, str) and team_id:
+                active_member_hashes = await directus_service.team.list_active_member_hashes(team_id)
+                await broadcast_team_event(
+                    manager=manager,
+                    active_member_user_ids=(),
+                    event_name="team_ai_response_completed",
+                    payload={
+                        "team_id": team_id,
+                        "chat_id": chat_id,
+                        **message_data_for_directus,
+                    },
+                    cache_service=cache_service,
+                    active_member_hashes=active_member_hashes,
+                )
 
             logger.debug(f"Sent AI response storage confirmation to {user_id}/{device_fingerprint_hash} for message {message_id}")
 

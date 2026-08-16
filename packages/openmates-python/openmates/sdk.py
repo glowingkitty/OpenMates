@@ -2715,6 +2715,9 @@ class OpenMatesChats:
         title: str | None = None,
         goal: str | None = None,
         goal_title: str | None = None,
+        team_id: str | None = None,
+        sender_name: str | None = None,
+        team_member_mentions: list[str] | None = None,
         connected_account_directory: list[dict[str, Any]] | None = None,
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         recovery_poll_interval_seconds: float = DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS,
@@ -2725,7 +2728,7 @@ class OpenMatesChats:
         normalized_goal = _normalize_optional_goal(goal)
         if normalized_goal and save_to_account is False:
             raise OpenMatesConfigError("Chat goals require a saved account chat. Omit save_to_account or set save_to_account=True.")
-        if save_to_account is True or normalized_goal:
+        if save_to_account is True or normalized_goal or team_id:
             return self._send_saved(
                 final_message,
                 history=normalized_history,
@@ -2737,6 +2740,9 @@ class OpenMatesChats:
                 title=title,
                 goal=normalized_goal,
                 goal_title=goal_title,
+                team_id=team_id,
+                sender_name=sender_name,
+                team_member_mentions=team_member_mentions,
                 connected_account_directory=connected_account_directory,
                 connected_account_token_ref_inputs=connected_account_token_ref_inputs,
                 recovery_poll_interval_seconds=recovery_poll_interval_seconds,
@@ -2773,10 +2779,19 @@ class OpenMatesChats:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None,
         goal: str | None,
         goal_title: str | None,
+        team_id: str | None,
+        sender_name: str | None,
+        team_member_mentions: list[str] | None,
         recovery_poll_interval_seconds: float,
         recovery_timeout_seconds: float,
     ) -> ChatResponse:
         master_key = self._client._get_master_key()
+        normalized_team_id = team_id.strip() if isinstance(team_id, str) and team_id.strip() else None
+        wrapping_key = (
+            _team_key_from_record(self._client, self._client.teams.get(normalized_team_id))
+            if normalized_team_id
+            else master_key
+        )
         session = self._client._get_sdk_session()
         user = session.get("user") if isinstance(session.get("user"), dict) else {}
         if not user.get("id"):
@@ -2790,6 +2805,8 @@ class OpenMatesChats:
         encrypted_chat_metadata = None
         loaded_messages: list[dict[str, Any]] = []
         if chat_id:
+            if normalized_team_id:
+                raise OpenMatesConfigError("Sending to an existing Team chat is not supported yet")
             loaded = self.load(saved_chat_id)
             chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
             loaded_messages = _normalize_loaded_chat_messages(loaded)
@@ -2802,10 +2819,10 @@ class OpenMatesChats:
             expected_messages_v = int(chat.get("messages_v") or 0)
         else:
             chat_key = os.urandom(32)
-            encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
-            slug_metadata = _encrypted_object_slug_metadata(slug or title or message, encryption_key=chat_key, lookup_key=master_key)
+            encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, wrapping_key)
+            slug_metadata = _encrypted_object_slug_metadata(slug or title or message, encryption_key=chat_key, lookup_key=wrapping_key)
             encrypted_chat_metadata = {
-                "encrypted_title": _encrypt_aes_gcm_text(title or message[:80], chat_key),
+                "encrypted_title": _encrypt_aes_gcm_text(title or ("New team chat" if normalized_team_id else message[:80]), chat_key),
                 "encrypted_slug": slug_metadata["encrypted_slug"],
                 "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
                 "encrypted_chat_key": encrypted_chat_key,
@@ -2823,14 +2840,23 @@ class OpenMatesChats:
         final_message = _rewrite_remember_message_references(message, rememberable_messages) if _has_remember_message_reference(message) else message
         if encrypted_chat_metadata is not None and title is None and final_message != message:
             encrypted_chat_metadata["encrypted_title"] = _encrypt_aes_gcm_text(final_message[:80], chat_key)
+        inference_history = [
+            *normalized_history,
+            {"role": "user", "content": final_message, **({"name": sender_name} if sender_name else {})},
+        ]
+        team_ai_invocation = (
+            {"history": inference_history}
+            if normalized_team_id and "@openmates" in final_message.casefold()
+            else None
+        )
         inference_request = {
-            "messages": [*normalized_history, {"role": "user", "content": final_message}],
+            "messages": team_ai_invocation["history"] if team_ai_invocation else ([] if normalized_team_id else inference_history),
             "model": model,
             "focus_mode": focus_mode,
             "memory_ids": memory_ids or [],
         }
         payload = {
-            "message": final_message,
+            "message": None if normalized_team_id else final_message,
             "history": normalized_history,
             "save_to_account": True,
             "title": title,
@@ -2849,18 +2875,23 @@ class OpenMatesChats:
                 "client_message_id": message_id,
                 "chat_id": saved_chat_id,
                 "encrypted_content": _encrypt_aes_gcm_text(final_message, chat_key),
-                "encrypted_sender_name": _encrypt_aes_gcm_text("User", chat_key),
+                "encrypted_sender_name": _encrypt_aes_gcm_text(sender_name or "User", chat_key),
                 "role": "user",
                 "created_at": created_at,
                 "updated_at": created_at,
             },
             "encrypted_chat_metadata": encrypted_chat_metadata,
             "inference_request": inference_request,
+            "team_id": normalized_team_id,
+            "team_ai_invocation": team_ai_invocation,
+            "team_member_mentions": team_member_mentions or [],
             "connected_account_directory": connected_account_directory or [],
             "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
         }
         data = self._client._post("/v1/sdk/chats", payload)
         task_id = data.get("task_id")
+        if normalized_team_id and team_ai_invocation is None and not task_id:
+            return ChatResponse(content=None, raw=data)
         if not isinstance(task_id, str) or not task_id:
             raise OpenMatesConfigError("Saved chat dispatch did not return a stable inference task id")
         claim = self._poll_recovery_claim(

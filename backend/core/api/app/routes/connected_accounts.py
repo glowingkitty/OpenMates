@@ -23,6 +23,7 @@ from backend.core.api.app.services.connected_accounts_service import (
     find_plaintext_connected_account_fields,
 )
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
 from backend.shared.providers.revolut_business.client import (
@@ -36,7 +37,11 @@ if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
 
 router = APIRouter(prefix="/v1/connected-accounts", tags=["Connected Accounts"])
-TEAM_CONNECTED_ACCOUNTS_DISABLED = "TEAM_CONNECTED_ACCOUNTS_DISABLED"
+TEAM_ACCOUNT_SECRET_FIELDS = {
+    "encrypted_refresh_token_bundle",
+    "encrypted_server_access_ref",
+    "local_connector_session_id",
+}
 
 
 async def get_current_user(request: Request, response: Response) -> User:
@@ -132,11 +137,17 @@ def _assert_owner_hash(payload: dict[str, Any], hashed_user_id: str) -> None:
         raise HTTPException(status_code=403, detail="Connected account owner hash does not match current user")
 
 
-async def _require_team_role(directus_service: DirectusService, team_id: str | None, user_id: str, roles: set[str]) -> None:
-    del directus_service, user_id, roles
+async def _require_team_role(directus_service: DirectusService, team_id: str | None, user_id: str, roles: set[str]) -> dict[str, Any] | None:
     if not team_id:
-        return
-    raise HTTPException(status_code=501, detail=TEAM_CONNECTED_ACCOUNTS_DISABLED)
+        return None
+    try:
+        return await directus_service.team.require_team_role(team_id, user_id, roles)
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="Team connected account permission denied") from exc
+
+
+def _safe_team_account_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in row.items() if key not in TEAM_ACCOUNT_SECRET_FIELDS}
 
 
 def _context_filter(hashed_user_id: str, team_id: str | None) -> dict[str, Any]:
@@ -212,11 +223,13 @@ async def list_connected_accounts(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> ConnectedAccountListResponse:
     hashed_user_id = _hash_user_id(current_user.id)
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+    membership = await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member", "viewer"})
     rows = await directus_service.get_items(
         "connected_accounts",
         params=_context_filter(hashed_user_id, team_id),
     )
+    if membership and membership.get("role") not in {"owner", "admin"}:
+        rows = [_safe_team_account_row(row) for row in rows or []]
     return ConnectedAccountListResponse(rows=rows or [])
 
 
@@ -318,7 +331,7 @@ async def create_connected_account(
 ) -> ConnectedAccountRowResponse:
     hashed_user_id = _hash_user_id(current_user.id)
     team_id = team_id or body.get("team_id")
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member"})
+    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin"})
     body = _apply_storage_context({key: value for key, value in body.items() if key != "team_id"}, hashed_user_id, team_id)
     try:
         row = ConnectedAccountRow.validate_for_storage(body)
@@ -348,7 +361,7 @@ async def register_local_connected_account_connector(
 ) -> LocalConnectorRegistrationResponse:
     hashed_user_id = _hash_user_id(current_user.id)
     team_id = team_id or body.get("team_id")
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member"})
+    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin"})
     body = _apply_storage_context({key: value for key, value in body.items() if key != "team_id"}, hashed_user_id, team_id)
     session_id = _local_connector_session_id()
     now = _sync_version()
@@ -395,7 +408,7 @@ async def local_connected_account_connector_heartbeat(
 ) -> LocalConnectorHeartbeatResponse:
     _reject_plaintext_fields(body.model_dump())
     hashed_user_id = _hash_user_id(current_user.id)
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member"})
+    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin"})
     row = await _load_owned_account(
         directus_service=directus_service,
         account_id=body.connected_account_id,
@@ -445,7 +458,7 @@ async def complete_local_connected_account_connector_request(
 ) -> LocalConnectorCompleteResponse:
     _reject_plaintext_fields(body.model_dump())
     hashed_user_id = _hash_user_id(current_user.id)
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member"})
+    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin"})
     row = await _load_owned_account(
         directus_service=directus_service,
         account_id=body.connected_account_id,
@@ -488,7 +501,7 @@ async def update_connected_account(
 ) -> ConnectedAccountRowResponse:
     hashed_user_id = _hash_user_id(current_user.id)
     team_id = team_id or body.get("team_id")
-    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin", "member"})
+    await _require_team_role(directus_service, team_id, current_user.id, {"owner", "admin"})
     if not team_id and "hashed_user_id" in body:
         _assert_owner_hash(body, hashed_user_id)
     _reject_plaintext_fields(body)

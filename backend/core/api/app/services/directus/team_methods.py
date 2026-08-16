@@ -265,6 +265,27 @@ class TeamMethods:
             return response[0]
         return None
 
+    async def list_active_member_hashes(self, team_id: str) -> set[str]:
+        """Return active membership hashes for realtime authorization."""
+        memberships = await self.directus_service.get_items(
+            "team_memberships",
+            params={
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[status][_eq]": ACTIVE_STATUS,
+                "fields": "hashed_user_id",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if not isinstance(memberships, list):
+            raise RuntimeError("Failed to list active Team memberships")
+        return {
+            membership["hashed_user_id"]
+            for membership in memberships
+            if isinstance(membership, dict) and isinstance(membership.get("hashed_user_id"), str)
+        }
+
     async def require_team_role(self, team_id: str, user_id: str, allowed_roles: set[str]) -> dict[str, Any]:
         membership = await self.get_membership(team_id, user_id)
         if not membership or membership.get("role") not in allowed_roles:

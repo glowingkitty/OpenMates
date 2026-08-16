@@ -10,7 +10,12 @@ import json
 import pytest
 
 from openmates import OpenMates, OpenMatesConfigError
-from openmates.sdk import _create_api_key_material, _decrypt_aes_gcm_bytes, _decrypt_aes_gcm_text
+from openmates.sdk import (
+    _create_api_key_material,
+    _decrypt_aes_gcm_bytes,
+    _decrypt_aes_gcm_text,
+    _encrypt_aes_gcm_bytes,
+)
 
 
 # contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
@@ -211,6 +216,66 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
         ("PATCH", "/v1/teams/team-1"),
         ("GET", "/v1/teams/team-1/profile-image"),
     ]
+
+
+# contract-test: direct surface=sdks.pip assertions=teams.chat.encrypted-until-invoked,teams.workspace.surface-parity
+def test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference(monkeypatch):
+    master_key = bytes([13]) * 32
+    team_key = bytes([17]) * 32
+    api_key, material = _create_api_key_material("pip teams chat", master_key)
+    encrypted_team_key = _encrypt_aes_gcm_bytes(team_key, master_key)
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append({"method": "GET", "url": url})
+        assert url.endswith("/v1/teams/team-1")
+        return FakeResponse({"team": {"team_id": "team-1", "encrypted_team_key": encrypted_team_key}})
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"method": "POST", "url": url, "json": json})
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({
+                "user": {"id": "user-1"},
+                "key_wrapper": {
+                    "encrypted_key": material["encrypted_master_key"],
+                    "salt": material["salt"],
+                    "key_iv": material["key_iv"],
+                },
+            })
+        if url.endswith("/v1/sdk/chats"):
+            assert json.get("message") is None
+            assert json.get("team_ai_invocation") is None
+            assert json["team_id"] == "team-1"
+            assert json["team_member_mentions"] == ["user-2"]
+            return FakeResponse({"persistent": True, "chat_id": json["chat_id"], "task_id": None, "ai_dispatched": False})
+        raise AssertionError(f"unexpected POST {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=api_key)
+    result = client.chats.send(
+        "private team note",
+        team_id="team-1",
+        sender_name="Alice",
+        team_member_mentions=["user-2"],
+    )
+    assert result.raw["ai_dispatched"] is False
+    payload = requests_seen[2]["json"]
+    chat_key = _decrypt_aes_gcm_bytes(payload["encrypted_chat_key"], team_key)
+    assert chat_key is not None
+    assert _decrypt_aes_gcm_text(payload["encrypted_user_message"]["encrypted_content"], chat_key) == "private team note"
+    assert _decrypt_aes_gcm_text(payload["encrypted_user_message"]["encrypted_sender_name"], chat_key) == "Alice"
+    assert payload["inference_request"]["messages"] == []
 
 
 # contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity

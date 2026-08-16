@@ -1543,6 +1543,19 @@ async def listen_for_chat_updates(app: FastAPI):
 
 
 async def listen_for_embed_data_events(app: FastAPI):
+    """Supervise the per-user Redis listener across transient subscription failures."""
+    while True:
+        try:
+            await _listen_for_embed_data_events_once(app)
+            logger.warning("Per-user WebSocket Redis listener ended; reconnecting")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("Per-user WebSocket Redis listener failed; reconnecting: %s", exc, exc_info=True)
+        await asyncio.sleep(1)
+
+
+async def _listen_for_embed_data_events_once(app: FastAPI):
     """
     Listens to Redis Pub/Sub for embed data events (send_embed_data) that must be
     forwarded to clients so they can encrypt and store embeds, then render previews.
@@ -1575,12 +1588,32 @@ async def listen_for_embed_data_events(app: FastAPI):
                 payload_for_client = redis_payload.get("payload") or redis_payload
                 user_id_uuid = payload_for_client.get("user_id") or redis_payload.get("user_id_uuid")
 
+                if not user_id_uuid and user_id_hash_from_channel:
+                    matching_local_users = [
+                        connected_user_id
+                        for connected_user_id in manager.active_connections
+                        if hashlib.sha256(connected_user_id.encode()).hexdigest() == user_id_hash_from_channel
+                    ]
+                    if len(matching_local_users) == 1:
+                        user_id_uuid = matching_local_users[0]
+
                 if not event_for_client or not user_id_uuid:
                     logger.warning(
                         f"Embed Data Listener: Missing event_for_client or user_id on channel '{redis_channel_name}'. "
                         f"Payload keys: {list(redis_payload.keys())}"
                     )
                     continue
+
+                if event_for_client.startswith("team_"):
+                    team_id = payload_for_client.get("team_id")
+                    membership = (
+                        await app.state.directus_service.team.get_membership(str(team_id), user_id_uuid)
+                        if isinstance(team_id, str) and team_id
+                        else None
+                    )
+                    if not membership:
+                        logger.info("Skipped stale Team event %s for removed member", event_for_client)
+                        continue
 
                 # Enhanced logging for send_embed_data events to track duplication
                 if event_for_client == "send_embed_data":

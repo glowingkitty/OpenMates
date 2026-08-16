@@ -6,8 +6,9 @@ title: Teams
 summary: >
   OpenMates Teams let authenticated users create small-group contexts with
   encrypted team metadata, generated or uploaded team profile imagery,
-  role-gated membership, shared team credits, invite-link onboarding, and
-  device-local active context switching across REST, CLI, SDK, and web surfaces.
+  role-gated membership, shared team credits, team-owned connected accounts,
+  realtime collaboration, invite-link onboarding, and device-local active
+  context switching across REST, CLI, SDK, and web surfaces.
 
 scope:
   includes:
@@ -17,15 +18,21 @@ scope:
     - Generated default team profile image metadata saved during Team creation: white icon name plus colored background chosen by the client, never inferred only from transient UI.
     - Uploaded team profile image processing with the same crop/resize, content-safety scan, storage, and authenticated retrieval guarantees as user profile images.
     - Invite-link acceptance from web URLs containing a fragment secret, including login/signup handoff, recipient email binding for encrypted team-key unwrap, pending approval, decline, and joined states.
-    - Full active-context switch in the web app: chats, billing, tasks, plans, projects, workflows, memories, and new-resource creation resolve to exactly Personal or the selected Team.
+    - Full active-context switch in the web app: chats, billing and usage, tasks, plans, projects, workflows, memories, connected accounts, and new-resource creation resolve to exactly Personal or the selected Team.
     - Web Teams management is settings-only: Settings contains the Teams root and per-team pages, while Personal/Team switching lives in the user profile menu with closed/open team-avatar states.
-    - Team chats require explicit @openmates mention to trigger AI, preserve per-human sender attribution, and consume team credits only.
-    - Team-wide visibility in V1 for chats, tasks, plans, projects, workflows, and memories to every active team member/viewer, with viewer read-only restrictions.
+    - Ordinary team chats are client-side encrypted collaboration: without @openmates, plaintext content and sender display metadata never reach the server, no AI preprocessing or postprocessing runs, and the client derives an encrypted default title from the start of the first human message.
+    - Mentioning @openmates explicitly releases the full current team-chat history to the transient inference cache and processing pipeline; later ordinary messages do not update that plaintext cache, and each later @openmates mention replaces it with the then-current full chat history.
+    - Team chats preserve per-human sender attribution, consume team credits only for @openmates turns, and synchronize encrypted new chats and human messages plus authorized AI processing state and responses to active members in realtime.
+    - Team chat UI keeps the current user's unchanged right-side message layout without a profile image; other members render on the left with username and profile image but no AI badge, while assistants remain on the left with the existing AI identity treatment.
+    - Team chats always show a reminder below the chat header and above the first message that @openmates must be mentioned to trigger AI processing.
+    - Team members can mention another active member by username; the client resolves the recipient identity without exposing message plaintext, and OpenMates sends an in-app notification plus a default-on email notification that contains no message plaintext or private chat content.
+    - Team-wide visibility in V1 for chats, tasks, plans, projects, workflows, memories, and approved team-connected-account capabilities to every active team member/viewer, with viewer read-only restrictions.
+    - Team-owned connected accounts use team-scoped encrypted credential bundles and token brokerage; owner/admin can manage connections, members can use approved capabilities, and viewers remain read-only without receiving raw provider credentials or personal-account fallback.
     - Semantic parity across REST/API, OpenMates CLI, npm SDK, pip SDK, and web for every Teams operation each surface exposes.
   excludes:
     - Private team chats, per-resource ACLs, participant lists, public team discovery, SSO/SAML, domain-restricted teams, and user groups.
     - Per-member credit limits, team-to-personal credit transfers, per-seat subscriptions, and enterprise sales flows.
-    - Team connected-account credential management and team-owned provider token brokerage.
+    - Sharing, copying, importing, or falling back to any member's Personal connected account while Team context is active.
     - Automatic team key rotation, historical rewrap, public-key member key distribution, or strict cryptographic erasure of already-synced data.
     - Apple-native Teams implementation before REST/API, CLI, SDK, web, visual-smoke, and user-confirmation gates are complete or explicitly deferred.
     - A top-level Teams workspace route, workspace navigation tab, or Teams-as-workspace web surface.
@@ -135,6 +142,67 @@ models:
       values: [full_switch]
       required: true
 
+  TeamConnectedAccount:
+    owner_context:
+      type: enum
+      values: [team]
+      required: true
+    team_id:
+      type: stable_id
+      required: true
+    encrypted_credentials:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_provider_secret: forbidden, personal_credential_fallback: forbidden}
+    encrypted_display_metadata:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_private_content: forbidden}
+    management_roles:
+      type: enum_list
+      values: [owner, admin]
+      required: true
+    usage_roles:
+      type: enum_list
+      values: [owner, admin, member, viewer]
+      required: true
+      constraints: {viewer_mutation_or_ai_trigger: forbidden}
+
+  TeamChatProcessingBoundary:
+    ordinary_message_transport:
+      type: enum
+      values: [client_ciphertext_only]
+      required: true
+    ai_trigger:
+      type: literal
+      value: '@openmates'
+      required: true
+    inference_history_scope:
+      type: enum
+      values: [full_current_chat_history]
+      required: true
+    inference_cache_refresh:
+      type: enum
+      values: [only_on_openmates_mention]
+      required: true
+    ordinary_message_processing:
+      type: enum_list
+      values: [no_preprocessing, no_postprocessing, no_title_extraction, no_memory_lookup, no_connected_account_lookup, no_ai_billing]
+      required: true
+
+  TeamMemberMention:
+    recipient:
+      type: active_team_member_id
+      required: true
+    message_content:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_server_delivery: forbidden, plaintext_email_delivery: forbidden}
+    notifications:
+      type: enum_list
+      values: [in_app, email_default_on]
+      required: true
+
 assertions:
   - id: teams.lifecycle.encrypted-profiled
     type: privacy
@@ -154,15 +222,35 @@ assertions:
     depends_on: [models.TeamInvite, examples.team_invites]
   - id: teams.context.full-switch-local
     type: invariant
-    must: Active team context is device-local per client and resolves every supported chat, billing, task, plan, project, workflow, memory, and new-resource operation to exactly Personal or one Team; web must not mix Personal and Team rows in active-context views, and switching one client must not switch another client.
+    must: Active team context is device-local per client and resolves every supported chat, billing and usage, task, plan, project, workflow, memory, connected-account, and new-resource operation to exactly Personal or one Team; web must replace every active-context collection without mixing or retaining stale Personal or other-Team rows, and switching one client must not switch another client.
     depends_on: [models.TeamActiveContext, examples.team_context_switching]
+  - id: teams.connected-accounts.team-owned-isolation
+    type: security
+    must: Team context lists and uses only connected accounts owned by the selected Team; encrypted team credential bundles and provider token brokerage remain team-scoped, owner/admin management is role-gated, members receive only approved capabilities, viewers remain read-only, and no request may list, copy, import, decrypt, broker, or fall back to a member's Personal connected account.
+    depends_on: [models.TeamConnectedAccount, examples.team_connected_accounts]
+  - id: teams.collaboration.realtime-team-sync
+    type: behavior
+    must: Active members in the same Team receive newly created team chats, human messages with sender attribution, AI processing state, and completed AI responses through authorized realtime sync without refresh; Personal clients, other Teams, viewers attempting writes, and removed members receive no unauthorized team mutation or plaintext.
+    depends_on: [models.TeamMembership, models.TeamActiveContext, examples.team_realtime_collaboration]
+  - id: teams.chat.encrypted-until-invoked
+    type: privacy
+    must: Team messages without @openmates are encrypted client-side before transmission and remain ciphertext-only through storage and realtime sync; the server performs no plaintext sanitization, extraction, preprocessing, postprocessing, title generation, memory or connected-account lookup, or AI billing. An @openmates turn explicitly sends the full current chat history to transient inference cache and processing, and ordinary follow-up messages do not refresh that cache until a later @openmates turn replaces it with the then-current full history.
+    depends_on: [models.TeamChatProcessingBoundary, examples.team_chat_privacy]
+  - id: teams.chat.member-mentions-notify
+    type: behavior
+    must: Mentioning an active team member username resolves to an authorized recipient identity without exposing message plaintext and sends both an in-app notification and a default-on email notification; notification payloads, email, logs, and traces contain no message plaintext or private chat content, removed/non-members receive nothing, and member mentions do not trigger AI unless @openmates is also present.
+    depends_on: [models.TeamMemberMention, examples.team_member_mentions]
+  - id: teams.chat.sender-identity-layout
+    type: behavior
+    must: In team chats the current user's messages retain the normal right-side layout without a profile image; other human members render on the left with their username and profile image but no AI badge; assistant messages render on the left with the existing assistant identity and AI indicator; missing human profile images use the standard non-AI fallback.
+    depends_on: [examples.team_sender_layout]
   - id: teams.chat-billing.team-credit-boundary
     type: invariant
-    must: Team chat AI requests require explicit @openmates mention, include per-human sender attribution, charge only the selected team's credit balance, never charge personal credits, and fail with visible insufficient-team-credit or viewer-read-only states before AI execution when the selected Team cannot pay or mutate.
-    depends_on: [examples.team_chat_billing]
+    must: Team chat AI requests require explicit @openmates mention, include the full current chat history with per-human sender attribution, charge only the selected team's credit balance, never charge personal credits, publish processing and completed response state to active team members in realtime, and fail with visible insufficient-team-credit or viewer-read-only states before AI execution when the selected Team cannot pay or mutate.
+    depends_on: [examples.team_chat_billing, examples.team_chat_privacy]
   - id: teams.workspace.surface-parity
     type: parity
-    must: REST/API, CLI, npm SDK, pip SDK, and web preserve the same team lifecycle, profile-image, invite, role, billing, active-context, chat, task, plan, project, workflow, memory, export/import, and visible-failure semantics for every Teams operation that surface implements; web management exists only under Settings with context switching in the user profile menu and no Teams workspace route or navigation tab; unsupported Apple Teams behavior remains deferred until web/user-confirmation gates are complete.
+    must: REST/API, WebSocket sync, CLI, npm SDK, pip SDK, and web preserve the same team lifecycle, profile-image, invite, role, billing, active-context, realtime collaboration, chat, task, plan, project, workflow, memory, connected-account, export/import, and visible-failure semantics for every Teams operation that surface implements; web management exists only under Settings with context switching in the user profile menu and no Teams workspace route or navigation tab; unsupported Apple Teams behavior remains deferred until web/user-confirmation gates are complete.
     depends_on: [models, examples, surfaces]
 
 surfaces:
@@ -198,5 +286,10 @@ examples:
     - team_membership_permissions
     - team_invites
     - team_context_switching
+    - team_connected_accounts
+    - team_realtime_collaboration
+    - team_chat_privacy
+    - team_member_mentions
+    - team_sender_layout
     - team_chat_billing
     - team_surface_parity

@@ -26,8 +26,11 @@ logger = logging.getLogger(__name__)
 NOTIFICATION_RECENT_LIMIT = 100
 NOTIFICATION_RECENT_TTL_SECONDS = 7 * 24 * 60 * 60
 NOTIFICATION_TYPE_CHAT_ASSISTANT_MESSAGE = "chat.assistant_message_received"
+NOTIFICATION_TYPE_TEAM_MEMBER_MENTION = "team.member_mentioned"
 SAFE_TITLE_KEY_OPENMATES = "apps.openmates"
 SAFE_BODY_KEY_NEW_MESSAGE = "notifications.chat_message.new_message_received"
+SAFE_TITLE_KEY_TEAM_MENTION = "notifications.team_member_mention.title"
+SAFE_BODY_KEY_TEAM_MENTION = "notifications.team_member_mention.body"
 
 
 class NotificationEvent(BaseModel):
@@ -71,6 +74,25 @@ class NotificationEventService:
             safe_body_key=SAFE_BODY_KEY_NEW_MESSAGE,
             routing={"chat_id": chat_id},
             metadata={"has_encrypted_preview": has_encrypted_preview},
+        )
+        await self.store_and_publish(event)
+        return event
+
+    async def create_team_member_mention_event(
+        self,
+        *,
+        user_id: str,
+        team_id: str,
+        chat_id: str,
+        message_id: str,
+    ) -> NotificationEvent:
+        """Create a content-free Team member mention event."""
+        event = NotificationEvent(
+            user_id=user_id,
+            type=NOTIFICATION_TYPE_TEAM_MEMBER_MENTION,
+            safe_title_key=SAFE_TITLE_KEY_TEAM_MENTION,
+            safe_body_key=SAFE_BODY_KEY_TEAM_MENTION,
+            routing={"team_id": team_id, "chat_id": chat_id, "message_id": message_id},
         )
         await self.store_and_publish(event)
         return event

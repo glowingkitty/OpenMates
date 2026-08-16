@@ -209,6 +209,7 @@ export interface ChatCreateOptions {
   title?: string;
   goal?: string;
   goalTitle?: string;
+  teamId?: string;
 }
 
 export interface ChatSendOptions extends ChatCreateOptions {
@@ -219,6 +220,8 @@ export interface ChatSendOptions extends ChatCreateOptions {
   recoveryTimeoutMs?: number;
   connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
   connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
+  senderName?: string;
+  teamMemberMentions?: string[];
 }
 
 export interface ConnectedAccountDirectoryEntry {
@@ -1992,7 +1995,7 @@ export class OpenMatesChats {
     if (goal && options.saveToAccount === false) {
       throw new OpenMatesConfigError("Chat goals require a saved account chat. Omit saveToAccount or set saveToAccount: true.");
     }
-    if (options.saveToAccount === true || goal) {
+    if (options.saveToAccount === true || goal || options.teamId) {
       return this.sendSaved(finalMessage, options);
     }
     const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
@@ -2017,6 +2020,10 @@ export class OpenMatesChats {
       throw new OpenMatesConfigError("SDK session did not include the authenticated user identity");
     }
 
+    const teamId = options.teamId?.trim() || null;
+    const wrappingKey = teamId
+      ? await teamKeyForRecord(this.client, await this.client.teams.get(teamId))
+      : masterKey;
     const chatId = options.chatId ? await resolveSdkChatId(this.client, options.chatId) : randomUUID();
     const turnId = randomUUID();
     const messageId = randomUUID();
@@ -2028,6 +2035,9 @@ export class OpenMatesChats {
     let loadedMessages: ChatMessageRecord[] = [];
 
     if (options.chatId) {
+      if (teamId) {
+        throw new OpenMatesConfigError("Sending to an existing Team chat is not supported yet");
+      }
       const loaded = await this.load(chatId);
       const chat = loaded.chat as EncryptedChatMetadata | undefined;
       loadedMessages = normalizeLoadedChatMessages(loaded);
@@ -2043,14 +2053,14 @@ export class OpenMatesChats {
       expectedMessagesV = Number(chat.messages_v ?? 0);
     } else {
       chatKey = new Uint8Array(randomBytes(32));
-      encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+      encryptedChatKey = await encryptBytesWithAesGcm(chatKey, wrappingKey);
       const slugMetadata = await buildEncryptedObjectSlugMetadata({
         value: options.slug ?? options.title ?? message,
         encryptionKey: chatKey,
-        lookupKey: masterKey,
+        lookupKey: wrappingKey,
       });
       encryptedChatMetadata = {
-        encrypted_title: await encryptWithAesGcmCombined(options.title ?? message.slice(0, 80), chatKey),
+        encrypted_title: await encryptWithAesGcmCombined(options.title ?? (teamId ? "New team chat" : message.slice(0, 80)), chatKey),
         encrypted_slug: slugMetadata.encrypted_slug,
         slug_lookup_hash: slugMetadata.slug_lookup_hash,
         encrypted_chat_key: encryptedChatKey,
@@ -2075,8 +2085,16 @@ export class OpenMatesChats {
       chatId,
       1,
     );
+    const inferenceHistory = [...history, {
+      role: "user",
+      content: finalMessage,
+      ...(options.senderName ? { name: options.senderName } : {}),
+    }];
+    const teamAiInvocation = teamId && finalMessage.toLocaleLowerCase().includes("@openmates")
+      ? { history: inferenceHistory }
+      : undefined;
     const inferenceRequest = {
-      messages: [...history, { role: "user", content: finalMessage }],
+      messages: teamId ? teamAiInvocation?.history ?? [] : inferenceHistory,
       model: options.model,
       focus_mode: options.focusMode
         ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
@@ -2088,7 +2106,7 @@ export class OpenMatesChats {
       preflight?: Record<string, unknown>;
       task_id?: string;
     }>("/v1/sdk/chats", {
-      message: finalMessage,
+      message: teamId ? undefined : finalMessage,
       history,
       save_to_account: true,
       title: options.title,
@@ -2107,16 +2125,22 @@ export class OpenMatesChats {
         client_message_id: messageId,
         chat_id: chatId,
         encrypted_content: await encryptWithAesGcmCombined(finalMessage, chatKey),
-        encrypted_sender_name: await encryptWithAesGcmCombined("User", chatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(options.senderName ?? "User", chatKey),
         role: "user",
         created_at: createdAt,
         updated_at: createdAt,
       },
       encrypted_chat_metadata: encryptedChatMetadata,
       inference_request: inferenceRequest,
+      team_id: teamId ?? undefined,
+      team_ai_invocation: teamAiInvocation,
+      team_member_mentions: options.teamMemberMentions ?? [],
       connected_account_directory: options.connectedAccountDirectory ?? [],
       connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
     });
+    if (teamId && !teamAiInvocation && !result.task_id) {
+      return { raw: result };
+    }
     if (!result.task_id) {
       throw new OpenMatesConfigError("Saved chat dispatch did not return a stable inference task id");
     }
