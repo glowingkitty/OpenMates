@@ -6,10 +6,10 @@ export {};
  *
  * Tests the complete newsletter flow:
  *   1. Subscribe via Settings > Newsletter (unauthenticated user) — UI tested
- *   2. Receive confirmation email via Mailosaur
+ *   2. Receive confirmation email via Gmail
  *   3. Follow Brevo tracking link to extract confirm token from hash
  *   4. Call confirm API directly — verify success response
- *   5. Receive "confirmed/welcome" email via Mailosaur
+ *   5. Receive "confirmed/welcome" email via Gmail
  *   6. Follow Brevo tracking link to extract unsubscribe token from hash
  *   7. Call unsubscribe API directly — verify success response
  *   8. Re-subscribe with same email — verifies the flow is repeatable (UI tested)
@@ -27,9 +27,9 @@ export {};
  *     API contracts are validated directly here.
  *
  * REQUIRED ENV VARS:
- *   SIGNUP_TEST_EMAIL_DOMAINS    — comma-separated test domains (e.g. gmail.com or ae20drx9.mailosaur.net)
+ *   SIGNUP_TEST_EMAIL_DOMAINS    — configured Gmail test domain
  *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
- *   MAILOSAUR_API_KEY            — Mailosaur REST API key (fallback)
+ *   GMAIL_TEST_ADDRESS           — dedicated Gmail inbox used with aliases
  *
  * Runtime: ~5–8 minutes (email delivery waits dominate).
  */
@@ -180,7 +180,7 @@ function extractAnchors(htmlBody: string): Array<{ text: string; href: string }>
 }
 
 /**
- * Extract the Brevo tracking URL for a specific anchor from a Mailosaur message.
+ * Extract the Brevo tracking URL for a specific anchor from a Gmail message.
  */
 function extractNewsletterLink(message: any, anchorTextPattern: RegExp, log: any): string | null {
 	const htmlBody: string = message.html?.body ?? '';
@@ -243,6 +243,7 @@ async function callUnsubscribeApi(
 // Test
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=newsletter.lifecycle.double-opt-in,newsletter.lifecycle.unsubscribe-resubscribe
 test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async ({
 	page
 }: {
@@ -254,7 +255,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -263,9 +264,9 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
+	const { deleteAllMessages, waitForMessage } = emailClient!;
 
-	// Unique time-based address using +alias for Gmail or plain local part for Mailosaur
+	// Unique time-based Gmail alias.
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, '0');
 	// Include seconds so two runs in the same minute get different addresses
@@ -299,7 +300,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	log('Waiting for confirmation email (up to 5 min)...');
 	let confirmEmail: any;
 	try {
-		confirmEmail = await waitForMailosaurMessage({
+		confirmEmail = await waitForMessage({
 			sentTo: testEmail,
 			subjectContains: 'confirm',
 			receivedAfter: sentAfterSubscribe,
@@ -360,7 +361,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	log('Waiting for confirmed/welcome email (up to 5 min)...');
 	let welcomeEmail: any;
 	try {
-		welcomeEmail = await waitForMailosaurMessage({
+		welcomeEmail = await waitForMessage({
 			sentTo: testEmail,
 			subjectContains: 'confirmed',
 			receivedAfter: sentAfterConfirm,
@@ -433,7 +434,7 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	log('Waiting for re-subscribe confirmation email (up to 5 min)...');
 	let resubEmail: any;
 	try {
-		resubEmail = await waitForMailosaurMessage({
+		resubEmail = await waitForMessage({
 			sentTo: testEmail,
 			subjectContains: 'confirm',
 			receivedAfter: sentAfterResubscribe,

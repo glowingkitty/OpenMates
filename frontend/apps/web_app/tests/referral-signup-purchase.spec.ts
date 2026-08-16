@@ -59,7 +59,7 @@ async function getReferralCodeFromSettings(page: any): Promise<string> {
 }
 
 async function completeSignupAndPurchase(page: any, context: any, emailClient: any, signupEmail: string, referralCode: string, log: any, screenshot: any): Promise<string> {
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient;
+	const { waitForMessage, extractSixDigitCode } = emailClient;
 	const signupPassword = 'SignupTest!234';
 	const emailLocalPart = signupEmail.split('@')[0].replace(/[^a-z0-9_.]/gi, '_');
 	const signupUsername = `ref_${emailLocalPart.slice(-12)}`.slice(0, 20);
@@ -117,7 +117,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	log('Submitted referred signup basics.', { signupEmail });
 
 	await expect(page.getByRole('link', { name: /open mail app/i })).toBeVisible({ timeout: 10000 });
-	const confirmEmailMessage = await waitForMailosaurMessage({ sentTo: signupEmail, receivedAfter: emailRequestedAt });
+	const confirmEmailMessage = await waitForMessage({ sentTo: signupEmail, receivedAfter: emailRequestedAt });
 	const emailCode = extractSixDigitCode(confirmEmailMessage);
 	expect(emailCode).toBeTruthy();
 	await page.locator('input[inputmode="numeric"][maxlength="6"]').fill(emailCode);
@@ -191,7 +191,7 @@ test('referral signup purchase awards credits and notifies both users', async ({
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
@@ -216,7 +216,7 @@ test('referral signup purchase awards credits and notifies both users', async ({
 		log('Referred user completed signup and purchase.', { referredEmail });
 
 		try {
-			const referralEmail = await emailClient.waitForMailosaurMessage({
+			const referralEmail = await emailClient.waitForMessage({
 				sentTo: TEST_EMAIL,
 				subjectContains: 'Someone used your referral code',
 				receivedAfter: paymentSubmittedAt,

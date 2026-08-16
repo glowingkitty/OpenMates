@@ -56,16 +56,16 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  *
  * ARCHITECTURE NOTES:
  * - The test is intentionally self-contained: we avoid adding npm/pnpm deps by
- *   using built-in Node.js crypto for TOTP and Mailosaur's raw REST API via fetch.
+ *   using built-in Node.js crypto for TOTP and Gmail's REST API via fetch.
  * - The email confirmation code and purchase confirmation email are fetched
- *   from Mailosaur (server + API key must be provided via env vars).
+ *   from the configured Gmail test inbox.
  * - We generate a unique signup email using SIGNUP_TEST_EMAIL_DOMAINS so the
  *   backend domain allowlist can be enforced while still allowing test signups.
  *
  * REQUIRED ENV VARS:
  * - SIGNUP_TEST_EMAIL_DOMAINS: Comma-separated list of allowed test domains.
  * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
- * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
+ * - GMAIL_TEST_ADDRESS: Dedicated Gmail inbox used with run-scoped aliases.
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
@@ -108,7 +108,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	});
 
 	test.slow();
-	// Allow extra time for Mailosaur email delivery, purchase confirmation, and account deletion.
+	// Allow extra time for Gmail delivery, purchase confirmation, and account deletion.
 	// This is a long spec: signup, Settings billing payment, refund link validation, and deletion.
 	test.setTimeout(600000);
 
@@ -121,7 +121,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -129,7 +129,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
-	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
+	const { waitForMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
 		emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
@@ -234,8 +234,8 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	await takeStepScreenshot(page, 'confirm-email');
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
-	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
-	const confirmEmailMessage = await waitForMailosaurMessage({
+	logSignupCheckpoint('Polling Gmail for confirmation email.');
+	const confirmEmailMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: emailRequestedAt
 	});
@@ -328,7 +328,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 
 	// Purchase confirmation email: verify key content and refund link.
 	logSignupCheckpoint('Waiting for purchase confirmation email.');
-	const purchaseEmail = await waitForMailosaurMessage({
+	const purchaseEmail = await waitForMessage({
 		sentTo: signupEmail,
 		subjectContains: 'Purchase confirmation',
 		receivedAfter: paymentSubmittedAt,
@@ -418,7 +418,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 
-	const deleteVerificationMessage = await waitForMailosaurMessage({
+	const deleteVerificationMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: deleteEmailRequestedAt
 	});

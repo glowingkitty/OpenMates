@@ -142,6 +142,16 @@ contracts:
     required_surfaces:
     - gui.web
     - gui.apple
+  feature.newsletter:
+    version: 1
+    status: draft
+    path: features/newsletter
+    fingerprint: 6184acf8cfe6439267ebdb8e678da5fedb8310e84e179e5d34843fbacbf0d7b6
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   feature.notifications:
     version: 1
     status: approved
@@ -1460,6 +1470,46 @@ assertions:
     type: privacy
     fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
     required_surfaces:
+    - gui.web
+    - gui.apple
+  newsletter.lifecycle.double-opt-in:
+    contract: feature.newsletter@1
+    contract_id: feature.newsletter
+    type: behavior
+    fingerprint: bdfd32e88b6e36440b3c8005920d453c333159f0fee4b791f4bf19e16559fc31
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  newsletter.lifecycle.unsubscribe-resubscribe:
+    contract: feature.newsletter@1
+    contract_id: feature.newsletter
+    type: behavior
+    fingerprint: 21be0f9d1a0b755f4d05ffac003ef904ec29463c1b177bf5f1808f76e54e83d9
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  newsletter.privacy.identity-and-token-boundary:
+    contract: feature.newsletter@1
+    contract_id: feature.newsletter
+    type: privacy
+    fingerprint: 23205ba0f739f239e5ba29f9471f8de997a2980d4ec4db288f6465737b643c4b
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  newsletter.surface.semantic-parity:
+    contract: feature.newsletter@1
+    contract_id: feature.newsletter
+    type: parity
+    fingerprint: f429aea53db30f372dd54ec8640b921f00d90bfd03bf9f37474f04838b287cd1
+    required_surfaces:
+    - rest_api
+    - cli
     - gui.web
     - gui.apple
   notifications.settings.ack-persisted:

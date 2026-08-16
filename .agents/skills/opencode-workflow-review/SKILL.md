@@ -26,7 +26,9 @@ explicitly selects recommendation IDs to implement.
 
 ## Workflow
 
-1. Run the manual Luna report:
+1. Run the manual Luna report. The hook treats this exact report-only,
+   `--dry-run-notify` command as a bounded root control-plane operation, so an
+   unmapped chat does not need a repository worktree:
    `python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify`
 2. Read the generated report:
    `logs/nightly-reports/opencode-improvements/latest.md` and `latest.json`.

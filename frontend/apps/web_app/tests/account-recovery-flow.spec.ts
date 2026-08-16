@@ -58,7 +58,7 @@ test.describe.configure({ mode: 'serial' });
  * REQUIRED ENV VARS:
  * - Isolated slot 14 credentials, routed by scripts/run_tests.py.
  * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
- * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
+ * - GMAIL_TEST_ADDRESS: Dedicated Gmail inbox used with run-scoped aliases.
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
@@ -68,6 +68,7 @@ const {
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
 } = getIsolatedTestAccount('account-recovery-flow.spec.ts');
 
+// contract-test: direct surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle
 test('completes full account recovery flow with same password', async ({
 	page,
 	context
@@ -109,7 +110,7 @@ test('completes full account recovery flow with same password', async ({
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -121,7 +122,7 @@ test('completes full account recovery flow with same password', async ({
 		throw new Error('Missing signup test domain after skip guard.');
 	}
 
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
+	const { waitForMessage, extractSixDigitCode } = emailClient!;
 
 	// Grant clipboard permissions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -180,9 +181,9 @@ test('completes full account recovery flow with same password', async ({
 	logRecoveryCheckpoint('Clicked "Can\'t login" button, entering recovery flow.');
 
 	// ========================================================================
-	// Step 4: Wait for recovery code to be sent and retrieve it from Mailosaur
+	// Step 4: Wait for recovery code to be sent and retrieve it from Gmail.
 	// ========================================================================
-	// Record the time BEFORE clicking so we can filter Mailosaur messages
+	// Record the time BEFORE clicking so Gmail polling can filter stale messages.
 	const codeRequestedAt = new Date().toISOString();
 
 	// Wait for the recovery UI to appear (the info text and code input)
@@ -204,9 +205,9 @@ test('completes full account recovery flow with same password', async ({
 	await codeInput.fill(''); // Clear it
 	logRecoveryCheckpoint('Verified code input accepts text input.');
 
-	// Poll Mailosaur for the recovery code email
-	logRecoveryCheckpoint('Polling Mailosaur for recovery code email.');
-	const recoveryEmail = await waitForMailosaurMessage({
+	// Poll Gmail for the recovery code email.
+	logRecoveryCheckpoint('Polling Gmail for recovery code email.');
+	const recoveryEmail = await waitForMessage({
 		sentTo: OPENMATES_TEST_ACCOUNT_EMAIL,
 		receivedAfter: codeRequestedAt,
 		timeoutMs: 120000

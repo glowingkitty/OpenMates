@@ -4,9 +4,10 @@ Handles fetching, caching, and redeeming gift cards.
 
 Most gift cards are single-use and deleted on redemption. A narrow exception
 exists for infrastructure/test cards flagged `is_reusable=true` (see OPE-76 prod
-smoke test): those persist across redemptions and are typically also restricted
-to a specific email domain via `allowed_email_domain`.
+smoke test): those persist and can be restricted to one hashed mailbox identity.
 """
+import base64
+import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
@@ -14,9 +15,8 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 
-class GiftCardDomainMismatchError(Exception):
-    """Raised when a domain-restricted gift card is redeemed by a user whose
-    email domain does not exactly match `allowed_email_domain`."""
+class GiftCardIdentityMismatchError(Exception):
+    """Raised when a gift card is redeemed by a different mailbox identity."""
     pass
 
 
@@ -26,37 +26,47 @@ class GiftCardEmailRequiredError(Exception):
     pass
 
 
-def _enforce_gift_card_domain(
-    allowed_email_domain: Optional[str],
-    user_email: Optional[str],
-) -> None:
-    """
-    Verify the redeemer's email domain matches the card's `allowed_email_domain`.
+class GiftCardRestrictionConfigurationError(Exception):
+    """Raised when a legacy domain-bound card has not been identity-migrated."""
+    pass
 
-    The comparison is an **exact** full-domain match (case-insensitive).
-    A suffix match would be a security hole: `mailosaur.net` as the allowed
-    domain would otherwise let ANY Mailosaur customer redeem the card, since
-    every Mailosaur server issues addresses under `{server_id}.mailosaur.net`.
-    Only the full subdomain counts.
 
-    Raises:
-        GiftCardEmailRequiredError: Card is restricted but no email was provided.
-        GiftCardDomainMismatchError: Email domain does not match exactly.
-    """
-    if not allowed_email_domain:
-        return  # no restriction, nothing to check
-
-    if not user_email or "@" not in user_email:
+def _email_identity_hash(email: str) -> str:
+    """Hash one mailbox identity while treating Gmail aliases as that mailbox."""
+    normalized = email.strip().lower()
+    if "@" not in normalized:
         raise GiftCardEmailRequiredError(
-            "This gift card is restricted to specific email addresses. "
+            "This gift card is restricted to a specific email identity. "
             "Email verification is required to redeem it."
         )
+    local_part, domain = normalized.rsplit("@", 1)
+    if domain in {"gmail.com", "googlemail.com"}:
+        local_part = local_part.split("+", 1)[0].replace(".", "")
+        domain = "gmail.com"
+    canonical_email = f"{local_part}@{domain}"
+    digest = hashlib.sha256(canonical_email.encode("utf-8")).digest()
+    return base64.b64encode(digest).decode("ascii")
 
-    user_domain = user_email.rsplit("@", 1)[1].strip().lower()
-    expected_domain = allowed_email_domain.strip().lower()
 
-    if user_domain != expected_domain:
-        raise GiftCardDomainMismatchError(
+def _enforce_gift_card_identity(
+    allowed_email_identity_hash: Optional[str],
+    legacy_allowed_email_domain: Optional[str],
+    user_email: Optional[str],
+) -> None:
+    """Enforce an exact mailbox identity and fail closed for legacy restrictions."""
+    if legacy_allowed_email_domain and not allowed_email_identity_hash:
+        raise GiftCardRestrictionConfigurationError(
+            "This gift card's email restriction must be migrated before redemption."
+        )
+    if not allowed_email_identity_hash:
+        return
+    if not user_email:
+        raise GiftCardEmailRequiredError(
+            "This gift card is restricted to a specific email identity. "
+            "Email verification is required to redeem it."
+        )
+    if _email_identity_hash(user_email) != allowed_email_identity_hash.strip():
+        raise GiftCardIdentityMismatchError(
             "This gift card cannot be redeemed with this email address."
         )
 
@@ -164,11 +174,10 @@ async def redeem_gift_card(
     the row is left in place so it can be redeemed again, but the per-code cache
     entry is still invalidated so any updated metadata is re-fetched next time.
 
-    If the fetched card has `allowed_email_domain` set, the caller MUST provide
-    `user_email`. The redeemer's email domain is compared exactly (not a suffix
-    match) against `allowed_email_domain` before anything is mutated. A mismatch
-    raises `GiftCardDomainMismatchError`; a missing email raises
-    `GiftCardEmailRequiredError`. Both are propagated to the HTTP layer.
+    If the fetched card has `allowed_email_identity_hash` set, the caller MUST
+    provide `user_email`. Gmail run aliases are canonicalized to the configured
+    mailbox before comparison. Legacy domain-bound cards fail closed until their
+    restriction is migrated.
 
     Args:
         code: The gift card code to redeem
@@ -188,8 +197,9 @@ async def redeem_gift_card(
     # Enforce domain restriction BEFORE any credit mutation. Raising here means
     # the caller (payments route) catches the exception before committing any
     # user state changes, so a rejected restricted card is a clean no-op.
-    _enforce_gift_card_domain(
-        allowed_email_domain=gift_card.get("allowed_email_domain"),
+    _enforce_gift_card_identity(
+        allowed_email_identity_hash=gift_card.get("allowed_email_identity_hash"),
+        legacy_allowed_email_domain=gift_card.get("allowed_email_domain"),
         user_email=user_email,
     )
 
@@ -235,7 +245,7 @@ async def create_gift_card(
     credits_value: int,
     purchaser_user_id_hash: Optional[str] = None,
     is_reusable: bool = False,
-    allowed_email_domain: Optional[str] = None,
+    allowed_email_identity_hash: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Creates a new gift card in Directus.
@@ -247,10 +257,8 @@ async def create_gift_card(
         is_reusable: When true, the card is NOT deleted on redemption. Reserved
             for infrastructure/test cards (e.g. the prod smoke test card).
             Default false preserves existing user-purchase + admin-UI behavior.
-        allowed_email_domain: Optional exact full-domain restriction (e.g.
-            "xyz9abc1.mailosaur.net"). Only users whose email domain matches
-            exactly (case-insensitive) can redeem the card. Default None = any
-            user can redeem (current behavior).
+        allowed_email_identity_hash: Optional hash of the exact mailbox identity
+            allowed to redeem. Gmail aliases resolve to the same identity.
 
     Returns:
         Created gift card data dict if successful, None otherwise
@@ -275,8 +283,8 @@ async def create_gift_card(
         # in Directus writes for the common case.
         if is_reusable:
             gift_card_data["is_reusable"] = True
-        if allowed_email_domain:
-            gift_card_data["allowed_email_domain"] = allowed_email_domain.strip().lower()
+        if allowed_email_identity_hash:
+            gift_card_data["allowed_email_identity_hash"] = allowed_email_identity_hash.strip()
 
         # Create the gift card using create_item (returns tuple: success, data)
         success, created_item = await self.create_item(collection_name, gift_card_data)
@@ -462,4 +470,3 @@ async def get_user_purchased_gift_cards(self, user_id_hash: str) -> List[Dict[st
     except Exception as e:
         logger.error(f"Error fetching purchased gift cards for user: {str(e)}", exc_info=True)
         return []
-

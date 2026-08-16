@@ -8,9 +8,9 @@
  *
  * Environment:
  *   CREATE_ACCOUNT_SLOT  — slot number (1-27), determines email/password
- *   SIGNUP_TEST_EMAIL_DOMAINS — Mailosaur test domain
+ *   SIGNUP_TEST_EMAIL_DOMAINS — Gmail test domain
  *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
- *   MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID — Mailosaur credentials (fallback)
+ *   GMAIL_TEST_ADDRESS — dedicated Gmail inbox used with aliases
  *
  * Usage:
  *   gh workflow run playwright-spec.yml -f spec=create-test-account.spec.ts \
@@ -23,6 +23,7 @@
  * Test reference: python3 scripts/run_tests.py --spec create-test-account.spec.ts
  */
 export {};
+// contract-test-file: tooling
 
 const { test, expect } = require('./helpers/cookie-audit');
 const fs = require('node:fs');
@@ -63,7 +64,7 @@ test.describe('Create persistent test account', () => {
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 		const emailClient = createEmailClient();
-		test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+		test.skip(!emailClient, 'Gmail credentials are required.');
 
 		const quota = await checkEmailQuota();
 		test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -81,7 +82,7 @@ test.describe('Create persistent test account', () => {
 			throw new Error('Missing signup test domain.');
 		}
 
-		const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
+		const { waitForMessage, extractSixDigitCode } = emailClient!;
 
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
@@ -155,8 +156,8 @@ test.describe('Create persistent test account', () => {
 		const openMailLink = page.getByRole('link', { name: /open mail app/i });
 		await expect(openMailLink).toBeVisible({ timeout: 15000 });
 
-		logCheckpoint('Polling Mailosaur for confirmation email.');
-		const confirmEmail = await waitForMailosaurMessage({
+		logCheckpoint('Polling Gmail for confirmation email.');
+		const confirmEmail = await waitForMessage({
 			sentTo: accountEmail,
 			receivedAfter: emailRequestedAt
 		});

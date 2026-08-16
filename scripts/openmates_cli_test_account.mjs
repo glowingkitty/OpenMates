@@ -134,9 +134,7 @@ function getTestAccountCandidates() {
     throw new Error("Missing OPENMATES_TEST_ACCOUNT_* credentials");
   }
 
-  const preferred = candidates.filter((account) => !account.email.includes("mailosaur.net"));
-  const legacy = candidates.filter((account) => account.email.includes("mailosaur.net"));
-  return [...preferred, ...legacy];
+  return candidates;
 }
 
 function getTestAccount(slot) {

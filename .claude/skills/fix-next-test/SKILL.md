@@ -67,5 +67,5 @@ groups remain part of the same campaign.
 - **Attempts are durable** — inspect prior attempts and do not repeat rejected approaches.
 - **Read before writing** — always read the failure report and source code before changing anything
 - **Console errors are real bugs** — fix them in app code, never suppress
-- **Skip Mailosaur/external service failures** — flag them and move to the next test
+- **Keep live-probe failures visible** — group them under their provider parent incident and continue independent groups
 - **Block structurally** — required unresolved input keeps the campaign active and blocked, never partially successful.

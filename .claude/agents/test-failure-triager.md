@@ -37,7 +37,7 @@ python3 scripts/tests.py run --only-failed --dry-run
    - `console.error` / `pageerror` surfaced → real app bug
    - `data-status="finished"` not visible → skill embed not completing
    - `Translation issues: [T:key.name]` → missing i18n key
-   - `Mailosaur API error (401)` → secret rotation (flag, don't group as code bug)
+   - Gmail token or delivery failure → `gmail_delivery` parent incident
    - Timeout exceeded → slow operation or broken wait condition
    - `No such container: api` → CI environment mismatch
 5. **Git-blame the suspects** — for each group, run `git log -5 --oneline -- <suspect-file>` to identify the most recent change that could have caused the regression.
@@ -90,7 +90,7 @@ Return a single JSON code block followed by a one-sentence recommendation. Nothi
     }
   ],
   "skipped": [
-    {"spec": "spec-name.spec.ts", "reason": "external service error: Mailosaur 401"}
+    {"spec": "spec-name.spec.ts", "reason": "blocked by gmail_delivery parent incident"}
   ]
 }
 ```

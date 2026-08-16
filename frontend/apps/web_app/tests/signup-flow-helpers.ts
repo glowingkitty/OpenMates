@@ -17,8 +17,6 @@ const { expect } = require('@playwright/test');
  */
 const ARTIFACTS_DIRNAME = 'artifacts';
 const PREVIOUS_RUN_DIRNAME = 'previous_run';
-const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
-const MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES = new Set([401, 403]);
 const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_RECEIVED_AFTER_TOLERANCE_MS = 10000;
@@ -361,29 +359,7 @@ function getSignupTestDomain(signupTestEmailDomains?: string): string | null {
 }
 
 /**
- * Derive the Mailosaur server ID from the test domain when possible.
- * Mailosaur domains are typically <server-id>.mailosaur.net, so we can
- * parse the server ID if the env var is not set.
- */
-function getMailosaurServerId(signupDomain: string, configuredServerId?: string): string | null {
-	if (configuredServerId) {
-		return configuredServerId;
-	}
-
-	const domainParts = signupDomain.split('.');
-	const isMailosaurDomain = signupDomain.toLowerCase().endsWith('.mailosaur.net');
-	if (isMailosaurDomain && domainParts.length > 2) {
-		return domainParts[0];
-	}
-
-	return null;
-}
-
-/**
  * Build a time-based signup email address.
- *
- * For Mailosaur domains: generates jan151333@ae20drx9.mailosaur.net
- * For Gmail (GMAIL_TEST_ADDRESS set): generates openmates-e2e+jan151333@gmail.com
  *
  * The Gmail +alias format routes all test emails to one inbox while keeping
  * each signup address unique for the backend domain allowlist.
@@ -424,7 +400,9 @@ function buildSignupEmail(domain: string): string {
 		return `${localPart}+${timePart}@${gmailDomain}`;
 	}
 
-	return `${timePart}@${domain}`;
+	throw new Error(
+		`GMAIL_TEST_ADDRESS is required to build an automated signup address; legacy domain ${domain} is unsupported.`
+	);
 }
 
 function deriveSignupCleanupApiUrl(): string {
@@ -507,419 +485,7 @@ async function cleanupFailedSignupAccount(
 }
 
 /**
- * Check Mailosaur daily email quota via /api/usage/limits.
- * Returns { available: boolean, current, limit } so callers can skip tests cleanly.
- */
-async function checkMailosaurQuota(
-	apiKey: string
-): Promise<{ available: boolean; current: number; limit: number }> {
-	const token = Buffer.from(`${apiKey}:`).toString('base64');
-	try {
-		const res = await fetch(`${MAILOSAUR_BASE_URL}/usage/limits`, {
-			headers: { Authorization: `Basic ${token}` }
-		});
-		if (!res.ok) {
-			const message = `[Mailosaur] Quota check failed: HTTP ${res.status}`;
-			console.log(message);
-			if (MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES.has(res.status)) {
-				console.log(
-					`${message}. /usage/limits requires an account-level Mailosaur key; continuing because server-restricted inbox keys can still receive test mail.`
-				);
-				return { available: true, current: -1, limit: -1 };
-			}
-			return { available: false, current: 0, limit: 0 };
-		}
-		const data = await res.json();
-		const email = data.email || {};
-		const current = email.current ?? 0;
-		const limit = email.limit ?? 0;
-		const available = current < limit;
-		if (!available) {
-			console.log(
-				`[Mailosaur] Daily email quota reached (${current}/${limit}). Tests requiring email will be skipped.`
-			);
-		} else {
-			console.log(`[Mailosaur] Email quota: ${current}/${limit} used.`);
-		}
-		return { available, current, limit };
-	} catch (err) {
-		console.log(`[Mailosaur] Quota check error: ${err}`);
-		return { available: true, current: -1, limit: -1 };
-	}
-}
-
-/**
- * Create a Mailosaur client wrapper with basic auth and polling helpers.
- * The goal is to keep mail polling logic consistent across signup tests.
- */
-function createMailosaurClient({
-	apiKey,
-	serverId,
-	baseUrl = MAILOSAUR_BASE_URL
-}: {
-	apiKey: string;
-	serverId: string;
-	baseUrl?: string;
-}) {
-	if (!apiKey) {
-		throw new Error('Mailosaur API key is required for mail helper usage.');
-	}
-	if (!serverId) {
-		throw new Error('Mailosaur server ID is required for mail helper usage.');
-	}
-
-	/**
-	 * Build the Mailosaur basic auth header (API key as username, blank password).
-	 * This is required for all Mailosaur REST calls.
-	 */
-	function buildMailosaurAuthHeader(): string {
-		const token = Buffer.from(`${apiKey}:`).toString('base64');
-		return `Basic ${token}`;
-	}
-
-	/**
-	 * Call the Mailosaur REST API with basic error handling and JSON parsing.
-	 * We keep this generic so email confirmation and purchase checks can share it.
-	 */
-	async function mailosaurFetch(
-		mailPath: string,
-		options: {
-			method?: string;
-			headers?: Record<string, string>;
-			body?: Record<string, unknown>;
-		} = {}
-	): Promise<any> {
-		const response = await fetch(`${baseUrl}${mailPath}`, {
-			method: options.method || 'GET',
-			headers: {
-				Authorization: buildMailosaurAuthHeader(),
-				'Content-Type': 'application/json',
-				...(options.headers || {})
-			},
-			body: options.body ? JSON.stringify(options.body) : undefined
-		});
-
-		if (!response.ok) {
-			const errorBody = await response.text();
-			throw new Error(`Mailosaur API error (${response.status}): ${errorBody}`);
-		}
-
-		return response.json();
-	}
-
-	/**
-	 * Mailosaur message shape (minimal fields used in signup tests).
-	 */
-	interface MailosaurMessage {
-		id?: string;
-		_id?: string;
-		subject?: string;
-		text?: { body?: string };
-		html?: { body?: string };
-		attachments?: Array<{
-			id?: string;
-			fileName?: string;
-			filename?: string;
-			contentType?: string;
-			content?: string;
-		}>;
-	}
-
-	/**
-	 * Delete all messages from the Mailosaur server inbox.
-	 *
-	 * Use this before a test that relies on mail arrival to ensure no leftover
-	 * emails from previous runs interfere with the current run. The Mailosaur
-	 * DELETE /messages?server=<id> endpoint removes all messages in the server.
-	 */
-	async function deleteAllMessages(): Promise<void> {
-		const response = await fetch(`${baseUrl}/messages?server=${serverId}`, {
-			method: 'DELETE',
-			headers: {
-				Authorization: buildMailosaurAuthHeader()
-			}
-		});
-		// 204 = success, 404 = already empty — both are acceptable
-		if (!response.ok && response.status !== 404) {
-			const errorBody = await response.text();
-			if (MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES.has(response.status)) {
-				console.log(
-					`[Mailosaur] Skipping inbox cleanup: DELETE /messages returned ${response.status}. ` +
-						`Server-restricted keys may not allow destructive cleanup; fresh-message filtering still protects the test. ${errorBody}`
-				);
-				return;
-			}
-			throw new Error(`Mailosaur delete-all error (${response.status}): ${errorBody}`);
-		}
-	}
-
-	/**
-	 * Poll Mailosaur for a message that matches a recipient and optional subject.
-	 * We keep the polling explicit to avoid implicit SDK retries and to reduce
-	 * hidden test flakiness.
-	 *
-	 * Uses the GET /messages list endpoint (not POST /messages/search) because
-	 * the search endpoint has a search-indexing delay that can cause fresh emails
-	 * to not be found for several minutes after arrival. The list endpoint reflects
-	 * real-time inbox state.
-	 *
-	 * Client-side filtering is applied for receivedAfter and subjectContains since
-	 * the Mailosaur list API does not filter by these fields reliably.
-	 *
-	 * Best practice: call deleteAllMessages() before the test so no stale emails
-	 * from previous runs interfere.
-	 */
-	async function waitForMailosaurMessage({
-		sentTo,
-		subjectContains,
-		receivedAfter,
-		timeoutMs = 120000,
-		pollIntervalMs = 5000
-	}: {
-		sentTo: string;
-		subjectContains?: string;
-		receivedAfter: string;
-		timeoutMs?: number;
-		pollIntervalMs?: number;
-	}): Promise<MailosaurMessage> {
-		const deadline = Date.now() + timeoutMs;
-		const receivedAfterMs = new Date(receivedAfter).getTime();
-
-		while (Date.now() < deadline) {
-			let listResponse: any = null;
-			const elapsed = Math.round((Date.now() - (deadline - timeoutMs)) / 1000);
-			try {
-				// Use GET /messages for real-time inbox listing (POST /search has indexing lag)
-				listResponse = await mailosaurFetch(`/messages?server=${serverId}`);
-			} catch (err: any) {
-				// 404 = empty inbox — treat as no results
-				if (err?.message?.includes('404')) {
-					console.log(`[Mailosaur] ${elapsed}s: 404 (empty inbox)`);
-					listResponse = { items: [] };
-				} else {
-					throw err; // Re-throw genuine errors
-				}
-			}
-
-			const allItems: any[] = listResponse.items || [];
-			console.log(
-				`[Mailosaur] ${elapsed}s: GET /messages returned ${allItems.length} item(s)`,
-				allItems.map((i: any) => `${i.received} — ${i.subject}`)
-			);
-
-			// Apply client-side filters: sentTo, receivedAfter, subjectContains
-			const matching = allItems.filter((item: any) => {
-				// sentTo: check the `to` array
-				const toAddresses: any[] = item.to || [];
-				const toMatch = toAddresses.some(
-					(addr: any) => addr.email?.toLowerCase() === sentTo.toLowerCase()
-				);
-				if (!toMatch) {
-					console.log(`[Mailosaur] Skipping — sentTo mismatch: ${JSON.stringify(toAddresses)}`);
-					return false;
-				}
-
-				// receivedAfter: client-side time filter
-				if (receivedAfterMs) {
-					const receivedMs = new Date(item.received).getTime();
-					if (receivedMs < receivedAfterMs) {
-						console.log(`[Mailosaur] Skipping — too old: ${item.received} < ${receivedAfter}`);
-						return false;
-					}
-				}
-
-				// subjectContains: case-insensitive substring match
-				if (subjectContains) {
-					const subject: string = item.subject || '';
-					if (!subject.toLowerCase().includes(subjectContains.toLowerCase())) {
-						console.log(`[Mailosaur] Skipping — subject mismatch: "${subject}"`);
-						return false;
-					}
-				}
-
-				return true;
-			});
-
-			if (matching.length > 0) {
-				console.log(
-					`[Mailosaur] Found matching message: ${matching[0].received} — ${matching[0].subject}`
-				);
-				const messageId = matching[0].id || matching[0]._id;
-				return mailosaurFetch(`/messages/${messageId}`);
-			}
-
-			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-		}
-
-		throw new Error(`Timed out waiting for Mailosaur message sent to ${sentTo}`);
-	}
-
-	/**
-	 * Extract the first 6-digit code from a Mailosaur message body or subject.
-	 * This is used for the email verification step during signup.
-	 */
-	function extractSixDigitCode(message: MailosaurMessage): string | null {
-		const candidateText = [
-			message.subject || '',
-			message.text?.body || '',
-			message.html?.body || ''
-		].join(' ');
-
-		const match = candidateText.match(/\b(\d{6})\b/);
-		return match ? match[1] : null;
-	}
-
-	/**
-	 * Extract all clickable links from a Mailosaur message payload.
-	 * We consolidate hrefs, raw URLs, and Mailosaur-parsed links for debugging.
-	 */
-	function extractMessageLinks(message: MailosaurMessage): string[] {
-		const htmlBody = message.html?.body || '';
-		const textBody = message.text?.body || '';
-		const links: string[] = [];
-
-		// Prefer explicit HTML hrefs when available.
-		const hrefRegex = /href=["']([^"']+)["']/gi;
-		let hrefMatch = hrefRegex.exec(htmlBody);
-		while (hrefMatch) {
-			links.push(hrefMatch[1]);
-			hrefMatch = hrefRegex.exec(htmlBody);
-		}
-
-		// Fallback: extract raw URLs from text or HTML.
-		const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
-		const textMatches = textBody.match(urlRegex) || [];
-		const htmlMatches = htmlBody.match(urlRegex) || [];
-		links.push(...textMatches, ...htmlMatches);
-
-		// If Mailosaur provides parsed links, include them as well.
-		const htmlLinks = (message.html as any)?.links;
-		if (Array.isArray(htmlLinks)) {
-			for (const link of htmlLinks) {
-				if (typeof link?.href === 'string') {
-					links.push(link.href);
-				} else if (typeof link?.url === 'string') {
-					links.push(link.url);
-				}
-			}
-		}
-
-		// De-duplicate to keep logs readable.
-		return Array.from(new Set(links));
-	}
-
-	/**
-	 * Extract a refund link from a purchase confirmation email.
-	 * We look for a URL that includes "refund" to align with the email template.
-	 */
-	function extractRefundLink(message: MailosaurMessage): string | null {
-		const links = extractMessageLinks(message);
-		const htmlBody = message.html?.body || '';
-		const textBody = message.text?.body || '';
-		const refundKeyword = /refund/i;
-
-		// Primary match: direct refund URL with the keyword in the link itself.
-		const refundLink = links.find((link) => refundKeyword.test(link));
-		if (refundLink) {
-			return refundLink;
-		}
-
-		// Secondary match: URL appears near "refund" language in the text body.
-		for (const link of links) {
-			const linkIndex = textBody.indexOf(link);
-			if (linkIndex === -1) {
-				continue;
-			}
-			const contextStart = Math.max(0, linkIndex - 120);
-			const contextEnd = Math.min(textBody.length, linkIndex + link.length + 120);
-			const contextSlice = textBody.slice(contextStart, contextEnd);
-			if (refundKeyword.test(contextSlice)) {
-				return link;
-			}
-		}
-
-		// Tertiary match: anchor text or surrounding HTML mentions refunds.
-		const anchorRegex = /<a [^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
-		let anchorMatch = anchorRegex.exec(htmlBody);
-		while (anchorMatch) {
-			const href = anchorMatch[1];
-			const anchorText = anchorMatch[2].replace(/<[^>]*>/g, ' ');
-			const anchorIndex = anchorMatch.index;
-			const htmlContext = htmlBody.slice(
-				Math.max(0, anchorIndex - 120),
-				Math.min(htmlBody.length, anchorIndex + anchorMatch[0].length + 120)
-			);
-			if (refundKeyword.test(anchorText) || refundKeyword.test(htmlContext)) {
-				return href;
-			}
-			anchorMatch = anchorRegex.exec(htmlBody);
-		}
-
-		// Fallback: some templates link to billing invoices without the explicit /refund suffix.
-		// We treat those as valid refund entry points when the refund action is handled in-app.
-		const invoiceLink = links.find(
-			(link) =>
-				/#settings\/billing\/invoices\//i.test(link) ||
-				/\/settings\/billing\/invoices\//i.test(link)
-		);
-		return invoiceLink || null;
-	}
-
-	async function getAttachmentContent(attachment: {
-		id?: string;
-		content?: string;
-	}): Promise<Buffer> {
-		if (attachment.content) {
-			return Buffer.from(attachment.content, 'base64');
-		}
-		if (!attachment.id) {
-			return Buffer.alloc(0);
-		}
-
-		const response = await fetch(`${baseUrl}/files/attachments/${attachment.id}`, {
-			headers: { Authorization: buildMailosaurAuthHeader() }
-		});
-		if (!response.ok) {
-			const errorBody = await response.text();
-			throw new Error(`Mailosaur attachment download error (${response.status}): ${errorBody}`);
-		}
-
-		return Buffer.from(await response.arrayBuffer());
-	}
-
-	async function getPdfAttachments(
-		message: MailosaurMessage
-	): Promise<Array<{ filename: string; content: Buffer }>> {
-		const attachments = message.attachments || [];
-		const pdfAttachments = attachments.filter((attachment) => {
-			const filename = attachment.fileName || attachment.filename || '';
-			return /\.pdf$/i.test(filename) || attachment.contentType === 'application/pdf';
-		});
-
-		const results: Array<{ filename: string; content: Buffer }> = [];
-		for (const attachment of pdfAttachments) {
-			results.push({
-				filename: attachment.fileName || attachment.filename || 'attachment.pdf',
-				content: await getAttachmentContent(attachment)
-			});
-		}
-
-		return results;
-	}
-
-	return {
-		mailosaurFetch,
-		deleteAllMessages,
-		waitForMailosaurMessage,
-		extractSixDigitCode,
-		extractMessageLinks,
-		extractRefundLink,
-		getPdfAttachments
-	};
-}
-
-/**
- * Gmail API email client — drop-in replacement for createMailosaurClient.
+ * Gmail API email client for automated email assertions.
  * Uses OAuth2 refresh tokens to authenticate against the Gmail REST API.
  * No npm dependencies — pure fetch() calls.
  *
@@ -1001,7 +567,7 @@ function createGmailClient({
 
 	/**
 	 * Gmail message shape (minimal fields used in tests).
-	 * Matches the MailosaurMessage interface for compatibility.
+	 * Normalized for the email assertions shared by signup and notification tests.
 	 */
 	interface GmailMessage {
 		id?: string;
@@ -1082,7 +648,7 @@ function createGmailClient({
 
 	/**
 	 * No-op for Gmail — we use gmail.readonly scope so can't delete.
-	 * Stale messages are filtered out by received time in waitForMailosaurMessage,
+	 * Stale messages are filtered out by received time in waitForMessage,
 	 * so inbox cleanup is not needed.
 	 */
 	async function deleteAllMessages(): Promise<void> {
@@ -1094,9 +660,9 @@ function createGmailClient({
 	 * Gmail search does not reliably match plus aliases across provider-specific
 	 * delivery headers, so list recent messages and filter full headers locally.
 	 *
-	 * Drop-in replacement for waitForMailosaurMessage — same parameters and behavior.
+	 * The recipient must be the configured Gmail inbox or one of its aliases.
 	 */
-	async function waitForMailosaurMessage({
+	async function waitForMessage({
 		sentTo,
 		subjectContains,
 		receivedAfter,
@@ -1109,6 +675,20 @@ function createGmailClient({
 		timeoutMs?: number;
 		pollIntervalMs?: number;
 	}): Promise<GmailMessage> {
+		const configuredAddress = process.env.GMAIL_TEST_ADDRESS?.toLowerCase();
+		if (!configuredAddress) {
+			throw new Error('GMAIL_TEST_ADDRESS is required for Gmail message polling.');
+		}
+		const [configuredLocal, configuredDomain] = configuredAddress.split('@');
+		const [recipientLocal, recipientDomain] = sentTo.toLowerCase().split('@');
+		if (
+			!configuredLocal ||
+			!configuredDomain ||
+			recipientDomain !== configuredDomain ||
+			(recipientLocal !== configuredLocal && !recipientLocal.startsWith(`${configuredLocal}+`))
+		) {
+			throw new Error('Gmail recipient must match GMAIL_TEST_ADDRESS or one of its run aliases.');
+		}
 		const deadline = Date.now() + timeoutMs;
 		const receivedAfterMs = new Date(receivedAfter).getTime() - GMAIL_RECEIVED_AFTER_TOLERANCE_MS;
 		const normalizedSentTo = sentTo.toLowerCase();
@@ -1277,7 +857,7 @@ function createGmailClient({
 	return {
 		gmailFetch,
 		deleteAllMessages,
-		waitForMailosaurMessage,
+		waitForMessage,
 		extractSixDigitCode,
 		extractMessageLinks,
 		extractRefundLink,
@@ -1285,17 +865,11 @@ function createGmailClient({
 	};
 }
 
-/**
- * Unified email client factory — picks Gmail or Mailosaur based on available env vars.
- * Gmail is preferred unless a recipient address clearly belongs to Mailosaur.
- *
- * Returns the same interface regardless of backend:
- *   { deleteAllMessages, waitForMailosaurMessage, extractSixDigitCode, extractMessageLinks, extractRefundLink, getPdfAttachments }
- */
+/** Create the only supported automated-test inbox client. */
 function createEmailClient(recipientEmail?: string): {
-	provider: 'gmail' | 'mailosaur';
+	provider: 'gmail';
 	deleteAllMessages: () => Promise<void>;
-	waitForMailosaurMessage: (opts: {
+	waitForMessage: (opts: {
 		sentTo: string;
 		subjectContains?: string;
 		receivedAfter: string;
@@ -1310,58 +884,43 @@ function createEmailClient(recipientEmail?: string): {
 	const gmailClientId = process.env.GMAIL_CLIENT_ID;
 	const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
 	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
-	const recipientDomain = recipientEmail?.split('@')[1]?.toLowerCase() ?? '';
-	const shouldUseMailosaur = recipientDomain.endsWith('.mailosaur.net');
 
-	if (!shouldUseMailosaur && gmailClientId && gmailClientSecret && gmailRefreshToken) {
+	if (gmailClientId && gmailClientSecret && gmailRefreshToken) {
 		const client = createGmailClient({
 			clientId: gmailClientId,
 			clientSecret: gmailClientSecret,
 			refreshToken: gmailRefreshToken
 		});
+		if (recipientEmail) {
+			const configuredAddress = process.env.GMAIL_TEST_ADDRESS?.toLowerCase();
+			const [configuredLocal, configuredDomain] = configuredAddress?.split('@') ?? [];
+			const [recipientLocal, recipientDomain] = recipientEmail.toLowerCase().split('@');
+			if (
+				!configuredLocal ||
+				!configuredDomain ||
+				recipientDomain !== configuredDomain ||
+				(recipientLocal !== configuredLocal && !recipientLocal.startsWith(`${configuredLocal}+`))
+			) {
+				throw new Error('Email test recipient must match GMAIL_TEST_ADDRESS or one of its aliases.');
+			}
+		}
 		return { provider: 'gmail', ...client };
-	}
-
-	const mailosaurApiKey = process.env.MAILOSAUR_API_KEY;
-	const mailosaurServerId = process.env.MAILOSAUR_SERVER_ID;
-	const signupDomain =
-		recipientDomain || getSignupTestDomain(process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '');
-	const derivedServerId = signupDomain
-		? getMailosaurServerId(signupDomain, mailosaurServerId ?? undefined)
-		: mailosaurServerId;
-
-	if (mailosaurApiKey && derivedServerId) {
-		const client = createMailosaurClient({
-			apiKey: mailosaurApiKey,
-			serverId: derivedServerId
-		});
-		return { provider: 'mailosaur', ...client };
 	}
 
 	return null;
 }
 
-/**
- * Check email provider quota. For Gmail this is a no-op (effectively unlimited).
- * For Mailosaur, checks the daily limit.
- */
-
-async function checkEmailQuota(
-	recipientEmail?: string
-): Promise<{ available: boolean; current: number; limit: number }> {
-	const recipientDomain = recipientEmail?.split('@')[1]?.toLowerCase() ?? '';
-	const shouldUseMailosaur = recipientDomain.endsWith('.mailosaur.net');
-	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
-	if (gmailRefreshToken && !shouldUseMailosaur) {
+/** Gmail API quota is not modeled as a per-test inbox limit. */
+async function checkEmailQuota(): Promise<{ available: boolean; current: number; limit: number }> {
+	if (
+		process.env.GMAIL_CLIENT_ID &&
+		process.env.GMAIL_CLIENT_SECRET &&
+		process.env.GMAIL_REFRESH_TOKEN &&
+		process.env.GMAIL_TEST_ADDRESS
+	) {
 		console.log('[Gmail] No quota limits — skipping quota check.');
 		return { available: true, current: 0, limit: 999999 };
 	}
-
-	const mailosaurApiKey = process.env.MAILOSAUR_API_KEY;
-	if (mailosaurApiKey) {
-		return checkMailosaurQuota(mailosaurApiKey);
-	}
-
 	return { available: false, current: 0, limit: 0 };
 }
 
@@ -1722,11 +1281,8 @@ module.exports = {
 	cleanupFailedSignupAccount,
 	fillStripeCardDetails,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildSignupEmail,
 	buildTestAccountEmail,
-	checkMailosaurQuota,
-	createMailosaurClient,
 	createGmailClient,
 	createEmailClient,
 	checkEmailQuota,

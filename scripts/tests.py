@@ -2088,7 +2088,7 @@ def classify_failure(test: dict[str, Any]) -> str:
         return "ai_response"
     if any(token in text for token in ("focus-mode", "skill", "app_skill", "app-skill")):
         return "app_skill"
-    if any(token in text for token in ("mailosaur", "oauth", "calendar", "provider", "quota", "external service")):
+    if any(token in text for token in ("gmail", "oauth", "calendar", "provider", "quota", "external service")):
         return "provider_external"
     if "github actions conclusion" in text or "process completed with exit code" in text:
         return "github_actions_wrapper"

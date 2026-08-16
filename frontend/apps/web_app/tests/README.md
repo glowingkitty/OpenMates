@@ -28,7 +28,7 @@ across signup, 2FA enrollment, and payment.
 
 Common functionality used across signup tests is extracted into `signup-flow-helpers.ts` to ensure consistency and reduce code duplication. This includes:
 - Screenshot and logging helpers
-- Mailosaur client for email polling
+- Gmail client for email polling
 - Stripe card detail filling
 - TOTP generation for 2FA
 - Signup domain and email generation logic
@@ -36,8 +36,8 @@ Common functionality used across signup tests is extracted into `signup-flow-hel
 ## Required Environment Variables
 
 - `SIGNUP_TEST_EMAIL_DOMAINS` (comma-separated list of allowed test domains)
-- `MAILOSAUR_API_KEY` (Mailosaur API key for inbox polling)
-- `MAILOSAUR_SERVER_ID` (optional if domain is `<server>.mailosaur.net`)
+- `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN` (Gmail API access)
+- `GMAIL_TEST_ADDRESS` (dedicated inbox used with run-scoped aliases)
 - `OPENMATES_TEST_ACCOUNT_EMAIL` (Email for the automated chat test)
 - `OPENMATES_TEST_ACCOUNT_PASSWORD` (Password for the automated chat test)
 - `OPENMATES_TEST_ACCOUNT_OTP_KEY` (2FA secret for the automated chat test)
@@ -56,7 +56,7 @@ OPENMATES_TEST_ACCOUNT_EMAIL=...
 OPENMATES_TEST_ACCOUNT_PASSWORD=...
 OPENMATES_TEST_ACCOUNT_OTP_KEY=...
 SIGNUP_TEST_EMAIL_DOMAINS=...
-MAILOSAUR_API_KEY=...
+GMAIL_TEST_ADDRESS=...
 ```
 
 ### Run All Tests
@@ -82,7 +82,7 @@ Use `PLAYWRIGHT_TEST_GREP` to filter tests by name (case-insensitive regex):
 ```bash
 docker compose -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS \
-  -e MAILOSAUR_API_KEY \
+  -e GMAIL_TEST_ADDRESS \
   -e PLAYWRIGHT_TEST_BASE_URL \
   -e PLAYWRIGHT_TEST_GREP="passkey" \
   playwright

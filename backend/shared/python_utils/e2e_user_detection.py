@@ -79,7 +79,7 @@ def is_non_production_e2e_email(email: Any) -> bool:
     if any(marker in local_part for marker in _TEST_LOCAL_MARKERS):
         return True
 
-    if domain in _signup_test_domains() or domain.endswith(".mailosaur.net"):
+    if domain in _signup_test_domains():
         return True
 
     return False

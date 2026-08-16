@@ -1,0 +1,688 @@
+schema_version: 2
+id: nightly-test-zero-failures
+title: Nightly Test Zero-Failure Workflow
+status: implementing
+
+goal: >
+  Make nightly failures fast to classify and eliminate by removing Mailosaur,
+  isolating deterministic tests, separating visible deterministic and live-probe
+  lanes, collapsing shared prerequisite failures into parent incidents, and
+  giving campaigns one canonical evidence and full-run completion workflow,
+  without blocking unrelated feature development on the historical backlog.
+
+scope:
+  in:
+    - Remove active Mailosaur clients, fallbacks, credentials, test identities, CI inputs, docs, and agent instructions.
+    - Use Gmail run aliases and provider-neutral email test helper names exclusively.
+    - Replace broad test-domain authorization with exact test-identity authorization where Gmail domains would be unsafe.
+    - Add deterministic prerequisite checks and parent-incident classification for deployment, workers, Gmail, auth state, chat transport, embed delivery, mutable fixtures, and external providers.
+    - Report deterministic tests and live integration probes in separate visible lanes while preserving the eventual goal of zero failures in both.
+    - Add run-scoped state declarations and shared reset/readiness fixtures for browser, storage, account, chat, notifications, and security reminders.
+    - Make campaign overlap selection fail closed and require an explicit campaign or canonical failure scope.
+    - Add a canonical privacy-safe investigation command with durable artifact resolution and validated diagnostic presets.
+    - Require a final full nightly-equivalent zero-failure run before the global campaign completes.
+    - Move duplicated shared app-skill and delivery behavior to lower-layer contracts while retaining browser-specific Playwright assertions.
+    - Extend deterministic audits so new tests cannot reintroduce removed providers, undeclared shared state, or repeated timing workarounds.
+    - Run a durable campaign that continues reducing the existing backlog to zero without gating unrelated feature work.
+  out:
+    - A user-facing web or Apple interface.
+    - A public or developer REST API.
+    - Proof-video generation; the user explicitly waived it for this internal tooling work.
+    - Quarantining, suppressing, omitting, or silently retrying away failed tests.
+    - Treating blocked dependent tests as passing.
+    - Requiring the historical global backlog to be green before unrelated feature work can be implemented or verified.
+    - Automatically changing disputed product behavior merely to satisfy a test.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401, so no new tracker issue was created or linked.
+  docs:
+    - docs/specs/directus-test-control-plane/spec.yml
+    - docs/specs/test-debug-campaigns/spec.yml
+    - docs/specs/release-core-journeys-gate/spec.yml
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/testing.md
+    - .claude/rules/testing.md
+  code_patterns:
+    - scripts/tests.py
+    - scripts/run_tests.py
+    - scripts/audit_playwright_determinism.py
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - .github/workflows/playwright-spec.yml
+    - .agents/skills/fix-tests/SKILL.md
+    - .opencode/agents/test-failure-triager.md
+    - .opencode/agents/e2e-test-investigator.md
+  tests:
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+  evidence:
+    - The 2026-08-16 nightly recorded 84 failures among 5061 tests, compared with 74 failures in the preceding nightly.
+    - Deterministic triage produced 71 groups for 84 failures even though current evidence identified shared auth-state, worker-health, chat-transport, and embed-delivery causes.
+    - Recent failure screenshots showed tests expecting logged-out or shared state while authenticated settings state remained active.
+    - Gmail polling currently exposes the legacy method name waitForMailosaurMessage and can poll Gmail for a Mailosaur-domain recipient.
+    - Seven-day OpenCode telemetry recorded repeated routing failures, missing runtime artifacts, oversized searches, and ambiguous campaign selection.
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - This changes internal test tooling and test fixtures, not Apple product behavior.
+    - Apple test failures remain eligible campaign members and visible in global counts.
+  verification:
+    - No Apple app build or UI parity run is required.
+  intentional_native_differences: [none]
+
+clarification:
+  rounds:
+    - question: Should deterministic tests and live probes report separately?
+      answer: Yes; both remain visible and the eventual global goal is zero failures across all tests.
+    - question: Should active Mailosaur support be retained as a fallback?
+      answer: No; fully remove it because the subscription is inactive and Gmail is the sole receiver.
+    - question: May flaky tests be quarantined temporarily?
+      answer: No; do not risk hiding failures.
+    - question: Is a final full nightly-equivalent run required after individual groups pass?
+      answer: Yes; the global campaign completes only after the combined run reaches zero.
+    - question: May the existing failure backlog block unrelated feature development?
+      answer: No; new features continue with their scoped verification and own attributable regressions.
+  vision_summary: >
+    Every failure remains visible and owned, but shared prerequisite failures are
+    represented once with blocked dependants rather than debugged as unrelated
+    symptoms. Gmail is the only inbox receiver, deterministic and live probes
+    have separate health signals, unrelated features continue through scoped
+    gates, and the global campaign reaches completion only after a full run has
+    zero failures in every lane.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ae78feea3ce1683a82b28705fc465920980fca27
+
+approvals:
+  product_contract:
+    status: not_required
+    reason: The user classified this as internal developer tooling and explicitly waived a product contract.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-08-16T00:00:00Z"
+    reason: The user confirmed the five workflow decisions and instructed implementation to continue without further approval pauses.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Gmail is the only active automated-test inbox receiver.
+    reason: The Mailosaur subscription is inactive and fallback behavior produces stale assumptions and impossible recipient/provider combinations.
+    decided_at: "2026-08-16T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Deterministic and live-probe lanes report separately, but neither can hide failures and global zero requires both lanes green.
+    reason: Separate ownership improves diagnosis without weakening the eventual quality goal.
+    decided_at: "2026-08-16T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Failed tests are never quarantined or converted to green by retries.
+    reason: The user prefers visible risk over a faster but potentially misleading gate.
+    decided_at: "2026-08-16T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: The global campaign requires a final full nightly-equivalent zero-failure run.
+    reason: Batch interactions and shared-state contamination are not proved by isolated group reruns.
+    decided_at: "2026-08-16T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Historical unrelated failures do not block feature work whose scoped required checks pass.
+    reason: Failure reduction must not stop product development, while newly attributable regressions remain owned by the introducing change.
+    decided_at: "2026-08-16T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: No proof video is required for this non-visual internal tooling implementation.
+    reason: The user explicitly waived proof video and no product UI is changed.
+    decided_at: "2026-08-16T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft a permanent product contract before the tooling spec.
+    outcome: rejected
+    recorded_at: "2026-08-16T00:00:00Z"
+    note: The user clarified that internal test tooling requires only a regular executable spec.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Validate this spec, write the Gmail-only red checks, and remove active Mailosaur support.
+  command: python3 scripts/spec_validate.py docs/specs/nightly-test-zero-failures/spec.yml
+  expected_outcome: The executable tooling spec validates before implementation tests are added.
+  blocker: null
+  last_verified_commit: ae78feea3ce1683a82b28705fc465920980fca27
+
+scenarios:
+  - id: S-1
+    title: Gmail is the only automated email receiver
+    given:
+      - Gmail OAuth credentials and a dedicated Gmail test address are configured.
+    when:
+      - An email-dependent test creates a client and a run-scoped recipient.
+    then:
+      - The client uses Gmail and exposes provider-neutral helper names.
+      - The recipient is a Gmail alias belonging to the configured test inbox.
+      - Mailosaur configuration cannot select a fallback client.
+      - Exact test-identity authorization replaces unsafe gmail.com-wide authorization.
+  - id: S-2
+    title: Failed shared prerequisite creates one parent incident
+    given:
+      - The task worker is unavailable before 18 dependent Playwright specs would run.
+    when:
+      - The nightly prerequisite graph executes.
+    then:
+      - One environment-health parent incident is recorded.
+      - All 18 dependants remain visible as blocked_by_parent and none count as passed.
+      - Triage does not create 18 independent root-cause groups.
+  - id: S-3
+    title: Correlated embed failures share one actionable group
+    given:
+      - Multiple skill specs lack a parent embed.
+      - The same run contains WebSocket disconnects and embed persistence or decryption failures.
+    when:
+      - Dependency-aware triage runs.
+    then:
+      - The failures group under embed_delivery before selector text is considered.
+      - The group links correlated evidence, affected tests, relevant revisions, and an owner state.
+  - id: S-4
+    title: Deterministic test starts from declared isolated state
+    given:
+      - A logged-out share test follows an authenticated settings test in the same nightly.
+    when:
+      - The share test fixture starts.
+    then:
+      - Cookies, local storage, session storage, and IndexedDB use a fresh context.
+      - Account, chat, notification, and security-reminder state matches the test declaration.
+      - The result is independent of test order and shard assignment.
+  - id: S-5
+    title: Test lanes preserve separate and global health
+    given:
+      - Deterministic tests have zero failures and the Gmail live probe has one failure.
+    when:
+      - Nightly status is reported.
+    then:
+      - The deterministic lane reports green.
+      - Integration health reports the Gmail parent incident red.
+      - Global zero-failure status remains incomplete.
+  - id: S-6
+    title: Historical failures do not block unrelated feature verification
+    given:
+      - A reminder email failure predates a new unrelated feature.
+      - The new feature passes every scoped required check and introduces no attributable failure.
+    when:
+      - The feature's verification is evaluated.
+    then:
+      - The historical reminder failure remains visible and owned.
+      - The unrelated feature can complete without global backlog clearance.
+  - id: S-7
+    title: Ambiguous campaign overlap fails closed
+    given:
+      - Two active campaigns overlap the requested failures.
+    when:
+      - A caller requests implicit campaign start or resume.
+    then:
+      - The command returns selection_required and structured candidate IDs.
+      - No campaign, group, claim, or attempt state changes.
+  - id: S-8
+    title: One command returns canonical investigation evidence
+    given:
+      - A canonical test key and source run ID are supplied.
+    when:
+      - The operator runs tests.py investigate.
+    then:
+      - The command returns current state, parent incident, last-good and first-bad-or-unknown revisions, linked changed files, and durable report, trace, and screenshot locations.
+      - Missing artifacts are explicit after one lookup.
+      - Diagnostic presets are schema-valid and sensitive values are redacted.
+  - id: S-9
+    title: Global campaign requires a full zero-failure run
+    given:
+      - Every selected and child group is individually green.
+    when:
+      - Campaign completion is evaluated.
+    then:
+      - The campaign remains verification_pending until a full nightly-equivalent run completes.
+      - A newly exposed failure becomes a child group in the same campaign.
+      - Completion succeeds only when deterministic and live-probe failed counts are both zero.
+  - id: S-10
+    title: Shared behavior moves to the lowest effective test layer
+    given:
+      - Many skill specs duplicate the same app-skill delivery and embed hydration journey.
+    when:
+      - Coverage is rationalized.
+    then:
+      - REST, WebSocket, CLI, SDK, persistence, and provider normalization are covered below Playwright where applicable.
+      - Playwright retains generic browser hydration and skill-specific renderer or interaction assertions.
+      - Live provider canaries remain visible in the live-probe lane.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Active source, CI, Docker test configuration, test docs, and agent instructions contain no Mailosaur client, credentials, fallback, or required identity behavior, while synthetic historical and security-domain fixtures remain allowed.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS]
+  - id: AC-2
+    scenario: S-1
+    text: Email tests use Gmail aliases, provider-neutral waitForMessage naming, and exact identity authorization rather than gmail.com-wide access.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS]
+  - id: AC-3
+    scenario: S-2
+    text: A failed prerequisite creates one parent incident and visible blocked_by_parent dependants without converting them to independent failures or passes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CONTROL-PLANE]
+  - id: AC-4
+    scenario: S-3
+    text: Triage uses dependency and correlated run evidence before normalized downstream error strings and assigns every failed or blocked test to one parent group.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-TRIAGE]
+  - id: AC-5
+    scenario: S-4
+    text: Deterministic Playwright tests declare required state and shared fixtures reset browser storage and mutable account state at deterministic boundaries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DETERMINISM-AUDIT, T-PLAYWRIGHT-ISOLATION]
+  - id: AC-6
+    scenario: S-5
+    text: Status and triage report deterministic and live-probe counts separately while preserving an incomplete global status whenever either lane is not zero.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CONTROL-PLANE]
+  - id: AC-7
+    scenario: S-6
+    text: Historical unrelated failures remain visible but are excluded from a feature's scoped verification decision; newly attributable failures still block that feature's verification.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SCOPED-GATES]
+  - id: AC-8
+    scenario: S-7
+    text: Ambiguous overlapping campaign selection returns structured candidates and performs no state mutation until an explicit campaign or failure scope is supplied.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGNS]
+  - id: AC-9
+    scenario: S-8
+    text: tests.py investigate returns a bounded privacy-safe evidence bundle with durable artifact resolution and validated diagnostics from one canonical test key and run ID.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-INVESTIGATE]
+  - id: AC-10
+    scenario: S-9
+    text: Global campaign completion requires all groups green and one final full nightly-equivalent run with zero deterministic and zero live-probe failures; new failures become child groups.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-CAMPAIGNS, V-FULL-NIGHTLY]
+  - id: AC-11
+    scenario: S-10
+    text: Shared app-skill delivery behavior has lower-layer contract coverage and browser specs retain only generic hydration plus unique renderer or interaction behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-COVERAGE-AUDIT]
+  - id: AC-12
+    scenario: S-1
+    text: Test reliability evidence and records redact credentials, tokens, raw email addresses, message bodies, cookies, and private URLs while preserving actionable categories, hashes, paths, revisions, and failure classes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PRIVACY]
+
+assumptions:
+  - id: A-1
+    text: Gmail OAuth credentials and a dedicated Gmail test inbox are available to the existing Playwright workflow.
+    category: external_dependency
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: .github/workflows/playwright-spec.yml
+        summary: The workflow already accepts and injects Gmail client, secret, refresh token, and test-address values.
+  - id: A-2
+    text: Existing Directus campaign and group metadata can represent parent incidents and lane information without a new public API.
+    category: architecture
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: docs/specs/test-debug-campaigns/spec.yml
+        summary: Durable campaign groups already persist metadata, parent relationships, evidence, attempts, and child groups.
+  - id: A-3
+    text: Historical release records and isolated exact-domain security fixtures may retain mailosaur.net as inert text.
+    category: migration
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/tests/test_gift_card_domain_restriction.py
+        summary: Synthetic Mailosaur subdomains are used to prove exact-domain security behavior, not active inbox delivery.
+
+contracts:
+  api:
+    - access_model: internal_only
+      route: none
+      auth: Existing Directus test-control-plane credentials and GitHub Actions permissions only.
+      rate_limits: Existing test-control-plane and GitHub Actions limits.
+      credit_budget: No product credits are introduced by the tooling contract.
+      encryption_boundary: Test metadata only; no client-side encrypted product content is accepted or returned.
+  data:
+    - Existing test catalog, current-state, campaign, group, run, result, and claim records gain bounded metadata where possible.
+    - Raw email addresses, credentials, cookies, message bodies, and private URLs are never persisted in test reliability records.
+  ui_states: [not_applicable]
+  privacy_security:
+    - Gmail credentials remain GitHub or Vault secrets and never enter source, test output, Directus records, or agent prompts.
+    - Gmail aliases are redacted or hashed in persisted evidence.
+    - Gift-card test authorization uses an exact identity boundary, never the shared gmail.com domain.
+
+tests:
+  - id: T-GMAIL-AUDIT
+    type: pytest
+    file: scripts/tests/test_playwright_determinism_audit.py
+    command: python3 -m pytest scripts/tests/test_playwright_determinism_audit.py -q
+    covers: [AC-1, AC-2]
+    assertions:
+      - Active test and workflow paths reject Mailosaur operational references.
+      - Gmail tests reject non-Gmail recipient configuration and legacy provider names.
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "local-gmail-audit-red-20260816", timestamp: "2026-08-16T00:00:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-EMAIL-HELPERS
+    type: playwright
+    file: frontend/apps/web_app/tests/signup-flow-helpers.ts
+    command: python3 scripts/tests.py run --spec reminder-email.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2]
+    assertions:
+      - Gmail is the only client implementation.
+      - Email-dependent tests use waitForMessage and Gmail aliases.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-CONTROL-PLANE
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control.py -q
+    covers: [AC-3, AC-6]
+    assertions:
+      - Parent incidents retain visible blocked dependants.
+      - Status reports deterministic, live-probe, blocked, and global counts.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-TRIAGE
+    type: pytest
+    file: scripts/tests/test_tests_control.py
+    command: python3 -m pytest scripts/tests/test_tests_control.py -q
+    covers: [AC-4]
+    assertions:
+      - Dependency categories group correlated failures before error signatures.
+      - Every failure or blocked dependant links to one parent group.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-DETERMINISM-AUDIT
+    type: pytest
+    file: scripts/tests/test_playwright_determinism_audit.py
+    command: python3 -m pytest scripts/tests/test_playwright_determinism_audit.py -q
+    covers: [AC-5]
+    assertions:
+      - Shared-account and live-provider specs require explicit state declarations.
+      - Repeated timing and duplicate readiness patterns are rejected deterministically.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PLAYWRIGHT-ISOLATION
+    type: playwright
+    file: frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    command: python3 scripts/tests.py run --spec shared-chat-embed-assets.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5]
+    assertions:
+      - Logged-out shared-chat flow starts from clean browser and account state.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-SCOPED-GATES
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -q
+    covers: [AC-7]
+    assertions:
+      - Historical unrelated failures do not alter scoped feature verification.
+      - Attributable new failures remain blocking for the scoped feature.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-CAMPAIGNS
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q
+    covers: [AC-8, AC-10]
+    assertions:
+      - Ambiguous overlap does not mutate state.
+      - All groups green transitions to verification_pending.
+      - Final full zero run completes the campaign and new failures create child groups.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-INVESTIGATE
+    type: pytest
+    file: scripts/tests/test_run_tests_account_policy.py
+    command: python3 -m pytest scripts/tests/test_run_tests_account_policy.py -q
+    covers: [AC-9]
+    assertions:
+      - One canonical command resolves bounded durable evidence.
+      - Missing artifacts and revision uncertainty are explicit.
+      - Diagnostic presets are validated and output is redacted.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-COVERAGE-AUDIT
+    type: lint
+    file: scripts/audit_playwright_determinism.py
+    command: python3 scripts/audit_playwright_determinism.py --all
+    covers: [AC-11]
+    assertions:
+      - Duplicated shared delivery flows are inventoried and lower-layer coverage is linked.
+      - Unique browser rendering and interaction assertions remain represented.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PRIVACY
+    type: pytest
+    file: scripts/tests/test_tests_control.py
+    command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_opencode_output_quality_audit.py -q
+    covers: [AC-12]
+    assertions:
+      - Reliability records and evidence bundles redact sensitive fields.
+    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+
+verifications:
+  - id: V-FULL-NIGHTLY
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: "", command: "python3 scripts/tests.py run --daily"}
+
+implementation_plan:
+  spec_path: docs/specs/nightly-test-zero-failures/spec.yml
+  existing_patterns:
+    - scripts/tests.py Directus-backed status, triage, campaign, group, claim, and run selection.
+    - scripts/audit_playwright_determinism.py path-scoped deterministic Playwright checks.
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts shared email client and test identity helpers.
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts shared auth, chat readiness, and cleanup helpers.
+  architecture: >
+    Extend the existing Directus test control plane and durable campaign metadata
+    rather than introducing a second state store. Implement Gmail-only email
+    helpers and static guards first, then prerequisite/lane metadata,
+    dependency-aware triage, canonical investigation, campaign completion,
+    isolation fixtures, and lower-layer coverage migrations. Use the resulting
+    mechanisms to continue one durable zero-failure campaign.
+  data_flow:
+    - Nightly preflight evaluates shared prerequisites and records parent incidents.
+    - Test execution records deterministic or live-probe lane plus parent dependency.
+    - Triage groups by dependency and correlated evidence before error signature.
+    - Operators and agents retrieve one bounded investigation bundle.
+    - Campaign workers fix parent groups and verify exact members.
+    - A final full nightly-equivalent run either completes the campaign at zero or adds new child groups.
+  affected_files:
+    - path: frontend/apps/web_app/tests/signup-flow-helpers.ts
+      reason: Gmail-only provider-neutral email helper.
+    - path: .github/workflows/playwright-spec.yml
+      reason: Remove inactive Mailosaur inputs and secrets.
+    - path: scripts/tests.py
+      reason: Parent incidents, lanes, investigation command, campaign selection, and completion.
+    - path: scripts/audit_playwright_determinism.py
+      reason: Prevent provider and isolation drift.
+    - path: frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+      reason: Shared clean-state and readiness fixtures.
+    - path: .claude/skills/fix-tests/SKILL.md
+      reason: Canonical workflow instructions; generated mirrors follow parity sync.
+  verification_strategy:
+    - Run focused pytest red and green checks for each internal-tooling slice.
+    - Run deterministic audits after Gmail and Playwright-pattern migrations.
+    - Deploy before rerunning affected Playwright specs.
+    - Dispatch the final full nightly-equivalent run only after individual groups are green.
+  verification_order:
+    - Internal deterministic pytest and static audits.
+    - Deployed Gmail and isolation Playwright specs.
+    - Exact campaign-group verification.
+    - Final full nightly-equivalent run across deterministic and live-probe lanes.
+
+tasks:
+  - id: TASK-1
+    title: Complete Gmail-only test migration
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1, AC-2, AC-12]}
+    expected_files:
+      - frontend/apps/web_app/tests/signup-flow-helpers.ts
+      - frontend/apps/web_app/tests/reminder-email.spec.ts
+      - .github/workflows/playwright-spec.yml
+      - docker-compose.playwright.yml
+      - scripts/audit_playwright_determinism.py
+    verification: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-PRIVACY]
+    verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-PRIVACY]
+    dependencies: []
+    ownership: {files: [scripts/tests/test_playwright_determinism_audit.py], shared_files: [frontend/apps/web_app/tests/signup-flow-helpers.ts, .github/workflows/playwright-spec.yml]}
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: true
+  - id: TASK-2
+    title: Add prerequisite incidents and test lanes
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-5, S-6], acceptance_criteria: [AC-3, AC-6, AC-7]}
+    expected_files: [scripts/tests.py, scripts/tests/test_tests_control.py, scripts/tests/test_tests_control_campaigns.py]
+    verification: [T-CONTROL-PLANE, T-SCOPED-GATES]
+    verification_ids: [T-CONTROL-PLANE, T-SCOPED-GATES]
+    dependencies: [TASK-1]
+    ownership: {files: [scripts/tests/test_tests_control_campaigns.py], shared_files: [scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: true
+  - id: TASK-3
+    title: Make triage dependency-aware
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
+    expected_files: [scripts/tests.py, .claude/agents/test-failure-triager.md]
+    verification: [T-TRIAGE]
+    verification_ids: [T-TRIAGE]
+    dependencies: [TASK-2]
+    ownership: {files: [.claude/agents/test-failure-triager.md], shared_files: [scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: true
+  - id: TASK-4
+    title: Add canonical investigation bundles
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-12]}
+    expected_files: [scripts/tests.py, .claude/agents/e2e-test-investigator.md]
+    verification: [T-INVESTIGATE, T-PRIVACY]
+    verification_ids: [T-INVESTIGATE, T-PRIVACY]
+    dependencies: [TASK-2]
+    ownership: {files: [.claude/agents/e2e-test-investigator.md], shared_files: [scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+  - id: TASK-5
+    title: Harden campaign selection and full-run completion
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-7, S-9], acceptance_criteria: [AC-8, AC-10]}
+    expected_files: [scripts/tests.py, scripts/tests/test_tests_control_campaigns.py, .claude/skills/fix-tests/SKILL.md]
+    verification: [T-CAMPAIGNS]
+    verification_ids: [T-CAMPAIGNS]
+    dependencies: [TASK-2]
+    ownership: {files: [.claude/skills/fix-tests/SKILL.md], shared_files: [scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+  - id: TASK-6
+    title: Enforce and migrate deterministic state isolation
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-5]}
+    expected_files: [scripts/audit_playwright_determinism.py, frontend/apps/web_app/tests/helpers/chat-test-helpers.ts]
+    verification: [T-DETERMINISM-AUDIT, T-PLAYWRIGHT-ISOLATION]
+    verification_ids: [T-DETERMINISM-AUDIT, T-PLAYWRIGHT-ISOLATION]
+    dependencies: [TASK-1]
+    ownership: {files: [frontend/apps/web_app/tests/helpers/chat-test-helpers.ts], shared_files: [scripts/audit_playwright_determinism.py]}
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: true
+  - id: TASK-7
+    title: Rationalize duplicated Playwright delivery coverage
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-10], acceptance_criteria: [AC-11]}
+    expected_files: [scripts/audit_playwright_determinism.py, frontend/apps/web_app/tests]
+    verification: [T-COVERAGE-AUDIT]
+    verification_ids: [T-COVERAGE-AUDIT]
+    dependencies: [TASK-2, TASK-6]
+    ownership: {files: [scripts/audit_playwright_determinism.py], shared_files: [frontend/apps/web_app/tests]}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: true
+  - id: TASK-8
+    title: Run the durable zero-failure campaign
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-2, S-3, S-4, S-5, S-9, S-10], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-10, AC-11]}
+    expected_files: [docs/specs/nightly-test-zero-failures/spec.yml]
+    verification: [V-FULL-NIGHTLY]
+    verification_ids: [V-FULL-NIGHTLY]
+    dependencies: [TASK-1, TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7]
+    ownership: {files: [docs/specs/nightly-test-zero-failures/spec.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The user explicitly waived proof video for internal developer tooling with no product UI.
+    classified_at: "2026-08-16T00:00:00Z"
+    verification_ids: [V-FULL-NIGHTLY]
