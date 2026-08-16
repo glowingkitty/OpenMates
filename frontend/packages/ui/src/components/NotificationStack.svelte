@@ -7,10 +7,13 @@
 -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { cubicIn, cubicOut } from 'svelte/easing';
     import Notification from './Notification.svelte';
     import ChatMessageNotification from './ChatMessageNotification.svelte';
-    import { notificationStore, type NotificationType } from '../stores/notificationStore';
+    import {
+        NOTIFICATION_OUTRO_DURATION_MS,
+        notificationStore,
+        type NotificationType,
+    } from '../stores/notificationStore';
 
     const MAX_VISIBLE_NOTIFICATIONS = 3;
     const STACK_OFFSET_PX = 10;
@@ -18,7 +21,6 @@
     const STACK_OPACITY_BY_DEPTH = [1, 0.72, 0.48] as const;
     const NOTIFICATION_MOTION_OFFSET_PX = 120;
     const NOTIFICATION_INTRO_DURATION_MS = 320;
-    const NOTIFICATION_OUTRO_DURATION_MS = 280;
     const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
     const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
     const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
@@ -84,52 +86,7 @@
         const opacity = STACK_OPACITY_BY_DEPTH[depth] ?? STACK_OPACITY_BY_DEPTH.at(-1) ?? 0.48;
         const zIndex = MAX_VISIBLE_NOTIFICATIONS - depth;
 
-        return `--notification-stack-y: ${yOffset}px; --notification-stack-scale: ${scale}; --notification-stack-opacity: ${opacity}; --notification-stack-z: ${zIndex};`;
-    }
-
-    function createNotificationMotion(
-        node: HTMLElement,
-        { depth }: { depth: number },
-        direction: 'in' | 'out',
-    ) {
-        const yOffset = depth * -STACK_OFFSET_PX;
-        const scale = 1 - depth * STACK_SCALE_STEP;
-        const opacity = STACK_OPACITY_BY_DEPTH[depth] ?? STACK_OPACITY_BY_DEPTH.at(-1) ?? 0.48;
-        const reducedMotion = node.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
-        setNotificationMotionState(node, direction === 'out' ? 'exiting' : 'entering');
-
-        return {
-            duration: reducedMotion
-                ? 0
-                : direction === 'out'
-                  ? NOTIFICATION_OUTRO_DURATION_MS
-                  : NOTIFICATION_INTRO_DURATION_MS,
-            easing: direction === 'out' ? cubicIn : cubicOut,
-            css: (t: number, u: number) => `
-                opacity: ${opacity * t};
-                transform: translateY(${yOffset - NOTIFICATION_MOTION_OFFSET_PX * u}px) scale(${scale});
-            `,
-            tick: (t: number) => {
-                if (direction === 'in' && t >= 1) setNotificationMotionState(node, 'entered');
-            },
-        };
-    }
-
-    function notificationIntro(node: HTMLElement, params: { depth: number }) {
-        return createNotificationMotion(node, params, 'in');
-    }
-
-    function notificationOutro(node: HTMLElement, params: { depth: number }) {
-        return createNotificationMotion(node, params, 'out');
-    }
-
-    function setNotificationMotionState(element: HTMLElement, state: 'entering' | 'entered' | 'exiting'): void {
-        element.dataset.motionState = state;
-        if (state === 'exiting') {
-            element.inert = true;
-            element.setAttribute('aria-hidden', 'true');
-            element.style.pointerEvents = 'none';
-        }
+        return `--notification-stack-y: ${yOffset}px; --notification-stack-scale: ${scale}; --notification-stack-opacity: ${opacity}; --notification-stack-z: ${zIndex}; --notification-intro-duration: ${NOTIFICATION_INTRO_DURATION_MS}ms; --notification-outro-duration: ${NOTIFICATION_OUTRO_DURATION_MS}ms; --notification-motion-offset: ${NOTIFICATION_MOTION_OFFSET_PX}px;`;
     }
 </script>
 
@@ -139,13 +96,13 @@
             <div
                 class="notification-stack-item"
                 class:notification-stack-item-front={depth === 0}
+                class:notification-stack-item-exiting={notification.isExiting}
                 data-testid="notification-stack-item"
                 data-stack-depth={depth}
+                data-motion-state={notification.isExiting ? 'exiting' : 'entered'}
                 style={getStackItemStyle(depth)}
-                in:notificationIntro={{ depth }}
-                out:notificationOutro={{ depth }}
-                aria-hidden={depth > 0 ? 'true' : undefined}
-                inert={depth > 0}
+                aria-hidden={depth > 0 || notification.isExiting ? 'true' : undefined}
+                inert={depth > 0 || notification.isExiting}
             >
                 {#if notification.type === 'chat_message'}
                     <ChatMessageNotification {notification} />
@@ -178,6 +135,7 @@
         pointer-events: none;
         transform: translateY(var(--notification-stack-y)) scale(var(--notification-stack-scale));
         transform-origin: top center;
+        animation: notificationSlideIn var(--notification-intro-duration) cubic-bezier(0.32, 0, 0.2, 1) backwards;
         transition:
             transform 320ms cubic-bezier(0.32, 0, 0.2, 1),
             opacity var(--duration-normal) var(--easing-default),
@@ -187,6 +145,33 @@
 
     .notification-stack-item-front {
         pointer-events: auto;
+    }
+
+    .notification-stack-item-exiting {
+        pointer-events: none;
+        animation: notificationSlideOut var(--notification-outro-duration) cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+
+    @keyframes notificationSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(calc(var(--notification-stack-y) - var(--notification-motion-offset))) scale(var(--notification-stack-scale));
+        }
+        to {
+            opacity: var(--notification-stack-opacity);
+            transform: translateY(var(--notification-stack-y)) scale(var(--notification-stack-scale));
+        }
+    }
+
+    @keyframes notificationSlideOut {
+        from {
+            opacity: var(--notification-stack-opacity);
+            transform: translateY(var(--notification-stack-y)) scale(var(--notification-stack-scale));
+        }
+        to {
+            opacity: 0;
+            transform: translateY(calc(var(--notification-stack-y) - var(--notification-motion-offset))) scale(var(--notification-stack-scale));
+        }
     }
 
     .notification-stack-item:not(.notification-stack-item-front) {
@@ -205,6 +190,7 @@
 
     @media (prefers-reduced-motion: reduce) {
         .notification-stack-item {
+            animation-duration: 1ms;
             transition: opacity var(--duration-fast) var(--easing-default);
         }
     }

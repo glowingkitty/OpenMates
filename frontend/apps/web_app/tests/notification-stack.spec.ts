@@ -92,9 +92,9 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(items.nth(0).getByTestId('notification-activity')).toBeVisible();
 	await expect(items.nth(0).getByTestId('notification-progress')).toHaveCount(0);
 
-	for (let index = 0; index < 3; index += 1) {
-		await expect(items.nth(index)).toHaveAttribute('data-motion-state', 'entered');
-	}
+	await items.evaluateAll(async (elements: HTMLElement[]) => {
+		await Promise.allSettled(elements.flatMap((element) => element.getAnimations().map((animation) => animation.finished)));
+	});
 	const stackMetrics = await items.evaluateAll((elements: HTMLElement[]) =>
 		elements.map((element) => {
 			const styles = window.getComputedStyle(element);

@@ -16,7 +16,9 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 	const notification = page.getByTestId('notification').filter({ hasText: 'Language Detected' });
 	await expect(notification).toBeVisible({ timeout: 15000 });
 	const stackItem = page.getByTestId('notification-stack-item').filter({ has: notification });
-	await expect(stackItem).toHaveAttribute('data-motion-state', 'entered');
+	await stackItem.evaluate(async (element) => {
+		await Promise.allSettled(element.getAnimations().map((animation) => animation.finished));
+	});
 
 	const notificationBox = await notification.boundingBox();
 	expect(notificationBox, 'mobile notification should be measurable').not.toBeNull();
@@ -27,7 +29,10 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 	const progress = notification.getByTestId('notification-progress');
 	await expect(progress).toBeVisible();
 	await expect(progress).toHaveAttribute('data-duration-ms', '7000');
-	await expect(notification).not.toBeVisible({ timeout: 8000 });
+	await expect(stackItem).toHaveAttribute('data-motion-state', 'exiting', { timeout: 8000 });
+	await expect(stackItem).toHaveJSProperty('inert', true);
+	await expect(stackItem).toHaveCSS('pointer-events', 'none');
+	await expect(notification).not.toBeVisible({ timeout: 2000 });
 
 	await context.close();
 });

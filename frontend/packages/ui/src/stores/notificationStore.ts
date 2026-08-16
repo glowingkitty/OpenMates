@@ -54,6 +54,7 @@ export interface Notification {
   duration?: number; // Duration in ms, if undefined, notification is persistent until dismissed
   dismissible?: boolean; // Whether the notification can be dismissed by the user
   isProcessing?: boolean; // Whether background work is actively running with no known finish time
+  isExiting?: boolean; // Internal UI lifecycle state while the exit animation completes
 
   // Action button support (e.g., "Tap to reconnect" on connection notifications)
   onAction?: () => void; // Callback when action button is clicked
@@ -101,15 +102,19 @@ const initialState: NotificationState = {
 const { subscribe, update } = writable<NotificationState>(initialState);
 
 export const SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY = "security-reminder";
+export const NOTIFICATION_OUTRO_DURATION_MS = 280;
 
 let notificationIdCounter = 0;
 
 // Track auto-dismiss timeouts so they can be paused/cancelled per notification
 const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const exitRemovalTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function getExistingDedupeId(state: NotificationState, dedupeKey?: string): string | undefined {
   if (!dedupeKey) return undefined;
-  return state.notifications.find((notification) => notification.dedupeKey === dedupeKey)?.id;
+  return state.notifications.find(
+    (notification) => notification.dedupeKey === dedupeKey && !notification.isExiting,
+  )?.id;
 }
 
 export const notificationStore = {
@@ -218,11 +223,26 @@ export const notificationStore = {
       clearTimeout(timer);
       autoDismissTimers.delete(id);
     }
+    let shouldScheduleRemoval = false;
     update((state) => {
+      const notification = state.notifications.find((item) => item.id === id);
+      if (!notification || notification.isExiting) return state;
+      shouldScheduleRemoval = true;
       return {
-        notifications: state.notifications.filter((n) => n.id !== id),
+        notifications: state.notifications.map((item) =>
+          item.id === id ? { ...item, isExiting: true } : item,
+        ),
       };
     });
+    if (!shouldScheduleRemoval) return;
+
+    const exitTimer = setTimeout(() => {
+      exitRemovalTimers.delete(id);
+      update((state) => ({
+        notifications: state.notifications.filter((item) => item.id !== id),
+      }));
+    }, NOTIFICATION_OUTRO_DURATION_MS);
+    exitRemovalTimers.set(id, exitTimer);
   },
 
   removeNotificationsByDedupeKey: (dedupeKey: string) => {
@@ -235,6 +255,11 @@ export const notificationStore = {
         if (timer) {
           clearTimeout(timer);
           autoDismissTimers.delete(id);
+        }
+        const exitTimer = exitRemovalTimers.get(id);
+        if (exitTimer) {
+          clearTimeout(exitTimer);
+          exitRemovalTimers.delete(id);
         }
       }
       return {
@@ -249,6 +274,8 @@ export const notificationStore = {
     // Clean up all auto-dismiss timers
     autoDismissTimers.forEach((timer) => clearTimeout(timer));
     autoDismissTimers.clear();
+    exitRemovalTimers.forEach((timer) => clearTimeout(timer));
+    exitRemovalTimers.clear();
     update(() => {
       return {
         notifications: [],
