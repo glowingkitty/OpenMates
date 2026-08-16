@@ -64,6 +64,18 @@ test('global notifications stack behind the front card, show activity, and promo
 	}
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
+	const introMotion = await items.nth(0).evaluate((element: HTMLElement) => {
+		const animation = element.getAnimations().find((candidate) => candidate.playState === 'running');
+		return animation
+			? {
+				playState: animation.playState,
+				duration: Number(animation.effect?.getTiming().duration ?? 0)
+			}
+			: null;
+	});
+	expect(introMotion, 'new notifications should animate into the stack from above').not.toBeNull();
+	expect(introMotion?.playState).toBe('running');
+	expect(introMotion?.duration).toBeGreaterThanOrEqual(200);
 	await expect(items.nth(0)).toContainText('First stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
 	await expect(items.nth(2)).toContainText('Third stacked notification');
@@ -112,6 +124,12 @@ test('global notifications stack behind the front card, show activity, and promo
 	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
 
 	await items.nth(0).getByTestId('notification-dismiss').click();
+	await page.waitForTimeout(240);
+	await expect(items, 'the outgoing notification should remain mounted while sliding out').toHaveCount(3);
+	const outroMotion = await items.nth(0).evaluate((element: HTMLElement) =>
+		element.getAnimations().some((animation) => animation.playState === 'running')
+	);
+	expect(outroMotion, 'dismissed notifications should animate out toward the top').toBe(true);
 	await expect(items).toHaveCount(2, { timeout: 2000 });
 	await expect(items.nth(0)).toContainText('Second stacked notification');
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
