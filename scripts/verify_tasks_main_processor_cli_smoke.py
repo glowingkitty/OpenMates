@@ -20,6 +20,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
 CLI_DIR = DEFAULT_CLI_DIR
+CREATED_CHAT_IDS: set[str] = set()
+CREATED_TASK_IDS: set[str] = set()
 
 
 def run(command: list[str], *, cwd: Path = ROOT, check: bool = True, timeout: int = 240) -> subprocess.CompletedProcess[str]:
@@ -56,6 +58,7 @@ def require(condition: bool, message: str) -> None:
 
 
 def task_events(result: dict[str, Any]) -> list[dict[str, Any]]:
+    track_chat_result(result)
     events = result.get("taskEvents")
     require(isinstance(events, list), "chat result did not include taskEvents")
     return [event for event in events if isinstance(event, dict)]
@@ -71,6 +74,23 @@ def task_from_result(result: dict[str, Any]) -> dict[str, Any]:
     task = result.get("task")
     require(isinstance(task, dict), "task command result did not include task")
     return task
+
+
+def track_task(task: dict[str, Any]) -> None:
+    task_id = str(task.get("task_id") or "")
+    if task_id:
+        CREATED_TASK_IDS.add(task_id)
+
+
+def track_chat_result(result: dict[str, Any]) -> None:
+    chat_id = str(result.get("chatId") or result.get("chat_id") or "")
+    if chat_id:
+        CREATED_CHAT_IDS.add(chat_id)
+    events = result.get("taskEvents")
+    if isinstance(events, list):
+        for event in events:
+            if isinstance(event, dict) and event.get("event_type") == "created":
+                track_task(event)
 
 
 def pending_jobs(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -203,6 +223,7 @@ def create_setup_chat(args: argparse.Namespace, prompt: str) -> str:
     ], timeout=args.chat_timeout + 30)
     chat_id = result.get("chatId")
     require(isinstance(chat_id, str) and chat_id, f"setup chat did not return chatId: {result}")
+    CREATED_CHAT_IDS.add(chat_id)
     return chat_id
 
 
@@ -221,6 +242,7 @@ def create_task_for_chat(chat_id: str, title: str, *, assign: str = "user", stat
     ], timeout=60)
     task = task_from_result(created)
     require(str(task.get("task_id") or "") and str(task.get("short_id") or ""), f"created task missing identifiers: {task}")
+    track_task(task)
     return task
 
 
@@ -247,7 +269,10 @@ def wait_for_tasks_with_titles(chat_id: str, titles: list[str], *, timeout: int)
         last_tasks = list_chat_tasks(chat_id)
         by_title = {str(task.get("title") or "").lower(): task for task in last_tasks}
         if expected.keys() <= by_title.keys():
-            return [by_title[title.lower()] for title in titles]
+            selected = [by_title[title.lower()] for title in titles]
+            for task in selected:
+                track_task(task)
+            return selected
         time.sleep(2)
     raise AssertionError(
         f"expected natural-language-created task titles {titles}, got tasks={last_tasks}, chat={last_chat}"
@@ -327,6 +352,7 @@ def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
         "--response-timeout-seconds",
         str(args.chat_timeout),
     ], timeout=args.chat_timeout + 30)
+    track_chat_result(result)
     events = task_events(result)
     require(any(event.get("event_type") == "created" for event in events), f"expected created task event, got {events}")
     require(pending_jobs(result) == [], "CLI should persist pending task update jobs before final JSON output")
@@ -397,6 +423,7 @@ def scenario_block_unblock(args: argparse.Namespace, seed: dict[str, Any]) -> di
         "blocked",
     ], timeout=60)
     task = task_from_result(created)
+    track_task(task)
     task_id = str(task.get("task_id") or "")
     short_id = str(task.get("short_id") or "")
     require(task_id and short_id, f"created blocked task did not include IDs: {task}")
@@ -548,6 +575,7 @@ def scenario_natural_task_workflow(args: argparse.Namespace) -> dict[str, Any]:
         "--response-timeout-seconds",
         str(args.chat_timeout),
     ], timeout=args.chat_timeout + 30)
+    track_chat_result(result)
     chat_id = result.get("chatId")
     require(isinstance(chat_id, str) and chat_id, f"natural workflow did not return chatId: {result}")
     events = task_events(result)
@@ -644,6 +672,7 @@ def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dic
         "--response-timeout-seconds",
         str(args.chat_timeout),
     ], timeout=args.chat_timeout + 30)
+    track_chat_result(source_chat)
     source_chat_id = source_chat.get("chatId")
     require(isinstance(source_chat_id, str) and source_chat_id, "source chat setup did not return chatId")
     created = run_cli_json([
@@ -655,6 +684,7 @@ def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dic
         source_chat_id,
     ], timeout=60)
     task = task_from_result(created)
+    track_task(task)
     task_id = str(task.get("task_id") or "")
     short_id = str(task.get("short_id") or "")
     require(task_id and short_id, f"created referenced task did not include IDs: {task}")
@@ -686,9 +716,44 @@ def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dic
     return {"chat_id": target_chat_id, "source_chat_id": source_chat_id, "task_events": events}
 
 
-def delete_chat_quietly(chat_id: str | None) -> None:
-    if chat_id:
-        run_cli(["chats", "delete", chat_id, "--yes"], check=False, timeout=60)
+def delete_task(task_id: str) -> str | None:
+    result = run_cli(["tasks", "delete", task_id, "--confirm", "--json"], check=False, timeout=60)
+    if result.returncode == 0:
+        return None
+    return f"task {task_id}: {(result.stderr or result.stdout).strip()}"
+
+
+def delete_chat(chat_id: str) -> str | None:
+    result = run_cli(["chats", "delete", chat_id, "--yes"], check=False, timeout=60)
+    if result.returncode == 0:
+        return None
+    return f"chat {chat_id}: {(result.stderr or result.stdout).strip()}"
+
+
+def cleanup_created_resources() -> None:
+    failures: list[str] = []
+    for resource_type, resource_ids, delete_resource in (
+        ("task", CREATED_TASK_IDS, delete_task),
+        ("chat", CREATED_CHAT_IDS, delete_chat),
+    ):
+        for resource_id in sorted(resource_ids):
+            try:
+                failure = delete_resource(resource_id)
+            except Exception as exc:  # noqa: BLE001 - cleanup must continue across every tracked resource.
+                failure = f"{resource_type} {resource_id}: {exc}"
+            if failure:
+                failures.append(failure)
+    if failures:
+        raise RuntimeError("Task smoke cleanup failed:\n" + "\n".join(failures))
+
+
+def cleanup_after_smoke(primary_error: BaseException | None) -> None:
+    try:
+        cleanup_created_resources()
+    except Exception as cleanup_error:
+        if primary_error is None:
+            raise
+        sys.stderr.write(f"WARNING: Task smoke cleanup also failed: {cleanup_error}\n")
 
 
 def main() -> int:
@@ -715,7 +780,7 @@ def main() -> int:
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
     parser.add_argument("--task-ready-timeout", type=int, default=90, help="Seconds to wait for created tasks to become visible before update")
     parser.add_argument("--natural-followup-turns", type=int, default=5, help="Maximum natural follow-up turns to finish natural workflow tasks")
-    parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created chats")
+    parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created Tasks or chats")
     args = parser.parse_args()
     CLI_DIR = Path(args.cli_dir).resolve()
 
@@ -724,16 +789,14 @@ def main() -> int:
     run(["node", "scripts/openmates_cli_test_account.mjs", "login", "--api-url", args.api_url], cwd=ROOT, timeout=120)
 
     results: dict[str, Any] = {"api_url": args.api_url, "scenarios": {}}
-    created_chat_id: str | None = None
-    cleanup_chat_ids: set[str] = set()
+    CREATED_CHAT_IDS.clear()
+    CREATED_TASK_IDS.clear()
+    primary_error: BaseException | None = None
     try:
         seed: dict[str, Any] | None = None
         if args.scenario in {"all", "create", "update", "block-unblock", "mention-move"}:
             seed = scenario_create(args)
             results["scenarios"]["create"] = seed
-            created_chat_id = seed.get("chat_id") if isinstance(seed.get("chat_id"), str) else None
-            if created_chat_id:
-                cleanup_chat_ids.add(created_chat_id)
         if seed and args.scenario in {"all", "update"}:
             results["scenarios"]["update"] = scenario_update(args, seed)
         if seed and args.scenario in {"all", "block-unblock"}:
@@ -743,24 +806,20 @@ def main() -> int:
         if args.scenario in {"all", "auto-continuation"}:
             auto_result = scenario_auto_continuation(args)
             results["scenarios"]["auto_continuation"] = auto_result
-            if isinstance(auto_result.get("chat_id"), str):
-                cleanup_chat_ids.add(auto_result["chat_id"])
         if args.scenario in {"all", "blocking-continuation"}:
             blocking_result = scenario_blocking_continuation(args)
             results["scenarios"]["blocking_continuation"] = blocking_result
-            if isinstance(blocking_result.get("chat_id"), str):
-                cleanup_chat_ids.add(blocking_result["chat_id"])
         if args.scenario in {"all", "natural-task-workflow"}:
             natural_result = scenario_natural_task_workflow(args)
             results["scenarios"]["natural_task_workflow"] = natural_result
-            if isinstance(natural_result.get("chat_id"), str):
-                cleanup_chat_ids.add(natural_result["chat_id"])
         print(json.dumps(results, indent=2))
         return 0
+    except BaseException as exc:
+        primary_error = exc
+        raise
     finally:
         if not args.keep_artifacts:
-            for chat_id in cleanup_chat_ids or ({created_chat_id} if created_chat_id else set()):
-                delete_chat_quietly(chat_id)
+            cleanup_after_smoke(primary_error)
 
 
 if __name__ == "__main__":

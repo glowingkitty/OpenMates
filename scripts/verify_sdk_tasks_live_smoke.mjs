@@ -64,54 +64,86 @@ async function withApprovalRetry(label, fn) {
 async function runNpmTasks(apiKey) {
   const client = new OpenMates({ apiKey, apiUrl, deviceId: "sdk-tasks-live-npm" });
   const suffix = Date.now();
-  const created = await client.tasks.create({
-    title: `SDK live npm task ${suffix}`,
-    description: "Created by live npm SDK task smoke",
-    assign: "user",
-  });
-  if (created.title !== `SDK live npm task ${suffix}` || "encrypted" in created) throw new Error("npm task create did not return plaintext task data");
-  const shortId = created.shortId;
-  if (!shortId) throw new Error("npm task create did not return shortId");
-  const listed = await client.tasks.list();
-  if (!listed.some((task) => task.shortId === shortId && task.title === created.title)) throw new Error("npm task list did not include plaintext task");
-  const shown = await client.tasks.show(shortId);
-  if (shown.title !== created.title) throw new Error("npm task show did not decrypt title");
-  const edited = await client.tasks.update(shortId, { title: `${created.title} edited`, status: "in_progress" });
-  if (edited.title !== `${created.title} edited` || edited.status !== "in_progress") throw new Error("npm task update failed");
-  if ((await client.tasks.block(shortId, "needs_input")).status !== "blocked") throw new Error("npm task block failed");
-  if ((await client.tasks.unblock(shortId)).status !== "todo") throw new Error("npm task unblock failed");
-  if ((await client.tasks.skip(shortId)).queueState !== "skipped") throw new Error("npm task skip failed");
-  if ((await client.tasks.done(shortId)).status !== "done") throw new Error("npm task done failed");
-  if ((await client.tasks.reorder(shortId, { position: 77, status: "todo" }))[0]?.position !== 77) throw new Error("npm task reorder failed");
-  if ((await client.tasks.delete(shortId, { confirmed: true })).deleted !== true) throw new Error("npm task delete failed");
-  return { created: true, shortId };
+  let shortId = null;
+  let primaryError = null;
+  try {
+    const created = await client.tasks.create({
+      title: `SDK live npm task ${suffix}`,
+      description: "Created by live npm SDK task smoke",
+      assign: "user",
+    });
+    if (created.title !== `SDK live npm task ${suffix}` || "encrypted" in created) throw new Error("npm task create did not return plaintext task data");
+    shortId = created.shortId;
+    if (!shortId) throw new Error("npm task create did not return shortId");
+    const listed = await client.tasks.list();
+    if (!listed.some((task) => task.shortId === shortId && task.title === created.title)) throw new Error("npm task list did not include plaintext task");
+    const shown = await client.tasks.show(shortId);
+    if (shown.title !== created.title) throw new Error("npm task show did not decrypt title");
+    const edited = await client.tasks.update(shortId, { title: `${created.title} edited`, status: "in_progress" });
+    if (edited.title !== `${created.title} edited` || edited.status !== "in_progress") throw new Error("npm task update failed");
+    if ((await client.tasks.block(shortId, "needs_input")).status !== "blocked") throw new Error("npm task block failed");
+    if ((await client.tasks.unblock(shortId)).status !== "todo") throw new Error("npm task unblock failed");
+    if ((await client.tasks.skip(shortId)).queueState !== "skipped") throw new Error("npm task skip failed");
+    if ((await client.tasks.done(shortId)).status !== "done") throw new Error("npm task done failed");
+    if ((await client.tasks.reorder(shortId, { position: 77, status: "todo" }))[0]?.position !== 77) throw new Error("npm task reorder failed");
+    if ((await client.tasks.delete(shortId, { confirmed: true })).deleted !== true) throw new Error("npm task delete failed");
+    shortId = null;
+    return { created: true };
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    if (shortId) {
+      try {
+        await client.tasks.delete(shortId, { confirmed: true });
+      } catch (cleanupError) {
+        if (!primaryError) throw cleanupError;
+        console.error(`WARNING: npm SDK Task cleanup also failed: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      }
+    }
+  }
 }
 
 function runPythonTasks(apiKey) {
   const code = String.raw`
 from openmates import OpenMates
-import os, time
+import os, sys, time
 
 api_url = os.environ["OPENMATES_API_URL"]
 api_key = os.environ["OPENMATES_API_KEY"]
 client = OpenMates(api_key=api_key, api_url=api_url, device_id="sdk-tasks-live-pip")
 suffix = int(time.time() * 1000)
-created = client.tasks.create({"title": f"SDK live pip task {suffix}", "description": "Created by live pip SDK task smoke", "assign": "user"})
-assert created["title"] == f"SDK live pip task {suffix}"
-assert "encrypted" not in created
-short_id = created["short_id"]
-assert any(task["short_id"] == short_id and task["title"] == created["title"] for task in client.tasks.list())
-assert client.tasks.show(short_id)["title"] == created["title"]
-edited = client.tasks.update(short_id, {"title": created["title"] + " edited", "status": "in_progress"})
-assert edited["title"] == created["title"] + " edited"
-assert edited["status"] == "in_progress"
-assert client.tasks.block(short_id, "needs_input")["status"] == "blocked"
-assert client.tasks.unblock(short_id)["status"] == "todo"
-assert client.tasks.skip(short_id)["queue_state"] == "skipped"
-assert client.tasks.done(short_id)["status"] == "done"
-assert client.tasks.reorder(short_id, {"position": 88, "status": "todo"})[0]["position"] == 88
-assert client.tasks.delete(short_id, confirmed=True)["deleted"] is True
-print({"success": True, "short_id": short_id})
+short_id = None
+primary_error = None
+try:
+    created = client.tasks.create({"title": f"SDK live pip task {suffix}", "description": "Created by live pip SDK task smoke", "assign": "user"})
+    assert created["title"] == f"SDK live pip task {suffix}"
+    assert "encrypted" not in created
+    short_id = created["short_id"]
+    assert any(task["short_id"] == short_id and task["title"] == created["title"] for task in client.tasks.list())
+    assert client.tasks.show(short_id)["title"] == created["title"]
+    edited = client.tasks.update(short_id, {"title": created["title"] + " edited", "status": "in_progress"})
+    assert edited["title"] == created["title"] + " edited"
+    assert edited["status"] == "in_progress"
+    assert client.tasks.block(short_id, "needs_input")["status"] == "blocked"
+    assert client.tasks.unblock(short_id)["status"] == "todo"
+    assert client.tasks.skip(short_id)["queue_state"] == "skipped"
+    assert client.tasks.done(short_id)["status"] == "done"
+    assert client.tasks.reorder(short_id, {"position": 88, "status": "todo"})[0]["position"] == 88
+    assert client.tasks.delete(short_id, confirmed=True)["deleted"] is True
+    short_id = None
+    print({"success": True})
+except Exception as exc:
+    primary_error = exc
+    raise
+finally:
+    if short_id:
+        try:
+            client.tasks.delete(short_id, confirmed=True)
+        except Exception as cleanup_error:
+            if primary_error is None:
+                raise
+            print(f"WARNING: pip SDK Task cleanup also failed: {cleanup_error}", file=sys.stderr)
 `;
   return run("python3", ["-c", code], {
     env: { OPENMATES_API_KEY: apiKey, PYTHONPATH: "packages/openmates-python" },
