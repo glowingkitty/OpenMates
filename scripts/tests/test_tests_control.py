@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -125,6 +126,26 @@ def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
     assert record["flaky"] is True
     assert record["retries"] == 1
     assert record["attempt_statuses"] == ["failed", "passed"]
+
+
+def test_record_run_redacts_sensitive_failure_text_before_persistence(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-sensitive",
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "name": "private-flow.spec.ts",
+            "file": "private-flow.spec.ts",
+            "status": "failed",
+            "error": "user@example.com Bearer secret-token cookie=session-secret https://example.test/share#key=private-key",
+        }]}},
+    })
+
+    state_text = json.dumps(tests_control.load_state())
+    run_text = json.dumps(tests_control.get_store().get_test_run("run-sensitive"))
+
+    for secret in ("user@example.com", "secret-token", "session-secret", "private-key"):
+        assert secret not in state_text
+        assert secret not in run_text
 
 
 def test_failed_prerequisite_records_one_parent_and_visible_blocked_dependants(tmp_path, monkeypatch):
@@ -1163,6 +1184,80 @@ def test_triage_supports_limit_category_and_suite_filters(tmp_path, monkeypatch)
     assert triage["entries"][0]["suite"] == "playwright"
 
     assert tests_control.build_triage(suite_filter="pytest")["entries"] == []
+
+
+def test_investigate_returns_bounded_redacted_revision_and_artifact_evidence(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    key = "playwright::chat-flow.spec.ts"
+    tests_control.record_run_result({
+        "run_id": "run-good",
+        "git_sha": "good111",
+        "suites": {"playwright": {"status": "passed", "tests": [
+            {"name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed"},
+        ]}},
+    })
+    tests_control.record_run_result({
+        "run_id": "run-bad",
+        "git_sha": "bad222",
+        "changed_files": ["frontend/packages/ui/src/components/ChatHistory.svelte"],
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "name": "chat-flow.spec.ts",
+            "file": "chat-flow.spec.ts",
+            "status": "failed",
+            "error": "user@example.com failed with Bearer secret-token",
+            "artifact_path": "/private/test-results/trace.zip",
+        }]}},
+    })
+
+    bundle = tests_control.investigate_test(key, "run-bad")
+
+    assert bundle["test_key"] == key
+    assert bundle["source_run_id"] == "run-bad"
+    assert bundle["current"]["status"] == "failed"
+    assert "user@example.com" not in json.dumps(bundle)
+    assert "secret-token" not in json.dumps(bundle)
+    assert bundle["revisions"] == {
+        "last_good": "good111",
+        "first_bad_or_unknown": "bad222",
+    }
+    assert bundle["changed_files"] == ["frontend/packages/ui/src/components/ChatHistory.svelte"]
+    assert bundle["artifacts"]["trace"]["status"] == "missing"
+    assert bundle["artifacts"]["screenshot"]["status"] == "missing"
+    assert bundle["artifacts"]["report"]["status"] == "missing"
+    assert [preset["id"] for preset in bundle["diagnostic_presets"]] == ["backend-errors", "client-console"]
+    for preset in bundle["diagnostic_presets"]:
+        command = shlex.split(preset["command"])
+        query_index = command.index("--query-json")
+        query = json.loads(command[query_index + 1])
+        assert query["stream"] in {"default", "client_console"}
+        assert 0 < query["limit"] <= 50
+
+
+def test_investigate_links_parent_incident_and_cli_command(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-worker-down",
+        "prerequisites": [{
+            "id": "task_worker",
+            "status": "failed",
+            "error": "worker unavailable",
+            "dependant_test_keys": ["playwright::reminder-email.spec.ts"],
+        }],
+        "suites": {"playwright": {"status": "skipped", "tests": [
+            {"name": "reminder-email.spec.ts", "file": "reminder-email.spec.ts", "status": "skipped"},
+        ]}},
+    })
+
+    assert tests_control.main([
+        "investigate",
+        "--test-key", "playwright::reminder-email.spec.ts",
+        "--run", "run-worker-down",
+        "--json",
+    ]) == 0
+    bundle = json.loads(capsys.readouterr().out)
+
+    assert bundle["parent_incident"]["key"] == "prerequisite::task_worker"
+    assert bundle["parent_incident"]["status"] == "failed"
 
 
 def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):

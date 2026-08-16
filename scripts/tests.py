@@ -1457,6 +1457,8 @@ def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]
         for prerequisite in normalized.get("prerequisites") or []
         if isinstance(prerequisite, dict) and is_problem(str(prerequisite.get("status") or ""))
     ]
+    for prerequisite in failed_prerequisites:
+        prerequisite["error"] = sanitize_debug_text(str(prerequisite.get("error") or ""))
     blocked_by_test_key: dict[str, str] = {}
     for prerequisite in failed_prerequisites:
         prerequisite_id = str(prerequisite.get("id") or "").strip()
@@ -1500,6 +1502,8 @@ def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]
             if lane not in TEST_LANES:
                 raise RuntimeError(f"Unknown test lane for {test_label(str(suite), test)}: {lane}")
             test["lane"] = lane
+            if test.get("error"):
+                test["error"] = sanitize_debug_text(str(test["error"]))
             parent_key = blocked_by_test_key.get(test_key(str(suite), test))
             if parent_key:
                 test["status"] = BLOCKED_BY_PARENT_STATUS
@@ -1972,6 +1976,8 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
             "dependency_category": test.get("dependency_category"),
             "dependency_group_id": test.get("dependency_group_id"),
             "correlation_evidence": [str(item) for item in test.get("correlation_evidence") or []],
+            "artifact_path": test.get("artifact_path"),
+            "artifact_paths": [str(path) for path in test.get("artifact_paths") or []],
             "updated_at": timestamp,
         }
         tests[key] = current
@@ -2187,6 +2193,7 @@ def sanitize_debug_text(value: str) -> str:
     sanitized = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "<REDACTED_EMAIL>", sanitized)
     sanitized = re.sub(r"(?i)bearer\s+[A-Za-z0-9._~-]+", "Bearer <REDACTED_TOKEN>", sanitized)
     sanitized = re.sub(r"(?i)(api[_-]?key[=:]\s*)[^\s]+", r"\1<REDACTED_TOKEN>", sanitized)
+    sanitized = re.sub(r"(?i)(cookie[=:]\s*)[^\s]+", r"\1<REDACTED_COOKIE>", sanitized)
     sanitized = re.sub(r"#key=[^\s&]+", "#key=<REDACTED>", sanitized)
     return sanitized[:MAX_IMPORTED_ERROR_CHARS]
 
@@ -4375,6 +4382,115 @@ def print_triage(triage: dict[str, Any], as_json: bool = False) -> None:
             print("  files: " + ", ".join(entry["linked_files"][:5]))
 
 
+def _sanitize_debug_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _sanitize_debug_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_debug_value(item) for item in value]
+    if isinstance(value, str):
+        return sanitize_debug_text(value)
+    return value
+
+
+def _artifact_evidence(path: str | Path | None) -> dict[str, Any]:
+    if not path:
+        return {"status": "missing", "path": ""}
+    candidate = Path(path)
+    return {
+        "status": "available" if candidate.is_file() else "missing",
+        "path": sanitize_debug_path(str(candidate)),
+    }
+
+
+def _investigation_revisions(test_key_value: str) -> dict[str, str]:
+    last_good = "unknown"
+    first_bad = "unknown"
+    results = get_store().list_test_results([test_key_value])
+    for result in results:
+        run = get_store().get_test_run(str(result.get("run_key") or ""))
+        commit = sanitize_debug_text(str(run.get("git_sha") or "unknown"))
+        status = str(result.get("status") or "")
+        if status == "passed" and first_bad == "unknown":
+            last_good = commit
+        elif (is_problem(status) or status == BLOCKED_BY_PARENT_STATUS) and first_bad == "unknown":
+            first_bad = commit
+    return {"last_good": last_good, "first_bad_or_unknown": first_bad}
+
+
+def investigate_test(test_key_value: str, source_run_id: str) -> dict[str, Any]:
+    """Return one bounded, privacy-safe investigation bundle."""
+    state = load_state()
+    current = (state.get("tests") or {}).get(test_key_value)
+    if not isinstance(current, dict):
+        raise RuntimeError(f"Unknown test key: {test_key_value}")
+    source_run = get_store().get_test_run(source_run_id)
+    source_record = source_run.get("record_json") if isinstance(source_run.get("record_json"), dict) else {}
+    parent_key = str(current.get("parent_incident_key") or "")
+    parent = (state.get("tests") or {}).get(parent_key) if parent_key else None
+    label = str(current.get("test") or test_key_value.partition("::")[2])
+    report_path = RESULTS_DIR / "reports" / "failed" / f"{label}.md"
+    screenshot_path = RESULTS_DIR / "screenshots" / "current" / label.removesuffix(".spec.ts") / "test-failed-1.png"
+    trace_path = str(current.get("artifact_path") or "")
+    if not trace_path:
+        trace_path = next((str(path) for path in current.get("artifact_paths") or [] if str(path).endswith(".zip")), "")
+    changed_files = sorted({
+        sanitize_debug_path(str(path))
+        for path in [*(source_record.get("changed_files") or []), *(current.get("linked_files") or [])]
+        if path
+    })[:MAX_LINKED_FILES]
+    run_marker = sanitize_debug_text(source_run_id)
+    backend_query = json.dumps({
+        "stream": "default",
+        "filters": [
+            {"field": "level", "op": "in", "value": ["ERROR", "WARNING"]},
+            {"field": "message", "op": "like", "value": f"%{run_marker}%"},
+        ],
+        "since_minutes": 120,
+        "limit": 30,
+    }, separators=(",", ":"))
+    client_query = json.dumps({
+        "stream": "client_console",
+        "filters": [{"field": "debugging_id", "op": "like", "value": f"%{run_marker}%"}],
+        "since_minutes": 120,
+        "limit": 50,
+    }, separators=(",", ":"))
+    diagnostic_presets = [
+        {
+            "id": "backend-errors",
+            "command": f"python3 backend/scripts/debug.py logs --o2 --query-json {shlex.quote(backend_query)}",
+            "required_fields": ["source_run_id"],
+        },
+        {
+            "id": "client-console",
+            "command": f"python3 backend/scripts/debug.py logs --o2 --query-json {shlex.quote(client_query)}",
+            "required_fields": ["source_run_id"],
+        },
+    ]
+    return _sanitize_debug_value({
+        "test_key": test_key_value,
+        "source_run_id": source_run_id,
+        "current": {
+            "status": current.get("status"),
+            "lane": current.get("lane") or "deterministic",
+            "error": current.get("error"),
+            "run_id": current.get("run_id"),
+        },
+        "parent_incident": {
+            "key": parent_key,
+            "status": parent.get("status"),
+            "error": parent.get("error"),
+        } if isinstance(parent, dict) else None,
+        "revisions": _investigation_revisions(test_key_value),
+        "changed_files": changed_files,
+        "artifacts": {
+            "report": _artifact_evidence(report_path),
+            "trace": _artifact_evidence(trace_path),
+            "screenshot": _artifact_evidence(screenshot_path),
+        },
+        "diagnostic_presets": diagnostic_presets,
+    })
+
+
 def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
     suite = "all"
     tests: list[str] = []
@@ -4815,6 +4931,11 @@ def main(argv: list[str] | None = None) -> int:
     triage_parser.add_argument("--suite", default="")
     triage_parser.add_argument("--json", action="store_true")
 
+    investigate_parser = sub.add_parser("investigate", help="Return a bounded evidence bundle for one canonical test")
+    investigate_parser.add_argument("--test-key", required=True)
+    investigate_parser.add_argument("--run", required=True)
+    investigate_parser.add_argument("--json", action="store_true")
+
     next_parser = sub.add_parser("next", help="Return or lease the next failure group")
     next_parser.add_argument("--lease", action="store_true")
     next_parser.add_argument("--session", default="manual")
@@ -4978,6 +5099,14 @@ def main(argv: list[str] | None = None) -> int:
             build_triage(days=args.days, category_filter=args.category, suite_filter=args.suite, limit=args.limit),
             as_json=args.json,
         )
+        return 0
+    if args.command == "investigate":
+        try:
+            bundle = investigate_test(args.test_key, args.run)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(bundle, indent=2, sort_keys=True) if args.json else bundle)
         return 0
     if args.command == "next":
         if args.lease:

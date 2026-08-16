@@ -98,7 +98,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 49953011585be487014f11a566274c4cbb76d208
+  subject_commit: c0efd2e1fa7dca2e2964b59405c151be08d5ba70
 
 approvals:
   product_contract:
@@ -178,14 +178,32 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-16T14:45:05Z"
     note: The red assertion split correlated failures into app_skill and embed_rendering; the dependency-aware implementation now passes 129 focused tests.
+  - id: ATTEMPT-7
+    task_id: TASK-3
+    approach: Persist explicit dependency groups and correlation evidence before triage error-signature classification.
+    outcome: succeeded
+    recorded_at: "2026-08-16T14:46:43Z"
+    note: Dependency-aware triage and synchronized agent guidance passed 129 focused tests and deployed as c0efd2e1fa7dca2e2964b59405c151be08d5ba70.
+  - id: ATTEMPT-8
+    task_id: TASK-4
+    approach: Add canonical investigate bundle and CLI assertions before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T14:50:19Z"
+    note: The red phase failed only the missing investigate function and command; the implementation now passes 157 control-plane and privacy checks.
+  - id: ATTEMPT-9
+    task_id: TASK-4
+    approach: Extend investigation coverage to ingestion-time redaction and tied revision timestamps.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T14:52:04Z"
+    note: Raw failure text persisted before display sanitization and lexical tie sorting lost last-good evidence; both are fixed with 158 focused tests passing.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Deploy dependency-aware triage and bind green evidence to the resulting commit.
-  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: group correlated dependency failures" --message "Prefer explicit dependency evidence over downstream error signatures."'
-  expected_outcome: Task 3 source, regression test, and synchronized triager instructions deploy to dev.
+  current_task_id: TASK-4
+  next_action: Deploy the canonical investigate bundle and bind green evidence to the resulting commit.
+  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: add canonical investigation bundles" --message "Return bounded redacted test evidence and validated diagnostics from one command."'
+  expected_outcome: Task 4 source, regression tests, and synchronized investigator guidance deploy to dev.
   blocker: null
-  last_verified_commit: 49953011585be487014f11a566274c4cbb76d208
+  last_verified_commit: c0efd2e1fa7dca2e2964b59405c151be08d5ba70
 
 scenarios:
   - id: S-1
@@ -318,7 +336,7 @@ acceptance_criteria:
     scenario: S-3
     text: Triage uses dependency and correlated run evidence before normalized downstream error strings and assigns every failed or blocked test to one parent group.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-TRIAGE]
@@ -481,7 +499,7 @@ tests:
       - Dependency categories group correlated failures before error signatures.
       - Every failure or blocked dependant links to one parent group.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py -q", run_id: "local-task3-triage-red-20260816", subject_commit: "49953011585be487014f11a566274c4cbb76d208", timestamp: "2026-08-16T14:45:05Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_directus_auth.py -q", run_id: "local-task3-triage-green-20260816", subject_commit: "c0efd2e1fa7dca2e2964b59405c151be08d5ba70", timestamp: "2026-08-16T14:46:43Z"}}
   - id: T-DETERMINISM-AUDIT
     type: pytest
     file: scripts/tests/test_playwright_determinism_audit.py
@@ -525,14 +543,14 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-INVESTIGATE
     type: pytest
-    file: scripts/tests/test_run_tests_account_policy.py
-    command: python3 -m pytest scripts/tests/test_run_tests_account_policy.py -q
+    file: scripts/tests/test_tests_control.py
+    command: python3 -m pytest scripts/tests/test_tests_control.py -q
     covers: [AC-9]
     assertions:
       - One canonical command resolves bounded durable evidence.
       - Missing artifacts and revision uncertainty are explicit.
       - Diagnostic presets are validated and output is redacted.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py -q", run_id: "local-task4-investigate-red-20260816", subject_commit: "c0efd2e1fa7dca2e2964b59405c151be08d5ba70", timestamp: "2026-08-16T14:50:19Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-COVERAGE-AUDIT
     type: lint
@@ -551,7 +569,7 @@ tests:
     covers: [AC-12]
     assertions:
       - Reliability records and evidence bundles redact sensitive fields.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_opencode_output_quality_audit.py -q", run_id: "local-task4-privacy-red-20260816", subject_commit: "c0efd2e1fa7dca2e2964b59405c151be08d5ba70", timestamp: "2026-08-16T14:52:04Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
 
 verifications:
@@ -642,7 +660,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Make triage dependency-aware
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
     expected_files: [scripts/tests.py, .claude/agents/test-failure-triager.md]
@@ -655,7 +673,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Add canonical investigation bundles
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-8], acceptance_criteria: [AC-9, AC-12]}
     expected_files: [scripts/tests.py, .claude/agents/e2e-test-investigator.md]
