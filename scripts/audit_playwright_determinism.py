@@ -39,6 +39,12 @@ RESERVED_ACCOUNT_SPEC_NAMES = {
     "api-keys-flow.spec.ts",
 }
 STATE_ISOLATION_SPEC_NAMES = {"shared-chat-embed-assets.spec.ts"}
+LOWER_LAYER_DELIVERY_CONTRACTS = {
+    "rest_dispatch": ("backend/tests/test_rest_api_audio.py", "test_audio_generate_dispatches_async_without_inline_audio"),
+    "output_safety": ("backend/tests/test_app_skill_output_safety.py", "sanitize_app_skill_output"),
+    "embed_persistence": ("backend/tests/test_embed_methods.py", "create_embed"),
+    "cli_rendering": ("frontend/packages/openmates-cli/tests/embedRenderers.test.ts", "renderEmbedPreview"),
+}
 
 
 @dataclass(frozen=True)
@@ -207,11 +213,65 @@ def audit_paths(paths: list[Path]) -> list[AuditIssue]:
     return issues
 
 
+def delivery_coverage_report() -> tuple[dict[str, object], list[AuditIssue]]:
+    """Inventory shared Playwright delivery flows and their lower-layer contracts."""
+    issues: list[AuditIssue] = []
+    lower_layers: list[str] = []
+    for name, (relative_path, required_token) in LOWER_LAYER_DELIVERY_CONTRACTS.items():
+        path = REPO_ROOT / relative_path
+        text = path.read_text(encoding="utf-8", errors="replace") if path.is_file() else ""
+        if required_token not in text:
+            issues.append(AuditIssue(relative_path, 1, f"missing active lower-layer delivery contract: {name}"))
+        else:
+            lower_layers.append(relative_path)
+
+    shared_delivery_specs: list[str] = []
+    unique_browser_specs: list[str] = []
+    for path in sorted(SPEC_ROOT.glob("skill-*.spec.ts")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if "sendMessage(" not in text or "waitForEmbedFinished(" not in text:
+            continue
+        relative_path = str(path.relative_to(REPO_ROOT))
+        shared_delivery_specs.append(relative_path)
+        if any(token in text for token in ("getByTestId(", "openFullscreen(", "toHaveAttribute(", "expectAudioCanPlay(")):
+            unique_browser_specs.append(relative_path)
+        else:
+            issues.append(
+                AuditIssue(
+                    relative_path,
+                    1,
+                    "skill spec repeats shared delivery without a renderer, fullscreen, media, or browser-state assertion",
+                )
+            )
+    if len(shared_delivery_specs) < 10:
+        issues.append(AuditIssue(str(SPEC_ROOT.relative_to(REPO_ROOT)), 1, "shared app-skill delivery inventory is unexpectedly incomplete"))
+    return {
+        "lower_layer_contracts": lower_layers,
+        "shared_delivery_specs": shared_delivery_specs,
+        "unique_browser_specs": unique_browser_specs,
+    }, issues
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit changed Playwright specs for deterministic test patterns.")
     parser.add_argument("paths", nargs="*", help="Specific paths to audit. Defaults to staged spec files.")
     parser.add_argument("--all", action="store_true", help="Audit all Playwright specs under frontend/apps/web_app/tests.")
+    parser.add_argument("--coverage", action="store_true", help="Audit shared app-skill delivery coverage by test layer.")
     args = parser.parse_args(argv)
+
+    if args.coverage:
+        report, issues = delivery_coverage_report()
+        print(
+            "[playwright-coverage] "
+            f"lower_layer_contracts={len(report['lower_layer_contracts'])} "
+            f"shared_delivery_specs={len(report['shared_delivery_specs'])} "
+            f"unique_browser_specs={len(report['unique_browser_specs'])}"
+        )
+        if issues:
+            for issue in issues:
+                print(f"  - {issue.path}:{issue.line}: {issue.message}", file=sys.stderr)
+            return 1
+        return 0
 
     if args.all:
         paths = sorted(SPEC_ROOT.rglob("*.spec.ts")) + sorted(SPEC_ROOT.rglob("*.test.ts")) + sorted(HELPER_ROOT.rglob("*.ts"))

@@ -6,6 +6,8 @@ release notes and synthetic security-domain fixtures are intentionally outside
 this audit because they do not perform inbox delivery.
 """
 
+import importlib.util
+import sys
 from pathlib import Path
 
 # contract-test-file: tooling
@@ -44,6 +46,16 @@ ACTIVE_EMAIL_PATHS = (
     "scripts/run-tests-sequential.sh",
     "scripts/openmates_cli_test_account.mjs",
 )
+
+
+def load_audit_module():
+    path = REPO_ROOT / "scripts/audit_playwright_determinism.py"
+    spec = importlib.util.spec_from_file_location("playwright_determinism_audit", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_active_email_test_infrastructure_is_gmail_only() -> None:
@@ -101,3 +113,14 @@ def test_logged_out_shared_chat_uses_declared_isolated_context() -> None:
     assert "browser.newContext" not in spec
     assert "RAW_BROWSER_CONTEXT_RE" in audit
     assert "state declaration" in audit.lower()
+
+
+def test_delivery_coverage_mode_links_lower_layers_and_unique_browser_assertions(capsys) -> None:
+    audit = load_audit_module()
+
+    assert audit.main(["--coverage"]) == 0
+    output = capsys.readouterr().out
+
+    assert "lower_layer_contracts=4" in output
+    assert "shared_delivery_specs=" in output
+    assert "unique_browser_specs=" in output
