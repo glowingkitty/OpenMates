@@ -7287,11 +7287,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function handleMessagesChange(event: CustomEvent) {
         const { hasMessages } = event.detail;
-        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
-            showWelcome = false;
-            return;
-        }
-        if (currentChat?.is_anonymous || (currentChat?.chat_id && isAnonymousChatId(currentChat.chat_id))) {
+        if (currentChat?.chat_id) {
             showWelcome = false;
             return;
         }
@@ -8712,7 +8708,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug('[ActiveChat] handleChatUpdated: Calling chatHistoryRef.updateMessages with new currentMessages.');
                 chatHistoryRef.updateMessages(currentMessages);
             }
-            showWelcome = currentMessages.length === 0;
+            showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
         } else if (detail.messagesUpdated && currentChat?.chat_id) {
             // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
             // messages were provided in the event.  Reload from IndexedDB so the display
@@ -8779,7 +8775,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
-                    showWelcome = currentMessages.length === 0;
+                    showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
                 } else {
                     console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
                 }
@@ -8803,7 +8799,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
-            showWelcome = currentMessages.length === 0;
+            showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
         }
     }
 
