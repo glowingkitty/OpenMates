@@ -160,6 +160,7 @@ import {
   renderTaskDetail,
   renderTaskList,
   splitCsvFlag,
+  workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
   type TaskCreateOptions,
   type TaskUpdateOptions,
@@ -842,6 +843,19 @@ async function handleTasks(
   if (subcommand === "delete") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "delete");
     if (flags.confirm !== true) throw new Error("Deleting a task requires --confirm.");
+    if (task.source === "workflow_run") {
+      if (task.projectionKind !== "next_run" || task.canDelete === false) {
+        throw new Error(workflowProjectionDeleteGuidance(task));
+      }
+      try {
+        const result = await client.deleteUserTask(task.taskId, task.version);
+        if (flags.json === true) printJson(result);
+        else console.log(`Workflow run skipped: ${task.shortId}`);
+      } catch (error) {
+        throw new Error(`${workflowProjectionDeleteGuidance(task)}\nThe scheduled projection could not be skipped: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return;
+    }
     const result = await client.deleteUserTask(task.taskId, task.version);
     if (flags.json === true) printJson(result);
     else console.log(`Task deleted: ${task.shortId}`);

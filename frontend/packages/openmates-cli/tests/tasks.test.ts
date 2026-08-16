@@ -13,7 +13,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
-import { decryptUserTask, findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
+import { decryptUserTask, findTask, type DecryptedUserTask, workflowProjectionDeleteGuidance } from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -157,6 +157,20 @@ describe("OpenMatesClient user tasks", () => {
     assert.equal(task.canCancel, false);
     assert.equal(task.canDelete, true);
     assert.match(task.shortId, /^WF-/);
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity
+  it("gives workflow projection deletion guidance", () => {
+    const task = {
+      shortId: "WF-123456",
+      projectionKind: "next_run",
+      workflowId: "workflow-1",
+      canDelete: true,
+    } as DecryptedUserTask;
+    const guidance = workflowProjectionDeleteGuidance(task);
+
+    assert.match(guidance, /openmates tasks delete WF-123456 --confirm/);
+    assert.match(guidance, /openmates workflows disable workflow-1/);
   });
 
   // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity

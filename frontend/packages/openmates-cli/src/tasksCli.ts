@@ -71,6 +71,18 @@ export interface DecryptedUserTask {
   encrypted: UserTaskRecord;
 }
 
+export function workflowProjectionDeleteGuidance(task: DecryptedUserTask): string {
+  const workflowId = task.workflowId ?? "<workflow-id>";
+  const lines = [`Task ${task.shortId} is a read-only workflow projection, not an ordinary task.`];
+  if (task.projectionKind === "next_run" && task.canDelete !== false) {
+    lines.push(`To skip this scheduled run, retry: openmates tasks delete ${task.shortId} --confirm`);
+  } else if (task.workflowRunId && task.canCancel) {
+    lines.push(`To cancel this run: openmates workflows run-cancel ${workflowId} ${task.workflowRunId}`);
+  }
+  lines.push(`To deactivate the full workflow: openmates workflows disable ${workflowId}`);
+  return lines.join("\n");
+}
+
 export interface TaskCreateOptions {
   title: string;
   description?: string;
