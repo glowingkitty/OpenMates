@@ -16,6 +16,7 @@
     const STACK_SCALE_STEP = 0.045;
     const STACK_OPACITY_BY_DEPTH = [1, 0.72, 0.48] as const;
     const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
+    const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
     const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
 
     type E2ENotificationRequest = {
@@ -66,7 +67,11 @@
         };
 
         window.addEventListener(E2E_ADD_NOTIFICATIONS_EVENT, handleE2ENotifications);
-        return () => window.removeEventListener(E2E_ADD_NOTIFICATIONS_EVENT, handleE2ENotifications);
+        sessionStorage.setItem(E2E_NOTIFICATION_STACK_READY_KEY, 'true');
+        return () => {
+            window.removeEventListener(E2E_ADD_NOTIFICATIONS_EVENT, handleE2ENotifications);
+            sessionStorage.removeItem(E2E_NOTIFICATION_STACK_READY_KEY);
+        };
     });
 
     function getStackItemStyle(depth: number): string {

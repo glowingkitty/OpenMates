@@ -7803,7 +7803,7 @@ assertions:
     direct_tests:
     - &id861
       path: frontend/apps/web_app/tests/notification-stack.spec.ts
-      line: 20
+      line: 21
       name: global notifications stack behind the front card, show activity, and promote
         on dismiss
       surface: gui.web

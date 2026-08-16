@@ -14,6 +14,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
 const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
+const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
 const PROOF_VISIBLE_STATE_MS = 2000;
 
 // contract-test: direct surface=gui.web assertions=notifications.web.stacked-deck
@@ -27,41 +28,41 @@ test('global notifications stack behind the front card, show activity, and promo
 	await page.waitForFunction((key: string) => Boolean(sessionStorage.getItem(key)), E2E_LOG_FORWARDING_SESSION_KEY, {
 		timeout: 10000
 	});
+	await page.waitForFunction((key: string) => sessionStorage.getItem(key) === 'true', E2E_NOTIFICATION_STACK_READY_KEY, {
+		timeout: 10000
+	});
 
 	const stack = page.getByTestId('notification-stack');
 	const items = page.getByTestId('notification-stack-item');
-	for (let attempt = 0; attempt < 8; attempt += 1) {
-		await page.evaluate((eventName: string) => {
-			window.dispatchEvent(
-				new CustomEvent(eventName, {
-					detail: {
-						notifications: [
-							{
-								type: 'info',
-								title: 'First stacked notification',
-								message: 'This front notification stays readable and interactive.',
-								duration: 0,
-								isProcessing: true
-							},
-							{
-								type: 'success',
-								title: 'Second stacked notification',
-								message: 'This notification waits behind the front card.',
-								duration: 0
-							},
-							{
-								type: 'warning',
-								title: 'Third stacked notification',
-								message: 'Only a slim strip remains visible at the back.',
-								duration: 0
-							}
-						]
-					}
-				})
-			);
-		}, E2E_ADD_NOTIFICATIONS_EVENT);
-		if (await stack.isVisible({ timeout: 500 }).catch(() => false)) break;
-	}
+	await page.evaluate((eventName: string) => {
+		window.dispatchEvent(
+			new CustomEvent(eventName, {
+				detail: {
+					notifications: [
+						{
+							type: 'info',
+							title: 'First stacked notification',
+							message: 'This front notification stays readable and interactive.',
+							duration: 0,
+							isProcessing: true
+						},
+						{
+							type: 'success',
+							title: 'Second stacked notification',
+							message: 'This notification waits behind the front card.',
+							duration: 0
+						},
+						{
+							type: 'warning',
+							title: 'Third stacked notification',
+							message: 'Only a slim strip remains visible at the back.',
+							duration: 0
+						}
+					]
+				}
+			})
+		);
+	}, E2E_ADD_NOTIFICATIONS_EVENT);
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
 	const introMotion = await items.nth(0).evaluate((element: HTMLElement) => {
