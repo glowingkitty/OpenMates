@@ -36,6 +36,25 @@ test('global notifications stack behind the front card, show activity, and promo
 	const stack = page.getByTestId('notification-stack');
 	const items = page.getByTestId('notification-stack-item');
 	const introMotion = await page.evaluate(async (eventName: string) => {
+		const motionStarted = new Promise<{ playState: string; duration: number }>((resolve) => {
+			const inspectMotion = () => {
+				const element = document.querySelector<HTMLElement>('[data-testid="notification-stack-item"]');
+				const animation = element
+					?.getAnimations()
+					.find((candidate) => candidate.playState === 'pending' || candidate.playState === 'running');
+				if (!animation) return;
+
+				observer.disconnect();
+				void animation.ready.then(() => {
+					resolve({
+						playState: animation.playState,
+						duration: Number(animation.effect?.getTiming().duration ?? 0)
+					});
+				});
+			};
+			const observer = new MutationObserver(inspectMotion);
+			observer.observe(document.body, { childList: true, subtree: true });
+		});
 		window.dispatchEvent(
 			new CustomEvent(eventName, {
 				detail: {
@@ -63,24 +82,12 @@ test('global notifications stack behind the front card, show activity, and promo
 				}
 			})
 		);
-		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-		const element = document.querySelector<HTMLElement>('[data-testid="notification-stack-item"]');
-		const animation = element
-			?.getAnimations()
-			.find((candidate) => candidate.playState === 'pending' || candidate.playState === 'running');
-		await animation?.ready;
-		return animation
-			? {
-				playState: animation.playState,
-				duration: Number(animation.effect?.getTiming().duration ?? 0)
-			}
-			: null;
+		return motionStarted;
 	}, E2E_ADD_NOTIFICATIONS_EVENT);
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
-	expect(introMotion, 'new notifications should animate into the stack from above').not.toBeNull();
-	expect(introMotion?.playState).toBe('running');
-	expect(introMotion?.duration).toBe(320);
+	expect(introMotion.playState).toBe('running');
+	expect(introMotion.duration).toBe(320);
 	await expect(items.nth(0)).toContainText('First stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
 	await expect(items.nth(2)).toContainText('Third stacked notification');
