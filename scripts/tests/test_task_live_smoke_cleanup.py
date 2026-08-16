@@ -122,3 +122,10 @@ def test_sdk_smoke_has_npm_and_pip_finally_cleanup() -> None:
     assert "npm SDK Task cleanup also failed" in source
     assert "pip SDK Task cleanup also failed" in source
     assert source.count("finally") >= 3
+
+
+# contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
+def test_auto_continuation_accepts_fast_terminal_completion() -> None:
+    source = SMOKE_PATH.read_text(encoding="utf-8")
+
+    assert 'wait_for_task_status_in(chat_id, second_id, {"in_progress", "done"}' in source

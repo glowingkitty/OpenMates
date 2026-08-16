@@ -480,7 +480,7 @@ def scenario_auto_continuation(args: argparse.Namespace) -> dict[str, Any]:
     events = task_events(completion)
     require(any(event.get("event_type") == "completed" and event.get("task_id") == first_id for event in events), f"expected completed event for {first_id}, got {events}")
     first_done = wait_for_task_status(chat_id, first_id, "done", timeout=args.task_ready_timeout)
-    second_started = wait_for_task_status(chat_id, second_id, "in_progress", timeout=args.task_ready_timeout)
+    second_started = wait_for_task_status_in(chat_id, second_id, {"in_progress", "done"}, timeout=args.task_ready_timeout)
     assert_no_plans_for_chat(chat_id)
     return {"chat_id": chat_id, "task_events": events, "first": first_done, "second": second_started}
 
