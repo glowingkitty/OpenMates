@@ -96,6 +96,7 @@
         const scale = 1 - depth * STACK_SCALE_STEP;
         const opacity = STACK_OPACITY_BY_DEPTH[depth] ?? STACK_OPACITY_BY_DEPTH.at(-1) ?? 0.48;
         const reducedMotion = node.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+        setNotificationMotionState(node, direction === 'out' ? 'exiting' : 'entering');
 
         return {
             duration: reducedMotion
@@ -108,6 +109,9 @@
                 opacity: ${opacity * t};
                 transform: translateY(${yOffset - NOTIFICATION_MOTION_OFFSET_PX * u}px) scale(${scale});
             `,
+            tick: (t: number) => {
+                if (direction === 'in' && t >= 1) setNotificationMotionState(node, 'entered');
+            },
         };
     }
 
@@ -119,8 +123,7 @@
         return createNotificationMotion(node, params, 'out');
     }
 
-    function setNotificationMotionState(event: Event, state: 'entering' | 'entered' | 'exiting'): void {
-        const element = event.currentTarget as HTMLElement;
+    function setNotificationMotionState(element: HTMLElement, state: 'entering' | 'entered' | 'exiting'): void {
         element.dataset.motionState = state;
         if (state === 'exiting') {
             element.inert = true;
@@ -141,9 +144,6 @@
                 style={getStackItemStyle(depth)}
                 in:notificationIntro={{ depth }}
                 out:notificationOutro={{ depth }}
-                onintrostart={(event) => setNotificationMotionState(event, 'entering')}
-                onintroend={(event) => setNotificationMotionState(event, 'entered')}
-                onoutrostart={(event) => setNotificationMotionState(event, 'exiting')}
                 aria-hidden={depth > 0 ? 'true' : undefined}
                 inert={depth > 0}
             >
