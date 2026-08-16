@@ -305,21 +305,27 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	}
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
 
-	const windowRoute = '**/v1/chats/*/messages/window**';
+	const windowRoute = `**/v1/chats/${encodeURIComponent(localChat.chatId)}/messages/window**`;
 	let releaseRepair: () => void = () => undefined;
 	const repairGate = new Promise<void>((resolve) => {
 		releaseRepair = resolve;
 	});
 	let repairRequested = false;
-	await page.route(windowRoute, async (route: any) => {
-		if (!route.request().url().includes(`/v1/chats/${localChat!.chatId}/messages/window`)) {
-			await route.continue();
-			return;
-		}
-		repairRequested = true;
-		await repairGate;
-		await route.continue();
+	let finishRepair: () => void = () => undefined;
+	const repairFinished = new Promise<void>((resolve) => {
+		finishRepair = resolve;
 	});
+	const delayRepairResponse = async (route: any) => {
+		repairRequested = true;
+		try {
+			const realResponse = await route.fetch();
+			await repairGate;
+			await route.fulfill({ response: realResponse });
+		} finally {
+			finishRepair();
+		}
+	};
+	await page.route(windowRoute, delayRepairResponse, { times: 1 });
 
 	try {
 		await page.evaluate((chatId: string) => {
@@ -345,6 +351,7 @@ test('cached short chat opens coherently before delayed completeness repair', as
 		}).toBeGreaterThan(0);
 	} finally {
 		releaseRepair();
-		await page.unroute(windowRoute);
+		if (repairRequested) await repairFinished;
+		await page.unroute(windowRoute, delayRepairResponse);
 	}
 });
