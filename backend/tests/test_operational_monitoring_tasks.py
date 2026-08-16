@@ -6,12 +6,46 @@ without importing Celery or reading local secrets. Self-host destinations must
 never inherit development or production notification channels.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from backend.core.api.app.services.operational_monitoring import (
+    build_operational_snapshot,
+    build_operational_discord_summary,
     resolve_operational_discord_webhook,
     resolve_operational_environment,
 )
+
+
+WINDOW_END = datetime(2026, 8, 15, 21, 37, tzinfo=timezone.utc)
+WINDOW_START = WINDOW_END - timedelta(hours=24)
+
+
+def _test_snapshot():
+    return build_operational_snapshot(
+        environment="development",
+        window_start=WINDOW_START,
+        window_end=WINDOW_END,
+        resource_series={"cpu_percent": [], "memory_percent": [], "disk_used_percent": [], "disk_free_bytes": []},
+        activity_counts={"chats": 1, "messages": 2, "embeds": 3, "usage_entries": 4},
+        processing_transactions={"created": 5, "completed": 6, "invalidated": 7, "non_terminal_over_15m": 8},
+        telemetry_freshness={"resource_metrics": "fresh", "application_metrics": "fresh", "report_scheduler": "fresh"},
+        issues=[],
+        billing={
+            "status": "warming",
+            "purchase_count": "withheld",
+            "credits_sold": "withheld",
+            "usage_committed": 4,
+            "usage_failed": 0,
+            "bank_review": 0,
+            "refund_failed": 0,
+            "chargebacks": 0,
+            "incomplete_settlements": 0,
+            "purchase_window_complete": False,
+            "purchase_window_label": "withheld until ledger is complete",
+        },
+    )
 
 
 # contract-test: direct surface=cli assertions=operational-monitoring.environments.isolated-labeled
@@ -40,3 +74,16 @@ def test_self_host_does_not_fall_back_to_dev_or_prod_destinations():
     assert resolve_operational_discord_webhook(
         "self_host", {"DISCORD_WEBHOOK_DEV_SMOKE": "dev", "DISCORD_WEBHOOK_PROD_SMOKE": "prod"},
     ) is None
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.environments.isolated-labeled
+def test_test_discord_summary_starts_with_unique_report_context():
+    summary = build_operational_discord_summary(
+        _test_snapshot(),
+        test=True,
+        report_id="operational-development-20260815T213737Z-2786792c",
+    )
+    first_line = summary.splitlines()[0]
+
+    assert "TEST" in first_line
+    assert "operational-development-20260815T213737Z-2786792c" in first_line

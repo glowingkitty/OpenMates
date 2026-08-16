@@ -277,7 +277,7 @@ acceptance_criteria:
     scenario: S-1
     text: Official-cloud dev and production digests contain a real preceding-24-hour resource graph, aggregate activity, explicitly labeled AI response recovery-job outcomes, exact rolling-24-hour credit purchase and credits-sold totals, usage charging outcomes, current open purchase issues, monitoring freshness, and at most three prioritized issues.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-DIGEST-UNIT, V-DEV-REAL-DELIVERY]
@@ -304,7 +304,7 @@ acceptance_criteria:
     scenario: S-3
     text: One real-data dev verification sends and records an accepted test email and accepted Discord notification for the current server's preceding 24 hours, with independently inspectable channel results and report hash.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-DEV-REAL-DELIVERY, V-DEV-ARTIFACT-REVIEW]
@@ -506,16 +506,16 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-4]
-    status: pending
+    status: passed
     command: python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord
-    evidence: {status: "", command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord", run_id: "", subject_commit: "", summary: "Prior accepted delivery was invalidated by the approved purchase-metric and recovery-job semantics change; rerun after deploy.", timestamp: ""}
+    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord", run_id: "test-results/operational-monitoring/verification-dev-20260815T184623Z.json", subject_commit: "dc1c9f5d88dbefc00189d291e5060312e8de27b5", summary: "Accepted labeled dev delivery to email and Discord; report_id operational-development-20260815T184619Z-caebd84d; sha256 39b40d5b899a205753ddb3504ed5d1eef302acc38cb8b4088068dfc24e449ffd.", timestamp: "2026-08-15T18:46:23Z"}
   - id: V-DEV-ARTIFACT-REVIEW
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-4, AC-8]
-    status: pending
-    evidence: {status: "", summary: "Inspect the received email and Discord artifact for readability, real-data labeling, environment labeling, privacy, clipping, and scan length.", timestamp: ""}
+    status: passed
+    evidence: {status: passed, summary: "Inspected generated report artifact latest.png and delivery metadata latest.json for report operational-development-20260815T184619Z-caebd84d. The report is readable, labeled [OpenMates DEV], uses the real 24-hour window, has no visible clipping, and contains aggregate operational data without private user content.", run_id: "test-results/operational-monitoring/latest.png", subject_commit: "dc1c9f5d88dbefc00189d291e5060312e8de27b5", timestamp: "2026-08-15T18:46:23Z"}
   - id: V-DEV-FAILURE-DRILL
     kind: manual_check
     phase: green

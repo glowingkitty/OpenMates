@@ -206,6 +206,28 @@ def report_subject(environment: str, *, test: bool = False) -> str:
     return f"[OpenMates {labels[environment]}{test_label}] Daily operational report"
 
 
+def build_operational_discord_summary(snapshot: dict[str, Any], *, test: bool, report_id: str) -> str:
+    prefix = "TEST · " if test else ""
+    activity = snapshot["activity_counts"]
+    processing = snapshot["processing_transactions"]
+    freshness = snapshot["telemetry_freshness"]
+    lines = [
+        f"**{prefix}{report_subject(snapshot['environment'])} · {report_id}**",
+        f"24h: {activity['chats']} chats · {activity['messages']} messages · {activity['embeds']} embeds · {activity['usage_entries']} usage entries",
+        f"AI response recovery jobs: {processing['created']} created · {processing['completed']} completed · {processing['invalidated']} invalidated · {processing['non_terminal_over_15m']} non-terminal >15m",
+        f"Telemetry: resources {freshness['resource_metrics']} · application {freshness['application_metrics']}",
+        f"Prioritized issues: {len(snapshot['prioritized_issues'])}",
+    ]
+    if snapshot["environment"] != "self_host":
+        cloud = snapshot["billing"]
+        lines.extend([
+            f"Cloud credit purchases ({cloud.get('purchase_window_label', 'withheld until ledger is complete')}): {cloud['purchase_count']} purchases · {cloud['credits_sold']} credits sold · {cloud['status']}",
+            f"Usage charging: {cloud['usage_committed']} committed · {cloud['usage_failed']} failed",
+            f"Open purchase issues: {cloud['bank_review']} bank review · {cloud['refund_failed']} failed refunds · {cloud['chargebacks']} chargebacks · {cloud['incomplete_settlements']} incomplete settlements",
+        ])
+    return "\n".join(lines)
+
+
 def _sample_points(points: list[list[float]]) -> list[list[float]]:
     if len(points) <= MAX_GRAPH_POINTS:
         return points

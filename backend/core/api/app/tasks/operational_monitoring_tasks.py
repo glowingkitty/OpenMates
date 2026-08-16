@@ -23,6 +23,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.operational_monitoring import (
+    build_operational_discord_summary,
     build_operational_snapshot,
     collect_active_alerts,
     collect_activity_and_transactions,
@@ -65,28 +66,6 @@ async def _send_discord(webhook_url: str, content: str, png: bytes) -> bool:
             files={"files[0]": ("openmates-operational-report.png", png, "image/png")},
         )
     return 200 <= response.status_code < 300
-
-
-def _discord_summary(snapshot: dict, *, test: bool) -> str:
-    prefix = "TEST · " if test else ""
-    activity = snapshot["activity_counts"]
-    processing = snapshot["processing_transactions"]
-    freshness = snapshot["telemetry_freshness"]
-    lines = [
-        f"**{prefix}{report_subject(snapshot['environment'])}**",
-        f"24h: {activity['chats']} chats · {activity['messages']} messages · {activity['embeds']} embeds · {activity['usage_entries']} usage entries",
-        f"AI response recovery jobs: {processing['created']} created · {processing['completed']} completed · {processing['invalidated']} invalidated · {processing['non_terminal_over_15m']} non-terminal >15m",
-        f"Telemetry: resources {freshness['resource_metrics']} · application {freshness['application_metrics']}",
-        f"Prioritized issues: {len(snapshot['prioritized_issues'])}",
-    ]
-    if snapshot["environment"] != "self_host":
-        cloud = snapshot["billing"]
-        lines.extend([
-            f"Cloud credit purchases ({cloud.get('purchase_window_label', 'withheld until ledger is complete')}): {cloud['purchase_count']} purchases · {cloud['credits_sold']} credits sold · {cloud['status']}",
-            f"Usage charging: {cloud['usage_committed']} committed · {cloud['usage_failed']} failed",
-            f"Open purchase issues: {cloud['bank_review']} bank review · {cloud['refund_failed']} failed refunds · {cloud['chargebacks']} chargebacks · {cloud['incomplete_settlements']} incomplete settlements",
-        ])
-    return "\n".join(lines)
 
 
 async def generate_and_deliver_operational_report(
@@ -217,7 +196,11 @@ async def generate_and_deliver_operational_report(
                 ))
             else:
                 accepted, attempts, failure_class = await deliver_with_retries(
-                    lambda: _send_discord(webhook, _discord_summary(snapshot, test=test), png),
+                    lambda: _send_discord(
+                        webhook,
+                        build_operational_discord_summary(snapshot, test=test, report_id=report_id),
+                        png,
+                    ),
                     failure_class="discord_delivery_failed",
                 )
                 if not accepted:
