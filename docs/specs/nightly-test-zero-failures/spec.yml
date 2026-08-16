@@ -98,7 +98,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ae78feea3ce1683a82b28705fc465920980fca27
+  subject_commit: d9bb421e9410b1149f94b4078b7dc02713dc69a2
 
 approvals:
   product_contract:
@@ -148,14 +148,32 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-16T00:00:00Z"
     note: The user clarified that internal test tooling requires only a regular executable spec.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run the deployed Gmail reminder integration immediately after the first migration deploy.
+    outcome: blocked
+    recorded_at: "2026-08-16T12:31:10Z"
+    note: Backend live-mock preflight rejected dispatch while the shared API and workers were being rebuilt.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Rerun the reminder integration after the Gmail migration and backend rebuild.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T13:07:18Z"
+    note: The test exposed a real cache-miss bug in notification settings persistence before Gmail polling; the handler was fixed test-first in d9bb421e9.
+  - id: ATTEMPT-4
+    task_id: TASK-2
+    approach: Add focused control-plane assertions before implementing prerequisite incidents, lane summaries, and scoped verification.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-16T14:38:24Z"
+    note: The red run failed exactly four new assertions while 112 existing focused tests passed.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Validate this spec, write the Gmail-only red checks, and remove active Mailosaur support.
-  command: python3 scripts/spec_validate.py docs/specs/nightly-test-zero-failures/spec.yml
-  expected_outcome: The executable tooling spec validates before implementation tests are added.
+  current_task_id: TASK-2
+  next_action: Deploy the green Task 2 control-plane slice and bind its evidence to the resulting commit.
+  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: add prerequisite incidents and lanes" --message "Record parent incidents, separate test lanes, and keep scoped gates independent from historical failures."'
+  expected_outcome: Task 2 source and regression tests deploy to dev through the scoped session workflow.
   blocker: null
-  last_verified_commit: ae78feea3ce1683a82b28705fc465920980fca27
+  last_verified_commit: d9bb421e9410b1149f94b4078b7dc02713dc69a2
 
 scenarios:
   - id: S-1
@@ -264,7 +282,7 @@ acceptance_criteria:
     scenario: S-1
     text: Active source, CI, Docker test configuration, test docs, and agent instructions contain no Mailosaur client, credentials, fallback, or required identity behavior, while synthetic historical and security-domain fixtures remain allowed.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS]
@@ -272,7 +290,7 @@ acceptance_criteria:
     scenario: S-1
     text: Email tests use Gmail aliases, provider-neutral waitForMessage naming, and exact identity authorization rather than gmail.com-wide access.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS]
@@ -409,8 +427,8 @@ tests:
     assertions:
       - Active test and workflow paths reject Mailosaur operational references.
       - Gmail tests reject non-Gmail recipient configuration and legacy provider names.
-    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "local-gmail-audit-red-20260816", timestamp: "2026-08-16T00:00:00Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_playwright_determinism_audit.py -q", run_id: "local-gmail-audit-red-20260816", subject_commit: "ae78feea3ce1683a82b28705fc465920980fca27", timestamp: "2026-08-16T00:00:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_playwright_determinism_audit.py -q", run_id: "local-gmail-audit-green-20260816", subject_commit: "8f4ef1f5983d542b1c2add3671bc5472dd98666c", timestamp: "2026-08-16T09:50:23Z"}}
   - id: T-EMAIL-HELPERS
     type: playwright
     file: frontend/apps/web_app/tests/signup-flow-helpers.ts
@@ -420,8 +438,18 @@ tests:
     assertions:
       - Gmail is the only client implementation.
       - Email-dependent tests use waitForMessage and Gmail aliases.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable, reason: Provider-removal red coverage is owned by T-GMAIL-AUDIT; this deployed integration is the green end-to-end gate.}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/tests.py run --spec reminder-email.spec.ts --gate-deploy --require-exact-commit --expected-commit d9bb421e9410b1149f94b4078b7dc02713dc69a2", run_id: "31950520407", subject_commit: "d9bb421e9410b1149f94b4078b7dc02713dc69a2", timestamp: "2026-08-16T13:45:27Z"}}
+  - id: T-GIFT-CARD-IDENTITY
+    type: pytest
+    file: backend/tests/test_gift_card_domain_restriction.py
+    command: python3 -m pytest backend/tests/test_gift_card_domain_restriction.py -q
+    covers: [AC-2, AC-12]
+    assertions:
+      - Gmail run aliases resolve to one hashed mailbox identity.
+      - Different mailboxes are rejected and legacy domain-only cards fail closed.
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_gift_card_domain_restriction.py -q", run_id: "local-gift-card-identity-red-20260816", subject_commit: "ae78feea3ce1683a82b28705fc465920980fca27", timestamp: "2026-08-16T09:20:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_gift_card_domain_restriction.py -q", run_id: "local-gift-card-identity-green-20260816", subject_commit: "8f4ef1f5983d542b1c2add3671bc5472dd98666c", timestamp: "2026-08-16T09:50:23Z"}}
   - id: T-CONTROL-PLANE
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
@@ -430,7 +458,7 @@ tests:
     assertions:
       - Parent incidents retain visible blocked dependants.
       - Status reports deterministic, live-probe, blocked, and global counts.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py -q", run_id: "local-task2-control-plane-red-20260816", subject_commit: "d9bb421e9410b1149f94b4078b7dc02713dc69a2", timestamp: "2026-08-16T14:38:24Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-TRIAGE
     type: pytest
@@ -470,7 +498,7 @@ tests:
     assertions:
       - Historical unrelated failures do not alter scoped feature verification.
       - Attributable new failures remain blocking for the scoped feature.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py -q", run_id: "local-task2-control-plane-red-20260816", subject_commit: "d9bb421e9410b1149f94b4078b7dc02713dc69a2", timestamp: "2026-08-16T14:38:24Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-CAMPAIGNS
     type: pytest
@@ -571,7 +599,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Complete Gmail-only test migration
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1], acceptance_criteria: [AC-1, AC-2, AC-12]}
     expected_files:
@@ -580,8 +608,8 @@ tasks:
       - .github/workflows/playwright-spec.yml
       - docker-compose.playwright.yml
       - scripts/audit_playwright_determinism.py
-    verification: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-PRIVACY]
-    verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-PRIVACY]
+    verification: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-GIFT-CARD-IDENTITY, T-PRIVACY]
+    verification_ids: [T-GMAIL-AUDIT, T-EMAIL-HELPERS, T-GIFT-CARD-IDENTITY, T-PRIVACY]
     dependencies: []
     ownership: {files: [scripts/tests/test_playwright_determinism_audit.py], shared_files: [frontend/apps/web_app/tests/signup-flow-helpers.ts, .github/workflows/playwright-spec.yml]}
     blockers: []
@@ -589,7 +617,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add prerequisite incidents and test lanes
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-2, S-5, S-6], acceptance_criteria: [AC-3, AC-6, AC-7]}
     expected_files: [scripts/tests.py, scripts/tests/test_tests_control.py, scripts/tests/test_tests_control_campaigns.py]

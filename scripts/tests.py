@@ -63,6 +63,8 @@ DEV_HEALTH_URLS = (
 )
 
 PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+BLOCKED_BY_PARENT_STATUS = "blocked_by_parent"
+TEST_LANES = ("deterministic", "live_probe")
 LEASE_TTL_HOURS = 8
 MAX_LINKED_FILES = 12
 MAX_IMPORTED_ERROR_CHARS = 4000
@@ -496,7 +498,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
         return {
             "latest_run_id": latest_run_id,
             "updated_at": utc_now(),
-            "summary": latest_run_summary or summarize_current_tests(tests),
+            "summary": summarize_current_tests(tests),
             "latest_run_summary": latest_run_summary or {},
             "tests": tests,
             "recorded_event_ids": [],
@@ -1445,6 +1447,67 @@ def iter_tests(run_data: dict[str, Any]):
                 yield str(suite), test
 
 
+def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]:
+    """Materialize failed prerequisites once and mark their dependants as blocked."""
+    normalized = _copy_json(run_data)
+    suites = normalized.setdefault("suites", {})
+    failed_prerequisites = [
+        prerequisite
+        for prerequisite in normalized.get("prerequisites") or []
+        if isinstance(prerequisite, dict) and is_problem(str(prerequisite.get("status") or ""))
+    ]
+    blocked_by_test_key: dict[str, str] = {}
+    for prerequisite in failed_prerequisites:
+        prerequisite_id = str(prerequisite.get("id") or "").strip()
+        if not prerequisite_id:
+            raise RuntimeError("Failed test prerequisites require an id")
+        parent_key = f"prerequisite::{prerequisite_id}"
+        for key in prerequisite.get("dependant_test_keys") or []:
+            blocked_by_test_key[str(key)] = parent_key
+
+    default_lane = str((normalized.get("flags") or {}).get("lane") or "deterministic")
+    if default_lane not in TEST_LANES:
+        raise RuntimeError(f"Unknown test lane: {default_lane}")
+    for suite, suite_data in suites.items():
+        if not isinstance(suite_data, dict):
+            continue
+        suite_lane = str(suite_data.get("lane") or default_lane)
+        if suite_lane not in TEST_LANES:
+            raise RuntimeError(f"Unknown test lane for {suite}: {suite_lane}")
+        for test in suite_data.get("tests") or []:
+            if not isinstance(test, dict):
+                continue
+            lane = str(test.get("lane") or suite_lane)
+            if lane not in TEST_LANES:
+                raise RuntimeError(f"Unknown test lane for {test_label(str(suite), test)}: {lane}")
+            test["lane"] = lane
+            parent_key = blocked_by_test_key.get(test_key(str(suite), test))
+            if parent_key:
+                test["status"] = BLOCKED_BY_PARENT_STATUS
+                test["parent_incident_key"] = parent_key
+
+    if failed_prerequisites:
+        prerequisite_suite = suites.setdefault("prerequisite", {"status": "failed", "tests": []})
+        prerequisite_tests = prerequisite_suite.setdefault("tests", [])
+        existing_ids = {str(test.get("name") or "") for test in prerequisite_tests if isinstance(test, dict)}
+        for prerequisite in failed_prerequisites:
+            prerequisite_id = str(prerequisite["id"])
+            if prerequisite_id in existing_ids:
+                continue
+            lane = str(prerequisite.get("lane") or "live_probe")
+            if lane not in TEST_LANES:
+                raise RuntimeError(f"Unknown test lane for prerequisite {prerequisite_id}: {lane}")
+            prerequisite_tests.append({
+                "name": prerequisite_id,
+                "status": str(prerequisite["status"]),
+                "error": prerequisite.get("error"),
+                "lane": lane,
+                "parent_incident": True,
+                "dependant_test_keys": [str(key) for key in prerequisite.get("dependant_test_keys") or []],
+            })
+    return normalized
+
+
 def normalize_import_run_data(
     run_data: dict[str, Any],
     path: Path,
@@ -1761,8 +1824,8 @@ def is_problem(status: str) -> bool:
     return status in PROBLEM_STATUSES
 
 
-def summarize_current_tests(tests: dict[str, dict[str, Any]]) -> dict[str, int]:
-    summary = {
+def _empty_status_summary() -> dict[str, int]:
+    return {
         "total": 0,
         "passed": 0,
         "failed": 0,
@@ -1772,22 +1835,75 @@ def summarize_current_tests(tests: dict[str, dict[str, Any]]) -> dict[str, int]:
         "skipped": 0,
         "not_started": 0,
         "running": 0,
+        BLOCKED_BY_PARENT_STATUS: 0,
     }
+
+
+def summarize_current_tests(tests: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = _empty_status_summary()
+    lanes = {lane: _empty_status_summary() for lane in TEST_LANES}
     for test in tests.values():
+        lane = str(test.get("lane") or "deterministic")
+        if lane not in lanes:
+            raise RuntimeError(f"Unknown test lane in current state: {lane}")
         summary["total"] += 1
+        lanes[lane]["total"] += 1
         status = str(test.get("status") or "unknown")
         if status in summary:
             summary[status] += 1
+            lanes[lane][status] += 1
         else:
             summary["skipped"] += 1
+            lanes[lane]["skipped"] += 1
         active_status = str(test.get("active_status") or "")
         if active_status == "running" and status != "running":
             summary["running"] += 1
+            lanes[lane]["running"] += 1
+    for lane_summary in lanes.values():
+        lane_summary["zero_failures"] = not any(
+            lane_summary[status] for status in (*PROBLEM_STATUSES, BLOCKED_BY_PARENT_STATUS)
+        )
+    summary["lanes"] = lanes
+    summary["global_zero_complete"] = all(lane_summary["zero_failures"] for lane_summary in lanes.values())
     return summary
+
+
+def evaluate_scoped_verification(
+    state: dict[str, Any],
+    required_test_keys: list[str],
+    attributable_failure_keys: list[str],
+) -> dict[str, Any]:
+    """Evaluate a feature scope without hiding unrelated failures from the result."""
+    tests = state.get("tests") or {}
+    required = {str(key) for key in required_test_keys}
+    attributable = {str(key) for key in attributable_failure_keys}
+    blocking = {
+        key
+        for key in required
+        if key not in tests or str(tests[key].get("status") or "") != "passed"
+    }
+    blocking.update(
+        key
+        for key in attributable
+        if key not in tests or is_problem(str(tests[key].get("status") or ""))
+        or str(tests[key].get("status") or "") == BLOCKED_BY_PARENT_STATUS
+    )
+    visible_failures = {
+        str(key)
+        for key, test in tests.items()
+        if is_problem(str(test.get("status") or ""))
+        or str(test.get("status") or "") == BLOCKED_BY_PARENT_STATUS
+    }
+    return {
+        "status": "blocked" if blocking else "passed",
+        "blocking_test_keys": sorted(blocking),
+        "visible_unrelated_failure_keys": sorted(visible_failures.difference(required, attributable)),
+    }
 
 
 def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", external_run_id: str = "", workflow: str = "") -> dict[str, Any]:
     """Persist normalized current state, run archive, and timeline events."""
+    run_data = normalize_prerequisite_incidents(run_data)
     run_id = str(run_data.get("run_id") or utc_now())
     timestamp = utc_now()
     state = get_store().load_state()
@@ -1827,6 +1943,10 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
             "attempt_statuses": [str(status) for status in test.get("attempt_statuses") or []],
             "error": test.get("error"),
             "verification_command": test.get("verification_command"),
+            "lane": test.get("lane") or "deterministic",
+            "parent_incident": bool(test.get("parent_incident")),
+            "parent_incident_key": test.get("parent_incident_key"),
+            "dependant_test_keys": [str(key) for key in test.get("dependant_test_keys") or []],
             "updated_at": timestamp,
         }
         tests[key] = current
@@ -4171,6 +4291,14 @@ def print_status(state: dict[str, Any]) -> None:
         f"{summary.get('skipped', 0)} skipped, "
         f"{summary.get('not_started', 0)} not started"
     )
+    for lane in TEST_LANES:
+        lane_summary = (summary.get("lanes") or {}).get(lane) or {}
+        print(
+            f"{lane}: {lane_summary.get('passed', 0)} passed, "
+            f"{lane_summary.get('failed', 0)} failed, "
+            f"{lane_summary.get(BLOCKED_BY_PARENT_STATUS, 0)} blocked by parent"
+        )
+    print(f"Global zero complete: {bool(summary.get('global_zero_complete'))}")
     running = [test for test in (state.get("tests") or {}).values() if test.get("status") == "running"]
     if running:
         print(f"Running: {len(running)}")

@@ -2084,6 +2084,45 @@ def test_campaign_run_options_are_control_plane_only(tmp_path, monkeypatch):
     assert options.gate_deploy is True
 
 
+def test_scoped_verification_ignores_historical_unrelated_failures(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    state = {
+        "tests": {
+            "playwright::historical-reminder.spec.ts": {"status": "failed"},
+            "pytest_unit::feature-test": {"status": "passed"},
+        }
+    }
+
+    result = control.evaluate_scoped_verification(
+        state,
+        required_test_keys=["pytest_unit::feature-test"],
+        attributable_failure_keys=[],
+    )
+
+    assert result["status"] == "passed"
+    assert result["blocking_test_keys"] == []
+    assert result["visible_unrelated_failure_keys"] == ["playwright::historical-reminder.spec.ts"]
+
+
+def test_scoped_verification_blocks_new_attributable_failure(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    state = {
+        "tests": {
+            "pytest_unit::feature-test": {"status": "passed"},
+            "playwright::feature-regression.spec.ts": {"status": "failed"},
+        }
+    }
+
+    result = control.evaluate_scoped_verification(
+        state,
+        required_test_keys=["pytest_unit::feature-test"],
+        attributable_failure_keys=["playwright::feature-regression.spec.ts"],
+    )
+
+    assert result["status"] == "blocked"
+    assert result["blocking_test_keys"] == ["playwright::feature-regression.spec.ts"]
+
+
 def test_group_completion_rejects_unrelated_passing_run(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     control.record_run_result(failed_run("first.spec.ts"))

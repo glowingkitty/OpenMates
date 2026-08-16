@@ -127,6 +127,63 @@ def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
     assert record["attempt_statuses"] == ["failed", "passed"]
 
 
+def test_failed_prerequisite_records_one_parent_and_visible_blocked_dependants(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = {
+        "run_id": "run-worker-down",
+        "summary": {"total": 2, "passed": 0, "failed": 0, "skipped": 2},
+        "prerequisites": [{
+            "id": "task_worker",
+            "status": "failed",
+            "lane": "live_probe",
+            "error": "Task worker health check failed",
+            "dependant_test_keys": [
+                "playwright::reminder-email.spec.ts",
+                "playwright::notifications-flow.spec.ts",
+            ],
+        }],
+        "suites": {"playwright": {"status": "skipped", "tests": [
+            {"name": "reminder-email.spec.ts", "file": "reminder-email.spec.ts", "status": "skipped"},
+            {"name": "notifications-flow.spec.ts", "file": "notifications-flow.spec.ts", "status": "skipped"},
+        ]}},
+    }
+
+    state = tests_control.record_run_result(run)
+    triage = tests_control.build_triage()
+
+    parent = state["tests"]["prerequisite::task_worker"]
+    assert parent["status"] == "failed"
+    assert parent["lane"] == "live_probe"
+    for key in run["prerequisites"][0]["dependant_test_keys"]:
+        assert state["tests"][key]["status"] == "blocked_by_parent"
+        assert state["tests"][key]["parent_incident_key"] == parent["key"]
+    assert state["summary"]["failed"] == 1
+    assert state["summary"]["blocked_by_parent"] == 2
+    assert [entry["key"] for entry in triage["entries"]] == ["prerequisite::task_worker"]
+
+
+def test_status_summary_separates_deterministic_and_live_probe_health(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-lanes",
+        "suites": {
+            "pytest_unit": {"status": "passed", "lane": "deterministic", "tests": [
+                {"name": "tests/test_math.py::test_add", "status": "passed"},
+            ]},
+            "api_live": {"status": "failed", "lane": "live_probe", "tests": [
+                {"name": "gmail_delivery", "status": "failed", "error": "Gmail probe failed"},
+            ]},
+        },
+    })
+
+    summary = tests_control.load_state()["summary"]
+
+    assert summary["lanes"]["deterministic"]["passed"] == 1
+    assert summary["lanes"]["deterministic"]["failed"] == 0
+    assert summary["lanes"]["live_probe"]["failed"] == 1
+    assert summary["global_zero_complete"] is False
+
+
 def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     raw_report = {
