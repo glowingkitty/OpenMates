@@ -19,6 +19,25 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 	await stackItem.evaluate(async (element) => {
 		await Promise.allSettled(element.getAnimations().map((animation) => animation.finished));
 	});
+	const exitingState = stackItem.evaluate((element: HTMLElement) =>
+		new Promise<{ inert: boolean; ariaHidden: string | null; pointerEvents: string } | null>((resolve) => {
+			const timeout = window.setTimeout(() => {
+				observer.disconnect();
+				resolve(null);
+			}, 8000);
+			const observer = new MutationObserver(() => {
+				if (element.dataset.motionState !== 'exiting') return;
+				window.clearTimeout(timeout);
+				observer.disconnect();
+				resolve({
+					inert: element.inert,
+					ariaHidden: element.getAttribute('aria-hidden'),
+					pointerEvents: getComputedStyle(element).pointerEvents
+				});
+			});
+			observer.observe(element, { attributes: true });
+		})
+	);
 
 	const notificationBox = await notification.boundingBox();
 	expect(notificationBox, 'mobile notification should be measurable').not.toBeNull();
@@ -29,9 +48,11 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 	const progress = notification.getByTestId('notification-progress');
 	await expect(progress).toBeVisible();
 	await expect(progress).toHaveAttribute('data-duration-ms', '7000');
-	await expect(stackItem).toHaveAttribute('data-motion-state', 'exiting', { timeout: 8000 });
-	await expect(stackItem).toHaveJSProperty('inert', true);
-	await expect(stackItem).toHaveCSS('pointer-events', 'none');
+	expect(await exitingState, 'auto-dismiss should enter an inert outro state').toEqual({
+		inert: true,
+		ariaHidden: 'true',
+		pointerEvents: 'none'
+	});
 	await expect(notification).not.toBeVisible({ timeout: 2000 });
 
 	await context.close();
