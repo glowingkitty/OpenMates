@@ -98,7 +98,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 930cb32c1ab0839878aa405626747ff10a74c7ac
+  subject_commit: 4b9e397fe7c59778e50e3bd5a6d6315c7acb84b9
 
 approvals:
   product_contract:
@@ -238,14 +238,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-16T15:23:53Z"
     note: The gate maps four active lower-layer contracts to 21 shared delivery specs, all retaining browser-specific assertions; 17 Python and 8 CLI renderer tests passed.
+  - id: ATTEMPT-17
+    task_id: TASK-7
+    approach: Deploy the dedicated layered delivery coverage gate.
+    outcome: succeeded
+    recorded_at: "2026-08-16T15:23:53Z"
+    note: Coverage audit and regression tests deployed as 4b9e397fe7c59778e50e3bd5a6d6315c7acb84b9.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Deploy the layered delivery coverage gate and bind its evidence to the resulting commit.
-  command: 'python3 scripts/sessions.py deploy --session b737 --title "test: audit layered delivery coverage" --message "Separate shared delivery coverage from unique browser assertions."'
-  expected_outcome: Task 7 audit, regression test, and executable ledger deploy to dev.
+  current_task_id: TASK-8
+  next_action: Create or resume the durable Directus campaign, then run the full daily suite.
+  command: python3 scripts/tests.py campaign list --active --overlap-current-failures --json
+  expected_outcome: Existing failure ownership is explicit before the full nightly-equivalent run.
   blocker: null
-  last_verified_commit: 930cb32c1ab0839878aa405626747ff10a74c7ac
+  last_verified_commit: 4b9e397fe7c59778e50e3bd5a6d6315c7acb84b9
 
 scenarios:
   - id: S-1
@@ -434,7 +440,7 @@ acceptance_criteria:
     scenario: S-10
     text: Shared app-skill delivery behavior has lower-layer contract coverage and browser specs retain only generic hydration plus unique renderer or interaction behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-COVERAGE-AUDIT]
@@ -603,7 +609,7 @@ tests:
       - Duplicated shared delivery flows are inventoried and lower-layer coverage is linked.
       - Unique browser rendering and interaction assertions remain represented.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_playwright_determinism_audit.py -q", run_id: "local-task7-coverage-red-20260816", subject_commit: "930cb32c1ab0839878aa405626747ff10a74c7ac", timestamp: "2026-08-16T15:23:53Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_playwright_determinism_audit.py backend/tests/test_rest_api_audio.py::test_audio_generate_dispatches_async_without_inline_audio backend/tests/test_app_skill_output_safety.py backend/tests/test_embed_methods.py -q && node --test frontend/packages/openmates-cli/tests/embedRenderers.test.ts && python3 scripts/audit_playwright_determinism.py --coverage", run_id: "local-task7-coverage-green-20260816", subject_commit: "4b9e397fe7c59778e50e3bd5a6d6315c7acb84b9", timestamp: "2026-08-16T15:23:53Z"}}
   - id: T-PRIVACY
     type: pytest
     file: scripts/tests/test_tests_control.py
@@ -754,7 +760,7 @@ tasks:
     independently_deployable: true
   - id: TASK-7
     title: Rationalize duplicated Playwright delivery coverage
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-10], acceptance_criteria: [AC-11]}
     expected_files: [scripts/audit_playwright_determinism.py, frontend/apps/web_app/tests]
@@ -767,7 +773,7 @@ tasks:
     independently_deployable: true
   - id: TASK-8
     title: Run the durable zero-failure campaign
-    status: pending
+    status: in_progress
     phase: running_checks
     covers: {scenarios: [S-2, S-3, S-4, S-5, S-9, S-10], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-10, AC-11]}
     expected_files: [docs/specs/nightly-test-zero-failures/spec.yml]
