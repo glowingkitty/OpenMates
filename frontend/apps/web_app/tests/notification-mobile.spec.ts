@@ -15,6 +15,8 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 	await page.goto('/');
 	const notification = page.getByTestId('notification').filter({ hasText: 'Language Detected' });
 	await expect(notification).toBeVisible({ timeout: 15000 });
+	const stackItem = page.getByTestId('notification-stack-item').filter({ has: notification });
+	await expect(stackItem).toHaveAttribute('data-motion-state', 'entered');
 
 	const notificationBox = await notification.boundingBox();
 	expect(notificationBox, 'mobile notification should be measurable').not.toBeNull();

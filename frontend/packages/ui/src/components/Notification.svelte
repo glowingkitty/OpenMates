@@ -9,7 +9,6 @@
     let startY = $state(0);
     let currentY = $state(0);
     let dragOffset = $state(0);
-    let isExiting = $state(false);
     let notificationElement: HTMLDivElement | null = $state(null);
     
     // Threshold for swipe dismissal (pixels)
@@ -48,15 +47,11 @@
     }
     
     /**
-     * Handle notification dismissal with exit animation
-     * Triggers exit animation then removes the notification from the store
+     * Handle notification dismissal.
+     * The shared stack keeps the keyed item mounted for its exit transition.
      */
     function handleDismiss(): void {
-        isExiting = true;
-        // Wait for exit animation to complete before removing
-        setTimeout(() => {
-            notificationStore.removeNotification(notification.id);
-        }, 200);
+        notificationStore.removeNotification(notification.id);
     }
     
     /**
@@ -107,11 +102,7 @@
         
         // Dismiss if swiped far enough OR fast enough (upward only)
         if (dragOffset < -SWIPE_THRESHOLD || (dragOffset < 0 && velocity > VELOCITY_THRESHOLD)) {
-            // Animate out and dismiss
-            isExiting = true;
-            setTimeout(() => {
-                notificationStore.removeNotification(notification.id);
-            }, 200);
+            notificationStore.removeNotification(notification.id);
         } else {
             // Snap back
             dragOffset = 0;
@@ -161,7 +152,6 @@
     class:notification-error={notification.type === 'error'}
     class:notification-info={notification.type === 'info'}
     class:notification-chat-message={notification.type === 'chat_message'}
-    class:notification-exiting={isExiting}
     class:notification-dragging={isDragging}
     style={dragStyle}
     role="alert"
@@ -261,9 +251,6 @@
         background-color: var(--color-grey-30);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
-        /* Animation for slide-in from outside viewport with opacity */
-        animation: slideInFromTop 0.2s ease-out forwards;
-        
         /* Smooth transition for drag gestures when not actively dragging */
         transition: transform var(--duration-normal), opacity var(--duration-normal);
         
@@ -279,35 +266,6 @@
     .notification-dragging {
         transition: none;
         cursor: grabbing;
-    }
-    
-    /* Exit animation - slide out to top with opacity fade */
-    .notification-exiting {
-        animation: slideOutToTop 0.2s ease-in forwards;
-    }
-    
-    @keyframes slideInFromTop {
-        from {
-            /* Start from outside viewport (above) */
-            transform: translateY(calc(-100% - 20px));
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutToTop {
-        from {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        to {
-            /* Exit to outside viewport (above) */
-            transform: translateY(calc(-100% - 20px));
-            opacity: 0;
-        }
     }
     
     /* Header row */

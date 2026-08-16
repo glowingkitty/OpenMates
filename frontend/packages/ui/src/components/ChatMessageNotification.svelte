@@ -376,7 +376,6 @@
     class:expanded={isExpanded}
     data-testid="chat-notification"
     data-chat-id={notification.chatId ?? ''}
-    transition:slide={{ axis: 'y', duration: 300 }}
     role="button"
     tabindex="0"
     aria-live="polite"
@@ -530,8 +529,6 @@
         /* Enable pointer events (parent container has pointer-events: none) */
         pointer-events: auto;
         
-        /* Animation for slide-in */
-        animation: slideInFromTop 0.3s ease-out;
     }
 
     .notification-progress {
@@ -566,17 +563,6 @@
     @media (prefers-reduced-motion: reduce) {
         .notification-progress-fill {
             animation-timing-function: steps(20, end);
-        }
-    }
-    
-    @keyframes slideInFromTop {
-        from {
-            transform: translateY(-100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
         }
     }
     

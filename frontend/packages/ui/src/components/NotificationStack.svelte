@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { cubicIn, cubicOut } from 'svelte/easing';
     import Notification from './Notification.svelte';
     import ChatMessageNotification from './ChatMessageNotification.svelte';
     import { notificationStore, type NotificationType } from '../stores/notificationStore';
@@ -15,6 +16,9 @@
     const STACK_OFFSET_PX = 10;
     const STACK_SCALE_STEP = 0.045;
     const STACK_OPACITY_BY_DEPTH = [1, 0.72, 0.48] as const;
+    const NOTIFICATION_MOTION_OFFSET_PX = 120;
+    const NOTIFICATION_INTRO_DURATION_MS = 320;
+    const NOTIFICATION_OUTRO_DURATION_MS = 280;
     const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
     const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
     const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
@@ -82,6 +86,48 @@
 
         return `--notification-stack-y: ${yOffset}px; --notification-stack-scale: ${scale}; --notification-stack-opacity: ${opacity}; --notification-stack-z: ${zIndex};`;
     }
+
+    function createNotificationMotion(
+        node: HTMLElement,
+        { depth }: { depth: number },
+        direction: 'in' | 'out',
+    ) {
+        const yOffset = depth * -STACK_OFFSET_PX;
+        const scale = 1 - depth * STACK_SCALE_STEP;
+        const opacity = STACK_OPACITY_BY_DEPTH[depth] ?? STACK_OPACITY_BY_DEPTH.at(-1) ?? 0.48;
+        const reducedMotion = node.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+
+        return {
+            duration: reducedMotion
+                ? 0
+                : direction === 'out'
+                  ? NOTIFICATION_OUTRO_DURATION_MS
+                  : NOTIFICATION_INTRO_DURATION_MS,
+            easing: direction === 'out' ? cubicIn : cubicOut,
+            css: (t: number, u: number) => `
+                opacity: ${opacity * t};
+                transform: translateY(${yOffset - NOTIFICATION_MOTION_OFFSET_PX * u}px) scale(${scale});
+            `,
+        };
+    }
+
+    function notificationIntro(node: HTMLElement, params: { depth: number }) {
+        return createNotificationMotion(node, params, 'in');
+    }
+
+    function notificationOutro(node: HTMLElement, params: { depth: number }) {
+        return createNotificationMotion(node, params, 'out');
+    }
+
+    function setNotificationMotionState(event: Event, state: 'entering' | 'entered' | 'exiting'): void {
+        const element = event.currentTarget as HTMLElement;
+        element.dataset.motionState = state;
+        if (state === 'exiting') {
+            element.inert = true;
+            element.setAttribute('aria-hidden', 'true');
+            element.style.pointerEvents = 'none';
+        }
+    }
 </script>
 
 {#if visibleNotifications.length > 0}
@@ -93,6 +139,11 @@
                 data-testid="notification-stack-item"
                 data-stack-depth={depth}
                 style={getStackItemStyle(depth)}
+                in:notificationIntro={{ depth }}
+                out:notificationOutro={{ depth }}
+                onintrostart={(event) => setNotificationMotionState(event, 'entering')}
+                onintroend={(event) => setNotificationMotionState(event, 'entered')}
+                onoutrostart={(event) => setNotificationMotionState(event, 'exiting')}
                 aria-hidden={depth > 0 ? 'true' : undefined}
                 inert={depth > 0}
             >
@@ -144,7 +195,6 @@
 
     .notification-stack-item :global(.notification) {
         margin: 0;
-        animation: none;
     }
 
     @media (max-width: 730px) {
