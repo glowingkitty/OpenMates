@@ -203,6 +203,11 @@ decisions:
     decision: Use the OpenCode child session agent field as explicit pre-tool role metadata and keep parentID insufficient on its own.
     reason: OpenCode creates task child sessions with both parentID and agent before prompting, while task-result metadata arrives only after the child finishes.
     decided_at: "2026-08-14T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Let explicitly writable task children mutate the parent chat's inherited repository worktree.
+    reason: A writable child is part of the parent work unit; creating a second repository session or worktree violates the one-worktree-per-top-level-chat contract.
+    decided_at: "2026-08-16T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -315,7 +320,7 @@ scenarios:
     then:
       - Status shows child activity under the parent task.
       - A child explicitly marked read_only or reviewer does not create a repository session, worktree, or false parent collision.
-      - A writable child is separate only when explicitly assigned disjoint ownership.
+      - A writable child reuses the parent repository session and worktree for mutation.
       - Missing role metadata never infers read-only behavior from parentID alone.
   - id: S-7
     title: Unrelated work receives no coordination noise
@@ -434,7 +439,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-STORE, T-PYTEST-FAILURE]
   - id: AC-6
     scenario: S-6
-    text: Child sessions are grouped by parentID, but read-only or writable ownership is applied only from an explicit OpenMates child-role marker.
+    text: Child sessions are grouped by parentID, and ownership is derived from explicit OpenCode session agent metadata before the first tool call, then reconciled from the OpenMates child-role marker.
     required: true
     status: satisfied
     coverage_status: covered
@@ -498,7 +503,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-PRIVACY]
   - id: AC-14
     scenario: S-12
-    text: Task children receive an explicit role from OpenCode session agent metadata before their first tool call, observed read-only inspection pipelines pass without weakening mutation guards, and telemetry separates expected blocks from routing defects.
+    text: Task children receive an explicit role from OpenCode session agent metadata before their first tool call, writable children mutate the inherited parent worktree, observed read-only inspection pipelines pass without weakening mutation guards for other roles, and telemetry separates expected blocks from routing defects.
     required: true
     status: satisfied
     coverage_status: covered
@@ -547,7 +552,7 @@ assumptions:
     status: confirmed
     evidence:
       - source: OpenCode 1.17.20 Session type
-        summary: Session records include parentID; an explicit owner-only child-role marker groups reviewer activity while inherited parent routes deterministically block child mutation.
+        summary: Session records include parentID; explicit child-role metadata lets writable children mutate the inherited parent route while other child roles remain mutation-blocked.
   - id: A-6
     text: The presence store can accept concurrent updates from all OpenCode plugin instances without lost updates or corrupt records.
     category: concurrency
@@ -698,6 +703,8 @@ tests:
     assertions:
       - an explore child derives read_only from session agent metadata before task completion metadata exists
       - a general child derives writable and an unrecognized child remains unknown
+      - a general child can mutate its inherited parent worktree while read_only, reviewer, and unknown children cannot
+      - a general child cannot start or ensure a separate repository session or worktree
       - exact read-only commands observed in the failing child transcript are allowed
       - redirection, interpreter evaluation, command substitution, and mutating filter options remain blocked
     red_phase:

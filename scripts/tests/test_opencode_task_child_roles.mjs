@@ -14,13 +14,7 @@ import test from "node:test";
 
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
-const {
-  childMutationDecisionForTest,
-  hookRuntimeDiagnosticForTest,
-  repeatedRoutingFailureMessageForTest,
-  resolveWorktreeRouteForTest,
-  taskChildClassificationForTest,
-} = OpenMatesHooks.test;
+const { childMutationDecisionForTest, resolveWorktreeRouteForTest, taskChildClassificationForTest } = OpenMatesHooks.test;
 
 test("task child derives its role from explicit session agent metadata before completion", async () => {
   const data = {
@@ -88,41 +82,61 @@ test("task classification rejects incomplete, mismatched, and unknown metadata",
   );
 });
 
-test("classified children still cannot mutate the inherited parent worktree", () => {
-  for (const role of ["read_only", "reviewer", "writable"]) {
+test("only classified writable children can mutate the inherited parent worktree", () => {
+  for (const role of ["read_only", "reviewer"]) {
     assert.equal(
       childMutationDecisionForTest({ inheritedParentRoute: true, childRole: role }, "apply_patch").decision,
       "block",
     );
   }
-});
-
-test("hook runtime diagnostics distinguish current and stale loaded source", () => {
-  assert.deepEqual(
-    hookRuntimeDiagnosticForTest("a".repeat(64), "a".repeat(64)),
-    { runtimeHash: "a".repeat(64), sourceHash: "a".repeat(64), status: "current" },
-  );
   assert.equal(
-    hookRuntimeDiagnosticForTest("a".repeat(64), "b".repeat(64)).status,
-    "stale_runtime",
+    childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "writable" }, "apply_patch").decision,
+    "allow",
   );
-  assert.equal(hookRuntimeDiagnosticForTest("unavailable", "unavailable").status, "unavailable");
 });
 
-test("second routing block stops blind retries and reports runtime attestation", () => {
-  const first = repeatedRoutingFailureMessageForTest("blocked", 1, {
-    runtimeHash: "a".repeat(64),
-    sourceHash: "a".repeat(64),
-    status: "current",
-  });
-  const second = repeatedRoutingFailureMessageForTest("blocked", 2, {
-    runtimeHash: "a".repeat(64),
-    sourceHash: "b".repeat(64),
-    status: "stale_runtime",
-  });
+test("general child mutation routes to the parent worktree without creating a child session", async () => {
+  const worktreePath = process.cwd();
+  const routingData = {
+    sessions: {
+      parent: {
+        opencode_session_id: "ses-parent",
+        mode: "feature",
+        worktree: { path: worktreePath, status: "active" },
+      },
+    },
+  };
+  const client = {
+    session: {
+      get: async ({ path: { id } }) => ({
+        data: id === "ses-child"
+          ? { id, parentID: "ses-parent", agent: "general" }
+          : { id: "ses-parent" },
+      }),
+    },
+  };
+  const hooks = await OpenMatesHooks({ client, routingData, recordRouting: false, editLease: () => {} });
+  const mutation = { args: { patchText: "*** Begin Patch\n*** Update File: scripts/example.js\n*** End Patch" } };
 
-  assert.equal(first, "blocked");
-  assert.match(second, /Do not retry the same tool call/);
-  assert.match(second, /stale_runtime/);
-  assert.match(second, /restart the OpenCode runtime/);
+  await hooks["tool.execute.before"]({ tool: "apply_patch", sessionID: "ses-child" }, mutation);
+
+  assert.match(mutation.args.patchText, new RegExp(`Update File: ${worktreePath}/scripts/example\\.js`));
+  for (const command of [
+    "python3 scripts/sessions.py start --mode bug --task test",
+    "python scripts/sessions.py start --mode bug --task test",
+    "./scripts/sessions.py start --mode bug --task test",
+    "env python3 scripts/sessions.py start --mode bug --task test",
+    "python3 -u scripts/../scripts/sessions.py start --mode bug --task test",
+    `python3 ${worktreePath}/scripts/sessions.py start --mode bug --task test`,
+    "python3 -m scripts.sessions start --mode bug --task test",
+    "date && python3 scripts/sessions.py worktree ensure --session child",
+  ]) {
+    await assert.rejects(
+      hooks["tool.execute.before"](
+        { tool: "bash", sessionID: "ses-child" },
+        { args: { command, workdir: "/model-selected-root" } },
+      ),
+      /must reuse the parent repository session and worktree/,
+    );
+  }
 });

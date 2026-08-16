@@ -868,26 +868,49 @@ function isReadOnlyChildBash(command) {
   });
 }
 
+function childRepositorySessionCommand(command) {
+  return commandSegmentTokens(String(command || "")).some((segment) => {
+    const tokens = segment.map(shellUnescape);
+    const moduleIndex = tokens.findIndex((token, index) => token === "scripts.sessions" && tokens[index - 1] === "-m");
+    const scriptIndex = tokens.findIndex((token) => {
+      const candidate = resolve(PROJECT_ROOT, token);
+      return [candidate, canonicalPath(candidate)]
+        .some((path) => path.replace(/\\/g, "/").endsWith("/scripts/sessions.py"));
+    });
+    const commandIndex = scriptIndex >= 0 ? scriptIndex + 1 : (moduleIndex >= 0 ? moduleIndex + 1 : -1);
+    return commandIndex > 0
+      && (tokens[commandIndex] === "start"
+        || (tokens[commandIndex] === "worktree" && tokens[commandIndex + 1] === "ensure"));
+  });
+}
+
 function childMutationDecisionForTest(route, tool, command = "") {
   if (!route?.inheritedParentRoute || (!EDIT_TOOLS.has(tool) && !BASH_TOOLS.has(tool))) {
     return { decision: "allow", message: "no inherited child mutation" };
+  }
+  if (route.childRole === "writable") {
+    if (BASH_TOOLS.has(tool) && childRepositorySessionCommand(command)) {
+      return {
+        decision: "block",
+        message: actionable(
+          "[OpenMates child ownership guard]",
+          "a writable child must reuse the parent repository session and worktree",
+          "continue the assigned mutation in the inherited parent worktree; do not start or ensure a child repository session.",
+        ),
+      };
+    }
+    return { decision: "allow", message: "writable child shares the parent worktree" };
   }
   if (BASH_TOOLS.has(tool) && isReadOnlyChildBash(command)) {
     return { decision: "allow", message: "read-only inherited child shell" };
   }
   const role = route.childRole || "unknown";
-  const reason = role === "writable"
-    ? "a writable child must own a separate repository session and disjoint worktree before mutating files"
-    : `child role ${role} may read the parent worktree but may not mutate it`;
-  const next = role === "writable"
-    ? "assign the child its own writable sessions.py worktree and disjoint file/task ownership."
-    : "finish the read-only investigation and return the finding to the parent; do not start another repository session.";
   return {
     decision: "block",
     message: actionable(
       "[OpenMates child ownership guard]",
-      reason,
-      next,
+      `child role ${role} may read the parent worktree but may not mutate it`,
+      "finish the read-only investigation and return the finding to the parent; do not start another repository session.",
     ),
   };
 }
@@ -2032,7 +2055,7 @@ function guardWorkerBashGate(command, sessionID) {
   if (decision.decision === "block") throw new Error(decision.message);
 }
 
-export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true } = {}) => {
+export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true, editLease = runEditLease } = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
   const presenceStates = new Map();
@@ -2232,7 +2255,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
         runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        runEditLease("acquire", files, routedOpenCodeSessionID);
+        editLease("acquire", files, routedOpenCodeSessionID);
         return;
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
@@ -2279,7 +2302,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
         runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
-        runEditLease("release", files, routedOpenCodeSessionID);
+        editLease("release", files, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, [], true);
       }
     },
