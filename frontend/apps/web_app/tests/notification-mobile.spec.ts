@@ -54,6 +54,7 @@ test('mobile notification stays inset and auto-dismisses with visible progress',
 		pointerEvents: 'none'
 	});
 	await expect(notification).not.toBeVisible({ timeout: 2000 });
+	await expect(stackItem).toHaveCount(0);
 
 	await context.close();
 });

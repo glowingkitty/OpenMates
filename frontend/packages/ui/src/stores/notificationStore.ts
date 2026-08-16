@@ -103,6 +103,7 @@ const { subscribe, update } = writable<NotificationState>(initialState);
 
 export const SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY = "security-reminder";
 export const NOTIFICATION_OUTRO_DURATION_MS = 280;
+const REDUCED_MOTION_OUTRO_DURATION_MS = 1;
 
 let notificationIdCounter = 0;
 
@@ -115,6 +116,13 @@ function getExistingDedupeId(state: NotificationState, dedupeKey?: string): stri
   return state.notifications.find(
     (notification) => notification.dedupeKey === dedupeKey && !notification.isExiting,
   )?.id;
+}
+
+function getNotificationOutroDuration(): number {
+  if (typeof window === "undefined") return NOTIFICATION_OUTRO_DURATION_MS;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? REDUCED_MOTION_OUTRO_DURATION_MS
+    : NOTIFICATION_OUTRO_DURATION_MS;
 }
 
 export const notificationStore = {
@@ -241,7 +249,7 @@ export const notificationStore = {
       update((state) => ({
         notifications: state.notifications.filter((item) => item.id !== id),
       }));
-    }, NOTIFICATION_OUTRO_DURATION_MS);
+    }, getNotificationOutroDuration());
     exitRemovalTimers.set(id, exitTimer);
   },
 
