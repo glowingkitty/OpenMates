@@ -1,0 +1,58 @@
+{
+  "fingerprint": "11cfede695ea8c86",
+  "category": "llm_non_stream/mistral-small-2506",
+  "group_id": "embed_diff_code_web",
+  "recorded_at": "2026-08-16T15:30:00+00:00",
+  "request": {
+    "model": "mistral-small-2506",
+    "messages_count": 3,
+    "tools_count": 1,
+    "temperature": null,
+    "tool_choice": "required",
+    "tool_names": ["analyze_request_properties"],
+    "last_message_hash": "11cfede695ea8c86",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float)."
+    }
+  },
+  "response": {
+    "type": "non_stream",
+    "value": {
+      "kind": "pydantic",
+      "module": "backend.apps.ai.llm_providers.mistral_client",
+      "class": "UnifiedMistralResponse",
+      "value": {
+        "task_id": "live-mock-embed-diff-code-follow-up",
+        "model_id": "mistral-small-2506",
+        "success": true,
+        "tool_calls_made": [
+          {
+            "tool_call_id": "call_embed_diff_code_follow_up",
+            "function_name": "analyze_request_properties",
+            "function_arguments_raw": "{\"llm_response_temp\":0.4,\"complexity\":\"simple\",\"task_area\":\"code\",\"user_unhappy\":false,\"china_model_sensitive\":false,\"enable_subchats\":false,\"load_app_settings_and_memories\":[],\"relevant_app_skills\":[],\"relevant_focus_modes\":[],\"relevant_embedded_previews\":[\"code\"],\"chat_summary\":\"Rename Python average function to compute_mean\",\"chat_tags\":[\"python\",\"refactor\",\"type hints\"],\"topic_area\":\"software_development\",\"topic_shift\":\"same_topic\",\"harmful_or_illegal\":0.0,\"misuse_risk\":0,\"output_language\":\"en\"}",
+            "function_arguments_parsed": {
+              "llm_response_temp": 0.4,
+              "complexity": "simple",
+              "task_area": "code",
+              "user_unhappy": false,
+              "china_model_sensitive": false,
+              "enable_subchats": false,
+              "load_app_settings_and_memories": [],
+              "relevant_app_skills": [],
+              "relevant_focus_modes": [],
+              "relevant_embedded_previews": ["code"],
+              "chat_summary": "Rename Python average function to compute_mean",
+              "chat_tags": ["python", "refactor", "type hints"],
+              "topic_area": "software_development",
+              "topic_shift": "same_topic",
+              "harmful_or_illegal": 0.0,
+              "misuse_risk": 0,
+              "output_language": "en"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

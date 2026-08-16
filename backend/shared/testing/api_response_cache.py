@@ -339,6 +339,11 @@ class ApiResponseCache:
             if candidate_value != expected_value:
                 return False
 
+        expected_tool_names = expected.get("tool_names")
+        candidate_tool_names = candidate.get("tool_names")
+        if expected_tool_names and candidate_tool_names and candidate_tool_names != expected_tool_names:
+            return False
+
         expected_last = expected.get("last_message_preview")
         candidate_last = candidate.get("last_message_preview")
         expected_last_hash = expected.get("last_message_hash")

@@ -546,14 +546,36 @@ def _deserialize_portable_provider_chunk(class_name: Any, value: dict[str, Any])
 
     try:
         from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
+        from pydantic import BaseModel
 
         class PortableParsedToolCall(ParsedOpenAIToolCall):
             thought_signature: str | None = None
+
+        class PortableUnifiedProviderResponse(BaseModel):
+            task_id: str = ""
+            model_id: str = ""
+            success: bool = False
+            error_message: str | None = None
+            direct_message_content: str | None = None
+            tool_calls_made: list[PortableParsedToolCall] | None = None
+            usage: Any | None = None
+            raw_response: Any | None = None
 
         if class_name.startswith("Parsed") and class_name.endswith("ToolCall"):
             required = {"tool_call_id", "function_name", "function_arguments_raw", "function_arguments_parsed"}
             if required.issubset(value):
                 return PortableParsedToolCall.model_validate(value)
+
+        if class_name.startswith("Unified") and class_name.endswith("Response"):
+            response_value = dict(value)
+            tool_calls = response_value.get("tool_calls_made")
+            if isinstance(tool_calls, list):
+                response_value["tool_calls_made"] = [
+                    PortableParsedToolCall.model_validate(tool_call)
+                    for tool_call in tool_calls
+                    if isinstance(tool_call, dict)
+                ]
+            return PortableUnifiedProviderResponse.model_validate(response_value)
 
         if class_name == "GoogleUsageMetadata":
             return OpenAIUsageMetadata(
@@ -616,6 +638,9 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
         "temperature": kwargs.get("temperature"),
         "tool_choice": kwargs.get("tool_choice"),
     }
+    tool_names = _tool_function_names(tools)
+    if tool_names:
+        request_summary["tool_names"] = tool_names
     if messages:
         last_msg = messages[-1]
         content = last_msg.get("content", "")
@@ -638,3 +663,20 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
             "content": content,
         }
     return request_summary
+
+
+def _tool_function_names(tools: Any) -> list[str]:
+    """Return stable function names for cache compatibility matching."""
+    if not isinstance(tools, list):
+        return []
+    names: list[str] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        function_def = tool.get("function")
+        if not isinstance(function_def, dict):
+            continue
+        name = function_def.get("name")
+        if isinstance(name, str) and name:
+            names.append(name)
+    return names
