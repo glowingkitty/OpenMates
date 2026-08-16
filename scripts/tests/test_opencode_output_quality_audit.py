@@ -14,7 +14,9 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import sqlite3
 import sys
+import time
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -463,6 +465,92 @@ def test_child_completion_telemetry_is_aggregate_only() -> None:
         "by_agent": {"explore": {"completed": 2, "empty": 1}},
     }
     assert "private-" not in json.dumps(report)
+
+
+def test_top_level_empty_unknown_completion_telemetry_is_aggregate_only() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_top_level_completions([
+        {"agent": "build", "terminal": True, "finish": "unknown", "usable_output": False, "session_id": "private-one"},
+        {"agent": "build", "terminal": True, "finish": "stop", "usable_output": True, "session_id": "private-two"},
+        {"agent": "plan", "terminal": False, "finish": "unknown", "usable_output": False, "session_id": "private-three"},
+    ])
+
+    assert report == {
+        "completed": 2,
+        "empty_unknown": 1,
+        "by_agent": {"build": {"completed": 2, "empty_unknown": 1}},
+    }
+    assert "private-" not in json.dumps(report)
+
+
+def test_top_level_completion_collector_excludes_child_sessions(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    database = tmp_path / "opencode.db"
+    connection = sqlite3.connect(database)
+    connection.executescript(
+        """
+        CREATE TABLE session (id TEXT PRIMARY KEY, parent_id TEXT, directory TEXT);
+        CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, data TEXT);
+        CREATE TABLE part (message_id TEXT, time_created INTEGER, data TEXT);
+        """
+    )
+    now_ms = int(time.time() * 1000)
+    project = str(audit._opencode_project_directory())
+    connection.executemany(
+        "INSERT INTO session VALUES (?, ?, ?)",
+        [
+            ("top-level", None, project),
+            ("child", "top-level", project),
+        ],
+    )
+    empty_message = json.dumps({
+        "role": "assistant",
+        "agent": "build",
+        "finish": "unknown",
+        "time": {"completed": now_ms},
+    })
+    connection.executemany(
+        "INSERT INTO message VALUES (?, ?, ?, ?)",
+        [
+            ("top-message", "top-level", now_ms, empty_message),
+            ("child-message", "child", now_ms, empty_message),
+        ],
+    )
+    connection.commit()
+    connection.close()
+
+    records = audit.collect_top_level_completion_records(days=1, db_path=database)
+
+    assert records == [{
+        "agent": "build",
+        "terminal": True,
+        "finish": "unknown",
+        "usable_output": False,
+    }]
+
+
+def test_telemetry_audit_flags_top_level_empty_unknown_completions() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "conservative_batchable_turns": 0,
+            "standalone_todo_turns": 0,
+            "tool_error_counts": {},
+            "top_level_completion": {"empty_unknown": 1},
+        },
+        days=1,
+    )
+
+    assert any("empty top-level" in issue.message for issue in issues)
+
+
+def test_openai_provider_header_timeout_is_longer_than_runtime_default() -> None:
+    audit = load_audit_module()
+    config = audit._load_config()
+
+    timeout = config["provider"]["openai"]["options"]["headerTimeout"]
+    assert timeout >= 300_000
 
 
 def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:

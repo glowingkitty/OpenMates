@@ -39,6 +39,13 @@
       "gsd-*": "deny"
     }
   },
+  "provider": {
+    "openai": {
+      "options": {
+        "headerTimeout": 300000
+      }
+    }
+  },
   "agent": {
     "explore": {
       "model": "openai/gpt-5.6-terra",

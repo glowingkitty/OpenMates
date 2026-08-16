@@ -33,6 +33,7 @@ EAGER_LONG_INSTRUCTIONS = {
     "docs/contributing/guides/spec-driven-development.md",
 }
 MAX_ALWAYS_LOADED_INSTRUCTIONS = 2
+MAX_TOP_LEVEL_EMPTY_UNKNOWN_COMPLETIONS = 0
 MIN_DUPLICATE_LINE_LENGTH = 40
 REQUIRED_CORE_TERMS = {
     "lazy-load guidance": ("lazy-load", "lazy load"),
@@ -633,6 +634,29 @@ def summarize_child_completions(records: list[dict[str, Any]]) -> dict[str, Any]
     }
 
 
+def summarize_top_level_completions(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return aggregate-only completion health for top-level chats."""
+
+    completed = [record for record in records if record.get("terminal")]
+    empty_unknown = [
+        record
+        for record in completed
+        if record.get("finish") == "unknown" and not record.get("usable_output")
+    ]
+    agents = sorted({str(record.get("agent") or "<none>") for record in completed})
+    return {
+        "completed": len(completed),
+        "empty_unknown": len(empty_unknown),
+        "by_agent": {
+            agent: {
+                "completed": sum(str(record.get("agent") or "<none>") == agent for record in completed),
+                "empty_unknown": sum(str(record.get("agent") or "<none>") == agent for record in empty_unknown),
+            }
+            for agent in agents
+        },
+    }
+
+
 def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[AuditIssue]:
     """Flag conservative workflow-efficiency regressions from aggregate telemetry."""
 
@@ -643,6 +667,10 @@ def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[A
     standalone_todos = int(telemetry.get("standalone_todo_turns") or 0)
     error_counts = telemetry.get("tool_error_counts") if isinstance(telemetry.get("tool_error_counts"), dict) else {}
     routing_errors = sum(int(error_counts.get(key) or 0) for key in ("child_role_unknown", "missing_session", "root_path_routing"))
+    top_level_completion = telemetry.get("top_level_completion")
+    if not isinstance(top_level_completion, dict):
+        top_level_completion = {}
+    empty_unknown = int(top_level_completion.get("empty_unknown") or 0)
 
     batchable_budget = MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY * days
     if batchable > batchable_budget:
@@ -661,6 +689,11 @@ def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[A
         issues.append(AuditIssue(
             "opencode-telemetry",
             f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role_unknown/missing_session/root_path_routing categories",
+        ))
+    if empty_unknown > MAX_TOP_LEVEL_EMPTY_UNKNOWN_COMPLETIONS:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"empty top-level finish=unknown completions detected: {empty_unknown}; inspect provider timeout and transport logs",
         ))
     return issues
 
@@ -790,6 +823,63 @@ def collect_child_completion_records(*, days: int, db_path: Path = OPENCODE_DB_P
     ]
 
 
+def collect_top_level_completion_records(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[dict[str, Any]]:
+    """Collect privacy-safe completion state for top-level assistant messages."""
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
+    project = _opencode_project_directory()
+    connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    try:
+        rows = connection.execute(
+            """
+            SELECT message.id, message.data, part.data
+            FROM session
+            JOIN message ON message.session_id = session.id
+            LEFT JOIN part ON part.message_id = message.id
+            WHERE COALESCE(session.parent_id, '') = ''
+              AND (session.directory = ? OR session.directory LIKE ?)
+              AND message.time_created >= ?
+            ORDER BY message.id, part.time_created
+            """,
+            (str(project), f"{project}/.openmates-agent-worktrees/%", since_ms),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    messages: dict[str, dict[str, Any]] = {}
+    for message_id, raw_message, raw_part in rows:
+        try:
+            message = json.loads(raw_message)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        time_data = message.get("time") if isinstance(message.get("time"), dict) else {}
+        record = messages.setdefault(
+            str(message_id),
+            {
+                "agent": str(message.get("agent") or "<none>"),
+                "terminal": bool(time_data.get("completed")),
+                "finish": str(message.get("finish") or ""),
+                "usable_output": False,
+            },
+        )
+        if not raw_part:
+            continue
+        try:
+            part = json.loads(raw_part)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if part.get("type") == "text" and str(part.get("text") or "").strip():
+            record["usable_output"] = True
+        if part.get("type") == "tool":
+            state = part.get("state") if isinstance(part.get("state"), dict) else {}
+            if state.get("status") == "completed" and str(state.get("output") or "").strip():
+                record["usable_output"] = True
+    return list(messages.values())
+
+
 def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
     return audit_instruction_surface(root)
 
@@ -805,6 +895,9 @@ def main(argv: list[str] | None = None) -> int:
     if telemetry is not None:
         telemetry["child_completion"] = summarize_child_completions(
             collect_child_completion_records(days=args.telemetry_days)
+        )
+        telemetry["top_level_completion"] = summarize_top_level_completions(
+            collect_top_level_completion_records(days=args.telemetry_days)
         )
         issues.extend(audit_tool_turn_telemetry(telemetry, days=args.telemetry_days))
     if args.json:

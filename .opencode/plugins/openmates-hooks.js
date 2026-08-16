@@ -435,6 +435,7 @@ function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
     const assistantState = { ...state, turn_id: info.id, user_turn_id: info.parentID || state.user_turn_id };
     if (info.error?.name === "MessageAbortedError") return { ...assistantState, execution: "stopped", turn: "aborted" };
     if (info.error) return { ...assistantState, execution: "error", turn: "failed" };
+    if (info.time?.completed && info.finish === "unknown") return { ...assistantState, execution: "error", turn: "failed" };
     if (info.time?.completed) return { ...assistantState, turn: "completed" };
     return { ...assistantState, execution: "busy", turn: "streaming", heartbeat_at: now };
   }
