@@ -13,11 +13,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
+const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 
 function tail<T>(items: T[]): T[] {
 	return items.slice(Math.max(0, items.length - STARTUP_SYNC_DIAGNOSTIC_TAIL));
@@ -97,6 +98,45 @@ async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
 				});
 
 				if (messageCount === 0) return chatId;
+			}
+			return null;
+		} finally {
+			db.close();
+		}
+	});
+}
+
+async function getLocalShortChatWithMessages(
+	page: any
+): Promise<{ chatId: string; messageCount: number } | null> {
+	return await page.evaluate(async () => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+
+		try {
+			const chats = await new Promise<any[]>((resolve, reject) => {
+				const tx = db.transaction(['chats'], 'readonly');
+				const request = tx.objectStore('chats').getAll();
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result || []);
+			});
+			chats.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
+
+			for (const chat of chats) {
+				const chatId = chat.chat_id || chat.id;
+				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+
+				const messageCount = await new Promise<number>((resolve, reject) => {
+					const tx = db.transaction(['messages'], 'readonly');
+					const index = tx.objectStore('messages').index('chat_id');
+					const request = index.count(chatId);
+					request.onerror = () => reject(request.error);
+					request.onsuccess = () => resolve(request.result || 0);
+				});
+				if (messageCount > 0 && messageCount < 30) return { chatId, messageCount };
 			}
 			return null;
 		} finally {
@@ -238,4 +278,73 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		timeout: 15000,
 		message: 'Opening metadata-only chat should request on-demand content hydration'
 	}).toBe(true);
+});
+
+// contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('cached short chat opens coherently before delayed completeness repair', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await loginToTestAccount(page);
+	await waitForChatReady(page, undefined, 60000);
+
+	let localChat: { chatId: string; messageCount: number } | null = null;
+	await expect.poll(async () => {
+		localChat = await getLocalShortChatWithMessages(page);
+		return localChat !== null;
+	}, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Startup sync should cache at least one recent short chat with messages'
+	}).toBe(true);
+	if (!localChat) throw new Error('No locally cached short chat was available after startup sync');
+
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+
+	const windowRoute = '**/v1/chats/*/messages/window**';
+	let releaseRepair: () => void = () => undefined;
+	const repairGate = new Promise<void>((resolve) => {
+		releaseRepair = resolve;
+	});
+	let repairRequested = false;
+	await page.route(windowRoute, async (route: any) => {
+		if (!route.request().url().includes(`/v1/chats/${localChat!.chatId}/messages/window`)) {
+			await route.continue();
+			return;
+		}
+		repairRequested = true;
+		await repairGate;
+		await route.continue();
+	});
+
+	try {
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, localChat.chatId);
+
+		await expect.poll(() => repairRequested, {
+			timeout: 10000,
+			message: 'Opening a cached short chat should start background completeness repair'
+		}).toBe(true);
+
+		await expect(page.getByTestId('welcome-content')).not.toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect.poll(async () =>
+			Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0),
+		{
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
+			message: 'The bounded local message window should render before repair completes'
+		}).toBeGreaterThan(0);
+	} finally {
+		releaseRepair();
+		await page.unroute(windowRoute);
+	}
 });
