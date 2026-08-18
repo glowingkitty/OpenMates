@@ -22,6 +22,30 @@ website:
   sv: Webbplats
   he: אתר
   verified_by_human: []
+events:
+  context: Footer link text for events section
+  en: Events
+  de: Events
+  zh: 活动
+  es: Eventos
+  fr: Événements
+  pt: Eventos
+  ru: События
+  ja: イベント
+  ko: 이벤트
+  it: Eventi
+  tr: Etkinlikler
+  vi: Sự kiện
+  id: Acara
+  pl: Wydarzenia
+  nl: Evenementen
+  ar: الفعاليات
+  hi: कार्यक्रम
+  th: กิจกรรม
+  cs: Události
+  sv: Evenemang
+  he: אירועים
+  verified_by_human: []
 for_everyone:
   context: Footer link text for general audience section
   en: For all of us

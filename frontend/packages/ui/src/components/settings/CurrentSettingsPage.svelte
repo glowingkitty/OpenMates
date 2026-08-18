@@ -9,7 +9,7 @@
     import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, onMount, tick } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -218,97 +218,9 @@
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
     let isAdminUser = $derived($userProfile.is_admin === true);
-    
-    /**
-     * Track measured content height for submenu views.
-     * This is updated by a ResizeObserver that watches the active content element.
-     */
-    let measuredContentHeight = $state<number | null>(null);
-    
-    /**
-     * Measure the active content height using ResizeObserver.
-     * This ensures the slider adapts to the actual content height for all submenu views.
-     */
-    $effect(() => {
-        if (!sliderElement || activeSettingsView === 'main') {
-            measuredContentHeight = null;
-            return;
-        }
-
-        let resizeObserver: ResizeObserver | null = null;
-        let isActive = true; // Track if this effect instance is still active
-        // Capture element ref before async boundary — during page teardown,
-        // the bind:this prop may become null before the tick() microtask resolves.
-        const slider = sliderElement;
-
-        // Wait for DOM to update
-        tick().then(() => {
-            // Check if effect is still active (not cleaned up)
-            if (!isActive || !slider?.isConnected) {
-                return;
-            }
-
-            const activeContent = slider.querySelector('.settings-items.active, .settings-submenu-content.active');
-            if (!activeContent) {
-                measuredContentHeight = null;
-                return;
-            }
-            
-            // Measure initial height
-            measuredContentHeight = activeContent.scrollHeight;
-            
-            // Use ResizeObserver to track height changes
-            resizeObserver = new ResizeObserver((entries) => {
-                // Only update if this effect instance is still active
-                if (isActive) {
-                    for (const entry of entries) {
-                        measuredContentHeight = entry.target.scrollHeight;
-                    }
-                }
-            });
-            
-            resizeObserver.observe(activeContent);
-        });
-        
-        // Cleanup on unmount or view change
-        return () => {
-            isActive = false; // Mark as inactive
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        };
-    });
-    
-    /**
-     * Calculate min-height for settings-content-slider based on active view.
-     * 
-     * **Main menu**: Uses calculated height based on menu items count.
-     * **Submenu views**: Uses measured content height to adapt to actual content
-     * (e.g., Apps, interface, language settings).
-     * 
-     * **Why measure content height?**
-     * Submenu content is absolutely positioned for slide animations, so it doesn't
-     * contribute to the parent's height. By measuring the actual content height,
-     * we ensure the slider is exactly tall enough without creating excessive gaps.
-     * 
-     * This prevents content cutoff and excessive spacing when viewing submenus.
-     */
-    let sliderMinHeight = $derived.by(() => {
-        // For main menu, use calculated height based on menu items
-        if (activeSettingsView === 'main') {
-            return `${menuItemsCount * 50 + 140}px`;
-        }
-        // For submenu views, use measured content height if available
-        // Fallback to a reasonable default if measurement hasn't completed yet
-        if (measuredContentHeight !== null && measuredContentHeight > 0) {
-            return `${measuredContentHeight}px`;
-        }
-        // Temporary fallback while measuring (prevents layout shift)
-        return '500px';
-    });
 </script>
 
-<div class="settings-content-slider" style="min-height: {sliderMinHeight};" bind:this={sliderElement}>
+<div class="settings-content-slider" bind:this={sliderElement}>
 	<!-- Main settings menu - shown only when active -->
 	{#if activeSettingsView === 'main'}
         <div 
@@ -614,22 +526,15 @@
     .settings-content-slider {
         position: relative;
         width: 100%;
-        overflow: hidden;
-        padding-top: var(--spacing-0); /* Removed padding to eliminate top gap */
-        /* min-height now set dynamically via style attribute based on content height */
+        overflow-x: hidden;
+        padding-top: var(--spacing-0);
     }
     
     .settings-items, 
     .settings-submenu-content {
-        position: absolute;
-        left: 0;
+        position: relative;
         width: 100%;
         pointer-events: none;
-        /* 
-         * Background ensures content behind doesn't show through during transitions.
-         * The custom flyFade Svelte transition handles opacity and transform animations.
-         * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
-         */
         background-color: var(--color-grey-20);
     }
     

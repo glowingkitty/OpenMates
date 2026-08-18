@@ -3602,6 +3602,54 @@ element:
   sv: Element X
   he: Element X
   verified_by_human: []
+luma:
+  context: Luma events link
+  en: Luma
+  de: Luma
+  zh: Luma
+  es: Luma
+  fr: Luma
+  pt: Luma
+  ru: Luma
+  ja: Luma
+  ko: Luma
+  it: Luma
+  tr: Luma
+  vi: Luma
+  id: Luma
+  pl: Luma
+  nl: Luma
+  ar: Luma
+  hi: Luma
+  th: Luma
+  cs: Luma
+  sv: Luma
+  he: Luma
+  verified_by_human: []
+eventbrite:
+  context: Eventbrite events link
+  en: Eventbrite
+  de: Eventbrite
+  zh: Eventbrite
+  es: Eventbrite
+  fr: Eventbrite
+  pt: Eventbrite
+  ru: Eventbrite
+  ja: Eventbrite
+  ko: Eventbrite
+  it: Eventbrite
+  tr: Eventbrite
+  vi: Eventbrite
+  id: Eventbrite
+  pl: Eventbrite
+  nl: Eventbrite
+  ar: Eventbrite
+  hi: Eventbrite
+  th: Eventbrite
+  cs: Eventbrite
+  sv: Eventbrite
+  he: Eventbrite
+  verified_by_human: []
 meetup:
   context: Meetup contact link
   en: Meetup

@@ -131,6 +131,29 @@
         >{@html $text('settings.api_docs')}</a>
     </div> -->
 
+    <!-- Events -->
+    <div class="submenu-group">
+        <h3>{$text('footer.sections.events')}</h3>
+        <a
+            href={externalLinks.luma}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{$text('settings.luma')}</a>
+        <a
+            href={externalLinks.eventbrite}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{$text('settings.eventbrite')}</a>
+        <a
+            href={externalLinks.meetup}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{$text('settings.meetup')}</a>
+    </div>
+
     <!-- For everyone -->
     <div class="submenu-group">
         <h3>{$text('footer.sections.for_everyone')}</h3>
@@ -146,12 +169,6 @@
             target="_blank"
             rel="noopener noreferrer"
         >{$text('common.discord')}</a>
-        <a
-            href={externalLinks.meetup}
-            class="submenu-link"
-            target="_blank"
-            rel="noopener noreferrer"
-        >{$text('settings.meetup')}</a>
         <a
             href={externalLinks.bluesky}
             class="submenu-link"
@@ -241,17 +258,12 @@
             >{$text('common.terms_and_conditions')}</a>
         </div>
     {/if}
-
-    <div class="submenu-group">
-        <h3>Web app version</h3>
-        <span class="version-text">v2025-06-30-15-54-f9a9js</span>
-    </div>
 </div>
 
 <style>
     .submenu-section {
         padding: 0 16px 16px;
-        margin-top: 100px; /* Consistent 100px spacing from content above */
+        margin-top: 50px; /* Consistent 50px spacing from content above */
         position: relative; /* Ensure proper positioning in flex layout */
     }
 
@@ -277,12 +289,5 @@
 
     .submenu-link:hover {
         color: var(--color-primary);
-    }
-
-    .version-text {
-        color: var(--color-grey-50);
-        font-size: var(--font-size-small);
-        padding: 6px 0;
-        display: block;
     }
 </style>
