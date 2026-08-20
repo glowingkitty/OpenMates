@@ -116,9 +116,9 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	expect(Math.abs(expandedHeaderMetrics.identityCenterX - expandedHeaderMetrics.headerCenterX)).toBeLessThan(8);
 	expect(expandedHeaderMetrics.creditsBelowTitle).toBe(true);
 
-	const settingsContent = settingsMenu.getByTestId('settings-content-wrapper');
-	await settingsContent.evaluate((element: HTMLElement) => {
-		element.scrollTo({ top: element.scrollHeight });
+	const settingsSlider = settingsMenu.getByTestId('settings-content-slider');
+	await settingsSlider.evaluate((element: HTMLElement) => {
+		element.parentElement?.scrollTo({ top: element.parentElement.scrollHeight });
 	});
 	await expect(async () => {
 		const collapsedTitle = await settingsMenu.getByTestId('chat-settings-title').evaluate((title: HTMLElement) => {
@@ -135,8 +135,8 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 		expect(collapsedTitle.textOverflow).toBe('ellipsis');
 		expect(collapsedTitle.singleLine).toBe(true);
 	}).toPass({ timeout: 10_000 });
-	await settingsContent.evaluate((element: HTMLElement) => {
-		element.scrollTo({ top: 0 });
+	await settingsSlider.evaluate((element: HTMLElement) => {
+		element.parentElement?.scrollTo({ top: 0 });
 	});
 	await expect(settingsMenu.getByTestId('chat-settings-title')).not.toHaveCSS('white-space', 'nowrap', { timeout: 10_000 });
 	const settingsSummary = settingsMenu.getByTestId('chat-settings-summary');
