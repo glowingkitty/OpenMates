@@ -7893,8 +7893,10 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
 
     try:
         from scripts.spec_demo import resolve_run_artifact_path
+        from scripts.proof_video_workflow import _select_blocker_frame_path
     except ModuleNotFoundError:
         from spec_demo import resolve_run_artifact_path
+        from proof_video_workflow import _select_blocker_frame_path
 
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     review_status = str(review.get("status") or "pending")
@@ -7904,8 +7906,8 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
     video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
     record: dict[str, Any] = {
         "status": "required",
-        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
-        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
+        "reason": "Proof review did not pass; include the blocker image when reporting the issue.",
+        "response_requirement": "Run image_upload_command and paste the returned image Markdown in the blocker response; include video_upload_command only when useful.",
     }
     if not video_value or not video_path.is_file():
         return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
@@ -7913,10 +7915,11 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
     captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
+    image_path = _select_blocker_frame_path(run_dir, manifest)
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+    video_command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
     if captions_path is not None and captions_path.is_file():
-        command.extend(
+        video_command.extend(
             [
                 "--captions",
                 str(captions_path),
@@ -7927,12 +7930,24 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
             ]
         )
         record["captions_path"] = str(captions_path)
-    command.extend(["--alt", alt])
+    video_command.extend(["--alt", alt])
+    if image_path is None:
+        return {
+            **record,
+            "media_status": "missing_image",
+            "video_path": str(video_path),
+            "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
+        }
+    image_alt = f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})"
+    image_command = ["python3", "scripts/opencode_response_media.py", str(image_path), "--alt", image_alt]
     return {
         **record,
         "media_status": "available",
+        "image_path": str(image_path),
+        "image_upload_command": " ".join(shlex.quote(part) for part in image_command),
         "video_path": str(video_path),
-        "upload_command": " ".join(shlex.quote(part) for part in command),
+        "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
+        "upload_command": " ".join(shlex.quote(part) for part in image_command),
     }
 
 

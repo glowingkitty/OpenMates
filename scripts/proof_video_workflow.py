@@ -776,34 +776,36 @@ def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: lis
 def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: str) -> dict[str, Any]:
     """Return response-ready media metadata for failed or blocked proof reviews."""
 
+    try:
+        from scripts.spec_demo import resolve_run_artifact_path
+    except ModuleNotFoundError:
+        from spec_demo import resolve_run_artifact_path
+
     if review_status == "passed":
         return {}
     video_value = str(manifest.get("video_path") or "")
     if not video_value:
         source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
         video_value = str(source.get("artifact_path") or "")
-    video_path = Path(video_value)
-    if video_value and not video_path.is_absolute():
-        video_path = run_dir / video_path
+    video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
 
     record: dict[str, Any] = {
         "status": "required",
-        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
-        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
+        "reason": "Proof review did not pass; include the blocker image when reporting the issue.",
+        "response_requirement": "Run image_upload_command and paste the returned image Markdown in the blocker response; include video_upload_command only when useful.",
     }
     if not video_value or not video_path.is_file():
         return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
 
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
-    captions_path = Path(captions_value) if captions_value else None
-    if captions_path is not None and not captions_path.is_absolute():
-        captions_path = run_dir / captions_path
+    captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
+    image_path = _select_blocker_frame_path(run_dir, manifest)
 
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+    video_command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
     if captions_path is not None and captions_path.is_file():
-        command.extend(
+        video_command.extend(
             [
                 "--captions",
                 str(captions_path),
@@ -814,13 +816,64 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
             ]
         )
         record["captions_path"] = str(captions_path)
-    command.extend(["--alt", alt])
+    video_command.extend(["--alt", alt])
+    if image_path is None:
+        return {
+            **record,
+            "media_status": "missing_image",
+            "video_path": str(video_path),
+            "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
+        }
+    image_alt = f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})"
+    image_command = ["python3", "scripts/opencode_response_media.py", str(image_path), "--alt", image_alt]
     return {
         **record,
         "media_status": "available",
+        "image_path": str(image_path),
+        "image_upload_command": " ".join(shlex.quote(part) for part in image_command),
         "video_path": str(video_path),
-        "upload_command": " ".join(shlex.quote(part) for part in command),
+        "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
+        "upload_command": " ".join(shlex.quote(part) for part in image_command),
     }
+
+
+def _manifest_with_current_review_attempt(manifest: dict[str, Any], receipt: dict[str, Any]) -> dict[str, Any]:
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    updated_review = {**review, "status": receipt.get("status"), "attempts": [*attempts, receipt]}
+    return {**manifest, "review": updated_review}
+
+
+def _select_blocker_frame_path(run_dir: Path, manifest: dict[str, Any]) -> Path | None:
+    """Pick the most relevant reviewed frame for a failed proof response."""
+
+    try:
+        from scripts.spec_demo import resolve_run_artifact_path
+    except ModuleNotFoundError:
+        from spec_demo import resolve_run_artifact_path
+
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    candidates: list[str] = []
+    for attempt in reversed([item for item in attempts if isinstance(item, dict)]):
+        for finding in attempt.get("incidental_findings") or []:
+            if isinstance(finding, dict) and str(finding.get("severity") or "") == "blocking":
+                candidates.extend(str(frame) for frame in finding.get("frames") or [] if str(frame))
+        for assertion in attempt.get("assertions") or []:
+            if isinstance(assertion, dict) and str(assertion.get("verdict") or "") != "supported":
+                candidates.extend(str(frame) for frame in assertion.get("frames") or [] if str(frame))
+        candidates.extend(str(frame) for frame in attempt.get("reviewed_frames") or [] if str(frame))
+    for artifact in manifest.get("disposable_artifacts") or []:
+        if isinstance(artifact, dict) and artifact.get("kind") == "review_frame" and artifact.get("path"):
+            candidates.append(str(artifact["path"]))
+    for candidate in candidates:
+        try:
+            path = resolve_run_artifact_path(run_dir, candidate)
+        except Exception:
+            continue
+        if path.is_file():
+            return path
+    return None
 
 
 def _parse_reviewer_output(output: str) -> dict[str, Any]:
@@ -1011,7 +1064,8 @@ def review_run(
     receipt["correction_kind"] = correction_kind
     prior_fingerprints = [str(value) for value in budget.get("defect_fingerprints", [])]
     decision = review_next_action(receipt, prior_defect_fingerprints=prior_fingerprints)
-    blocker_media = proof_blocker_media(run_dir, existing_manifest, str(receipt.get("status") or ""))
+    blocker_manifest = _manifest_with_current_review_attempt(existing_manifest, receipt)
+    blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(receipt.get("status") or ""))
     if blocker_media:
         decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision

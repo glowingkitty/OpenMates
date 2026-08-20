@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Real-terminal proof source for the OpenMates CLI application catalog.
+ * Real-terminal proof source for OpenMates CLI app skill details.
  *
  * The actual built CLI runs in a PTY displayed by a graphical terminal on Xvfb;
  * FFmpeg records terminal pixels and Playwright retains the resulting artifacts.
@@ -27,20 +27,20 @@ function run(command: string, args: string[], cwd: string): Promise<{code: numbe
 
 test.describe('Proof video real CLI architecture', () => {
 	// eslint-disable-next-line no-empty-pattern
-	test('records the real OpenMates CLI apps catalog in a graphical terminal', async ({}, testInfo: any) => {
+	test('records the real OpenMates CLI AI Ask catalog details in a graphical terminal', async ({}, testInfo: any) => {
 		test.setTimeout(120000);
 		const repositoryRoot = path.resolve(process.cwd(), '../../..');
 		const cliPath = fs.existsSync('/workspace/cli/dist/cli.js')
 			? '/workspace/cli/dist/cli.js'
 			: path.join(repositoryRoot, 'frontend/packages/openmates-cli/dist/cli.js');
-		const outputDir = path.resolve(process.cwd(), 'test-results/cli-proof/apps-list');
+		const outputDir = path.resolve(process.cwd(), 'test-results/cli-proof/ai-ask-skill-info');
 		fs.rmSync(outputDir, {recursive: true, force: true});
 		const result = await run('python3', [
 			path.join(repositoryRoot, 'scripts/cli_video_capture.py'),
 			'--output-dir', outputDir,
 			'--target-environment', process.env.OPENMATES_E2E_API_URL || 'https://api.dev.openmates.org',
 			'--display-number', '92',
-			'--', 'node', cliPath, 'apps', 'list'
+			'--', 'node', cliPath, 'apps', 'skill-info', 'ai', 'ask'
 		], repositoryRoot);
 
 		expect(result.code, `${result.stdout}\n${result.stderr}`).toBe(0);
@@ -51,7 +51,7 @@ test.describe('Proof video real CLI architecture', () => {
 		expect(manifest.capture_kind).toBe('real_terminal_screen');
 		expect(manifest.reconstructed).toBe(false);
 		expect(manifest.exit_status).toBe(0);
-		expect(fs.readFileSync(transcriptPath, 'utf8')).toContain('OpenMates');
+		expect(fs.readFileSync(transcriptPath, 'utf8')).toContain('Ask');
 
 		await testInfo.attach('openmates-cli-real-terminal-video', {path: videoPath, contentType: 'video/mp4'});
 		await testInfo.attach('openmates-cli-real-terminal-transcript', {path: transcriptPath, contentType: 'text/plain'});

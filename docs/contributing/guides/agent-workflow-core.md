@@ -53,6 +53,10 @@ When a screenshot or short clip materially helps the user understand a visual UI
 state, bug fix, visual-smoke result, proof-video, or implementation defect,
 include the uploaded media directly in the chat response instead of only naming
 an artifact path.
+When a proof-video review, visual smoke, or media validation fails and the script
+output includes `image_upload_command`, run it and embed the returned image
+Markdown in the blocker response. The image is required even when a video upload
+command is also available, so OpenCode can show the defect immediately.
 
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
@@ -126,12 +130,18 @@ Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
 iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
 `1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device
 captures wrapped in a generic 16:9/16:10 canvas. The transcript must describe the
-specific visible UI/action/result, not generic success claims; use retiming or a
-last-frame hold when the source flow moves too quickly, and preserve product audio
-when playback is part of the claim. Give the active agent the canonical transcript
+specific visible UI/action/result, not generic success claims. For proof-enabled
+Playwright specs, the committed `*.spec.ts` file is the source of truth for the
+browser or terminal recording contract: command, profile, assertions, transcript,
+checkpoints, and attachments must come from the spec rather than a chat-only
+override. Use retiming or a last-frame hold when the source flow moves too quickly,
+and preserve product audio when playback is part of the claim. Give the active agent the canonical transcript
 and bounded image frames, never the full video. Use a default three-second
 interval plus event boundaries, request exact-timestamp frames only when needed,
 then upload the approved proof media with `scripts/opencode_response_media.py`.
+When review fails, the workflow emits a representative blocker frame image and
+`image_upload_command`; upload and embed that image in the blocker response before
+asking for user input or pausing.
 This is the OpenCode response-media proof path: embed the returned image Markdown
 or `<video>` HTML directly in the final OpenCode response. Do not send proof media
 to Discord unless the user explicitly asks for a separate Discord mirror. If any reviewed frame shows an objective product

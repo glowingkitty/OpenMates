@@ -1026,6 +1026,9 @@ def test_review_run_includes_blocker_media_for_failed_review(
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
     run_dir, request = _write_review_run(tmp_path / "proof-videos" / "blocked")
+    frame = run_dir / "frames" / "frame.png"
+    frame.parent.mkdir(exist_ok=True)
+    frame.write_bytes(b"frame")
 
     def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
         return (
@@ -1051,8 +1054,11 @@ def test_review_run_includes_blocker_media_for_failed_review(
 
     blocker_media = result["blocker_media"]
     assert blocker_media["media_status"] == "available"
+    assert blocker_media["image_path"] == str(frame)
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
-    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["video_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["upload_command"] == blocker_media["image_upload_command"]
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 

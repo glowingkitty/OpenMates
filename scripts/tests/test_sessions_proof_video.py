@@ -780,16 +780,32 @@ def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path)
 def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    run_dir = manifest_path.parent
     manifest["review"]["status"] = "render_defect"
-    manifest["video_path"] = str(tmp_path / "demo.mp4")
-    (tmp_path / "demo.mp4").write_bytes(b"video")
+    manifest["video_path"] = "demo.mp4"
+    frames = run_dir / "frames"
+    frames.mkdir()
+    (frames / "frame.png").write_bytes(b"frame")
+    manifest["review"]["attempts"] = [
+        {
+            "assertions": [
+                {"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Blank."}
+            ],
+            "incidental_findings": [],
+            "reviewed_frames": ["frames/frame.png"],
+        }
+    ]
+    (run_dir / "demo.mp4").write_bytes(b"video")
 
-    record = sessions._proof_video_manifest_record(tmp_path, manifest)
+    record = sessions._proof_video_manifest_record(run_dir, manifest)
 
     blocker_media = record["blocker_media"]
     assert blocker_media["media_status"] == "available"
-    assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
-    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_path"] == str(frames / "frame.png")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
+    assert blocker_media["video_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["upload_command"] == blocker_media["image_upload_command"]
 
 
 def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
@@ -800,13 +816,19 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
     run_dir.mkdir(parents=True)
     video = run_dir / "demo.mp4"
     captions = run_dir / "captions.vtt"
+    frame = run_dir / "frames" / "frame.png"
+    frame.parent.mkdir()
     video.write_bytes(b"video")
     captions.write_text("WEBVTT\n", encoding="utf-8")
+    frame.write_bytes(b"frame")
     monkeypatch.setattr(spec_demo, "__file__", str(tmp_path / "scripts" / "spec_demo.py"))
     manifest = {
         "spec_id": "proof",
         "review": {"status": "product_defect"},
         "video_path": "test-results/proof-videos/session/proof/demo.mp4",
+        "disposable_artifacts": [
+            {"kind": "review_frame", "path": "test-results/proof-videos/session/proof/frames/frame.png"}
+        ],
         "caption_artifact": {
             "path": "test-results/proof-videos/session/proof/captions.vtt",
             "language": "en",
@@ -817,6 +839,7 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
     blocker_media = sessions._proof_video_blocker_media_record(run_dir, manifest)
 
     assert blocker_media["media_status"] == "available"
+    assert blocker_media["image_path"] == str(frame)
     assert blocker_media["video_path"] == str(video)
     assert blocker_media["captions_path"] == str(captions)
 
