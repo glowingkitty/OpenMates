@@ -2863,7 +2863,7 @@ assertions:
       surface: gui.web
     - &id289
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 184
+      line: 124
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -2966,7 +2966,7 @@ assertions:
       surface: gui.web
     - &id308
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 184
+      line: 124
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -3250,8 +3250,8 @@ assertions:
     fingerprint: dbb148de4081ed9b9d5c9b2cc03af7c9a1c975843d84c16e0c8aacd058cafae7
     direct_tests:
     - &id334
-      path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 114
+      path: frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+      line: 15
       name: keeps alternative login methods available while passkey login is pending
       surface: gui.web
     supporting_tests: []
@@ -3274,7 +3274,7 @@ assertions:
       surface: rest_api
     - &id336
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 184
+      line: 124
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -3356,7 +3356,7 @@ assertions:
       surface: gui.web
     - &id351
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 184
+      line: 124
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
