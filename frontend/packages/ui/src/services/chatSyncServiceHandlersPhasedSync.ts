@@ -36,6 +36,8 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
+import { unwrapTeamChatKey } from "./teamService";
+import { isActiveTeamContext } from "../stores/teamStore";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -265,6 +267,17 @@ export async function handlePhase2RecentChatsImpl(
   );
 
   try {
+    for (const chat of payload.chats ?? []) {
+      chat.chat_details.team_id = payload.team_id ?? null;
+      if (payload.team_id && chat.chat_details.encrypted_chat_key) {
+        const chatKey = await unwrapTeamChatKey(
+          payload.team_id,
+          chat.chat_details.encrypted_chat_key,
+        );
+        chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
+      }
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+    }
     const { chats, chat_count, total_chat_count, deleted_chat_ids } = payload;
     await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids);
 
@@ -363,6 +376,17 @@ export async function handlePhase3FullSyncImpl(
         "[ChatSyncService] Phase 3 notification received (cache warming), waiting for actual chat data...",
       );
       return;
+    }
+    for (const chat of chats) {
+      chat.chat_details.team_id = payload.team_id ?? null;
+      if (payload.team_id && chat.chat_details.encrypted_chat_key) {
+        const chatKey = await unwrapTeamChatKey(
+          payload.team_id,
+          chat.chat_details.encrypted_chat_key,
+        );
+        chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
+      }
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
     }
 
     // Store chat data if present (may be empty when batches already sent all chats)

@@ -12,6 +12,8 @@ import {
   encryptChatKeyWithMasterKey,
   encryptWithEmbedKey,
   generateEmbedKey,
+  unwrapEmbedKeyWithEmbedKey,
+  wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
 
 export type TeamRole = "owner" | "admin" | "member" | "viewer";
@@ -150,6 +152,39 @@ export async function getTeam(teamId: string): Promise<TeamViewModel> {
   const decrypted = await decryptTeam(data.team);
   if (!decrypted) throw new Error("Team could not be decrypted");
   return decrypted;
+}
+
+export async function getTeamKey(teamId: string): Promise<Uint8Array> {
+  const cached = teamKeyCache.get(teamId);
+  if (cached) return cached;
+  await getTeam(teamId);
+  const teamKey = teamKeyCache.get(teamId);
+  if (!teamKey) throw new Error(`Team key is unavailable for team ${teamId}`);
+  return teamKey;
+}
+
+export async function unwrapTeamChatKey(
+  teamId: string,
+  encryptedChatKey: string,
+): Promise<Uint8Array> {
+  const chatKey = await unwrapEmbedKeyWithEmbedKey(
+    encryptedChatKey,
+    await getTeamKey(teamId),
+  );
+  if (!chatKey) throw new Error(`Team chat key could not be unwrapped for team ${teamId}`);
+  return chatKey;
+}
+
+export async function wrapTeamChatKey(
+  teamId: string,
+  chatKey: Uint8Array,
+): Promise<string> {
+  const encryptedChatKey = await wrapEmbedKeyWithChatKey(
+    chatKey,
+    await getTeamKey(teamId),
+  );
+  if (!encryptedChatKey) throw new Error(`Team chat key could not be wrapped for team ${teamId}`);
+  return encryptedChatKey;
 }
 
 export async function createTeam(input: { name: string; description?: string | null }): Promise<TeamViewModel> {

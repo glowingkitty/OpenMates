@@ -72,6 +72,7 @@ export async function mergeServerChatWithLocal(
   if (!localChat) {
     return {
       chat_id: serverChat.id,
+      team_id: serverChat.team_id ?? null,
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
       title_v: serverChat.title_v ?? 0,
@@ -146,6 +147,7 @@ export async function mergeServerChatWithLocal(
     serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell;
   const merged: Chat = {
     chat_id: serverChat.id,
+    team_id: serverChat.team_id ?? localChat.team_id ?? null,
     user_id: localChat.user_id ?? currentUserId,
     encrypted_title: keyMismatch
       ? localChat.encrypted_title ?? null

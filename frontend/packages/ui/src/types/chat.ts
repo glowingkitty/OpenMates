@@ -390,6 +390,7 @@ export interface PIIMapping {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
+  team_id?: string | null; // Local context marker; null/undefined means Personal
   title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
 
@@ -823,6 +824,43 @@ export interface ChatMessageConfirmedPayload {
   new_last_edited_overall_timestamp: number;
 }
 
+export interface TeamChatMessageCreatedPayload {
+  team_id: string;
+  chat_id: string;
+  message_id: string;
+  role: MessageRole;
+  encrypted_content: string;
+  encrypted_sender_name?: string;
+  created_at?: number;
+  encrypted_chat_key?: string;
+}
+
+export interface TeamAIProcessingPayload {
+  team_id: string;
+  chat_id: string;
+  message_id: string;
+  ai_task_id: string;
+  status: string;
+}
+
+export interface TeamAIResponseCompletedPayload {
+  team_id: string;
+  chat_id: string;
+  message_id: string;
+  role: MessageRole;
+  encrypted_content: string;
+  encrypted_sender_name?: string;
+  encrypted_category?: string;
+  encrypted_model_name?: string;
+  encrypted_thinking_content?: string;
+  encrypted_thinking_signature?: string;
+  has_thinking?: boolean;
+  thinking_token_count?: number;
+  created_at?: number;
+  status?: MessageStatus;
+  user_message_id?: string;
+}
+
 export interface ChatDeletedPayload {
   chat_id: string;
   tombstone: boolean;
@@ -986,6 +1024,8 @@ export interface SyncNotebookRunOutput {
 }
 
 export interface Phase1LastChatPayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chat_id: string;
   chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
   messages: Message[] | null; // null in new architecture (messages arrive in Phase 1b)
@@ -1004,6 +1044,8 @@ export interface Phase1LastChatPayload {
  * Sent after Phase 1a so "continue where you left off" renders without waiting.
  */
 export interface Phase1bChatContentPayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[] | null;
@@ -1022,6 +1064,8 @@ export interface Phase1bChatContentPayload {
  * Embeds + embed_keys are included so they're available offline in IndexedDB.
  */
 export interface BackgroundMessageSyncPayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[];
@@ -1100,6 +1144,8 @@ export interface OfflineSyncCompletePayload {
 // --- New Phased Sync Payloads ---
 export interface PhasedSyncRequestPayload {
   phase: "phase1" | "phase2" | "phase3" | "all";
+  team_id?: string;
+  context_epoch: number;
   // Version-aware delta sync: client sends current state to avoid receiving duplicates
   client_chat_versions?: Record<
     string,
@@ -1116,6 +1162,8 @@ export interface PhasedSyncRequestPayload {
 export interface PhasedSyncCompletePayload {
   phase: string;
   timestamp: number;
+  team_id?: string | null;
+  context_epoch?: number;
 }
 
 export interface SyncStatusResponsePayload {
@@ -1132,6 +1180,8 @@ export interface SyncStatusResponsePayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
  */
 export interface Phase2RecentChatsPayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats?: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: Message[]; // Legacy — Phase 2 is now metadata-only
@@ -1153,6 +1203,8 @@ export interface Phase2RecentChatsPayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
  */
 export interface Phase3FullSyncPayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats?: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: Message[];

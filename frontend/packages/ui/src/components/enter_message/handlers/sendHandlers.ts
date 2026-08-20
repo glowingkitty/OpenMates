@@ -45,6 +45,8 @@ import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
+import { activeTeamId } from "../../../stores/teamStore";
+import { wrapTeamChatKey } from "../../../services/teamService";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -682,6 +684,7 @@ export async function handleSend(
           ).incognitoMode.get();
           const newChatForDeferred: import("../../../types/chat").Chat = {
             chat_id: deferredChatId,
+            team_id: get(activeTeamId),
             encrypted_title: null,
             messages_v: 1,
             title_v: 0,
@@ -704,6 +707,13 @@ export async function handleSend(
               deferredMessage,
             );
           } else {
+            if (newChatForDeferred.team_id) {
+              const chatKey = chatKeyManager.createKeyForNewChat(deferredChatId);
+              newChatForDeferred.encrypted_chat_key = await wrapTeamChatKey(
+                newChatForDeferred.team_id,
+                chatKey,
+              );
+            }
             await chatDB.addChat(newChatForDeferred);
             await chatDB.saveMessage(deferredMessage);
           }
@@ -1555,6 +1565,7 @@ export async function handleSend(
       const now = Math.floor(Date.now() / 1000);
       const newChatData: import("../../../types/chat").Chat = {
         chat_id: chatIdToUse,
+        team_id: get(activeTeamId),
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
         title_v: 0, // Will be incremented to 1 when first title is set
@@ -1570,6 +1581,17 @@ export async function handleSend(
         is_incognito: isIncognitoEnabled,
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
+
+      if (newChatData.team_id) {
+        if (isIncognitoEnabled) {
+          throw new Error("Team chats cannot be created in incognito mode");
+        }
+        const chatKey = chatKeyManager.createKeyForNewChat(chatIdToUse);
+        newChatData.encrypted_chat_key = await wrapTeamChatKey(
+          newChatData.team_id,
+          chatKey,
+        );
+      }
 
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {

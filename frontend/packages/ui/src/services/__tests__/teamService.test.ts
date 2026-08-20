@@ -13,7 +13,9 @@ const cryptoMocks = vi.hoisted(() => ({
 	decryptWithEmbedKey: vi.fn(async (value: string) => value.replace(/^enc:/, '')),
 	encryptChatKeyWithMasterKey: vi.fn(async () => 'wrapped-team-key'),
 	encryptWithEmbedKey: vi.fn(async (value: string) => `enc:${value}`),
-	generateEmbedKey: vi.fn(() => new Uint8Array([1, 2, 3, 4]))
+	generateEmbedKey: vi.fn(() => new Uint8Array([1, 2, 3, 4])),
+	unwrapEmbedKeyWithEmbedKey: vi.fn(async () => new Uint8Array([5, 6, 7, 8])),
+	wrapEmbedKeyWithChatKey: vi.fn(async () => 'wrapped-chat-key')
 }));
 
 vi.mock('../../config/api', () => ({

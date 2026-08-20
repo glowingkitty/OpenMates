@@ -464,6 +464,7 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
             "@openmates Reply with exactly: team gate ok",
             "--team",
             team_id,
+            "--auto-approve-memories",
             "--response-timeout-seconds",
             "180",
         ], timeout=240)

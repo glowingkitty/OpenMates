@@ -9,11 +9,19 @@ import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import { activeChatFocusStore } from "../stores/activeChatFocusStore";
+import { activeChatStore } from "../stores/activeChatStore";
+import {
+  activeTeamId,
+  activeTeamContext,
+  TEAM_CONTEXT_CHANGED_EVENT,
+  type TeamContextSnapshot,
+} from "../stores/teamStore";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
 import { authStore } from "../stores/authStore";
 import type {
   OfflineChange,
+  Chat,
   Message,
   AITaskInitiatedPayload,
   AIMessageUpdatePayload,
@@ -56,6 +64,9 @@ import type {
   // CancelAITaskPayload // Now in types/chat.ts
   SendEmbedDataPayload,
   StoreEmbedPayload,
+  TeamChatMessageCreatedPayload,
+  TeamAIProcessingPayload,
+  TeamAIResponseCompletedPayload,
 } from "../types/chat";
 import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
@@ -71,6 +82,9 @@ import type {
 } from "./connectedAccountTokenBrokerService";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
+import { chatListCache } from "./chatListCache";
+import { chatMetadataCache } from "./chatMetadataCache";
+import { getTeam, unwrapTeamChatKey } from "./teamService";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -142,6 +156,10 @@ export class ChatSynchronizationService extends EventTarget {
         this._cleanupOrphanedStreamingMessages().catch((error) => {
           console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
         });
+      });
+      window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, (event) => {
+        const context = (event as CustomEvent<TeamContextSnapshot>).detail;
+        void this.handleTeamContextChanged(context);
       });
     }
 
@@ -329,6 +347,143 @@ export class ChatSynchronizationService extends EventTarget {
 
   private handlersRegistered = false; // Prevent duplicate registration
 
+  private isPayloadForActiveContext(payload: { team_id?: string | null; context_epoch?: number }): boolean {
+    const activeContext = get(activeTeamContext);
+    const activeContextTeamId = activeContext.teamId;
+    const payloadTeamId = payload.team_id ?? null;
+    const payloadEpochMatches =
+      payload.context_epoch === undefined || payload.context_epoch === activeContext.epoch;
+    if (payloadTeamId === activeContextTeamId && payloadEpochMatches) return true;
+    console.info(
+      `[ChatSyncService] Ignoring stale sync payload for ${payloadTeamId ?? "personal"}; active context is ${activeContextTeamId ?? "personal"}`,
+    );
+    return false;
+  }
+
+  private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
+    this.clearPhasedSyncTimeout();
+    this.cachePrimed = false;
+    this.initialSyncAttempted = false;
+    this.hasCompletedInitialSync = false;
+    this.serverChatOrder = [];
+    phasedSyncState.reset();
+    activeChatStore.clearActiveChat();
+    chatListCache.clear();
+    chatMetadataCache.clearAll();
+    this.dispatchEvent(new CustomEvent("teamContextChanged", { detail: context }));
+
+    if (this.webSocketConnected && get(authStore).isAuthenticated) {
+      await this.startPhasedSync();
+    }
+  }
+
+  private async ensureTeamChatShell(
+    payload: TeamChatMessageCreatedPayload,
+  ): Promise<Chat> {
+    let chat = await chatDB.getChat(payload.chat_id);
+    if (chat && chat.team_id !== payload.team_id) {
+      throw new Error(`Team realtime event context mismatch for chat ${payload.chat_id}`);
+    }
+    if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
+      const chatKey = await unwrapTeamChatKey(
+        payload.team_id,
+        payload.encrypted_chat_key,
+      );
+      if (!this.isPayloadForActiveContext(payload)) {
+        throw new Error("Team context changed while unwrapping realtime chat key");
+      }
+      chatKeyManager.injectKey(payload.chat_id, chatKey, "server_sync");
+    }
+    if (chat) return chat;
+    if (!payload.encrypted_chat_key || !chatKeyManager.getKeySync(payload.chat_id)) {
+      throw new Error(`Team realtime event is missing a usable chat key for ${payload.chat_id}`);
+    }
+    const timestamp = payload.created_at ?? Math.floor(Date.now() / 1000);
+    chat = {
+      chat_id: payload.chat_id,
+      team_id: payload.team_id,
+      encrypted_title: null,
+      encrypted_chat_key: payload.encrypted_chat_key,
+      messages_v: 0,
+      title_v: 0,
+      draft_v: 0,
+      unread_count: 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+      last_edited_overall_timestamp: timestamp,
+      waiting_for_metadata: true,
+    };
+    await chatDB.addChat(chat, undefined, { isFromSync: true });
+    return chat;
+  }
+
+  private async handleTeamChatMessageCreated(
+    payload: TeamChatMessageCreatedPayload,
+  ): Promise<void> {
+    if (!this.isPayloadForActiveContext(payload)) return;
+    const chat = await this.ensureTeamChatShell(payload);
+    if (!this.isPayloadForActiveContext(payload)) return;
+    if (await chatDB.getMessage(payload.message_id)) return;
+    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
+      event: "team_chat_message_created",
+      chat_id: payload.chat_id,
+      message: {
+        message_id: payload.message_id,
+        chat_id: payload.chat_id,
+        role: payload.role,
+        encrypted_content: payload.encrypted_content,
+        encrypted_sender_name: payload.encrypted_sender_name,
+        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+        status: "synced",
+      },
+      versions: { messages_v: chat.messages_v + 1 },
+      last_edited_overall_timestamp:
+        payload.created_at ?? Math.floor(Date.now() / 1000),
+    });
+  }
+
+  private handleTeamAIProcessing(payload: TeamAIProcessingPayload): void {
+    if (!this.isPayloadForActiveContext(payload)) return;
+    aiHandlers.handleAITaskInitiatedImpl(this, {
+      chat_id: payload.chat_id,
+      user_message_id: payload.message_id,
+      ai_task_id: payload.ai_task_id,
+      status: "processing_started",
+    });
+  }
+
+  private async handleTeamAIResponseCompleted(
+    payload: TeamAIResponseCompletedPayload,
+  ): Promise<void> {
+    if (!this.isPayloadForActiveContext(payload)) return;
+    const chat = await chatDB.getChat(payload.chat_id);
+    if (!chat || chat.team_id !== payload.team_id) return;
+    if (await chatDB.getMessage(payload.message_id)) return;
+    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
+      event: "team_ai_response_completed",
+      chat_id: payload.chat_id,
+      message: {
+        message_id: payload.message_id,
+        chat_id: payload.chat_id,
+        role: payload.role,
+        encrypted_content: payload.encrypted_content,
+        encrypted_sender_name: payload.encrypted_sender_name,
+        encrypted_category: payload.encrypted_category,
+        encrypted_model_name: payload.encrypted_model_name,
+        encrypted_thinking_content: payload.encrypted_thinking_content,
+        encrypted_thinking_signature: payload.encrypted_thinking_signature,
+        has_thinking: payload.has_thinking,
+        thinking_token_count: payload.thinking_token_count,
+        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+        user_message_id: payload.user_message_id,
+        status: "synced",
+      },
+      versions: { messages_v: chat.messages_v + 1 },
+      last_edited_overall_timestamp:
+        payload.created_at ?? Math.floor(Date.now() / 1000),
+    });
+  }
+
   private registerWebSocketHandlers() {
     // CRITICAL FIX: Prevent duplicate handler registration
     // This can happen due to HMR (Hot Module Reload) during development
@@ -354,18 +509,16 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { message: string },
       ),
     );
-    webSocketService.on("phase_1_last_chat_ready", (payload) =>
-      coreSyncHandlers.handlePhase1LastChatImpl(
-        this,
-        payload as Phase1LastChatPayload,
-      ),
-    );
-    webSocketService.on("phase_1b_chat_content_ready", (payload) =>
-      coreSyncHandlers.handlePhase1bChatContentImpl(
-        this,
-        payload as Phase1bChatContentPayload,
-      ),
-    );
+    webSocketService.on("phase_1_last_chat_ready", (payload) => {
+      const typedPayload = payload as Phase1LastChatPayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void coreSyncHandlers.handlePhase1LastChatImpl(this, typedPayload);
+    });
+    webSocketService.on("phase_1b_chat_content_ready", (payload) => {
+      const typedPayload = payload as Phase1bChatContentPayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void coreSyncHandlers.handlePhase1bChatContentImpl(this, typedPayload);
+    });
     webSocketService.on("cache_primed", (payload) =>
       coreSyncHandlers.handleCachePrimedImpl(
         this,
@@ -380,25 +533,22 @@ export class ChatSynchronizationService extends EventTarget {
     );
 
     // Phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
-    webSocketService.on("phase_2_last_20_chats_ready", (payload) =>
-      phasedSyncHandlers.handlePhase2RecentChatsImpl(
-        this,
-        payload as Phase2RecentChatsPayload,
-      ),
-    );
-    webSocketService.on("background_message_sync", (payload) =>
-      phasedSyncHandlers.handleBackgroundMessageSyncImpl(
-        this,
-        payload as BackgroundMessageSyncPayload,
-      ),
-    );
+    webSocketService.on("phase_2_last_20_chats_ready", (payload) => {
+      const typedPayload = payload as Phase2RecentChatsPayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handlePhase2RecentChatsImpl(this, typedPayload);
+    });
+    webSocketService.on("background_message_sync", (payload) => {
+      const typedPayload = payload as BackgroundMessageSyncPayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handleBackgroundMessageSyncImpl(this, typedPayload);
+    });
     // Legacy Phase 3 handler kept for backwards compatibility
-    webSocketService.on("phase_3_last_100_chats_ready", (payload) =>
-      phasedSyncHandlers.handlePhase3FullSyncImpl(
-        this,
-        payload as Phase3FullSyncPayload,
-      ),
-    );
+    webSocketService.on("phase_3_last_100_chats_ready", (payload) => {
+      const typedPayload = payload as Phase3FullSyncPayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handlePhase3FullSyncImpl(this, typedPayload);
+    });
     webSocketService.on("load_more_chats_response", (payload) =>
       phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
         this,
@@ -411,18 +561,26 @@ export class ChatSynchronizationService extends EventTarget {
         payload as MetadataChatsResponsePayload,
       ),
     );
-    webSocketService.on("phased_sync_complete", (payload) =>
-      phasedSyncHandlers.handlePhasedSyncCompleteImpl(
-        this,
-        payload as PhasedSyncCompletePayload,
-      ),
-    );
+    webSocketService.on("phased_sync_complete", (payload) => {
+      const typedPayload = payload as PhasedSyncCompletePayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload);
+    });
     webSocketService.on("sync_status_response", (payload) =>
       phasedSyncHandlers.handleSyncStatusResponseImpl(
         this,
         payload as SyncStatusResponsePayload,
       ),
     );
+    webSocketService.on("team_chat_message_created", (payload) => {
+      void this.handleTeamChatMessageCreated(payload as TeamChatMessageCreatedPayload);
+    });
+    webSocketService.on("team_ai_processing", (payload) => {
+      this.handleTeamAIProcessing(payload as TeamAIProcessingPayload);
+    });
+    webSocketService.on("team_ai_response_completed", (payload) => {
+      void this.handleTeamAIResponseCompleted(payload as TeamAIResponseCompletedPayload);
+    });
     webSocketService.on("chat_title_updated", (payload) =>
       chatUpdateHandlers.handleChatTitleUpdatedImpl(
         this,
@@ -1881,6 +2039,7 @@ export class ChatSynchronizationService extends EventTarget {
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {
     if (!get(authStore).isAuthenticated) return undefined;
+    if (get(activeTeamId)) return undefined;
     try {
       const rows = await listConnectedAccounts();
       return buildConnectedAccountSendContext({
@@ -2160,6 +2319,12 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     try {
+      const context = get(activeTeamContext);
+      const teamId = context.teamId;
+      if (teamId) {
+        await getTeam(teamId);
+        if (teamId !== get(activeTeamId)) return;
+      }
       console.warn("[ChatSyncService] 1/4: Starting phased sync...");
 
       // CRITICAL: Start timeout for sync completion
@@ -2197,6 +2362,7 @@ export class ChatSynchronizationService extends EventTarget {
         // Fast path: use in-memory version map (no IDB read needed)
         for (const [chatId, versions] of Array.from(versionMap.entries())) {
           if (pendingDeletions.has(chatId)) continue;
+          if ((versions.team_id ?? null) !== teamId) continue;
           client_chat_ids.push(chatId);
           client_chat_versions[chatId] = versions;
         }
@@ -2211,6 +2377,7 @@ export class ChatSynchronizationService extends EventTarget {
         );
         for (const chat of allChats) {
           if (pendingDeletions.has(chat.chat_id)) continue;
+          if ((chat.team_id ?? null) !== teamId) continue;
           client_chat_ids.push(chat.chat_id);
           client_chat_versions[chat.chat_id] = {
             messages_v: chat.messages_v || 0,
@@ -2241,6 +2408,8 @@ export class ChatSynchronizationService extends EventTarget {
         client_chat_ids,
         client_suggestions_count,
         client_embed_ids,
+        context_epoch: context.epoch,
+        ...(teamId ? { team_id: teamId } : {}),
       };
 
       await webSocketService.sendMessage("phased_sync_request", payload);

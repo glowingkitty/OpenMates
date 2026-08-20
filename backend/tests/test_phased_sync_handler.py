@@ -724,15 +724,18 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
 
     async def fake_phase1(*args, **kwargs):
         calls.append("phase1")
+        assert args[-1] == 7
         return ["parent-1"]
 
     async def fake_phase1b(*args, **kwargs):
+        assert kwargs["context_epoch"] == 7
         calls.append("phase1b_start")
         phase1b_started.set()
         await phase2_started.wait()
         calls.append("phase1b_finish")
 
     async def fake_phase2(*args, **kwargs):
+        assert args[-1] == 7
         await phase1b_started.wait()
         calls.append("phase2_start")
         phase2_started.set()
@@ -766,7 +769,7 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
             encryption_service=SimpleNamespace(),
             user_id="user-1",
             device_fingerprint_hash="device-1",
-            payload={"phase": "all"},
+            payload={"phase": "all", "context_epoch": 7},
         ),
         timeout=1,
     )
@@ -776,6 +779,7 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
     assert calls.index("app_settings") > calls.index("phase2_finish")
     assert "phase3" not in calls
     assert all(message["type"] != "background_message_sync" for message in manager.sent)
+    assert manager.sent[-1]["payload"]["context_epoch"] == 7
 
 
 @pytest.mark.anyio

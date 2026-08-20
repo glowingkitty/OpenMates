@@ -156,6 +156,61 @@ export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
 	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
 }
 
+export function buildTeamMessageTransport(params: {
+	message: Message;
+	content: string;
+	encryptedContent: string;
+	encryptedSenderName?: string;
+	history: Message[];
+}): {
+	message: {
+		message_id: string;
+		role: string;
+		encrypted_content: string;
+		encrypted_sender_name?: string;
+		team_member_mentions: string[];
+		created_at: number;
+	};
+	teamAIInvocation?: {
+		history: Array<{
+			role: Message["role"];
+			content: string;
+			sender_name: string;
+			created_at: number;
+		}>;
+	};
+} {
+	const messageEnvelope = {
+		message_id: params.message.message_id,
+		role: params.message.role,
+		encrypted_content: params.encryptedContent,
+		encrypted_sender_name: params.encryptedSenderName,
+		team_member_mentions: [],
+		created_at: params.message.created_at
+	};
+	if (!params.content.toLocaleLowerCase().includes("@openmates")) {
+		return { message: messageEnvelope };
+	}
+	const history = params.history
+		.filter((historyMessage) => historyMessage.message_id !== params.message.message_id)
+		.map((historyMessage) => ({
+			role: historyMessage.role,
+			content: historyMessage.content ?? "",
+			sender_name: historyMessage.sender_name ?? historyMessage.role,
+			created_at: historyMessage.created_at
+		}));
+	history.push({
+		role: params.message.role,
+		content: params.content,
+		sender_name: params.message.sender_name ?? "User",
+		created_at: params.message.created_at
+	});
+	return {
+		message: messageEnvelope,
+		teamAIInvocation: { history }
+	};
+}
+
 async function updateMessageStatusForSendRetry(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -840,12 +895,16 @@ export async function sendNewMessageImpl(
 		recovery_public_key?: string;
 		chat_key_version?: number;
 		chat_id: string;
+		team_id?: string;
 		parent_id?: string | null;
 		broadcast?: boolean;
 		message: {
 			message_id: string;
 			role: string;
-			content: string;
+			content?: string;
+			encrypted_content?: string;
+			encrypted_sender_name?: string;
+			team_member_mentions?: string[];
 			created_at: number;
 			sender_name?: string;
 			category?: string;
@@ -865,6 +924,15 @@ export async function sendNewMessageImpl(
 		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
+		team_ai_invocation?: {
+			history: Array<{
+				role: Message["role"];
+				content: string;
+				sender_name?: string;
+				created_at: number;
+			}>;
+		};
+		test_mock_marker?: string;
 	}
 	const payload: SendMessagePayload = {
 		chat_id: message.chat_id,
@@ -1329,6 +1397,38 @@ export async function sendNewMessageImpl(
 			recovery_public_key: recoveryKeypair.publicKey,
 			chat_key_version: CHAT_RECOVERY_KEY_VERSION
 		});
+		let preflightInferenceRequest: SendMessagePayload = payload;
+		if (chat?.team_id) {
+			const teamTransport = buildTeamMessageTransport({
+				message,
+				content: contentForServer,
+				encryptedContent: encryptedFields.encrypted_content,
+				encryptedSenderName: encryptedFields.encrypted_sender_name,
+				history: messageHistory.map((historyMessage) => ({
+					...historyMessage,
+					content: getHistoryContentForServer(historyMessage)
+				}))
+			});
+			const shouldInvokeTeamAI = !!teamTransport.teamAIInvocation;
+			payload.team_id = chat.team_id;
+			payload.message = teamTransport.message;
+			delete payload.message_history;
+			delete payload.mentioned_settings_memories_cleartext;
+			delete payload.app_settings_memories_metadata;
+			delete payload.connected_account_directory;
+			delete payload.connected_account_token_refs;
+			if (!shouldInvokeTeamAI) {
+				delete payload.embeds;
+				delete payload.active_focus_id;
+			}
+			if (shouldInvokeTeamAI) {
+				payload.team_ai_invocation = teamTransport.teamAIInvocation;
+				preflightInferenceRequest = {
+					...payload,
+					message_history: teamTransport.teamAIInvocation?.history as Message[]
+				};
+			}
+		}
 		const preflightPayload: Record<string, unknown> = {
 			protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
 			chat_id: message.chat_id,
@@ -1350,7 +1450,7 @@ export async function sendNewMessageImpl(
 				created_at: message.created_at,
 				updated_at: message.created_at
 			},
-			inference_request: payload
+			inference_request: preflightInferenceRequest
 		};
 		if (includePreflightChatMetadata) {
 			preflightPayload.encrypted_chat_metadata = {
@@ -1970,6 +2070,7 @@ export async function sendEncryptedStoragePackage(
 		// For follow-up messages, metadata fields should be undefined/null and NOT included
 		interface MetadataPayload {
 			chat_id: string;
+			team_id?: string;
 			message_id: string;
 			encrypted_content: string;
 			encrypted_sender_name?: string;
@@ -1995,6 +2096,7 @@ export async function sendEncryptedStoragePackage(
 		}
 		const metadataPayload: MetadataPayload = {
 			chat_id,
+			...(chat.team_id ? { team_id: chat.team_id } : {}),
 			// User message fields (ALWAYS included)
 			message_id: user_message.message_id,
 			encrypted_content: encryptedUserContent,

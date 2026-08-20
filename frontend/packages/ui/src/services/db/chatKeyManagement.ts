@@ -33,6 +33,7 @@ export interface ChatVersionEntry {
   title_v: number;
   metadata_v?: number;
   draft_v: number;
+  team_id?: string | null;
 }
 
 /** In-memory version map populated during bulk key loading. */
@@ -254,6 +255,7 @@ export async function loadChatKeysFromDatabase(
             title_v: chat.title_v || 0,
             metadata_v: chat.metadata_v,
             draft_v: chat.draft_v || 0,
+            team_id: chat.team_id ?? null,
           });
           // Continue cursor synchronously (transaction must stay alive)
           cursor.continue();
