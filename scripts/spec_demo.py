@@ -1762,7 +1762,7 @@ def produce_playwright_demonstration(
         narration_audio=narration_audio,
         caption_segments=caption_segments,
         proof_evidence_intervals=tutorial_evidence_intervals,
-        device_profile=None if spec_timeline is not None else device_profile,
+        device_profile=device_profile,
         render_metadata={
             "playback_rate": playback_rate,
             "hold_last_frame_seconds": hold_last_frame_seconds,
