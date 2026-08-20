@@ -9,6 +9,7 @@ import { chatDB } from "./db";
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { computeKeyFingerprint } from "./encryption/ChatKeyManager";
+import { unwrapTeamChatKey } from "./teamService";
 
 interface ChatKeyWriteGuardOptions {
   allowMissingEncryptedChatKey?: boolean;
@@ -68,11 +69,31 @@ export async function ensureChatKeySafeForWrite(
     return false;
   }
 
-  const keyMatches = await encryptedChatKeyMatchesRawKey(
-    encryptedChatKey,
-    rawChatKey,
-    decryptChatKeyWithMasterKey,
-  );
+  let keyMatches: boolean | null;
+  try {
+    keyMatches = await encryptedChatKeyMatchesRawKey(
+      encryptedChatKey,
+      rawChatKey,
+      chat?.team_id
+        ? async (wrappedKey) => {
+            const teamChatKey = await unwrapTeamChatKey(chat.team_id!, wrappedKey);
+            if (!teamChatKey) throw new Error("Team chat key could not be unwrapped");
+            return teamChatKey;
+          }
+        : decryptChatKeyWithMasterKey,
+    );
+  } catch (error) {
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: persisted chat key could not be validated`,
+        error,
+      );
+      notificationStore.error(
+        "We could not safely store this update because this chat key could not be validated. Please reload and try again.",
+      );
+    }
+    return false;
+  }
 
   if (keyMatches === false) {
     addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
