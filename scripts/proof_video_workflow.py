@@ -1037,10 +1037,22 @@ def _tracked_worktree_changes() -> list[str]:
 
 
 def require_clean_worktree(subject_commit: str = "", tracked_paths: list[str] | None = None) -> None:
-    if subject_commit:
-        pathspec = [str(path) for path in tracked_paths or [] if str(path)]
+    pathspec = [str(path) for path in tracked_paths or [] if str(path)]
+    if subject_commit and pathspec:
+        changes = []
+        for relative_path in pathspec:
+            local_path = REPO_ROOT / relative_path
+            result = subprocess.run(
+                ["git", "show", f"{subject_commit}:{relative_path}"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode != 0 or not local_path.is_file() or local_path.read_bytes() != result.stdout:
+                changes.append(relative_path)
+    elif subject_commit:
         result = subprocess.run(
-            ["git", "diff", "--name-only", subject_commit, "--", *pathspec],
+            ["git", "diff", "--name-only", subject_commit, "--"],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,

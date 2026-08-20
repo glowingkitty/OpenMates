@@ -437,6 +437,27 @@ def test_clean_worktree_guard_accepts_reusable_worktree_matching_subject(
     workflow.require_clean_worktree("a" * 40)
 
 
+def test_clean_worktree_guard_compares_session_owned_blobs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owned = tmp_path / "created-after-worktree.py"
+    owned.write_bytes(b"deployed content\n")
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(
+        workflow.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=b"deployed content\n",
+            stderr=b"",
+        ),
+    )
+
+    workflow.require_clean_worktree("a" * 40, ["created-after-worktree.py"])
+
+
 def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
