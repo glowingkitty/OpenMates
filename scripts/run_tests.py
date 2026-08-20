@@ -2887,6 +2887,52 @@ class NotificationService:
         except Exception as error:
             _log(f"Daily Discord status POST failed: {error}", "ERROR")
 
+    def send_daily_skip_notification(
+        self,
+        git_sha: str,
+        git_branch: str,
+        environment: str,
+        run_id: str,
+        reason: str,
+    ) -> None:
+        """Post a visible nightly notification when the daily run is skipped."""
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping daily skip notification", "DEBUG")
+            return
+
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [{
+                "title": f"⏭️ {environment} nightly — skipped",
+                "description": (
+                    f"**Reason:** {reason}\n"
+                    "**Tests dispatched:** none\n"
+                    f"**Run ID:** `{run_id}`\n"
+                    f"**Git:** `{git_sha[:8]}@{git_branch}`"
+                ),
+                "color": 0xF59E0B,
+            }],
+        }
+        try:
+            request = urllib.request.Request(
+                self.discord_webhook_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+            _log("Daily Discord skip notification posted")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace") if error.fp else ""
+            _log(f"Daily Discord skip notification POST failed: HTTP {error.code} — {body[:300]}", "ERROR")
+        except Exception as error:
+            _log(f"Daily Discord skip notification POST failed: {error}", "ERROR")
+
     def send_summary_email(self, result: RunResult) -> None:
         """Send test summary email after run completes, plus Discord fallback.
 
@@ -7112,6 +7158,13 @@ class TestOrchestrator:
             if count == 0:
                 _log("No git commits in the last 24 hours — skipping test run")
                 _log("Use --force to run regardless")
+                self.notification.send_daily_skip_notification(
+                    self.git_sha,
+                    self.git_branch,
+                    self.environment,
+                    self.run_id,
+                    "No git commits in the last 24 hours.",
+                )
                 return False
             _log(f"Found {count} commit(s) in last 24 hours — proceeding")
 

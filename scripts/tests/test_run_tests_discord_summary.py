@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """
 Regression tests for nightly Discord test summaries.
 
@@ -224,6 +225,77 @@ def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
     assert "**Elapsed:** 61m" in embed["description"]
     assert run_tests.DAILY_STATUS_INTERVAL_SECONDS == 30 * 60
     assert captured["timeout"] == 30
+
+
+def test_daily_skip_notification_reports_no_commit_skip(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b""
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data)
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(run_tests.urllib.request, "urlopen", fake_urlopen)
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.discord_webhook_url = "https://example.invalid/webhook"
+
+    service.send_daily_skip_notification(
+        "1234567890abcdef",
+        "dev",
+        "development",
+        "2026-08-20T03:00:00Z",
+        "No git commits in the last 24 hours.",
+    )
+
+    embed = captured["payload"]["embeds"][0]
+    assert embed["title"] == "⏭️ development nightly — skipped"
+    assert "**Reason:** No git commits in the last 24 hours." in embed["description"]
+    assert "**Tests dispatched:** none" in embed["description"]
+    assert "**Git:** `12345678@dev`" in embed["description"]
+    assert embed["color"] == 0xF59E0B
+    assert captured["timeout"] == 30
+
+
+def test_daily_gate_notifies_when_no_commits(monkeypatch):
+    run_tests = load_run_tests_module()
+    events = []
+
+    class FakeNotification:
+        dot_env = {"E2E_DAILY_RUN_ENABLED": "true"}
+
+        def send_daily_skip_notification(self, *args):
+            events.append(args)
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.notification = FakeNotification()
+    orchestrator.force = False
+    orchestrator.git_sha = "1234567890abcdef"
+    orchestrator.git_branch = "dev"
+    orchestrator.environment = "development"
+    orchestrator.run_id = "2026-08-20T03:00:00Z"
+
+    monkeypatch.delenv("E2E_DAILY_RUN_ENABLED", raising=False)
+    monkeypatch.setattr(run_tests.subprocess, "check_output", lambda *_args, **_kwargs: "")
+
+    assert orchestrator._daily_gate() is False
+    assert events == [(
+        "1234567890abcdef",
+        "dev",
+        "development",
+        "2026-08-20T03:00:00Z",
+        "No git commits in the last 24 hours.",
+    )]
 
 
 def test_daily_status_starts_discord_before_email_and_uses_30_minute_cadence(monkeypatch):
