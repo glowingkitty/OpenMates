@@ -111,6 +111,158 @@ def test_tutorial_timeline_keeps_actions_fast_and_derives_checkpoint_holds() -> 
     assert timeline[1]["cue_id"] == "result"
 
 
+def test_tutorial_timeline_offsets_trimmed_source_and_scopes_review_intervals() -> None:
+    module = load_module()
+    contract = {
+        "transcript": [
+            {
+                "id": "welcome",
+                "text": "The welcome screen is visible inside the OpenMates browser window.",
+                "checkpoint": "welcome-visible",
+                "devices": ["web-laptop"],
+            },
+            {
+                "id": "result",
+                "text": "Select the next story to show the actionable result card.",
+                "checkpoint": "result-visible",
+                "devices": ["web-laptop"],
+            },
+        ],
+        "assertions": [
+            {
+                "id": "welcome.visible",
+                "visual": "The welcome screen is visible.",
+                "checkpoint": "welcome-visible",
+                "devices": ["web-laptop"],
+            },
+            {
+                "id": "result.visible",
+                "visual": "The result card is visible.",
+                "checkpoint": "result-visible",
+                "devices": ["web-laptop"],
+            },
+        ],
+        "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000},
+    }
+    events = [
+        {"id": "welcome-visible", "kind": "checkpoint", "at_ms": 1000},
+        {"id": "open-result", "kind": "action", "start_ms": 1000, "end_ms": 1500},
+        {"id": "result-visible", "kind": "checkpoint", "at_ms": 1600},
+    ]
+
+    timeline = module.build_tutorial_timeline(
+        contract=contract,
+        events=events,
+        device_profile="web-laptop",
+        source_offset_ms=800,
+    )
+    captions, evidence = module.build_tutorial_review_timing(
+        contract=contract,
+        segments=timeline,
+        device_profile="web-laptop",
+        narration_id="NARR-1",
+    )
+
+    assert timeline[0]["source_at_ms"] == 200
+    assert timeline[1] == {"kind": "video", "source_from_ms": 200, "source_to_ms": 800, "duration_ms": 600}
+    assert timeline[2]["source_at_ms"] == 800
+    assert captions[0]["start"] == 0.0
+    assert captions[0]["end"] == 4.0
+    assert captions[0]["claim_ids"] == ["welcome.visible"]
+    assert captions[1]["start"] == 4.0
+    assert captions[1]["end"] == 8.6
+    assert captions[1]["claim_ids"] == ["result.visible"]
+    assert evidence == {
+        "welcome.visible": [[0.0, 4.0]],
+        "result.visible": [[4.6, 8.6]],
+    }
+
+
+def test_tutorial_timeline_rejects_trimmed_checkpoints_and_does_not_replay_actions() -> None:
+    module = load_module()
+    policy = {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000}
+    cue = {
+        "id": "first",
+        "text": "The first result remains visible in the browser window.",
+        "checkpoint": "first-visible",
+        "devices": ["web-laptop"],
+    }
+    with pytest.raises(module.DemonstrationError, match="removed by the source trim"):
+        module.build_tutorial_timeline(
+            contract={"transcript": [cue], "tutorial": policy},
+            events=[{"id": "first-visible", "kind": "checkpoint", "at_ms": 700}],
+            device_profile="web-laptop",
+            source_offset_ms=800,
+        )
+
+    second_cue = {
+        **cue,
+        "id": "second",
+        "text": "The second result remains visible in the browser window.",
+        "checkpoint": "second-visible",
+    }
+    timeline = module.build_tutorial_timeline(
+        contract={"transcript": [cue, second_cue], "tutorial": policy},
+        events=[
+            {"id": "open-first", "kind": "action", "start_ms": 100, "end_ms": 400},
+            {"id": "first-visible", "kind": "checkpoint", "at_ms": 500},
+            {"id": "second-visible", "kind": "checkpoint", "at_ms": 800},
+        ],
+        device_profile="web-laptop",
+    )
+
+    assert [segment["kind"] for segment in timeline] == ["video", "freeze", "freeze"]
+
+
+def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_duration() -> None:
+    module = load_module()
+    contract = {
+        "transcript": [
+            {
+                "id": "result",
+                "text": "The result remains visible inside the OpenMates browser window.",
+                "checkpoint": "result-visible",
+                "devices": ["web-laptop"],
+            }
+        ],
+        "assertions": [
+            {
+                "id": "result.visible",
+                "visual": "The result is visible.",
+                "checkpoint": "result-visible",
+                "devices": ["web-laptop"],
+            },
+            {
+                "id": "unmapped.visible",
+                "visual": "An unmapped result is visible.",
+                "checkpoint": "unmapped-visible",
+                "devices": ["web-laptop"],
+            },
+        ],
+    }
+    segments = [{"kind": "freeze", "source_at_ms": 500, "duration_ms": 4000, "cue_id": "result"}]
+
+    with pytest.raises(module.DemonstrationError, match="Every device-scoped assertion"):
+        module.build_tutorial_review_timing(
+            contract=contract,
+            segments=segments,
+            device_profile="web-laptop",
+            narration_id="NARR-1",
+        )
+
+    assert module.clamp_evidence_to_duration(
+        {"result.visible": [[0.0, 4.0]]},
+        duration_seconds=3.967,
+    ) == {"result.visible": [[0.0, 3.967]]}
+
+    captions = [{"text": "The canonical proof caption."}]
+    assert module.validate_tutorial_caption_text("The  canonical proof caption.", captions) == (
+        "The canonical proof caption."
+    )
+    with pytest.raises(module.DemonstrationError, match="does not match"):
+        module.validate_tutorial_caption_text("Different retained transcript.", captions)
+
+
 def test_browser_render_request_binds_domain_viewport_and_input_hashes(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.webm"

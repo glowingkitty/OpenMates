@@ -180,8 +180,11 @@ def build_tutorial_timeline(
     contract: dict[str, Any],
     events: list[dict[str, Any]],
     device_profile: str,
+    source_offset_ms: int = 0,
 ) -> list[dict[str, Any]]:
     """Compile fast source events into normal-speed actions and readable holds."""
+    if source_offset_ms < 0:
+        raise DemonstrationError("Tutorial source offset must be non-negative")
     policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(policy.get("readingWordsPerSecond") or 0)
     minimum_hold = int(policy.get("minimumHoldMs") or 0)
@@ -202,22 +205,35 @@ def build_tutorial_timeline(
     if not cues:
         raise DemonstrationError(f"Proof contract has no transcript for {device_profile}")
     segments: list[dict[str, Any]] = []
+    previous_checkpoint_at = -1
     for cue in cues:
         checkpoint_id = str(cue.get("checkpoint") or "")
         if checkpoint_id not in checkpoints:
             raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was not reached")
         checkpoint_at = checkpoints[checkpoint_id]
-        preceding = [action for action in actions if int(action.get("end_ms", -1)) <= checkpoint_at]
+        if checkpoint_at < source_offset_ms:
+            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was removed by the source trim")
+        if checkpoint_at <= previous_checkpoint_at:
+            raise DemonstrationError("Proof checkpoints must be strictly increasing")
+        rendered_checkpoint_at = checkpoint_at - source_offset_ms
+        preceding = [
+            action
+            for action in actions
+            if previous_checkpoint_at <= int(action.get("start_ms", -1))
+            and source_offset_ms < int(action.get("end_ms", -1)) <= checkpoint_at
+        ]
         if preceding:
             action = preceding[-1]
-            source_from = int(action.get("start_ms", 0))
-            if not segments or segments[-1].get("source_to_ms") != checkpoint_at:
+            source_from = max(0, int(action.get("start_ms", 0)) - source_offset_ms)
+            if rendered_checkpoint_at > source_from and (
+                not segments or segments[-1].get("source_to_ms") != rendered_checkpoint_at
+            ):
                 segments.append(
                     {
                         "kind": "video",
                         "source_from_ms": source_from,
-                        "source_to_ms": checkpoint_at,
-                        "duration_ms": checkpoint_at - source_from,
+                        "source_to_ms": rendered_checkpoint_at,
+                        "duration_ms": rendered_checkpoint_at - source_from,
                     }
                 )
         word_count = len(str(cue.get("text") or "").split())
@@ -226,12 +242,89 @@ def build_tutorial_timeline(
         segments.append(
             {
                 "kind": "freeze",
-                "source_at_ms": checkpoint_at,
+                "source_at_ms": rendered_checkpoint_at,
                 "duration_ms": hold,
                 "cue_id": str(cue.get("id") or ""),
             }
         )
+        previous_checkpoint_at = checkpoint_at
     return segments
+
+
+def build_tutorial_review_timing(
+    *,
+    contract: dict[str, Any],
+    segments: list[dict[str, Any]],
+    device_profile: str,
+    narration_id: str,
+) -> tuple[list[dict[str, Any]], dict[str, list[list[float]]]]:
+    """Bind captions and visual claims to their deterministic tutorial segments."""
+    cues = {
+        str(cue.get("id")): cue
+        for cue in contract.get("transcript", [])
+        if isinstance(cue, dict) and device_profile in cue.get("devices", [])
+    }
+    assertions_by_checkpoint: dict[str, list[str]] = {}
+    for assertion in contract.get("assertions", []):
+        if not isinstance(assertion, dict) or device_profile not in assertion.get("devices", []):
+            continue
+        assertions_by_checkpoint.setdefault(str(assertion.get("checkpoint") or ""), []).append(
+            str(assertion.get("id") or "")
+        )
+    captions: list[dict[str, Any]] = []
+    evidence: dict[str, list[list[float]]] = {}
+    cursor_ms = 0
+    caption_start_ms = 0
+    for segment in segments:
+        duration_ms = int(segment["duration_ms"])
+        segment_end_ms = cursor_ms + duration_ms
+        if segment.get("kind") == "freeze":
+            cue = cues.get(str(segment.get("cue_id") or ""))
+            if cue is None:
+                raise DemonstrationError("Tutorial freeze segment does not match a device-scoped transcript cue")
+            claim_ids = [
+                claim_id
+                for claim_id in assertions_by_checkpoint.get(str(cue.get("checkpoint") or ""), [])
+                if claim_id
+            ]
+            if not claim_ids:
+                raise DemonstrationError("Tutorial cue has no assertion at its checkpoint")
+            captions.append(
+                {
+                    "id": f"CAP-{len(captions) + 1}",
+                    "narration_id": narration_id,
+                    "text": str(cue.get("text") or "").strip(),
+                    "start": round(caption_start_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+                    "end": round(segment_end_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+                    "claim_ids": claim_ids,
+                }
+            )
+            interval = [
+                round(cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+                round(segment_end_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+            ]
+            for claim_id in claim_ids:
+                evidence.setdefault(claim_id, []).append(interval)
+            caption_start_ms = segment_end_ms
+        cursor_ms = segment_end_ms
+    if len(captions) != len(cues):
+        raise DemonstrationError("Tutorial segments do not cover every device-scoped transcript cue")
+    assertion_ids = {
+        str(assertion.get("id") or "")
+        for assertion in contract.get("assertions", [])
+        if isinstance(assertion, dict) and device_profile in assertion.get("devices", [])
+    }
+    if set(evidence) != assertion_ids:
+        raise DemonstrationError("Every device-scoped assertion must map to one tutorial cue checkpoint")
+    return captions, evidence
+
+
+def validate_tutorial_caption_text(caption_text: str, captions: list[dict[str, Any]]) -> str:
+    """Require the retained transcript to match the reviewed timeline cues."""
+    canonical = " ".join(str(caption.get("text") or "").strip() for caption in captions)
+    if " ".join(caption_text.split()) != " ".join(canonical.split()):
+        raise DemonstrationError("Tutorial transcript does not match the device-scoped proof captions")
+    return canonical
 
 
 def build_browser_render_request(
@@ -1198,6 +1291,27 @@ def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds
     return clamped
 
 
+def clamp_evidence_to_duration(
+    evidence: dict[str, list[list[float]]],
+    *,
+    duration_seconds: float,
+) -> dict[str, list[list[float]]]:
+    """Clamp frame-quantized proof intervals without allowing empty evidence."""
+    clamped: dict[str, list[list[float]]] = {}
+    for claim_id, intervals in evidence.items():
+        claim_intervals: list[list[float]] = []
+        for start_value, end_value in intervals:
+            start = round(float(start_value), MEDIA_TIMESTAMP_DECIMALS)
+            end = round(min(float(end_value), duration_seconds), MEDIA_TIMESTAMP_DECIMALS)
+            if not 0 <= start < end <= duration_seconds:
+                raise DemonstrationError("Proof evidence interval is outside the rendered video duration")
+            claim_intervals.append([start, end])
+        if not claim_intervals:
+            raise DemonstrationError("Every proof assertion requires a non-empty evidence interval")
+        clamped[claim_id] = claim_intervals
+    return clamped
+
+
 def assert_realistic_tutorial_narration(text: str) -> None:
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     words = re.findall(r"\b\w+\b", text)
@@ -1228,6 +1342,7 @@ def prepare_review_artifacts(
     proof_contract_hash: str = "",
     proof_group_id: str = "",
     caption_segments: list[dict[str, Any]] | None = None,
+    proof_evidence_intervals: dict[str, list[list[float]]] | None = None,
     device_profile: dict[str, Any] | None = None,
     render_metadata: dict[str, Any] | None = None,
     scene_times: Iterable[float] = (),
@@ -1268,7 +1383,7 @@ def prepare_review_artifacts(
     ]
     claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
     if claim_ids:
-        captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
+        captions = [{**caption, "claim_ids": caption.get("claim_ids") or claim_ids} for caption in captions]
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     write_webvtt_segments(captions_path, captions)
     validate_webvtt_matches_segments(captions_path, captions)
@@ -1299,13 +1414,22 @@ def prepare_review_artifacts(
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
     evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
+    if proof_evidence_intervals is not None:
+        proof_evidence_intervals = clamp_evidence_to_duration(
+            proof_evidence_intervals,
+            duration_seconds=float(metadata["duration_seconds"]),
+        )
     expected = (
         [
             {
                 "claim_id": str(assertion["id"]),
                 "text": str(assertion["description"]),
                 "acceptance_criteria": [str(assertion["id"])],
-                "evidence_intervals": evidence_intervals,
+                "evidence_intervals": (
+                    proof_evidence_intervals.get(str(assertion["id"]), evidence_intervals)
+                    if proof_evidence_intervals is not None
+                    else evidence_intervals
+                ),
             }
             for assertion in proof_assertions
         ]
@@ -1517,12 +1641,22 @@ def produce_playwright_demonstration(
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
     tutorial_segments: list[dict[str, Any]] = []
+    tutorial_caption_segments: list[dict[str, Any]] | None = None
+    tutorial_evidence_intervals: dict[str, list[list[float]]] | None = None
     if spec_timeline is not None:
         tutorial_segments = build_tutorial_timeline(
             contract=spec_timeline["contract"],
             events=spec_timeline["events"],
             device_profile=str(device_profile["id"]),
+            source_offset_ms=round(float(trim_metadata.get("trim_start_seconds") or 0) * 1000),
         )
+        tutorial_caption_segments, tutorial_evidence_intervals = build_tutorial_review_timing(
+            contract=spec_timeline["contract"],
+            segments=tutorial_segments,
+            device_profile=str(device_profile["id"]),
+            narration_id=narration_id,
+        )
+        caption_text = validate_tutorial_caption_text(caption_text, tutorial_caption_segments)
         output_duration = round(sum(float(item["duration_ms"]) for item in tutorial_segments) / 1000, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
@@ -1544,12 +1678,17 @@ def produce_playwright_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
-    caption_segments = write_tutorial_captions(
-        captions_path,
-        text=caption_text,
-        duration_seconds=output_duration,
-        narration_id=narration_id,
-    )
+    if tutorial_caption_segments is not None:
+        assert_realistic_tutorial_narration(caption_text)
+        caption_segments = tutorial_caption_segments
+        write_webvtt_segments(captions_path, caption_segments)
+    else:
+        caption_segments = write_tutorial_captions(
+            captions_path,
+            text=caption_text,
+            duration_seconds=output_duration,
+            narration_id=narration_id,
+        )
     video_path = run_dir / "demo.mp4"
     browser_render_metadata: dict[str, Any] = {}
     if spec_timeline is not None:
@@ -1591,6 +1730,7 @@ def produce_playwright_demonstration(
         source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
+        proof_evidence_intervals=tutorial_evidence_intervals,
         device_profile=None if spec_timeline is not None else device_profile,
         render_metadata={
             "playback_rate": playback_rate,
