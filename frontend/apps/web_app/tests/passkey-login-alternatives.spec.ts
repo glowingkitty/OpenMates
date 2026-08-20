@@ -8,11 +8,15 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { createStepScreenshotter, getE2EDebugUrl } = require('./signup-flow-helpers');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // contract-test: direct surface=gui.web assertions=auth.login.passkey-alternative-methods
 test('keeps alternative login methods available while passkey login is pending', async ({ page }: { page: any }) => {
+	const takeScreenshot = createStepScreenshotter(console.log, {
+		filenamePrefix: 'passkey-login-alternatives'
+	});
+
 	await page.addInitScript(() => {
 		Object.defineProperty(navigator.credentials, 'get', {
 			configurable: true,
@@ -59,13 +63,20 @@ test('keeps alternative login methods available while passkey login is pending',
 	await expect(useEmailButton).toHaveText(/login with e-mail \+ password/i);
 	await expect(useEmailButton.getByTestId('login-use-email-icon')).toBeVisible();
 	await expect(pairLoginButton).toBeVisible();
+	await takeScreenshot(page, 'laptop');
 
 	await useEmailButton.click();
 	await expect(page.getByText(/logging in with passkey/i)).not.toBeVisible();
 	await expect(page.getByTestId('login-email-input')).toBeVisible();
 
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto(getE2EDebugUrl('/'));
+	await openSignupInterface(page);
+	await page.getByTestId('tab-login').click();
 	await page.getByTestId('login-passkey-button').click();
-	await expect(pairLoginButton).toBeVisible();
+	await expect(useEmailButton).toBeInViewport();
+	await expect(pairLoginButton).toBeInViewport();
+	await takeScreenshot(page, 'mobile');
 	await pairLoginButton.click();
 	await expect(page.getByText(/logging in with passkey/i)).not.toBeVisible();
 });
