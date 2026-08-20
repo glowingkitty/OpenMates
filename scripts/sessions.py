@@ -8005,7 +8005,10 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
         try:
             worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
             merged_commit = str(worktree.get("merged_commit") or "")
-            require_clean_worktree(merged_commit if len(merged_commit) == 40 else "")
+            require_clean_worktree(
+                merged_commit if len(merged_commit) == 40 else "",
+                [str(path) for path in session.get("modified_files") or []],
+            )
             deployed_run = resolve_deployed_run(
                 subject_commit=args.subject_commit,
                 spec_name=args.spec_name,
