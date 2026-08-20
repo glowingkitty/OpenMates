@@ -76,7 +76,7 @@ contracts:
     version: 1
     status: draft
     path: features/auth
-    fingerprint: 295d7758d0b1436cbc36229b3e0c6a7d0bb456d4ee1246145ed98ab232e72499
+    fingerprint: ca4c84044d177d1526b41ca03e8e92fb755409d56f75d7accfc64610194a28fd
     required_surfaces:
     - rest_api
     - cli
@@ -997,6 +997,16 @@ assertions:
     contract_id: feature.auth
     type: behavior
     fingerprint: 0a5e31d80479ea002e878f5ee0ccce473996a8913e1b58377c7d08ea9c4ee571
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.login.passkey-alternative-methods:
+    contract: feature.auth@1
+    contract_id: feature.auth
+    type: behavior
+    fingerprint: dbb148de4081ed9b9d5c9b2cc03af7c9a1c975843d84c16e0c8aacd058cafae7
     required_surfaces:
     - rest_api
     - cli

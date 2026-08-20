@@ -182,6 +182,10 @@ assertions:
     type: behavior
     must: Password plus OTP, password plus backup code, recovery-key, passkey PRF, and pair-login paths all converge on the same session finalization contract; password accounts with configured OTP require a valid OTP or unused backup code, while recovery-key, passkey, and pair-login are standalone strong login methods that do not add an extra OTP challenge.
     depends_on: [models.WrappedAccountKey, models.AuthSession, examples.login_methods]
+  - id: auth.login.passkey-alternative-methods
+    type: behavior
+    must: While a passkey login request is pending, the web login screen keeps email/password and phone/PC login controls visible; the email/password control includes its email icon, and choosing either alternative cancels the pending passkey request before switching methods.
+    depends_on: [examples.login_methods]
   - id: auth.passkey.origin-prf-bound
     type: security
     must: Passkey registration and assertion challenges are bound to the request origin relying-party ID, require user verification, require or request the deterministic PRF extension, reject credentials selected for a different hashed-email account, and use the credential-specific wrapped key for account unlocking.
