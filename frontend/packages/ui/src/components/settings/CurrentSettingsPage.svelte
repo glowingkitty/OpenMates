@@ -9,7 +9,7 @@
     import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -218,13 +218,63 @@
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
     let isAdminUser = $derived($userProfile.is_admin === true);
+
+    let activeContentHeight = $state(0);
+
+    $effect(() => {
+        if (!sliderElement || activeSettingsView.length === 0) return;
+
+        let observedContent: HTMLElement | null = null;
+        let isActive = true;
+        const slider = sliderElement;
+
+        const resizeObserver = new ResizeObserver(() => {
+            if (observedContent) activeContentHeight = observedContent.scrollHeight;
+        });
+
+        const observeActiveContent = () => {
+            if (!isActive) return;
+
+            const activeContent = slider.querySelector<HTMLElement>(
+                '.settings-items.active, .settings-submenu-content.active'
+            );
+            if (!activeContent) return;
+
+            if (activeContent !== observedContent) {
+                resizeObserver.disconnect();
+                observedContent = activeContent;
+                resizeObserver.observe(activeContent);
+            }
+            activeContentHeight = activeContent.scrollHeight;
+        };
+
+        const mutationObserver = new MutationObserver(observeActiveContent);
+        mutationObserver.observe(slider, { childList: true, subtree: true });
+
+        tick().then(() => {
+            if (!isActive || !slider.isConnected) return;
+            observeActiveContent();
+        });
+
+        return () => {
+            isActive = false;
+            mutationObserver.disconnect();
+            resizeObserver.disconnect();
+        };
+    });
 </script>
 
-<div class="settings-content-slider" bind:this={sliderElement}>
+<div
+    class="settings-content-slider"
+    data-testid="settings-content-slider"
+    style:--active-content-height={`${activeContentHeight}px`}
+    bind:this={sliderElement}
+>
 	<!-- Main settings menu - shown only when active -->
 	{#if activeSettingsView === 'main'}
         <div 
             class="settings-items active"
+            data-testid="settings-page-content"
             in:slideIn={{ dir: direction }}
         >
             <!-- Profile header: docked avatar + username + credits.
@@ -386,6 +436,7 @@
         {#if activeSettingsView === key && isSettingsViewFeatureEnabled(key)}
             <div 
                 class="settings-submenu-content active"
+                data-testid="settings-page-content"
                 in:slideIn={{ dir: direction }}
             >
                 <Component 
@@ -526,13 +577,15 @@
     .settings-content-slider {
         position: relative;
         width: 100%;
-        overflow-x: hidden;
+        height: var(--active-content-height);
+        overflow: hidden;
         padding-top: var(--spacing-0);
     }
     
     .settings-items, 
     .settings-submenu-content {
-        position: relative;
+        position: absolute;
+        left: 0;
         width: 100%;
         pointer-events: none;
         background-color: var(--color-grey-20);

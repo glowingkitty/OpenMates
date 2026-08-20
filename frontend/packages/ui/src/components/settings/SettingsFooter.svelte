@@ -113,7 +113,7 @@
     }
 </script>
 
-<div class="submenu-section">
+<div class="submenu-section" data-testid="settings-footer">
     <!-- TODO Show again once docs are implemented -->
     <!-- <div class="submenu-group">
         <h3>{@html $text('common.docs')}</h3>
@@ -137,18 +137,21 @@
         <a
             href={externalLinks.luma}
             class="submenu-link"
+            data-testid="settings-event-luma"
             target="_blank"
             rel="noopener noreferrer"
         >{$text('settings.luma')}</a>
         <a
             href={externalLinks.eventbrite}
             class="submenu-link"
+            data-testid="settings-event-eventbrite"
             target="_blank"
             rel="noopener noreferrer"
         >{$text('settings.eventbrite')}</a>
         <a
             href={externalLinks.meetup}
             class="submenu-link"
+            data-testid="settings-event-meetup"
             target="_blank"
             rel="noopener noreferrer"
         >{$text('settings.meetup')}</a>
