@@ -110,7 +110,10 @@ test.describe('Teams V1 context isolation', () => {
 		const frames: ProtocolFrame[] = [];
 		const uniqueSuffix = `${Date.now()}-${test.info().workerIndex}`;
 		const teamName = `E2E context team ${uniqueSuffix}`;
-		const ordinaryMessage = `Private Team note ${uniqueSuffix}`;
+		const messageNonce = crypto.randomUUID()
+			.replace(/[0-9]/g, (digit) => String.fromCharCode('g'.charCodeAt(0) + Number(digit)))
+			.replaceAll('-', '');
+		const ordinaryMessage = `Private Team note ${messageNonce}`;
 		let teamId = '';
 		captureProtocol(page, frames, apiUrl);
 
