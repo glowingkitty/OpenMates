@@ -594,6 +594,7 @@
     .settings-items.active,
     .settings-submenu-content.active {
         pointer-events: auto;
+        z-index: var(--z-index-raised);
     }
 
 </style>
