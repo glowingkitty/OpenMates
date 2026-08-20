@@ -13,6 +13,7 @@ Architecture: docs/specs/e2e-credential-isolation/spec.yml
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import os
@@ -39,9 +40,8 @@ def load_run_tests_module():
 def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
-    attachment = artifact / "frontend" / "apps" / "web_app" / "test-results" / "attachments" / "proof.json"
-    attachment.parent.mkdir(parents=True)
-    attachment.write_text('{"schema_version": 1}\n', encoding="utf-8")
+    artifact.mkdir(parents=True)
+    timeline = b'{"schema_version": 1}\n'
     report = {
         "suites": [{
             "specs": [{
@@ -50,7 +50,7 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
                         "attachments": [{
                             "name": "openmates-proof-timeline",
                             "contentType": "application/vnd.openmates.proof-timeline+json",
-                            "path": "/runner/test-results/attachments/proof.json",
+                            "body": base64.b64encode(timeline).decode("ascii"),
                         }]
                     }]
                 }]
@@ -65,7 +65,7 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
 
     expected = recordings / "proof" / "proof-timeline.json"
     assert persisted == str(expected)
-    assert expected.read_text(encoding="utf-8") == '{"schema_version": 1}\n'
+    assert expected.read_bytes() == timeline
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
 

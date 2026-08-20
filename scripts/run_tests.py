@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import asyncio
+import base64
 import hashlib
 import importlib.util
 import json
@@ -2547,15 +2548,12 @@ class BatchRunner:
         proof_timeline_path: Optional[Path] = None
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
-            attachment_paths: list[str] = []
+            timeline_attachments: list[dict[str, object]] = []
 
             def collect_timeline_attachments(value: object) -> None:
                 if isinstance(value, dict):
-                    if (
-                        value.get("contentType") == "application/vnd.openmates.proof-timeline+json"
-                        and isinstance(value.get("path"), str)
-                    ):
-                        attachment_paths.append(value["path"])
+                    if value.get("contentType") == "application/vnd.openmates.proof-timeline+json":
+                        timeline_attachments.append(value)
                     for child in value.values():
                         collect_timeline_attachments(child)
                 elif isinstance(value, list):
@@ -2564,12 +2562,21 @@ class BatchRunner:
 
             collect_timeline_attachments(report)
             artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
-            for attachment_path in attachment_paths:
+            for attachment in timeline_attachments:
+                proof_timeline_path = dest / "proof-timeline.json"
+                body = attachment.get("body")
+                attachment_path = attachment.get("path")
+                if isinstance(body, str):
+                    proof_timeline_path.write_bytes(base64.b64decode(body, validate=True))
+                    break
+                if not isinstance(attachment_path, str):
+                    proof_timeline_path = None
+                    continue
                 attachment_name = Path(attachment_path).name
                 source = next((path for path in artifact_files if path.name == attachment_name), None)
                 if source is None:
+                    proof_timeline_path = None
                     continue
-                proof_timeline_path = dest / "proof-timeline.json"
                 shutil.copy2(source, proof_timeline_path)
                 break
 
