@@ -2214,6 +2214,38 @@ def _schedule_phased_sync_background(
     return asyncio.create_task(run_phased_sync())
 
 
+def _cancel_superseded_phased_sync_tasks(
+    tasks: set[asyncio.Task],
+    active_context: tuple[Optional[str], Optional[int]] | None,
+    payload: dict,
+) -> tuple[tuple[Optional[str], int], bool, bool]:
+    raw_team_id = payload.get("team_id")
+    raw_context_epoch = payload.get("context_epoch")
+    if (
+        isinstance(raw_context_epoch, bool)
+        or not isinstance(raw_context_epoch, int)
+        or raw_context_epoch < 0
+    ):
+        raise ValueError("context_epoch must be a non-negative integer")
+    next_context = (
+        raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None,
+        raw_context_epoch,
+    )
+    if active_context is not None:
+        active_team_id, active_epoch = active_context
+        if active_epoch is not None and raw_context_epoch < active_epoch:
+            return (active_team_id, active_epoch), False, False
+        if active_epoch == raw_context_epoch and active_team_id != next_context[0]:
+            raise ValueError("context_epoch must increase when team context changes")
+    if active_context is None or active_context == next_context:
+        return next_context, False, True
+
+    for task in list(tasks):
+        if not task.done():
+            task.cancel()
+    return next_context, True, True
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2255,6 +2287,7 @@ async def websocket_endpoint(
 
     phased_sync_tasks: set[asyncio.Task] = set()
     phased_sync_tail_task: asyncio.Task | None = None
+    phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
     try:
         recovery_epoch = await ChatRecoveryCutoverController(
@@ -2929,6 +2962,23 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "phased_sync_request":
+                try:
+                    phased_sync_context, context_changed, should_schedule = _cancel_superseded_phased_sync_tasks(
+                        phased_sync_tasks,
+                        phased_sync_context,
+                        payload,
+                    )
+                except ValueError as sync_context_error:
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": str(sync_context_error)}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    continue
+                if not should_schedule:
+                    continue
+                if context_changed:
+                    phased_sync_tail_task = None
                 previous_phased_sync_task = (
                     phased_sync_tail_task
                     if phased_sync_tail_task is not None and not phased_sync_tail_task.done()

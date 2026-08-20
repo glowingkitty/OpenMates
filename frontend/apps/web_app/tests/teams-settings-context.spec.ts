@@ -122,7 +122,6 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 30000 });
 			const personalChatIds = await visibleChatIds(page);
 			expect(personalChatIds.length).toBeGreaterThan(0);
-			await waitForPhasedSyncCompletion(frames, 0, null);
 			await ensureSidebarClosed(page);
 
 			await openProfileMenu(page);

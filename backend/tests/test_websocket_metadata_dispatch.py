@@ -8,8 +8,11 @@ otherwise a send can time out before its durable ACK is emitted.
 """
 
 import importlib
+import asyncio
 import sys
 from types import ModuleType, SimpleNamespace
+
+import pytest
 
 
 def _stub_module(monkeypatch, module_name, **attributes):
@@ -219,3 +222,124 @@ def test_phased_sync_is_scheduled_without_awaiting(monkeypatch):
     assert task.done() is False
     assert len(created_coroutines) == 1
     assert handler_awaited is False
+
+
+# contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+async def test_phased_sync_context_switch_cancels_queue_and_runs_replacement(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    old_started = asyncio.Event()
+    replacement_completed = asyncio.Event()
+
+    async def fake_handle_phased_sync_request(**kwargs):
+        if kwargs["payload"].get("context_epoch") == 1:
+            old_started.set()
+            await asyncio.Event().wait()
+        replacement_completed.set()
+
+    monkeypatch.setitem(
+        websockets._schedule_phased_sync_background.__globals__,
+        "handle_phased_sync_request",
+        fake_handle_phased_sync_request,
+    )
+    common_kwargs = {
+        "websocket": object(),
+        "manager": object(),
+        "cache_service": object(),
+        "directus_service": object(),
+        "encryption_service": object(),
+        "user_id": "user-123",
+        "device_fingerprint_hash": "device-123",
+    }
+    running = websockets._schedule_phased_sync_background(
+        **common_kwargs,
+        payload={"phase": "all", "context_epoch": 1},
+    )
+    queued = websockets._schedule_phased_sync_background(
+        **common_kwargs,
+        payload={"phase": "all", "context_epoch": 1},
+        previous_task=running,
+    )
+    tasks = {running, queued}
+    await old_started.wait()
+    next_context, changed, should_schedule = websockets._cancel_superseded_phased_sync_tasks(
+        tasks,
+        (None, 1),
+        {"team_id": "team-123", "context_epoch": 2},
+    )
+    cancelled_results = await asyncio.gather(*tasks, return_exceptions=True)
+    replacement = websockets._schedule_phased_sync_background(
+        **common_kwargs,
+        payload={"phase": "all", "team_id": "team-123", "context_epoch": 2},
+    )
+    await replacement
+
+    assert changed is True
+    assert should_schedule is True
+    assert next_context == ("team-123", 2)
+    assert all(isinstance(result, asyncio.CancelledError) for result in cancelled_results)
+    assert replacement_completed.is_set()
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+def test_same_context_phased_sync_stays_serialized(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+
+    class PendingTask:
+        cancelled = False
+
+        def done(self):
+            return False
+
+        def cancel(self):
+            self.cancelled = True
+
+    pending_task = PendingTask()
+    next_context, changed, should_schedule = websockets._cancel_superseded_phased_sync_tasks(
+        {pending_task},
+        ("team-123", 2),
+        {"team_id": "team-123", "context_epoch": 2},
+    )
+
+    assert changed is False
+    assert should_schedule is True
+    assert next_context == ("team-123", 2)
+    assert pending_task.cancelled is False
+
+
+# contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+@pytest.mark.parametrize("context_epoch", [None, True, "2", -1])
+def test_phased_sync_rejects_malformed_context_epoch(monkeypatch, context_epoch):
+    websockets = _load_websockets_module(monkeypatch)
+
+    with pytest.raises(ValueError, match="context_epoch must be a non-negative integer"):
+        websockets._cancel_superseded_phased_sync_tasks(
+            set(),
+            (None, 1),
+            {"team_id": "team-123", "context_epoch": context_epoch},
+        )
+
+
+# contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+def test_stale_phased_sync_epoch_does_not_cancel_newer_context(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+
+    class PendingTask:
+        cancelled = False
+
+        def done(self):
+            return False
+
+        def cancel(self):
+            self.cancelled = True
+
+    pending_task = PendingTask()
+    next_context, changed, should_schedule = websockets._cancel_superseded_phased_sync_tasks(
+        {pending_task},
+        ("team-123", 2),
+        {"context_epoch": 1},
+    )
+
+    assert changed is False
+    assert should_schedule is False
+    assert next_context == ("team-123", 2)
+    assert pending_task.cancelled is False
