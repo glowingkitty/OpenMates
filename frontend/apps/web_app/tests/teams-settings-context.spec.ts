@@ -139,6 +139,7 @@ test.describe('Teams V1 context isolation', () => {
 			await waitForFrame(frames, teamSwitchFrameIndex, 'phased_sync_request', (payload) =>
 				payload.team_id === teamId && Number.isInteger(payload.context_epoch));
 			await page.getByTestId('icon-button-close').click();
+			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
 
 			await ensureSidebarOpen(page);
@@ -182,6 +183,7 @@ test.describe('Teams V1 context isolation', () => {
 			await waitForFrame(frames, personalSwitchFrameIndex, 'phased_sync_request', (payload) =>
 				payload.team_id === undefined && Number.isInteger(payload.context_epoch));
 			await page.getByTestId('icon-button-close').click();
+			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 
 			await ensureSidebarOpen(page);
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`)).toBeVisible({ timeout: 30000 });
