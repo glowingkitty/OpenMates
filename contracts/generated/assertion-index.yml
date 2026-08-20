@@ -11171,12 +11171,12 @@ assertions:
       surface: rest_api
     - &id1257
       path: backend/tests/test_teams_chat_ai.py
-      line: 223
+      line: 227
       name: test_sdk_team_chat_uses_split_ciphertext_and_inference_envelopes
       surface: rest_api
     - &id1258
       path: backend/tests/test_teams_chat_ai.py
-      line: 233
+      line: 237
       name: test_team_message_persistence_carries_canonical_team_scope
       surface: rest_api
     - &id1260
@@ -11335,12 +11335,12 @@ assertions:
       surface: cli
     - &id1276
       path: backend/tests/test_teams_chat_ai.py
-      line: 223
+      line: 227
       name: test_sdk_team_chat_uses_split_ciphertext_and_inference_envelopes
       surface: rest_api
     - &id1277
       path: backend/tests/test_teams_chat_ai.py
-      line: 233
+      line: 237
       name: test_team_message_persistence_carries_canonical_team_scope
       surface: rest_api
     - &id1278

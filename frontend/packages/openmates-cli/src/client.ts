@@ -6511,12 +6511,14 @@ export class OpenMatesClient {
           ...(messageHistoryForRequest ?? []).map((historyMessage) => ({
             role: historyMessage.role,
             content: historyMessage.content,
+            category: historyMessage.category ?? null,
             sender_name: historyMessage.sender_name ?? historyMessage.role,
             created_at: historyMessage.created_at,
           })),
           {
             role: "user" as const,
             content: finalMessage,
+            category: null,
             sender_name: "User",
             created_at: createdAt,
           },
@@ -6528,7 +6530,6 @@ export class OpenMatesClient {
           messagePayload.team_ai_invocation = { history: teamInferenceHistory };
           preflightInferenceRequest = {
             ...messagePayload,
-            message: { ...teamMessageEnvelope, content: finalMessage },
             message_history: teamInferenceHistory,
           };
         }

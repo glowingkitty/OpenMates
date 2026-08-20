@@ -206,6 +206,30 @@ async def _send_origin_chat_message_confirmed(
     await manager.send_personal_message(message, user_id, device_fingerprint_hash)
 
 
+async def _store_client_encrypted_embeds(
+    directus_service: DirectusService,
+    encrypted_embeds: list[dict[str, Any]],
+    hashed_user_id: str,
+    message_id: str,
+) -> None:
+    if not encrypted_embeds:
+        return
+    logger.info("Storing %s client-encrypted embeds for message %s", len(encrypted_embeds), message_id)
+    for encrypted_embed in encrypted_embeds:
+        try:
+            embed_id = encrypted_embed.get("embed_id")
+            if not embed_id:
+                logger.warning("Encrypted embed missing embed_id, skipping")
+                continue
+            encrypted_embed.setdefault("hashed_user_id", hashed_user_id)
+            await directus_service.embed.create_embed(encrypted_embed)
+            for key_entry in encrypted_embed.get("embed_keys", []):
+                key_entry.setdefault("hashed_user_id", hashed_user_id)
+                await directus_service.embed.create_embed_key(key_entry)
+        except Exception as exc:
+            logger.error("Error storing client-encrypted embed", exc_info=exc)
+
+
 def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
     forbidden = sorted(key for key in item if key in CONNECTED_ACCOUNT_FORBIDDEN_FIELDS)
     if forbidden:
@@ -529,6 +553,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 active_member_user_ids=mentioned_active_user_ids,
             )
         if is_team_chat and not team_transport.should_trigger_ai:
+            await _store_client_encrypted_embeds(
+                directus_service,
+                payload.get("encrypted_embeds", []),
+                hashlib.sha256(user_id.encode()).hexdigest(),
+                str(message_payload_from_client.get("message_id")),
+            )
             await _send_origin_chat_message_confirmed(
                 websocket,
                 manager,
@@ -1156,52 +1186,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # The encrypted_embeds array contains pre-encrypted embeds ready for direct Directus storage.
         encrypted_embeds_from_client = payload.get("encrypted_embeds", [])
         if encrypted_embeds_from_client and not is_incognito:
-            logger.info(f"Storing {len(encrypted_embeds_from_client)} client-encrypted embeds directly to Directus for message {message_id}")
-            
-            for encrypted_embed in encrypted_embeds_from_client:
-                try:
-                    embed_id = encrypted_embed.get("embed_id")
-                    if not embed_id:
-                        logger.warning("Encrypted embed missing embed_id, skipping")
-                        continue
-                    
-                    # ARCHITECTURE: Fill in hashed_user_id if client didn't provide it
-                    # This happens for new chats where the client doesn't have user_id yet.
-                    # The server knows the user from the authenticated session, so we can fill it in.
-                    if not encrypted_embed.get("hashed_user_id"):
-                        encrypted_embed["hashed_user_id"] = hashed_user_id
-                        logger.debug(f"Filled in hashed_user_id for embed {embed_id}")
-                    
-                    # Store client-encrypted embed directly in Directus
-                    # This is the zero-knowledge architecture: server cannot decrypt this data
-                    await directus_service.embed.create_embed(encrypted_embed)
-                    logger.debug(f"Stored client-encrypted embed {embed_id} in Directus")
-                    
-                    # Also store embed keys if provided
-                    # CRITICAL: embed_keys must be stored for the embed to be decryptable later
-                    embed_keys = encrypted_embed.get("embed_keys", [])
-                    if embed_keys:
-                        logger.info(f"[EMBED_KEYS] 🔑 Received {len(embed_keys)} embed_key(s) for embed {embed_id}")
-                        for key_entry in embed_keys:
-                            # Fill in hashed_user_id for embed keys too if missing
-                            if not key_entry.get("hashed_user_id"):
-                                key_entry["hashed_user_id"] = hashed_user_id
-                            
-                            hashed_embed_id_preview = key_entry.get("hashed_embed_id", "")[:16]
-                            key_type = key_entry.get("key_type")
-                            
-                            result = await directus_service.embed.create_embed_key(key_entry)
-                            if result:
-                                logger.info(f"[EMBED_KEYS] ✅ Stored embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
-                            else:
-                                logger.error(f"[EMBED_KEYS] ❌ Failed to store embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
-                        logger.info(f"[EMBED_KEYS] Completed storing {len(embed_keys)} embed key(s) for embed {embed_id}")
-                    else:
-                        logger.warning(f"[EMBED_KEYS] ⚠️ No embed_keys provided for embed {embed_id} - embed will not be decryptable!")
-                    
-                except Exception as e_store:
-                    logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
-                    # Non-critical error - continue with other embeds
+            await _store_client_encrypted_embeds(
+                directus_service,
+                encrypted_embeds_from_client,
+                hashed_user_id,
+                str(message_id),
+            )
 
         connected_account_directory = _sanitize_connected_account_directory(
             payload.get("connected_account_directory")
