@@ -99,6 +99,7 @@
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
     let isPasskeyLoading = $state(false); // Track if passkey login is in progress
     let passkeyLoginAbortController: AbortController | null = null; // For cancelling passkey login
+    let passkeyLoginSessionEstablished = false;
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
@@ -550,6 +551,7 @@
 
         // Show loading screen
         isPasskeyLoading = true;
+        passkeyLoginSessionEstablished = false;
         passkeyLoginAbortController = new AbortController();
 
         // Wait a tick for the UI to update, then start passkey login flow
@@ -560,7 +562,9 @@
     /**
      * Cancel passkey login and return to email login
      */
-    function cancelPasskeyLogin() {
+    async function cancelPasskeyLogin() {
+        const shouldLogoutEstablishedSession = passkeyLoginSessionEstablished;
+
         // Abort any ongoing passkey operations
         if (passkeyLoginAbortController) {
             passkeyLoginAbortController.abort();
@@ -571,6 +575,11 @@
         isPasskeyLoading = false;
         isLoading = false;
         loginFailedWarning = false;
+
+        if (shouldLogoutEstablishedSession) {
+            passkeyLoginSessionEstablished = false;
+            await logout();
+        }
     }
     
     /**
@@ -854,6 +863,10 @@
                 isLoading = false;
                 return;
             }
+
+            if (verifyData.auth_session) {
+                passkeyLoginSessionEstablished = true;
+            }
             
             // Step 7: Get email salt from backend response
             let emailSalt = cryptoService.getEmailSalt();
@@ -1010,6 +1023,7 @@
                     user: authData.user,
                     ws_token: authData.ws_token
                 };
+                passkeyLoginSessionEstablished = true;
                 console.log('[Login] Authentication successful via login endpoint');
             }
 
@@ -1020,16 +1034,20 @@
             // generation check and POST /auth/logout with the new session's cookies,
             // destroying the freshly-established session.
             const { bumpLoginSessionGeneration } = await import('../stores/authLoginLogoutActions');
+            if (passkeyLoginWasCancelled()) return;
             bumpLoginSessionGeneration();
 
             // Step 15: Store email encrypted with master key for client use
             await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+
+            if (passkeyLoginWasCancelled()) return;
 
             // Step 16: Store WebSocket token if provided (CRITICAL for WebSocket connection)
             // Check both verifyData.auth_session.ws_token and direct authData.ws_token for compatibility
             const wsToken = verifyData.auth_session?.ws_token;
             if (wsToken) {
                 const { setWebSocketToken } = await import('../utils/cookies');
+                if (passkeyLoginWasCancelled()) return;
                 setWebSocketToken(wsToken);
                 console.debug('[Login] WebSocket token stored from login response');
             } else {
@@ -1065,6 +1083,7 @@
                     // (setting these flags to true) but the user then successfully logs in with passkey.
                     // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
                     const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
+                    if (passkeyLoginWasCancelled()) return;
                     if (get(forcedLogoutInProgress)) {
                         console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
                         resetForcedLogoutInProgress();
@@ -1080,9 +1099,13 @@
 
                     // Save to IndexedDB first
                     const { userDB } = await import('../services/userDB');
+                    if (passkeyLoginWasCancelled()) return;
                     await userDB.saveUserData(userData);
 
+                    if (passkeyLoginWasCancelled()) return;
+
                     const { updateProfile } = await import('../stores/userProfile');
+                    if (passkeyLoginWasCancelled()) return;
                     const userProfileData = {
                         user_id: userData.id || null,
                         username: userData.username || '',
@@ -1125,6 +1148,8 @@
                 } catch { /* localStorage write failed — ignore */ }
             }
 
+            if (passkeyLoginWasCancelled()) return;
+
             // Step 18: Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
@@ -1134,6 +1159,7 @@
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
+            passkeyLoginSessionEstablished = false;
             setLastAuthMethod('passkey');
             dispatch('loginSuccess', {
                 user: userData,
@@ -2438,14 +2464,14 @@
                                                          onclick={cancelPasskeyLogin}
                                                      >
                                                          <span class="clickable-icon icon_mail" data-testid="login-use-email-icon"></span>
-                                                         {$text('login.login_with_email')} + {$text('common.password')}
+                                                         {$text('login.login_with_email_and_password')}
                                                      </button>
                                                      <button
                                                          type="button"
                                                          class="passkey-alternative-button"
                                                          data-testid="login-pair-button"
-                                                         onclick={() => {
-                                                             cancelPasskeyLogin();
+                                                         onclick={async () => {
+                                                             await cancelPasskeyLogin();
                                                              setLoginStep('pair-initiate');
                                                          }}
                                                      >
