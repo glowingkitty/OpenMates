@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chats
-version: 1
+version: 2
 status: approved
 title: Chats
 summary: >
@@ -16,6 +16,7 @@ scope:
     - Stable chat, turn, message, recovery job, lease, and chat-version identities.
     - Local message status precedence for visible user gates and provisional assistant states.
     - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
+    - Non-destructive conversation forks through a selected message boundary.
   excludes:
     - Anonymous or incognito chats that never enter authenticated server persistence.
     - Automatic paid inference replay after recovery job expiry.
@@ -69,6 +70,22 @@ models:
       type: client_secret
       required: true
       constraints: {server_plaintext: forbidden, required_before_encrypted_write: true}
+
+  ChatFork:
+    source_chat_id:
+      type: chat_id
+      required: true
+    fork_chat_id:
+      type: chat_id
+      required: true
+      constraints: {different_from_source: true}
+    boundary_message_id:
+      type: message_id
+      required: true
+    copied_messages:
+      type: array
+      required: true
+      constraints: {source_prefix_through_boundary_only: true, client_encrypted: true}
 
   CompletionRecoveryJob:
     job_id:
@@ -137,6 +154,10 @@ assertions:
     type: invariant
     must: A client waits for the local chat shell, owner user id, and usable chat key before claiming or persisting encrypted recovered content; early availability frames stay retryable instead of being dropped or claimed keylessly.
     depends_on: [models.ChatKeyReadiness, models.CompletionRecoveryJob, examples.key_gated_recovery]
+  - id: chats.fork.non-destructive-boundary
+    type: behavior
+    must: A conversation fork creates a new independently identified encrypted saved chat containing source messages only through the selected message boundary, leaves the source chat unchanged, completes without replacing the active chat, and provides an explicit action to open the fork.
+    depends_on: [models.ChatFork, examples.conversation_fork]
   - id: chats.surface.semantic-parity
     type: parity
     must: Web, Apple, and CLI preserve the same encryption-boundary, identity-idempotency, recovery-takeover, lease-fencing, pending-delivery, local-state, key-gating, and visible-failure semantics; npm and pip SDKs cannot bypass server-authoritative recovery safety but are not user-facing takeover surfaces.
@@ -165,4 +186,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery]
+  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery, conversation_fork]

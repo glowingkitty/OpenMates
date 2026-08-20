@@ -110,10 +110,10 @@ contracts:
     required_surfaces:
     - gui.web
   feature.chats:
-    version: 1
+    version: 2
     status: approved
     path: features/chats
-    fingerprint: 71abe35624ec3f3c7572c36e627f823f268b43e27bd5fdb8e284dd38fbc68354
+    fingerprint: 1781cf9cedac41a38e6a735dd5cdc539917258e2fbb7209a49a49d666328f4e6
     required_surfaces:
     - cli
     - gui.web
@@ -1209,7 +1209,7 @@ assertions:
     required_surfaces:
     - gui.web
   chats.persistence.client-encrypted:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: privacy
     fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
@@ -1218,7 +1218,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.message.identity-idempotent:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: invariant
     fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
@@ -1227,7 +1227,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.recovery-takeover:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: behavior
     fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
@@ -1236,7 +1236,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.lease-fenced:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: invariant
     fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
@@ -1245,7 +1245,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.pending-delivery:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: behavior
     fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
@@ -1254,7 +1254,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.local-state.precedence:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: behavior
     fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
@@ -1263,7 +1263,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.sync.key-gated-recovery:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: invariant
     fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
@@ -1271,11 +1271,20 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.fork.non-destructive-boundary:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: 27d41bb48eede1c74597751d446a17c5f1708527d7d8c771254beee5a55d8001
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
   chats.surface.semantic-parity:
-    contract: feature.chats@1
+    contract: feature.chats@2
     contract_id: feature.chats
     type: parity
-    fingerprint: 58395fe0a222248b663a71955fab6cc55f0e88893fadc7599fcd19e63c8d0a70
+    fingerprint: 4059cd87cddfdfef114489b879ca462a79b130237b4c7ac2431585adf378095f
     required_surfaces:
     - cli
     - gui.web

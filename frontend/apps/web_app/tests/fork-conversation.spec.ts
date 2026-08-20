@@ -41,6 +41,7 @@ const {
 	openSignupInterface,
 	submitPasswordAndHandleOtp,
 	waitForChatReady,
+	dismissSecurityReminderIfPresent,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
@@ -57,6 +58,7 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+// contract-test: direct surface=gui.web assertions=chats.fork.non-destructive-boundary
 test('forks a conversation after the first message', async ({ page }: { page: any }) => {
 	// Listen for console logs
 	page.on('console', (msg: any) => {
@@ -119,6 +121,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 7. Wait for authenticated chat UI and open a fresh chat ──────────────
 	await waitForChatReady(page, log);
+	await dismissSecurityReminderIfPresent(page, log);
 	log('Authenticated chat UI ready.');
 
 	// Click the new-chat icon to get a clean slate

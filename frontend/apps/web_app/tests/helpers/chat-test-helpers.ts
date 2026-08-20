@@ -1422,6 +1422,18 @@ async function waitForChatReady(
 	logCheckpoint('Chat UI ready: authenticated + editor + hash router + transport ready.', lastConnectionState ?? undefined);
 }
 
+async function dismissSecurityReminderIfPresent(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
+): Promise<void> {
+	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
+	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
+
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	await expect(reminder).not.toBeVisible({ timeout: 10000 });
+	logCheckpoint('Dismissed security reminder.');
+}
+
 /**
  * Robust wait for an assistant message. Replaces the fragile pattern
  *   `await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 45000 })`
@@ -1594,5 +1606,6 @@ module.exports = {
 	deleteActiveChat,
 	waitForAssistantResponse,
 	waitForChatReady,
+	dismissSecurityReminderIfPresent,
 	waitForAssistantMessage
 };
