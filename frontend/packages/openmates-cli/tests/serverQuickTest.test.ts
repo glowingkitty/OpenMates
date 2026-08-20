@@ -13,7 +13,9 @@ import assert from "node:assert/strict";
 import {
   assessQuickServerTestEligibility,
   decideQuickServerTestAction,
+  mergeQuickServerTestUpdateStatus,
   runQuickServerTest,
+  selectExpectedServerApiUrl,
   type QuickServerTestClient,
 } from "../src/serverQuickTest.ts";
 
@@ -24,7 +26,7 @@ function fakeClient(overrides: Partial<QuickServerTestClient> = {}): QuickServer
     getSession: () => ({ apiUrl: "https://api.selfhost.example" }),
     sendMessage: async (params) => ({
       status: "completed",
-      chatId: params.chatId ?? "",
+      chatId: params.newChatId ?? "",
       messageId: "22222222-2222-4222-8222-222222222222",
       assistant: "server quick test passed",
     }),
@@ -77,6 +79,19 @@ describe("post-update quick server test", () => {
     assert.equal(requestMismatch.reason, "session_instance_mismatch");
   });
 
+  it("only allows an explicit API URL override for standalone tests", () => {
+    assert.equal(selectExpectedServerApiUrl({
+      configuredApiUrl: "https://updated.example",
+      explicitApiUrl: "https://other.example",
+      allowExplicitOverride: false,
+    }), "https://updated.example");
+    assert.equal(selectExpectedServerApiUrl({
+      configuredApiUrl: "http://localhost:8000",
+      explicitApiUrl: "https://api.dev.openmates.org",
+      allowExplicitOverride: true,
+    }), "https://api.dev.openmates.org");
+  });
+
   // contract-test: supporting surface=cli assertions=chats.surface.semantic-parity,web-search.surface-parity
   it("never treats --yes or non-interactive defaults as spend consent", () => {
     assert.equal(decideQuickServerTestAction({ interactive: true }), "prompt");
@@ -96,10 +111,12 @@ describe("post-update quick server test", () => {
     const calls: string[] = [];
     const client = fakeClient({
       sendMessage: async (params) => {
+        assert.equal(params.chatId, undefined);
+        assert.match(params.newChatId ?? "", /^[0-9a-f-]{36}$/);
         calls.push(`chat:${params.taskUpdateJobs}:${params.personal}`);
         return {
           status: "completed",
-          chatId: params.chatId ?? "",
+          chatId: params.newChatId ?? "",
           messageId: "22222222-2222-4222-8222-222222222222",
           assistant: "server quick test passed",
         };
@@ -133,6 +150,25 @@ describe("post-update quick server test", () => {
     assert.equal(JSON.stringify(result).includes("11111111-1111-4111-8111-111111111111"), false);
   });
 
+  it("persists declined checks as successful and failed checks as degraded", () => {
+    const declined = mergeQuickServerTestUpdateStatus(
+      { role: "core", updated_at: "old", status: "success", step: "complete" },
+      { status: "not_run", reason: "declined", checks: [] },
+    );
+    assert.deepEqual(declined, {
+      status: "success",
+      step: "complete",
+      quickTest: { status: "not_run", reason: "declined", checks: [] },
+    });
+
+    const failed = mergeQuickServerTestUpdateStatus(
+      { role: "core", updated_at: "old", status: "success", step: "complete" },
+      { status: "failed", completed_at: "now", checks: [] },
+    );
+    assert.equal(failed.status, "degraded");
+    assert.equal(failed.step, "quick-test");
+  });
+
   // contract-test: supporting surface=cli assertions=chats.surface.semantic-parity,web-search.provider-error.visible,web-search.secrets.never-exposed
   it("sanitizes failures, continues independent checks, and attempts cleanup", async () => {
     const calls: string[] = [];
@@ -163,7 +199,7 @@ describe("post-update quick server test", () => {
     let cleanedChatId = "";
     const result = await runQuickServerTest(fakeClient({
       sendMessage: async (params) => {
-        attemptedChatId = params.chatId ?? "";
+        attemptedChatId = params.newChatId ?? "";
         throw new Error("timeout after persistence");
       },
       deleteChat: async (chatId) => { cleanedChatId = chatId; },
@@ -181,7 +217,7 @@ describe("post-update quick server test", () => {
     const result = await runQuickServerTest(fakeClient({
       sendMessage: async (params) => ({
         status: "completed",
-        chatId: params.chatId ?? "",
+        chatId: params.newChatId ?? "",
         messageId: "22222222-2222-4222-8222-222222222222",
         assistant: "The server might be working.",
       }),

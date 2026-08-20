@@ -2196,7 +2196,7 @@ assertions:
     supporting_tests:
     - &id212
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 95
+      line: 110
       name: runs the bounded real-chat and cheap-skill checklist and cleans up
       surface: cli
     tests:
@@ -2459,7 +2459,7 @@ assertions:
       surface: rest_api
     - &id241
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 137
+      line: 173
       name: sanitizes failures, continues independent checks, and attempts cleanup
       surface: cli
     tests:
@@ -2543,7 +2543,7 @@ assertions:
     supporting_tests:
     - &id248
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 137
+      line: 173
       name: sanitizes failures, continues independent checks, and attempts cleanup
       surface: cli
     tests:
@@ -2736,12 +2736,12 @@ assertions:
       surface: cli
     - &id278
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 81
+      line: 96
       name: never treats --yes or non-interactive defaults as spend consent
       surface: cli
     - &id279
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 95
+      line: 110
       name: runs the bounded real-chat and cheap-skill checklist and cleans up
       surface: cli
     - &id280
@@ -5516,12 +5516,12 @@ assertions:
       surface: rest_api
     - &id597
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 95
+      line: 110
       name: runs the bounded real-chat and cheap-skill checklist and cleans up
       surface: cli
     - &id598
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 161
+      line: 197
       name: uses a client-generated chat id so timeout cleanup can still run
       surface: cli
     - &id624
@@ -5844,7 +5844,7 @@ assertions:
       surface: rest_api
     - &id652
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 161
+      line: 197
       name: uses a client-generated chat id so timeout cleanup can still run
       surface: cli
     - &id653
@@ -6541,27 +6541,27 @@ assertions:
       surface: gui.web
     - &id737
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 47
+      line: 49
       name: requires a session bound to the updated installation origin
       surface: cli
     - &id738
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 81
+      line: 96
       name: never treats --yes or non-interactive defaults as spend consent
       surface: cli
     - &id739
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 95
+      line: 110
       name: runs the bounded real-chat and cheap-skill checklist and cleans up
       surface: cli
     - &id740
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 137
+      line: 173
       name: sanitizes failures, continues independent checks, and attempts cleanup
       surface: cli
     - &id741
       path: frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
-      line: 179
+      line: 215
       name: rejects an unrelated assistant response and still cleans up
       surface: cli
     - &id742

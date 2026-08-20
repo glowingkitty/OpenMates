@@ -19,6 +19,7 @@ export interface QuickServerTestClient {
   sendMessage(params: {
     message: string;
     chatId?: string;
+    newChatId?: string;
     personal?: boolean;
     taskUpdateJobs?: boolean;
     autoApproveSubChats?: boolean;
@@ -52,6 +53,12 @@ export interface QuickServerTestResult {
   checks: QuickServerTestCheck[];
 }
 
+export type QuickServerTestOutcome = QuickServerTestResult | {
+  status: "not_run";
+  reason: string;
+  checks: [];
+};
+
 export type QuickServerTestEligibility =
   | { status: "ready"; expectedOrigin: string }
   | {
@@ -72,6 +79,30 @@ const QUICK_TEST_EXPECTED_RESPONSE = "server quick test passed";
 
 export function normalizedApiOrigin(apiUrl: string): string {
   return new URL(apiUrl).origin;
+}
+
+export function selectExpectedServerApiUrl(input: {
+  configuredApiUrl?: string | null;
+  explicitApiUrl?: string | null;
+  allowExplicitOverride: boolean;
+}): string {
+  if (input.allowExplicitOverride && input.explicitApiUrl?.trim()) {
+    return input.explicitApiUrl;
+  }
+  return input.configuredApiUrl || "http://localhost:8000";
+}
+
+export function mergeQuickServerTestUpdateStatus(
+  current: Record<string, unknown>,
+  outcome: QuickServerTestOutcome,
+): Record<string, unknown> {
+  const { role: _role, updated_at: _updatedAt, ...status } = current;
+  return {
+    ...status,
+    status: outcome.status === "failed" ? "degraded" : status.status ?? "success",
+    step: outcome.status === "failed" ? "quick-test" : status.step ?? "complete",
+    quickTest: outcome,
+  };
 }
 
 export function assessQuickServerTestEligibility(input: {
@@ -144,11 +175,10 @@ export async function runQuickServerTest(
 
   const createStarted = now();
   try {
-    const marker = randomUUID();
     chatMayExist = true;
     const response = await client.sendMessage({
-      message: `OpenMates server quick test ${marker}. Reply with exactly: ${QUICK_TEST_EXPECTED_RESPONSE}`,
-      chatId,
+      message: `Reply with exactly: ${QUICK_TEST_EXPECTED_RESPONSE}`,
+      newChatId: chatId,
       personal: true,
       taskUpdateJobs: false,
       autoApproveSubChats: false,

@@ -224,7 +224,7 @@ If the CLI has no session for the updated instance, it prints the instance-scope
 
 ```bash
 openmates --api-url https://api.example.org login
-openmates server test --quick
+openmates --api-url https://api.example.org server test --quick
 ```
 
 JSON, redirected-input, and continuous updates never prompt or spend by default. Automation must pass both `--quick-test` and `--confirm-spend-credits`; `--skip-quick-test` suppresses the interactive offer. An accepted quick-test failure marks update status degraded, leaves the updated containers running for diagnosis, and never triggers automatic rollback.

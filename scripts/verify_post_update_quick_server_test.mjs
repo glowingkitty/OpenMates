@@ -8,7 +8,6 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 
@@ -24,10 +23,6 @@ if (apiIndex >= 0 && (!apiUrl || apiUrl.startsWith("--"))) {
 if (!args.includes("--confirm-spend-credits")) {
   throw new Error("Live quick-server proof requires --confirm-spend-credits.");
 }
-if (!existsSync(cli)) {
-  throw new Error("Compiled CLI not found. Run npm --prefix frontend/packages/openmates-cli run build first.");
-}
-
 const build = spawnSync(
   "npm",
   ["--prefix", "frontend/packages/openmates-cli", "run", "build"],

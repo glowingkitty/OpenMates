@@ -80,8 +80,10 @@ import type { OpenMatesClient } from "./client.js";
 import {
   assessQuickServerTestEligibility,
   decideQuickServerTestAction,
+  mergeQuickServerTestUpdateStatus,
   runQuickServerTest,
-  type QuickServerTestResult,
+  selectExpectedServerApiUrl,
+  type QuickServerTestOutcome,
 } from "./serverQuickTest.js";
 
 // ---------------------------------------------------------------------------
@@ -1010,12 +1012,6 @@ function writeUpdateStatus(installPath: string, role: ServerRole, status: Record
   writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
 }
 
-type QuickServerTestOutcome = QuickServerTestResult | {
-  status: "not_run";
-  reason: string;
-  checks: [];
-};
-
 function persistQuickServerTestOutcome(
   installPath: string,
   role: ServerRole,
@@ -1030,18 +1026,21 @@ function persistQuickServerTestOutcome(
       current = {};
     }
   }
-  const { role: _role, updated_at: _updatedAt, ...status } = current;
-  writeUpdateStatus(installPath, role, {
-    ...status,
-    status: outcome.status === "failed" ? "degraded" : status.status ?? "success",
-    step: outcome.status === "failed" ? "quick-test" : status.step ?? "complete",
-    quickTest: outcome,
-  });
+  writeUpdateStatus(installPath, role, mergeQuickServerTestUpdateStatus(current, outcome));
 }
 
-function expectedServerApiUrl(installPath: string, config: ServerConfig | null): string {
+function expectedServerApiUrl(
+  installPath: string,
+  config: ServerConfig | null,
+  flags: Record<string, string | boolean>,
+  allowApiUrlOverride: boolean,
+): string {
   const envApiUrl = firstCsvValue(getEnvVar(readEnvContent(installPath), "VITE_API_URL"));
-  return envApiUrl || config?.apiUrl || "http://localhost:8000";
+  return selectExpectedServerApiUrl({
+    configuredApiUrl: envApiUrl || config?.apiUrl,
+    explicitApiUrl: typeof flags["api-url"] === "string" ? flags["api-url"] : null,
+    allowExplicitOverride: allowApiUrlOverride,
+  });
 }
 
 function printQuickTestLoginGuidance(eligibility: Extract<ReturnType<typeof assessQuickServerTestEligibility>, { status: "login_required" }>): void {
@@ -1094,7 +1093,7 @@ async function maybeRunQuickServerTest(
 
   const eligibility = assessQuickServerTestEligibility({
     role,
-    expectedApiUrl: expectedServerApiUrl(installPath, config),
+    expectedApiUrl: expectedServerApiUrl(installPath, config, flags, standalone),
     client,
   });
   if (eligibility.status === "login_required") {
