@@ -6875,6 +6875,37 @@ def opencode_session_reusable_for_start(session: dict) -> bool:
     return True
 
 
+def refresh_existing_session_for_start(
+    data: dict,
+    session_id: str,
+    opencode_session_id: str,
+    *,
+    mode: str,
+    tags: list[str],
+    task: str | None,
+    repo_kind: str,
+    now: str | None = None,
+) -> dict:
+    """Refresh an existing session and restore its authoritative chat binding."""
+    current = session_for_opencode(data, opencode_session_id)
+    if current is None or current[0] != session_id:
+        current_id = current[0] if current else "none"
+        raise RuntimeError(
+            f"OpenCode session {opencode_session_id} binding changed while starting "
+            f"(selected {session_id}, current {current_id}); run sessions.py start again"
+        )
+    session = data["sessions"][session_id]
+    bind_opencode_session(data, session_id, opencode_session_id)
+    session["last_active"] = now or _now_iso()
+    session["mode"] = mode
+    session["tags"] = tags
+    session["binding_mode"] = "pending" if repo_kind == "control_plane" else "repo_routed"
+    session["auto_integration_policy"] = "enabled" if repo_kind == "control_plane" else "disabled"
+    if task:
+        session["task"] = task
+    return data
+
+
 def record_worktree_binding(
     *,
     opencode_session_id: str,
@@ -7093,17 +7124,15 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, _existing_session = existing
 
         def refresh_existing(data: dict) -> dict:
-            session = data["sessions"][sid]
-            session["last_active"] = _now_iso()
-            if opencode_session_id:
-                session.setdefault("opencode_top_level_session_id", opencode_session_id)
-            session["mode"] = mode
-            session["tags"] = tags
-            session["binding_mode"] = "pending" if repo["repo_kind"] == "control_plane" else "repo_routed"
-            session["auto_integration_policy"] = "enabled" if repo["repo_kind"] == "control_plane" else "disabled"
-            if args.task:
-                session["task"] = args.task
-            return data
+            return refresh_existing_session_for_start(
+                data,
+                sid,
+                opencode_session_id,
+                mode=mode,
+                tags=tags,
+                task=args.task,
+                repo_kind=repo["repo_kind"],
+            )
 
         data = _mutate_sessions(refresh_existing)
         pruned: list[str] = []

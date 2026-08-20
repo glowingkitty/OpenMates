@@ -232,6 +232,68 @@ def test_existing_opencode_session_is_reused_after_restart() -> None:
     assert result[1]["worktree"]["path"] == "/repo/agent-abcd"
 
 
+def test_start_refresh_restores_half_bound_opencode_session() -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": None,
+                "opencode_top_level_session_id": "ses_parent",
+                "binding_mode": "pending",
+                "last_active": "old",
+            }
+        }
+    }
+
+    sessions.refresh_existing_session_for_start(
+        data,
+        "abcd",
+        "ses_parent",
+        mode="testing",
+        tags=["test"],
+        task="continue verification",
+        repo_kind="control_plane",
+        now="now",
+    )
+
+    session = data["sessions"]["abcd"]
+    assert session["opencode_session_id"] == "ses_parent"
+    assert session["opencode_top_level_session_id"] == "ses_parent"
+    assert session["binding_mode"] == "pending"
+    assert session["last_active"] == "now"
+    assert sessions._resolve_session_id(data, opencode_session_id="ses_parent") == "abcd"
+
+
+def test_start_refresh_does_not_steal_newer_opencode_binding() -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "stale": {
+                "opencode_session_id": None,
+                "opencode_top_level_session_id": "ses_parent",
+            },
+            "current": {
+                "opencode_session_id": "ses_parent",
+                "opencode_top_level_session_id": "ses_parent",
+            },
+        }
+    }
+
+    with pytest.raises(RuntimeError, match="binding changed while starting"):
+        sessions.refresh_existing_session_for_start(
+            data,
+            "stale",
+            "ses_parent",
+            mode="testing",
+            tags=["test"],
+            task="continue verification",
+            repo_kind="control_plane",
+        )
+
+    assert data["sessions"]["stale"]["opencode_session_id"] is None
+    assert data["sessions"]["current"]["opencode_session_id"] == "ses_parent"
+
+
 def test_merged_opencode_session_is_reused_for_start() -> None:
     sessions = load_sessions_module()
 
