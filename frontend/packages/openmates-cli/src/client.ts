@@ -6272,8 +6272,11 @@ export class OpenMatesClient {
     const createdAt = Math.floor(Date.now() / 1000);
     const isNewChat = !params.chatId;
     let messageHistoryForRequest = params.messageHistory;
-    if (!params.incognito && !teamId && !isNewChat && !messageHistoryForRequest) {
-      const { messages } = await this.getChatMessages(chatId, { personal: true });
+    if (!params.incognito && !isNewChat && !messageHistoryForRequest) {
+      const { messages } = await this.getChatMessages(
+        chatId,
+        teamId ? { teamId } : { personal: true },
+      );
       messageHistoryForRequest = messages.map((message) => ({
         message_id: message.id,
         chat_id: chatId,
@@ -6485,6 +6488,10 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: createdAt,
       };
+      encryptedUserMessage.encrypted_sender_name = await encryptWithAesGcmCombined(
+        "User",
+        chatKeyBytes,
+      );
 
       if (piiMappings.length > 0) {
         encryptedUserMessage.encrypted_pii_mappings = await encryptWithAesGcmCombined(
@@ -6498,6 +6505,35 @@ export class OpenMatesClient {
         recovery_public_key: recoveryKeypair.publicKey,
         chat_key_version: chatKeyVersion,
       });
+      let preflightInferenceRequest = messagePayload;
+      if (teamId) {
+        const teamInferenceHistory = [
+          ...(messageHistoryForRequest ?? []).map((historyMessage) => ({
+            role: historyMessage.role,
+            content: historyMessage.content,
+            sender_name: historyMessage.sender_name ?? historyMessage.role,
+            created_at: historyMessage.created_at,
+          })),
+          {
+            role: "user" as const,
+            content: finalMessage,
+            sender_name: "User",
+            created_at: createdAt,
+          },
+        ];
+        const teamMessageEnvelope = { ...encryptedUserMessage, message_id: messageId };
+        delete messagePayload.message_history;
+        messagePayload.message = teamMessageEnvelope;
+        if (shouldWaitForAi) {
+          messagePayload.team_ai_invocation = { history: teamInferenceHistory };
+          preflightInferenceRequest = {
+            ...messagePayload,
+            message: { ...teamMessageEnvelope, content: finalMessage },
+            message_history: teamInferenceHistory,
+          };
+        }
+      }
+
       const preflightPayload: Record<string, unknown> = {
         protocol_version: protocolVersion,
         chat_id: chatId,
@@ -6509,7 +6545,7 @@ export class OpenMatesClient {
         recovery_public_key: recoveryKeypair.publicKey,
         expected_messages_v: baselineMessagesV,
         encrypted_user_message: encryptedUserMessage,
-        inference_request: messagePayload,
+        inference_request: preflightInferenceRequest,
       };
       if (isNewChat) {
         if (!chatSlugLookupKey) {

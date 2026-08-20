@@ -529,6 +529,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 active_member_user_ids=mentioned_active_user_ids,
             )
         if is_team_chat and not team_transport.should_trigger_ai:
+            await _send_origin_chat_message_confirmed(
+                websocket,
+                manager,
+                user_id,
+                device_fingerprint_hash,
+                {
+                    "chat_id": chat_id,
+                    "message_id": message_payload_from_client.get("message_id"),
+                    "temp_id": message_payload_from_client.get("temp_id"),
+                },
+            )
             logger.info("Team chat message %s relayed as ciphertext without AI processing", message_payload_from_client.get("message_id"))
             return
 

@@ -205,6 +205,20 @@ def test_websocket_handler_enters_team_transport_before_plaintext_pipeline() -> 
     assert "broadcast_team_event(" in source[parse_index:plaintext_index]
 
 
+# contract-test: supporting surface=cli assertions=teams.chat.encrypted-until-invoked
+def test_ordinary_team_transport_confirms_origin_before_early_return() -> None:
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "core/api/app/routes/handlers/websocket_handlers/message_received_handler.py"
+    ).read_text(encoding="utf-8")
+    ordinary_branch = source.split("if is_team_chat and not team_transport.should_trigger_ai:", 1)[1].split(
+        'message_id = message_payload_from_client.get("message_id")', 1
+    )[0]
+
+    assert "await _send_origin_chat_message_confirmed(" in ordinary_branch
+    assert ordinary_branch.index("await _send_origin_chat_message_confirmed(") < ordinary_branch.index("return")
+
+
 # contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.context.full-switch-local
 def test_sdk_team_chat_uses_split_ciphertext_and_inference_envelopes() -> None:
     source = (Path(__file__).resolve().parents[1] / "core/api/app/routes/sdk.py").read_text(encoding="utf-8")
