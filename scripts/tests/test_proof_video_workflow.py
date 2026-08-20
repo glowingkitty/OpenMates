@@ -60,6 +60,38 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     assert context.source_run_id == "run-current"
 
 
+def test_resolve_current_context_accepts_passing_descendant_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    subject_commit = "a" * 40
+    descendant_commit = "b" * 40
+    sessions = {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}}
+    runs = [{
+        "run_id": "run-descendant",
+        "git_sha": descendant_commit,
+        "status": "passed",
+        "spec": "example.spec.ts",
+        "source": "scripts_tests",
+        "deployment_verified": True,
+    }]
+    monkeypatch.setattr(
+        workflow.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=0),
+    )
+
+    context = workflow.resolve_current_context(
+        sessions,
+        opencode_session_id="ses_current",
+        subject_commit=subject_commit,
+        spec_name="example.spec.ts",
+        test_runs=runs,
+    )
+
+    assert context.subject_commit == subject_commit
+    assert context.source_run_id == "run-descendant"
+
+
 def test_control_plane_root_resolves_shared_session_registry_from_worktree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -422,6 +454,34 @@ def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
     contract_path.write_text(json.dumps(contract), encoding="utf-8")
     with pytest.raises(workflow.WorkflowError, match="approved contract hash"):
         workflow.require_recorded_approval(session_id="abcd", spec_name="example.spec.ts", contract_path=contract_path)
+
+
+def test_record_contract_approval_canonicalizes_an_unhashed_draft(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "APPROVALS_DIR", tmp_path / "approvals")
+    contract_path = tmp_path / "contract.json"
+    contract_path.write_text(json.dumps({
+        "title": "CLI proof",
+        "transcript": ["Show the real CLI output."],
+        "assertions": [{"id": "cli.output", "description": "The CLI output is visible."}],
+        "devices": ["cli-terminal"],
+    }), encoding="utf-8")
+
+    record = workflow.record_contract_approval(
+        session_id="abcd",
+        spec_name="example.spec.ts",
+        contract_path=contract_path,
+    )
+
+    approved = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert approved["contract_hash"] == record["contract_hash"]
+    assert workflow.require_recorded_approval(
+        session_id="abcd",
+        spec_name="example.spec.ts",
+        contract_path=contract_path,
+    )["title"] == "CLI proof"
 
 
 def test_deployed_run_rejects_duplicate_attestations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

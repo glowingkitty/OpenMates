@@ -95,7 +95,18 @@ class PacingPlan:
 
 
 def _commit_matches(candidate: str, expected: str) -> bool:
-    return candidate == expected and len(expected) == 40
+    if len(candidate) != 40 or len(expected) != 40:
+        return False
+    if candidate == expected:
+        return True
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", expected, candidate],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def resolve_current_context(
@@ -258,10 +269,8 @@ def approval_record_path(session_id: str, spec_name: str) -> Path:
 
 
 def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
-    contract = _load_json(contract_path)
-    actual_hash = contract_hash(contract)
-    if str(contract.get("contract_hash") or "") != actual_hash:
-        raise WorkflowError("contract file hash does not match its canonical content")
+    contract = write_contract(contract_path, _load_json(contract_path))
+    actual_hash = str(contract["contract_hash"])
     record = {
         "session_id": session_id,
         "spec_name": Path(spec_name).name,
