@@ -13,13 +13,31 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { dismissSecurityReminderIfPresent, loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
+const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 2_000 : 0;
+
+async function holdProofVideoState(page: any): Promise<void> {
+	if (PROOF_VIDEO_STATE_HOLD_MS > 0) await page.waitForTimeout(PROOF_VIDEO_STATE_HOLD_MS);
+}
+
+async function expectLoadingBelowHeader(page: any): Promise<void> {
+	const header = page.getByTestId('chat-header-banner');
+	const loading = page.getByTestId('active-chat-history-loading');
+	await expect.poll(async () => {
+		const [headerBox, loadingBox] = await Promise.all([header.boundingBox(), loading.boundingBox()]);
+		if (!headerBox || !loadingBox) return Number.NEGATIVE_INFINITY;
+		return loadingBox.y - (headerBox.y + headerBox.height);
+	}, {
+		timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
+		message: 'Selected-chat loading status must remain below the chat header'
+	}).toBeGreaterThanOrEqual(8);
+}
 
 function tail<T>(items: T[]): T[] {
 	return items.slice(Math.max(0, items.length - STARTUP_SYNC_DIAGNOSTIC_TAIL));
@@ -255,6 +273,7 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+		await holdProofVideoState(page);
 
 		await page.evaluate((chatId: string) => {
 			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
@@ -272,6 +291,7 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+		await holdProofVideoState(page);
 	} finally {
 		if (!repairReleased) releaseRepair();
 		if (repairRequested) await repairFinished;
@@ -377,6 +397,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	});
 
 	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
 	await waitForStartupSyncFrames(receivedTypes, diagnostics);
 
 	expect(receivedTypes).toContain('phase_1b_chat_content_ready');
@@ -445,6 +466,9 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		);
 		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect(page.getByTestId('active-chat-history-loading')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await page.getByTestId('message-editor').click();
+		await expectLoadingBelowHeader(page);
+		await holdProofVideoState(page);
 
 		failColdWindow = true;
 		await context.setOffline(true);
@@ -452,6 +476,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		releaseColdWindow();
 		await coldWindowFinished;
 		await expect(page.getByTestId('active-chat-history-retry')).toBeVisible({ timeout: 15000 });
+		await holdProofVideoState(page);
 	} finally {
 		if (!coldWindowReleased) releaseColdWindow();
 		if (coldWindowRequested) await coldWindowFinished;
@@ -478,5 +503,6 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
 	await verifyCachedShortChatOpening(page);
 });
