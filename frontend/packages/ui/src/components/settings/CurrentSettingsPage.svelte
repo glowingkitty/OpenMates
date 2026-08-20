@@ -25,7 +25,6 @@
         isGuestEnabled = $bindable(false),
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
-        sliderElement = null,
         isMenuVisible = false,
         paymentEnabled = true,
         isSelfHosted = false,
@@ -49,13 +48,14 @@
         isGuestEnabled?: boolean;
         isOfflineEnabled?: boolean;
         menuItemsCount?: number;
-        sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
         isSelfHosted?: boolean;
         showProfileHeader?: boolean;
         resolvedProfileImageUrl?: string | null;
     } = $props();
+
+    let sliderElement = $state<HTMLDivElement | null>(null);
     
     // State for docked profile visibility
     // Show after a delay to match the original profile container animation (400ms)
