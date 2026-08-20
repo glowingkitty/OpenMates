@@ -311,6 +311,16 @@ test.describe('Settings translation coverage', () => {
 		await loginToTestAccount(page, logCheckpoint, screenshot);
 		const settingsMenu = await openSettingsMenu(page);
 		await expectSettingsFooterContract(settingsMenu);
+		await settingsMenu.locator('.settings-content-wrapper').evaluate((wrapper: HTMLElement) => {
+			const footer = wrapper.querySelector<HTMLElement>('[data-testid="settings-footer"]');
+			if (footer) wrapper.scrollTop = Math.max(0, footer.offsetTop - 180);
+		});
+		await page.waitForTimeout(800);
+		await screenshot(page, 'settings-footer');
+		await settingsMenu.locator('.settings-content-wrapper').evaluate((wrapper: HTMLElement) => {
+			wrapper.scrollTop = 0;
+		});
+		await page.waitForTimeout(NAVIGATION_WAIT_MS);
 		await screenshot(page, 'settings-main');
 
 		const visited = new Set<string>();
