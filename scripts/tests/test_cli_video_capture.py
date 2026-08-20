@@ -47,6 +47,8 @@ def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> N
     assert plan.transcript_path == tmp_path / "transcript.txt"
     assert "1280x720x24" in plan.xvfb_argv
     assert "1280x720" in plan.ffmpeg_argv
+    assert "160x48" in plan.terminal_argv
+    assert "14" in plan.terminal_argv
     assert "node frontend/packages/openmates-cli/dist/cli.js --help" in plan.terminal_argv[-1]
     assert "sleep 3" in plan.terminal_argv[-1]
 

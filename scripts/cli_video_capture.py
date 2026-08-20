@@ -28,6 +28,8 @@ TERMINAL_HEIGHT = 720
 DISPLAY_DEPTH = 24
 RESULT_HOLD_SECONDS = 3
 SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--totp"}
+TERMINAL_GEOMETRY = "160x48"
+TERMINAL_FONT_SIZE = "14"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 
 
@@ -113,10 +115,10 @@ def build_capture_plan(
         terminal_argv = [
             terminal,
             "-display", display,
-            "-geometry", "140x38",
+            "-geometry", TERMINAL_GEOMETRY,
             "-fontpath", "/usr/share/fonts/truetype/dejavu",
             "-font", "DejaVuSansMono",
-            "-fontsize", "18",
+            "-fontsize", TERMINAL_FONT_SIZE,
             "-border", "0",
             "-title", "OpenMates CLI",
             "-e", *script_argv,
