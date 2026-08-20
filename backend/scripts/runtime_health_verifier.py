@@ -27,6 +27,7 @@ from backend.core.api.app.utils.server_mode import RuntimeDeploymentMode, resolv
 GLOBAL_DEADLINE_SECONDS = 60
 CELERY_PROBE_RESULT_TIMEOUT_SECONDS = 10
 CELERY_PROBE_CHECK_TIMEOUT_SECONDS = CELERY_PROBE_RESULT_TIMEOUT_SECONDS + 5
+STRIPE_REQUEST_TIMEOUT_SECONDS = 10
 CheckRunner = Callable[[], Awaitable[None]]
 
 
@@ -80,7 +81,7 @@ _BILLING_CHECKS = (
     ("billing.mode_enabled", 5),
     ("billing.stripe_account_read", 15),
     ("billing.routes_registered", 5),
-    ("billing.workers_registered", 10),
+    ("billing.workers_registered", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
     ("billing.webhook_configured", 5),
     ("billing.health_freshness", 5),
 )
@@ -254,9 +255,12 @@ async def _check_billing_mode() -> None:
 
 
 async def _initialized_secrets_manager():
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+    def build_secrets_manager():
+        from backend.core.api.app.utils.secrets_manager import SecretsManager
 
-    secrets_manager = SecretsManager()
+        return SecretsManager()
+
+    secrets_manager = await asyncio.to_thread(build_secrets_manager)
     if not await secrets_manager.initialize():
         raise RuntimeError("vault_unavailable")
     return secrets_manager
@@ -268,8 +272,6 @@ def _environment_secret_key(environment: Optional[str], suffix: str) -> str:
 
 
 async def _check_stripe_account_read() -> None:
-    import stripe
-
     environment = resolve_runtime_deployment_mode().environment
     secrets_manager = await _initialized_secrets_manager()
     api_key = await secrets_manager.get_secret(
@@ -280,25 +282,35 @@ async def _check_stripe_account_read() -> None:
         raise RuntimeError("stripe_credential_missing")
 
     def retrieve_account() -> None:
+        import stripe
+
+        previous_http_client = stripe.default_http_client
+        http_client = stripe.RequestsClient(timeout=STRIPE_REQUEST_TIMEOUT_SECONDS)
         stripe.api_key = api_key
-        stripe.Account.retrieve()
+        stripe.default_http_client = http_client
+        try:
+            stripe.Account.retrieve()
+        finally:
+            stripe.default_http_client = previous_http_client
+            http_client.close()
 
     await asyncio.to_thread(retrieve_account)
 
 
 async def _check_billing_routes() -> None:
     async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get("http://localhost:8000/openapi.json")
-        response.raise_for_status()
-        paths = response.json().get("paths", {})
-    if not any("billing" in path or "payment" in path for path in paths):
-        raise RuntimeError("billing_routes_missing")
+        response = await client.get("http://localhost:8000/v1/payments/subscription")
+    if response.status_code not in {401, 403}:
+        raise RuntimeError("billing_route_probe_unexpected_status")
 
 
 async def _check_billing_workers() -> None:
-    from backend.core.api.app.tasks.celery_config import app
+    def registered_workers() -> dict:
+        from backend.core.api.app.tasks.celery_config import app
 
-    registered = await asyncio.to_thread(lambda: app.control.inspect(timeout=5).registered() or {})
+        return app.control.inspect(timeout=5).registered() or {}
+
+    registered = await asyncio.to_thread(registered_workers)
     tasks = {task for worker_tasks in registered.values() for task in worker_tasks}
     if not any("billing" in task or "payment" in task for task in tasks):
         raise RuntimeError("billing_workers_missing")

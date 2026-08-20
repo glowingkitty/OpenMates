@@ -11,9 +11,12 @@ Spec: docs/specs/post-update-runtime-health-alerting/spec.yml.
 from __future__ import annotations
 
 import asyncio
+import builtins
 import importlib.util
 from pathlib import Path
+import threading
 from types import SimpleNamespace
+from types import ModuleType
 import sys
 
 import pytest
@@ -24,11 +27,151 @@ from backend.scripts.runtime_health_verifier import (
     CELERY_PROBE_RESULT_TIMEOUT_SECONDS,
     GLOBAL_DEADLINE_SECONDS,
     CheckDefinition,
+    _check_billing_routes,
+    _check_billing_workers,
     _check_billing_webhook,
     _check_stripe_account_read,
     build_check_inventory,
     execute_checks,
 )
+
+
+def test_directus_upload_storage_preserves_bind_mount_and_drops_root_privileges() -> None:
+    compose_source = (Path(__file__).parents[1] / "core/docker-compose.yml").read_text(encoding="utf-8")
+    dockerfile_source = (Path(__file__).parents[1] / "core/directus/Dockerfile").read_text(encoding="utf-8")
+
+    assert "- ./directus/uploads:/directus/uploads" in compose_source
+    assert 'test: ["CMD", "su-exec", "node:node", "/usr/local/bin/openmates-directus-health"]' in compose_source
+    assert "chown node:node /directus/uploads" in dockerfile_source
+    assert "apk add --no-cache curl postgresql-client su-exec" in dockerfile_source
+    assert "exec su-exec node:node /usr/local/bin/openmates-directus-start" in dockerfile_source
+
+
+@pytest.mark.asyncio
+async def test_billing_route_discovery_probes_a_private_live_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    requested_urls: list[str] = []
+
+    class FakeResponse:
+        status_code = 401
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str):
+            requested_urls.append(url)
+            return FakeResponse()
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", lambda **_kwargs: FakeClient())
+
+    await _check_billing_routes()
+
+    assert requested_urls == ["http://localhost:8000/v1/payments/subscription"]
+
+
+@pytest.mark.asyncio
+async def test_stripe_account_check_imports_sdk_off_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    event_loop_thread = threading.get_ident()
+    stripe_import_threads: list[int] = []
+    request_timeouts: list[int] = []
+    closed_clients: list[bool] = []
+    original_import = builtins.__import__
+
+    class FakeRequestsClient:
+        def __init__(self, *, timeout: int):
+            request_timeouts.append(timeout)
+
+        def close(self):
+            closed_clients.append(True)
+
+    fake_stripe = SimpleNamespace(
+        Account=SimpleNamespace(retrieve=lambda: None),
+        RequestsClient=FakeRequestsClient,
+        api_key=None,
+        default_http_client=None,
+    )
+
+    def tracking_import(name: str, *args, **kwargs):
+        if name == "stripe":
+            stripe_import_threads.append(threading.get_ident())
+            return fake_stripe
+        return original_import(name, *args, **kwargs)
+
+    class FakeSecretsManager:
+        async def get_secret(self, *_args, **_kwargs):
+            return "synthetic-key"
+
+    async def initialized_secrets_manager():
+        return FakeSecretsManager()
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(builtins, "__import__", tracking_import)
+    monkeypatch.setattr(verifier, "_initialized_secrets_manager", initialized_secrets_manager)
+
+    await _check_stripe_account_read()
+
+    assert stripe_import_threads
+    assert all(thread_id != event_loop_thread for thread_id in stripe_import_threads)
+    assert request_timeouts == [10]
+    assert closed_clients == [True]
+
+
+@pytest.mark.asyncio
+async def test_secrets_manager_resolution_runs_off_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    event_loop_thread = threading.get_ident()
+    secrets_import_threads: list[int] = []
+    original_import = builtins.__import__
+
+    class FakeSecretsManager:
+        async def initialize(self):
+            return True
+
+    def tracking_import(name: str, *args, **kwargs):
+        if name == "backend.core.api.app.utils.secrets_manager":
+            secrets_import_threads.append(threading.get_ident())
+            return SimpleNamespace(SecretsManager=FakeSecretsManager)
+        return original_import(name, *args, **kwargs)
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(builtins, "__import__", tracking_import)
+
+    await verifier._initialized_secrets_manager()
+
+    assert secrets_import_threads
+    assert all(thread_id != event_loop_thread for thread_id in secrets_import_threads)
+
+
+@pytest.mark.asyncio
+async def test_billing_worker_discovery_resolves_celery_off_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    event_loop_thread = threading.get_ident()
+    app_access_threads: list[int] = []
+    fake_inspect = SimpleNamespace(registered=lambda: {"worker": ["billing.process_payment"]})
+    fake_app = SimpleNamespace(control=SimpleNamespace(inspect=lambda **_kwargs: fake_inspect))
+
+    class TrackingCeleryModule(ModuleType):
+        def __getattr__(self, name: str):
+            if name == "app":
+                app_access_threads.append(threading.get_ident())
+                return fake_app
+            raise AttributeError(name)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.tasks.celery_config",
+        TrackingCeleryModule("backend.core.api.app.tasks.celery_config"),
+    )
+
+    await _check_billing_workers()
+
+    assert app_access_threads
+    assert all(thread_id != event_loop_thread for thread_id in app_access_threads)
 
 
 @pytest.mark.parametrize(
@@ -76,6 +219,9 @@ def test_official_cloud_requires_all_local_witnesses() -> None:
     assert result.environment == "production"
     assert result.status == "valid"
     assert result.billing_enabled is True
+
+    checks = {check.id: check for check in build_check_inventory("core", result)}
+    assert checks["billing.workers_registered"].timeout_seconds == CELERY_PROBE_CHECK_TIMEOUT_SECONDS
 
 
 def test_self_host_inventory_never_contains_billing_checks() -> None:
@@ -240,7 +386,15 @@ async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest
     from backend.core.api.app.utils import secrets_manager as secrets_module
 
     calls: list[object] = []
-    fake_stripe = SimpleNamespace(api_key=None)
+
+    class FakeRequestsClient:
+        def __init__(self, *, timeout: int):
+            calls.append(("timeout", timeout))
+
+        def close(self) -> None:
+            calls.append("close")
+
+    fake_stripe = SimpleNamespace(api_key=None, default_http_client=None, RequestsClient=FakeRequestsClient)
 
     class FakeAccount:
         @staticmethod
@@ -266,7 +420,9 @@ async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest
 
     assert "initialize" in calls
     assert ("kv/data/providers/stripe", "production_secret_key", True) in calls
+    assert ("timeout", 10) in calls
     assert ("retrieve", "sk_test_runtime_health") in calls
+    assert "close" in calls
 
 
 @pytest.mark.asyncio
