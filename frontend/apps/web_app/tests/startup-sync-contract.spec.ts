@@ -469,8 +469,6 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		await page.getByTestId('message-editor').click();
 		await expectLoadingBelowHeader(page);
 		await holdProofVideoState(page);
-		await page.getByTestId('message-editor').press('Escape');
-		await expect(page.getByTestId('message-editor')).not.toBeFocused();
 
 		failColdWindow = true;
 		await context.setOffline(true);
@@ -485,6 +483,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		await page.unroute(coldWindowRoute, delayColdWindowResponse);
 		await context.setOffline(false);
 	}
+	await page.getByTestId('message-editor').press('Escape');
+	await expect(page.getByTestId('message-editor')).not.toBeFocused();
 
 	await expect.poll(() => {
 		const expectedRestPath = `/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window`;
