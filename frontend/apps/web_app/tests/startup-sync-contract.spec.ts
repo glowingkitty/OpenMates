@@ -20,7 +20,7 @@ const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
-const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 2_000 : 0;
+const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 4_000 : 0;
 
 async function holdProofVideoState(page: any): Promise<void> {
 	if (PROOF_VIDEO_STATE_HOLD_MS > 0) await page.waitForTimeout(PROOF_VIDEO_STATE_HOLD_MS);
@@ -156,7 +156,7 @@ async function getLocalChatSwitchPair(
 			});
 			chats.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
 
-			let firstShortChat: { chatId: string; messageCount: number } | null = null;
+			const cleanChats: Array<{ chatId: string; messages: any[] }> = [];
 			for (const chat of chats) {
 				const chatId = chat.chat_id || chat.id;
 				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
@@ -171,30 +171,30 @@ async function getLocalChatSwitchPair(
 					request.onsuccess = () => resolve(request.result || []);
 				});
 				if (messages.length === 0) continue;
+				if (messages.some((message) => JSON.stringify(message).includes('<<<TEST_'))) continue;
 
 				messages.sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0));
-				const messagesToDelete = messages.slice(0, Math.max(0, messages.length - targetCount));
-				if (messagesToDelete.length > 0) {
-					await new Promise<void>((resolve, reject) => {
-						const tx = db.transaction(['messages'], 'readwrite');
-						const store = tx.objectStore('messages');
-						for (const message of messagesToDelete) store.delete(message.message_id);
-						tx.oncomplete = () => resolve();
-						tx.onerror = () => reject(tx.error);
-						tx.onabort = () => reject(tx.error);
-					});
-				}
-				firstShortChat = { chatId, messageCount: Math.min(messages.length, targetCount) };
-				break;
+				cleanChats.push({ chatId, messages });
+				if (cleanChats.length >= 2) break;
 			}
-			if (!firstShortChat) return [];
-			const secondChat = chats.find((chat) => {
-				const chatId = chat.chat_id || chat.id;
-				return chatId && chatId !== firstShortChat!.chatId &&
-					!chatId.startsWith('demo-') && !chatId.startsWith('legal-');
-			});
-			const secondChatId = secondChat?.chat_id || secondChat?.id;
-			return secondChatId ? [firstShortChat, { chatId: secondChatId, messageCount: -1 }] : [];
+			if (cleanChats.length < 2) return [];
+
+			const [firstChat, secondChat] = cleanChats;
+			const messagesToDelete = firstChat.messages.slice(0, Math.max(0, firstChat.messages.length - targetCount));
+			if (messagesToDelete.length > 0) {
+				await new Promise<void>((resolve, reject) => {
+					const tx = db.transaction(['messages'], 'readwrite');
+					const store = tx.objectStore('messages');
+					for (const message of messagesToDelete) store.delete(message.message_id);
+					tx.oncomplete = () => resolve();
+					tx.onerror = () => reject(tx.error);
+					tx.onabort = () => reject(tx.error);
+				});
+			}
+			return [
+				{ chatId: firstChat.chatId, messageCount: Math.min(firstChat.messages.length, targetCount) },
+				{ chatId: secondChat.chatId, messageCount: secondChat.messages.length }
+			];
 		} finally {
 			db.close();
 		}
