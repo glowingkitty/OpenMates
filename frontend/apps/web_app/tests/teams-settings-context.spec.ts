@@ -122,6 +122,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 30000 });
 			const personalChatIds = await visibleChatIds(page);
 			expect(personalChatIds.length).toBeGreaterThan(0);
+			await waitForPhasedSyncCompletion(frames, 0, null);
 			await ensureSidebarClosed(page);
 
 			await openProfileMenu(page);
@@ -143,12 +144,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
 			const teamSwitchFrameIndex = frames.length;
 			await page.getByTestId('team-context-dropdown').selectOption(teamId);
-			const teamSyncRequest = await waitForFrame(frames, teamSwitchFrameIndex, 'sent', 'phased_sync_request', (payload) =>
-				payload.team_id === teamId && Number.isInteger(payload.context_epoch));
-			await waitForFrame(frames, teamSwitchFrameIndex, 'received', 'phased_sync_complete', (payload) =>
-				payload.team_id === teamId
-				&& payload.phase === teamSyncRequest.payload.phase
-				&& payload.context_epoch === teamSyncRequest.payload.context_epoch);
+			await waitForPhasedSyncCompletion(frames, teamSwitchFrameIndex, teamId);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
@@ -191,12 +187,7 @@ test.describe('Teams V1 context isolation', () => {
 			await openProfileMenu(page);
 			const personalSwitchFrameIndex = frames.length;
 			await page.getByTestId('team-context-dropdown').selectOption('personal');
-			const personalSyncRequest = await waitForFrame(frames, personalSwitchFrameIndex, 'sent', 'phased_sync_request', (payload) =>
-				payload.team_id === undefined && Number.isInteger(payload.context_epoch));
-			await waitForFrame(frames, personalSwitchFrameIndex, 'received', 'phased_sync_complete', (payload) =>
-				payload.team_id === null
-				&& payload.phase === personalSyncRequest.payload.phase
-				&& payload.context_epoch === personalSyncRequest.payload.context_epoch);
+			await waitForPhasedSyncCompletion(frames, personalSwitchFrameIndex, null);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 
@@ -211,3 +202,17 @@ test.describe('Teams V1 context isolation', () => {
 		}
 	});
 });
+
+async function waitForPhasedSyncCompletion(
+	frames: ProtocolFrame[],
+	startIndex: number,
+	teamId: string | null
+): Promise<ProtocolFrame> {
+	const request = await waitForFrame(frames, startIndex, 'sent', 'phased_sync_request', (payload) =>
+		(payload.team_id ?? null) === teamId && Number.isInteger(payload.context_epoch));
+	await waitForFrame(frames, startIndex, 'received', 'phased_sync_complete', (payload) =>
+		(payload.team_id ?? null) === teamId
+		&& payload.phase === request.payload.phase
+		&& payload.context_epoch === request.payload.context_epoch);
+	return request;
+}
