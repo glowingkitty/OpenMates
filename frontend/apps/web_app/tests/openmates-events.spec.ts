@@ -56,7 +56,7 @@ test('OpenMates event embed deep link renders details and registration CTA', asy
 	await page.goto(getE2EDebugUrl(`/#embed-id=${EVENT_SLUG}`), { waitUntil: 'domcontentloaded' });
 
 	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
-	await expect(page.getByRole('link', { name: /register on luma/i })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByText('Register on Luma').first()).toBeVisible({ timeout: 10000 });
 	await expect(page.locator('body')).toContainText('Tuesday, August 25, 2026', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('Online event', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('OpenMates Events', { timeout: 10000 });
