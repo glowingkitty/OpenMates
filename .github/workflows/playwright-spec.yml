@@ -397,7 +397,7 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg xvfb zutty x11-xserver-utils
         working-directory: frontend/apps/web_app
       - name: Install Proton Mail Bridge for live Proton specs
         if: inputs.spec == 'proton-bridge-live.spec.ts'
@@ -420,6 +420,7 @@ jobs:
         id: pw_run
         continue-on-error: true
         run: |
+          python3 scripts/audit_cli_e2e_recording.py
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           set +e
@@ -459,8 +460,10 @@ jobs:
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
-          PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-laptop' && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
-          PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-laptop' && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
+          OPENMATES_CLI_RECORD_E2E: "1"
+          OPENMATES_E2E_SPEC: ${{ inputs.spec }}
+          PLAYWRIGHT_VIDEO_WIDTH: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts') && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
+          PLAYWRIGHT_VIDEO_HEIGHT: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts') && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}

@@ -84,6 +84,82 @@ def synthetic_audio_metadata(path: Path) -> dict[str, object]:
     }
 
 
+def test_tutorial_timeline_keeps_actions_fast_and_derives_checkpoint_holds() -> None:
+    module = load_module()
+    contract = {
+        "transcript": [
+            {
+                "id": "result",
+                "text": "The result is visible inside the OpenMates browser window.",
+                "checkpoint": "result-visible",
+                "devices": ["web-laptop"],
+            }
+        ],
+        "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000},
+    }
+    events = [
+        {"id": "open-result", "kind": "action", "start_ms": 200, "end_ms": 700},
+        {"id": "result-visible", "kind": "checkpoint", "at_ms": 740},
+    ]
+
+    timeline = module.build_tutorial_timeline(contract=contract, events=events, device_profile="web-laptop")
+
+    assert timeline[0] == {"kind": "video", "source_from_ms": 200, "source_to_ms": 740, "duration_ms": 540}
+    assert timeline[1]["kind"] == "freeze"
+    assert timeline[1]["source_at_ms"] == 740
+    assert timeline[1]["duration_ms"] == 3600
+    assert timeline[1]["cue_id"] == "result"
+
+
+def test_browser_render_request_binds_domain_viewport_and_input_hashes(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    source.write_bytes(b"real playwright pixels")
+    request = module.build_browser_render_request(
+        source_video=source,
+        domain="app.dev.openmates.org",
+        device_profile="web-laptop",
+        segments=[{"kind": "freeze", "source_at_ms": 100, "duration_ms": 1200, "cue_id": "ready"}],
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+    )
+
+    assert request["domain"] == "app.dev.openmates.org"
+    assert request["viewport"] == {"width": 1440, "height": 900}
+    assert request["source_sha256"] == module.sha256_file(source)
+    assert request["renderer"] == "openmates-remotion-browser-v1"
+    assert request["output"]["width"] == request["viewport"]["width"]
+    assert request["output"]["height"] == request["viewport"]["height"]
+
+
+def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#4f46e5:s=1440x900:r=30:d=1",
+            "-c:v", "libvpx-vp9", "-an", str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    request = module.build_browser_render_request(
+        source_video=source,
+        domain="app.dev.openmates.org",
+        device_profile="web-laptop",
+        segments=[{"kind": "freeze", "source_at_ms": 100, "duration_ms": 1200, "cue_id": "ready"}],
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+    )
+
+    metadata = module.render_browser_tutorial(request, tmp_path / "browser-tutorial.mp4")
+
+    assert metadata["renderer"] == "openmates-remotion-browser-v1"
+    assert metadata["browser_domain"] == "app.dev.openmates.org"
+    assert (metadata["width"], metadata["height"]) == (1440, 900)
+    assert metadata["duration_seconds"] == pytest.approx(1.2, abs=0.1)
+
+
 def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Path) -> None:
     module = load_module()
     video = tmp_path / "flow.webm"

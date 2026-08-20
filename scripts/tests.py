@@ -1381,6 +1381,10 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
             unique_artifact_paths.append(artifact_path)
         if not unique_artifact_paths:
             continue
+        proof_timeline_value = str(test.get("proof_timeline_path") or "")
+        proof_timeline_path = Path(proof_timeline_value).resolve() if proof_timeline_value else None
+        if proof_timeline_path is not None and not proof_timeline_path.is_file():
+            proof_timeline_path = None
         for artifact_path in unique_artifact_paths:
             proof_run_id = run_id
             if len(unique_artifact_paths) > 1:
@@ -1403,6 +1407,9 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
                 "artifact_path": str(artifact_path),
                 "artifact_sha256": _file_sha256(artifact_path),
             }
+            if proof_timeline_path is not None:
+                record["proof_timeline_path"] = str(proof_timeline_path)
+                record["proof_timeline_sha256"] = _file_sha256(proof_timeline_path)
             record_path = PROOF_SOURCE_DIR / f"{identity}.json"
             record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             write_json(record_path, record)
@@ -1630,6 +1637,7 @@ def _normalize_playwright_file_result(
     flaky = False
     first_error = ""
     video_paths: list[str] = []
+    proof_timeline_paths: list[str] = []
 
     for spec in specs:
         for test in spec.get("tests") or []:
@@ -1657,11 +1665,14 @@ def _normalize_playwright_file_result(
                     if first_error:
                         break
             for attachment in results[terminal_index].get("attachments") or []:
-                if not isinstance(attachment, dict) or not str(attachment.get("contentType") or "").startswith("video/"):
+                if not isinstance(attachment, dict):
                     continue
                 path = str(attachment.get("path") or "")
-                if path:
+                content_type = str(attachment.get("contentType") or "")
+                if path and content_type.startswith("video/"):
                     video_paths.append(path)
+                elif path and content_type == "application/vnd.openmates.proof-timeline+json":
+                    proof_timeline_paths.append(path)
 
     status = _aggregate_playwright_status(terminal_statuses)
     entry: dict[str, Any] = {
@@ -1682,6 +1693,10 @@ def _normalize_playwright_file_result(
         entry["artifact_path"] = video_paths[0]
     elif len(video_paths) > 1:
         entry["artifact_paths"] = video_paths
+    if len(proof_timeline_paths) == 1:
+        entry["proof_timeline_path"] = proof_timeline_paths[0]
+    elif len(proof_timeline_paths) > 1:
+        entry["proof_timeline_paths"] = proof_timeline_paths
     return entry
 
 

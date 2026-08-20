@@ -1061,6 +1061,33 @@ def test_normalize_playwright_report_preserves_duplicate_video_attachments(tmp_p
     assert normalized["suites"]["playwright"]["tests"][0]["artifact_paths"] == [video, video]
 
 
+def test_normalize_playwright_report_preserves_terminal_proof_timeline_attachment(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = str(tmp_path / "video.webm")
+    timeline = str(tmp_path / "proof-timeline.json")
+    report = {
+        "config": {},
+        "suites": [{"file": "example.spec.ts", "specs": [{"tests": [{"results": [{
+            "status": "passed",
+            "duration": 1000,
+            "attachments": [
+                {"name": "video", "contentType": "video/webm", "path": video},
+                {
+                    "name": "openmates-proof-timeline",
+                    "contentType": "application/vnd.openmates.proof-timeline+json",
+                    "path": timeline,
+                },
+            ],
+        }]}]}]}],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    test_result = normalized["suites"]["playwright"]["tests"][0]
+    assert test_result["artifact_path"] == video
+    assert test_result["proof_timeline_path"] == timeline
+
+
 def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     commit = "a" * 40

@@ -1,13 +1,14 @@
 schema_version: 2
 id: focused-proof-video-workflow
 title: Focused OpenCode Proof Video Workflow
-status: approved
+status: implementing
 
 goal: >
-  Replace manual proof-video assembly with one focused OpenCode command that
-  infers current evidence, preserves an approved caption/assertion contract,
-  performs bounded mechanical media processing, and prepares a small frame-only
-  review bundle without mandatory audio or CPU-heavy video analysis.
+  Make each proof-enabled Playwright spec the source of truth for its complete
+  tutorial transcript, deterministic assertions, visual-review assertions, and
+  capture checkpoints; turn the fast real test recording into a deterministic
+  Remotion browser tutorial, and record real terminal-emulator pixels for every
+  OpenMates CLI E2E journey without slowing test execution for presentation.
 
 scope:
   in:
@@ -21,12 +22,21 @@ scope:
     - Build an immutable hash-bound frame bundle for assertion and independent visual-integrity review, then classify failures as capture, render, product, or uncertain.
     - Persist review budgets across commands, cache only fully revalidated unchanged device evidence, and bind completion/publication to a canonical review receipt.
     - Update the create-demo-video skill and completion hint to use the focused entry point.
+    - Define a typed proof contract directly in each proof-enabled `.spec.ts` file.
+    - Record proof actions, assertions, and checkpoints as a hash-bound Playwright attachment without presentation sleeps.
+    - Build a deterministic edit timeline from real action intervals and checkpoint holds calculated from committed transcript text.
+    - Render the real Playwright viewport inside a deterministic Remotion browser frame that displays the tested domain.
+    - Keep captions as a hash-bound toggleable WebVTT sidecar rather than burning them into browser or terminal pixels.
+    - Capture real OpenMates CLI E2E pixels from a pinned graphical terminal on an isolated Xvfb display while preserving PTY transcript provenance.
+    - Require all real CLI E2E entry points to use the shared recorder or declare a deterministic non-E2E classification.
   out:
     - Product REST API, WebSocket, SDK, web UI, Apple app, CLI product command, or Directus changes.
     - Marketing video creation or promotional editing.
     - OCR, generic pixel-based UI understanding, full-video model input, scene-by-scene retiming, or unbounded product-code repair.
     - Automatic scrolling inferred from video pixels.
     - Requiring audio by default or removing existing opt-in audio support.
+    - Recording generic unit tests, SDK-only tests, cleanup polling commands, or scripts that do not expose the OpenMates CLI as the tested product surface.
+    - Treating the deterministic browser frame as native Chromium chrome; the page pixels are real and the surrounding tutorial frame is an explicit Remotion composition.
 
 context_discovery:
   github_issues:
@@ -57,12 +67,21 @@ clarification:
     - question: Should product defects be fixed automatically by the video workflow?
       answer: No. Product defects return to the responsible failing-test and implementation workflow and must never be hidden by editing.
   vision_summary: >
-    Proof creation should consume few agent turns and predictable CPU. An LLM
-    writes the short tutorial transcript and assertions; the user approves new
-    visible claims; deterministic tooling performs bounded capture/render work;
-    a narrowly instructed reviewer sees only selected frames and routes real
-    defects back to the correct workflow.
+    Proof creation consumes no LLM call for authoring, timing, device selection,
+    or composition. The committed `.spec.ts` contract supplies the complete
+    transcript and paired executable/visual assertions; the fast source run emits
+    checkpoints; deterministic tooling performs Remotion composition; and only
+    the bounded image-review step uses model inference.
   approved_by_user: true
+  resumed_rounds:
+    - question: Should browser tutorials record native Chromium chrome or compose deterministic browser chrome around real Playwright pixels?
+      answer: Compose the real Playwright recording inside a deterministic Remotion browser UI that shows the tested domain.
+    - question: Should proof-enabled tests pause to make recordings watchable?
+      answer: No. Tests run at normal speed and deterministic post-processing inserts checkpoint holds based on the committed transcript.
+    - question: Should CLI proof continue reconstructing terminal text from PTY events?
+      answer: No. All OpenMates CLI E2E journeys use real terminal-emulator screen recordings; PTY events remain sidecar provenance only.
+    - question: Is implementation and end-to-end proof output approved now?
+      answer: Yes. The user requested implementation, tests, and one web plus one CLI proof video in the current chat.
 
 apple_impact:
   affected_files: [none]
@@ -73,7 +92,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: 7f4f78d
+  subject_commit: 6250a687771f14dbf4fe9c8c9bb4a7ed0ea00e57
 
 approvals:
   product_contract:
@@ -81,8 +100,8 @@ approvals:
     reason: The user explicitly classified this as repository-local OpenCode workflow tooling rather than an OpenMates product feature.
   implementation_plan:
     status: approved
-    approved_at: "2026-08-12T00:00:00Z"
-    reason: The user approved the focused one-command, caption-first, bounded-processing plan and requested implementation and tests.
+    approved_at: "2026-08-20T00:00:00Z"
+    reason: The user approved spec-owned proof contracts, fast source runs, deterministic Remotion browser composition, real CLI terminal capture, implementation, tests, and in-chat web and CLI proof outputs.
 
 decisions:
   - id: D-1
@@ -115,6 +134,21 @@ decisions:
     decision: One proof contract permits six AI review calls and forty-eight cumulative submitted frames; immutable receipts and unchanged-device cache entries are revalidated before reuse.
     reason: Persistent budgets cap cost across process restarts while hash-bound provenance prevents stale or forged review completion.
     decided_at: "2026-08-14T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: The proof-enabled `.spec.ts` file owns the full transcript, devices, checkpoints, and paired deterministic plus visual assertions; no separate LLM-authored approval contract is required.
+    reason: Committed test metadata is reviewable, versioned with behavior, and deterministic to extract.
+    decided_at: "2026-08-20T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Remotion composes normal-speed action segments and deterministic checkpoint freezes inside a browser frame showing the attested deployed domain.
+    reason: Presentation pacing must not increase E2E runtime, and the raw Playwright viewport must remain the real product evidence.
+    decided_at: "2026-08-20T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Real CLI E2E evidence records a graphical terminal on Xvfb; reconstructed ASS terminal videos are no longer eligible proof sources.
+    reason: Terminal colors, wrapping, cursor, prompts, and TUI behavior are part of the CLI product surface.
+    decided_at: "2026-08-20T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -130,12 +164,10 @@ attempts:
     recorded_at: "2026-08-12T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Deploy the verified AI review-loop hardening.
-  command: >-
-    python3 scripts/sessions.py deploy --session 2cd0 --title "feat: enforce bounded proof-video review"
-    --message "Enforce immutable receipts, persistent budgets, bounded corrections, and least-privilege review."
-  expected_outcome: Verified proof-video review hardening is committed and pushed through the scoped session deploy path.
+  current_task_id: TASK-7
+  next_action: Add and run red tests for spec-owned timelines, Remotion browser composition, and real CLI terminal capture.
+  command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_cli_video_capture.py -q
+  expected_outcome: New architecture assertions fail before implementation while legacy proof checks remain stable.
   blocker: null
   last_verified_commit: 7f4f78d
 
@@ -183,6 +215,54 @@ scenarios:
       - The reviewer checks every assertion and independently scans for obvious visual-integrity defects before returning passed, capture_defect, render_defect, product_defect, or uncertain.
       - Six-call and forty-eight-frame budgets persist across commands, while unchanged-device cache hits require complete receipt, request, manifest, frame, and source-video integrity.
       - Product defects return to implementation and cannot be hidden by cropping, trimming, captions, or transcript changes.
+  - id: S-5
+    title: Spec-owned proof contract and timeline
+    given:
+      - A Playwright spec declares the complete device-scoped transcript, proof assertions, tested domain, and tutorial policy.
+    when:
+      - The fast test records actions, executable assertion results, and named checkpoints.
+    then:
+      - The test attaches one canonical proof timeline bound to the spec, test, retry, profile, deployed commit, and source video.
+      - Every proof assertion has a passing executable result and a visual-review description at a reached checkpoint.
+      - No presentation-only sleep is added to the source test.
+  - id: S-6
+    title: Remotion browser tutorial composition
+    given:
+      - A passed exact-profile Playwright recording and matching proof timeline exist.
+    when:
+      - The deterministic renderer builds the tutorial.
+    then:
+      - Real source action intervals play at normal speed and transcript-derived holds freeze reached checkpoints.
+      - The full real viewport is shown inside a deterministic browser frame with the attested domain in its address bar.
+      - The output and WebVTT sidecar are reproducible from source, contract, timeline, profile, and renderer hashes.
+  - id: S-7
+    title: Real CLI terminal recording
+    given:
+      - An E2E test visibly invokes the real OpenMates CLI.
+    when:
+      - The shared CLI test runner executes the journey.
+    then:
+      - The command runs in a real PTY displayed by a pinned graphical terminal on an isolated 1280x720 Xvfb display.
+      - FFmpeg records the terminal pixels while transcript, input, exit status, environment classification, and checkpoints are retained as sidecar provenance.
+      - Secrets are passed through environment or hidden input and never placed in displayed argv or proof metadata.
+  - id: S-8
+    title: CLI E2E coverage enforcement
+    given:
+      - CLI E2E coverage exists across Playwright helpers, workflow helpers, standalone verifier scripts, and GitHub workflows.
+    when:
+      - The deterministic CLI recording audit runs.
+    then:
+      - Every real OpenMates CLI E2E entry point routes through the shared recorder or is explicitly classified as unit, SDK-only, cleanup-only, or non-recordable with a reason.
+      - Passed and failed attempts retain real recordings; only passed current-commit journeys may become tutorial proofs.
+  - id: S-9
+    title: End-to-end web and CLI proof output
+    given:
+      - The architecture tests and normal product gates pass.
+    when:
+      - One deployed web spec and one real CLI E2E journey are processed.
+    then:
+      - Both videos pass deterministic media checks and bounded frame review.
+      - Both hash-bound captioned videos are published through OpenCode response media and embedded in the current chat.
 
 acceptance_criteria:
   - { id: AC-1, scenario: S-1, text: "The single start command infers current session, subject commit, and matching passing run when unambiguous and emits one actionable blocker otherwise.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
@@ -191,6 +271,13 @@ acceptance_criteria:
   - { id: AC-4, scenario: S-3, text: "Marker trim, simple pacing, 35-second output, bounded frame analysis, serial device processing, caching, and one-rerender limits are deterministic and tested.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
+  - { id: AC-7, scenario: S-5, text: "A proof-enabled `.spec.ts` owns the complete transcript, devices, domain, checkpoints, and paired executable plus visual assertions, and its attached canonical timeline contains no presentation wait requirement.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-SPEC-PROOF-CONTRACT, T-WEB-PROOF-E2E] }
+  - { id: AC-8, scenario: S-6, text: "Remotion renders normal-speed real Playwright action segments and transcript-derived checkpoint freezes inside deterministic browser chrome that displays the attested domain without cropping the real viewport.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
+  - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, and renderer hashes.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
+  - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, while transcript and exit provenance remain hash-bound sidecars rather than reconstructed video input.", required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
+  - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
+  - { id: AC-12, scenario: S-8, text: "Passed and failed CLI E2E attempts retain real terminal recordings with status and attempt metadata, while proof publication accepts only passed current-commit evidence.", required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
+  - { id: AC-13, scenario: S-9, text: "One deployed web proof and one real CLI E2E proof pass bounded review and are embedded with toggleable hash-bound WebVTT captions in the implementation chat.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [V-WEB-PROOF, V-CLI-PROOF] }
 
 assumptions:
   - id: A-1
@@ -209,6 +296,22 @@ assumptions:
     evidence:
       - source: scripts/spec_demo.py
         summary: Video and subtitle rendering are already separate FFmpeg filter inputs; audio can be conditionally omitted without replacing the pipeline.
+  - id: A-3
+    text: The CI runner can install or provide Xvfb, one pinned graphical terminal, tmux, FFmpeg, and Chromium dependencies required by deterministic real terminal capture and Remotion rendering.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Current dev runner and playwright-spec workflow
+        summary: Xvfb and FFmpeg are already available or installed; the workflow can install the pinned terminal/tmux packages alongside Playwright dependencies.
+  - id: A-4
+    text: Remotion supports parameterized server-side rendering of prerecorded video segments, trimming, sequencing, and frozen frames.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Official Remotion documentation
+        summary: OffthreadVideo, Sequence, Freeze, selectComposition, and renderMedia support the required deterministic composition.
 
 contracts:
   api:
@@ -222,17 +325,19 @@ contracts:
     - Proof contracts and workflow manifests are local gitignored evidence; only the executable spec and tooling are tracked.
     - Full videos never enter agent/model context.
     - Source and contract hashes make cached processing reusable and detect stale approval.
+    - Proof timeline attachments are canonical JSON generated by the spec runtime and retained beside source video attestations.
+    - Raw CLI recordings, transcripts, and manifests are private test artifacts; only reviewed intentionally shareable proof outputs use response media.
   privacy_security:
     - Owner-only artifact permissions remain required.
     - The workflow never prints webhook URLs, credentials, raw private test data, or unsanitized source metadata.
 
 phase_gates:
   api_websocket: { status: not_applicable, reason: "No product API or WebSocket behavior changes." }
-  cli: { status: not_applicable, reason: "No OpenMates product CLI command changes; this is a repository script." }
+  cli: { status: required, reason: "The workflow changes how every real OpenMates CLI E2E journey is executed and recorded; one real dev-server CLI proof is required." }
   sdk: { status: not_applicable, reason: "No npm or pip SDK behavior changes." }
-  web: { status: not_applicable, reason: "No web product source changes." }
+  web: { status: required, reason: "One deployed proof-enabled web spec must emit the canonical contract/timeline and produce the Remotion browser tutorial." }
   visual_smoke: { status: not_applicable, reason: "The implementation is non-visual repository tooling; synthetic media fixtures verify rendering." }
-  user_confirmation: { status: not_applicable, reason: "The user approved the tooling behavior in this chat; no deployed product UI is changed." }
+  user_confirmation: { status: required, reason: "The user will inspect the embedded web and CLI tutorial outputs in this chat." }
   apple: { status: not_applicable, reason: "Apple product behavior is unaffected." }
 
 tests:
@@ -323,6 +428,70 @@ tests:
         subject_commit: 7f4f78d
         timestamp: "2026-08-14T16:37:32Z"
         summary: Workflow, reviewer least-privilege, output quality, tooling parity, and generated agent parity checks passed.
+  - id: T-SPEC-PROOF-CONTRACT
+    type: unit
+    file: frontend/apps/web_app/tests/helpers/video-proof.ts
+    command: node --test --experimental-strip-types frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    covers: [AC-7, AC-9]
+    assertions:
+      - proof contracts require complete device-scoped transcript, domain, checkpoints, and paired executable plus visual assertions
+      - runtime events produce canonical timeline JSON without adding presentation delays
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending } }
+  - id: T-REMOTION-PROOF
+    type: pytest
+    file: scripts/tests/test_spec_demonstration_pipeline.py
+    command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
+    covers: [AC-8, AC-9]
+    assertions:
+      - deterministic edit segments retain normal-speed actions and insert transcript-derived freezes
+      - rendered browser frame displays the attested domain and preserves the complete real viewport
+      - renderer and input hashes bind output, captions, manifest, and cache identity
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending } }
+  - id: T-CLI-CAPTURE
+    type: pytest
+    file: scripts/tests/test_cli_video_capture.py
+    command: python3 -m pytest -p no:cacheprovider scripts/tests/test_cli_video_capture.py -q
+    covers: [AC-10, AC-12]
+    assertions:
+      - real terminal capture launches an isolated exact-size display and records graphical terminal pixels
+      - command, transcript, events, exit status, test classification, video, and hashes remain bound
+      - secret argv and unsupported non-CLI commands are rejected
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending } }
+  - id: T-CLI-RECORDING-AUDIT
+    type: lint
+    file: scripts/audit_cli_e2e_recording.py
+    command: python3 scripts/audit_cli_e2e_recording.py
+    covers: [AC-11]
+    assertions:
+      - real CLI E2E entry points use the shared recorder or explicit classification
+      - unit, SDK-only, cleanup-only, and production-only paths remain distinguishable
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending } }
+  - id: T-WEB-PROOF-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --expected-commit <sha> --proof-video-profile web-laptop
+    target: app.dev.openmates.org
+    covers: [AC-7, AC-8]
+    assertions:
+      - deployed spec emits a passed canonical proof timeline and exact-profile real browser recording
+      - visible browser state matches its executable and visual proof assertions
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending } }
+  - id: T-CLI-PROOF-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    command: python3 scripts/tests.py run --spec proof-video-cli.spec.ts --gate-deploy --expected-commit <sha>
+    target: app.dev.openmates.org
+    covers: [AC-10, AC-12]
+    assertions:
+      - real OpenMates CLI help/version journey runs in the shared graphical terminal recorder
+      - terminal recording and transcript prove the same command and successful output
+    red_phase: { required: true, expected: fail, evidence: { status: pending } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending } }
 
 verifications:
   - id: V-FOCUSED-TESTS
@@ -338,23 +507,47 @@ verifications:
       subject_commit: 7f4f78d
       timestamp: "2026-08-14T16:37:32Z"
       summary: 236 affected pytest checks passed with pytest cache disabled, plus workflow audits, spec verification, and parity checks passed separately.
+  - id: V-WEB-PROOF
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    status: pending
+    covers: [AC-13]
+    evidence: { status: pending }
+  - id: V-CLI-PROOF
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    status: pending
+    covers: [AC-13]
+    evidence: { status: pending }
 
 implementation_plan:
   spec_path: docs/specs/focused-proof-video-workflow/spec.yml
   architecture: >
-    Add a small orchestration module that computes context, contract hashes,
-    marker trims, pacing, frame budgets, cache keys, and classified next actions.
-    Keep FFmpeg and publication mechanics in spec_demo.py and sessions.py.
+    Extend the existing orchestrator with a canonical spec-owned proof contract
+    and event timeline. Preserve real Playwright and PTY evidence as immutable raw
+    sources. Use a small repository-local Remotion package only for browser-frame
+    composition and deterministic action/freeze sequencing. Add a shared Xvfb
+    terminal recorder for real CLI E2E journeys and a source audit that prevents
+    unclassified direct CLI spawning.
   existing_patterns:
     - Reuse sessions.py session/test evidence instead of creating a new state store.
     - Reuse spec_demo.py media, privacy, frame, and publication helpers.
     - Keep create-demo-video as concise agent guidance around one script command.
+    - Reuse Playwright result attachments and exact-commit proof-source attestations.
+    - Reuse existing CLI helper families while routing process creation through one recorder-aware launcher.
   data_flow:
     - Start resolves session, commit, spec, and passing run metadata.
     - A canonical YAML proof contract is hashed and checked for approval.
     - Capture records an explicit ready marker; orchestration computes trim and pacing.
     - spec_demo renders caption-only media and extracts bounded frames.
     - A frame-only reviewer records a classified verdict; sessions.py persists completion state.
+    - The spec runtime writes canonical contract and timeline attachments containing device, domain, actions, checkpoints, and executable assertion outcomes.
+    - tests.py binds timeline and raw video hashes to the terminal retry result and deployed commit.
+    - The timeline compiler removes setup/cleanup, plays action intervals at 1x, and derives checkpoint holds from transcript word count.
+    - Remotion renders those segments inside browser chrome; WebVTT remains a separate player track.
+    - CLI E2E commands run in a real PTY displayed by a pinned terminal on Xvfb while FFmpeg records that display and the driver retains transcript/events.
   affected_files:
     - { path: scripts/proof_video_workflow.py, reason: "Add the focused single-command orchestrator and bounded calculations." }
     - { path: scripts/spec_demo.py, reason: "Make audio optional and fix bottom-center Playwright captions." }
@@ -363,17 +556,30 @@ implementation_plan:
     - { path: scripts/audit_opencode_spec_workflow.py, reason: "Audit the focused entry point and caption-first contract." }
     - { path: scripts/tests/test_proof_video_workflow.py, reason: "Test orchestration and resource bounds." }
     - { path: scripts/tests/test_sessions_proof_video.py, reason: "Test caption-only session rendering and completion." }
+    - { path: frontend/apps/web_app/tests/helpers/video-proof.ts, reason: "Define and execute spec-owned proof contracts and canonical timelines." }
+    - { path: frontend/apps/web_app/tests/proof-video-architecture.spec.ts, reason: "Provide the deployed web architecture proof source." }
+    - { path: tooling/proof-video-remotion/, reason: "Render deterministic browser chrome and action/freeze segments around real Playwright pixels." }
+    - { path: scripts/cli_video_capture.py, reason: "Record real graphical terminal pixels and PTY provenance for CLI E2E journeys." }
+    - { path: scripts/audit_cli_e2e_recording.py, reason: "Prevent real CLI E2E entry points from bypassing shared recording." }
+    - { path: frontend/apps/web_app/tests/helpers/cli-test-helpers.ts, reason: "Route shared Playwright CLI execution through the recorder-aware launcher." }
+    - { path: frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts, reason: "Route pair-login and Workflow CLI execution through the recorder-aware launcher." }
+    - { path: .github/workflows/playwright-spec.yml, reason: "Install pinned terminal dependencies and retain CLI video artifacts." }
   verification_strategy:
     - Run the new focused pytest file red before implementation.
     - Run existing proof-video tests to preserve privacy, provenance, device, and publication guards.
     - Run the workflow audit and agent parity sync check after skill edits.
-    - Use synthetic short media fixtures only; no deployed product proof or proof video is required for this non-product tooling change.
+    - Use synthetic media for red/green renderer and recorder unit tests.
+    - Deploy and run one exact-profile proof-enabled web spec against app.dev.openmates.org.
+    - Run one real OpenMates CLI E2E journey against api.dev.openmates.org through the graphical terminal recorder.
+    - Review and embed both resulting videos with hash-bound WebVTT captions.
   verification_order:
     - Validate this executable spec.
     - Add and record failing focused tests.
     - Implement orchestration and caption-only rendering.
     - Update skill, completion hint, and audit.
     - Run focused regressions, workflow audit, parity checks, and spec verification.
+    - Run CLI recorder/audit checks before deployed browser proof generation.
+    - Deploy, run the web and CLI proof specs, review both frame bundles, and publish both response-media videos.
 
 tasks:
   - id: TASK-1
@@ -442,6 +648,83 @@ tasks:
     blockers: []
     follow_up_tasks: []
     ownership: { files: [scripts/proof_video_workflow.py, scripts/spec_demo.py, scripts/sessions.py, .claude/agents/proof-video-reviewer.md], shared_files: [] }
+  - id: TASK-7
+    title: Add red architecture tests
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-5, S-6, S-7, S-8], acceptance_criteria: [AC-7, AC-8, AC-9, AC-10, AC-11, AC-12] }
+    expected_files: [frontend/apps/web_app/tests/helpers/video-proof.test.ts, scripts/tests/test_spec_demonstration_pipeline.py, scripts/tests/test_cli_video_capture.py, scripts/tests/test_cli_e2e_recording_audit.py]
+    verification_ids: [T-SPEC-PROOF-CONTRACT, T-REMOTION-PROOF, T-CLI-CAPTURE, T-CLI-RECORDING-AUDIT]
+    dependencies: [TASK-6]
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    ownership: { files: [frontend/apps/web_app/tests/helpers/video-proof.test.ts, scripts/tests/test_cli_video_capture.py, scripts/tests/test_cli_e2e_recording_audit.py], shared_files: [scripts/tests/test_spec_demonstration_pipeline.py] }
+  - id: TASK-8
+    title: Implement spec-owned proof contracts and timeline attachments
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-5], acceptance_criteria: [AC-7, AC-9] }
+    expected_files: [frontend/apps/web_app/tests/helpers/video-proof.ts, scripts/tests.py, scripts/proof_video_workflow.py]
+    verification_ids: [T-SPEC-PROOF-CONTRACT]
+    dependencies: [TASK-7]
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    ownership: { files: [frontend/apps/web_app/tests/helpers/video-proof.ts], shared_files: [scripts/tests.py, scripts/proof_video_workflow.py] }
+  - id: TASK-9
+    title: Implement Remotion browser tutorial renderer
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-6], acceptance_criteria: [AC-8, AC-9] }
+    expected_files: [tooling/proof-video-remotion/, scripts/spec_demo.py]
+    verification_ids: [T-REMOTION-PROOF]
+    dependencies: [TASK-8]
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    ownership: { files: [tooling/proof-video-remotion/], shared_files: [scripts/spec_demo.py] }
+  - id: TASK-10
+    title: Implement real CLI terminal recorder
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-7], acceptance_criteria: [AC-10, AC-12] }
+    expected_files: [scripts/cli_video_capture.py, scripts/tests/test_cli_video_capture.py]
+    verification_ids: [T-CLI-CAPTURE]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: [TASK-11]
+    ownership: { files: [scripts/cli_video_capture.py, scripts/tests/test_cli_video_capture.py], shared_files: [] }
+  - id: TASK-11
+    title: Route and audit all real CLI E2E entry points
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-8], acceptance_criteria: [AC-11, AC-12] }
+    expected_files: [frontend/apps/web_app/tests/helpers/cli-test-helpers.ts, frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts, scripts/audit_cli_e2e_recording.py, .github/workflows/playwright-spec.yml]
+    verification_ids: [T-CLI-RECORDING-AUDIT, T-CLI-CAPTURE]
+    dependencies: [TASK-10]
+    blockers: []
+    follow_up_tasks: [TASK-12]
+    ownership: { files: [scripts/audit_cli_e2e_recording.py], shared_files: [frontend/apps/web_app/tests/helpers/cli-test-helpers.ts, frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts, .github/workflows/playwright-spec.yml] }
+  - id: TASK-12
+    title: Deploy and produce web and CLI proof sources
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-9], acceptance_criteria: [AC-7, AC-8, AC-10, AC-12, AC-13] }
+    expected_files: [frontend/apps/web_app/tests/proof-video-architecture.spec.ts, frontend/apps/web_app/tests/proof-video-cli.spec.ts]
+    verification_ids: [T-WEB-PROOF-E2E, T-CLI-PROOF-E2E]
+    dependencies: [TASK-11]
+    blockers: []
+    follow_up_tasks: [TASK-13]
+    ownership: { files: [frontend/apps/web_app/tests/proof-video-architecture.spec.ts, frontend/apps/web_app/tests/proof-video-cli.spec.ts], shared_files: [] }
+  - id: TASK-13
+    title: Review publish and embed both proof videos
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-9], acceptance_criteria: [AC-13] }
+    expected_files: [docs/specs/focused-proof-video-workflow/spec.yml]
+    verification_ids: [V-WEB-PROOF, V-CLI-PROOF]
+    dependencies: [TASK-12]
+    blockers: []
+    follow_up_tasks: []
+    ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
 
 risks:
   - risk: Metadata inference may select stale or ambiguous test evidence.

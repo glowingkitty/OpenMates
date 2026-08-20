@@ -302,6 +302,7 @@ class SpecResult:
     screenshot_paths: list[str] = field(default_factory=list)
     video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
+    proof_timeline_path: Optional[str] = None
     github_run_url: Optional[str] = None
     debug_artifacts: list[str] = field(default_factory=list)
     debug_output_summary: Optional[str] = None
@@ -2044,6 +2045,7 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            proof_timeline_path: Optional[str] = None
             debug_artifacts: list[str] = []
             debug_output_summary: Optional[str] = None
             environment_blocker: Optional[str] = None
@@ -2094,7 +2096,7 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 self._persist_credential_update_artifacts(spec, art_path)
-                self._persist_recording_artifacts(spec, art_path)
+                proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
@@ -2131,6 +2133,7 @@ class BatchRunner:
                 screenshot_paths=screenshot_paths,
                 video_paths=video_paths,
                 video_artifact_name=art_name if video_paths else None,
+                proof_timeline_path=proof_timeline_path,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
                 debug_artifacts=debug_artifacts,
                 debug_output_summary=debug_output_summary,
@@ -2469,7 +2472,7 @@ class BatchRunner:
         return sorted(video_paths)
 
     @staticmethod
-    def _persist_recording_artifacts(spec: str, art_path: Path) -> None:
+    def _persist_recording_artifacts(spec: str, art_path: Path) -> Optional[str]:
         """Copy the latest video, screenshots, and raw metadata for /tests."""
         slug = _test_recording_slug(spec)
         dest = TEST_RECORDINGS_DIR / slug
@@ -2541,6 +2544,35 @@ class BatchRunner:
         if raw_json_sources:
             shutil.copy2(raw_json_sources[0], dest / "playwright.json")
 
+        proof_timeline_path: Optional[Path] = None
+        if raw_json_sources:
+            report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
+            attachment_paths: list[str] = []
+
+            def collect_timeline_attachments(value: object) -> None:
+                if isinstance(value, dict):
+                    if (
+                        value.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                        and isinstance(value.get("path"), str)
+                    ):
+                        attachment_paths.append(value["path"])
+                    for child in value.values():
+                        collect_timeline_attachments(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        collect_timeline_attachments(child)
+
+            collect_timeline_attachments(report)
+            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
+            for attachment_path in attachment_paths:
+                attachment_name = Path(attachment_path).name
+                source = next((path for path in artifact_files if path.name == attachment_name), None)
+                if source is None:
+                    continue
+                proof_timeline_path = dest / "proof-timeline.json"
+                shutil.copy2(source, proof_timeline_path)
+                break
+
         meta = {
             "spec": spec,
             "slug": slug,
@@ -2549,8 +2581,10 @@ class BatchRunner:
             "screenshot_files": copied_screenshots,
             "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
+            "proof_timeline_file": proof_timeline_path.name if proof_timeline_path else None,
         }
         (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        return str(proof_timeline_path) if proof_timeline_path else None
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -2584,6 +2618,8 @@ class BatchRunner:
             d["video_paths"] = r.video_paths
         if r.video_artifact_name:
             d["video_artifact_name"] = r.video_artifact_name
+        if r.proof_timeline_path:
+            d["proof_timeline_path"] = r.proof_timeline_path
         if r.github_run_url:
             d["github_run_url"] = r.github_run_url
         if r.debug_artifacts:

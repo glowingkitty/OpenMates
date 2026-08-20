@@ -308,6 +308,65 @@ def approved_render_claims(contract: dict[str, Any], *, device_profile: str | No
     }
 
 
+def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str) -> dict[str, Any]:
+    """Validate a spec-owned timeline and return device-scoped render claims."""
+    if payload.get("schema_version") != 1 or payload.get("device") != device_profile:
+        raise WorkflowError("spec proof timeline schema or device does not match the requested render")
+    contract = payload.get("contract")
+    events = payload.get("events")
+    results = payload.get("assertion_results")
+    if not isinstance(contract, dict) or not isinstance(events, list) or not isinstance(results, list):
+        raise WorkflowError("spec proof timeline is missing contract, events, or assertion results")
+    title = contract.get("title")
+    transcript = contract.get("transcript")
+    assertions = contract.get("assertions")
+    devices = contract.get("devices")
+    domain = contract.get("domain")
+    if not isinstance(title, str) or not title.strip() or device_profile not in (devices or []):
+        raise WorkflowError("spec proof contract title or device coverage is invalid")
+    if contract.get("surface") == "web" and (not isinstance(domain, str) or not domain.strip()):
+        raise WorkflowError("web spec proof contract requires the tested domain")
+    scoped_transcript = [
+        item for item in transcript or []
+        if isinstance(item, dict) and device_profile in item.get("devices", [])
+    ]
+    scoped_assertions = [
+        item for item in assertions or []
+        if isinstance(item, dict) and device_profile in item.get("devices", [])
+    ]
+    if not scoped_transcript or not scoped_assertions:
+        raise WorkflowError("spec proof contract requires device-scoped transcript and assertions")
+    checkpoint_ids = {
+        str(item.get("id")) for item in events
+        if isinstance(item, dict) and item.get("kind") == "checkpoint"
+    }
+    result_by_id = {
+        str(item.get("id")): item for item in results
+        if isinstance(item, dict) and item.get("id")
+    }
+    for item in scoped_transcript:
+        if not all(isinstance(item.get(field), str) and item[field].strip() for field in ("id", "text", "checkpoint")):
+            raise WorkflowError("every spec proof transcript cue requires id, text, and checkpoint")
+        if item["checkpoint"] not in checkpoint_ids:
+            raise WorkflowError(f"spec proof checkpoint {item['checkpoint']} was not reached")
+    for item in scoped_assertions:
+        if not all(isinstance(item.get(field), str) and item[field].strip() for field in ("id", "visual", "checkpoint")):
+            raise WorkflowError("every spec proof assertion requires id, visual text, and checkpoint")
+        if item["checkpoint"] not in checkpoint_ids or result_by_id.get(item["id"], {}).get("status") != "passed":
+            raise WorkflowError(f"spec proof assertion {item['id']} lacks passing deterministic evidence")
+    canonical_payload = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        "caption_text": " ".join(str(item["text"]).strip() for item in scoped_transcript),
+        "expected_proof": " ".join(str(item["visual"]).strip() for item in scoped_assertions),
+        "acceptance_criteria": [str(item["id"]) for item in scoped_assertions],
+        "assertions": [{"id": str(item["id"]), "description": str(item["visual"])} for item in scoped_assertions],
+        "contract_hash": f"sha256:{hashlib.sha256(canonical_payload).hexdigest()}",
+        "domain": str(domain or ""),
+        "contract": contract,
+        "events": events,
+    }
+
+
 def marker_trim_start(*, ready_timestamp_seconds: float, lead_seconds: float = MARKER_TRIM_LEAD_SECONDS) -> float:
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise WorkflowError("capture-ready marker and trim lead must be non-negative")

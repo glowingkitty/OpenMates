@@ -36,6 +36,40 @@ def load_run_tests_module():
     return module
 
 
+def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    attachment = artifact / "frontend" / "apps" / "web_app" / "test-results" / "attachments" / "proof.json"
+    attachment.parent.mkdir(parents=True)
+    attachment.write_text('{"schema_version": 1}\n', encoding="utf-8")
+    report = {
+        "suites": [{
+            "specs": [{
+                "tests": [{
+                    "results": [{
+                        "attachments": [{
+                            "name": "openmates-proof-timeline",
+                            "contentType": "application/vnd.openmates.proof-timeline+json",
+                            "path": "/runner/test-results/attachments/proof.json",
+                        }]
+                    }]
+                }]
+            }]
+        }]
+    }
+    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
+    recordings = tmp_path / "recordings"
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", recordings)
+
+    persisted = run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
+
+    expected = recordings / "proof" / "proof-timeline.json"
+    assert persisted == str(expected)
+    assert expected.read_text(encoding="utf-8") == '{"schema_version": 1}\n'
+    metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
+    assert metadata["proof_timeline_file"] == "proof-timeline.json"
+
+
 def test_git_info_uses_exact_deployed_session_subject(monkeypatch):
     run_tests = load_run_tests_module()
     monkeypatch.setenv("OPENMATES_TEST_SUBJECT_COMMIT", "abcdef1234567890")

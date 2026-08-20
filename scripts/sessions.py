@@ -8004,14 +8004,34 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             )
         try:
             require_clean_worktree()
-            approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=args.contract_path)
-            approved_claims = approved_render_claims(approved_contract, device_profile=args.device_profile)
             deployed_run = resolve_deployed_run(
                 subject_commit=args.subject_commit,
                 spec_name=args.spec_name,
                 run_id=args.run_id,
                 source_video=args.source_video,
             )
+            spec_timeline = None
+            timeline_path = getattr(args, "timeline_path", None)
+            if timeline_path is not None:
+                try:
+                    from scripts.proof_video_workflow import spec_timeline_render_claims
+                except ModuleNotFoundError:
+                    from proof_video_workflow import spec_timeline_render_claims
+                persisted_timeline = str(deployed_run.get("proof_timeline_path") or "")
+                persisted_timeline_hash = str(deployed_run.get("proof_timeline_sha256") or "")
+                if not persisted_timeline or Path(persisted_timeline).resolve() != timeline_path.resolve():
+                    raise WorkflowError("spec proof timeline does not match the persisted deployed run attachment")
+                timeline_hash = f"sha256:{hashlib.sha256(timeline_path.read_bytes()).hexdigest()}" if timeline_path.is_file() else ""
+                if not timeline_hash or timeline_hash != persisted_timeline_hash:
+                    raise WorkflowError("spec proof timeline is missing or its content hash changed")
+                spec_timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
+                approved_claims = spec_timeline_render_claims(spec_timeline, device_profile=args.device_profile)
+            else:
+                contract_path = getattr(args, "contract_path", None)
+                if contract_path is None:
+                    raise WorkflowError("Playwright proof requires --timeline-path or the legacy --contract-path")
+                approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=contract_path)
+                approved_claims = approved_render_claims(approved_contract, device_profile=args.device_profile)
         except WorkflowError as exc:
             raise DemonstrationError(str(exc)) from exc
         persisted_artifact = str(deployed_run.get("artifact_path") or "")
@@ -8062,6 +8082,8 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             hold_last_frame_seconds=args.hold_last_frame_seconds,
             ready_timestamp_seconds=getattr(args, "ready_timestamp_seconds", None),
             demo_audio_path=args.demo_audio_path,
+            spec_timeline=spec_timeline,
+            browser_domain=str(approved_claims.get("domain") or ""),
         )
         record = _upsert_proof_video_record(session, run_dir, result)
         _save_sessions(data)
@@ -14108,13 +14130,14 @@ def main() -> None:
     p_proof_playwright.add_argument("--subject-commit", required=True)
     p_proof_playwright.add_argument("--run-id", required=True)
     p_proof_playwright.add_argument("--spec-name", required=True)
-    p_proof_playwright.add_argument("--contract-path", type=Path, required=True)
+    p_proof_playwright.add_argument("--contract-path", type=Path)
+    p_proof_playwright.add_argument("--timeline-path", type=Path, help="Attested spec-owned proof timeline attachment")
     p_proof_playwright.add_argument("--target-environment", required=True)
     p_proof_playwright.add_argument("--test-account-provenance", required=True)
     p_proof_playwright.add_argument("--narration-id", default="NARR-1")
-    p_proof_playwright.add_argument("--caption", required=True)
-    p_proof_playwright.add_argument("--expected-proof", required=True)
-    p_proof_playwright.add_argument("--acceptance-criterion", action="append", required=True)
+    p_proof_playwright.add_argument("--caption", default="")
+    p_proof_playwright.add_argument("--expected-proof", default="")
+    p_proof_playwright.add_argument("--acceptance-criterion", action="append", default=[])
     p_proof_playwright.add_argument("--audio-path", type=Path, help="Optional ElevenLabs narration audio file")
     p_proof_playwright.add_argument("--audio-provider", default="elevenlabs")
     p_proof_playwright.add_argument("--audio-model", default="eleven_flash_v2_5")

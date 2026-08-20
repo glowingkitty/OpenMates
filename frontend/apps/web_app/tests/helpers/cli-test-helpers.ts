@@ -16,6 +16,8 @@ export {};
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const REPOSITORY_ROOT = path.resolve(__dirname, '../../../../..');
+let cliRecordingCreated = false;
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
@@ -46,16 +48,67 @@ async function runCli(
 	apiUrl: string,
 	args: string[],
 	timeoutMs = 30_000,
-	options: { useApiKey?: boolean } = {}
+	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
+	const shouldRecord = process.env.OPENMATES_CLI_RECORD_E2E === '1' && !cliRecordingCreated;
+	if (shouldRecord) {
+		cliRecordingCreated = true;
+		const specSlug = String(process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
+			.replace(/\.spec\.ts$/, '')
+			.replace(/[^A-Za-z0-9._-]+/g, '-');
+		const outputDir = path.resolve(process.cwd(), 'test-results', 'cli-recordings', specSlug);
+		fs.rmSync(outputDir, {recursive: true, force: true});
+		const recorderArgs = [
+			path.join(REPOSITORY_ROOT, 'scripts/cli_video_capture.py'),
+			'--output-dir', outputDir,
+			'--target-environment', apiUrl,
+			'--display-number', String(100 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1')),
+			'--timeout-seconds', String(Math.max(30, Math.ceil(timeoutMs / 1000))),
+			'--', 'node', CLI_DIST, ...args
+		];
+		return new Promise((resolve) => {
+			const child = spawn('python3', recorderArgs, {
+				cwd: REPOSITORY_ROOT,
+				env: {
+					...process.env,
+					...options.env,
+					...(apiKey ? {OPENMATES_API_KEY: apiKey} : {}),
+					OPENMATES_API_URL: apiUrl,
+					OPENMATES_CLI_HTTP_TIMEOUT_MS: process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS ?? String(timeoutMs),
+					NODE_PATH: path.join(cliDir, 'node_modules'),
+					TERM: 'xterm-256color'
+				},
+				stdio: ['ignore', 'pipe', 'pipe']
+			});
+			const out: string[] = [];
+			const err: string[] = [];
+			child.stdout.on('data', (chunk: Buffer) => out.push(chunk.toString()));
+			child.stderr.on('data', (chunk: Buffer) => err.push(chunk.toString()));
+			child.on('close', (code: number | null) => {
+				try {
+					const line = out.join('').trim().split('\n').at(-1) || '{}';
+					const payload = JSON.parse(line);
+					const manifest = payload.manifest || {};
+					const stdout = manifest.command_output_path && fs.existsSync(manifest.command_output_path)
+						? fs.readFileSync(manifest.command_output_path, 'utf8')
+						: out.join('');
+					resolve({code: manifest.exit_status ?? code, stdout, stderr: err.join('')});
+				} catch (error: any) {
+					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`});
+				}
+			});
+		});
+	}
 
 	return new Promise((resolve) => {
+		// cli-e2e-recording: shared-recorder-fallback
 		const child = spawn('node', [CLI_DIST, ...allArgs], {
 			env: {
 				...process.env,
+				...options.env,
 				OPENMATES_API_URL: apiUrl,
 				OPENMATES_CLI_HTTP_TIMEOUT_MS: process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS ?? String(timeoutMs),
 				NODE_PATH: path.join(cliDir, 'node_modules')

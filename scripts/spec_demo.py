@@ -33,6 +33,7 @@ from typing import Any, Callable, Iterable
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+REMOTION_BROWSER_RENDERER = REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"
 TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
@@ -106,6 +107,9 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
     "target_height",
     "target_width",
     "captions_sha256",
+    "browser_domain",
+    "renderer",
+    "timeline_hash",
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
@@ -169,6 +173,138 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def build_tutorial_timeline(
+    *,
+    contract: dict[str, Any],
+    events: list[dict[str, Any]],
+    device_profile: str,
+) -> list[dict[str, Any]]:
+    """Compile fast source events into normal-speed actions and readable holds."""
+    policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
+    words_per_second = float(policy.get("readingWordsPerSecond") or 0)
+    minimum_hold = int(policy.get("minimumHoldMs") or 0)
+    maximum_hold = int(policy.get("maximumHoldMs") or 0)
+    if words_per_second <= 0 or minimum_hold <= 0 or maximum_hold < minimum_hold:
+        raise DemonstrationError("Proof tutorial timing policy is invalid")
+    checkpoints = {
+        str(event.get("id")): int(event["at_ms"])
+        for event in events
+        if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
+    }
+    actions = [event for event in events if event.get("kind") == "action"]
+    cues = [
+        cue
+        for cue in contract.get("transcript", [])
+        if isinstance(cue, dict) and device_profile in cue.get("devices", [])
+    ]
+    if not cues:
+        raise DemonstrationError(f"Proof contract has no transcript for {device_profile}")
+    segments: list[dict[str, Any]] = []
+    for cue in cues:
+        checkpoint_id = str(cue.get("checkpoint") or "")
+        if checkpoint_id not in checkpoints:
+            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was not reached")
+        checkpoint_at = checkpoints[checkpoint_id]
+        preceding = [action for action in actions if int(action.get("end_ms", -1)) <= checkpoint_at]
+        if preceding:
+            action = preceding[-1]
+            source_from = int(action.get("start_ms", 0))
+            if not segments or segments[-1].get("source_to_ms") != checkpoint_at:
+                segments.append(
+                    {
+                        "kind": "video",
+                        "source_from_ms": source_from,
+                        "source_to_ms": checkpoint_at,
+                        "duration_ms": checkpoint_at - source_from,
+                    }
+                )
+        word_count = len(str(cue.get("text") or "").split())
+        hold = round((word_count / words_per_second) * 1000)
+        hold = max(minimum_hold, min(maximum_hold, hold))
+        segments.append(
+            {
+                "kind": "freeze",
+                "source_at_ms": checkpoint_at,
+                "duration_ms": hold,
+                "cue_id": str(cue.get("id") or ""),
+            }
+        )
+    return segments
+
+
+def build_browser_render_request(
+    *,
+    source_video: Path,
+    domain: str,
+    device_profile: str,
+    segments: list[dict[str, Any]],
+    contract_hash: str,
+    timeline_hash: str,
+) -> dict[str, Any]:
+    """Build canonical input props for the repository-local Remotion renderer."""
+    profile = resolve_device_profile(device_profile)
+    if profile is None or profile.get("surface") != "web":
+        raise DemonstrationError("Browser tutorial rendering requires a web device profile")
+    if not re.fullmatch(r"[A-Za-z0-9.-]+", domain) or "." not in domain:
+        raise DemonstrationError("Browser tutorial requires a valid attested domain")
+    if not source_video.is_file() or not segments:
+        raise DemonstrationError("Browser tutorial requires a source video and edit segments")
+    viewport = {"width": int(profile["width"]), "height": int(profile["height"])}
+    return {
+        "schemaVersion": 1,
+        "renderer": "openmates-remotion-browser-v1",
+        "sourceVideo": str(source_video.resolve()),
+        "source_sha256": sha256_file(source_video),
+        "domain": domain,
+        "deviceProfile": device_profile,
+        "viewport": viewport,
+        "output": {"width": viewport["width"], "height": viewport["height"], "fps": 30},
+        "segments": segments,
+        "contractHash": contract_hash,
+        "timelineHash": timeline_hash,
+    }
+
+
+def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
+    """Render one canonical browser request with the pinned Remotion package."""
+    if request.get("renderer") != "openmates-remotion-browser-v1":
+        raise DemonstrationError("Unsupported browser tutorial renderer")
+    if not REMOTION_BROWSER_RENDERER.is_file():
+        raise DemonstrationError("Repository-local Remotion browser renderer is missing")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path = output_path.with_suffix(".render-request.json")
+    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
+    env = dict(os.environ)
+    cached_chromium = sorted((Path.home() / ".cache/ms-playwright").glob("chromium-*/chrome-linux*/chrome"), reverse=True)
+    chromium = str(cached_chromium[0]) if cached_chromium else (
+        shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+    )
+    if chromium:
+        env["REMOTION_BROWSER_EXECUTABLE"] = chromium
+    result = subprocess.run(
+        ["node", str(REMOTION_BROWSER_RENDERER), str(request_path), str(output_path)],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"Remotion browser render failed: {(result.stderr or result.stdout)[-1500:]}")
+    metadata = video_metadata(output_path)
+    expected = request["output"]
+    if (metadata["width"], metadata["height"]) != (int(expected["width"]), int(expected["height"])):
+        raise DemonstrationError("Remotion browser output dimensions do not match the canonical request")
+    return {
+        **metadata,
+        "renderer": request["renderer"],
+        "browser_domain": request["domain"],
+        "timeline_hash": request["timelineHash"],
+        "render_request_sha256": sha256_file(request_path),
+    }
 
 
 def _write_private(path: Path, content: str) -> None:
@@ -1355,6 +1491,8 @@ def produce_playwright_demonstration(
     hold_last_frame_seconds: float = 0.0,
     ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
+    spec_timeline: dict[str, Any] | None = None,
+    browser_domain: str = "",
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
@@ -1378,6 +1516,14 @@ def produce_playwright_demonstration(
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
+    tutorial_segments: list[dict[str, Any]] = []
+    if spec_timeline is not None:
+        tutorial_segments = build_tutorial_timeline(
+            contract=spec_timeline["contract"],
+            events=spec_timeline["events"],
+            device_profile=str(device_profile["id"]),
+        )
+        output_duration = round(sum(float(item["duration_ms"]) for item in tutorial_segments) / 1000, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     if demo_audio_path is not None and narration_audio_path is None:
@@ -1405,14 +1551,29 @@ def produce_playwright_demonstration(
         narration_id=narration_id,
     )
     video_path = run_dir / "demo.mp4"
-    render_clean_video(
-        render_source_video,
-        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
-        video_path,
-        playback_rate=playback_rate,
-        hold_last_frame_seconds=hold_last_frame_seconds,
-        demo_audio_path=demo_audio_path,
-    )
+    browser_render_metadata: dict[str, Any] = {}
+    if spec_timeline is not None:
+        if narration_audio.get("path") or demo_audio_path is not None:
+            raise DemonstrationError("Spec-owned Remotion browser proofs currently require caption-only audio policy")
+        timeline_payload = json.dumps(spec_timeline, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        request = build_browser_render_request(
+            source_video=render_source_video,
+            domain=browser_domain,
+            device_profile=str(device_profile["id"]),
+            segments=tutorial_segments,
+            contract_hash=proof_contract_hash,
+            timeline_hash=f"sha256:{hashlib.sha256(timeline_payload).hexdigest()}",
+        )
+        browser_render_metadata = render_browser_tutorial(request, video_path)
+    else:
+        render_clean_video(
+            render_source_video,
+            Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+            video_path,
+            playback_rate=playback_rate,
+            hold_last_frame_seconds=hold_last_frame_seconds,
+            demo_audio_path=demo_audio_path,
+        )
     scene_times = detect_scene_change_times(video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
@@ -1430,12 +1591,24 @@ def produce_playwright_demonstration(
         source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
-        device_profile=device_profile,
+        device_profile=None if spec_timeline is not None else device_profile,
         render_metadata={
             "playback_rate": playback_rate,
             "hold_last_frame_seconds": hold_last_frame_seconds,
             **trim_metadata,
             "demo_audio_mixed": demo_audio_path is not None,
+            **(
+                {
+                    "device_profile": device_profile["id"],
+                    "target_width": browser_render_metadata.get("width"),
+                    "target_height": browser_render_metadata.get("height"),
+                    "renderer": browser_render_metadata.get("renderer"),
+                    "browser_domain": browser_render_metadata.get("browser_domain"),
+                    "timeline_hash": browser_render_metadata.get("timeline_hash"),
+                }
+                if browser_render_metadata
+                else {}
+            ),
         },
         scene_times=scene_times,
         action_times=selected.get("action_timestamps", []),
