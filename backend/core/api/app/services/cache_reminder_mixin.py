@@ -607,8 +607,11 @@ class ReminderCacheMixin:
             key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
             score = time.time()
 
-            await client.zadd(key, {embed_id: score})
-            await client.expire(key, PENDING_EMBED_TTL)
+            pipeline = client.pipeline(transaction=True)
+            pipeline.zadd(key, {embed_id: score})
+            pipeline.expire(key, PENDING_EMBED_TTL)
+            pipeline.expire(f"embed:{embed_id}", EMBED_CACHE_EXTENDED_TTL)
+            await pipeline.execute()
 
             logger.debug(
                 f"[PENDING_EMBED] Added embed {embed_id} to pending set for "
@@ -705,14 +708,20 @@ class ReminderCacheMixin:
             )
             return []
 
-    async def refresh_pending_embed_cache_ttls(self, user_id: str) -> int:
-        """Refresh cache TTLs for all pending embeds of a user."""
+    async def refresh_pending_embed_cache_ttls(
+        self,
+        user_id: str,
+        embed_ids: Optional[List[str]] = None,
+    ) -> int:
+        """Refresh cache TTLs for selected embeds, or every pending embed by default."""
         try:
             client = await self.client
             if not client:
                 return 0
 
-            pending_ids = await self.get_pending_embed_ids(user_id)
+            pending_ids = embed_ids
+            if pending_ids is None:
+                pending_ids = await self.get_pending_embed_ids(user_id)
             if not pending_ids:
                 return 0
 

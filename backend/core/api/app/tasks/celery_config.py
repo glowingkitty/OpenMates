@@ -1393,7 +1393,10 @@ app.conf.beat_schedule = {
     'process-pending-embeds': {
         'task': 'app.tasks.persistence_tasks.process_pending_embeds',
         'schedule': timedelta(seconds=300),  # Every 5 minutes
-        'options': {'queue': 'persistence'},
+        'options': {
+            'queue': 'persistence',
+            'expires': 240,
+        },
     },
     # Temporary workflows are retained for seven days after chat creation unless
     # the user keeps them as reusable workflows.

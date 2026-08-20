@@ -5143,12 +5143,12 @@ assertions:
       surface: rest_api
     - &id573
       path: backend/tests/test_persistence_tasks.py
-      line: 30
+      line: 161
       name: test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects
       surface: rest_api
     - &id574
       path: backend/tests/test_persistence_tasks.py
-      line: 67
+      line: 198
       name: test_persist_new_chat_message_accepts_client_encrypted_base64
       surface: rest_api
     - &id582
@@ -5424,32 +5424,32 @@ assertions:
       surface: rest_api
     - &id575
       path: backend/tests/test_persistence_tasks.py
-      line: 83
+      line: 214
       name: test_persist_new_chat_message_sanitizes_optional_encrypted_pii_mappings
       surface: gui.web
     - &id576
       path: backend/tests/test_persistence_tasks.py
-      line: 159
+      line: 290
       name: test_existing_ai_response_acknowledges_legacy_persistence
       surface: rest_api
     - &id577
       path: backend/tests/test_persistence_tasks.py
-      line: 196
+      line: 327
       name: test_existing_ai_response_retries_transient_legacy_acknowledgment_failure
       surface: rest_api
     - &id578
       path: backend/tests/test_persistence_tasks.py
-      line: 244
+      line: 375
       name: test_missing_ai_response_ciphertext_does_not_acknowledge_legacy_persistence
       surface: rest_api
     - &id579
       path: backend/tests/test_persistence_tasks.py
-      line: 273
+      line: 404
       name: test_falsy_ai_response_create_result_raises_for_wrapper_retry
       surface: rest_api
     - &id580
       path: backend/tests/test_persistence_tasks.py
-      line: 311
+      line: 442
       name: test_created_ai_response_acknowledges_legacy_persistence
       surface: rest_api
     - &id581
@@ -5748,27 +5748,27 @@ assertions:
       surface: rest_api
     - &id636
       path: backend/tests/test_persistence_tasks.py
-      line: 159
+      line: 290
       name: test_existing_ai_response_acknowledges_legacy_persistence
       surface: rest_api
     - &id637
       path: backend/tests/test_persistence_tasks.py
-      line: 196
+      line: 327
       name: test_existing_ai_response_retries_transient_legacy_acknowledgment_failure
       surface: rest_api
     - &id638
       path: backend/tests/test_persistence_tasks.py
-      line: 273
+      line: 404
       name: test_falsy_ai_response_create_result_raises_for_wrapper_retry
       surface: rest_api
     - &id639
       path: backend/tests/test_persistence_tasks.py
-      line: 311
+      line: 442
       name: test_created_ai_response_acknowledges_legacy_persistence
       surface: rest_api
     - &id640
       path: backend/tests/test_persistence_tasks.py
-      line: 359
+      line: 490
       name: test_duplicate_ai_response_acknowledges_legacy_persistence
       surface: rest_api
     - &id642

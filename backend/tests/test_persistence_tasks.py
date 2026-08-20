@@ -26,6 +26,137 @@ def make_client_ciphertext() -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
+# contract-test: infrastructure
+def test_pending_embed_safety_net_is_time_bounded_and_messages_expire() -> None:
+    task = persistence_tasks.process_pending_embeds_task
+    schedule = persistence_tasks.app.conf.beat_schedule["process-pending-embeds"]
+    interval_seconds = schedule["schedule"].total_seconds()
+
+    assert task.soft_time_limit == persistence_tasks.PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS
+    assert task.time_limit == persistence_tasks.PENDING_EMBED_HARD_TIME_LIMIT_SECONDS
+    assert task.soft_time_limit < task.time_limit < interval_seconds
+    assert schedule["options"]["expires"] == task.time_limit
+    assert (
+        persistence_tasks.PENDING_EMBED_SINGLE_FLIGHT_TTL_SECONDS
+        == persistence_tasks.PENDING_EMBED_HARD_TIME_LIMIT_SECONDS
+    )
+
+
+# contract-test: infrastructure
+def test_pending_embed_user_selection_is_bounded_and_round_robin() -> None:
+    user_ids = [f"user-{index:02d}" for index in range(25)]
+
+    first_batch = persistence_tasks._select_round_robin(
+        user_ids,
+        None,
+        persistence_tasks.PENDING_EMBED_MAX_USERS_PER_RUN,
+    )
+    second_batch = persistence_tasks._select_round_robin(
+        user_ids,
+        first_batch[-1],
+        persistence_tasks.PENDING_EMBED_MAX_USERS_PER_RUN,
+    )
+
+    assert first_batch == user_ids[:persistence_tasks.PENDING_EMBED_MAX_USERS_PER_RUN]
+    assert second_batch[:5] == user_ids[20:]
+    assert second_batch[5:] == user_ids[:15]
+
+
+# contract-test: infrastructure
+def test_pending_embed_safety_net_coalesces_duplicate_runs(monkeypatch) -> None:
+    class FakeRedis:
+        async def set(self, key: str, value: str, **kwargs):
+            assert key == persistence_tasks.PENDING_EMBED_SINGLE_FLIGHT_KEY
+            assert kwargs == {
+                "nx": True,
+                "ex": persistence_tasks.PENDING_EMBED_SINGLE_FLIGHT_TTL_SECONDS,
+            }
+            return False
+
+    class FakeCacheService:
+        @property
+        def client(self):
+            async def get_client():
+                return FakeRedis()
+
+            return get_client()
+
+        async def get_all_users_with_pending_embeds(self):
+            raise AssertionError("duplicate run must stop before scanning pending users")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "CacheService", FakeCacheService)
+
+    asyncio.run(persistence_tasks._async_process_pending_embeds("duplicate-task"))
+
+
+# contract-test: infrastructure
+def test_pending_embed_safety_net_bounds_each_user_batch(monkeypatch) -> None:
+    pending_ids = [f"embed-{index}" for index in range(12)]
+    removed_ids: list[str] = []
+
+    class FakeRedis:
+        async def set(self, key: str, value: str, **kwargs):
+            return True
+
+        async def get(self, key: str):
+            return None
+
+    class FakeCacheService:
+        def __init__(self) -> None:
+            self.redis = FakeRedis()
+
+        @property
+        def client(self):
+            async def get_client():
+                return self.redis
+
+            return get_client()
+
+        async def get_all_users_with_pending_embeds(self) -> list[str]:
+            return ["user-1"]
+
+        async def get_pending_embed_ids(self, user_id: str) -> list[str]:
+            return pending_ids
+
+        async def remove_pending_embed(self, user_id: str, embed_id: str) -> bool:
+            removed_ids.append(embed_id)
+            return True
+
+        async def close(self) -> None:
+            return None
+
+    class FakeEmbedMethods:
+        async def get_embed_by_id(self, embed_id: str):
+            return None
+
+    class FakeDirectusService:
+        def __init__(self) -> None:
+            self.embed = FakeEmbedMethods()
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+    class FakeEncryptionService:
+        def __init__(self, cache_service) -> None:
+            pass
+
+    monkeypatch.setattr(persistence_tasks, "CacheService", FakeCacheService)
+    monkeypatch.setattr(persistence_tasks, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(persistence_tasks, "EncryptionService", FakeEncryptionService)
+
+    asyncio.run(persistence_tasks._async_process_pending_embeds("task-1"))
+
+    expected = persistence_tasks._select_round_robin(
+        pending_ids,
+        None,
+        persistence_tasks.PENDING_EMBED_BATCH_SIZE_PER_USER,
+    )
+    assert removed_ids == expected
+
+
 # contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 def test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects(monkeypatch, doc_assert):
     doc_assert("chat-persistence-rejects-vault-ciphertext")
