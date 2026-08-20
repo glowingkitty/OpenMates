@@ -108,6 +108,7 @@ test.describe('Proof video browser architecture', () => {
 		});
 		await proof.assert('welcome.privacy.visible', async () => {
 			await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
+			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety', {timeout: 5000});
 		});
 		await proof.checkpoint('privacy-visible');
