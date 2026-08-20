@@ -6136,8 +6136,6 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
-    /** Client-generated ID for a new chat, allowing cleanup after an uncertain send outcome. */
-    newChatId?: string;
     slug?: string;
     teamId?: string | null;
     personal?: boolean;
@@ -6211,16 +6209,8 @@ export class OpenMatesClient {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
-    if (params.chatId && params.newChatId) {
-      throw new Error("chatId and newChatId cannot be used together.");
-    }
-    if (params.newChatId && !CANONICAL_UUID_PATTERN.test(params.newChatId)) {
-      throw new Error("newChatId must be a canonical UUID.");
-    }
     let chatId: string;
-    if (params.newChatId) {
-      chatId = params.newChatId;
-    } else if (!params.chatId) {
+    if (!params.chatId) {
       chatId = randomUUID();
     } else if (!CANONICAL_UUID_PATTERN.test(params.chatId)) {
       // Slug or short ID — resolve from sync cache before sending chat_id.

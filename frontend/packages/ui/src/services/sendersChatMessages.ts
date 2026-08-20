@@ -211,6 +211,13 @@ export function buildTeamMessageTransport(params: {
 	};
 }
 
+export function applyTeamPreflightScope(
+	preflightPayload: Record<string, unknown>,
+	teamId?: string | null,
+): void {
+	if (teamId) preflightPayload.team_id = teamId;
+}
+
 async function updateMessageStatusForSendRetry(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -1452,6 +1459,7 @@ export async function sendNewMessageImpl(
 			},
 			inference_request: preflightInferenceRequest
 		};
+		applyTeamPreflightScope(preflightPayload, chat?.team_id);
 		if (includePreflightChatMetadata) {
 			preflightPayload.encrypted_chat_metadata = {
 				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),

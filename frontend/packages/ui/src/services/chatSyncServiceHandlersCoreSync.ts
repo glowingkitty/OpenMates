@@ -414,6 +414,9 @@ export async function handlePhase1LastChatImpl(
       details: Partial<Chat> & { id: string },
     ): Promise<Chat | null> => {
       details.team_id = payload.team_id ?? null;
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
+        return null;
+      }
       const existingChat = await chatDB.getChat(details.id);
       if (!hasUsableChatKey(details, existingChat, details.id)) {
         return null;
@@ -423,6 +426,9 @@ export async function handlePhase1LastChatImpl(
           details.team_id,
           details.encrypted_chat_key,
         );
+        if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
+          return null;
+        }
         chatKeyManager.injectKey(details.id, chatKey, "server_sync");
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {

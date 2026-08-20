@@ -28,6 +28,10 @@ const mocks = vi.hoisted(() => ({
   chatKeyManager: {
     removeKey: vi.fn(),
     withKey: vi.fn(),
+    injectKey: vi.fn(),
+  },
+  teamService: {
+    unwrapTeamChatKey: vi.fn(),
   },
   pendingChatDeletions: {
     getPendingChatDeletionsSet: vi.fn(),
@@ -54,6 +58,7 @@ vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: mocks.chatKeyManager,
 }));
 vi.mock("../pendingChatDeletions", () => mocks.pendingChatDeletions);
+vi.mock("../teamService", () => mocks.teamService);
 
 import {
   ChatSynchronizationService as ChatSynchronizationServiceClass,
@@ -65,6 +70,7 @@ import {
   handleSyncStatusResponseImpl,
 } from "../chatSyncServiceHandlersPhasedSync";
 import { phasedSyncState } from "../../stores/phasedSyncStateStore";
+import { activeTeamContext } from "../../stores/teamStore";
 
 type ServiceStub = {
   cachePrimed_FOR_HANDLERS_ONLY: boolean;
@@ -106,6 +112,7 @@ function createService(overrides: Partial<ServiceStub> = {}): ServiceStub {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
   mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
   mocks.pendingChatDeletions.getPendingChatDeletionsSet.mockReturnValue(new Set());
   mocks.chatDB.getChat.mockResolvedValue(null);
@@ -150,6 +157,41 @@ describe("handleSyncStatusResponseImpl", () => {
 });
 
 describe("handlePhase2RecentChatsImpl", () => {
+	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+	it("does not inject a Team key after the active context epoch changes", async () => {
+		let resolveKey: ((key: Uint8Array) => void) | undefined;
+		mocks.teamService.unwrapTeamChatKey.mockImplementation(
+			() => new Promise<Uint8Array>((resolve) => { resolveKey = resolve; }),
+		);
+		activeTeamContext.set({ team: null, teamId: "team-a", epoch: 2 });
+		const service = createService();
+		const pending = handlePhase2RecentChatsImpl(
+			service as unknown as ChatSynchronizationService,
+			{
+				team_id: "team-a",
+				context_epoch: 2,
+				chats: [{
+					chat_details: {
+						id: "team-chat",
+						encrypted_chat_key: "team-wrapper",
+						messages_v: 1,
+						title_v: 0,
+					},
+				}],
+				chat_count: 1,
+				phase: "phase2",
+			},
+		);
+
+		await vi.waitFor(() => expect(resolveKey).toBeTypeOf("function"));
+		activeTeamContext.set({ team: null, teamId: "team-b", epoch: 3 });
+		resolveKey?.(new Uint8Array([1, 2, 3, 4]));
+		await pending;
+
+		expect(mocks.chatKeyManager.injectKey).not.toHaveBeenCalled();
+		expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+	});
+
   // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,sync.surface.semantic-parity
   it("continues after one chat fails to persist", async () => {
     const service = createService();

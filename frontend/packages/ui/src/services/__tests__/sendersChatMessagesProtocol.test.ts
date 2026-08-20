@@ -17,6 +17,7 @@ vi.mock("../websocketService", () => ({
 }));
 import {
 	buildTeamMessageTransport,
+	applyTeamPreflightScope,
   isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
   shouldIncludePreflightChatMetadata,
@@ -72,6 +73,15 @@ describe("sendersChatMessages protocol fences", () => {
 			expect.objectContaining({ content: "Earlier context", sender_name: "Bob" }),
 			expect.objectContaining({ content: "@openmates summarize", sender_name: "Alice" }),
 		]);
+	});
+
+	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,teams.context.full-switch-local
+	it("puts Team scope on the durable preflight boundary", () => {
+		const preflightPayload: Record<string, unknown> = {};
+
+		applyTeamPreflightScope(preflightPayload, "team-1");
+
+		expect(preflightPayload).toEqual({ team_id: "team-1" });
 	});
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not extract interactive question protocol blocks as code embeds", () => {

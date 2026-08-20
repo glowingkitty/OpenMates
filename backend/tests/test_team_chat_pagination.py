@@ -24,7 +24,7 @@ if "redis.asyncio" not in sys.modules:
 
 directus_module = types.ModuleType("backend.core.api.app.services.directus")
 directus_module.DirectusService = object
-sys.modules.setdefault("backend.core.api.app.services.directus", directus_module)
+sys.modules["backend.core.api.app.services.directus"] = directus_module
 
 import pytest  # noqa: E402
 
