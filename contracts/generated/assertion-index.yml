@@ -728,12 +728,12 @@ assertions:
       surface: gui.web
     - &id078
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 376
+      line: 301
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id079
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 575
+      line: 500
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id080
@@ -819,7 +819,7 @@ assertions:
       surface: gui.web
     - &id087
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 376
+      line: 301
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id088
@@ -4978,12 +4978,12 @@ assertions:
     direct_tests:
     - &id547
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 376
+      line: 301
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id548
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 575
+      line: 500
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     supporting_tests: []
@@ -5210,12 +5210,12 @@ assertions:
       surface: rest_api
     - &id594
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 376
+      line: 301
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id595
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 575
+      line: 500
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id596
@@ -5741,12 +5741,12 @@ assertions:
       surface: rest_api
     - &id654
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 376
+      line: 301
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id655
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 575
+      line: 500
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id658

@@ -199,87 +199,12 @@ async function getLocalChatSwitchPair(
 	}, LOCAL_SHORT_WINDOW_TARGET_COUNT);
 }
 
-async function getProofCleanChatSwitchPair(page: any): Promise<Array<{ chatId: string; messageCount: number }>> {
-	const candidates = await page.evaluate(async () => {
-		const db = await new Promise<IDBDatabase>((resolve, reject) => {
-			const request = indexedDB.open('chats_db');
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-		try {
-			const chats = await new Promise<any[]>((resolve, reject) => {
-				const tx = db.transaction(['chats'], 'readonly');
-				const request = tx.objectStore('chats').getAll();
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve(request.result || []);
-			});
-			return chats
-				.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0))
-				.map((chat) => chat.chat_id || chat.id)
-				.filter((chatId): chatId is string => Boolean(chatId) && !chatId.startsWith('demo-') && !chatId.startsWith('legal-'));
-		} finally {
-			db.close();
-		}
-	});
-
-	const cleanChats: Array<{ chatId: string; messageCount: number }> = [];
-	for (const chatId of candidates) {
-		await page.evaluate((id: string) => {
-			window.location.hash = `chat-id=${encodeURIComponent(id)}`;
-		}, chatId);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId, { timeout: 10000 });
-		const messageCount = Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0);
-		if (messageCount === 0) continue;
-		const userMessages = await page.getByTestId('message-user').allTextContents();
-		if (userMessages.some((message: string) => message.includes('<<<TEST_'))) continue;
-		cleanChats.push({ chatId, messageCount });
-		if (cleanChats.length >= 2) break;
-	}
-	if (cleanChats.length < 2) return [];
-
-	const firstChat = cleanChats[0];
-	await page.evaluate(async ({ chatId, targetCount }: { chatId: string; targetCount: number }) => {
-		const db = await new Promise<IDBDatabase>((resolve, reject) => {
-			const request = indexedDB.open('chats_db');
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-		try {
-			const messages = await new Promise<any[]>((resolve, reject) => {
-				const tx = db.transaction(['messages'], 'readonly');
-				const request = tx.objectStore('messages').index('chat_id').getAll(chatId);
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve(request.result || []);
-			});
-			messages.sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0));
-			const messagesToDelete = messages.slice(0, Math.max(0, messages.length - targetCount));
-			if (messagesToDelete.length === 0) return;
-			await new Promise<void>((resolve, reject) => {
-				const tx = db.transaction(['messages'], 'readwrite');
-				const store = tx.objectStore('messages');
-				for (const message of messagesToDelete) store.delete(message.message_id);
-				tx.oncomplete = () => resolve();
-				tx.onerror = () => reject(tx.error);
-				tx.onabort = () => reject(tx.error);
-			});
-		} finally {
-			db.close();
-		}
-	}, { chatId: firstChat.chatId, targetCount: LOCAL_SHORT_WINDOW_TARGET_COUNT });
-	return [
-		{ chatId: firstChat.chatId, messageCount: Math.min(firstChat.messageCount, LOCAL_SHORT_WINDOW_TARGET_COUNT) },
-		cleanChats[1]
-	];
-}
-
 async function verifyCachedShortChatOpening(page: any): Promise<void> {
 	await waitForChatReady(page, undefined, 60000);
 
 	let localChats: Array<{ chatId: string; messageCount: number }> = [];
 	await expect.poll(async () => {
-		localChats = PROOF_VIDEO_STATE_HOLD_MS > 0
-			? await getProofCleanChatSwitchPair(page)
-			: await getLocalChatSwitchPair(page);
+		localChats = await getLocalChatSwitchPair(page);
 		return localChats.length;
 	}, {
 		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
