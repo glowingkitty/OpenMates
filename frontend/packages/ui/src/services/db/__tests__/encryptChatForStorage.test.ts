@@ -40,6 +40,7 @@ const mockInjectKey = vi.fn();
 const mockCreateKeyForNewChat = vi.fn();
 const mockCreateAndPersistKeyLocked = vi.fn();
 const mockGetProvenance = vi.fn();
+const mockRemoveKey = vi.fn();
 const mockComputeKeyFingerprint = vi.fn().mockReturnValue("abcd1234");
 vi.mock("../../encryption/ChatKeyManager", () => ({
   chatKeyManager: {
@@ -50,10 +51,19 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
       mockCreateKeyForNewChat(...args),
     createAndPersistKeyLocked: (...args: unknown[]) =>
       mockCreateAndPersistKeyLocked(...args),
+    removeKey: (...args: unknown[]) => mockRemoveKey(...args),
     onKeyReady: vi.fn(() => () => {}),
   },
   computeKeyFingerprint: (...args: unknown[]) =>
     mockComputeKeyFingerprint(...args),
+}));
+
+const mockTryDecryptHiddenChatKey = vi.fn();
+vi.mock("../../hiddenChatService", () => ({
+  hiddenChatService: {
+    tryDecryptChatKey: (...args: unknown[]) =>
+      mockTryDecryptHiddenChatKey(...args),
+  },
 }));
 
 // Mock signupState stores (used by addChat guard)
@@ -94,7 +104,11 @@ vi.mock("svelte/store", () => ({
   }),
 }));
 
-import { addChat, encryptChatForStorage } from "../chatCrudOperations";
+import {
+  addChat,
+  decryptChatFromStorage,
+  encryptChatForStorage,
+} from "../chatCrudOperations";
 import { getEncryptedChatKey } from "../chatKeyManagement";
 import type { Chat } from "../../../types/chat";
 
@@ -152,6 +166,11 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     mockEncryptChatKeyWithMasterKey.mockResolvedValue(null);
     mockUnwrapTeamChatKey.mockResolvedValue(null);
     mockWrapTeamChatKey.mockResolvedValue(null);
+    mockTryDecryptHiddenChatKey.mockResolvedValue({
+      chatKey: null,
+      isHidden: false,
+      isHiddenCandidate: false,
+    });
     mockGetProvenance.mockReturnValue(null);
     mockCreateKeyForNewChat.mockReturnValue(fakeKey);
     mockCreateAndPersistKeyLocked.mockResolvedValue({
@@ -230,6 +249,46 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     );
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(mockCreateAndPersistKeyLocked).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+  it("uses Team unwrapping when reading a Team chat", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      team_id: "team-123",
+      encrypted_chat_key: "team-wrapped-key",
+    });
+    mockUnwrapTeamChatKey.mockResolvedValue(fakeKey);
+
+    await decryptChatFromStorage(db as any, chat);
+
+    expect(mockUnwrapTeamChatKey).toHaveBeenCalledWith(
+      "team-123",
+      "team-wrapped-key",
+    );
+    expect(mockInjectKey).toHaveBeenCalledWith(
+      "test-chat-123",
+      fakeKey,
+      "server_sync",
+    );
+    expect(mockTryDecryptHiddenChatKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.sync.key-gated-recovery
+  it("does not erase a cached Team key when Team unwrapping is unavailable", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      team_id: "team-123",
+      encrypted_chat_key: "team-wrapped-key",
+    });
+    mockUnwrapTeamChatKey.mockRejectedValue(new Error("Team key unavailable"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await decryptChatFromStorage(db as any, chat);
+
+    expect(mockRemoveKey).not.toHaveBeenCalled();
+    expect(mockTryDecryptHiddenChatKey).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only

@@ -451,35 +451,56 @@ export async function decryptChatFromStorage(
     decryptedChat.is_hidden = false;
     decryptedChat.is_hidden_candidate = false;
 
-    // Always check the decryption path to determine if chat is hidden, even if we have a cached key
-    // This ensures hidden chats are properly identified and filtered
-    const { hiddenChatService } = await import("../hiddenChatService");
-    const result = await hiddenChatService.tryDecryptChatKey(
-      chat.encrypted_chat_key,
-    );
-
-    // If normal decryption fails, mark as a hidden candidate for UI filtering.
-    // This keeps locked hidden chats out of the main list without a DB flag.
-    if (result.isHiddenCandidate) {
-      decryptedChat.is_hidden_candidate = true;
-    }
-
-    if (result.chatKey) {
-      // Inject into ChatKeyManager (single source of truth)
-      chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
-      if (result.isHidden) {
-        decryptedChat.is_hidden = true;
-      } else {
-        decryptedChat.is_hidden = false;
+    if (chat.team_id) {
+      try {
+        const teamChatKey = await unwrapTeamChatKey(
+          chat.team_id,
+          chat.encrypted_chat_key,
+        );
+        chatKeyManager.injectKey(
+          chat.chat_id,
+          teamChatKey,
+          "server_sync",
+        );
+      } catch (error) {
+        // A temporarily unavailable Team key must not erase a valid key that was
+        // already created or loaded in this tab. The write guard will fail closed.
+        console.error(
+          `[ChatDatabase] Failed to unwrap Team chat key while reading chat ${chat.chat_id}`,
+          error,
+        );
       }
     } else {
-      // Both decryption paths failed - could be corrupted or a locked hidden chat
-      console.debug(
-        `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
+      // Always check the decryption path to determine if chat is hidden, even if we have a cached key
+      // This ensures hidden chats are properly identified and filtered
+      const { hiddenChatService } = await import("../hiddenChatService");
+      const result = await hiddenChatService.tryDecryptChatKey(
+        chat.encrypted_chat_key,
       );
-      // Clear any stale key since decryption failed
-      chatKeyManager.removeKey(chat.chat_id);
-      // is_hidden is already false from the initial clear above
+
+      // If normal decryption fails, mark as a hidden candidate for UI filtering.
+      // This keeps locked hidden chats out of the main list without a DB flag.
+      if (result.isHiddenCandidate) {
+        decryptedChat.is_hidden_candidate = true;
+      }
+
+      if (result.chatKey) {
+        // Inject into ChatKeyManager (single source of truth)
+        chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
+        if (result.isHidden) {
+          decryptedChat.is_hidden = true;
+        } else {
+          decryptedChat.is_hidden = false;
+        }
+      } else {
+        // Both decryption paths failed - could be corrupted or a locked hidden chat
+        console.debug(
+          `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
+        );
+        // Clear any stale key since decryption failed
+        chatKeyManager.removeKey(chat.chat_id);
+        // is_hidden is already false from the initial clear above
+      }
     }
 
     // Note: We don't decrypt icon and category here because they should be decrypted
