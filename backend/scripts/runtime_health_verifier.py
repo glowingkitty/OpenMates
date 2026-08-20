@@ -226,8 +226,26 @@ async def _check_scheduler_freshness() -> None:
 
 
 async def _check_chat_plumbing() -> None:
-    """Exercise the same app_ai dispatch/result transport without model inference."""
-    await _check_worker_queue()
+    """Exercise app_ai dispatch plus ephemeral Redis persistence without inference."""
+    probe_id = uuid.uuid4().hex
+    task_name = "runtime_health.chat_plumbing_probe"
+
+    def dispatch_probe() -> dict:
+        from backend.core.api.app.tasks.celery_config import app
+
+        result = app.send_task(task_name, args=[probe_id], queue="app_ai")
+        try:
+            return result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
+        finally:
+            result.forget()
+
+    payload = await asyncio.to_thread(dispatch_probe)
+    if (
+        payload.get("probe_id") != probe_id
+        or payload.get("transport") != "redis"
+        or payload.get("cleanup_status") != "completed"
+    ):
+        raise RuntimeError("chat_plumbing_probe_mismatch")
 
 
 async def _check_billing_mode() -> None:

@@ -204,6 +204,8 @@ openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
 openmates server update --exclude webapp
+openmates server update --skip-quick-test
+openmates server update --quick-test --confirm-spend-credits
 openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server update status
 openmates server update status --json
@@ -215,6 +217,17 @@ Image-mode installs refresh the runtime Compose template from the packaged CLI t
 For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
 
 Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. The `--force` flag only applies to source-mode Git updates.
+
+After the provider-free runtime checklist passes on an interactive core-server update, the CLI offers `Continue with quick server test?`. The optional test uses the CLI account logged into that self-hosted instance to create, reload, and remove one temporary encrypted AI chat, run `math.calculate`, and run a one-result `web.search`. These checks may consume account credits, so declining does not affect the successful deterministic update and `--yes` never authorizes them.
+
+If the CLI has no session for the updated instance, it prints the instance-scoped login command. Log in and rerun the same suite without updating:
+
+```bash
+openmates --api-url https://api.example.org login
+openmates server test --quick
+```
+
+JSON, redirected-input, and continuous updates never prompt or spend by default. Automation must pass both `--quick-test` and `--confirm-spend-credits`; `--skip-quick-test` suppresses the interactive offer. An accepted quick-test failure marks update status degraded, leaves the updated containers running for diagnosis, and never triggers automatic rollback.
 
 The checklist has a 60-second global deadline. It verifies the required role services and HTTP health first, then runs dependency-safe checks for the role:
 
@@ -239,6 +252,8 @@ When a required check fails, the CLI:
 | `--channel stable|main|dev` | Image mode | Update using a mutable channel tag. `stable` maps to the published `main` tag. |
 | `--services <csv>` | Image mode | Update only selected role services |
 | `--exclude <csv>` | Image mode | Update all role services except selected services |
+| `--skip-quick-test` | Core updates | Suppress the optional authenticated quick-test offer |
+| `--quick-test --confirm-spend-credits` | Core updates | Explicitly run the bounded paid test in non-interactive automation |
 | `install-service --continuous` | Image mode | Install a host-level systemd timer that runs the CLI update path |
 | `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
 

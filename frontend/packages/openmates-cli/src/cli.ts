@@ -405,7 +405,7 @@ async function main(): Promise<void> {
 
   // Server and docs commands don't need login
   if (command === "server") {
-    await handleServer(subcommand, rest, parsed.flags);
+    await handleServer(client, subcommand, rest, parsed.flags);
     return;
   }
 

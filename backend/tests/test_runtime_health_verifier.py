@@ -11,6 +11,8 @@ Spec: docs/specs/post-update-runtime-health-alerting/spec.yml.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 import sys
 
@@ -148,6 +150,88 @@ def test_verifier_source_has_no_paid_provider_path() -> None:
 
     assert source is not None
     assert all(marker not in source for marker in forbidden)
+
+
+def test_chat_plumbing_uses_a_distinct_provider_free_transport_probe() -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+
+    verifier_source = verifier.__loader__.get_source(verifier.__name__)  # type: ignore[union-attr]
+    task_source = (Path(__file__).parents[1] / "apps/ai/tasks/runtime_health_probe_task.py").read_text(encoding="utf-8")
+
+    assert verifier_source is not None
+    assert 'task_name = "runtime_health.chat_plumbing_probe"' in verifier_source
+    assert 'task_name = "runtime_health.worker_probe"' in verifier_source
+    assert "runtime_health:chat_plumbing:" in task_source
+    assert "client.delete(key)" in task_source
+
+
+def test_chat_plumbing_task_round_trips_and_cleans_up_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[object, ...]] = []
+    values: dict[str, str] = {}
+
+    class FakeApp:
+        def task(self, *, name: str):
+            calls.append(("task", name))
+            return lambda function: function
+
+    class FakeRedisClient:
+        def set(self, key: str, value: str, *, ex: int) -> None:
+            calls.append(("set", key, value, ex))
+            values[key] = value
+
+        def get(self, key: str) -> str | None:
+            calls.append(("get", key))
+            return values.get(key)
+
+        def delete(self, key: str) -> None:
+            calls.append(("delete", key))
+            values.pop(key, None)
+
+        def close(self) -> None:
+            calls.append(("close",))
+
+    fake_redis_module = SimpleNamespace(Redis=SimpleNamespace(from_url=lambda *args, **kwargs: FakeRedisClient()))
+    fake_celery_module = SimpleNamespace(app=FakeApp())
+    monkeypatch.setitem(sys.modules, "redis", fake_redis_module)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", fake_celery_module)
+
+    path = Path(__file__).parents[1] / "apps/ai/tasks/runtime_health_probe_task.py"
+    spec = importlib.util.spec_from_file_location("runtime_health_probe_task_test", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    result = module.runtime_health_chat_plumbing_probe("probe-1")
+
+    key = "runtime_health:chat_plumbing:probe-1"
+    assert result["transport"] == "redis"
+    assert result["cleanup_status"] == "completed"
+    assert ("set", key, "probe-1", 30) in calls
+    assert ("delete", key) in calls
+    assert ("close",) in calls
+    assert values == {}
+
+
+@pytest.mark.asyncio
+async def test_chat_plumbing_verifier_rejects_malformed_probe_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+
+    class FakeResult:
+        def get(self, **_kwargs):
+            return {"probe_id": "wrong", "transport": "redis", "cleanup_status": "completed"}
+
+        def forget(self) -> None:
+            return None
+
+    fake_app = SimpleNamespace(send_task=lambda *args, **kwargs: FakeResult())
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.tasks.celery_config",
+        SimpleNamespace(app=fake_app),
+    )
+
+    with pytest.raises(RuntimeError, match="chat_plumbing_probe_mismatch"):
+        await verifier._check_chat_plumbing()
 
 
 @pytest.mark.asyncio

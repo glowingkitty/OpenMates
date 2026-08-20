@@ -995,6 +995,7 @@ task_routes = {
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
     "runtime_health.worker_probe": {'queue': 'app_ai'},
+    "runtime_health.chat_plumbing_probe": {'queue': 'app_ai'},
     "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
@@ -1055,6 +1056,7 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     "runtime_health.worker_probe": "app_ai",
+    "runtime_health.chat_plumbing_probe": "app_ai",
     "runtime_health.scheduler_heartbeat": "health_check",
     "user_tasks.process_due_ai_tasks": "user_tasks",
     "user_tasks.archive_completed_tasks": "persistence",

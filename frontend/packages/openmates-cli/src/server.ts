@@ -3,7 +3,8 @@
  *
  * Purpose: install, start, stop, restart, update, reset, and monitor a
  *          self-hosted OpenMates instance via Docker Compose.
- * Architecture: shells out to git/docker — no OpenMatesClient or login required.
+ * Architecture: shells out to git/docker; optional quick tests reuse the
+ *               instance-bound authenticated CLI client after explicit consent.
  * Architecture doc: docs/architecture/apps/cli-remote-access.md
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
@@ -75,6 +76,13 @@ import {
   type RuntimeNotificationDelivery,
   type RuntimeNotificationPayload,
 } from "./serverHealth.js";
+import type { OpenMatesClient } from "./client.js";
+import {
+  assessQuickServerTestEligibility,
+  decideQuickServerTestAction,
+  runQuickServerTest,
+  type QuickServerTestResult,
+} from "./serverQuickTest.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1000,6 +1008,119 @@ function writeUpdateStatus(installPath: string, role: ServerRole, status: Record
   const filePath = updateStatusFile(installPath, role);
   mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
   writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
+}
+
+type QuickServerTestOutcome = QuickServerTestResult | {
+  status: "not_run";
+  reason: string;
+  checks: [];
+};
+
+function persistQuickServerTestOutcome(
+  installPath: string,
+  role: ServerRole,
+  outcome: QuickServerTestOutcome,
+): void {
+  const filePath = updateStatusFile(installPath, role);
+  let current: Record<string, unknown> = {};
+  if (existsSync(filePath)) {
+    try {
+      current = JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>;
+    } catch {
+      current = {};
+    }
+  }
+  const { role: _role, updated_at: _updatedAt, ...status } = current;
+  writeUpdateStatus(installPath, role, {
+    ...status,
+    status: outcome.status === "failed" ? "degraded" : status.status ?? "success",
+    step: outcome.status === "failed" ? "quick-test" : status.step ?? "complete",
+    quickTest: outcome,
+  });
+}
+
+function expectedServerApiUrl(installPath: string, config: ServerConfig | null): string {
+  const envApiUrl = firstCsvValue(getEnvVar(readEnvContent(installPath), "VITE_API_URL"));
+  return envApiUrl || config?.apiUrl || "http://localhost:8000";
+}
+
+function printQuickTestLoginGuidance(eligibility: Extract<ReturnType<typeof assessQuickServerTestEligibility>, { status: "login_required" }>): void {
+  console.error("Quick server testing requires a CLI account logged into this self-hosted instance.");
+  console.error("Run:");
+  console.error(`  ${eligibility.loginCommand}`);
+  console.error("Then run:");
+  console.error(`  ${eligibility.rerunCommand}`);
+}
+
+async function promptForQuickServerTest(): Promise<boolean> {
+  console.error("\nQuick server test:");
+  console.error("  - Create, reload, and remove one temporary AI chat");
+  console.error("  - Run math.calculate");
+  console.error("  - Run one-result web.search");
+  console.error("\nThese checks use your logged-in account and may consume credits.");
+  const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question("Continue with quick server test? [y/N] ");
+    return ["y", "yes"].includes(answer.trim().toLowerCase());
+  } finally {
+    rl.close();
+  }
+}
+
+async function maybeRunQuickServerTest(
+  client: OpenMatesClient,
+  installPath: string,
+  role: ServerRole,
+  config: ServerConfig | null,
+  flags: Record<string, string | boolean>,
+  standalone = false,
+): Promise<QuickServerTestOutcome> {
+  const action = decideQuickServerTestAction({
+    interactive: process.stdin.isTTY === true && process.stderr.isTTY === true,
+    json: flags.json === true,
+    continuous: flags["continuous-update"] === true,
+    skipQuickTest: flags["skip-quick-test"] === true,
+    quickTest: flags["quick-test"] === true || standalone,
+    confirmSpendCredits: flags["confirm-spend-credits"] === true,
+    yes: flags.yes === true,
+  });
+  if (role !== "core") return { status: "not_run", reason: "non_core_role", checks: [] };
+  if (action === "skip") {
+    if (standalone) {
+      throw new Error("Non-interactive quick tests require --confirm-spend-credits.");
+    }
+    return { status: "not_run", reason: "not_confirmed", checks: [] };
+  }
+
+  const eligibility = assessQuickServerTestEligibility({
+    role,
+    expectedApiUrl: expectedServerApiUrl(installPath, config),
+    client,
+  });
+  if (eligibility.status === "login_required") {
+    printQuickTestLoginGuidance(eligibility);
+    if (standalone || action === "run") {
+      throw new Error("Log into the self-hosted instance before running quick server tests.");
+    }
+    return { status: "not_run", reason: eligibility.reason, checks: [] };
+  }
+  if (eligibility.status !== "ready") {
+    return { status: "not_run", reason: eligibility.reason, checks: [] };
+  }
+  if (action === "prompt" && !await promptForQuickServerTest()) {
+    return { status: "not_run", reason: "declined", checks: [] };
+  }
+
+  console.error("Running authenticated quick server test...");
+  const result = await runQuickServerTest(client);
+  if (flags.json !== true) {
+    for (const check of result.checks) {
+      const marker = check.status === "passed" ? "x" : "!";
+      const reason = check.sanitized_reason ? ` (${check.sanitized_reason})` : "";
+      console.error(`  [${marker}] ${check.id}${reason}`);
+    }
+  }
+  return result;
 }
 
 function targetSourceLinks(imageTag: string, templateRef: string): Record<string, string | null> {
@@ -2177,7 +2298,7 @@ async function autoInstallRuntimeMonitoringServices(installPath: string, role: S
   return "installed";
 }
 
-async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Record<string, string | boolean>): Promise<void> {
   if (rest[0] === "status") {
     const installPath = resolveServerPath(flags);
     const config = loadConfigForInstallPath(installPath);
@@ -2206,7 +2327,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (!Number.isFinite(intervalMinutes) || intervalMinutes < 5) throw new Error("--interval must be at least 5 minutes.");
     console.error(`Running continuous updater every ${intervalMinutes} minutes. Use Ctrl+C to stop.`);
     while (true) {
-      await serverUpdate([], { ...flags, continuous: false });
+      await serverUpdate(client, [], { ...flags, continuous: false, "continuous-update": true });
       await sleep(intervalMinutes * 60_000);
     }
   }
@@ -2401,11 +2522,22 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
     });
-
-    if (flags.json === true) {
-      printJson({ ...plan, status: "success", dryRun: false, runtimeVerification: successfulRuntimeOutput });
-    } else {
+    if (flags.json !== true) {
       console.log("Server images updated, containers restarted, and health checks passed.");
+    }
+    const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
+    persistQuickServerTestOutcome(installPath, role, quickTest);
+    if (flags.json === true) {
+      printJson({
+        ...plan,
+        status: quickTest.status === "failed" ? "degraded" : "success",
+        dryRun: false,
+        runtimeVerification: successfulRuntimeOutput,
+        quickTest,
+      });
+    }
+    if (quickTest.status === "failed") {
+      throw new Error("Authenticated quick server test failed; updated containers remain running.");
     }
     return;
   }
@@ -2520,11 +2652,40 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     checks: successfulRuntimeOutput?.checks ?? [],
     runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
   });
-  if (flags.json === true) {
-    printJson({ command: "update", status: "success", path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput });
-  } else {
+  if (flags.json !== true) {
     console.log("Server updated, restarted, and health checks passed.");
   }
+  const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
+  persistQuickServerTestOutcome(installPath, role, quickTest);
+  if (flags.json === true) {
+    printJson({
+      command: "update",
+      status: quickTest.status === "failed" ? "degraded" : "success",
+      path: installPath,
+      mode: "source",
+      runtimeVerification: successfulRuntimeOutput,
+      quickTest,
+    });
+  }
+  if (quickTest.status === "failed") {
+    throw new Error("Authenticated quick server test failed; updated containers remain running.");
+  }
+}
+
+async function serverTest(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (flags.quick !== true && flags["quick-test"] !== true) {
+    throw new Error("Usage: openmates server test --quick [--confirm-spend-credits] [--json]");
+  }
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const result = await maybeRunQuickServerTest(client, installPath, role, config, flags, true);
+  if (flags.json === true) printJson({ command: "test", role, quickTest: result });
+  else if (result.status === "passed") console.log("Authenticated quick server test passed.");
+  if (result.status === "failed") throw new Error("Authenticated quick server test failed.");
 }
 
 async function serverVerify(flags: Record<string, string | boolean>): Promise<void> {
@@ -3494,6 +3655,7 @@ Commands:
   status          Show server status (container health)
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
+  test            Run explicitly consented authenticated functional checks
   verify          Run the role-aware provider-free runtime contract without updating
   monitoring      Install, run, or inspect periodic runtime monitoring and the host watchdog
   notifications   Send labeled runtime-health notification delivery tests
@@ -3553,6 +3715,13 @@ Command Options:
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+    --skip-quick-test   Do not offer the authenticated post-update quick test
+    --quick-test        Request the quick test (automation also needs --confirm-spend-credits)
+    --confirm-spend-credits  Explicitly authorize the bounded paid quick test
+
+  test:
+    openmates server test --quick [--confirm-spend-credits] [--json]
+    Interactive runs ask before spending; non-interactive runs require explicit spend confirmation.
 
   verify:
     openmates server verify [--role core|upload|preview] [--json]
@@ -3631,6 +3800,7 @@ Examples:
 // ---------------------------------------------------------------------------
 
 export async function handleServer(
+  client: OpenMatesClient,
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
@@ -3651,7 +3821,8 @@ export async function handleServer(
     case "restart":    return serverRestart(flags);
     case "logs":       return serverLogs(flags);
     case "install":    return serverInstall(flags);
-    case "update":     return serverUpdate(rest, flags);
+    case "update":     return serverUpdate(client, rest, flags);
+    case "test":       return serverTest(client, flags);
     case "verify":     return serverVerify(flags);
     case "monitoring": return serverMonitoring(rest, flags);
     case "notifications": return serverNotifications(rest, flags);
