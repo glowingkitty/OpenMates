@@ -51,7 +51,7 @@ TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
-CLI_REAL_CAPTURE_START_TRIM_SECONDS = 0.3
+CLI_REAL_CAPTURE_START_TRIM_SECONDS = 0.5
 CLI_REAL_CAPTURE_END_TRIM_SECONDS = 0.6
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
@@ -932,11 +932,15 @@ def render_clean_video(
     output_duration = round((trimmed_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
-    video_filters = [f"setpts=PTS/{playback_rate:g}"]
+    video_filters = [
+        f"trim=start={start:g}:end={end:g}",
+        "setpts=PTS-STARTPTS",
+        f"setpts=PTS/{playback_rate:g}",
+    ]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
     audio_inputs: list[str] = []
-    input_args = ["-ss", str(start), "-t", str(trimmed_duration), "-i", str(source_path)]
+    input_args = ["-i", str(source_path)]
     audio_map: list[str] = []
     if audio_path is not None:
         input_args.extend(["-i", str(audio_path)])
