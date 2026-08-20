@@ -11,7 +11,7 @@ export {};
 import type { Page, Response } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { fillMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -153,19 +153,20 @@ test.describe('Teams V1 context isolation', () => {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
 			}
 			await ensureSidebarClosed(page);
+			await startNewChat(page);
+			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
 
 			const sendFrameIndex = frames.length;
-			const editor = page.getByTestId('message-editor').last();
+			const messageInput = page.locator('[data-action="message-input"]').last();
+			const editor = messageInput.getByTestId('message-editor');
 			await expect(editor).toBeVisible({ timeout: 30000 });
-			await editor.click();
-			await page.keyboard.insertText(ordinaryMessage);
-			await expect.poll(async () => (await editor.innerText()).trim()).toBe(ordinaryMessage);
-			await page.getByTestId('message-field').last().locator('[data-action="send-message"]').click();
+			await fillMessageEditor(page, editor, ordinaryMessage);
+			await messageInput.getByTestId('message-field').locator('[data-action="send-message"]').click();
 
-			const preflight = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_turn_preflight', (payload) =>
-				payload.team_id === teamId);
+			const preflight = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_turn_preflight', () => true);
 			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_message_added', (payload) =>
 				payload.team_id === teamId);
+			expect(preflight.payload.team_id).toBe(teamId);
 			expect(preflight.payload.inference_request?.team_id).toBe(teamId);
 			expect(preflight.payload.inference_request?.message?.encrypted_content).toBeTruthy();
 			expect(preflight.payload.inference_request?.message?.content).toBeUndefined();
