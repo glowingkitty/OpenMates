@@ -28,6 +28,9 @@ GLOBAL_DEADLINE_SECONDS = 60
 CELERY_PROBE_RESULT_TIMEOUT_SECONDS = 10
 CELERY_PROBE_CHECK_TIMEOUT_SECONDS = CELERY_PROBE_RESULT_TIMEOUT_SECONDS + 5
 STRIPE_REQUEST_TIMEOUT_SECONDS = 10
+HTTP_PROBE_TIMEOUT_SECONDS = 4
+BASELINE_HTTP_PROBE_ATTEMPTS = 2
+HTTP_PROBE_RETRY_DELAY_SECONDS = 0.25
 CheckRunner = Callable[[], Awaitable[None]]
 
 
@@ -133,10 +136,26 @@ async def execute_checks(
     return sorted(results, key=lambda result: [check.id for check in checks].index(result.id))
 
 
-async def _http_get(url: str) -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get(url)
-        response.raise_for_status()
+async def _http_get(url: str, *, attempts: int = 1, accepted_status_codes: set[int] | None = None) -> None:
+    last_probe_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            async with asyncio.timeout(HTTP_PROBE_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(timeout=HTTP_PROBE_TIMEOUT_SECONDS, follow_redirects=False) as client:
+                    response = await client.get(url)
+                    if accepted_status_codes is not None and response.status_code in accepted_status_codes:
+                        return
+                    response.raise_for_status()
+                    if accepted_status_codes is not None:
+                        raise RuntimeError("unexpected_http_status")
+                    return
+        except (httpx.TransportError, TimeoutError) as exc:
+            last_probe_error = exc
+            if attempt + 1 >= attempts:
+                raise
+            await asyncio.sleep(HTTP_PROBE_RETRY_DELAY_SECONDS)
+    if last_probe_error is not None:
+        raise last_probe_error
 
 
 def _cache_client():
@@ -164,10 +183,11 @@ async def _check_cache() -> None:
 
 
 async def _check_vault() -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get(f"{os.getenv('VAULT_URL', 'http://vault:8200')}/v1/sys/health")
-        if response.status_code not in {200, 429, 472, 473}:
-            response.raise_for_status()
+    await _http_get(
+        f"{os.getenv('VAULT_URL', 'http://vault:8200')}/v1/sys/health",
+        attempts=BASELINE_HTTP_PROBE_ATTEMPTS,
+        accepted_status_codes={200, 429, 472, 473},
+    )
 
 
 async def _check_tcp(host: str, port: int) -> None:
@@ -178,11 +198,16 @@ async def _check_tcp(host: str, port: int) -> None:
 
 async def _check_required_services(role: str) -> None:
     if role == "core":
-        await asyncio.gather(_http_get("http://localhost:8000/v1/health"), _http_get("http://cms:8055/server/ping"), _check_cache(), _check_vault())
+        await asyncio.gather(
+            _http_get("http://localhost:8000/v1/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
+            _http_get("http://cms:8055/server/ping", attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
+            _check_cache(),
+            _check_vault(),
+        )
     elif role == "upload":
-        await asyncio.gather(_http_get("http://app-uploads:8000/health"), _check_vault())
+        await asyncio.gather(_http_get("http://app-uploads:8000/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS), _check_vault())
     else:
-        await _http_get("http://preview:8080/health")
+        await _http_get("http://preview:8080/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS)
 
 
 async def _check_worker_queue() -> None:
@@ -281,27 +306,14 @@ async def _check_stripe_account_read() -> None:
     if not api_key:
         raise RuntimeError("stripe_credential_missing")
 
-    def retrieve_account() -> None:
-        import stripe
-
-        previous_http_client = stripe.default_http_client
-        http_client = stripe.RequestsClient(timeout=STRIPE_REQUEST_TIMEOUT_SECONDS)
-        stripe.api_key = api_key
-        stripe.default_http_client = http_client
-        try:
-            stripe.Account.retrieve()
-        finally:
-            stripe.default_http_client = previous_http_client
-            http_client.close()
-
-    await asyncio.to_thread(retrieve_account)
+    async with asyncio.timeout(STRIPE_REQUEST_TIMEOUT_SECONDS):
+        async with httpx.AsyncClient(timeout=STRIPE_REQUEST_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            response = await client.get("https://api.stripe.com/v1/account", headers={"Authorization": f"Bearer {api_key}"})
+            response.raise_for_status()
 
 
 async def _check_billing_routes() -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get("http://localhost:8000/v1/payments/subscription")
-    if response.status_code not in {401, 403}:
-        raise RuntimeError("billing_route_probe_unexpected_status")
+    await _http_get("http://localhost:8000/v1/payments/subscription", accepted_status_codes={401, 403})
 
 
 async def _check_billing_workers() -> None:
@@ -343,7 +355,7 @@ def _runtime_runners(role: str) -> dict[str, CheckRunner]:
     health_url = {"core": "http://localhost:8000/v1/health", "upload": "http://app-uploads:8000/health", "preview": "http://preview:8080/health"}[role]
     return {
         "compose.required_services": lambda: _check_required_services(role),
-        "http.role_health": lambda: _http_get(health_url),
+        "http.role_health": lambda: _http_get(health_url, attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
         "core.database": lambda: _http_get("http://cms:8055/server/health"),
         "core.cache": _check_cache,
         "core.vault": _check_vault,

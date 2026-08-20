@@ -19,17 +19,24 @@ from types import SimpleNamespace
 from types import ModuleType
 import sys
 
+import httpx
 import pytest
 
 from backend.core.api.app.utils.server_mode import resolve_runtime_deployment_mode
 from backend.scripts.runtime_health_verifier import (
     CELERY_PROBE_CHECK_TIMEOUT_SECONDS,
     CELERY_PROBE_RESULT_TIMEOUT_SECONDS,
+    BASELINE_HTTP_PROBE_ATTEMPTS,
     GLOBAL_DEADLINE_SECONDS,
+    HTTP_PROBE_RETRY_DELAY_SECONDS,
+    HTTP_PROBE_TIMEOUT_SECONDS,
+    STRIPE_REQUEST_TIMEOUT_SECONDS,
     CheckDefinition,
     _check_billing_routes,
     _check_billing_workers,
     _check_billing_webhook,
+    _check_vault,
+    _http_get,
     _check_stripe_account_read,
     build_check_inventory,
     execute_checks,
@@ -50,11 +57,18 @@ def test_directus_upload_storage_preserves_bind_mount_and_drops_root_privileges(
 @pytest.mark.asyncio
 async def test_billing_route_discovery_probes_a_private_live_route(monkeypatch: pytest.MonkeyPatch) -> None:
     requested_urls: list[str] = []
+    observed_timeouts: list[int] = []
 
     class FakeResponse:
         status_code = 401
 
+        def raise_for_status(self) -> None:
+            raise AssertionError("accepted private billing status must not raise")
+
     class FakeClient:
+        def __init__(self, *, timeout: int, follow_redirects: bool):
+            observed_timeouts.append(timeout)
+
         async def __aenter__(self):
             return self
 
@@ -67,39 +81,219 @@ async def test_billing_route_discovery_probes_a_private_live_route(monkeypatch: 
 
     import backend.scripts.runtime_health_verifier as verifier
 
-    monkeypatch.setattr(verifier.httpx, "AsyncClient", lambda **_kwargs: FakeClient())
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeClient)
 
     await _check_billing_routes()
 
     assert requested_urls == ["http://localhost:8000/v1/payments/subscription"]
+    assert observed_timeouts == [HTTP_PROBE_TIMEOUT_SECONDS]
 
 
 @pytest.mark.asyncio
-async def test_stripe_account_check_imports_sdk_off_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
-    event_loop_thread = threading.get_ident()
-    stripe_import_threads: list[int] = []
-    request_timeouts: list[int] = []
-    closed_clients: list[bool] = []
+@pytest.mark.parametrize("probe_error", [httpx.ReadTimeout("synthetic timeout"), httpx.ConnectError("synthetic connect error")])
+async def test_http_probe_retries_one_transient_transport_error(monkeypatch: pytest.MonkeyPatch, probe_error: httpx.TransportError) -> None:
+    requested_urls: list[str] = []
+    observed_timeouts: list[int] = []
+    observed_sleeps: list[float] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, *, timeout: int, follow_redirects: bool):
+            observed_timeouts.append(timeout)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str):
+            requested_urls.append(url)
+            if len(requested_urls) == 1:
+                raise probe_error
+            return FakeResponse()
+
+    async def fake_sleep(delay: float) -> None:
+        observed_sleeps.append(delay)
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(verifier.asyncio, "sleep", fake_sleep)
+
+    await _http_get("http://localhost:8000/v1/health", attempts=2)
+
+    assert requested_urls == ["http://localhost:8000/v1/health", "http://localhost:8000/v1/health"]
+    assert observed_timeouts == [HTTP_PROBE_TIMEOUT_SECONDS, HTTP_PROBE_TIMEOUT_SECONDS]
+    assert observed_sleeps == [HTTP_PROBE_RETRY_DELAY_SECONDS]
+
+
+@pytest.mark.asyncio
+async def test_http_probe_enforces_total_attempt_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    class SlowClient:
+        def __init__(self, **_kwargs):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url: str):
+            await asyncio.sleep(60)
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier, "HTTP_PROBE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", SlowClient)
+
+    with pytest.raises(TimeoutError):
+        await verifier._http_get("http://localhost:8000/v1/health")
+
+
+@pytest.mark.asyncio
+async def test_http_probe_retries_outer_total_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    requested_urls: list[str] = []
+    observed_sleeps: list[float] = []
+    original_sleep = asyncio.sleep
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class SlowThenFastClient:
+        def __init__(self, **_kwargs):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str):
+            requested_urls.append(url)
+            if len(requested_urls) == 1:
+                await original_sleep(60)
+            return FakeResponse()
+
+    async def fake_sleep(delay: float) -> None:
+        observed_sleeps.append(delay)
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier, "HTTP_PROBE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", SlowThenFastClient)
+    monkeypatch.setattr(verifier.asyncio, "sleep", fake_sleep)
+
+    await verifier._http_get("http://localhost:8000/v1/health", attempts=2)
+
+    assert requested_urls == ["http://localhost:8000/v1/health", "http://localhost:8000/v1/health"]
+    assert observed_sleeps == [HTTP_PROBE_RETRY_DELAY_SECONDS]
+
+
+@pytest.mark.asyncio
+async def test_vault_probe_retries_transient_transport_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    requested_urls: list[str] = []
+
+    class FakeResponse:
+        status_code = 429
+
+        def raise_for_status(self) -> None:
+            raise AssertionError("accepted Vault standby status must not raise")
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str):
+            requested_urls.append(url)
+            if len(requested_urls) == 1:
+                raise httpx.ConnectError("synthetic connect error")
+            return FakeResponse()
+
+    async def fake_sleep(_delay: float) -> None:
+        return None
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setenv("VAULT_URL", "http://vault.local:8200")
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(verifier.asyncio, "sleep", fake_sleep)
+
+    await _check_vault()
+
+    assert requested_urls == ["http://vault.local:8200/v1/sys/health", "http://vault.local:8200/v1/sys/health"]
+
+
+@pytest.mark.asyncio
+async def test_vault_probe_rejects_unaccepted_redirect_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeResponse:
+        status_code = 302
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url: str):
+            return FakeResponse()
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeClient)
+
+    with pytest.raises(RuntimeError, match="unexpected_http_status"):
+        await _check_vault()
+
+
+@pytest.mark.asyncio
+async def test_stripe_account_check_uses_bounded_direct_http(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests_seen: list[tuple[str, dict[str, str]]] = []
+    observed_timeouts: list[int] = []
     original_import = builtins.__import__
 
-    class FakeRequestsClient:
-        def __init__(self, *, timeout: int):
-            request_timeouts.append(timeout)
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
 
-        def close(self):
-            closed_clients.append(True)
+    class FakeClient:
+        def __init__(self, *, timeout: int, follow_redirects: bool):
+            observed_timeouts.append(timeout)
 
-    fake_stripe = SimpleNamespace(
-        Account=SimpleNamespace(retrieve=lambda: None),
-        RequestsClient=FakeRequestsClient,
-        api_key=None,
-        default_http_client=None,
-    )
+        async def __aenter__(self):
+            return self
 
-    def tracking_import(name: str, *args, **kwargs):
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str, *, headers: dict[str, str]):
+            requests_seen.append((url, headers))
+            return FakeResponse()
+
+    def reject_stripe_import(name: str, *args, **kwargs):
         if name == "stripe":
-            stripe_import_threads.append(threading.get_ident())
-            return fake_stripe
+            raise AssertionError("runtime health should not mutate or import Stripe SDK globals")
         return original_import(name, *args, **kwargs)
 
     class FakeSecretsManager:
@@ -111,15 +305,48 @@ async def test_stripe_account_check_imports_sdk_off_event_loop(monkeypatch: pyte
 
     import backend.scripts.runtime_health_verifier as verifier
 
-    monkeypatch.setattr(builtins, "__import__", tracking_import)
+    monkeypatch.setattr(builtins, "__import__", reject_stripe_import)
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeClient)
     monkeypatch.setattr(verifier, "_initialized_secrets_manager", initialized_secrets_manager)
 
     await _check_stripe_account_read()
 
-    assert stripe_import_threads
-    assert all(thread_id != event_loop_thread for thread_id in stripe_import_threads)
-    assert request_timeouts == [10]
-    assert closed_clients == [True]
+    assert observed_timeouts == [10]
+    assert requests_seen == [("https://api.stripe.com/v1/account", {"Authorization": "Bearer synthetic-key"})]
+
+
+@pytest.mark.asyncio
+async def test_stripe_account_check_enforces_total_request_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    class SlowClient:
+        def __init__(self, **_kwargs):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url: str, *, headers: dict[str, str]):
+            await asyncio.sleep(60)
+
+    class FakeSecretsManager:
+        async def get_secret(self, *_args, **_kwargs):
+            return "synthetic-key"
+
+    async def initialized_secrets_manager():
+        return FakeSecretsManager()
+
+    import backend.scripts.runtime_health_verifier as verifier
+
+    monkeypatch.setattr(verifier, "STRIPE_REQUEST_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", SlowClient)
+    monkeypatch.setattr(verifier, "_initialized_secrets_manager", initialized_secrets_manager)
+
+    with pytest.raises(TimeoutError):
+        await _check_stripe_account_read()
+
+    assert STRIPE_REQUEST_TIMEOUT_SECONDS < 15
 
 
 @pytest.mark.asyncio
@@ -260,6 +487,7 @@ def test_role_inventory_is_stable_and_bounded() -> None:
     core_checks = {check.id: check for check in build_check_inventory("core", mode)}
     assert core_checks["core.scheduler_freshness"].timeout_seconds == CELERY_PROBE_CHECK_TIMEOUT_SECONDS
     assert core_checks["core.scheduler_freshness"].timeout_seconds > CELERY_PROBE_RESULT_TIMEOUT_SECONDS
+    assert HTTP_PROBE_TIMEOUT_SECONDS * BASELINE_HTTP_PROBE_ATTEMPTS + HTTP_PROBE_RETRY_DELAY_SECONDS < core_checks["http.role_health"].timeout_seconds
 
 
 @pytest.mark.asyncio
@@ -388,20 +616,25 @@ async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest
     calls: list[object] = []
 
     class FakeRequestsClient:
-        def __init__(self, *, timeout: int):
+        def __init__(self, *, timeout: int, follow_redirects: bool):
             calls.append(("timeout", timeout))
+            calls.append(("follow_redirects", follow_redirects))
 
-        def close(self) -> None:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
             calls.append("close")
+            return None
 
-    fake_stripe = SimpleNamespace(api_key=None, default_http_client=None, RequestsClient=FakeRequestsClient)
+        async def get(self, url: str, *, headers: dict[str, str]):
+            calls.append(("get", url, headers))
 
-    class FakeAccount:
-        @staticmethod
-        def retrieve() -> None:
-            calls.append(("retrieve", fake_stripe.api_key))
+            class FakeResponse:
+                def raise_for_status(self) -> None:
+                    calls.append("raise_for_status")
 
-    fake_stripe.Account = FakeAccount
+            return FakeResponse()
 
     class FakeSecretsManager:
         async def initialize(self) -> bool:
@@ -412,7 +645,7 @@ async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest
             calls.append((secret_path, secret_key, log_missing))
             return "sk_test_runtime_health"
 
-    monkeypatch.setitem(sys.modules, "stripe", fake_stripe)
+    monkeypatch.setattr(verifier.httpx, "AsyncClient", FakeRequestsClient)
     monkeypatch.setattr(secrets_module, "SecretsManager", FakeSecretsManager)
     monkeypatch.setattr(verifier, "resolve_runtime_deployment_mode", lambda: SimpleNamespace(environment="production"))
 
@@ -421,7 +654,9 @@ async def test_stripe_account_read_initializes_vault_manager(monkeypatch: pytest
     assert "initialize" in calls
     assert ("kv/data/providers/stripe", "production_secret_key", True) in calls
     assert ("timeout", 10) in calls
-    assert ("retrieve", "sk_test_runtime_health") in calls
+    assert ("follow_redirects", False) in calls
+    assert ("get", "https://api.stripe.com/v1/account", {"Authorization": "Bearer sk_test_runtime_health"}) in calls
+    assert "raise_for_status" in calls
     assert "close" in calls
 
 
