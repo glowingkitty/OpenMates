@@ -562,9 +562,14 @@
     /**
      * Cancel passkey login and return to email login
      */
-    async function cancelPasskeyLogin() {
-        const shouldLogoutEstablishedSession = passkeyLoginSessionEstablished;
+    async function clearEstablishedPasskeySession() {
+        if (!passkeyLoginSessionEstablished) return;
 
+        passkeyLoginSessionEstablished = false;
+        await logout();
+    }
+
+    async function cancelPasskeyLogin() {
         // Abort any ongoing passkey operations
         if (passkeyLoginAbortController) {
             passkeyLoginAbortController.abort();
@@ -576,10 +581,7 @@
         isLoading = false;
         loginFailedWarning = false;
 
-        if (shouldLogoutEstablishedSession) {
-            passkeyLoginSessionEstablished = false;
-            await logout();
-        }
+        await clearEstablishedPasskeySession();
     }
     
     /**
@@ -881,6 +883,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -910,6 +913,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -920,6 +924,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -946,6 +951,7 @@
                     loginFailedWarning = true;
                     isPasskeyLoading = false;
                     isLoading = false;
+                    await clearEstablishedPasskeySession();
                     return;
                 }
             }
@@ -955,6 +961,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -1171,6 +1178,8 @@
             if (error instanceof Error && error.name === 'AbortError') {
                 return;
             }
+
+            await clearEstablishedPasskeySession();
 
             console.error('Error during passkey login:', error);
             // Persist error for admin debugging (clientLogForwarder isn't active during login)
