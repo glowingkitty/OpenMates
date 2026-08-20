@@ -116,7 +116,7 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	expect(Math.abs(expandedHeaderMetrics.identityCenterX - expandedHeaderMetrics.headerCenterX)).toBeLessThan(8);
 	expect(expandedHeaderMetrics.creditsBelowTitle).toBe(true);
 
-	const settingsContent = settingsMenu.getByRole('presentation');
+	const settingsContent = settingsMenu.getByTestId('settings-content-wrapper');
 	await settingsContent.evaluate((element: HTMLElement) => {
 		element.scrollTo({ top: element.scrollHeight });
 	});
