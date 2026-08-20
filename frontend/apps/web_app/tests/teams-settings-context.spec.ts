@@ -163,7 +163,21 @@ test.describe('Teams V1 context isolation', () => {
 			await fillMessageEditor(page, editor, ordinaryMessage);
 			await messageInput.getByTestId('message-field').locator('[data-action="send-message"]').click();
 
-			const preflight = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_turn_preflight', () => true);
+			const preflight = await waitForFrame(
+				frames,
+				sendFrameIndex,
+				'sent',
+				'chat_turn_preflight',
+				() => true
+			).catch(async (error: unknown) => {
+				const sendDebug = await page.evaluate(() =>
+					(window as Window & { __openmatesLastSendDebug?: Record<string, unknown> })
+						.__openmatesLastSendDebug ?? null);
+				const observedFrames = frames.slice(sendFrameIndex).map(({ direction, type }) => ({ direction, type }));
+				throw new Error(
+					`Team preflight not observed. sendDebug=${JSON.stringify(sendDebug)} observedFrames=${JSON.stringify(observedFrames)} original=${String(error)}`
+				);
+			});
 			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_message_added', (payload) =>
 				payload.team_id === teamId);
 			expect(preflight.payload.team_id).toBe(teamId);
