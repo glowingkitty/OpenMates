@@ -21,7 +21,6 @@ const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
 const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 2_000 : 0;
-const PROOF_VIDEO_TEST_TIMEOUT_MS = 240_000;
 
 async function holdProofVideoState(page: any): Promise<void> {
 	if (PROOF_VIDEO_STATE_HOLD_MS > 0) await page.waitForTimeout(PROOF_VIDEO_STATE_HOLD_MS);
@@ -303,7 +302,7 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('startup sync is bounded and older content hydrates on demand', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
-	test.setTimeout(PROOF_VIDEO_STATE_HOLD_MS > 0 ? PROOF_VIDEO_TEST_TIMEOUT_MS : 180_000);
+	test.setTimeout(180000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const receivedTypes: string[] = [];
@@ -470,6 +469,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		await page.getByTestId('message-editor').click();
 		await expectLoadingBelowHeader(page);
 		await holdProofVideoState(page);
+		await page.getByTestId('message-editor').press('Escape');
+		await expect(page.getByTestId('message-editor')).not.toBeFocused();
 
 		failColdWindow = true;
 		await context.setOffline(true);
