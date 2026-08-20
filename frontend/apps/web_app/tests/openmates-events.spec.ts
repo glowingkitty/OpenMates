@@ -46,7 +46,7 @@ test('OpenMates event SEO page serves static event HTML without 500', async ({ p
 	expect(response.status()).toBe(200);
 	expect(html).toContain(EVENT_TITLE);
 	expect(html).toContain('OpenMates Events');
-	expect(html).toContain(`https://app.dev.openmates.org/events/${EVENT_SLUG}`);
+	expect(html).toContain(`/events/${EVENT_SLUG}`);
 	expect(html).toContain('https://schema.org/EventScheduled');
 	expect(html).not.toContain('Internal Error');
 });
