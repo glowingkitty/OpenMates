@@ -12,12 +12,31 @@ const {test, expect} = require('./helpers/cookie-audit');
 const {getE2EDebugUrl} = require('./signup-flow-helpers');
 const {createVideoProofRuntime, defineVideoProof} = require('./helpers/video-proof');
 
+const PROOF_DOMAIN_BADGE_ID = 'openmates-proof-domain-badge';
+const PROOF_DOMAIN = 'app.dev.openmates.org';
+
+async function captureBrowserProofFrame(page: any, domain: string): Promise<Buffer> {
+	await page.evaluate(({badgeId, value}: {badgeId: string; value: string}) => {
+		document.getElementById(badgeId)?.remove();
+		const badge = document.createElement('div');
+		badge.id = badgeId;
+		badge.textContent = `● ${value}`;
+		badge.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;padding:7px 18px;border:1px solid rgba(90,90,100,.35);border-radius:10px;background:rgba(248,248,250,.94);box-shadow:0 2px 10px rgba(22,24,31,.16);color:#34343a;font:16px Arial,sans-serif;';
+		document.body.appendChild(badge);
+	}, {badgeId: PROOF_DOMAIN_BADGE_ID, value: domain});
+	try {
+		return await page.screenshot({type: 'png'});
+	} finally {
+		await page.evaluate((badgeId: string) => document.getElementById(badgeId)?.remove(), PROOF_DOMAIN_BADGE_ID);
+	}
+}
+
 const proofContract = defineVideoProof({
 	id: 'proof-video-browser-architecture',
 	title: 'Explore the OpenMates welcome stories',
 	surface: 'web',
 	devices: ['web-laptop'],
-	domain: 'app.dev.openmates.org',
+	domain: PROOF_DOMAIN,
 	transcript: [
 		{
 			id: 'welcome',
@@ -66,14 +85,15 @@ test.describe('Proof video browser architecture', () => {
 	test('records a fast spec-owned welcome tutorial timeline', async ({page}: {page: any}, testInfo: any) => {
 		const proof = createVideoProofRuntime(proofContract, {
 			device: 'web-laptop',
-			attach: testInfo.attach.bind(testInfo)
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => captureBrowserProofFrame(page, PROOF_DOMAIN)
 		});
 
 		await page.goto(getE2EDebugUrl('/?landing-header-motion'), {waitUntil: 'domcontentloaded'});
 		await proof.assert('welcome.shell.visible', async () => {
 			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({timeout: 15000});
 		});
-		proof.checkpoint('welcome-visible');
+		await proof.checkpoint('welcome-visible');
 
 		await proof.action('open-actionable-story', async () => {
 			await page.getByTestId('daily-inspiration-next').click();
@@ -81,7 +101,7 @@ test.describe('Proof video browser architecture', () => {
 		await proof.assert('welcome.actionable.visible', async () => {
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable.', {timeout: 5000});
 		});
-		proof.checkpoint('actionable-visible');
+		await proof.checkpoint('actionable-visible');
 
 		await proof.action('open-privacy-story', async () => {
 			await page.getByTestId('daily-inspiration-next').click();
@@ -89,7 +109,7 @@ test.describe('Proof video browser architecture', () => {
 		await proof.assert('welcome.privacy.visible', async () => {
 			await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
 		});
-		proof.checkpoint('privacy-visible');
+		await proof.checkpoint('privacy-visible');
 		await proof.attach();
 	});
 });

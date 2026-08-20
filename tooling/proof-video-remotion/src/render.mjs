@@ -24,7 +24,13 @@ await fs.mkdir(publicDir, {recursive: true});
 const extension = path.extname(request.sourceVideo) || '.webm';
 const sourceName = `source${extension}`;
 await fs.copyFile(request.sourceVideo, path.join(publicDir, sourceName));
-const inputProps = {...request, sourceVideo: sourceName};
+const segments = await Promise.all(request.segments.map(async (segment, index) => {
+	if (segment.kind !== 'freeze') return segment;
+	const imageName = `checkpoint-${index}${path.extname(segment.source_image) || '.png'}`;
+	await fs.copyFile(segment.source_image, path.join(publicDir, imageName));
+	return {...segment, source_image: imageName};
+}));
+const inputProps = {...request, sourceVideo: sourceName, segments};
 
 try {
 	const serveUrl = await bundle({

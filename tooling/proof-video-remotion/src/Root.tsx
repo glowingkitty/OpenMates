@@ -19,7 +19,7 @@ const defaults: BrowserTutorialProps = {
 	deviceProfile: 'web-laptop',
 	viewport: {width: 1440, height: 900},
 	output: {width: 1440, height: 900, fps: 30},
-	segments: [{kind: 'freeze', source_at_ms: 0, duration_ms: 1000, cue_id: 'default'}],
+	segments: [{kind: 'freeze', source_image: '', source_sha256: 'sha256:default', duration_ms: 1000, cue_id: 'default'}],
 	contractHash: 'sha256:default',
 	timelineHash: 'sha256:default'
 };

@@ -6,6 +6,9 @@
  * performed after the fast source test and never adds sleeps to test execution.
  */
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const {createHash} = require('node:crypto');
+
 type ProofDevice = 'web-laptop' | 'web-phone' | 'cli-terminal';
 
 interface ProofTranscriptCue {
@@ -41,6 +44,7 @@ interface RuntimeOptions {
 	now?: () => number;
 	device: ProofDevice;
 	attach: (name: string, options: {body: Buffer; contentType: string}) => Promise<void>;
+	captureFrame?: () => Promise<Buffer>;
 }
 
 function requireText(value: unknown, label: string): asserts value is string {
@@ -102,6 +106,10 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 	const assertionResults: Array<Record<string, unknown>> = [];
 	const reachedCheckpoints = new Set<string>();
 	const executedAssertions = new Set<string>();
+	const checkpointFrames: Array<Record<string, unknown>> = [];
+	if (contract.surface === 'web' && !options.captureFrame) {
+		throw new Error('Web video proof runtime requires captureFrame for checkpoint attestation');
+	}
 
 	return {
 		async action<T>(id: string, callback: () => Promise<T>): Promise<T> {
@@ -127,8 +135,18 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 				throw error;
 			}
 		},
-		checkpoint(id: string): void {
+		async checkpoint(id: string): Promise<void> {
 			requireText(id, 'checkpoint id');
+			if (options.captureFrame) {
+				const body = await options.captureFrame();
+				const attachmentName = `openmates-proof-frame-${id}`;
+				await options.attach(attachmentName, {body, contentType: 'image/png'});
+				checkpointFrames.push({
+					checkpoint: id,
+					attachment_name: attachmentName,
+					sha256: `sha256:${createHash('sha256').update(body).digest('hex')}`
+				});
+			}
 			reachedCheckpoints.add(id);
 			events.push({id, kind: 'checkpoint', at_ms: now() - startedAt});
 		},
@@ -145,7 +163,8 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 				device: options.device,
 				contract,
 				events,
-				assertion_results: assertionResults
+				assertion_results: assertionResults,
+				checkpoint_frames: checkpointFrames
 			};
 			await options.attach('openmates-proof-timeline', {
 				body: Buffer.from(JSON.stringify(payload)),

@@ -84,7 +84,7 @@ def synthetic_audio_metadata(path: Path) -> dict[str, object]:
     }
 
 
-def test_tutorial_timeline_keeps_actions_fast_and_derives_checkpoint_holds() -> None:
+def test_tutorial_timeline_uses_attested_checkpoint_frame_and_quantized_hold() -> None:
     module = load_module()
     contract = {
         "transcript": [
@@ -102,16 +102,25 @@ def test_tutorial_timeline_keeps_actions_fast_and_derives_checkpoint_holds() -> 
         {"id": "result-visible", "kind": "checkpoint", "at_ms": 740},
     ]
 
-    timeline = module.build_tutorial_timeline(contract=contract, events=events, device_profile="web-laptop")
+    timeline = module.build_tutorial_timeline(
+        contract=contract,
+        events=events,
+        device_profile="web-laptop",
+        checkpoint_frames={
+            "result-visible": {"path": "/proof/result.png", "sha256": "sha256:" + "a" * 64}
+        },
+    )
 
-    assert timeline[0] == {"kind": "video", "source_from_ms": 200, "source_to_ms": 740, "duration_ms": 540}
-    assert timeline[1]["kind"] == "freeze"
-    assert timeline[1]["source_at_ms"] == 740
-    assert timeline[1]["duration_ms"] == 3600
-    assert timeline[1]["cue_id"] == "result"
+    assert timeline == [{
+        "kind": "freeze",
+        "source_image": "/proof/result.png",
+        "source_sha256": "sha256:" + "a" * 64,
+        "duration_ms": 3600.0,
+        "cue_id": "result",
+    }]
 
 
-def test_tutorial_timeline_offsets_trimmed_source_and_scopes_review_intervals() -> None:
+def test_tutorial_timeline_scopes_review_intervals_to_checkpoint_frames() -> None:
     module = load_module()
     contract = {
         "transcript": [
@@ -154,7 +163,10 @@ def test_tutorial_timeline_offsets_trimmed_source_and_scopes_review_intervals() 
         contract=contract,
         events=events,
         device_profile="web-laptop",
-        source_offset_ms=800,
+        checkpoint_frames={
+            "welcome-visible": {"path": "/proof/welcome.png", "sha256": "sha256:" + "a" * 64},
+            "result-visible": {"path": "/proof/result.png", "sha256": "sha256:" + "b" * 64},
+        },
     )
     captions, evidence = module.build_tutorial_review_timing(
         contract=contract,
@@ -163,22 +175,20 @@ def test_tutorial_timeline_offsets_trimmed_source_and_scopes_review_intervals() 
         narration_id="NARR-1",
     )
 
-    assert timeline[0]["source_at_ms"] == 200
-    assert timeline[1] == {"kind": "video", "source_from_ms": 200, "source_to_ms": 800, "duration_ms": 600}
-    assert timeline[2]["source_at_ms"] == 800
+    assert [segment["source_image"] for segment in timeline] == ["/proof/welcome.png", "/proof/result.png"]
     assert captions[0]["start"] == 0.0
     assert captions[0]["end"] == 4.0
     assert captions[0]["claim_ids"] == ["welcome.visible"]
     assert captions[1]["start"] == 4.0
-    assert captions[1]["end"] == 8.6
+    assert captions[1]["end"] == 8.0
     assert captions[1]["claim_ids"] == ["result.visible"]
     assert evidence == {
         "welcome.visible": [[0.0, 4.0]],
-        "result.visible": [[4.6, 8.6]],
+        "result.visible": [[4.0, 8.0]],
     }
 
 
-def test_tutorial_timeline_rejects_trimmed_checkpoints_and_does_not_replay_actions() -> None:
+def test_tutorial_timeline_rejects_missing_frames_and_non_monotonic_checkpoints() -> None:
     module = load_module()
     policy = {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000}
     cue = {
@@ -187,12 +197,12 @@ def test_tutorial_timeline_rejects_trimmed_checkpoints_and_does_not_replay_actio
         "checkpoint": "first-visible",
         "devices": ["web-laptop"],
     }
-    with pytest.raises(module.DemonstrationError, match="removed by the source trim"):
+    with pytest.raises(module.DemonstrationError, match="lacks an attested frame"):
         module.build_tutorial_timeline(
             contract={"transcript": [cue], "tutorial": policy},
             events=[{"id": "first-visible", "kind": "checkpoint", "at_ms": 700}],
             device_profile="web-laptop",
-            source_offset_ms=800,
+            checkpoint_frames={},
         )
 
     second_cue = {
@@ -201,17 +211,19 @@ def test_tutorial_timeline_rejects_trimmed_checkpoints_and_does_not_replay_actio
         "text": "The second result remains visible in the browser window.",
         "checkpoint": "second-visible",
     }
-    timeline = module.build_tutorial_timeline(
-        contract={"transcript": [cue, second_cue], "tutorial": policy},
-        events=[
-            {"id": "open-first", "kind": "action", "start_ms": 100, "end_ms": 400},
-            {"id": "first-visible", "kind": "checkpoint", "at_ms": 500},
-            {"id": "second-visible", "kind": "checkpoint", "at_ms": 800},
-        ],
-        device_profile="web-laptop",
-    )
-
-    assert [segment["kind"] for segment in timeline] == ["video", "freeze", "freeze"]
+    with pytest.raises(module.DemonstrationError, match="strictly increasing"):
+        module.build_tutorial_timeline(
+            contract={"transcript": [cue, second_cue], "tutorial": policy},
+            events=[
+                {"id": "first-visible", "kind": "checkpoint", "at_ms": 800},
+                {"id": "second-visible", "kind": "checkpoint", "at_ms": 500},
+            ],
+            device_profile="web-laptop",
+            checkpoint_frames={
+                "first-visible": {"path": "/proof/first.png", "sha256": "sha256:" + "a" * 64},
+                "second-visible": {"path": "/proof/second.png", "sha256": "sha256:" + "b" * 64},
+            },
+        )
 
 
 def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_duration() -> None:
@@ -240,7 +252,13 @@ def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_d
             },
         ],
     }
-    segments = [{"kind": "freeze", "source_at_ms": 500, "duration_ms": 4000, "cue_id": "result"}]
+    segments = [{
+        "kind": "freeze",
+        "source_image": "/proof/result.png",
+        "source_sha256": "sha256:" + "a" * 64,
+        "duration_ms": 4000,
+        "cue_id": "result",
+    }]
 
     with pytest.raises(module.DemonstrationError, match="Every device-scoped assertion"):
         module.build_tutorial_review_timing(
@@ -267,11 +285,19 @@ def test_browser_render_request_binds_domain_viewport_and_input_hashes(tmp_path:
     module = load_module()
     source = tmp_path / "source.webm"
     source.write_bytes(b"real playwright pixels")
+    checkpoint = tmp_path / "ready.png"
+    checkpoint.write_bytes(b"attested checkpoint pixels")
     request = module.build_browser_render_request(
         source_video=source,
         domain="app.dev.openmates.org",
         device_profile="web-laptop",
-        segments=[{"kind": "freeze", "source_at_ms": 100, "duration_ms": 1200, "cue_id": "ready"}],
+        segments=[{
+            "kind": "freeze",
+            "source_image": str(checkpoint),
+            "source_sha256": module.sha256_file(checkpoint),
+            "duration_ms": 1200,
+            "cue_id": "ready",
+        }],
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
     )
@@ -289,17 +315,25 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
     source = tmp_path / "source.webm"
     subprocess.run(
         [
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=#4f46e5:s=1440x900:r=30:d=1",
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc2=s=1440x900:r=30:d=1",
             "-c:v", "libvpx-vp9", "-an", str(source),
         ],
         check=True,
         capture_output=True,
     )
+    checkpoint = tmp_path / "checkpoint.png"
+    module.extract_frame(source, timestamp_seconds=0.1, output_path=checkpoint)
     request = module.build_browser_render_request(
         source_video=source,
         domain="app.dev.openmates.org",
         device_profile="web-laptop",
-        segments=[{"kind": "freeze", "source_at_ms": 100, "duration_ms": 1200, "cue_id": "ready"}],
+        segments=[{
+            "kind": "freeze",
+            "source_image": str(checkpoint),
+            "source_sha256": module.sha256_file(checkpoint),
+            "duration_ms": 1200,
+            "cue_id": "ready",
+        }],
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
     )
@@ -308,8 +342,90 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
 
     assert metadata["renderer"] == "openmates-remotion-browser-v1"
     assert metadata["browser_domain"] == "app.dev.openmates.org"
+    assert metadata["renderer_source_sha256"] == module.renderer_source_hash()
+    assert metadata["browser_runtime"] != "unknown"
+    assert metadata["render_request_sha256"] == module.sha256_file(tmp_path / "browser-tutorial.render-request.json")
     assert (metadata["width"], metadata["height"]) == (1440, 900)
     assert metadata["duration_seconds"] == pytest.approx(1.2, abs=0.1)
+
+    def sample(path: Path, x: int, y: int, *, timestamp: float | None = None) -> bytes:
+        seek = ["-ss", str(timestamp)] if timestamp is not None else []
+        result = subprocess.run(
+            [
+                "ffmpeg", "-v", "error", *seek, "-i", str(path),
+                "-vf", f"crop=1:1:{x}:{y},format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return result.stdout
+
+    for x, y in ((720, 20), (100, 500), (700, 700), (1300, 500)):
+        expected_pixel = sample(checkpoint, x, y)
+        rendered_pixel = sample(tmp_path / "browser-tutorial.mp4", x, y, timestamp=0.5)
+        assert all(abs(expected - rendered) <= 12 for expected, rendered in zip(expected_pixel, rendered_pixel, strict=True))
+
+
+def test_remotion_freezes_exact_source_frames(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", "color=c=white:s=1440x900:r=30:d=0.5",
+            "-f", "lavfi", "-i", "color=c=black:s=1440x900:r=30:d=0.5",
+            "-f", "lavfi", "-i", "color=c=red:s=1440x900:r=30:d=0.5",
+            "-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]",
+            "-map", "[v]", "-c:v", "libvpx-vp9", "-an", str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    checkpoint_paths = []
+    for index, timestamp in enumerate((0.1, 0.6, 1.1)):
+        checkpoint_path = tmp_path / f"checkpoint-{index}.png"
+        module.extract_frame(source, timestamp_seconds=timestamp, output_path=checkpoint_path)
+        checkpoint_paths.append(checkpoint_path)
+    request = module.build_browser_render_request(
+        source_video=source,
+        domain="app.dev.openmates.org",
+        device_profile="web-laptop",
+        segments=[
+            {
+                "kind": "freeze", "source_image": str(checkpoint_paths[0]),
+                "source_sha256": module.sha256_file(checkpoint_paths[0]), "duration_ms": 300, "cue_id": "white",
+            },
+            {
+                "kind": "freeze", "source_image": str(checkpoint_paths[1]),
+                "source_sha256": module.sha256_file(checkpoint_paths[1]), "duration_ms": 300, "cue_id": "black",
+            },
+            {
+                "kind": "freeze", "source_image": str(checkpoint_paths[2]),
+                "source_sha256": module.sha256_file(checkpoint_paths[2]), "duration_ms": 300, "cue_id": "red",
+            },
+        ],
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+    )
+    output = tmp_path / "browser-freezes.mp4"
+    module.render_browser_tutorial(request, output)
+
+    def sample(timestamp: float) -> bytes:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-ss", str(timestamp), "-i", str(output),
+                "-vf", "crop=1:1:720:500,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return result.stdout
+
+    white, black, red = sample(0.15), sample(0.45), sample(0.75)
+    assert min(white) > 200
+    assert max(black) < 20
+    assert red[0] > red[1] * 2 and red[0] > red[2] * 2
+
 
 
 def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Path) -> None:

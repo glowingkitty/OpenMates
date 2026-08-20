@@ -324,7 +324,13 @@ def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str)
     contract = payload.get("contract")
     events = payload.get("events")
     results = payload.get("assertion_results")
-    if not isinstance(contract, dict) or not isinstance(events, list) or not isinstance(results, list):
+    frames = payload.get("checkpoint_frames")
+    if (
+        not isinstance(contract, dict)
+        or not isinstance(events, list)
+        or not isinstance(results, list)
+        or not isinstance(frames, list)
+    ):
         raise WorkflowError("spec proof timeline is missing contract, events, or assertion results")
     title = contract.get("title")
     transcript = contract.get("transcript")
@@ -349,6 +355,17 @@ def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str)
         str(item.get("id")) for item in events
         if isinstance(item, dict) and item.get("kind") == "checkpoint"
     }
+    frame_by_checkpoint: dict[str, dict[str, Any]] = {}
+    for frame in frames:
+        if not isinstance(frame, dict):
+            raise WorkflowError("spec proof checkpoint frame metadata is invalid")
+        checkpoint_id = str(frame.get("checkpoint") or "")
+        path = Path(str(frame.get("path") or ""))
+        if checkpoint_id in frame_by_checkpoint or checkpoint_id not in checkpoint_ids:
+            raise WorkflowError("spec proof checkpoint frames must uniquely match reached checkpoints")
+        if not path.is_absolute() or not path.is_file() or _file_sha256(path) != frame.get("sha256"):
+            raise WorkflowError(f"spec proof checkpoint frame is missing or changed: {checkpoint_id}")
+        frame_by_checkpoint[checkpoint_id] = frame
     result_by_id = {
         str(item.get("id")): item for item in results
         if isinstance(item, dict) and item.get("id")
@@ -358,6 +375,8 @@ def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str)
             raise WorkflowError("every spec proof transcript cue requires id, text, and checkpoint")
         if item["checkpoint"] not in checkpoint_ids:
             raise WorkflowError(f"spec proof checkpoint {item['checkpoint']} was not reached")
+        if item["checkpoint"] not in frame_by_checkpoint:
+            raise WorkflowError(f"spec proof checkpoint {item['checkpoint']} lacks an attested frame")
     for item in scoped_assertions:
         if not all(isinstance(item.get(field), str) and item[field].strip() for field in ("id", "visual", "checkpoint")):
             raise WorkflowError("every spec proof assertion requires id, visual text, and checkpoint")
@@ -373,6 +392,7 @@ def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str)
         "domain": str(domain or ""),
         "contract": contract,
         "events": events,
+        "checkpoint_frames": frames,
     }
 
 

@@ -2548,19 +2548,47 @@ class BatchRunner:
         proof_timeline_path: Optional[Path] = None
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
-            timeline_attachments: list[dict[str, object]] = []
+            proof_attachment_groups: list[list[dict[str, object]]] = []
 
             def collect_timeline_attachments(value: object) -> None:
                 if isinstance(value, dict):
-                    if value.get("contentType") == "application/vnd.openmates.proof-timeline+json":
-                        timeline_attachments.append(value)
-                    for child in value.values():
+                    attachments = value.get("attachments")
+                    if isinstance(attachments, list):
+                        group = [item for item in attachments if isinstance(item, dict)]
+                        if any(
+                            item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                            for item in group
+                        ):
+                            proof_attachment_groups.append(group)
+                    for key, child in value.items():
+                        if key == "attachments":
+                            continue
                         collect_timeline_attachments(child)
                 elif isinstance(value, list):
                     for child in value:
                         collect_timeline_attachments(child)
 
             collect_timeline_attachments(report)
+            if len(proof_attachment_groups) > 1:
+                raise RuntimeError("Playwright report contains ambiguous proof timeline attachment groups")
+            proof_group = proof_attachment_groups[0] if proof_attachment_groups else []
+            timeline_attachments = [
+                item
+                for item in proof_group
+                if item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+            ]
+            if len(timeline_attachments) > 1:
+                raise RuntimeError("Playwright proof result contains multiple timeline attachments")
+            proof_frame_attachments: dict[str, dict[str, object]] = {}
+            for item in proof_group:
+                name = item.get("name")
+                if item.get("contentType") != "image/png" or not isinstance(name, str) or not name.startswith(
+                    "openmates-proof-frame-"
+                ):
+                    continue
+                if name in proof_frame_attachments:
+                    raise RuntimeError(f"Playwright proof result contains duplicate frame attachment: {name}")
+                proof_frame_attachments[name] = item
             artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
             for attachment in timeline_attachments:
                 proof_timeline_path = dest / "proof-timeline.json"
@@ -2573,12 +2601,52 @@ class BatchRunner:
                     proof_timeline_path = None
                     continue
                 attachment_name = Path(attachment_path).name
-                source = next((path for path in artifact_files if path.name == attachment_name), None)
-                if source is None:
+                sources = [path for path in artifact_files if path.name == attachment_name]
+                if len(sources) != 1:
                     proof_timeline_path = None
                     continue
-                shutil.copy2(source, proof_timeline_path)
+                shutil.copy2(sources[0], proof_timeline_path)
                 break
+
+            if proof_timeline_path is not None:
+                timeline_payload = json.loads(proof_timeline_path.read_text(encoding="utf-8"))
+                checkpoint_frames = timeline_payload.get("checkpoint_frames")
+                if not isinstance(checkpoint_frames, list) or not checkpoint_frames:
+                    raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
+                frames_dest = dest / "proof-frames"
+                frames_dest.mkdir(parents=True, exist_ok=True)
+                for frame_record in checkpoint_frames:
+                    if not isinstance(frame_record, dict):
+                        raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
+                    checkpoint = str(frame_record.get("checkpoint") or "")
+                    attachment_name = str(frame_record.get("attachment_name") or "")
+                    if not re.fullmatch(r"[A-Za-z0-9._-]+", checkpoint):
+                        raise RuntimeError("Spec proof checkpoint frame has an invalid checkpoint id")
+                    attachment = proof_frame_attachments.get(attachment_name)
+                    if attachment is None:
+                        raise RuntimeError(f"Spec proof checkpoint frame attachment is missing: {checkpoint}")
+                    frame_body = attachment.get("body")
+                    frame_path = attachment.get("path")
+                    if isinstance(frame_body, str):
+                        frame_bytes = base64.b64decode(frame_body, validate=True)
+                    elif isinstance(frame_path, str):
+                        attachment_basename = Path(frame_path).name
+                        frame_sources = [path for path in artifact_files if path.name == attachment_basename]
+                        if len(frame_sources) != 1:
+                            raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
+                        frame_bytes = frame_sources[0].read_bytes()
+                    else:
+                        raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
+                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                    if actual_hash != frame_record.get("sha256"):
+                        raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
+                    target = frames_dest / f"{checkpoint}.png"
+                    target.write_bytes(frame_bytes)
+                    frame_record["path"] = str(target.resolve())
+                proof_timeline_path.write_text(
+                    json.dumps(timeline_payload, sort_keys=True, separators=(",", ":")) + "\n",
+                    encoding="utf-8",
+                )
 
         meta = {
             "spec": spec,

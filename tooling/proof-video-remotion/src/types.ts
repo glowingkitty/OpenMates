@@ -7,7 +7,7 @@
 
 export type TutorialSegment =
 	| {kind: 'video'; source_from_ms: number; source_to_ms: number; duration_ms: number}
-	| {kind: 'freeze'; source_at_ms: number; duration_ms: number; cue_id: string};
+	| {kind: 'freeze'; source_image: string; source_sha256: string; duration_ms: number; cue_id: string};
 
 export interface BrowserTutorialProps extends Record<string, unknown> {
 	schemaVersion: number;

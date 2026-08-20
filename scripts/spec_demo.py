@@ -34,6 +34,14 @@ from typing import Any, Callable, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REMOTION_BROWSER_RENDERER = REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"
+REMOTION_PROVENANCE_FILES = (
+    REPO_ROOT / "tooling/proof-video-remotion/package.json",
+    REPO_ROOT / "tooling/proof-video-remotion/src/BrowserTutorial.tsx",
+    REPO_ROOT / "tooling/proof-video-remotion/src/Root.tsx",
+    REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs",
+    REPO_ROOT / "tooling/proof-video-remotion/src/types.ts",
+    REPO_ROOT / "pnpm-lock.yaml",
+)
 TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
@@ -108,7 +116,10 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
     "target_width",
     "captions_sha256",
     "browser_domain",
+    "browser_runtime",
     "renderer",
+    "render_request_sha256",
+    "renderer_source_sha256",
     "timeline_hash",
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
@@ -175,16 +186,27 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+def renderer_source_hash() -> str:
+    """Hash renderer source and pinned dependencies into proof provenance."""
+    digest = hashlib.sha256()
+    for path in REMOTION_PROVENANCE_FILES:
+        if not path.is_file():
+            raise DemonstrationError(f"Remotion provenance input is missing: {path}")
+        digest.update(str(path.relative_to(REPO_ROOT)).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
+
+
 def build_tutorial_timeline(
     *,
     contract: dict[str, Any],
     events: list[dict[str, Any]],
     device_profile: str,
-    source_offset_ms: int = 0,
+    checkpoint_frames: dict[str, dict[str, str]],
 ) -> list[dict[str, Any]]:
-    """Compile fast source events into normal-speed actions and readable holds."""
-    if source_offset_ms < 0:
-        raise DemonstrationError("Tutorial source offset must be non-negative")
+    """Compile attested checkpoint pixels into frame-quantized readable holds."""
     policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(policy.get("readingWordsPerSecond") or 0)
     minimum_hold = int(policy.get("minimumHoldMs") or 0)
@@ -196,7 +218,6 @@ def build_tutorial_timeline(
         for event in events
         if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
     }
-    actions = [event for event in events if event.get("kind") == "action"]
     cues = [
         cue
         for cue in contract.get("transcript", [])
@@ -211,39 +232,21 @@ def build_tutorial_timeline(
         if checkpoint_id not in checkpoints:
             raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was not reached")
         checkpoint_at = checkpoints[checkpoint_id]
-        if checkpoint_at < source_offset_ms:
-            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was removed by the source trim")
         if checkpoint_at <= previous_checkpoint_at:
             raise DemonstrationError("Proof checkpoints must be strictly increasing")
-        rendered_checkpoint_at = checkpoint_at - source_offset_ms
-        preceding = [
-            action
-            for action in actions
-            if previous_checkpoint_at <= int(action.get("start_ms", -1))
-            and source_offset_ms < int(action.get("end_ms", -1)) <= checkpoint_at
-        ]
-        if preceding:
-            action = preceding[-1]
-            source_from = max(0, int(action.get("start_ms", 0)) - source_offset_ms)
-            if rendered_checkpoint_at > source_from and (
-                not segments or segments[-1].get("source_to_ms") != rendered_checkpoint_at
-            ):
-                segments.append(
-                    {
-                        "kind": "video",
-                        "source_from_ms": source_from,
-                        "source_to_ms": rendered_checkpoint_at,
-                        "duration_ms": rendered_checkpoint_at - source_from,
-                    }
-                )
+        frame = checkpoint_frames.get(checkpoint_id)
+        if not frame or not frame.get("path") or not frame.get("sha256"):
+            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} lacks an attested frame")
         word_count = len(str(cue.get("text") or "").split())
         hold = round((word_count / words_per_second) * 1000)
         hold = max(minimum_hold, min(maximum_hold, hold))
+        hold_frames = max(1, round(hold * 30 / 1000))
         segments.append(
             {
                 "kind": "freeze",
-                "source_at_ms": rendered_checkpoint_at,
-                "duration_ms": hold,
+                "source_image": frame["path"],
+                "source_sha256": frame["sha256"],
+                "duration_ms": round(hold_frames * 1000 / 30, MEDIA_TIMESTAMP_DECIMALS),
                 "cue_id": str(cue.get("id") or ""),
             }
         )
@@ -273,10 +276,10 @@ def build_tutorial_review_timing(
         )
     captions: list[dict[str, Any]] = []
     evidence: dict[str, list[list[float]]] = {}
-    cursor_ms = 0
-    caption_start_ms = 0
+    cursor_ms = 0.0
+    caption_start_ms = 0.0
     for segment in segments:
-        duration_ms = int(segment["duration_ms"])
+        duration_ms = float(segment["duration_ms"])
         segment_end_ms = cursor_ms + duration_ms
         if segment.get("kind") == "freeze":
             cue = cues.get(str(segment.get("cue_id") or ""))
@@ -344,6 +347,14 @@ def build_browser_render_request(
         raise DemonstrationError("Browser tutorial requires a valid attested domain")
     if not source_video.is_file() or not segments:
         raise DemonstrationError("Browser tutorial requires a source video and edit segments")
+    for segment in segments:
+        if segment.get("kind") != "freeze":
+            continue
+        image_path = Path(str(segment.get("source_image") or ""))
+        if not image_path.is_absolute() or not image_path.is_file():
+            raise DemonstrationError("Browser tutorial checkpoint image is missing")
+        if sha256_file(image_path) != segment.get("source_sha256"):
+            raise DemonstrationError("Browser tutorial checkpoint image hash changed")
     viewport = {"width": int(profile["width"]), "height": int(profile["height"])}
     return {
         "schemaVersion": 1,
@@ -366,9 +377,6 @@ def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> dict[
         raise DemonstrationError("Unsupported browser tutorial renderer")
     if not REMOTION_BROWSER_RENDERER.is_file():
         raise DemonstrationError("Repository-local Remotion browser renderer is missing")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    request_path = output_path.with_suffix(".render-request.json")
-    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
     env = dict(os.environ)
     cached_chromium = sorted((Path.home() / ".cache/ms-playwright").glob("chromium-*/chrome-linux*/chrome"), reverse=True)
     chromium = str(cached_chromium[0]) if cached_chromium else (
@@ -376,6 +384,19 @@ def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> dict[
     )
     if chromium:
         env["REMOTION_BROWSER_EXECUTABLE"] = chromium
+    browser_runtime = "unknown"
+    if chromium:
+        version_result = subprocess.run([chromium, "--version"], capture_output=True, text=True, check=False)
+        if version_result.returncode == 0 and version_result.stdout.strip():
+            browser_runtime = version_result.stdout.strip()
+    request = {
+        **request,
+        "renderer_source_sha256": renderer_source_hash(),
+        "browser_runtime": browser_runtime,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path = output_path.with_suffix(".render-request.json")
+    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
     result = subprocess.run(
         ["node", str(REMOTION_BROWSER_RENDERER), str(request_path), str(output_path)],
         cwd=REPO_ROOT,
@@ -395,6 +416,8 @@ def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> dict[
         **metadata,
         "renderer": request["renderer"],
         "browser_domain": request["domain"],
+        "browser_runtime": request["browser_runtime"],
+        "renderer_source_sha256": request["renderer_source_sha256"],
         "timeline_hash": request["timelineHash"],
         "render_request_sha256": sha256_file(request_path),
     }
@@ -1644,11 +1667,19 @@ def produce_playwright_demonstration(
     tutorial_caption_segments: list[dict[str, Any]] | None = None
     tutorial_evidence_intervals: dict[str, list[list[float]]] | None = None
     if spec_timeline is not None:
+        checkpoint_frames = {
+            str(frame.get("checkpoint") or ""): {
+                "path": str(frame.get("path") or ""),
+                "sha256": str(frame.get("sha256") or ""),
+            }
+            for frame in spec_timeline.get("checkpoint_frames", [])
+            if isinstance(frame, dict)
+        }
         tutorial_segments = build_tutorial_timeline(
             contract=spec_timeline["contract"],
             events=spec_timeline["events"],
             device_profile=str(device_profile["id"]),
-            source_offset_ms=round(float(trim_metadata.get("trim_start_seconds") or 0) * 1000),
+            checkpoint_frames=checkpoint_frames,
         )
         tutorial_caption_segments, tutorial_evidence_intervals = build_tutorial_review_timing(
             contract=spec_timeline["contract"],
@@ -1743,6 +1774,9 @@ def produce_playwright_demonstration(
                     "target_width": browser_render_metadata.get("width"),
                     "target_height": browser_render_metadata.get("height"),
                     "renderer": browser_render_metadata.get("renderer"),
+                    "render_request_sha256": browser_render_metadata.get("render_request_sha256"),
+                    "renderer_source_sha256": browser_render_metadata.get("renderer_source_sha256"),
+                    "browser_runtime": browser_render_metadata.get("browser_runtime"),
                     "browser_domain": browser_render_metadata.get("browser_domain"),
                     "timeline_hash": browser_render_metadata.get("timeline_hash"),
                 }
@@ -2198,7 +2232,7 @@ def register_exact_timestamp_request(
     return record
 
 
-def detect_scene_change_times(video_path: Path) -> list[float]:
+def detect_scene_change_times(video_path: Path, *, threshold: float = SCENE_CHANGE_THRESHOLD) -> list[float]:
     """Return deterministic visual transition timestamps for bounded frame review."""
     if not video_path.is_file():
         raise DemonstrationError(f"Scene detection input does not exist: {video_path}")
@@ -2209,7 +2243,7 @@ def detect_scene_change_times(video_path: Path) -> list[float]:
             "-i",
             str(video_path),
             "-vf",
-            f"select='gt(scene,{SCENE_CHANGE_THRESHOLD:g})',showinfo",
+            f"select='gt(scene,{threshold:g})',showinfo",
             "-an",
             "-f",
             "null",

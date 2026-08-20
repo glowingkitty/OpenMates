@@ -14,6 +14,7 @@ Architecture: docs/specs/e2e-credential-isolation/spec.yml
 from __future__ import annotations
 
 import base64
+import hashlib
 import importlib.util
 import json
 import os
@@ -21,6 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -41,17 +44,33 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
-    timeline = b'{"schema_version": 1}\n'
+    frame = b"\x89PNG\r\n\x1a\nsynthetic"
+    frame_hash = f"sha256:{hashlib.sha256(frame).hexdigest()}"
+    timeline = json.dumps({
+        "schema_version": 1,
+        "checkpoint_frames": [{
+            "checkpoint": "welcome-visible",
+            "attachment_name": "openmates-proof-frame-welcome-visible",
+            "sha256": frame_hash,
+        }],
+    }).encode()
     report = {
         "suites": [{
             "specs": [{
                 "tests": [{
                     "results": [{
-                        "attachments": [{
-                            "name": "openmates-proof-timeline",
-                            "contentType": "application/vnd.openmates.proof-timeline+json",
-                            "body": base64.b64encode(timeline).decode("ascii"),
-                        }]
+                        "attachments": [
+                            {
+                                "name": "openmates-proof-frame-welcome-visible",
+                                "contentType": "image/png",
+                                "body": base64.b64encode(frame).decode("ascii"),
+                            },
+                            {
+                                "name": "openmates-proof-timeline",
+                                "contentType": "application/vnd.openmates.proof-timeline+json",
+                                "body": base64.b64encode(timeline).decode("ascii"),
+                            },
+                        ]
                     }]
                 }]
             }]
@@ -65,9 +84,41 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
 
     expected = recordings / "proof" / "proof-timeline.json"
     assert persisted == str(expected)
-    assert expected.read_bytes() == timeline
+    persisted_timeline = json.loads(expected.read_text(encoding="utf-8"))
+    persisted_frame = recordings / "proof" / "proof-frames" / "welcome-visible.png"
+    assert persisted_frame.read_bytes() == frame
+    assert persisted_timeline["checkpoint_frames"][0]["path"] == str(persisted_frame)
+    assert persisted_timeline["checkpoint_frames"][0]["sha256"] == frame_hash
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
+
+
+def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    artifact.mkdir(parents=True)
+    timeline_attachment = {
+        "name": "openmates-proof-timeline",
+        "contentType": "application/vnd.openmates.proof-timeline+json",
+        "body": base64.b64encode(b'{}').decode("ascii"),
+    }
+    report = {
+        "suites": [{
+            "specs": [{
+                "tests": [{
+                    "results": [
+                        {"attachments": [timeline_attachment]},
+                        {"attachments": [timeline_attachment]},
+                    ]
+                }]
+            }]
+        }]
+    }
+    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", tmp_path / "recordings")
+
+    with pytest.raises(RuntimeError, match="ambiguous proof timeline"):
+        run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
 
 
 def test_git_info_uses_exact_deployed_session_subject(monkeypatch):

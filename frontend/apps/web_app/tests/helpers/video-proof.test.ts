@@ -62,7 +62,8 @@ test('records fast actions assertions and checkpoints without presentation waits
 	const runtime = createVideoProofRuntime(definition(), {
 		now: () => now,
 		device: 'web-laptop',
-		attach: async (name, options) => attached.push({name, ...options})
+		attach: async (name, options) => attached.push({name, ...options}),
+		captureFrame: async () => Buffer.from('synthetic png')
 	});
 
 	await runtime.action('open-welcome', async () => {
@@ -71,18 +72,21 @@ test('records fast actions assertions and checkpoints without presentation waits
 	await runtime.assert('welcome.shell.visible', async () => {
 		now = 1140;
 	});
-	runtime.checkpoint('welcome-visible');
+	await runtime.checkpoint('welcome-visible');
 	await runtime.attach();
 
-	assert.equal(attached.length, 1);
-	assert.equal(attached[0].name, 'openmates-proof-timeline');
-	const payload = JSON.parse(attached[0].body.toString('utf8'));
+	assert.equal(attached.length, 2);
+	assert.equal(attached[0].name, 'openmates-proof-frame-welcome-visible');
+	assert.equal(attached[1].name, 'openmates-proof-timeline');
+	const payload = JSON.parse(attached[1].body.toString('utf8'));
 	assert.equal(payload.schema_version, 1);
 	assert.equal(payload.contract.id, 'welcome-proof');
 	assert.deepEqual(payload.events.map((event: any) => event.kind), ['action', 'assertion', 'checkpoint']);
 	assert.equal(payload.events[0].start_ms, 0);
 	assert.equal(payload.events[0].end_ms, 120);
 	assert.equal(payload.assertion_results[0].status, 'passed');
+	assert.equal(payload.checkpoint_frames[0].checkpoint, 'welcome-visible');
+	assert.match(payload.checkpoint_frames[0].sha256, /^sha256:[0-9a-f]{64}$/);
 	assert.equal('presentation_wait_ms' in payload, false);
 });
 
@@ -90,7 +94,8 @@ test('refuses to attach when declared checkpoints or assertions were not reached
 	const runtime = createVideoProofRuntime(definition(), {
 		now: () => 1000,
 		device: 'web-laptop',
-		attach: async () => undefined
+		attach: async () => undefined,
+		captureFrame: async () => Buffer.from('synthetic png')
 	});
 
 	await assert.rejects(runtime.attach(), /welcome\.shell\.visible/);

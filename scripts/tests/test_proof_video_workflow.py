@@ -20,6 +20,48 @@ import pytest
 from scripts import proof_video_workflow as workflow
 
 
+def test_spec_timeline_render_claims_require_hash_bound_checkpoint_frames(tmp_path: Path) -> None:
+    frame = tmp_path / "welcome.png"
+    frame.write_bytes(b"attested pixels")
+    payload = {
+        "schema_version": 1,
+        "device": "web-laptop",
+        "contract": {
+            "id": "welcome-proof",
+            "title": "Welcome proof",
+            "surface": "web",
+            "devices": ["web-laptop"],
+            "domain": "app.dev.openmates.org",
+            "transcript": [{
+                "id": "welcome",
+                "text": "The welcome screen is visible in the browser.",
+                "checkpoint": "welcome-visible",
+                "devices": ["web-laptop"],
+            }],
+            "assertions": [{
+                "id": "welcome.visible",
+                "visual": "The welcome screen is visible.",
+                "checkpoint": "welcome-visible",
+                "devices": ["web-laptop"],
+            }],
+        },
+        "events": [{"id": "welcome-visible", "kind": "checkpoint", "at_ms": 100}],
+        "assertion_results": [{"id": "welcome.visible", "status": "passed", "at_ms": 90}],
+        "checkpoint_frames": [{
+            "checkpoint": "welcome-visible",
+            "path": str(frame),
+            "sha256": workflow._file_sha256(frame),
+        }],
+    }
+
+    claims = workflow.spec_timeline_render_claims(payload, device_profile="web-laptop")
+    assert claims["checkpoint_frames"] == payload["checkpoint_frames"]
+
+    frame.write_bytes(b"changed pixels")
+    with pytest.raises(workflow.WorkflowError, match="missing or changed"):
+        workflow.spec_timeline_render_claims(payload, device_profile="web-laptop")
+
+
 def test_resolve_current_context_matches_session_commit_and_passing_spec() -> None:
     commit = "a" * 40
     sessions = {
