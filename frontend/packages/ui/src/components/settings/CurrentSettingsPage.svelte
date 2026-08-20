@@ -578,6 +578,7 @@
         position: relative;
         width: 100%;
         height: var(--active-content-height);
+        flex-shrink: 0;
         overflow: hidden;
         padding-top: var(--spacing-0);
     }
