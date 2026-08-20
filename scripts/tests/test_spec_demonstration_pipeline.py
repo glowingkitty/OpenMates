@@ -1088,6 +1088,7 @@ def test_cli_production_preserves_real_terminal_video_and_records_claim_traceabi
     observed = {}
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "media_duration_seconds", lambda _path: 15.0)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",
@@ -1182,6 +1183,7 @@ def test_cli_production_renders_user_facing_openmates_command(
     observed: dict[str, object] = {}
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "media_duration_seconds", lambda _path: 15.0)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",
@@ -1251,6 +1253,7 @@ def test_cli_production_preserves_captured_argv_before_review(
     monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "media_duration_seconds", lambda _path: 15.0)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",

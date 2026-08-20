@@ -51,6 +51,8 @@ TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
+CLI_REAL_CAPTURE_START_TRIM_SECONDS = 0.3
+CLI_REAL_CAPTURE_END_TRIM_SECONDS = 0.6
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
 TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
@@ -121,6 +123,8 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
     "render_request_sha256",
     "renderer_source_sha256",
     "timeline_hash",
+    "source_start_trim_seconds",
+    "source_end_trim_seconds",
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
@@ -902,6 +906,8 @@ def render_clean_video(
     playback_rate: float = 1.0,
     hold_last_frame_seconds: float = 0.0,
     demo_audio_path: Path | None = None,
+    source_start_seconds: float = 0.0,
+    source_end_seconds: float | None = None,
 ) -> None:
     """Retime a recording without shrinking it or adding tutorial overlays."""
     optional_paths = (demo_audio_path,) if demo_audio_path else ()
@@ -918,14 +924,19 @@ def render_clean_video(
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     source_duration = media_duration_seconds(source_path)
-    output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
+    start = max(0.0, float(source_start_seconds))
+    end = source_duration if source_end_seconds is None else min(source_duration, float(source_end_seconds))
+    if start >= end:
+        raise DemonstrationError("Proof trim boundaries leave no visible source video")
+    trimmed_duration = round(end - start, 3)
+    output_duration = round((trimmed_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     video_filters = [f"setpts=PTS/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
     audio_inputs: list[str] = []
-    input_args = ["-i", str(source_path)]
+    input_args = ["-ss", str(start), "-t", str(trimmed_duration), "-i", str(source_path)]
     audio_map: list[str] = []
     if audio_path is not None:
         input_args.extend(["-i", str(audio_path)])
@@ -1598,10 +1609,15 @@ def produce_cli_demonstration(
         else narration_audio_not_required()
     )
     raw_video_path = Path(str(capture["video_path"]))
+    raw_duration = media_duration_seconds(raw_video_path)
+    trim_start = min(CLI_REAL_CAPTURE_START_TRIM_SECONDS, max(0.0, raw_duration - 0.2))
+    trim_end = max(trim_start + 0.1, raw_duration - CLI_REAL_CAPTURE_END_TRIM_SECONDS)
     render_clean_video(
         raw_video_path,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
+        source_start_seconds=trim_start,
+        source_end_seconds=trim_end,
     )
     _write_private(captions_path, "WEBVTT\n\n")
     source = {
@@ -1626,7 +1642,11 @@ def produce_cli_demonstration(
         source=source,
         narration_audio=narration_audio,
         device_profile=resolve_device_profile("cli-terminal"),
-        render_metadata={"renderer": "openmates-real-terminal-capture-v1"},
+        render_metadata={
+            "renderer": "openmates-real-terminal-capture-v1",
+            "source_start_trim_seconds": trim_start,
+            "source_end_trim_seconds": round(raw_duration - trim_end, MEDIA_TIMESTAMP_DECIMALS),
+        },
     )
 
 
