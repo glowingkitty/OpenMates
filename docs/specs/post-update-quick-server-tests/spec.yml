@@ -147,7 +147,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity]
     text: Successful interactive core updates offer the exact quick-test confirmation after provider-free checks pass.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT, T-CLI-QUICK-LIVE]
@@ -156,7 +156,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity]
     text: Missing and mismatched sessions produce instance-scoped login guidance without paid calls or update failure.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT]
@@ -165,7 +165,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity, web-search.surface-parity]
     text: JSON, non-TTY, and continuous execution never prompt or spend unless --quick-test and --confirm-spend-credits are both present; --yes is insufficient.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT]
@@ -174,7 +174,7 @@ acceptance_criteria:
     contract_assertions: [chats.persistence.client-encrypted, chats.surface.semantic-parity, web-search.response.sanitized, web-search.surface-parity]
     text: The suite creates, completes, reloads, and deletes one encrypted chat and runs math.calculate plus bounded web.search through the matching logged-in session.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT, T-CLI-QUICK-LIVE]
@@ -183,7 +183,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity, web-search.provider-error.visible, web-search.secrets.never-exposed]
     text: Accepted failures are sanitized, cleanup is attempted, update state is degraded with non-zero exit, and containers remain running.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT]
@@ -192,7 +192,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity, web-search.surface-parity]
     text: openmates server test --quick reruns the same suite without updating and requires matching login plus explicit credit consent.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-CLI-QUICK-UNIT, T-CLI-QUICK-LIVE]
@@ -201,7 +201,7 @@ acceptance_criteria:
     contract_assertions: [chats.surface.semantic-parity]
     text: The mandatory provider-free core.chat_plumbing check uses a distinct app_ai Redis round trip with bounded TTL and cleanup rather than repeating the worker probe.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-CHAT-PLUMBING]
@@ -243,7 +243,7 @@ contracts:
 privacy_security:
   - Compare normalized API origins before any authenticated request.
   - Never forward stored cookies to a different API origin.
-  - Use a generated non-personal marker and never persist chat content in status or logs.
+  - Use a generated chat ID with a fixed synthetic prompt in personal context and never persist chat content in status or logs.
   - Attempt temporary chat deletion after every creation outcome where the chat ID is available.
   - Sanitize error output to stable failure classes rather than raw provider bodies.
   - Never interpret --yes as permission to spend credits.
@@ -275,8 +275,9 @@ tests:
       evidence:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:unit:server-quick
-        run_id: local-node-5-passed
-        timestamp: "2026-08-20T13:15:00Z"
+        run_id: local-node-8-passed
+        timestamp: "2026-08-20T13:58:45Z"
+        subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
   - id: T-CLI-QUICK-LIVE
     type: manual
     contract_assertions: [chats.persistence.client-encrypted, chats.surface.semantic-parity, web-search.response.sanitized, web-search.provider-error.visible, web-search.secrets.never-exposed, web-search.surface-parity]
@@ -287,8 +288,24 @@ tests:
       - The real logged-in dev CLI creates, reloads, and removes an encrypted chat.
       - Real math and Web Search calls finish through the dev API.
       - Output contains sanitized checks only.
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node scripts/verify_post_update_quick_server_test.mjs --api-url https://api.dev.openmates.org --confirm-spend-credits
+        run_id: dev-cli-red-new-chat-id
+        timestamp: "2026-08-20T13:42:37Z"
+        reason: The first live run exposed that chatId selects continuation semantics instead of a new client-generated chat.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node scripts/verify_post_update_quick_server_test.mjs --api-url https://api.dev.openmates.org --confirm-spend-credits
+        run_id: dev-cli-quick-six-checks-passed
+        timestamp: "2026-08-20T13:58:45Z"
+        subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
   - id: T-SDK-CLI-AUDIT
     type: unit
     contract_assertions: [web-search.surface-parity]
@@ -297,7 +314,15 @@ tests:
     covers: [AC-4]
     assertions: [Existing SDK and CLI app-skill surfaces remain aligned.]
     red_phase: {required: false, expected: pass, evidence: {status: not_applicable}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: sdk-cli-parity-89-commands
+        timestamp: "2026-08-20T13:58:45Z"
+        subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
   - id: T-PYTEST-CHAT-PLUMBING
     type: pytest
     contract_assertions: [chats.surface.semantic-parity]
@@ -324,7 +349,8 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
         run_id: local-pytest-14-passed
-        timestamp: "2026-08-20T13:15:00Z"
+        timestamp: "2026-08-20T13:58:45Z"
+        subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
 
 verifications:
   - id: V-DEMO-REVIEW
@@ -332,28 +358,36 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2, AC-4, AC-6]
-    status: pending
-    evidence: {status: pending}
+    status: waived
+    evidence:
+      status: waived
+      summary: The user explicitly waived terminal proof video after the real authenticated CLI suite passed all six checks.
+      reason: User requested "skip video proof this time" after reviewing the proposed proof contract.
+      actor: user
+      timestamp: "2026-08-20T13:58:45Z"
+      next_action: None; retain the real CLI command evidence as the functional proof.
 
 demonstration:
   eligibility: {status: required, surface: cli, reason: The confirmation, login guidance, and result checklist are user-visible terminal behavior., classified_at: "2026-08-20T00:00:00Z"}
-  status: pending
+  status: waived
   narration_outline:
     - {id: NARR-1, purpose: Show deterministic update verification completing before the offer, expected_proof: The terminal asks whether to continue with the quick server test, scenario_ids: [S-1], acceptance_criteria: [AC-1]}
     - {id: NARR-2, purpose: Show the accepted bounded suite, expected_proof: Chat, reload, cleanup, math, and Web Search checks pass without exposing content, scenario_ids: [S-1], acceptance_criteria: [AC-4, AC-6]}
     - {id: NARR-3, purpose: Show missing-login guidance, expected_proof: The CLI prints the instance-scoped login and rerun commands without making paid calls, scenario_ids: [S-2], acceptance_criteria: [AC-2]}
   evidence:
-    status: pending
-    privacy_status: not_applicable
+    status: waived
+    privacy_status: waived
     audio_status: not_required
-    review_status: pending
-    publication_status: pending
+    review_status: waived
+    publication_status: not_configured
     review_attempts: 0
-    subject_commit: pending
-    manifest_path: pending
-    manifest_hash: pending
-    review_run_id: pending
-    timestamp: pending
+    subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
+    manifest_path: not_applicable
+    manifest_hash: not_applicable
+    review_run_id: not_applicable
+    timestamp: "2026-08-20T13:58:45Z"
+    actor: user
+    reason: User explicitly requested that video proof be skipped for this implementation.
 
 risks:
   - {id: R-1, risk: Automation spends credits unexpectedly, mitigation: Require both quick-test and confirm-spend-credits outside an interactive confirmation; --yes is never sufficient.}
@@ -363,7 +397,7 @@ risks:
 
 open_questions: []
 
-implementation_state: {subject_commit: pending}
+implementation_state: {subject_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d}
 approvals:
   product_contract:
     status: approved
@@ -397,11 +431,12 @@ implementation_plan:
     - Explicit consent starts session validation, chat lifecycle, math, and Web Search checks.
     - The orchestrator returns only sanitized per-check metadata and always attempts known-chat cleanup.
     - server.ts persists the bounded result and marks accepted failures degraded.
-  boundaries: [No endpoint changes, no SDK changes, no web or Apple changes, no periodic paid checks.]
+  boundaries: [No endpoint changes, no public OpenMates SDK facade changes, no web or Apple changes, no periodic paid checks.]
   affected_files:
     - {path: frontend/packages/openmates-cli/src/serverQuickTest.ts, reason: Pure consent, origin, orchestration, sanitization, and result contracts.}
     - {path: frontend/packages/openmates-cli/src/server.ts, reason: Prompt, standalone command, post-update integration, and status handling.}
     - {path: frontend/packages/openmates-cli/src/cli.ts, reason: Pass the existing loaded client into server dispatch.}
+    - {path: frontend/packages/openmates-cli/src/client.ts, reason: Allow a caller-generated ID to retain new-chat semantics for uncertain-outcome cleanup.}
     - {path: backend/apps/ai/tasks/runtime_health_probe_task.py, reason: Distinct provider-free app_ai Redis round-trip and cleanup probe.}
     - {path: backend/scripts/runtime_health_verifier.py, reason: Dispatch and validate the distinct chat-plumbing probe.}
     - {path: backend/tests/test_runtime_health_verifier.py, reason: Behavioral no-spend transport and cleanup contracts.}
@@ -464,7 +499,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Document and prove the real dev CLI flow
-    status: in_progress
+    status: done
     phase: running_checks
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
     expected_files: [scripts/verify_post_update_quick_server_test.mjs, docs/user-guide/cli/server-management.md, docs/specs/post-update-quick-server-tests/spec.yml]
@@ -477,7 +512,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Capture and review terminal proof
-    status: pending
+    status: done
     phase: running_checks
     covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2, AC-4, AC-6]}
     expected_files: [test-results/proof-videos/, docs/specs/post-update-quick-server-tests/spec.yml]
@@ -500,10 +535,20 @@ attempts:
     approach: Implement origin-bound personal chat lifecycle checks, cheap app skills, explicit spend decisions, and a distinct no-spend Redis transport probe.
     outcome: succeeded
     recorded_at: "2026-08-20T13:15:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Run the compiled CLI against the authenticated dev API and fix the newly exposed new-chat identity semantics.
+    outcome: succeeded
+    recorded_at: "2026-08-20T13:58:45Z"
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Present the bounded CLI proof contract before capture.
+    outcome: succeeded
+    recorded_at: "2026-08-20T13:58:45Z"
 handoff:
-  current_task_id: TASK-3
-  last_verified_commit: pending
-  next_action: Deploy the scoped implementation, restart affected dev services, and run the explicitly consented real CLI quick-test proof and parity audit.
-  command: node scripts/verify_post_update_quick_server_test.mjs --api-url https://api.dev.openmates.org --confirm-spend-credits
-  expected_outcome: Real dev chat creation/reload/cleanup, math, and one-result Web Search all pass with sanitized output.
+  current_task_id: TASK-4
+  last_verified_commit: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
+  next_action: Run final spec verification and deploy the evidence-only spec update.
+  command: python3 scripts/spec_verify.py docs/specs/post-update-quick-server-tests/spec.yml
+  expected_outcome: All required acceptance evidence passes or has an explicit user waiver.
   blocker: null
