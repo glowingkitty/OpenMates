@@ -39,3 +39,21 @@ surface_parity:
   - id: apple-subscription-settings
     given: {surface: apple}
     expect: {subscribe_and_categories_supported: true, token_link_web_handoff_allowed: true}
+
+category_migration:
+  - id: confirmed-subscriber-with-default-legacy-preferences
+    given: {confirmed_subscription: true, categories: null}
+    when: categories_are_normalized
+    expect: {openmates_events: true, software_updates: true}
+  - id: legacy-updates-opt-out-is-preserved
+    given: {confirmed_subscription: true, categories: {updates_and_announcements: false}}
+    when: categories_are_migrated
+    expect: {openmates_events: false, software_updates: false}
+  - id: explicit-new-preferences-win
+    given: {categories: {updates_and_announcements: false, openmates_events: true, software_updates: false}}
+    when: categories_are_normalized
+    expect: {openmates_events: true, software_updates: false}
+  - id: unknown-campaign-category-fails-closed
+    given: {campaign_category: unrecognized_category}
+    when: recipient_eligibility_is_checked
+    expect: {eligible: false}

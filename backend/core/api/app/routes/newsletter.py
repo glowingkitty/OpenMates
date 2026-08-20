@@ -27,8 +27,8 @@ from backend.core.api.app.utils.newsletter_utils import (
     hash_email,
     check_ignored_email,
     update_newsletter_registration_status,
-    NEWSLETTER_CATEGORIES,
     DEFAULT_NEWSLETTER_CATEGORIES,
+    apply_newsletter_category_update,
     normalize_newsletter_categories,
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -693,10 +693,10 @@ async def update_newsletter_categories(
 
     if not row:
         # Auto-create subscriber with the requested category preferences
-        categories = dict(DEFAULT_NEWSLETTER_CATEGORIES)
-        for key, value in payload.categories.items():
-            if key in NEWSLETTER_CATEGORIES and isinstance(value, bool):
-                categories[key] = value
+        categories = apply_newsletter_category_update(
+            DEFAULT_NEWSLETTER_CATEGORIES,
+            payload.categories,
+        )
         created = await _auto_create_subscriber(
             current_user, hashed_email, categories, directus_service, encryption_service,
         )
@@ -708,10 +708,7 @@ async def update_newsletter_categories(
             )
         return NewsletterCategoriesResponse(success=True, subscribed=True, categories=categories)
 
-    current = normalize_newsletter_categories(row.get("categories"))
-    for key, value in payload.categories.items():
-        if key in NEWSLETTER_CATEGORIES and isinstance(value, bool):
-            current[key] = value
+    current = apply_newsletter_category_update(row.get("categories"), payload.categories)
 
     patch_url = f"{directus_service.base_url}/items/newsletter_subscribers/{row['id']}"
     resp = await directus_service._make_api_request(

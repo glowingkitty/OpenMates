@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "canvas": {
+    "width": 672,
+    "height": 300,
+    "corner_radius": 28
+  },
+  "colors": {
+    "background_start": "#ff553b",
+    "background_mid": "#e23b55",
+    "background_end": "#8f1f58",
+    "cream": "#fff0df",
+    "pink": "#ffd1dc",
+    "deep_red": "#8e1d32",
+    "dark_red": "#681227"
+  },
+  "text": {
+    "en": {
+      "eyebrow": "OPENMATES EVENTS",
+      "title": "Upcoming OpenMates events",
+      "subtitle": "Webinars, meetups and community calls for privacy-friendly AI agents"
+    },
+    "de": {
+      "eyebrow": "OPENMATES EVENTS",
+      "title": "Kommende OpenMates Events",
+      "subtitle": "Webinare, Meetups und Community Calls fuer datenschutzfreundliche KI Agenten"
+    }
+  },
+  "output": {
+    "svg": {
+      "en": "events-newsletter-header_en.svg",
+      "de": "events-newsletter-header_de.svg"
+    },
+    "png": {
+      "en": "events-newsletter-header_en.png",
+      "de": "events-newsletter-header_de.png"
+    }
+  }
+}

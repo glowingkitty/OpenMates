@@ -16,11 +16,18 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
 
 import yaml
 
-from backend.core.api.app.services.directus import DirectusService
+from backend.shared.python_utils.events_newsletter_generator import (
+    build_events_campaign_payload,
+    select_events_for_newsletter,
+)
+from backend.shared.python_utils.openmates_event_registry import load_openmates_events
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +176,43 @@ class NewsletterCampaignService:
         if not ok:
             raise RuntimeError(f"Failed to create newsletter campaign: {created}")
         return created
+
+    async def generate_events_campaign(
+        self,
+        *,
+        admin_user_id: str,
+        run_at: datetime | None = None,
+    ) -> Dict[str, Any]:
+        run_at = run_at or datetime.now(timezone.utc)
+        if run_at.tzinfo is None:
+            raise NewsletterCampaignError("run_at must include timezone information")
+
+        registry = load_openmates_events()
+        selected_events = select_events_for_newsletter(registry["events"], run_at)
+        if not selected_events:
+            return {"campaign": None, "created": False, "reused": False, "selected_event_ids": []}
+
+        payload = build_events_campaign_payload(selected_events, run_at)
+        normalized = normalize_campaign_payload(payload)
+        existing = await self.get_by_slug(normalized["slug"])
+        selected_event_ids = [event["id"] for event in selected_events]
+        if existing and existing.get("payload_hash") == normalized["payload_hash"]:
+            return {
+                "campaign": existing,
+                "created": False,
+                "reused": True,
+                "selected_event_ids": selected_event_ids,
+                "payload_hash": normalized["payload_hash"],
+            }
+
+        campaign = await self.upsert_campaign(payload, admin_user_id)
+        return {
+            "campaign": campaign,
+            "created": existing is None,
+            "reused": False,
+            "selected_event_ids": selected_event_ids,
+            "payload_hash": normalized["payload_hash"],
+        }
 
     async def send_preview(self, slug: str, admin_email: str) -> Dict[str, Any]:
         campaign = await self._require_campaign(slug)

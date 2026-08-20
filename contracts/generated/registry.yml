@@ -146,12 +146,18 @@ contracts:
     version: 1
     status: draft
     path: features/newsletter
-    fingerprint: 6184acf8cfe6439267ebdb8e678da5fedb8310e84e179e5d34843fbacbf0d7b6
+    fingerprint: 606d443505107d229389a3399a5d740b5cdfcb1304281af6bbeb8b15c79f20b3
     required_surfaces:
     - rest_api
     - cli
     - gui.web
     - gui.apple
+  feature.newsletter-campaigns:
+    version: 1
+    status: draft
+    path: features/newsletter-campaigns
+    fingerprint: b0331372cfce5578c2910e4b81979e68548d6b4a155def5bca8f3a94a20e3946
+    required_surfaces: []
   feature.notifications:
     version: 1
     status: approved
@@ -1511,7 +1517,7 @@ assertions:
     contract: feature.newsletter@1
     contract_id: feature.newsletter
     type: behavior
-    fingerprint: bdfd32e88b6e36440b3c8005920d453c333159f0fee4b791f4bf19e16559fc31
+    fingerprint: 0620ca7cfdbdf8b799a270ac6c219a817fdd0b8aa909a5e9d92d080ae17071d1
     required_surfaces:
     - rest_api
     - cli
@@ -1531,7 +1537,7 @@ assertions:
     contract: feature.newsletter@1
     contract_id: feature.newsletter
     type: privacy
-    fingerprint: 23205ba0f739f239e5ba29f9471f8de997a2980d4ec4db288f6465737b643c4b
+    fingerprint: 44c7f7ece7a96de2b3335b540015ca4117c204608e3bd7b0814d6e6170588e69
     required_surfaces:
     - rest_api
     - cli
@@ -1547,6 +1553,46 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  newsletter.categories.default-and-migration:
+    contract: feature.newsletter@1
+    contract_id: feature.newsletter
+    type: privacy
+    fingerprint: 3fbe7e1889e2a9883aa1a92bf977590ac874f61b616a25996f3cf5f1777759b2
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  newsletter.campaign.deterministic-event-window:
+    contract: feature.newsletter-campaigns@1
+    contract_id: feature.newsletter-campaigns
+    type: behavior
+    fingerprint: 1e3f12232a6b0433029fa7416b1a2c77fd0e062f9f5ec29b3751377948107d00
+    required_surfaces: []
+  newsletter.campaign.review-window:
+    contract: feature.newsletter-campaigns@1
+    contract_id: feature.newsletter-campaigns
+    type: invariant
+    fingerprint: 6b9af43605bcbb23a6a133cb4fe1f8ee6d7128a26f8cc45643257b63c3deafad
+    required_surfaces: []
+  newsletter.campaign.event-link-fallback:
+    contract: feature.newsletter-campaigns@1
+    contract_id: feature.newsletter-campaigns
+    type: failure
+    fingerprint: a314bd57489ac941a6fdd92d846e585b15d10c41837f8f4579ee6fec6501bd70
+    required_surfaces: []
+  newsletter.campaign.accessible-event-layout:
+    contract: feature.newsletter-campaigns@1
+    contract_id: feature.newsletter-campaigns
+    type: behavior
+    fingerprint: 5850be8b3cce8ca3f4e9f528dc018ca61183e6b0f1acb4f4306ab2fdd968626a
+    required_surfaces: []
+  newsletter.campaign.eligible-idempotent-delivery:
+    contract: feature.newsletter-campaigns@1
+    contract_id: feature.newsletter-campaigns
+    type: privacy
+    fingerprint: ffc557892d84ad38a7b8653e72c1790a3800b9a15f29cfb8f1a6745bacd50ea3
+    required_surfaces: []
   notifications.settings.ack-persisted:
     contract: feature.notifications@1
     contract_id: feature.notifications

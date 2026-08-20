@@ -1,0 +1,297 @@
+"""Deterministic events newsletter payload helpers.
+
+These pure functions turn the shared public event registry into an internal
+campaign payload. They intentionally avoid Directus, email-provider, and
+subscriber reads so tests can prove event selection and link fallback without
+risking a real broadcast.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import html
+import json
+import os
+import re
+from base64 import b64encode
+from io import BytesIO
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Callable
+from urllib.parse import urlparse
+
+from PIL import Image
+
+NEWSLETTER_WINDOW_DAYS = 28
+EVENTS_CATEGORY = "openmates_events"
+SUPPORTED_LANGUAGES = ("en", "de")
+REPO_ROOT = Path(os.getenv("OPENMATES_REPO_ROOT", Path(__file__).resolve().parents[3]))
+EMAIL_CARD_MAX_WIDTH = 640
+EMAIL_CARD_JPEG_QUALITY = 78
+
+
+def select_events_for_newsletter(
+    events: list[dict[str, Any]],
+    run_at: datetime,
+    *,
+    window_days: int = NEWSLETTER_WINDOW_DAYS,
+) -> list[dict[str, Any]]:
+    """Select published events starting within [run_at, run_at + window)."""
+
+    if run_at.tzinfo is None:
+        raise ValueError("run_at must include timezone information")
+    window_end = run_at + timedelta(days=window_days)
+    selected = []
+    for event in events:
+        starts_at = datetime.fromisoformat(str(event["starts_at"]))
+        if starts_at.tzinfo is None:
+            raise ValueError(f"event starts_at must include timezone: {event.get('id')}")
+        if event.get("status") == "published" and run_at <= starts_at < window_end:
+            selected.append(event)
+    return sorted(selected, key=lambda item: (item["starts_at"], item["id"]))
+
+
+def resolve_event_destination(
+    event: dict[str, Any],
+    *,
+    is_openmates_url_live: Callable[[str], bool] | None = None,
+) -> str:
+    """Return the live OpenMates URL when available, otherwise the Luma URL."""
+
+    openmates_url = str(event.get("openmates_url") or "").strip()
+    if openmates_url and is_openmates_url_live and is_openmates_url_live(openmates_url):
+        return openmates_url
+
+    luma_url = str(event.get("luma_url") or "").strip()
+    parsed = urlparse(luma_url)
+    if parsed.scheme == "https" and parsed.netloc == "luma.com" and parsed.path.strip("/"):
+        return luma_url
+    raise ValueError(f"No usable destination for event: {event.get('id') or event.get('slug')}")
+
+
+def build_events_campaign_payload(
+    selected_events: list[dict[str, Any]],
+    run_at: datetime,
+    *,
+    is_openmates_url_live: Callable[[str], bool] | None = None,
+) -> dict[str, Any]:
+    """Build the deterministic internal campaign payload for selected events."""
+
+    if not selected_events:
+        raise ValueError("Cannot build an events campaign without selected events")
+
+    slug = f"openmates-events-{run_at.date().isoformat()}"
+    body_markdown = {
+        language: _build_language_body(selected_events, language, is_openmates_url_live)
+        for language in SUPPORTED_LANGUAGES
+    }
+    payload: dict[str, Any] = {
+        "slug": slug,
+        "status": "draft",
+        "mode": "email_only",
+        "category": EVENTS_CATEGORY,
+        "kind": "announcements",
+        "demo_chat_category": "events",
+        "timezone": "Europe/Berlin",
+        "subject": {
+            "en": "Upcoming OpenMates events",
+            "de": "Kommende OpenMates Events",
+        },
+        "title": {
+            "en": "Upcoming OpenMates events",
+            "de": "Kommende OpenMates Events",
+        },
+        "subtitle": {
+            "en": "Join our next webinars, meetup, and community hour.",
+            "de": "Sei bei den naechsten Webinaren, dem Meetup und dem Community Call dabei.",
+        },
+        "cta_text": {
+            "en": "See all events",
+            "de": "Alle Events ansehen",
+        },
+        "cta_url": resolve_event_destination(selected_events[0], is_openmates_url_live=is_openmates_url_live),
+        "body_markdown": body_markdown,
+        "metadata": {
+            "campaign_type": "openmates_events",
+            "generated_at": run_at.isoformat(),
+            "window_days": NEWSLETTER_WINDOW_DAYS,
+            "event_ids": [event["id"] for event in selected_events],
+        },
+    }
+    payload["metadata"]["payload_hash"] = _payload_hash(payload)
+    return payload
+
+
+def build_events_email_html(
+    selected_events: list[dict[str, Any]],
+    language: str,
+    *,
+    base_url: str,
+    is_openmates_url_live: Callable[[str], bool] | None = None,
+    repo_root: Path | None = None,
+) -> str:
+    """Render the events newsletter body as email-safe HTML.
+
+    The surrounding MJML, footer, unsubscribe handling, plain-text generation,
+    and provider delivery stay in the existing newsletter email infrastructure.
+    """
+
+    if language not in SUPPORTED_LANGUAGES:
+        language = "en"
+    if not selected_events:
+        raise ValueError("Cannot render events newsletter without selected events")
+
+    labels = _labels(language)
+    parts = [
+        f"<p>{html.escape(labels['intro'])}</p>",
+        '<div style="margin:0;padding:0;">',
+    ]
+    for event in selected_events:
+        parts.append(_event_card_html(event, language, labels, base_url, is_openmates_url_live, repo_root or REPO_ROOT))
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
+def build_events_preview_manifest(
+    registry: dict[str, Any],
+    run_at: datetime,
+    *,
+    is_openmates_url_live: Callable[[str], bool] | None = None,
+) -> dict[str, Any]:
+    """Build a manifest-like object for send_newsletter.py events previews."""
+
+    selected_events = select_events_for_newsletter(registry["events"], run_at)
+    payload = build_events_campaign_payload(
+        selected_events,
+        run_at,
+        is_openmates_url_live=is_openmates_url_live,
+    )
+    payload["_events"] = selected_events
+    payload["campaign_assets"] = (registry.get("campaign") or {}).get("assets") or {}
+    return payload
+
+
+def _build_language_body(
+    selected_events: list[dict[str, Any]],
+    language: str,
+    is_openmates_url_live: Callable[[str], bool] | None,
+) -> str:
+    intro = {
+        "en": "Here are the next OpenMates events from the public event calendar.",
+        "de": "Hier sind die naechsten OpenMates Events aus dem oeffentlichen Eventkalender.",
+    }[language]
+    lines = [intro, ""]
+    for event in selected_events:
+        content = event["localized_content"][language]
+        destination = resolve_event_destination(event, is_openmates_url_live=is_openmates_url_live)
+        location = event.get("venue") or event.get("online_url") or destination
+        lines.extend(
+            [
+                f"## {content['title']}",
+                f"Event ID: {event['id']}",
+                f"When: {event['starts_at']} ({event['timezone']})",
+                f"Where: {location}",
+                content["summary"],
+                content["description"],
+                f"Register: {destination}",
+                "",
+            ]
+        )
+    return "\n".join(lines).strip()
+
+
+def _labels(language: str) -> dict[str, str]:
+    return {
+        "en": {
+            "intro": "Here are the next OpenMates events from our public event calendar.",
+            "when": "When",
+            "where": "Where",
+            "details": "Open in OpenMates",
+            "register": "Register on Luma",
+        },
+        "de": {
+            "intro": "Hier sind die naechsten OpenMates Events aus unserem oeffentlichen Eventkalender.",
+            "when": "Wann",
+            "where": "Wo",
+            "details": "In OpenMates oeffnen",
+            "register": "Auf Luma anmelden",
+        },
+    }[language]
+
+
+def _event_card_html(
+    event: dict[str, Any],
+    language: str,
+    labels: dict[str, str],
+    base_url: str,
+    is_openmates_url_live: Callable[[str], bool] | None,
+    repo_root: Path,
+) -> str:
+    content = event["localized_content"][language]
+    title = html.escape(str(content["title"]))
+    summary = html.escape(str(content["summary"]))
+    description = html.escape(str(content["description"]))
+    date_line = html.escape(_format_event_time(event, language))
+    location = html.escape(_format_event_location(event, language))
+    event_page_url = html.escape(_event_page_url(event, base_url), quote=True)
+    register_url = html.escape(resolve_event_destination(event, is_openmates_url_live=is_openmates_url_live), quote=True)
+    image_src = html.escape(_event_card_data_uri(event, language, repo_root), quote=True)
+    image_alt = html.escape(str(event["assets"]["card"][language]["alt"]), quote=True)
+    details_label = html.escape(labels["details"])
+    register_label = html.escape(labels["register"])
+
+    return f'''<section style="margin:0 0 30px 0;padding:0 0 28px 0;border-bottom:1px solid #dddddd;">
+  <p style="margin:0 0 16px 0;text-align:center;"><a href="{event_page_url}" style="display:inline-block;text-decoration:none;"><img src="{image_src}" alt="{image_alt}" width="640" style="max-width:100%;height:auto;display:block;border:0;border-radius:18px;" /></a></p>
+  <h2 style="font-size:24px;line-height:1.18;margin:0 0 12px 0;color:#111111;">{title}</h2>
+  <p style="font-size:16px;line-height:1.55;margin:0 0 14px 0;color:#333333;">{summary}</p>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 16px 0;color:#4b4b4b;">{description}</p>
+  <p style="font-size:14px;line-height:1.55;margin:0 0 4px 0;color:#333333;"><strong>{html.escape(labels['when'])}:</strong> {date_line}</p>
+  <p style="font-size:14px;line-height:1.55;margin:0 0 18px 0;color:#333333;"><strong>{html.escape(labels['where'])}:</strong> {location}</p>
+  <p style="margin:0;text-align:center;"><a href="{event_page_url}" style="background-color:#ff553b;border-radius:20px;color:#ffffff;display:inline-block;font-family:Arial, Helvetica, sans-serif;font-size:15px;font-weight:bold;line-height:20px;margin:0 6px 10px 0;padding:12px 18px;text-decoration:none;">{details_label}</a><a href="{register_url}" style="background-color:#681227;border-radius:20px;color:#ffffff;display:inline-block;font-family:Arial, Helvetica, sans-serif;font-size:15px;font-weight:bold;line-height:20px;margin:0 0 10px 6px;padding:12px 18px;text-decoration:none;">{register_label}</a></p>
+</section>'''
+
+
+def _event_card_data_uri(event: dict[str, Any], language: str, repo_root: Path) -> str:
+    asset = event["assets"]["card"][language]
+    raw_path = Path(str(asset["path"]))
+    if raw_path.is_absolute() or ".." in raw_path.parts:
+        raise ValueError(f"unsafe event card path: {raw_path}")
+    path = repo_root / raw_path
+    if not path.exists():
+        raise FileNotFoundError(f"event card image missing: {path}")
+
+    with Image.open(path) as image:
+        converted = image.convert("RGB")
+        if converted.width > EMAIL_CARD_MAX_WIDTH:
+            ratio = EMAIL_CARD_MAX_WIDTH / converted.width
+            converted = converted.resize((EMAIL_CARD_MAX_WIDTH, round(converted.height * ratio)), Image.Resampling.LANCZOS)
+        output = BytesIO()
+        converted.save(output, format="JPEG", quality=EMAIL_CARD_JPEG_QUALITY, optimize=True, progressive=True)
+    return "data:image/jpeg;base64," + b64encode(output.getvalue()).decode("ascii")
+
+
+def _format_event_time(event: dict[str, Any], language: str) -> str:
+    starts_at = datetime.fromisoformat(str(event["starts_at"]))
+    ends_at = datetime.fromisoformat(str(event["ends_at"]))
+    date = starts_at.strftime("%d.%m.%Y" if language == "de" else "%b %-d, %Y")
+    start_time = starts_at.strftime("%H:%M")
+    end_time = ends_at.strftime("%H:%M")
+    return f"{date}, {start_time}-{end_time} {event['timezone']}"
+
+
+def _format_event_location(event: dict[str, Any], language: str) -> str:
+    if event.get("venue"):
+        return str(event["venue"])
+    if event.get("online_url"):
+        return "Online" if language == "en" else "Online"
+    return str(event.get("luma_url") or "")
+
+
+def _event_page_url(event: dict[str, Any], base_url: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9_-]", "", str(event["slug"]))
+    return f"{base_url.rstrip('/')}/events/{slug}"
+
+
+def _payload_hash(payload: dict[str, Any]) -> str:
+    serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

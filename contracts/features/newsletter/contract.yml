@@ -5,14 +5,16 @@ status: draft
 title: Newsletter Subscription
 summary: >
   OpenMates lets a person subscribe an email address through double opt-in,
-  unsubscribe with a recipient-held token, and subscribe again later without
-  exposing subscription state or persisting plaintext email addresses.
+  manage newsletter categories, unsubscribe with a recipient-held token, and
+  subscribe again later without exposing subscription state or persisting
+  plaintext email addresses.
 
 scope:
   includes:
     - Public newsletter subscribe, confirmation, unsubscribe, and repeat-subscription lifecycle.
     - Origin checks, rate limits, recipient-held tokens, and privacy-safe subscriber storage.
     - REST, CLI, web, and implemented Apple subscription settings.
+    - Category defaults and migration semantics for confirmed subscribers.
   excludes:
     - Newsletter campaign authoring, scheduling, content, analytics, and provider dashboards.
     - Transactional account, reminder, billing, security, or workflow notifications.
@@ -35,6 +37,10 @@ models:
       type: secret_token
       nullable: true
       constraints: {recipient_held: true}
+    categories:
+      type: newsletter_category_map
+      nullable: true
+      constraints: {unknown_categories_send: forbidden, explicit_opt_out_preserved: true}
 
 assertions:
   - id: newsletter.lifecycle.double-opt-in
@@ -53,6 +59,10 @@ assertions:
     type: parity
     must: REST, CLI, web, and implemented Apple newsletter settings preserve the same subscribe and category semantics; REST, CLI, and web preserve confirmation and unsubscribe token semantics, while SDKs do not expose newsletter management.
     depends_on: [surfaces, examples.surface_parity]
+  - id: newsletter.categories.default-and-migration
+    type: privacy
+    must: Confirmed subscribers receive canonical openmates_events and software_updates preferences; missing preferences use the approved defaults, an explicit legacy updates opt-out migrates to opt-out for both new categories, explicit new-category choices are never overwritten, and unknown categories fail closed for delivery.
+    depends_on: [models.NewsletterSubscription.categories, examples.category_migration]
 
 surfaces:
   rest_api:
@@ -82,4 +92,9 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [double_opt_in, unsubscribe_resubscribe, privacy_boundaries, surface_parity]
+  required_groups:
+    - double_opt_in
+    - unsubscribe_resubscribe
+    - privacy_boundaries
+    - surface_parity
+    - category_migration

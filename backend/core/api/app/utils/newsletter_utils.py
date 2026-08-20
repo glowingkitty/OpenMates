@@ -5,11 +5,13 @@ This module provides shared helper functions for newsletter operations
 to avoid circular imports.
 """
 
-import hashlib
 import base64
+import hashlib
 import logging
-from typing import Literal
-from backend.core.api.app.services.directus import DirectusService
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -17,50 +19,84 @@ logger = logging.getLogger(__name__)
 NewsletterUserStatus = Literal["not_signed_up", "signup_incomplete", "signup_complete"]
 
 
-# Newsletter category identifiers. These map 1:1 to the boolean keys stored
-# in newsletter_subscribers.categories and to the `category` field in each
-# issue's meta.yml. Keep in sync with:
-#   - frontend SettingsNewsletter.svelte (toggle order)
-#   - backend/scripts/newsletter_md_renderer.py (VALID_CATEGORIES)
+# Canonical newsletter category identifiers exposed by REST, CLI, web, and Apple
+# settings. Legacy issue categories remain send-time compatibility aliases below
+# so old campaigns do not broaden recipient eligibility silently.
 NEWSLETTER_CATEGORIES = (
-    "updates_and_announcements",
-    "tips_and_tricks",
-    "daily_inspirations",
+    "openmates_events",
+    "software_updates",
 )
 
 # Default category preferences. Applied when a subscriber row has
 # categories=NULL (pre-migration rows) or is missing a specific key.
-# Daily Inspirations is off by default because it's a high-frequency
-# nice-to-have — users must explicitly opt in.
 DEFAULT_NEWSLETTER_CATEGORIES = {
+    "openmates_events": True,
+    "software_updates": True,
+}
+
+LEGACY_NEWSLETTER_CATEGORY_DEFAULTS = {
     "updates_and_announcements": True,
     "tips_and_tricks": True,
     "daily_inspirations": False,
+}
+
+LEGACY_NEWSLETTER_CATEGORY_ALIASES = {
+    "updates_and_announcements": "software_updates",
+    "tips_and_tricks": "software_updates",
 }
 
 
 def normalize_newsletter_categories(raw: object) -> dict:
     """Return a dict with every known category key set to a bool.
 
-    Missing keys fall back to ``DEFAULT_NEWSLETTER_CATEGORIES``. Unknown keys
-    in the input are silently dropped — the DB is not a trust boundary for
-    this value, but we don't want stale/old keys leaking into new UI.
+    Explicit canonical keys win. Legacy updates opt-outs map both canonical
+    categories off, and old tips opt-outs map ``software_updates`` off. Unknown
+    keys are dropped because stored category JSON is not a trust boundary.
     """
     if not isinstance(raw, dict):
         return dict(DEFAULT_NEWSLETTER_CATEGORIES)
-    out = {}
+
+    out = dict(DEFAULT_NEWSLETTER_CATEGORIES)
+    legacy_updates = raw.get("updates_and_announcements")
+    if isinstance(legacy_updates, bool) and legacy_updates is False:
+        out["openmates_events"] = False
+        out["software_updates"] = False
+
+    legacy_tips = raw.get("tips_and_tricks")
+    if isinstance(legacy_tips, bool) and legacy_tips is False:
+        out["software_updates"] = False
+
     for key in NEWSLETTER_CATEGORIES:
         value = raw.get(key)
-        out[key] = bool(value) if isinstance(value, bool) else DEFAULT_NEWSLETTER_CATEGORIES[key]
+        if isinstance(value, bool):
+            out[key] = value
+    return out
+
+
+def apply_newsletter_category_update(current: object, patch: object) -> dict:
+    """Apply a partial settings patch using canonical category keys only."""
+
+    out = normalize_newsletter_categories(current)
+    if not isinstance(patch, dict):
+        return out
+    for key, value in patch.items():
+        if key in NEWSLETTER_CATEGORIES and isinstance(value, bool):
+            out[key] = value
     return out
 
 
 def is_subscriber_allowed_for_category(categories: object, category: str) -> bool:
     """Return True when the dispatcher may send a ``category`` email to this subscriber."""
-    if category not in NEWSLETTER_CATEGORIES:
-        # Unknown category — fail closed.
-        return False
-    return normalize_newsletter_categories(categories).get(category, False)
+    normalized = normalize_newsletter_categories(categories)
+    if category in NEWSLETTER_CATEGORIES:
+        return normalized.get(category, False)
+    if category in LEGACY_NEWSLETTER_CATEGORY_ALIASES:
+        return normalized.get(LEGACY_NEWSLETTER_CATEGORY_ALIASES[category], False)
+    if category == "daily_inspirations":
+        if isinstance(categories, dict) and isinstance(categories.get(category), bool):
+            return categories[category]
+        return LEGACY_NEWSLETTER_CATEGORY_DEFAULTS[category]
+    return False
 
 
 def hash_email(email: str) -> str:
@@ -81,7 +117,7 @@ def hash_email(email: str) -> str:
 async def update_newsletter_registration_status(
     hashed_email: str,
     status: NewsletterUserStatus,
-    directus_service: DirectusService,
+    directus_service: "DirectusService",
 ) -> bool:
     """
     Update user_registration_status on a newsletter_subscribers record identified by hashed_email.
@@ -144,7 +180,7 @@ async def update_newsletter_registration_status(
         return False
 
 
-async def check_ignored_email(hashed_email: str, directus_service: DirectusService) -> bool:
+async def check_ignored_email(hashed_email: str, directus_service: "DirectusService") -> bool:
     """
     Check if an email hash is in the ignored_emails list.
     
