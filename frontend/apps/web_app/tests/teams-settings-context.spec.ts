@@ -16,6 +16,7 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 type ProtocolFrame = {
+	direction: 'sent' | 'received';
 	type: string;
 	payload: Record<string, any>;
 	raw: string;
@@ -29,30 +30,36 @@ function deriveApiUrl(baseUrl: string): string {
 	throw new Error(`Cannot derive API URL from PLAYWRIGHT_TEST_BASE_URL=${baseUrl}.`);
 }
 
-function captureOutboundProtocol(page: Page, frames: ProtocolFrame[]): void {
+function captureProtocol(page: Page, frames: ProtocolFrame[], apiUrl: string): void {
+	const expectedApiHost = new URL(apiUrl).host;
 	page.on('websocket', (websocket) => {
-		websocket.on('framesent', (frame) => {
+		if (new URL(websocket.url()).host !== expectedApiHost) return;
+		const capture = (direction: ProtocolFrame['direction']) => (frame: { payload?: string | Buffer }) => {
 			const raw = String(frame.payload ?? '');
 			try {
 				const parsed = JSON.parse(raw) as Record<string, any>;
 				if (typeof parsed.type !== 'string' || typeof parsed.payload !== 'object' || !parsed.payload) return;
-				frames.push({ type: parsed.type, payload: parsed.payload, raw });
+				frames.push({ direction, type: parsed.type, payload: parsed.payload, raw });
 			} catch {
 				// WebSocket control frames are not JSON protocol messages.
 			}
-		});
+		};
+		websocket.on('framesent', capture('sent'));
+		websocket.on('framereceived', capture('received'));
 	});
 }
 
 async function waitForFrame(
 	frames: ProtocolFrame[],
 	startIndex: number,
+	direction: ProtocolFrame['direction'],
 	type: string,
 	predicate: (payload: Record<string, any>) => boolean
 ): Promise<ProtocolFrame> {
 	let match: ProtocolFrame | undefined;
 	await expect.poll(() => {
-		match = frames.slice(startIndex).find((frame) => frame.type === type && predicate(frame.payload));
+		match = frames.slice(startIndex).find((frame) =>
+			frame.direction === direction && frame.type === type && predicate(frame.payload));
 		return Boolean(match);
 	}, { timeout: 30000 }).toBe(true);
 	return match!;
@@ -105,7 +112,7 @@ test.describe('Teams V1 context isolation', () => {
 		const teamName = `E2E context team ${uniqueSuffix}`;
 		const ordinaryMessage = `Private Team note ${uniqueSuffix}`;
 		let teamId = '';
-		captureOutboundProtocol(page, frames);
+		captureProtocol(page, frames, apiUrl);
 
 		try {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -136,8 +143,12 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
 			const teamSwitchFrameIndex = frames.length;
 			await page.getByTestId('team-context-dropdown').selectOption(teamId);
-			await waitForFrame(frames, teamSwitchFrameIndex, 'phased_sync_request', (payload) =>
+			const teamSyncRequest = await waitForFrame(frames, teamSwitchFrameIndex, 'sent', 'phased_sync_request', (payload) =>
 				payload.team_id === teamId && Number.isInteger(payload.context_epoch));
+			await waitForFrame(frames, teamSwitchFrameIndex, 'received', 'phased_sync_complete', (payload) =>
+				payload.team_id === teamId
+				&& payload.phase === teamSyncRequest.payload.phase
+				&& payload.context_epoch === teamSyncRequest.payload.context_epoch);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
@@ -156,9 +167,9 @@ test.describe('Teams V1 context isolation', () => {
 			await expect.poll(async () => (await editor.innerText()).trim()).toBe(ordinaryMessage);
 			await page.getByTestId('message-field').last().locator('[data-action="send-message"]').click();
 
-			const preflight = await waitForFrame(frames, sendFrameIndex, 'chat_turn_preflight', (payload) =>
+			const preflight = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_turn_preflight', (payload) =>
 				payload.team_id === teamId);
-			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'chat_message_added', (payload) =>
+			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_message_added', (payload) =>
 				payload.team_id === teamId);
 			expect(preflight.payload.inference_request?.team_id).toBe(teamId);
 			expect(preflight.payload.inference_request?.message?.encrypted_content).toBeTruthy();
@@ -180,8 +191,12 @@ test.describe('Teams V1 context isolation', () => {
 			await openProfileMenu(page);
 			const personalSwitchFrameIndex = frames.length;
 			await page.getByTestId('team-context-dropdown').selectOption('personal');
-			await waitForFrame(frames, personalSwitchFrameIndex, 'phased_sync_request', (payload) =>
+			const personalSyncRequest = await waitForFrame(frames, personalSwitchFrameIndex, 'sent', 'phased_sync_request', (payload) =>
 				payload.team_id === undefined && Number.isInteger(payload.context_epoch));
+			await waitForFrame(frames, personalSwitchFrameIndex, 'received', 'phased_sync_complete', (payload) =>
+				payload.team_id === null
+				&& payload.phase === personalSyncRequest.payload.phase
+				&& payload.context_epoch === personalSyncRequest.payload.context_epoch);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 

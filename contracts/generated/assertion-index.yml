@@ -11478,7 +11478,7 @@ assertions:
       surface: gui.web
     - &id1292
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
-      line: 97
+      line: 104
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
     - &id1293
@@ -11691,7 +11691,7 @@ assertions:
       surface: rest_api
     - &id1323
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
-      line: 97
+      line: 104
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
     - &id1324
