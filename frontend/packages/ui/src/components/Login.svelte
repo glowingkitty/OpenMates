@@ -577,7 +577,12 @@
      * Perform passkey login flow
      */
     async function performPasskeyLogin() {
-        if (!isPasskeyLoading) return; // Check if still in passkey mode
+        const activePasskeyLoginAbortController = passkeyLoginAbortController;
+        if (!isPasskeyLoading || !activePasskeyLoginAbortController) return;
+
+        const passkeyLoginWasCancelled = () =>
+            activePasskeyLoginAbortController.signal.aborted ||
+            passkeyLoginAbortController !== activePasskeyLoginAbortController;
         
         try {
             isLoading = true;
@@ -595,7 +600,7 @@
                 },
                 body: JSON.stringify({}),
                 credentials: 'include',
-                signal: passkeyLoginAbortController?.signal
+                signal: activePasskeyLoginAbortController.signal
             });
             
             if (!initiateResponse.ok) {
@@ -664,7 +669,7 @@
             try {
                 assertion = await navigator.credentials.get({
                     publicKey: publicKeyCredentialRequestOptions,
-                    signal: passkeyLoginAbortController?.signal
+                    signal: activePasskeyLoginAbortController.signal
                 }) as PublicKeyCredential;
             } catch (error: unknown) {
                 // Handle expected cancellations first (don't log as errors)
@@ -826,7 +831,7 @@
                     session_id: getSessionId()
                 }),
                 credentials: 'include',
-                signal: passkeyLoginAbortController?.signal
+                signal: activePasskeyLoginAbortController.signal
             });
             
             if (!verifyResponse.ok) {
@@ -905,9 +910,13 @@
                 return;
             }
             
+            if (passkeyLoginWasCancelled()) return;
+
             // Step 10: Save master key to storage (needed for decrypting email)
             // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
             await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+
+            if (passkeyLoginWasCancelled()) return;
             
             // Step 11: Decrypt email using master key (for passwordless login)
             // The server returns encrypted_email encrypted with master key (encrypted_email_with_master_key)
@@ -955,6 +964,7 @@
                 // Authenticate using the regular login endpoint with lookup_hash
                 const { getApiEndpoint, apiEndpoints } = await import('../config/api');
                 const { getSessionId } = await import('../utils/sessionId');
+                if (passkeyLoginWasCancelled()) return;
                 const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                     method: 'POST',
                     headers: {
@@ -969,7 +979,8 @@
                         stay_logged_in: stayLoggedIn,
                         session_id: getSessionId()
                     }),
-                    credentials: 'include'
+                    credentials: 'include',
+                    signal: activePasskeyLoginAbortController.signal
                 });
                 
                 if (!authResponse.ok) {
@@ -982,6 +993,8 @@
                 }
                 
                 const authData = await authResponse.json();
+
+                if (passkeyLoginWasCancelled()) return;
                 
                 if (!authData.success) {
                     console.error('Passkey authentication failed:', authData.message);
@@ -1129,6 +1142,10 @@
             });
 
         } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                return;
+            }
+
             console.error('Error during passkey login:', error);
             // Persist error for admin debugging (clientLogForwarder isn't active during login)
             try {
@@ -1141,11 +1158,6 @@
                     }));
                 }
             } catch { /* localStorage write failed — ignore */ }
-
-            if (error instanceof Error && error.name === 'AbortError') {
-                // User cancelled - already handled
-                return;
-            }
 
             // Check for chunk loading errors (stale cache after deployment)
             if (isChunkLoadError(error)) {
@@ -2426,7 +2438,7 @@
                                                          onclick={cancelPasskeyLogin}
                                                      >
                                                          <span class="clickable-icon icon_mail" data-testid="login-use-email-icon"></span>
-                                                         {$text('login.login_with_email')}
+                                                         {$text('login.login_with_email')} + {$text('common.password')}
                                                      </button>
                                                      <button
                                                          type="button"

@@ -319,7 +319,7 @@
                     onclick={onCancelPasskey}
                 >
                     <span class="clickable-icon icon_mail"></span>
-                    {$text('login.login_with_email')}
+                    {$text('login.login_with_email')} + {$text('common.password')}
                 </button>
             {:else}
                 <button 

@@ -18,6 +18,8 @@ test('keeps alternative login methods available while passkey login is pending',
 	});
 
 	await page.addInitScript(() => {
+		const testWindow = window as Window & { __passkeyAbortCount?: number };
+		testWindow.__passkeyAbortCount = 0;
 		Object.defineProperty(navigator.credentials, 'get', {
 			configurable: true,
 			value: ({ mediation, signal }: { mediation?: string; signal?: AbortSignal }) => {
@@ -28,7 +30,10 @@ test('keeps alternative login methods available while passkey login is pending',
 				return new Promise((_resolve, reject) => {
 					signal?.addEventListener(
 						'abort',
-						() => reject(new DOMException('Passkey request cancelled', 'AbortError')),
+						() => {
+							testWindow.__passkeyAbortCount = (testWindow.__passkeyAbortCount ?? 0) + 1;
+							reject(new DOMException('Passkey request cancelled', 'AbortError'));
+						},
 						{ once: true }
 					);
 				});
@@ -68,6 +73,7 @@ test('keeps alternative login methods available while passkey login is pending',
 	await useEmailButton.click();
 	await expect(page.getByText(/logging in with passkey/i)).not.toBeVisible();
 	await expect(page.getByTestId('login-email-input')).toBeVisible();
+	await expect.poll(() => page.evaluate(() => (window as Window & { __passkeyAbortCount?: number }).__passkeyAbortCount)).toBe(1);
 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto(getE2EDebugUrl('/'));
@@ -79,4 +85,5 @@ test('keeps alternative login methods available while passkey login is pending',
 	await takeScreenshot(page, 'mobile');
 	await pairLoginButton.click();
 	await expect(page.getByText(/logging in with passkey/i)).not.toBeVisible();
+	await expect.poll(() => page.evaluate(() => (window as Window & { __passkeyAbortCount?: number }).__passkeyAbortCount)).toBe(1);
 });
