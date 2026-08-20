@@ -1440,6 +1440,12 @@ export async function handleLoadMoreChatsResponseImpl(
     for (const chatWrapper of payload.chats || []) {
       const details = chatWrapper.chat_details;
       if (!details?.id) continue;
+      details.team_id = payload.team_id ?? null;
+      if (payload.team_id && details.encrypted_chat_key) {
+        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        chatKeyManager.injectKey(details.id, chatKey, "server_sync");
+      }
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
       if (
         shouldSkipSyncedChatWithoutKey(
@@ -1500,6 +1506,12 @@ export async function handleSyncMetadataChatsResponseImpl(
     for (const chatWrapper of payload.chats || []) {
       const details = chatWrapper.chat_details;
       if (!details?.id) continue;
+      details.team_id = payload.team_id ?? null;
+      if (payload.team_id && details.encrypted_chat_key) {
+        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        chatKeyManager.injectKey(details.id, chatKey, "server_sync");
+      }
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
       if (
         shouldSkipSyncedChatWithoutKey(

@@ -1222,6 +1222,8 @@ export interface Phase3FullSyncPayload {
  * (no messages) and stored in memory only (not IndexedDB).
  */
 export interface LoadMoreChatsResponsePayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: null;
@@ -1239,6 +1241,8 @@ export interface LoadMoreChatsResponsePayload {
  * Stored in IndexedDB for offline search by title, summary, and tags.
  */
 export interface MetadataChatsResponsePayload {
+  team_id?: string | null;
+  context_epoch?: number;
   chats: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: null;

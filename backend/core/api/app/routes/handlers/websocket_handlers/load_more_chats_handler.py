@@ -61,11 +61,25 @@ async def handle_load_more_chats(
         try:
             offset = payload.get("offset", 100)
             limit = min(payload.get("limit", 20), 50)  # Cap at 50 to prevent abuse
+            raw_team_id = payload.get("team_id")
+            team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
+            context_epoch = payload.get("context_epoch")
+            if team_id:
+                await directus_service.team.require_team_role(
+                    team_id,
+                    user_id,
+                    {"owner", "admin", "member", "viewer"},
+                )
         
             logger.info(f"Loading more chats for user {user_id[:8]}...: offset={offset}, limit={limit}")
         
             # Get total chat count (Redis + Directus fallback for accuracy)
-            total_count = await _get_total_chat_count(cache_service, user_id, directus_service)
+            total_count = await _get_total_chat_count(
+                cache_service,
+                user_id,
+                directus_service,
+                team_id=team_id,
+            )
         
             if total_count <= offset:
                 # No more chats available
@@ -77,7 +91,9 @@ async def handle_load_more_chats(
                             "chats": [],
                             "has_more": False,
                             "total_count": total_count,
-                            "offset": offset
+                            "offset": offset,
+                            "team_id": team_id,
+                            "context_epoch": context_epoch,
                         }
                     },
                     user_id,
@@ -87,7 +103,7 @@ async def handle_load_more_chats(
         
             # Fetch chat IDs from cache (sorted by last_edited_overall_timestamp desc)
             end_index = offset + limit - 1  # Redis ZRANGE end is inclusive
-            cached_chat_ids = await cache_service.get_chat_ids_versions(
+            cached_chat_ids = [] if team_id else await cache_service.get_chat_ids_versions(
                 user_id, start=offset, end=end_index, with_scores=False
             )
         
@@ -124,7 +140,7 @@ async def handle_load_more_chats(
                 # Cache empty — fall back to Directus with offset/limit
                 logger.info(f"Load more: No cached chat IDs, falling back to Directus for user {user_id[:8]}...")
                 chats_to_send = await _fetch_chats_from_directus_paginated(
-                    directus_service, user_id, offset, limit
+                    directus_service, user_id, offset, limit, team_id=team_id
                 )
         
             has_more = (offset + len(chats_to_send)) < total_count
@@ -141,7 +157,9 @@ async def handle_load_more_chats(
                         "chats": chats_to_send,
                         "has_more": has_more,
                         "total_count": total_count,
-                        "offset": offset
+                        "offset": offset,
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
                     }
                 },
                 user_id,
@@ -159,7 +177,9 @@ async def handle_load_more_chats(
                         "has_more": False,
                         "total_count": 0,
                         "offset": payload.get("offset", 100),
-                        "error": "Failed to load more chats"
+                        "error": "Failed to load more chats",
+                        "team_id": payload.get("team_id"),
+                        "context_epoch": payload.get("context_epoch"),
                     }
                 },
                 user_id,
@@ -179,6 +199,7 @@ async def _get_total_chat_count(
     cache_service: CacheService,
     user_id: str,
     directus_service: Optional[DirectusService] = None,
+    team_id: Optional[str] = None,
 ) -> int:
     """Get the total number of chats for a user.
 
@@ -187,6 +208,8 @@ async def _get_total_chat_count(
     we query Directus for the authoritative count and return the higher value.
     """
     redis_count = 0
+    if team_id and directus_service:
+        return await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
     try:
         client = await cache_service.client
         if client:
@@ -272,12 +295,16 @@ async def _fetch_chats_from_directus(
 
 
 async def _fetch_chats_from_directus_paginated(
-    directus_service: DirectusService, user_id: str, offset: int, limit: int
+    directus_service: DirectusService,
+    user_id: str,
+    offset: int,
+    limit: int,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Fetch chats from Directus with pagination (fallback when cache is empty)."""
     try:
         all_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id, limit=limit, offset=offset
+            user_id, limit=limit, offset=offset, team_id=team_id
         )
         # Convert to the expected format (metadata only, no messages)
         return [

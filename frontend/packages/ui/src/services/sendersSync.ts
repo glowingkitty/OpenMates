@@ -15,6 +15,7 @@ import { webSocketService } from "./websocketService";
 import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
+import { activeTeamContext } from "../stores/teamStore";
 import type {
 	OfflineChange,
 	CancelAITaskPayload,
@@ -614,9 +615,12 @@ export async function sendLoadMoreChatsImpl(
 	limit: number = 20
 ): Promise<void> {
 	try {
+		const context = get(activeTeamContext);
 		await webSocketService.sendMessage("load_more_chats", {
 			offset,
-			limit
+			limit,
+			context_epoch: context.epoch,
+			...(context.teamId ? { team_id: context.teamId } : {})
 		});
 		console.info(
 			`[ChatSyncService:Senders] Requested more chats: offset=${offset}, limit=${limit}`
@@ -644,8 +648,11 @@ export async function sendSyncMetadataChatsImpl(
 	existingChatIds: string[] = []
 ): Promise<void> {
 	try {
+		const context = get(activeTeamContext);
 		await webSocketService.sendMessage("sync_metadata_chats", {
-			existing_chat_ids: existingChatIds
+			existing_chat_ids: existingChatIds,
+			context_epoch: context.epoch,
+			...(context.teamId ? { team_id: context.teamId } : {})
 		});
 		console.info(
 			`[ChatSyncService:Senders] Requested metadata chats sync (existing_on_client=${existingChatIds.length})`

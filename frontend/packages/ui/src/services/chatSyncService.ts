@@ -549,18 +549,16 @@ export class ChatSynchronizationService extends EventTarget {
       if (!this.isPayloadForActiveContext(typedPayload)) return;
       void phasedSyncHandlers.handlePhase3FullSyncImpl(this, typedPayload);
     });
-    webSocketService.on("load_more_chats_response", (payload) =>
-      phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
-        this,
-        payload as LoadMoreChatsResponsePayload,
-      ),
-    );
-    webSocketService.on("sync_metadata_chats_response", (payload) =>
-      phasedSyncHandlers.handleSyncMetadataChatsResponseImpl(
-        this,
-        payload as MetadataChatsResponsePayload,
-      ),
-    );
+    webSocketService.on("load_more_chats_response", (payload) => {
+      const typedPayload = payload as LoadMoreChatsResponsePayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handleLoadMoreChatsResponseImpl(this, typedPayload);
+    });
+    webSocketService.on("sync_metadata_chats_response", (payload) => {
+      const typedPayload = payload as MetadataChatsResponsePayload;
+      if (!this.isPayloadForActiveContext(typedPayload)) return;
+      void phasedSyncHandlers.handleSyncMetadataChatsResponseImpl(this, typedPayload);
+    });
     webSocketService.on("phased_sync_complete", (payload) => {
       const typedPayload = payload as PhasedSyncCompletePayload;
       if (!this.isPayloadForActiveContext(typedPayload)) return;
