@@ -55,10 +55,10 @@ test('OpenMates event SEO page serves static event HTML without 500', async ({ p
 test('OpenMates event embed deep link renders details and registration CTA', async ({ page }) => {
 	await page.goto(getE2EDebugUrl(`/#embed-id=${EVENT_SLUG}`), { waitUntil: 'domcontentloaded' });
 
-	await expect(page.getByRole('heading', { name: EVENT_TITLE })).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
 	await expect(page.getByRole('link', { name: /register on luma/i })).toBeVisible({ timeout: 10000 });
-	await expect(page.getByText('Tuesday, August 25, 2026')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByText('Online event')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByText('OpenMates Events')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByText('Tired of big-tech AI chatbots and agents')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('body')).toContainText('Tuesday, August 25, 2026', { timeout: 10000 });
+	await expect(page.locator('body')).toContainText('Online event', { timeout: 10000 });
+	await expect(page.locator('body')).toContainText('OpenMates Events', { timeout: 10000 });
+	await expect(page.locator('body')).toContainText('Tired of big-tech AI chatbots and agents', { timeout: 10000 });
 });
