@@ -17,7 +17,7 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	withLiveMockMarker
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const {
@@ -25,7 +25,8 @@ const {
 	startNewChat,
 	sendMessage,
 	deleteActiveChat,
-	waitForAssistantMessage
+	waitForAssistantMessage,
+	dismissSecurityReminderIfPresent
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -40,9 +41,9 @@ async function createChatWithSummary(
 	await startNewChat(page, logCheckpoint);
 	await sendMessage(
 		page,
-		withLiveMockMarker(
+		withMockMarker(
 			'Create a concise project plan for testing a chat settings page, including files, usage, sharing, and tasks.',
-			'chat_settings_flow'
+			'chat_flow_capital'
 		),
 		logCheckpoint,
 		takeStepScreenshot,
@@ -86,6 +87,7 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await dismissSecurityReminderIfPresent(page, logCheckpoint);
 	const chatHeaderTitle = await createChatWithSummary(page, logCheckpoint, takeStepScreenshot);
 	await takeStepScreenshot(page, 'chat-ready');
 
@@ -114,8 +116,9 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	expect(Math.abs(expandedHeaderMetrics.identityCenterX - expandedHeaderMetrics.headerCenterX)).toBeLessThan(8);
 	expect(expandedHeaderMetrics.creditsBelowTitle).toBe(true);
 
-	await settingsMenu.getByTestId('chat-settings-tabpanel-share').evaluate((element: HTMLElement) => {
-		element.scrollIntoView({ block: 'end' });
+	const settingsContent = settingsMenu.getByRole('presentation');
+	await settingsContent.evaluate((element: HTMLElement) => {
+		element.scrollTo({ top: element.scrollHeight });
 	});
 	await expect(async () => {
 		const collapsedTitle = await settingsMenu.getByTestId('chat-settings-title').evaluate((title: HTMLElement) => {
@@ -132,8 +135,8 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 		expect(collapsedTitle.textOverflow).toBe('ellipsis');
 		expect(collapsedTitle.singleLine).toBe(true);
 	}).toPass({ timeout: 10_000 });
-	await settingsMenu.getByTestId('chat-settings-page').evaluate((element: HTMLElement) => {
-		element.scrollIntoView({ block: 'start' });
+	await settingsContent.evaluate((element: HTMLElement) => {
+		element.scrollTo({ top: 0 });
 	});
 	await expect(settingsMenu.getByTestId('chat-settings-title')).not.toHaveCSS('white-space', 'nowrap', { timeout: 10_000 });
 	const settingsSummary = settingsMenu.getByTestId('chat-settings-summary');

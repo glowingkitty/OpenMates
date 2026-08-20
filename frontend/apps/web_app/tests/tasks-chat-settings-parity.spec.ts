@@ -8,15 +8,15 @@
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
-const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount, withLiveMockMarker } = require('./signup-flow-helpers');
+const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
 
 async function createSmallChat(page: any, log: any, screenshot: any): Promise<string> {
 	await startNewChat(page, log);
 	await sendMessage(
 		page,
-		withLiveMockMarker('Reply in one short sentence: create a stable chat for task settings testing.', 'tasks_chat_settings_parity'),
+		withMockMarker('Reply in one short sentence: create a stable chat for task settings testing.', 'chat_flow_capital'),
 		log,
 		screenshot,
 		'tasks-chat-settings'
@@ -28,6 +28,7 @@ async function createSmallChat(page: any, log: any, screenshot: any): Promise<st
 }
 
 test.describe('Chat settings Tasks parity', () => {
+	// contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 	test('creates chat-linked tasks and syncs settings, preview, and central board', async ({ page }) => {
 		test.slow();
 		test.setTimeout(240_000);
@@ -42,6 +43,7 @@ test.describe('Chat settings Tasks parity', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, log, screenshot);
+		await dismissSecurityReminderIfPresent(page, log);
 		const chatId = await createSmallChat(page, log, screenshot);
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}&settings=chats/${chatId}/tasks`), { waitUntil: 'domcontentloaded' });

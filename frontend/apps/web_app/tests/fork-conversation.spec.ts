@@ -242,6 +242,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// Verify the fork name input is pre-filled (non-empty)
 	const forkInput = page.getByTestId('fork-input');
 	await expect(forkInput).toBeVisible();
+	await expect(forkInput).not.toHaveValue('', { timeout: 10_000 });
 	const forkNameValue = await forkInput.inputValue();
 	expect(forkNameValue.trim()).not.toBe('');
 	log(`Fork name pre-filled: "${forkNameValue}"`);
