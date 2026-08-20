@@ -20,11 +20,18 @@ import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 // Mock cryptoService
 const mockDecryptChatKeyWithMasterKey = vi.fn();
 const mockEncryptChatKeyWithMasterKey = vi.fn();
+const mockUnwrapTeamChatKey = vi.fn();
+const mockWrapTeamChatKey = vi.fn();
 vi.mock("../../cryptoService", () => ({
   encryptChatKeyWithMasterKey: (...args: unknown[]) =>
     mockEncryptChatKeyWithMasterKey(...args),
   decryptChatKeyWithMasterKey: (...args: unknown[]) =>
     mockDecryptChatKeyWithMasterKey(...args),
+}));
+
+vi.mock("../../teamService", () => ({
+  unwrapTeamChatKey: (...args: unknown[]) => mockUnwrapTeamChatKey(...args),
+  wrapTeamChatKey: (...args: unknown[]) => mockWrapTeamChatKey(...args),
 }));
 
 // Mock ChatKeyManager
@@ -143,6 +150,8 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     mockGetKeySync.mockReturnValue(null);
     mockDecryptChatKeyWithMasterKey.mockResolvedValue(null);
     mockEncryptChatKeyWithMasterKey.mockResolvedValue(null);
+    mockUnwrapTeamChatKey.mockResolvedValue(null);
+    mockWrapTeamChatKey.mockResolvedValue(null);
     mockGetProvenance.mockReturnValue(null);
     mockCreateKeyForNewChat.mockReturnValue(fakeKey);
     mockCreateAndPersistKeyLocked.mockResolvedValue({
@@ -165,6 +174,62 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(result.encrypted_chat_key).toBe("encrypted-key-base64");
     expect(result.key_fingerprint).toBe("abcd1234");
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+  it("preserves a Team-wrapped key when saving a Team chat", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      team_id: "team-123",
+      encrypted_chat_key: "team-wrapped-key",
+    });
+
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockUnwrapTeamChatKey.mockResolvedValue(fakeKey);
+
+    const result = await encryptChatForStorage(db as any, chat);
+
+    expect(mockUnwrapTeamChatKey).toHaveBeenCalledWith(
+      "team-123",
+      "team-wrapped-key",
+    );
+    expect(mockDecryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(result.encrypted_chat_key).toBe("team-wrapped-key");
+    expect(result.key_fingerprint).toBe("abcd1234");
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+  it("Team-wraps the key for a genuinely new Team chat", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({ team_id: "team-123" });
+
+    mockCreateKeyForNewChat.mockReturnValue(fakeKey);
+    mockWrapTeamChatKey.mockResolvedValue("team-wrapped-key");
+
+    const result = await encryptChatForStorage(db as any, chat);
+
+    expect(mockCreateKeyForNewChat).toHaveBeenCalledWith("test-chat-123");
+    expect(mockWrapTeamChatKey).toHaveBeenCalledWith("team-123", fakeKey);
+    expect(mockCreateAndPersistKeyLocked).not.toHaveBeenCalled();
+    expect(mockEncryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(result.encrypted_chat_key).toBe("team-wrapped-key");
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.sync.key-gated-recovery
+  it("does not replace an existing Team wrapper when it cannot be unwrapped", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({
+      team_id: "team-123",
+      encrypted_chat_key: "team-wrapped-key",
+    });
+
+    mockUnwrapTeamChatKey.mockRejectedValue(new Error("Team key unavailable"));
+
+    await expect(encryptChatForStorage(db as any, chat)).rejects.toThrow(
+      "existing Team chat key could not be unwrapped",
+    );
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+    expect(mockCreateAndPersistKeyLocked).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only

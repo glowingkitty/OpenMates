@@ -23,6 +23,7 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
+import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -51,6 +52,31 @@ const SHARED_CHAT_KEY_SOURCES = new Set(["share_link", "shared_storage"]);
 function isSharedChatKeySource(chatId: string): boolean {
   const provenance = chatKeyManager.getProvenance(chatId);
   return provenance ? SHARED_CHAT_KEY_SOURCES.has(provenance.source) : false;
+}
+
+async function unwrapPersistedChatKey(
+  teamId: string | null | undefined,
+  encryptedChatKey: string,
+): Promise<Uint8Array | null> {
+  if (!teamId) return decryptChatKeyWithMasterKey(encryptedChatKey);
+  try {
+    return await unwrapTeamChatKey(teamId, encryptedChatKey);
+  } catch (error) {
+    console.error(
+      `[ChatDatabase] Failed to unwrap Team chat key for team ${teamId}`,
+      error,
+    );
+    return null;
+  }
+}
+
+async function wrapPersistedChatKey(
+  teamId: string | null | undefined,
+  chatKey: Uint8Array,
+): Promise<string | null> {
+  return teamId
+    ? wrapTeamChatKey(teamId, chatKey)
+    : encryptChatKeyWithMasterKey(chatKey);
 }
 
 // ============================================================================
@@ -185,7 +211,8 @@ export async function encryptChatForStorage(
   // store the incoming key beside locally encrypted fields. The caller must
   // explicitly clear/reload ChatKeyManager before accepting a server key change.
   if (chatKey && chat.encrypted_chat_key) {
-    const incomingKey = await decryptChatKeyWithMasterKey(
+    const incomingKey = await unwrapPersistedChatKey(
+      chat.team_id,
       chat.encrypted_chat_key,
     );
     if (incomingKey) {
@@ -219,19 +246,25 @@ export async function encryptChatForStorage(
           ).catch(() => {});
           encryptedChat.encrypted_chat_key =
             existingChat?.encrypted_chat_key ??
-            (await encryptChatKeyWithMasterKey(chatKey));
+            (await wrapPersistedChatKey(chat.team_id, chatKey));
           console.warn(
             `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
               `cached key remains authoritative until sync explicitly reloads the server key`,
           );
         }
       }
+    } else if (chat.team_id) {
+      if (options?.isFromSync) return encryptedChat;
+      throw new Error(
+        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: existing Team chat key could not be unwrapped`,
+      );
     }
   }
 
   // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    const candidateKey = await decryptChatKeyWithMasterKey(
+    const candidateKey = await unwrapPersistedChatKey(
+      chat.team_id,
       chat.encrypted_chat_key,
     );
     if (candidateKey) {
@@ -253,6 +286,11 @@ export async function encryptChatForStorage(
           chat.encrypted_chat_key,
         ).catch(() => {});
       }
+    } else if (chat.team_id) {
+      if (options?.isFromSync) return encryptedChat;
+      throw new Error(
+        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: incoming Team chat key could not be unwrapped`,
+      );
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
@@ -264,7 +302,8 @@ export async function encryptChatForStorage(
   if (!chatKey) {
     const existingChat = await dbInstance.getChat(chat.chat_id);
     if (existingChat?.encrypted_chat_key) {
-      chatKey = await decryptChatKeyWithMasterKey(
+      chatKey = await unwrapPersistedChatKey(
+        existingChat.team_id ?? chat.team_id,
         existingChat.encrypted_chat_key,
       );
       if (chatKey) {
@@ -272,6 +311,11 @@ export async function encryptChatForStorage(
         encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
         console.info(
           `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id}`,
+        );
+      } else if (existingChat.team_id ?? chat.team_id) {
+        if (options?.isFromSync) return encryptedChat;
+        throw new Error(
+          `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: persisted Team chat key could not be unwrapped`,
         );
       }
     }
@@ -303,9 +347,17 @@ export async function encryptChatForStorage(
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
-    const result = await chatKeyManager.createAndPersistKeyLocked(chat.chat_id);
-    chatKey = result.chatKey;
-    encryptedChat.encrypted_chat_key = result.encryptedChatKey;
+    if (chat.team_id) {
+      chatKey = chatKeyManager.createKeyForNewChat(chat.chat_id);
+      encryptedChat.encrypted_chat_key = await wrapTeamChatKey(
+        chat.team_id,
+        chatKey,
+      );
+    } else {
+      const result = await chatKeyManager.createAndPersistKeyLocked(chat.chat_id);
+      chatKey = result.chatKey;
+      encryptedChat.encrypted_chat_key = result.encryptedChatKey;
+    }
   }
 
   // Ensure encrypted_chat_key is present in the stored object
@@ -314,7 +366,7 @@ export async function encryptChatForStorage(
     !chat.is_anonymous &&
     !isSharedChatKeySource(chat.chat_id)
   ) {
-    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
     } else {
