@@ -425,6 +425,18 @@ def test_clean_worktree_guard_rejects_tracked_changes(monkeypatch: pytest.Monkey
         workflow.require_clean_worktree()
 
 
+def test_clean_worktree_guard_accepts_reusable_worktree_matching_subject(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        workflow.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr=""),
+    )
+
+    workflow.require_clean_worktree("a" * 40)
+
+
 def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

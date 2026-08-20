@@ -8003,7 +8003,9 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
                 resolve_deployed_run,
             )
         try:
-            require_clean_worktree()
+            worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+            merged_commit = str(worktree.get("merged_commit") or "")
+            require_clean_worktree(merged_commit if len(merged_commit) == 40 else "")
             deployed_run = resolve_deployed_run(
                 subject_commit=args.subject_commit,
                 spec_name=args.spec_name,

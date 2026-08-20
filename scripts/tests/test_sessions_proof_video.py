@@ -52,7 +52,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
             "contract_hash": "sha256:" + "a" * 64,
         },
     )
-    module.require_clean_worktree = functions.get("require_clean_worktree", lambda: None)
+    module.require_clean_worktree = functions.get("require_clean_worktree", lambda *_args: None)
     module.require_recorded_approval = functions.get("require_recorded_approval", lambda **_kwargs: {})
     module.resolve_deployed_run = functions.get("resolve_deployed_run", lambda **_kwargs: {})
     return module

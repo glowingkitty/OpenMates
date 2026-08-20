@@ -1036,11 +1036,24 @@ def _tracked_worktree_changes() -> list[str]:
     return [line[3:] for line in result.stdout.splitlines() if len(line) > 3]
 
 
-def require_clean_worktree() -> None:
-    changes = _tracked_worktree_changes()
+def require_clean_worktree(subject_commit: str = "") -> None:
+    if subject_commit:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", subject_commit, "--"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise WorkflowError(f"could not compare worktree with subject commit: {result.stderr.strip()}")
+        changes = [line for line in result.stdout.splitlines() if line]
+    else:
+        changes = _tracked_worktree_changes()
     if changes:
         raise WorkflowError(
-            "proof-video provenance requires a clean tracked worktree; tracked changes: " + ", ".join(changes[:5])
+            "proof-video provenance requires tracked files to match the subject commit; tracked changes: "
+            + ", ".join(changes[:5])
         )
 
 
