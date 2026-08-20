@@ -576,6 +576,28 @@ def capture_pty(
     }
 
 
+def capture_real_cli_video(
+    *,
+    argv: list[str],
+    output_dir: Path,
+    target_environment: str,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    """Capture the actual OpenMates CLI pixels through the shared graphical recorder."""
+    try:
+        from cli_video_capture import capture_cli_video
+    except ModuleNotFoundError:
+        from scripts.cli_video_capture import capture_cli_video
+
+    return capture_cli_video(
+        argv=argv,
+        output_dir=output_dir,
+        target_environment=target_environment,
+        classification="cli_e2e",
+        timeout_seconds=timeout_seconds,
+    )
+
+
 def user_facing_cli_argv(argv: list[str]) -> list[str]:
     """Return the command a CLI user should see for test-account harness runs."""
     if len(argv) >= 2 and Path(argv[0]).name == "node":
@@ -1552,25 +1574,15 @@ def produce_cli_demonstration(
 ) -> dict[str, Any]:
     if timeout_seconds <= 0 or timeout_seconds > 600:
         raise DemonstrationError("CLI proof timeout must be between 0 and 600 seconds")
-    capture = capture_pty(
-        argv,
-        run_id=run_id,
-        target_environment=target_environment,
+    capture = capture_real_cli_video(
+        argv=argv,
         output_dir=run_dir,
-        test_account_provenance=test_account_provenance,
+        target_environment=target_environment,
         timeout_seconds=timeout_seconds,
     )
     if capture.get("exit_status") != 0:
         raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
-    terminal_events: list[dict[str, Any]] = []
-    try:
-        display_argv = user_facing_cli_argv(list(capture["argv"]))
-        for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
-            terminal_events.append(json.loads(line))
-    finally:
-        (run_dir / "events.jsonl").unlink(missing_ok=True)
-    timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
-    duration = float(timeline["duration_seconds"])
+    display_argv = user_facing_cli_argv(list(capture["argv"]))
     captions_path = run_dir / "captions.vtt"
     video_path = run_dir / "demo.mp4"
     narration_audio = (
@@ -1585,18 +1597,22 @@ def produce_cli_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
-    caption_segments = write_tutorial_captions(
-        captions_path,
-        text=caption_text,
-        duration_seconds=duration,
-        narration_id=narration_id,
-        first_transition_at=timeline["first_output_at"],
-    )
-    render_terminal_video(
-        timeline,
+    raw_video_path = Path(str(capture["video_path"]))
+    render_clean_video(
+        raw_video_path,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
     )
+    _write_private(captions_path, "WEBVTT\n\n")
+    source = {
+        "kind": "cli",
+        **capture,
+        "run_id": run_id,
+        "display_argv": display_argv,
+        "artifact_path": str(raw_video_path),
+        "artifact_hash": sha256_file(raw_video_path),
+        "test_account_provenance": test_account_provenance,
+    }
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1607,10 +1623,10 @@ def produce_cli_demonstration(
         captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
-        source={"kind": "cli", **capture, "display_argv": display_argv},
+        source=source,
         narration_audio=narration_audio,
-        caption_segments=caption_segments,
-        state_change_times=[float(state["start"]) for state in timeline["states"][1:]],
+        device_profile=resolve_device_profile("cli-terminal"),
+        render_metadata={"renderer": "openmates-real-terminal-capture-v1"},
     )
 
 

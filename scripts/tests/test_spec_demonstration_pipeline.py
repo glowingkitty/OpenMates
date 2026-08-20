@@ -1080,13 +1080,14 @@ def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> No
     assert manifest["raw"]["hash"] != manifest["derived"]["hash"]
 
 
-def test_cli_production_deletes_raw_events_and_records_claim_traceability(
+def test_cli_production_preserves_real_terminal_video_and_records_claim_traceability(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = load_module()
     observed = {}
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",
@@ -1095,9 +1096,31 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
 
     def prepare(**kwargs):
         observed.update(kwargs)
-        assert not (tmp_path / "events.jsonl").exists()
+        assert (tmp_path / "events.jsonl").exists()
         return {"status": "review_ready"}
 
+    def capture(*, argv: list[str], output_dir: Path, target_environment: str, timeout_seconds: float) -> dict[str, object]:
+        video = output_dir / "raw-terminal.mp4"
+        transcript = output_dir / "transcript.txt"
+        events = output_dir / "events.jsonl"
+        video.write_bytes(b"real terminal pixels")
+        transcript.write_text("$ openmates apps list\nOpenMates\n", encoding="utf-8")
+        events.write_text('{"time_seconds":0.1,"stream":"output","text":"OpenMates"}\n', encoding="utf-8")
+        return {
+            "argv": argv,
+            "target_environment": target_environment,
+            "exit_status": 0,
+            "video_path": str(video),
+            "video_sha256": module.sha256_file(video),
+            "transcript_path": str(transcript),
+            "transcript_sha256": module.sha256_file(transcript),
+            "events_path": str(events),
+            "events_sha256": module.sha256_file(events),
+            "capture_kind": "real_terminal_screen",
+            "reconstructed": False,
+        }
+
+    monkeypatch.setattr(module, "capture_real_cli_video", capture)
     monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
 
     result = module.produce_cli_demonstration(
@@ -1126,17 +1149,11 @@ def test_cli_production_rejects_failed_capture(
     module = load_module()
     monkeypatch.setattr(
         module,
-        "capture_pty",
-        lambda *_args, **_kwargs: {
+        "capture_real_cli_video",
+        lambda **_kwargs: {
             "argv": ["openmates", "demo"],
             "target_environment": "local fixture",
-            "run_id": "run-1",
             "exit_status": 1,
-            "transcript_hash": "sha256:" + "1" * 64,
-            "event_hash": "sha256:" + "2" * 64,
-            "artifact_hash": "sha256:" + "2" * 64,
-            "test_account_provenance": "no account used",
-            "duration_seconds": 0.2,
         },
     )
 
@@ -1164,47 +1181,43 @@ def test_cli_production_renders_user_facing_openmates_command(
     module = load_module()
     observed: dict[str, object] = {}
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",
         lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
     )
 
-    def capture(captured_argv: list[str], **kwargs: object) -> dict[str, object]:
-        run_dir = Path(kwargs["output_dir"])
-        (run_dir / "events.jsonl").write_text(
-            json.dumps({"time_seconds": 0.0, "stream": "input", "argv": captured_argv}) + "\n"
+    def capture(*, argv: list[str], output_dir: Path, target_environment: str, timeout_seconds: float) -> dict[str, object]:
+        video = output_dir / "raw-terminal.mp4"
+        transcript = output_dir / "transcript.txt"
+        events = output_dir / "events.jsonl"
+        video.write_bytes(b"real terminal pixels")
+        events.write_text(
+            json.dumps({"time_seconds": 0.0, "stream": "input", "argv": argv}) + "\n"
             + json.dumps({"time_seconds": 0.2, "stream": "output", "text": "visible team output\n"}) + "\n",
             encoding="utf-8",
         )
-        (run_dir / "transcript.txt").write_text("raw harness transcript\n", encoding="utf-8")
+        transcript.write_text("raw harness transcript\n", encoding="utf-8")
         return {
-            "argv": captured_argv,
-            "target_environment": kwargs["target_environment"],
-            "run_id": kwargs["run_id"],
+            "argv": argv,
+            "target_environment": target_environment,
             "exit_status": 0,
-            "transcript_hash": "sha256:" + "1" * 64,
-            "event_hash": "sha256:" + "2" * 64,
-            "artifact_hash": "sha256:" + "2" * 64,
-            "test_account_provenance": kwargs["test_account_provenance"],
-            "duration_seconds": 0.2,
-        }
-
-    def timeline(**kwargs: object) -> dict[str, object]:
-        observed["timeline_argv"] = kwargs["argv"]
-        return {
-            "states": [{"start": 0.0, "end": 15.0, "text": "$ openmates teams list\nvisible team output\n"}],
-            "typing_completed_at": 1.0,
-            "first_output_at": 1.2,
-            "duration_seconds": 15.0,
+            "video_path": str(video),
+            "video_sha256": module.sha256_file(video),
+            "transcript_path": str(transcript),
+            "transcript_sha256": module.sha256_file(transcript),
+            "events_path": str(events),
+            "events_sha256": module.sha256_file(events),
+            "capture_kind": "real_terminal_screen",
+            "reconstructed": False,
         }
 
     def prepare(**kwargs: object) -> dict[str, str]:
         observed.update(kwargs)
         return {"status": "review_ready"}
 
-    monkeypatch.setattr(module, "capture_pty", capture)
-    monkeypatch.setattr(module, "build_cli_terminal_timeline", timeline)
+    monkeypatch.setattr(module, "capture_real_cli_video", capture)
     monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
 
     result = module.produce_cli_demonstration(
@@ -1223,9 +1236,9 @@ def test_cli_production_renders_user_facing_openmates_command(
     )
 
     assert result["status"] == "review_ready"
-    assert observed["timeline_argv"] == ["openmates", "teams", "list", "--json"]
     assert observed["source"]["argv"] == ["node", "scripts/openmates_cli_test_account.mjs", "teams", "list", "--json"]
     assert observed["source"]["display_argv"] == ["openmates", "teams", "list", "--json"]
+    assert observed["source"]["reconstructed"] is False
 
 
 def test_cli_production_preserves_captured_argv_before_review(
@@ -1237,6 +1250,7 @@ def test_cli_production_preserves_captured_argv_before_review(
     observed: dict[str, object] = {}
     monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module, "render_clean_video", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         module,
         "prepare_narration_audio",
@@ -1247,6 +1261,28 @@ def test_cli_production_preserves_captured_argv_before_review(
         observed.update(kwargs)
         return {"status": "review_ready"}
 
+    def capture(*, argv: list[str], output_dir: Path, target_environment: str, timeout_seconds: float) -> dict[str, object]:
+        video = output_dir / "raw-terminal.mp4"
+        transcript = output_dir / "transcript.txt"
+        events = output_dir / "events.jsonl"
+        video.write_bytes(b"real terminal pixels")
+        transcript.write_text(f"$ openmates demo {secret}\ncreated\n", encoding="utf-8")
+        events.write_text('{"time_seconds":0.1,"stream":"output","text":"created"}\n', encoding="utf-8")
+        return {
+            "argv": argv,
+            "target_environment": target_environment,
+            "exit_status": 0,
+            "video_path": str(video),
+            "video_sha256": module.sha256_file(video),
+            "transcript_path": str(transcript),
+            "transcript_sha256": module.sha256_file(transcript),
+            "events_path": str(events),
+            "events_sha256": module.sha256_file(events),
+            "capture_kind": "real_terminal_screen",
+            "reconstructed": False,
+        }
+
+    monkeypatch.setattr(module, "capture_real_cli_video", capture)
     monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
 
     result = module.produce_cli_demonstration(
