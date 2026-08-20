@@ -183,7 +183,103 @@ async function getLocalChatSwitchPair(
 	}, LOCAL_SHORT_WINDOW_TARGET_COUNT);
 }
 
-// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
+async function verifyCachedShortChatOpening(page: any): Promise<void> {
+	await waitForChatReady(page, undefined, 60000);
+
+	let localChats: Array<{ chatId: string; messageCount: number }> = [];
+	await expect.poll(async () => {
+		localChats = await getLocalChatSwitchPair(page);
+		return localChats.length;
+	}, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Startup sync should cache a short chat plus another navigation target'
+	}).toBeGreaterThanOrEqual(2);
+	const [firstLocalChat, secondLocalChat] = localChats;
+
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+
+	const windowRoute = `**/v1/chats/${encodeURIComponent(firstLocalChat.chatId)}/messages/window**`;
+	let releaseRepair: () => void = () => undefined;
+	const repairGate = new Promise<void>((resolve) => {
+		releaseRepair = resolve;
+	});
+	let repairRequested = false;
+	let repairReleased = false;
+	let finishRepair: () => void = () => undefined;
+	const repairFinished = new Promise<void>((resolve) => {
+		finishRepair = resolve;
+	});
+	const delayRepairResponse = async (route: any) => {
+		repairRequested = true;
+		try {
+			const realResponse = await route.fetch();
+			await repairGate;
+			await route.fulfill({ response: realResponse });
+		} finally {
+			finishRepair();
+		}
+	};
+	await page.route(windowRoute, delayRepairResponse, { times: 1 });
+
+	try {
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, firstLocalChat.chatId);
+
+		await expect.poll(() => repairRequested, {
+			timeout: 10000,
+			message: 'Opening a cached short chat should start background completeness repair'
+		}).toBe(true);
+
+		await expect(page.getByTestId('welcome-content')).not.toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			firstLocalChat.chatId,
+			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
+		);
+		await expect.poll(async () =>
+			Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0),
+		{
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
+			message: 'The bounded local message window should render before repair completes'
+		}).toBeGreaterThan(0);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			secondLocalChat.chatId,
+			{ timeout: 10000 }
+		);
+
+		repairReleased = true;
+		releaseRepair();
+		await repairFinished;
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+	} finally {
+		if (!repairReleased) releaseRepair();
+		if (repairRequested) await repairFinished;
+		await page.unroute(windowRoute, delayRepairResponse);
+	}
+}
+
+// contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('startup sync is bounded and older content hydrates on demand', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -371,6 +467,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		timeout: 15000,
 		message: 'Opening metadata-only chat should request on-demand content hydration'
 	}).toBe(true);
+
+	await verifyCachedShortChatOpening(page);
 });
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -380,97 +478,5 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await loginToTestAccount(page);
-	await waitForChatReady(page, undefined, 60000);
-
-	let localChats: Array<{ chatId: string; messageCount: number }> = [];
-	await expect.poll(async () => {
-		localChats = await getLocalChatSwitchPair(page);
-		return localChats.length;
-	}, {
-		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
-		message: 'Startup sync should cache a short chat plus another navigation target'
-	}).toBeGreaterThanOrEqual(2);
-	const [firstLocalChat, secondLocalChat] = localChats;
-
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-		await newChatButton.click();
-	}
-	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
-
-	const windowRoute = `**/v1/chats/${encodeURIComponent(firstLocalChat.chatId)}/messages/window**`;
-	let releaseRepair: () => void = () => undefined;
-	const repairGate = new Promise<void>((resolve) => {
-		releaseRepair = resolve;
-	});
-	let repairRequested = false;
-	let repairReleased = false;
-	let finishRepair: () => void = () => undefined;
-	const repairFinished = new Promise<void>((resolve) => {
-		finishRepair = resolve;
-	});
-	const delayRepairResponse = async (route: any) => {
-		repairRequested = true;
-		try {
-			const realResponse = await route.fetch();
-			await repairGate;
-			await route.fulfill({ response: realResponse });
-		} finally {
-			finishRepair();
-		}
-	};
-	await page.route(windowRoute, delayRepairResponse, { times: 1 });
-
-	try {
-		await page.evaluate((chatId: string) => {
-			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-		}, firstLocalChat.chatId);
-
-		await expect.poll(() => repairRequested, {
-			timeout: 10000,
-			message: 'Opening a cached short chat should start background completeness repair'
-		}).toBe(true);
-
-		await expect(page.getByTestId('welcome-content')).not.toBeVisible({
-			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
-		});
-		await expect(page.getByTestId('chat-header-banner')).toBeVisible({
-			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
-		});
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
-			'data-current-chat-id',
-			firstLocalChat.chatId,
-			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
-		);
-		await expect.poll(async () =>
-			Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0),
-		{
-			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
-			message: 'The bounded local message window should render before repair completes'
-		}).toBeGreaterThan(0);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
-
-		await page.evaluate((chatId: string) => {
-			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-		}, secondLocalChat.chatId);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
-			'data-current-chat-id',
-			secondLocalChat.chatId,
-			{ timeout: 10000 }
-		);
-
-		repairReleased = true;
-		releaseRepair();
-		await repairFinished;
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', secondLocalChat.chatId);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
-	} finally {
-		if (!repairReleased) releaseRepair();
-		if (repairRequested) await repairFinished;
-		await page.unroute(windowRoute, delayRepairResponse);
-	}
+	await verifyCachedShortChatOpening(page);
 });
