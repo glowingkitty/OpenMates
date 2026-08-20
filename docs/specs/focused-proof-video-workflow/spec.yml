@@ -488,7 +488,7 @@ tests:
     target: app.dev.openmates.org
     covers: [AC-10, AC-12]
     assertions:
-      - real OpenMates CLI AI Ask skill-info journey runs in the shared graphical terminal recorder
+      - real OpenMates CLI app-skill examples journey runs in the shared graphical terminal recorder
       - terminal recording and transcript prove the same command and successful output
     red_phase: { required: true, expected: fail, evidence: { status: pending } }
     green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending } }
