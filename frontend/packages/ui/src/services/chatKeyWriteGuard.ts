@@ -16,6 +16,19 @@ interface ChatKeyWriteGuardOptions {
   reportFailure?: boolean;
 }
 
+function recordChatKeyGuardFailure(
+  reason: string,
+  chat: { team_id?: string | null; candidate_encrypted_keys?: string[] } | null,
+): void {
+  if (typeof window === "undefined") return;
+  (window as Window & { __openmatesLastChatKeyGuardDebug?: Record<string, unknown> })
+    .__openmatesLastChatKeyGuardDebug = {
+      reason,
+      teamScoped: Boolean(chat?.team_id),
+      candidateCount: chat?.candidate_encrypted_keys?.length ?? 0,
+    };
+}
+
 function shouldReportFailure(options: ChatKeyWriteGuardOptions): boolean {
   return options.reportFailure !== false;
 }
@@ -33,6 +46,7 @@ export async function ensureChatKeySafeForWrite(
   const reportFailure = shouldReportFailure(options);
 
   if (chat?.candidate_encrypted_keys?.length) {
+    recordChatKeyGuardFailure("candidate_keys_pending", chat);
     if (reportFailure) {
       console.error(
         `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: chat has ` +
@@ -46,6 +60,7 @@ export async function ensureChatKeySafeForWrite(
   }
 
   if (chat?.key_fingerprint && chat.key_fingerprint !== rawFingerprint) {
+    recordChatKeyGuardFailure("fingerprint_mismatch", chat);
     if (encryptedChatKey) addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
     if (reportFailure) {
       console.error(
@@ -61,6 +76,7 @@ export async function ensureChatKeySafeForWrite(
 
   if (!encryptedChatKey) {
     if (options.allowMissingEncryptedChatKey) return true;
+    recordChatKeyGuardFailure("encrypted_key_missing", chat);
     if (reportFailure) {
       console.error(
         `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: no persisted encrypted_chat_key to validate against`,
@@ -83,6 +99,7 @@ export async function ensureChatKeySafeForWrite(
         : decryptChatKeyWithMasterKey,
     );
   } catch (error) {
+    recordChatKeyGuardFailure("persisted_key_unwrap_failed", chat);
     if (reportFailure) {
       console.error(
         `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: persisted chat key could not be validated`,
@@ -96,6 +113,7 @@ export async function ensureChatKeySafeForWrite(
   }
 
   if (keyMatches === false) {
+    recordChatKeyGuardFailure("persisted_key_mismatch", chat);
     addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
     if (reportFailure) {
       console.error(

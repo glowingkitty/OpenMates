@@ -170,12 +170,15 @@ test.describe('Teams V1 context isolation', () => {
 				'chat_turn_preflight',
 				() => true
 			).catch(async (error: unknown) => {
-				const sendDebug = await page.evaluate(() =>
-					(window as Window & { __openmatesLastSendDebug?: Record<string, unknown> })
-						.__openmatesLastSendDebug ?? null);
+				const clientDebug = await page.evaluate(() => ({
+					send: (window as Window & { __openmatesLastSendDebug?: Record<string, unknown> })
+						.__openmatesLastSendDebug ?? null,
+					chatKeyGuard: (window as Window & { __openmatesLastChatKeyGuardDebug?: Record<string, unknown> })
+						.__openmatesLastChatKeyGuardDebug ?? null,
+				}));
 				const observedFrames = frames.slice(sendFrameIndex).map(({ direction, type }) => ({ direction, type }));
 				throw new Error(
-					`Team preflight not observed. sendDebug=${JSON.stringify(sendDebug)} observedFrames=${JSON.stringify(observedFrames)} original=${String(error)}`
+					`Team preflight not observed. clientDebug=${JSON.stringify(clientDebug)} observedFrames=${JSON.stringify(observedFrames)} original=${String(error)}`
 				);
 			});
 			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_message_added', (payload) =>
