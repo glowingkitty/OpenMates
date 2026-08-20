@@ -3277,7 +3277,6 @@ changes to the documentation (to keep the documentation up to date).
 
     <div
         class="settings-content-wrapper"
-        data-testid="settings-content-wrapper"
         bind:this={settingsContentElement}
         onscroll={handleContentScroll}
         onclick={(e) => e.stopPropagation()}
@@ -3953,12 +3952,9 @@ changes to the documentation (to keep the documentation up to date).
         flex-direction: column;
         flex: 1;
         overflow-y: auto;
+        overflow-anchor: none;
         padding-bottom: var(--spacing-8);
         position: relative; /* Ensure positioned context for absolutely positioned children */
-    }
-
-    .settings-content-wrapper :global(.settings-submenu-content.active) {
-        z-index: var(--z-index-raised);
     }
 
     .nav-button:hover {
