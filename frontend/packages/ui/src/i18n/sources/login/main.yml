@@ -979,8 +979,8 @@ logging_in_with_passkey:
   he: מתחבר באמצעות מפתח גישה...
   verified_by_human: []
 login_with_email:
-  context: Button text to switch from passkey login to email login
-  en: Login with E-mail address
+  context: Button text to cancel passkey login and switch to email and password login
+  en: Login with E-mail + Password
   de: Mit E-Mail-Adresse einloggen
   zh: 使用电子邮件地址登录
   es: Entrar con dirección de correo electrónico

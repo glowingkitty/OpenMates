@@ -2413,12 +2413,35 @@
                                     {#if currentLoginStep === 'email'}
                                         {#if isPasskeyLoading}
                                             <!-- Passkey loading screen - replaces form elements -->
-                                            <div class="passkey-loading-screen">
-                                                <div class="passkey-loading-icon">
-                                                    <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
-                                                </div>
-                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey')}</p>
-                                            </div>
+                                             <div class="passkey-loading-screen">
+                                                 <div class="passkey-loading-icon">
+                                                     <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
+                                                 </div>
+                                                 <p class="passkey-loading-text">{$text('login.logging_in_with_passkey')}</p>
+                                                 <div class="passkey-loading-actions">
+                                                     <button
+                                                         type="button"
+                                                         class="passkey-alternative-button"
+                                                         data-testid="login-use-email-button"
+                                                         onclick={cancelPasskeyLogin}
+                                                     >
+                                                         <span class="clickable-icon icon_mail" data-testid="login-use-email-icon"></span>
+                                                         {$text('login.login_with_email')}
+                                                     </button>
+                                                     <button
+                                                         type="button"
+                                                         class="passkey-alternative-button"
+                                                         data-testid="login-pair-button"
+                                                         onclick={() => {
+                                                             cancelPasskeyLogin();
+                                                             setLoginStep('pair-initiate');
+                                                         }}
+                                                     >
+                                                         <span class="clickable-icon icon_phone"></span>
+                                                         {$text('login.login_with_phone_or_pc')}
+                                                     </button>
+                                                 </div>
+                                             </div>
                                         {:else}
                                             <!-- Use EmailLookup component for email input -->
                                             <EmailLookup
@@ -2754,6 +2777,36 @@
         -webkit-background-clip: text;
         color: transparent;
         animation: passkey-shimmer 1.5s infinite linear;
+    }
+
+    .passkey-loading-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: var(--spacing-10);
+    }
+
+    .passkey-alternative-button {
+        all: unset;
+        width: 100%;
+        padding: var(--spacing-4) var(--spacing-0);
+        margin: var(--spacing-4) 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-4);
+        background: var(--color-primary);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: var(--font-size-p);
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .passkey-alternative-button .clickable-icon {
+        margin-right: 0;
     }
 
     @keyframes passkey-shimmer {
