@@ -100,6 +100,8 @@ test.describe('Proof video browser architecture', () => {
 		});
 		await proof.assert('welcome.actionable.visible', async () => {
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable.', {timeout: 5000});
+			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
+			await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 		});
 		await proof.checkpoint('actionable-visible');
 
