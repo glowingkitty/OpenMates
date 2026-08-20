@@ -177,6 +177,23 @@ changes to the documentation (to keep the documentation up to date).
     let profileContainer: HTMLElement | undefined = $state();
     let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
 
+    $effect(() => {
+        if (!isMenuVisible || !settingsContentElement) return;
+
+        const content = settingsContentElement;
+        let frameId: number | undefined;
+        tick().then(() => {
+            if (!isMenuVisible) return;
+            frameId = requestAnimationFrame(() => {
+                content.scrollTop = 0;
+            });
+        });
+
+        return () => {
+            if (frameId !== undefined) cancelAnimationFrame(frameId);
+        };
+    });
+
     /**
      * Scroll position memory for the "All Apps" page only.
      * When the user opens an app from the All Apps list and then presses back,
