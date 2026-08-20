@@ -202,6 +202,14 @@ contracts:
     fingerprint: 8469f5b452da01b2fa7c60b19908d7d0b2f31bb3971bef2c83679882678348d6
     required_surfaces:
     - gui.web
+  feature.settings-ui:
+    version: 1
+    status: draft
+    path: features/settings-ui
+    fingerprint: ff64c56eb12cd08bdeab1a171a76db99d05eb4ddc85a735f75963d9f15ca78ca
+    required_surfaces:
+    - gui.web
+    - gui.apple
   feature.tasks:
     version: 2
     status: draft
@@ -1889,6 +1897,78 @@ assertions:
     fingerprint: 2754d8e41bd329d24cc4d8b6a3bfdac5e4477d1903d06265e98e2dae88cf1eba
     required_surfaces:
     - gui.web
+  settings-ui.shell.lifecycle-and-routing:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: a6b42bfab58644878834e6a126f56ee3d30026d315139a5fa18a6f346dd59181
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.navigation.contextual-availability:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 1c7f3cd8e16d955c25b3748d11b06a6494d8b09dff4683241f00ea36161d2b09
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.navigation.parent-return:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 8d72166d9a343a463e96a6841d70992cd9bbcc16f713d3363f6b3c61ac38333e
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.composition.canonical-and-accessible:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 785db5b49e6a02241d54d9a592b14f361521793eb3be304b4769267d62bfc38d
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.localization.visible-content-resolves:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 51c96da1b30e2b4aa01f435b9a53cf4d93b3c410ac22ab6892649a41a5951f59
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.footer.structure-and-spacing:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 2a2e3c3c9206773c01b258dd23608f424688752b491e8c72b2aa1a0c685ae641
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.footer.events-and-version-policy:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 18511215dc5aac0d48fed301235c1358205c6e68e7869510a470c9d94c00d6b4
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.footer.contextual-legal-navigation:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: behavior
+    fingerprint: 1c987bfd3b9e82b4003a1e8d3c5b6a49e72d089f58a2fa4a8803abf25a87a9e1
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  settings-ui.parity.web-apple-shell:
+    contract: feature.settings-ui@1
+    contract_id: feature.settings-ui
+    type: parity
+    fingerprint: 89bd503b83c24ebcdb1ceaefa8c0cfb92d51d99e74f9d62057ab520e8de62593
+    required_surfaces:
+    - gui.web
+    - gui.apple
   tasks.content.client-encrypted:
     contract: feature.tasks@2
     contract_id: feature.tasks
