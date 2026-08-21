@@ -155,6 +155,7 @@ test.describe('Teams V1 context isolation', () => {
 			for (const personalChatId of personalChatIds) {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
 			}
+			await page.waitForTimeout(1000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
@@ -197,6 +198,7 @@ test.describe('Teams V1 context isolation', () => {
 			expect(preflight.raw).not.toContain(ordinaryMessage);
 			expect(sentMessage.raw).not.toContain(ordinaryMessage);
 			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
