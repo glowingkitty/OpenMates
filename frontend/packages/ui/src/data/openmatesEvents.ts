@@ -1,9 +1,10 @@
 /**
  * frontend/packages/ui/src/data/openmatesEvents.ts
  *
- * Generated from shared/events/openmates_events.yml by scripts/generate_openmates_events.py.
- * Used by the chat sidebar, event SEO pages, sitemap generation, and
- * hash-based event embed deep links. Do not edit records manually.
+ * Hardcoded public OpenMates event data used by the chat sidebar, event SEO
+ * pages, sitemap generation, and hash-based event embed deep links.
+ * Keep this data static and crawlable; external provider IDs stay in URLs only,
+ * while internal ids use stable human-readable slugs.
  */
 
 export interface OpenMatesEvent {
@@ -17,14 +18,14 @@ export interface OpenMatesEvent {
   date_start: string;
   date_end: string;
   timezone: string;
-  event_type: "ONLINE" | "PHYSICAL";
+  event_type: string;
   venue: {
     name: string;
     address: string;
     city: string;
     country: string;
-    lat?: number;
-    lon?: number;
+    lat: number;
+    lon: number;
   };
   organizer: {
     name: string;
@@ -34,274 +35,52 @@ export interface OpenMatesEvent {
   image_url: string;
   keywords: string[];
   summary: string;
-  online_url?: string | null;
 }
 
 export const OPENMATES_EVENTS: OpenMatesEvent[] = [
   {
-    "embed_id": "openmates-community-hour-2026-08-25",
-    "id": "openmates-community-hour-2026-08-25",
-    "slug": "openmates-community-hour-2026-08-25",
-    "provider": "luma",
-    "title": "OpenMates Monthly Community Hour",
-    "description": "Tired of big-tech AI chatbots and agents, or already using OpenMates for everyday tasks and learning? Join the monthly community video call with questions, discovered issues, and wishes that can improve OpenMates for everyone.",
-    "url": "https://luma.com/qfwdd70e",
-    "date_start": "2026-08-25T19:00:00+02:00",
-    "date_end": "2026-08-25T20:00:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
+    embed_id: "openmates-meetup-2026-05-19",
+    id: "openmates-meetup-2026-05-19",
+    slug: "openmates-meetup-2026-05-19",
+    provider: "luma",
+    title: "OpenMates Meetup",
+    summary:
+      "Join the OpenMates community in Berlin to talk about privacy-first AI team mates, the next steps for OpenMates, and how to help build an alternative to big tech.",
+    description: `A lot of exciting new changes have happened in the recent months regarding OpenMates.org. To make it not just a more privacy & safety focused open source alternative to ChatGPT, Claude, OpenClaw etc., but to build AI team mates that are also more useful and reliable for everyday tasks like finding doctor appointments, apartments, events, flights and train connection, as well as planning and building projects and so much more.
+
+Effectively building the next generation operating system for a wide range of daily tasks & learning. All while ensuring that user interests are put first in every architecture and design decision, NOT advertisers.
+
+Now, with the first 200 active users, many more visitors, and close to 8000 git commits, let’s come together to talk about the next steps of OpenMate and to move OpenMates from a single person project to a team effort.
+
+If you are a user, developer, designer, storyteller / marketing enthusiast or community builder or just are curious about the project - feel free to join the meetup and contribute in building a real alternative to big tech :)`,
+    url: "https://luma.com/2159uo8z",
+    date_start: "2026-05-19T19:00:00+02:00",
+    date_end: "2026-05-19T21:00:00+02:00",
+    timezone: "Europe/Berlin",
+    event_type: "IN_PERSON",
+    venue: {
+      name: "New xHain rooms (direct street access, huge glass windows)",
+      address: "Grünberger Str. 18, 10243 Berlin",
+      city: "Berlin",
+      country: "Germany",
+      lat: 52.512778392359216,
+      lon: 13.449996888857694,
     },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
+    organizer: {
+      name: "OpenMates Meetup Group",
+      slug: "openmates",
     },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/openmates-community-hour-2026-08-25.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "OpenMates Monthly Community Hour",
-      "Online Community Hour"
+    is_paid: false,
+    image_url:
+      "https://images.lumacdn.com/uploads/xl/0c9da73e-8fd7-4a03-90ea-fa047af921f8.png",
+    keywords: [
+      "OpenMates meetup",
+      "privacy-first AI",
+      "open source AI",
+      "AI team mates",
+      "Berlin AI meetup",
     ],
-    "summary": "Join the monthly OpenMates video call to learn, ask questions, report issues, and directly shape development.",
-    "online_url": "https://meet.openmates.org"
   },
-  {
-    "embed_id": "ai-everyday-tasks-webinar-2026-08-27",
-    "id": "ai-everyday-tasks-webinar-2026-08-27",
-    "slug": "ai-everyday-tasks-webinar-2026-08-27",
-    "provider": "luma",
-    "title": "AI for everyday tasks - Find events, doctors, trains and more",
-    "description": "This presentation and Q&A introduces OpenMates agents for time-consuming everyday searches, requires no coding or AI expertise, and includes practical tips plus personal recommendations during the Q&A.",
-    "url": "https://luma.com/0t0r74sh",
-    "date_start": "2026-08-27T19:00:00+02:00",
-    "date_end": "2026-08-27T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/ai-everyday-tasks-webinar-2026-08-27.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "AI for everyday tasks - Find events, doctors, trains and more",
-      "Webinar"
-    ],
-    "summary": "Learn how AI agents can reduce frustrating research for events, appointments, apartments, and travel from hours to minutes.",
-    "online_url": "https://meet.openmates.org"
-  },
-  {
-    "embed_id": "openmates-berlin-meetup-2026-08-29",
-    "id": "openmates-berlin-meetup-2026-08-29",
-    "slug": "openmates-berlin-meetup-2026-08-29",
-    "provider": "luma",
-    "title": "OpenMates Monthly Meetup Berlin",
-    "description": "Join a relaxed monthly meetup for people seeking a European alternative to big-tech AI or already using OpenMates. Bring questions, issues, and feature wishes while meeting other people over a drink.",
-    "url": "https://luma.com/4rwaol33",
-    "date_start": "2026-08-29T15:00:00+02:00",
-    "date_end": "2026-08-29T17:00:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "PHYSICAL",
-    "venue": {
-      "name": "xHain Glitch",
-      "address": "Grünberger Str. 20, 10243 Berlin",
-      "city": "Berlin",
-      "country": "Germany"
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "OpenMates Monthly Meetup Berlin",
-      "In Person Meetup"
-    ],
-    "summary": "Meet OpenMates users and contributors in Berlin, learn how to use it better, and directly influence development.",
-    "online_url": null
-  },
-  {
-    "embed_id": "everyday-workflows-webinar-2026-09-01",
-    "id": "everyday-workflows-webinar-2026-09-01",
-    "slug": "everyday-workflows-webinar-2026-09-01",
-    "provider": "luma",
-    "title": "Intro to automating everyday workflows - No coding experience needed",
-    "description": "This presentation and Q&A shows how to set up OpenMates workflows within minutes without coding or automation experience, with practical tips and recommendations for improving personal workflows.",
-    "url": "https://luma.com/fql7sc2a",
-    "date_start": "2026-09-01T19:00:00+02:00",
-    "date_end": "2026-09-01T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "Intro to automating everyday workflows - No coding experience needed",
-      "Webinar"
-    ],
-    "summary": "Learn to automate recurring searches for events, apartments, appointments, news, and other personal or work tasks.",
-    "online_url": "https://meet.openmates.org"
-  },
-  {
-    "embed_id": "openmates-teams-webinar-2026-09-03",
-    "id": "openmates-teams-webinar-2026-09-03",
-    "slug": "openmates-teams-webinar-2026-09-03",
-    "provider": "luma",
-    "title": "OpenMates for teams - Collaborate on projects, AI chats and workflows",
-    "description": "This presentation and Q&A introduces the OpenMates teams feature, separation of work and personal data, shared usage credits, and practical recommendations for setting up a small team's workspace.",
-    "url": "https://luma.com/brp682ie",
-    "date_start": "2026-09-03T19:00:00+02:00",
-    "date_end": "2026-09-03T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/openmates-teams-webinar-2026-09-03.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "OpenMates for teams - Collaborate on projects, AI chats and workflows",
-      "Webinar"
-    ],
-    "summary": "Learn how freelancers and small teams can collaborate on projects, chats, workflows, and tasks with privacy-focused encryption.",
-    "online_url": "https://meet.openmates.org"
-  },
-  {
-    "embed_id": "spec-driven-development-webinar-2026-09-08",
-    "id": "spec-driven-development-webinar-2026-09-08",
-    "slug": "spec-driven-development-webinar-2026-09-08",
-    "provider": "luma",
-    "title": "Beyond vibe coding - Introduction to spec-driven development",
-    "description": "This presentation and Q&A introduces OpenMates Projects, Plans, and Tasks for structured agentic coding beyond vibe coding, including enforced planning and recommendations for improving development workflows.",
-    "url": "https://luma.com/vj8dq9qs",
-    "date_start": "2026-09-08T19:00:00+02:00",
-    "date_end": "2026-09-08T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/spec-driven-development-webinar-2026-09-08.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "Beyond vibe coding - Introduction to spec-driven development",
-      "Webinar"
-    ],
-    "summary": "Learn how plans, tasks, projects, and enforced rules can make agentic coding more reliable and secure.",
-    "online_url": "https://meet.openmates.org"
-  },
-  {
-    "embed_id": "cli-sdk-webinar-2026-09-10",
-    "id": "cli-sdk-webinar-2026-09-10",
-    "slug": "cli-sdk-webinar-2026-09-10",
-    "provider": "luma",
-    "title": "OpenMates CLI and SDK for developers - All chats and features included",
-    "description": "This presentation and Q&A introduces the official OpenMates CLI plus npm and pip SDKs, cross-device access, broad feature parity, and practical recommendations for integrating OpenMates into software workflows.",
-    "url": "https://luma.com/8kquidf1",
-    "date_start": "2026-09-10T19:00:00+02:00",
-    "date_end": "2026-09-10T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/cli-sdk-webinar-2026-09-10.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "OpenMates CLI and SDK for developers - All chats and features included",
-      "Webinar"
-    ],
-    "summary": "Learn to use OpenMates chats, app skills, projects, tasks, workflows, memories, teams, and settings through the CLI and SDKs.",
-    "online_url": "https://meet.openmates.org"
-  },
-  {
-    "embed_id": "self-hosting-webinar-2026-09-15",
-    "id": "self-hosting-webinar-2026-09-15",
-    "slug": "self-hosting-webinar-2026-09-15",
-    "provider": "luma",
-    "title": "Intro to self-hosting your AI agents - Options, tips and tricks",
-    "description": "This presentation and Q&A introduces OpenMates self-hosting, external API and local-model options, infrastructure and provider requirements, and recommendations for a practical self-hosted setup.",
-    "url": "https://luma.com/8gr6arot",
-    "date_start": "2026-09-15T19:00:00+02:00",
-    "date_end": "2026-09-15T19:50:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "ONLINE",
-    "venue": {
-      "name": "OpenMates online event",
-      "address": "https://meet.openmates.org",
-      "city": "Online",
-      "country": ""
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/self-hosting-webinar-2026-09-15.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "Intro to self-hosting your AI agents - Options, tips and tricks",
-      "Webinar"
-    ],
-    "summary": "Learn how to run the OpenMates Self-Hosting Edition with external inference APIs or local models for greater control and sovereignty.",
-    "online_url": "https://meet.openmates.org"
-  }
 ];
 
 export function getAllOpenMatesEvents(): OpenMatesEvent[] {

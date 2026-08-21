@@ -29,33 +29,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 
 	const siteOrigin = getSiteOrigin(url);
 	const canonicalUrl = `${siteOrigin}/events/${event.slug}`;
-	const location = event.event_type === 'ONLINE'
-		? 'Online'
-		: [event.venue.name, event.venue.address, event.venue.city, event.venue.country].filter(Boolean).join(', ');
-	const eventLocation = event.event_type === 'ONLINE'
-		? {
-			'@type': 'VirtualLocation',
-			url: event.online_url || event.url
-		}
-		: {
-			'@type': 'Place',
-			name: event.venue.name,
-			address: {
-				'@type': 'PostalAddress',
-				streetAddress: event.venue.address,
-				addressLocality: event.venue.city,
-				addressCountry: event.venue.country
-			},
-			...(event.venue.lat != null && event.venue.lon != null
-				? {
-					geo: {
-						'@type': 'GeoCoordinates',
-						latitude: event.venue.lat,
-						longitude: event.venue.lon
-					}
-				}
-				: {})
-		};
+	const location = `${event.venue.name}, ${event.venue.address}, ${event.venue.city}, ${event.venue.country}`;
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'Event',
@@ -63,9 +37,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		description: event.summary,
 		startDate: event.date_start,
 		endDate: event.date_end,
-		eventAttendanceMode: event.event_type === 'ONLINE'
-			? 'https://schema.org/OnlineEventAttendanceMode'
-			: 'https://schema.org/OfflineEventAttendanceMode',
+		eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
 		eventStatus: 'https://schema.org/EventScheduled',
 		image: [event.image_url],
 		url: canonicalUrl,
@@ -74,7 +46,21 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 			name: event.organizer.name,
 			url: `${siteOrigin}/events/${event.slug}`
 		},
-		location: eventLocation,
+		location: {
+			'@type': 'Place',
+			name: event.venue.name,
+			address: {
+				'@type': 'PostalAddress',
+				streetAddress: event.venue.address,
+				addressLocality: event.venue.city,
+				addressCountry: event.venue.country
+			},
+			geo: {
+				'@type': 'GeoCoordinates',
+				latitude: event.venue.lat,
+				longitude: event.venue.lon
+			}
+		},
 		offers: {
 			'@type': 'Offer',
 			url: event.url,
