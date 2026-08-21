@@ -436,12 +436,12 @@ def reserve_review_budget(
     calls = int(result.get("ai_review_calls", 0)) + 1
     submitted = int(result.get("submitted_frames", 0)) + frame_count
     if calls > MAX_AI_REVIEW_CALLS:
-        if not _roll_over_failed_review_budget(result, source_artifact_hash, correction_round, correction_kind):
+        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
             raise WorkflowError("AI review call budget is exhausted; ask the user what to do next")
         calls = 1
         submitted = frame_count
     if submitted > MAX_CUMULATIVE_SUBMITTED_FRAMES:
-        if not _roll_over_failed_review_budget(result, source_artifact_hash, correction_round, correction_kind):
+        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
             raise WorkflowError("cumulative frame budget is exhausted; ask the user what to do next")
         calls = 1
         submitted = frame_count
@@ -483,8 +483,9 @@ def reserve_review_budget(
     return result
 
 
-def _roll_over_failed_review_budget(
+def _roll_over_review_budget(
     budget: dict[str, Any],
+    device: str,
     source_artifact_hash: str,
     correction_round: int,
     correction_kind: str,
@@ -494,17 +495,24 @@ def _roll_over_failed_review_budget(
     reservations = [item for item in budget.get("reservations", []) if isinstance(item, dict)]
     if not reservations:
         return False
-    statuses = [str(item.get("status") or "") for item in reservations]
+    device_reservations = [item for item in reservations if item.get("device") == device]
+    statuses = [str(item.get("status") or "") for item in device_reservations]
     if any(not status or status == "passed" for status in statuses):
         return False
-    prior_sources = {str(item.get("source_artifact_hash") or "") for item in reservations}
+    prior_sources = {str(item.get("source_artifact_hash") or "") for item in device_reservations}
     if source_artifact_hash in prior_sources:
         return False
+    reason = (
+        "new_source_after_nonpassing_device_reviews"
+        if device_reservations
+        else "first_review_for_new_device"
+    )
     prior_epoch = int(budget.get("active_epoch", 0))
     budget.setdefault("superseded_review_epochs", []).append(
         {
             "budget_epoch": prior_epoch,
-            "reason": "new_source_after_nonpassing_reviews",
+            "reason": reason,
+            "device": device,
             "reservation_count": len(reservations),
             "ai_review_calls": int(budget.get("ai_review_calls", 0)),
             "submitted_frames": int(budget.get("submitted_frames", 0)),

@@ -713,8 +713,8 @@ def test_review_budget_rolls_over_nonpassing_prior_sources_for_new_initial_sourc
         "submitted_frames": 46,
         "product_code_correction_rounds": [1],
         "reservations": [
-            {"source_artifact_hash": "sha256:old-video-a", "status": "product_defect"},
-            {"source_artifact_hash": "sha256:old-video-b", "status": "uncertain"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:old-video-a", "status": "product_defect"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:old-video-b", "status": "uncertain"},
         ],
     }
 
@@ -736,7 +736,8 @@ def test_review_budget_rolls_over_nonpassing_prior_sources_for_new_initial_sourc
     assert rolled["superseded_review_epochs"] == [
         {
             "budget_epoch": 0,
-            "reason": "new_source_after_nonpassing_reviews",
+            "reason": "new_source_after_nonpassing_device_reviews",
+            "device": "web-laptop",
             "reservation_count": 2,
             "ai_review_calls": 4,
             "submitted_frames": 46,
@@ -751,7 +752,7 @@ def test_review_budget_does_not_roll_over_passed_prior_source() -> None:
         "ai_review_calls": 4,
         "submitted_frames": 46,
         "reservations": [
-            {"source_artifact_hash": "sha256:old-video", "status": "passed"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:old-video", "status": "passed"},
         ],
     }
 
@@ -764,6 +765,48 @@ def test_review_budget_does_not_roll_over_passed_prior_source() -> None:
             correction_kind="none",
             source_artifact_hash="sha256:new-video",
         )
+
+
+def test_review_budget_rolls_over_for_first_review_of_another_required_device() -> None:
+    budget = {
+        "active_epoch": 2,
+        "ai_review_calls": 4,
+        "submitted_frames": 48,
+        "reservations": [
+            {
+                "device": "web-laptop",
+                "source_artifact_hash": "sha256:laptop-video",
+                "status": "passed",
+            },
+        ],
+    }
+
+    rolled = workflow.reserve_review_budget(
+        budget,
+        device="web-phone",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:phone-frames",
+        source_artifact_hash="sha256:phone-video",
+        caption_artifact_hash="sha256:phone-captions",
+    )
+
+    assert rolled["active_epoch"] == 3
+    assert rolled["ai_review_calls"] == 1
+    assert rolled["submitted_frames"] == 12
+    assert rolled["superseded_review_epochs"] == [
+        {
+            "budget_epoch": 2,
+            "reason": "first_review_for_new_device",
+            "device": "web-phone",
+            "reservation_count": 1,
+            "ai_review_calls": 4,
+            "submitted_frames": 48,
+            "superseded_by_source_artifact_hash": "sha256:phone-video",
+        }
+    ]
+    assert rolled["reservations"][-1]["budget_epoch"] == 3
 
 
 def test_review_budget_allows_only_one_product_code_correction_round() -> None:
