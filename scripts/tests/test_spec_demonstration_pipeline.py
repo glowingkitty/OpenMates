@@ -422,7 +422,8 @@ def test_browser_proof_uses_only_renderer_domain_chrome() -> None:
     assert ">OpenMates</div>" not in renderer
     assert "aria-label=\"New tab\"" in renderer
     assert "maxWidth" in renderer
-    assert "Paused for review" in renderer
+    assert "Paused recording" in renderer
+    assert "Paused for review" not in renderer
     assert "animations: 'disabled'" not in proof_spec
 
 

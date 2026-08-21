@@ -1801,9 +1801,10 @@ def produce_playwright_demonstration(
         checkpoint_frame_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_frames = {}
         for checkpoint_id, checkpoint_at_ms in checkpoint_times.items():
+            frame_at_ms = max(0, checkpoint_at_ms - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
             frame = extract_frame(
                 render_source_video,
-                timestamp_seconds=checkpoint_at_ms / 1000,
+                timestamp_seconds=frame_at_ms / 1000,
                 output_path=checkpoint_frame_dir / f"{checkpoint_id}.png",
             )
             checkpoint_frames[checkpoint_id] = {

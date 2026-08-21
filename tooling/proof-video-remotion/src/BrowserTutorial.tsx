@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile} from 'remotion';
+import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame} from 'remotion';
 
 import type {BrowserTutorialProps, TutorialSegment} from './types';
 
@@ -15,28 +15,20 @@ const frames = (milliseconds: number, fps: number) => Math.max(1, Math.round(mil
 const PauseBadge: React.FC = () => (
 	<div style={{
 		alignItems: 'center',
-		backdropFilter: 'blur(16px)',
-		background: 'rgba(15, 23, 42, 0.72)',
-		border: '1px solid rgba(255, 255, 255, 0.28)',
+		background: 'rgba(100, 116, 139, 0.14)',
+		border: '1px solid rgba(100, 116, 139, 0.28)',
 		borderRadius: 999,
-		bottom: 18,
-		boxShadow: '0 12px 32px rgba(15, 23, 42, 0.22)',
-		color: '#fff',
 		display: 'flex',
-		fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-		fontSize: 14,
-		fontWeight: 650,
 		gap: 9,
-		letterSpacing: '0.01em',
-		padding: '9px 13px',
-		position: 'absolute',
-		right: 18,
+		height: 30,
+		justifyContent: 'center',
+		marginRight: 16,
+		width: 42,
 	}}>
-		<span aria-hidden="true" style={{display: 'inline-flex', gap: 3}}>
-			<span style={{background: '#fff', borderRadius: 2, height: 13, width: 4}} />
-			<span style={{background: '#fff', borderRadius: 2, height: 13, width: 4}} />
+		<span aria-label="Paused recording" style={{display: 'inline-flex', gap: 4}}>
+			<span style={{background: '#64748b', borderRadius: 2, height: 13, width: 4}} />
+			<span style={{background: '#64748b', borderRadius: 2, height: 13, width: 4}} />
 		</span>
-		<span>Paused for review</span>
 	</div>
 );
 
@@ -52,12 +44,17 @@ const Segment: React.FC<{segment: TutorialSegment; source: string; fps: number}>
 			/>
 		);
 	}
-	return (
-		<AbsoluteFill>
-			<Img src={staticFile(segment.source_image)} style={{width: '100%', height: '100%', objectFit: 'fill'}} />
-			<PauseBadge />
-		</AbsoluteFill>
-	);
+	return <Img src={staticFile(segment.source_image)} style={{width: '100%', height: '100%', objectFit: 'fill'}} />;
+};
+
+const isPausedFrame = (segments: TutorialSegment[], frame: number, fps: number) => {
+	let cursor = 0;
+	for (const segment of segments) {
+		const duration = frames(segment.duration_ms, fps);
+		if (frame >= cursor && frame < cursor + duration) return segment.kind === 'freeze';
+		cursor += duration;
+	}
+	return false;
 };
 
 const browserLayout = (props: BrowserTutorialProps) => {
@@ -82,6 +79,7 @@ export const BrowserTutorial: React.FC<BrowserTutorialProps> = (props) => {
 	const source = staticFile(props.sourceVideo);
 	let from = 0;
 	const layout = browserLayout(props);
+	const paused = isPausedFrame(props.segments, useCurrentFrame(), props.output.fps);
 	return (
 		<AbsoluteFill style={{alignItems: 'center', background: 'linear-gradient(135deg, #dbeafe 0%, #f8fafc 45%, #e0e7ff 100%)', display: 'flex', justifyContent: 'center'}}>
 			<div style={{
@@ -129,7 +127,8 @@ export const BrowserTutorial: React.FC<BrowserTutorialProps> = (props) => {
 					}}>
 						<span>{props.domain}</span>
 					</div>
-					<div style={{display: 'flex', flex: 1, justifyContent: 'flex-end'}}>
+					<div style={{alignItems: 'center', display: 'flex', flex: 1, justifyContent: 'flex-end'}}>
+						{paused ? <PauseBadge /> : null}
 						<div aria-label="New tab" style={{color: '#64748b', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 26, fontWeight: 300, lineHeight: 1}}>+</div>
 					</div>
 				</div>
