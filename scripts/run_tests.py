@@ -147,6 +147,13 @@ BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "app-images-worker",
     "app-videos-worker",
 )
+BACKEND_LIVE_MOCK_CONDITIONAL_CONTAINERS = frozenset({
+    "workflow-worker",
+    "user-tasks-worker",
+    "reminder-worker",
+    "app-images-worker",
+    "app-videos-worker",
+})
 BACKEND_LIVE_MOCK_PREFLIGHT_NAME = "backend-live-mock-preflight"
 BACKEND_LIVE_MOCK_PREFLIGHT_FILE = "scripts/run_tests.py"
 BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES = {"0", "false", "False", "no", "NO"}
@@ -873,6 +880,44 @@ def _git_info() -> tuple[str, str]:
     return sha, branch
 
 
+def _daily_git_info(current_git_sha: str, current_git_branch: str) -> tuple[str, str]:
+    """Use the latest remote dev commit for delayed cron runs."""
+    if os.environ.get("OPENMATES_TEST_SUBJECT_COMMIT", "").strip():
+        return current_git_sha, current_git_branch
+
+    remote_ref = f"origin/{GH_BRANCH}"
+    try:
+        subprocess.run(
+            [
+                "git", "-C", str(PROJECT_ROOT), "fetch", "--quiet", "origin",
+                f"+{GH_BRANCH}:refs/remotes/{remote_ref}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        remote_sha = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", remote_ref],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception as exc:
+        _log(f"Could not refresh {remote_ref} for daily subject commit: {exc}", "WARN")
+        return current_git_sha, current_git_branch
+
+    if not remote_sha:
+        return current_git_sha, current_git_branch
+
+    remote_short = remote_sha[:9]
+    if current_git_sha != remote_short:
+        _log(
+            f"Daily run using {remote_ref} {remote_short} instead of local {current_git_sha}@{current_git_branch}",
+            "WARN",
+        )
+    return remote_short, GH_BRANCH
+
+
 def _full_git_sha(git_ref: str) -> str:
     """Resolve a display ref to the full commit SHA required by actions/checkout."""
     try:
@@ -932,6 +977,11 @@ def _docker_container_env(container: str, key: str) -> tuple[Optional[str], Opti
     return proc.stdout.strip(), None
 
 
+def _is_missing_docker_container_error(error: str) -> bool:
+    normalized = error.lower()
+    return "no such container" in normalized or "no container" in normalized
+
+
 def _development_backend_live_mock_preflight_error() -> Optional[str]:
     if os.getenv("OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "1") in BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES:
         _log("Backend live-mock preflight disabled via OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "WARN")
@@ -939,9 +989,29 @@ def _development_backend_live_mock_preflight_error() -> Optional[str]:
 
     problems: list[str] = []
     for container in BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS:
+        server_environment, server_error = _docker_container_env(container, "SERVER_ENVIRONMENT")
+        if server_error and _is_missing_docker_container_error(server_error):
+            if container in BACKEND_LIVE_MOCK_CONDITIONAL_CONTAINERS:
+                _log(
+                    f"Backend live-mock preflight skipped absent conditional worker {container}; "
+                    "specs that require its queue may still fail.",
+                    "WARN",
+                )
+                continue
+            problems.append(f"{container}: container is not running ({server_error})")
+            continue
+
         values: dict[str, str] = {}
         read_errors: set[str] = set()
+        if server_error:
+            problems.append(f"{container}: cannot read SERVER_ENVIRONMENT ({server_error})")
+            read_errors.add("SERVER_ENVIRONMENT")
+        else:
+            values["SERVER_ENVIRONMENT"] = server_environment or ""
+
         for key in ("SERVER_ENVIRONMENT", "MOCK_EXTERNAL_APIS"):
+            if key == "SERVER_ENVIRONMENT":
+                continue
             value, error = _docker_container_env(container, key)
             if error:
                 problems.append(f"{container}: cannot read {key} ({error})")
@@ -6110,6 +6180,8 @@ class TestOrchestrator:
         self.campaign_test_labels = [str(label) for label in decoded_labels] if isinstance(decoded_labels, list) else []
 
         self.git_sha, self.git_branch = _git_info()
+        if self.daily and self.environment == "development":
+            self.git_sha, self.git_branch = _daily_git_info(self.git_sha, self.git_branch)
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
         self.current_phase = "starting"
@@ -7170,7 +7242,10 @@ class TestOrchestrator:
         if not self.force:
             try:
                 commits = subprocess.check_output(
-                    ["git", "-C", str(PROJECT_ROOT), "log", "--oneline", "--since=24 hours ago"],
+                    [
+                        "git", "-C", str(PROJECT_ROOT), "log", "--oneline",
+                        "--since=24 hours ago", self.git_sha if self.git_sha != "unknown" else "HEAD",
+                    ],
                     stderr=subprocess.DEVNULL, text=True,
                 ).strip()
                 count = len(commits.splitlines()) if commits else 0
