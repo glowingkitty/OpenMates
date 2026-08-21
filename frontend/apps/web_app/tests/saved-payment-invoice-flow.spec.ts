@@ -218,7 +218,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 		// From a non-EU IP, Stripe Managed Payments is the default. Switch to Stripe EU card to
 		// seed a saved payment method — Managed Payments does not produce a saved card on the customer.
-		const switchToEuCardBtn = page.getByRole('button', { name: /EU card|with an EU card/i });
+		const switchToEuCardBtn = page.getByTestId('switch-to-stripe');
 		if (await switchToEuCardBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await switchToEuCardBtn.click({ timeout: 10000 });
 			log('Switched to EU card (Stripe) provider for seeding.');
