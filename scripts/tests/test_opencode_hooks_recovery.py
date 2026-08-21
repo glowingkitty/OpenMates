@@ -110,56 +110,50 @@ def test_worker_edit_gate_blocks_python_rejections() -> None:
     )
 
 
-def test_worker_gates_warn_and_continue_when_directus_is_unavailable() -> None:
+def test_worker_bash_gate_allows_scoped_cms_recovery_without_worker_state() -> None:
     run_hook_assertion(
         """
         import { strict as assert } from 'node:assert';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
-        const {
-          directusControlPlaneUnavailableForTest,
-          workerBashGateDecisionForTest,
-          workerEditGateDecisionForTest,
-          workerEditPathDecisionForTest,
-        } = OpenMatesHooks.test;
-        const unavailable = {
-          status: 1,
-          stdout: '',
-          stderr: 'Directus test control-plane request failed: GET /items/test_claims: <urlopen error [Errno 111] Connection refused>',
-        };
+        const { workerBashGateDecisionForTest } = OpenMatesHooks.test;
 
-        assert.equal(directusControlPlaneUnavailableForTest(unavailable), true);
-        assert.equal(directusControlPlaneUnavailableForTest({ status: 1, stderr: 'Worker edit blocked' }), false);
-
-        for (const decision of [
-          workerEditGateDecisionForTest({
-            sessionID: 'ses_worker',
-            files: ['frontend/test-1.test.ts'],
-            run: () => unavailable,
-          }),
-          workerEditPathDecisionForTest({
-            sessionID: 'ses_worker',
-            files: ['/tmp/outside.ts'],
-            relativePaths: [],
-            run: () => unavailable,
-          }),
-          workerBashGateDecisionForTest({
-            sessionID: 'ses_worker',
-            command: 'python3 scripts/custom_tool.py --fix',
-            run: () => unavailable,
-          }),
+        for (const command of [
+          'openmates server status',
+          'openmates server restart --services cms',
+          'openmates server restart --rebuild --services cms',
+          'openmates server start --with-overrides --services cms',
         ]) {
-          assert.equal(decision.decision, 'warn');
-          assert.match(decision.message, /DIRECTUS CONTROL PLANE IS UNAVAILABLE/);
-          assert.match(decision.message, /Continuing without Directus-backed campaign worker enforcement/);
+          const decision = workerBashGateDecisionForTest({
+            sessionID: 'ses_worker',
+            command,
+            run: () => { throw new Error('worker-state should not be called for approved CMS recovery'); },
+          });
+          assert.equal(decision.decision, 'allow', command);
+          assert.match(decision.message, /approved CMS control-plane recovery command/);
         }
 
-        const spawnFailure = workerEditGateDecisionForTest({
-          sessionID: 'ses_worker',
-          files: ['frontend/test-1.test.ts'],
-          run: () => ({ status: null, error: new Error('spawn failed'), stdout: '', stderr: '' }),
-        });
-        assert.equal(spawnFailure.decision, 'warn');
+        for (const command of [
+          'openmates server restart --services api',
+          'openmates server restart --rebuild --services api',
+          'openmates server restart --reset-cache --services cms',
+          'openmates server start --services cms',
+          'openmates server stop',
+        ]) {
+          const calls = [];
+          const decision = workerBashGateDecisionForTest({
+            sessionID: 'ses_worker',
+            command,
+            run: (...args) => {
+              calls.push(args);
+              return { status: 0, stdout: '{"active_worker": true}', stderr: '' };
+            },
+          });
+          assert.equal(calls.length, 1, command);
+          assert.equal(calls[0][0], 'python3', command);
+          assert.deepEqual(calls[0][1], ['scripts/tests.py', 'campaign', 'worker-state', '--session', 'ses_worker'], command);
+          assert.equal(decision.decision, 'block', command);
+        }
         """
     )
 
@@ -301,41 +295,47 @@ def test_worker_bash_gate_blocks_mutating_commands_for_active_workers() -> None:
     )
 
 
-def test_merged_worktree_recovery_message_names_force_end() -> None:
+def test_merged_managed_worktree_routes_when_path_exists() -> None:
     run_hook_assertion(
         """
         import { strict as assert } from 'node:assert';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
         const { routingDecisionForTest } = OpenMatesHooks.test;
+        const worktreePath = `${process.cwd()}/.openmates-agent-worktrees/agent-test`;
         const result = routingDecisionForTest({
-          session: { worktree: { status: 'merged', merged_commit: 'b2b533062cc16' } },
+          session: { worktree: { status: 'merged', path: worktreePath, merged_commit: 'b2b533062cc16' } },
+          pathExists: (path) => path === worktreePath || path === `${worktreePath}/.git`,
         });
 
-        assert.equal(result.decision, 'merged_worktree');
-        assert.match(result.message, /end --force/);
+        assert.equal(result.decision, 'worktree_routed');
+        assert.equal(result.worktreePath, worktreePath);
         """
     )
 
 
-def test_opencode_discord_notifier_is_not_registered() -> None:
+def test_opencode_discord_notifier_contract_is_registered() -> None:
     run_hook_assertion(
         """
         import { strict as assert } from 'node:assert';
-        import { readFileSync } from 'node:fs';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
-        const { isTodoWriteTool, presenceIsLive } = OpenMatesHooks.test;
+        const { completedAssistantMessageID, isTodoWriteTool, notifierEventArgsForTest, presenceIsLive } = OpenMatesHooks.test;
         for (const tool of ['todowrite', 'todo_write', 'todo.write', 'TodoWrite']) assert.equal(isTodoWriteTool(tool), true, tool);
         assert.equal(isTodoWriteTool('task'), false);
         assert.equal(presenceIsLive({ execution: 'busy', turn: 'none' }), true);
         assert.equal(presenceIsLive({ execution: 'idle', turn: 'streaming' }), true);
         assert.equal(presenceIsLive({ execution: 'idle', turn: 'completed' }), false);
 
-        assert.equal('completedAssistantMessageID' in OpenMatesHooks.test, false);
-        assert.equal('notifierEventArgsForTest' in OpenMatesHooks.test, false);
-        const source = readFileSync('./.opencode/plugins/openmates-hooks.js', 'utf8');
-        assert.doesNotMatch(source, /opencode_progress_notifier|response-completed|scheduleNotifierEvent/);
+        assert.equal(
+          completedAssistantMessageID({
+            type: 'message.completed',
+            properties: { info: { id: 'msg_123', role: 'assistant', time: { completed: 1 } } },
+          }),
+          'msg_123',
+        );
+        const args = notifierEventArgsForTest({ eventType: 'response-completed', sessionID: 'ses_1', messageID: 'msg_123' });
+        assert.deepEqual(args.slice(-6), ['--event', 'response-completed', '--session-id', 'ses_1', '--message-id', 'msg_123']);
         """
     )
 

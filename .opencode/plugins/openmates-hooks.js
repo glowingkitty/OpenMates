@@ -1894,7 +1894,7 @@ function workerEditGateDecisionForTest({ sessionID = "", files = [], run = spawn
   if (!sessionID || selectedFiles.length === 0) return { decision: "allow", message: "no worker edit gate input" };
   const args = ["scripts/tests.py", "campaign", "edit-gate", "--session", sessionID];
   for (const file of selectedFiles) args.push("--file", file);
-  const result = run("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8" });
+  const result = run("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8", timeout: 10000 });
   if (result.status === 0) return { decision: "allow", message: "worker edit gate passed" };
   const detail = (result.stderr || result.stdout || `worker edit gate exited ${result.status}`).trim();
   return {
@@ -1991,6 +1991,33 @@ function workerSessionStartCommandIsAllowed(command, sessionID = "") {
   return new Set([sessionID, "$OPENCODE_SESSION_ID", "${OPENCODE_SESSION_ID}"]).has(args[sessionIndex + 1]);
 }
 
+function workerServerRecoveryCommandIsAllowed(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  const tokens = segments[0].map(shellUnescape);
+  if (basename(tokens[0] || "") !== "openmates") return false;
+  const args = tokens.slice(1);
+  if (args.length === 2 && args[0] === "server" && args[1] === "status") return true;
+  if (args.length === 4
+    && args[0] === "server"
+    && args[1] === "restart"
+    && args[2] === "--services"
+    && args[3] === "cms") return true;
+  if (args.length === 5
+    && args[0] === "server"
+    && args[1] === "restart"
+    && args[2] === "--rebuild"
+    && args[3] === "--services"
+    && args[4] === "cms") return true;
+  return args.length === 5
+    && args[0] === "server"
+    && args[1] === "start"
+    && args[2] === "--with-overrides"
+    && args[3] === "--services"
+    && args[4] === "cms";
+}
+
 function workerSessionStateForTest({ sessionID = "", run = spawnSync } = {}) {
   if (!sessionID) return { active_worker: false };
   const result = run("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID], { cwd: PROJECT_ROOT, encoding: "utf8" });
@@ -2028,6 +2055,7 @@ function workerBashGateDecisionForTest({ sessionID = "", command = "", run = spa
     };
   }
   if (isReadOnlyChildBash(command) || workerCampaignCommandIsAllowed(command) || workerSessionStartCommandIsAllowed(command, sessionID)) return { decision: "allow", message: "worker bash command is read-only or campaign bookkeeping" };
+  if (workerServerRecoveryCommandIsAllowed(command)) return { decision: "allow", message: "worker bash command is an approved CMS control-plane recovery command" };
   const state = workerSessionStateForTest({ sessionID, run });
   if (!state?.active_worker) return { decision: "allow", message: "session is not an active debug worker" };
   return {

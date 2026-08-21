@@ -549,6 +549,17 @@ describe("composeArgs", () => {
   });
 });
 
+describe("server start override persistence", () => {
+  it("registers an unregistered source checkout before starting with overrides", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const startSource = source.slice(source.indexOf("async function serverStart"), source.indexOf("async function serverStop"));
+
+    assert.match(startSource, /flags\["with-overrides"\] === true && !config && !loadServerConfig\(\)/);
+    assert.match(startSource, /await serverRegister\(\{ path: installPath, "with-overrides": true \}\)/);
+    assert.match(startSource, /config = loadConfigForInstallPath\(installPath\)/);
+  });
+});
+
 describe("source install translations", () => {
   it("copies generated locale JSON from a local source checkout", () => {
     const rootDir = join(tmpdir(), `openmates-source-translations-${Date.now()}`);

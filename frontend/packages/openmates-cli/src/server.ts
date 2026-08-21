@@ -1750,7 +1750,14 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   ensureGitWorkDirEnv(installPath);
   warnIfMissingLlmCredentials(installPath);
 
-  const config = loadConfigForInstallPath(installPath);
+  let config = loadConfigForInstallPath(installPath);
+  if (flags["with-overrides"] === true && !config && !loadServerConfig()) {
+    // An unregistered source checkout otherwise treats --with-overrides as a
+    // one-shot Compose choice. A later command from an agent worktree can then
+    // recreate CMS without its host port and strand the control-plane hooks.
+    await serverRegister({ path: installPath, "with-overrides": true });
+    config = loadConfigForInstallPath(installPath);
+  }
   const withOverrides = flags["with-overrides"] === true || config?.composeProfile === "full";
   const role = getServerRole(flags, config);
   const installMode = getInstallMode(installPath, config);
