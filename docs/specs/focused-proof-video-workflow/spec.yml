@@ -92,7 +92,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
+  subject_commit: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
 
 approvals:
   product_contract:
@@ -560,13 +560,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --expected-commit cf0a77c500e01149f199e59395c232e32eb466ea --proof-video-profile web-laptop
-        run_id: github-32406219277
-        subject_commit: cf0a77c500e01149f199e59395c232e32eb466ea
+        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 6aa8872450358279a8d72990ca0156d1c71dfbb7 --proof-video-profile web-laptop --no-mocks
+        run_id: github-32478019737
+        subject_commit: 6aa8872450358279a8d72990ca0156d1c71dfbb7
         target: app.dev.openmates.org
-        deployment_reference: cf0a77c500e01149f199e59395c232e32eb466ea
-        timestamp: "2026-08-20T20:58:00Z"
-        summary: Deployed web proof source produced exact-profile browser recording; the automatic finalizer rendered and reviewed it as proof-video-architecture.spec-32406219277 inside deterministic Mac-style browser chrome showing app.dev.openmates.org.
+        deployment_reference: 6aa8872450358279a8d72990ca0156d1c71dfbb7
+        timestamp: "2026-08-21T11:53:15Z"
+        summary: Deployed web proof passed with real Playwright action video between checkpoint holds, one compact URL bar, a new-tab control, and no in-page domain overlay.
   - id: T-CLI-PROOF-E2E
     type: playwright
     file: frontend/apps/web_app/tests/proof-video-cli.spec.ts
@@ -588,13 +588,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec proof-video-cli.spec.ts --gate-deploy --require-exact-commit --expected-commit 35a04d3b25a7f0141eebe53e4661f9f529357ba9 --no-mocks
-        run_id: github-32423792595
-        subject_commit: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
+        command: python3 scripts/tests.py run --spec proof-video-cli.spec.ts --gate-deploy --require-exact-commit --expected-commit 81ab0ced062afd09ef5427eb314f0e2b8a396c5f --no-mocks
+        run_id: github-32478764708
+        subject_commit: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
         target: app.dev.openmates.org
-        deployment_reference: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
-        timestamp: "2026-08-20T22:22:26Z"
-        summary: Deployed CLI proof spec passed and captured real 1280x720 terminal pixels for `openmates apps examples travel search_connections`.
+        deployment_reference: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
+        timestamp: "2026-08-21T11:53:15Z"
+        summary: Deployed CLI proof spec passed and captured real 1280x720 terminal pixels with character-by-character command entry for `openmates apps examples travel search_connections`.
 
 verifications:
   - id: V-FOCUSED-TESTS
@@ -605,11 +605,11 @@ verifications:
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     evidence:
       status: passed
-      command: python3 -m pytest -p no:cacheprovider scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_spec_demonstration_review.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py scripts/tests/test_opencode_output_quality_audit.py scripts/tests/test_opencode_documented_plan_terms.py scripts/tests/test_agent_tooling_parity_audit.py scripts/tests/test_sync_agent_parity.py scripts/tests/test_tests_control.py::test_normalize_playwright_report_retains_one_terminal_video_artifact scripts/tests/test_tests_control.py::test_record_latest_run_artifact_persists_deploy_gate_metadata scripts/tests/test_tests_control.py::test_skipped_deploy_gate_is_not_verified scripts/tests/test_tests_control.py::test_normalize_playwright_report_preserves_duplicate_video_attachments scripts/tests/test_tests_control.py::test_duplicate_video_attachments_create_one_proof_source_attestation scripts/tests/test_tests_control.py::test_proof_source_attestation_requires_explicit_deploy_gate scripts/tests/test_tests_control.py::test_e2e_deploy_gate_checks_playwright_targets scripts/tests/test_tests_control.py::test_e2e_deploy_gate_skips_non_playwright_targets -q
-      run_id: local-2026-08-14-focused-proof-final
-      subject_commit: 7f4f78d
-      timestamp: "2026-08-14T16:37:32Z"
-      summary: 236 affected pytest checks passed with pytest cache disabled, plus workflow audits, spec verification, and parity checks passed separately.
+      command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_cli_video_capture.py scripts/tests/test_proof_video_workflow.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_tests_control.py -q
+      run_id: local-2026-08-21-proof-motion-and-typing-green
+      subject_commit: 6aa8872450358279a8d72990ca0156d1c71dfbb7
+      timestamp: "2026-08-21T11:53:15Z"
+      summary: 181 focused checks passed, including rendered Playwright motion, quantized source ranges without blank frames, authentic browser chrome, and character-by-character CLI typing.
   - id: V-WEB-PROOF
     kind: artifact_review
     phase: final
@@ -618,12 +618,12 @@ verifications:
     covers: [AC-13]
     evidence:
       status: passed
-      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --expected-commit cf0a77c500e01149f199e59395c232e32eb466ea --proof-video-profile web-laptop
-      run_id: proof-video-architecture.spec-32406219277
-      subject_commit: cf0a77c500e01149f199e59395c232e32eb466ea
-      timestamp: "2026-08-21T01:00:06Z"
-      reason: Required proof-video artifact review and OpenCode response-media publication completed for the regenerated web-laptop browser-frame proof.
-      summary: Web-laptop 1440x900 proof rendered with openmates-remotion-browser-v1, shows Mac-style browser chrome and app.dev.openmates.org, passed bounded frame review with receipt sha256:34c4eb29976b0661578e80094c06bf07e961eb76d62468c158f0ef5a0450f857, and was published with video sha256:0eae03e92689c8fa646c7aa37074d7ec2b7e62fc9852cabbb421a78755091a7d plus toggleable WebVTT captions.
+      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 6aa8872450358279a8d72990ca0156d1c71dfbb7 --proof-video-profile web-laptop --no-mocks
+      run_id: proof-video-architecture.spec-32478019737
+      subject_commit: 6aa8872450358279a8d72990ca0156d1c71dfbb7
+      timestamp: "2026-08-21T11:53:15Z"
+      reason: Required proof-video artifact review and publication completed for the motion-preserving web-laptop browser proof.
+      summary: Web-laptop 1440x900 proof passed bounded review with receipt sha256:8e81a83c22bea802512e1101b531924bc696106d54141a079ea0a4e958659bff and published video sha256:c70148e78599ae71b30643f312ec53c8122dd291ed3c7291783b4257e8349469.
   - id: V-CLI-PROOF
     kind: artifact_review
     phase: final
@@ -632,12 +632,12 @@ verifications:
     covers: [AC-13]
     evidence:
       status: passed
-      command: python3 scripts/sessions.py proof-video publish --session 8f7c --run-dir test-results/proof-videos/8f7c/proof-video-cli.spec
-      run_id: proof-video-cli.spec
-      subject_commit: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
-      timestamp: "2026-08-20T22:26:51Z"
-      reason: Required proof-video artifact review and OpenCode response-media publication completed for the CLI terminal proof.
-      summary: CLI-terminal 1280x720 proof passed bounded frame review with receipt sha256:b3ef12e23a311959c439ca0b86d2e018b0b64c2e4a20c08aec46622fd7775b94 and was published with toggleable WebVTT captions.
+      command: python3 scripts/sessions.py proof-video publish --session 8f7c --run-dir test-results/proof-videos/8f7c/proof-video-cli-typed.spec
+      run_id: proof-video-cli-typed.spec
+      subject_commit: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
+      timestamp: "2026-08-21T11:53:15Z"
+      reason: Required proof-video artifact review and publication completed for the character-by-character CLI terminal proof.
+      summary: CLI-terminal 1280x720 proof passed bounded review with receipt sha256:dd121e4c9894ad7a55920e8cfcba5bf6466966fa4a434af8a0af46645e5db2a6 and published video sha256:2ea2d1c20d60633b89a3bd2399868585fd23cc572bf216908b60580d98f63062.
 
 implementation_plan:
   spec_path: docs/specs/focused-proof-video-workflow/spec.yml
