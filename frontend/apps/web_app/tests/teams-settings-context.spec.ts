@@ -11,7 +11,12 @@ export {};
 import type { Page, Response } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
-const { fillMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const {
+	dismissSecurityReminderIfPresent,
+	fillMessageEditor,
+	loginToTestAccount,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -140,6 +145,7 @@ test.describe('Teams V1 context isolation', () => {
 		try {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(page);
+			await dismissSecurityReminderIfPresent(page);
 
 			await ensureSidebarOpen(page);
 			await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 30000 });
@@ -220,7 +226,9 @@ test.describe('Teams V1 context isolation', () => {
 			expect(sentMessage.payload.team_ai_invocation).toBeUndefined();
 			expect(preflight.raw).not.toContain(ordinaryMessage);
 			expect(sentMessage.raw).not.toContain(ordinaryMessage);
-			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toBeVisible({ timeout: 15000 });
+			const ordinaryTeamMessage = page.getByTestId('message-user').filter({ hasText: ordinaryMessage }).last();
+			await expect(ordinaryTeamMessage).toBeVisible({ timeout: 15000 });
+			await expect(ordinaryTeamMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
 			await page.waitForTimeout(2000);
@@ -245,10 +253,13 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 
 			await ensureSidebarOpen(page);
-			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`)).toBeVisible({ timeout: 30000 });
+			const visiblePersonalChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`);
+			await expect(visiblePersonalChat).toBeVisible({ timeout: 30000 });
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`)).toHaveCount(0);
-			// Keep the verified Personal-only list visible long enough for proof capture.
-			await page.waitForTimeout(1000);
+			await visiblePersonalChat.click();
+			await expect(page.getByTestId('chat-header-banner')).not.toContainText('New team chat', { timeout: 15000 });
+			// Keep the verified Personal-only list and opened Personal chat visible long enough for proof capture.
+			await page.waitForTimeout(3000);
 		} finally {
 			if (teamId) {
 				const cleanupResponse = await page.request.delete(`${apiUrl}/v1/teams/${encodeURIComponent(teamId)}`);
