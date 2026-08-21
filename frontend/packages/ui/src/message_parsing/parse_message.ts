@@ -51,13 +51,20 @@ const BARE_EMBED_SOURCE_LABEL_PREFIX = "Source: ";
 const BARE_EMBED_REF_HYPHEN_SOURCE = String.raw`[\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]`;
 const BARE_EMBED_REF_SUFFIX_SOURCE = String.raw`[A-Za-z0-9]{2,4}`;
 const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`(?:[A-Za-z0-9._~:][A-Za-z0-9._~:-]*${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE}|${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE})`;
+const BARE_DOMAIN_EMBED_REF_TOKEN_SOURCE = String.raw`[A-Za-z0-9][-A-Za-z0-9.]*\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE}`;
 const BARE_EMBED_REF_TOKEN_RE = new RegExp(
   `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
 );
-const BARE_DOMAIN_EMBED_REF_TOKEN_RE = /^[A-Za-z0-9][-A-Za-z0-9.]*\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?-[A-Za-z0-9]{2,4}$/;
+const BARE_DOMAIN_EMBED_REF_TOKEN_RE = new RegExp(
+  `^${BARE_DOMAIN_EMBED_REF_TOKEN_SOURCE}$`,
+);
 const BARE_EMBED_REF_GROUP_RE = new RegExp(
   "\\[((?:" + BARE_EMBED_REF_TOKEN_SOURCE + ")(?:\\s*,\\s*(?:" +
     BARE_EMBED_REF_TOKEN_SOURCE + "))*)\\](?!\\()",
+  "g",
+);
+const UNBRACKETED_SOURCE_EMBED_REF_RE = new RegExp(
+  `\\bSources?:\\s*(${BARE_DOMAIN_EMBED_REF_TOKEN_SOURCE})(?=\\b|[\\s.,;:!?)]|$)`,
   "g",
 );
 
@@ -144,6 +151,42 @@ function convertBareEmbedRefGroupsInTextNode(
       if (index > 0) output.push({ type: "text", text: ", " });
       output.push(createInlineEmbedNodeFromRawRef(ref, fallbackAppId));
     });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (output.length === 0) return node;
+  const after = createMarkedTextNode(node.text.slice(lastIndex), node);
+  if (after) output.push(after);
+  return output;
+}
+
+function convertUnbracketedSourceEmbedRefsInTextNode(
+  node: any,
+  fallbackAppId: string | null,
+): any | any[] {
+  if (node.type !== "text" || typeof node.text !== "string") return node;
+  if (hasCodeOrLinkMark(node)) return node;
+
+  UNBRACKETED_SOURCE_EMBED_REF_RE.lastIndex = 0;
+  if (!UNBRACKETED_SOURCE_EMBED_REF_RE.test(node.text)) return node;
+
+  UNBRACKETED_SOURCE_EMBED_REF_RE.lastIndex = 0;
+  const output: any[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = UNBRACKETED_SOURCE_EMBED_REF_RE.exec(node.text)) !== null) {
+    const ref = match[1];
+    const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef ?? ref;
+    if (!BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(resolvedRef)) continue;
+
+    const before = createMarkedTextNode(
+      node.text.slice(lastIndex, match.index),
+      node,
+    );
+    if (before) output.push(before);
+
+    output.push(createInlineEmbedNodeFromRawRef(resolvedRef, fallbackAppId));
     lastIndex = match.index + match[0].length;
   }
 
@@ -381,6 +424,17 @@ function convertEmbedLinksInNode(
   );
   if (Array.isArray(bareEmbedRefConversion) || bareEmbedRefConversion !== node) {
     return bareEmbedRefConversion;
+  }
+
+  const unbracketedSourceRefConversion = convertUnbracketedSourceEmbedRefsInTextNode(
+    node,
+    fallbackAppId,
+  );
+  if (
+    Array.isArray(unbracketedSourceRefConversion) ||
+    unbracketedSourceRefConversion !== node
+  ) {
+    return unbracketedSourceRefConversion;
   }
 
   // Recurse into children

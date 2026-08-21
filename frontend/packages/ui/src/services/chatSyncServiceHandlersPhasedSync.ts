@@ -678,6 +678,8 @@ export async function handleSyncStatusResponseImpl(
   serviceInstance: ChatSynchronizationService,
   payload: SyncStatusResponsePayload,
 ): Promise<void> {
+  if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+
   console.info(`[ChatSyncService] Sync status: primed=${payload.is_primed}`);
 
   // Backend sends 'is_primed', not 'cache_primed'

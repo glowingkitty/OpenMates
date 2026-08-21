@@ -154,6 +154,25 @@ describe("handleSyncStatusResponseImpl", () => {
     expect(service.attemptInitialSync_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(1);
     expect(service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
   });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,sync.startup.bounded-phases
+  it("ignores stale personal sync status while a Team context is active", async () => {
+    activeTeamContext.set({ team: null, teamId: "team-a", epoch: 4 });
+    const service = createService();
+
+    await handleSyncStatusResponseImpl(service as unknown as ChatSynchronizationService, {
+      is_primed: false,
+      chat_count: 12,
+      timestamp: 1778683517,
+      team_id: null,
+      context_epoch: 3,
+    });
+
+    expect(service.cachePrimed_FOR_HANDLERS_ONLY).toBe(false);
+    expect(service.cacheStatusServerChatCount_FOR_HANDLERS_ONLY).toBe(0);
+    expect(service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
 });
 
 describe("handlePhase2RecentChatsImpl", () => {

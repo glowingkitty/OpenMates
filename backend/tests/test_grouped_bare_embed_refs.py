@@ -97,6 +97,43 @@ class TestGroupedBareEmbedRefs:
 
     # contract-test: supporting surface=gui.web assertions=web-search.surface-parity
     @pytest.mark.asyncio
+    async def test_converts_unbracketed_known_domain_ref_to_inline_link(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        child_id = "child-embed"
+        encoded = {
+            parent_id: encode({"embed_ids": child_id}),
+            child_id: encode({
+                "type": "website",
+                "embed_ref": "techcrunch.com-70I",
+                "title": "TechCrunch AI Roundup",
+            }),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response="Source: techcrunch.com-70I explains the news.",
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == "Source: [TechCrunch AI Roundup](embed:techcrunch.com-70I) explains the news."
+
+    # contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+    @pytest.mark.asyncio
     async def test_converts_single_suffix_only_ref_to_inline_link(self, monkeypatch):
         from backend.core.api.app.services import embed_service as embed_service_module
         from toon_format import encode

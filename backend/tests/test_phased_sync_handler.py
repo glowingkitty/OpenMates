@@ -422,6 +422,76 @@ async def test_sync_status_recovers_missing_primed_flag_when_chat_index_matches_
     ]
 
 
+@pytest.mark.anyio
+async def test_team_sync_status_echoes_context_without_personal_cache_rewarm(monkeypatch) -> None:
+    rewarm_calls = []
+
+    async def fake_rewarm(cache_service, user_id):
+        rewarm_calls.append((cache_service, user_id))
+
+    monkeypatch.setattr(
+        phased_sync_handler,
+        "_trigger_cache_rewarming_if_needed",
+        fake_rewarm,
+    )
+
+    class FakeCache:
+        async def is_user_cache_primed(self, user_id):
+            raise AssertionError("Team sync status must not read Personal cache priming")
+
+        async def get_chat_ids_versions(self, user_id, with_scores=False):
+            raise AssertionError("Team sync status must not read Personal chat cache")
+
+    class FakeDirectusChat:
+        async def get_user_chat_count(self, user_id, team_id=None):
+            assert user_id == "user-1"
+            assert team_id == "team-1"
+            return 3
+
+    class FakeDirectusTeam:
+        async def require_team_role(self, team_id, user_id, roles):
+            assert team_id == "team-1"
+            assert user_id == "user-1"
+            assert "viewer" in roles
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+            self.team = FakeDirectusTeam()
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    await phased_sync_handler.handle_sync_status_request(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        encryption_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={"team_id": "team-1", "context_epoch": 4},
+    )
+
+    assert rewarm_calls == []
+    assert manager.sent == [
+        {
+            "type": "sync_status_response",
+            "payload": {
+                "is_primed": True,
+                "chat_count": 3,
+                "timestamp": manager.sent[0]["payload"]["timestamp"],
+                "team_id": "team-1",
+                "context_epoch": 4,
+            },
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     ("cached_chat_count", "db_chat_count", "expected"),
     [
