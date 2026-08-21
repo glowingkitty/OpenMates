@@ -12927,7 +12927,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
-                                    transition:fade={fadeParams}
                                 >
                                     <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
                                     {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
