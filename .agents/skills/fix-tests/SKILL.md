@@ -171,9 +171,18 @@ python3 scripts/tests.py complete --lease <lease-id> --commit <sha> --require-pa
 
 ### Step 5: Continue until campaign completion
 
-Read `campaign status`, then run `campaign next` again. Individual group passes
-are sufficient; the user explicitly chose not to require an additional combined
-campaign-wide run. Do not stop while another selected or child group is pending.
+Read `campaign status`, then run `campaign next` again. Do not stop while another
+selected or child group is pending. When every group is green, the campaign
+remains `verification_pending` until a full nightly-equivalent run executes both
+the deterministic and live-probe lanes with zero failures:
+
+```bash
+python3 scripts/tests.py run --daily
+python3 scripts/tests.py campaign finalize --campaign <campaign-id> --run <full-run-id>
+```
+
+If the full run exposes a failure, finalization adds it as a child group in the
+same campaign. Never mark the campaign complete from isolated group evidence.
 
 For a genuine user/external blocker:
 

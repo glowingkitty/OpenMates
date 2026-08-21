@@ -8,6 +8,8 @@ cover the deterministic contracts that must hold before any LLM prose or
 newsletter automation is allowed to consume release artifacts.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib
@@ -616,6 +618,13 @@ def test_create_pr_skill_requires_feature_readiness_gate() -> None:
     assert "gh pr create" in skill
     assert "--state merged" in skill
     assert "mergedAt" in skill
+    assert "headRefOid" in skill
+    assert "git merge-base --is-ancestor" in skill
+    assert "previous dev PR head" in skill
+    assert "allow_merge_commit" in skill
+    assert "allow_squash_merge" in skill
+    assert "allow_rebase_merge" in skill
+    assert "repository must allow merge commits only" in skill
     assert "createdAt" not in skill
     assert "docs/releases/daily/YYYY-MM-DD.md" in skill
     assert "docs/releases/weekly/YYYY-Www.md" in skill

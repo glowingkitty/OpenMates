@@ -28,11 +28,32 @@ Start with explicit read-only discovery:
 
 ```bash
 git fetch origin main dev
-gh pr list --base main --head dev --state merged --limit 1 \
-  --json number,title,mergedAt,mergeCommit,url
+latest_pr=$(gh pr list --base main --head dev --state merged --limit 1 \
+  --json number,title,mergedAt,mergeCommit,headRefOid,url)
+latest_head=$(printf '%s' "$latest_pr" | jq -r '.[0].headRefOid // empty')
+if [ -n "$latest_head" ] && ! git merge-base --is-ancestor "$latest_head" origin/main; then
+  printf 'Blocked: previous dev PR head %s is not an ancestor of origin/main. Repair merge history before preparing another PR.\n' "$latest_head"
+  exit 1
+fi
+
+repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+merge_policy=$(gh api "repos/$repo" \
+  --jq '[.allow_merge_commit, .allow_squash_merge, .allow_rebase_merge] | @tsv')
+expected_merge_policy=$(printf 'true\tfalse\tfalse')
+if [ "$merge_policy" != "$expected_merge_policy" ]; then
+  printf 'Blocked: repository must allow merge commits only; squash and rebase rewrite dev commit ancestry.\n'
+  exit 1
+fi
+
+printf '%s\n' "$latest_pr"
 git rev-list --left-right --count origin/main...origin/dev
 git diff --stat origin/main...origin/dev
 ```
+
+This merge-history gate is mandatory. It prevents a squash or rebase promotion
+from making previously released `dev` commits appear unreleased and preserves
+their exact hashes on `main`. Do not continue by substituting a tree-diff check:
+identical trees do not prove that commit ancestry was retained.
 
 Use the merged PR's `mergedAt` date to select the daily Markdown files, then
 inspect weekly Markdown files whose stated date range overlaps that boundary.
