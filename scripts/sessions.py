@@ -2671,6 +2671,18 @@ def _snapshot_worktree_base_states(metadata: dict, files: list[str]) -> dict[str
         raise RuntimeError("Worktree base metadata is incomplete")
     states: dict[str, dict] = {}
     for relative_path in files:
+        mode = subprocess.run(
+            ["git", "ls-tree", reference_commit, "--", f":(literal){relative_path}"],
+            cwd=str(worktree_path),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if mode.returncode != 0:
+            raise RuntimeError(f"Could not inspect base file mode: {relative_path}")
+        if not mode.stdout.strip():
+            states[relative_path] = {"exists": False}
+            continue
         content = subprocess.run(
             ["git", "show", f"{reference_commit}:{relative_path}"],
             cwd=str(worktree_path),
@@ -2678,17 +2690,7 @@ def _snapshot_worktree_base_states(metadata: dict, files: list[str]) -> dict[str
             timeout=30,
         )
         if content.returncode != 0:
-            states[relative_path] = {"exists": False}
-            continue
-        mode = subprocess.run(
-            ["git", "ls-tree", reference_commit, "--", relative_path],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if mode.returncode != 0 or not mode.stdout.strip():
-            raise RuntimeError(f"Could not inspect base file mode: {relative_path}")
+            raise RuntimeError(f"Could not inspect base file content: {relative_path}")
         states[relative_path] = {
             "exists": True,
             "sha256": hashlib.sha256(content.stdout).hexdigest(),

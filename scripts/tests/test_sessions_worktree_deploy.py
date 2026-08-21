@@ -189,6 +189,53 @@ def test_session_deploy_files_accept_legacy_worktree_tracking(monkeypatch, tmp_p
     assert sessions._session_deploy_files(session, exclude=set()) == ["scripts/sessions.py"]
 
 
+def test_snapshot_worktree_base_states_handles_literal_bracket_paths(tmp_path):
+    sessions = load_sessions_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_git(repo, "init")
+    run_git(repo, "config", "user.email", "tests@example.invalid")
+    run_git(repo, "config", "user.name", "Session Tests")
+    route = repo / "frontend" / "routes" / "[slug]" / "+page.svelte"
+    route.parent.mkdir(parents=True)
+    route.write_text("<h1>route</h1>\n", encoding="utf-8")
+    run_git(repo, "add", ".")
+    run_git(repo, "commit", "-m", "route")
+    commit = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    states = sessions._snapshot_worktree_base_states(
+        {"path": str(repo), "base_commit": commit},
+        ["frontend/routes/[slug]/+page.svelte"],
+    )
+
+    assert states["frontend/routes/[slug]/+page.svelte"]["exists"] is True
+
+
+def test_snapshot_worktree_base_states_treats_deleted_bracket_paths_as_missing(tmp_path):
+    sessions = load_sessions_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_git(repo, "init")
+    run_git(repo, "config", "user.email", "tests@example.invalid")
+    run_git(repo, "config", "user.name", "Session Tests")
+    route = repo / "frontend" / "routes" / "[slug]" / "+page.svelte"
+    route.parent.mkdir(parents=True)
+    route.write_text("<h1>route</h1>\n", encoding="utf-8")
+    run_git(repo, "add", ".")
+    run_git(repo, "commit", "-m", "route")
+    route.unlink()
+    run_git(repo, "add", ".")
+    run_git(repo, "commit", "-m", "delete route")
+    commit = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    states = sessions._snapshot_worktree_base_states(
+        {"path": str(repo), "base_commit": commit},
+        ["frontend/routes/[slug]/+page.svelte"],
+    )
+
+    assert states["frontend/routes/[slug]/+page.svelte"] == {"exists": False}
+
+
 def test_merged_worktree_deploy_selects_only_changes_after_recorded_snapshot(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     unchanged = tmp_path / "unchanged.py"
