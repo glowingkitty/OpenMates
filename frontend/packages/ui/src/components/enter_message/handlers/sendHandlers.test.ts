@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isUnsupportedTeamIncognitoContext,
+  shouldAwaitAITaskStart,
   shouldDispatchDraftChatAsNewChat,
 } from './sendClassification';
 
@@ -64,5 +65,31 @@ describe('isUnsupportedTeamIncognitoContext', () => {
   it('allows Team and incognito sends when they are used separately', () => {
     expect(isUnsupportedTeamIncognitoContext('team-1', false)).toBe(false);
     expect(isUnsupportedTeamIncognitoContext(null, true)).toBe(false);
+  });
+});
+
+describe('shouldAwaitAITaskStart', () => {
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked
+  it('does not show AI processing for an ordinary authenticated Team message', () => {
+    expect(shouldAwaitAITaskStart({
+      authenticated: true,
+      teamId: 'team-1',
+      invokesTeamAI: false,
+    })).toBe(false);
+  });
+
+  it.each([
+    { authenticated: true, teamId: null, invokesTeamAI: false },
+    { authenticated: true, teamId: 'team-1', invokesTeamAI: true },
+  ])('waits for an AI task when the send can invoke AI', (args) => {
+    expect(shouldAwaitAITaskStart(args)).toBe(true);
+  });
+
+  it('does not wait for an AI task for anonymous sends', () => {
+    expect(shouldAwaitAITaskStart({
+      authenticated: false,
+      teamId: null,
+      invokesTeamAI: false,
+    })).toBe(false);
   });
 });

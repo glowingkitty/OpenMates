@@ -30,3 +30,11 @@ export function isUnsupportedTeamIncognitoContext(
 ): boolean {
   return Boolean(teamId && isIncognito);
 }
+
+export function shouldAwaitAITaskStart(args: {
+  authenticated: boolean;
+  teamId: string | null | undefined;
+  invokesTeamAI: boolean;
+}): boolean {
+  return args.authenticated && (!args.teamId || args.invokesTeamAI);
+}

@@ -9,6 +9,8 @@
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
     import { chatDB } from '../../services/db';
+    import { isTeamAIInvocation } from '../../services/teamService';
+    import { activeTeamId } from '../../stores/teamStore';
 
     // Services & Stores
     import {
@@ -78,6 +80,7 @@
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
+    import { shouldAwaitAITaskStart } from './handlers/sendClassification';
     import MentionDropdown from './MentionDropdown.svelte';
     import {
         buildProjectMentionSyntax,
@@ -4809,7 +4812,12 @@
             : null;
         // Anonymous sends use a direct local request, not the cancellable WebSocket AI task lifecycle.
         // Do not show the optimistic stop button because no aiTaskStarted/aiTaskEnded events will arrive.
-        if ($authStore.isAuthenticated) {
+        const awaitsAITask = shouldAwaitAITaskStart({
+            authenticated: $authStore.isAuthenticated,
+            teamId: get(activeTeamId),
+            invokesTeamAI: isTeamAIInvocation(editor?.getText() ?? ''),
+        });
+        if (awaitsAITask) {
             awaitingAITaskStart = true;
             cancelRequestedWhileAwaiting = false;
             if (awaitingAITaskTimeoutId) {
