@@ -2225,6 +2225,10 @@ changes to the documentation (to keep the documentation up to date).
             panelState.openSettings();
         } else {
             panelState.closeSettings();
+            // The overlay also applies this class imperatively. Remove it in
+            // the same close turn so the chat cannot remain washed out while
+            // reactive panel/store updates settle.
+            document.querySelector('.active-chat-container')?.classList.remove('dimmed');
         }
 
         // If menu is being closed, reset scroll position and view state
