@@ -92,7 +92,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
+  subject_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
 
 approvals:
   product_contract:
@@ -174,7 +174,7 @@ handoff:
   command: none
   expected_outcome: User confirms the published web and CLI proof videos are acceptable.
   blocker: null
-  last_verified_commit: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
+  last_verified_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
 
 scenarios:
   - id: S-1
@@ -483,11 +483,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_tests_control.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_proof_video_workflow.py -q
-        run_id: local-2026-08-21-browser-finalizer-green
-        subject_commit: 6250a6877e10787f4ca59e110430e7d4b1c88563
-        timestamp: "2026-08-21T01:03:08Z"
-        summary: 176 focused checks passed, including browser-frame pixel regression, automatic proof-source finalization, session publication, and review workflow coverage.
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
+        run_id: local-2026-08-21-browser-no-leading-preproof-green
+        subject_commit: f6c016e5f0d38dcf06fe817af10b58a66bb83316
+        timestamp: "2026-08-21T14:54:00Z"
+        summary: 50 focused renderer checks passed, including chronological full-source playback from the first assertion-backed proof state, inserted pause holds, candidate checkpoint frame extraction, no in-page domain overlay, browser chrome, and cache-hash binding.
   - id: T-CLI-CAPTURE
     type: pytest
     file: scripts/tests/test_cli_video_capture.py
@@ -561,13 +561,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 6aa8872450358279a8d72990ca0156d1c71dfbb7 --proof-video-profile web-laptop --no-mocks
-        run_id: github-32478019737
-        subject_commit: 6aa8872450358279a8d72990ca0156d1c71dfbb7
+        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 354aa9ec82b93efc76a14fdab7866a10bca3a083 --proof-video-profile web-laptop --no-mocks
+        run_id: github-32495391630
+        subject_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
         target: app.dev.openmates.org
-        deployment_reference: 6aa8872450358279a8d72990ca0156d1c71dfbb7
-        timestamp: "2026-08-21T11:53:15Z"
-        summary: Deployed web proof passed with real Playwright action video between checkpoint holds, one compact URL bar, a new-tab control, and no in-page domain overlay.
+        deployment_reference: 354aa9ec82b93efc76a14fdab7866a10bca3a083
+        timestamp: "2026-08-21T15:04:20Z"
+        summary: Deployed web proof passed on exact dev tip with a real Playwright source video, chronological browser tutorial playback from the first assertion-backed state, inserted paused checkpoint holds, one compact URL bar, a new-tab control, and no in-page domain overlay.
   - id: T-CLI-PROOF-E2E
     type: playwright
     file: frontend/apps/web_app/tests/proof-video-cli.spec.ts
@@ -619,12 +619,12 @@ verifications:
     covers: [AC-13]
     evidence:
       status: passed
-      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 6aa8872450358279a8d72990ca0156d1c71dfbb7 --proof-video-profile web-laptop --no-mocks
-      run_id: proof-video-architecture.spec-32478019737
-      subject_commit: 6aa8872450358279a8d72990ca0156d1c71dfbb7
-      timestamp: "2026-08-21T11:53:15Z"
-      reason: Required proof-video artifact review and publication completed for the motion-preserving web-laptop browser proof.
-      summary: Web-laptop 1440x900 proof passed bounded review with receipt sha256:8e81a83c22bea802512e1101b531924bc696106d54141a079ea0a4e958659bff and published video sha256:c70148e78599ae71b30643f312ec53c8122dd291ed3c7291783b4257e8349469.
+      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 354aa9ec82b93efc76a14fdab7866a10bca3a083 --proof-video-profile web-laptop --no-mocks
+      run_id: proof-video-architecture.spec-32495391630
+      subject_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
+      timestamp: "2026-08-21T15:16:04Z"
+      reason: Required proof-video artifact review and publication completed for the exact-tip chronological web-laptop browser proof.
+      summary: Web-laptop 1440x900 proof passed bounded review with receipt sha256:170df64b48c925735bc2390dbcb5032263e0684d0b69f59dfc7bd736a20f59b2 and published video sha256:33016ca59a1555f7434df48b8323301efb5b25d67bc423209e12a794152caffb.
   - id: V-CLI-PROOF
     kind: artifact_review
     phase: final
