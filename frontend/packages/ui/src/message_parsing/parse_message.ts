@@ -63,8 +63,8 @@ const BARE_EMBED_REF_GROUP_RE = new RegExp(
     BARE_EMBED_REF_TOKEN_SOURCE + "))*)\\](?!\\()",
   "g",
 );
-const UNBRACKETED_SOURCE_EMBED_REF_RE = new RegExp(
-  `\\bSources?:\\s*(${BARE_DOMAIN_EMBED_REF_TOKEN_SOURCE})(?=\\b|[\\s.,;:!?)]|$)`,
+const UNBRACKETED_DOMAIN_EMBED_REF_RE = new RegExp(
+  `(^|[^A-Za-z0-9._~:/-])((?:Sources?:\\s*)?)(${BARE_DOMAIN_EMBED_REF_TOKEN_SOURCE})(?=\\b|[\\s.,;:!?)]|$)`,
   "g",
 );
 
@@ -160,34 +160,37 @@ function convertBareEmbedRefGroupsInTextNode(
   return output;
 }
 
-function convertUnbracketedSourceEmbedRefsInTextNode(
+function convertUnbracketedDomainEmbedRefsInTextNode(
   node: any,
   fallbackAppId: string | null,
 ): any | any[] {
   if (node.type !== "text" || typeof node.text !== "string") return node;
   if (hasCodeOrLinkMark(node)) return node;
 
-  UNBRACKETED_SOURCE_EMBED_REF_RE.lastIndex = 0;
-  if (!UNBRACKETED_SOURCE_EMBED_REF_RE.test(node.text)) return node;
+  UNBRACKETED_DOMAIN_EMBED_REF_RE.lastIndex = 0;
+  if (!UNBRACKETED_DOMAIN_EMBED_REF_RE.test(node.text)) return node;
 
-  UNBRACKETED_SOURCE_EMBED_REF_RE.lastIndex = 0;
+  UNBRACKETED_DOMAIN_EMBED_REF_RE.lastIndex = 0;
   const output: any[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = UNBRACKETED_SOURCE_EMBED_REF_RE.exec(node.text)) !== null) {
-    const ref = match[1];
+  while ((match = UNBRACKETED_DOMAIN_EMBED_REF_RE.exec(node.text)) !== null) {
+    const prefix = match[1];
+    const sourceLabel = match[2];
+    const ref = match[3];
+    const tokenStart = match.index + prefix.length;
     const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef ?? ref;
     if (!BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(resolvedRef)) continue;
 
     const before = createMarkedTextNode(
-      node.text.slice(lastIndex, match.index),
+      node.text.slice(lastIndex, tokenStart),
       node,
     );
     if (before) output.push(before);
 
     output.push(createInlineEmbedNodeFromRawRef(resolvedRef, fallbackAppId));
-    lastIndex = match.index + match[0].length;
+    lastIndex = tokenStart + sourceLabel.length + ref.length;
   }
 
   if (output.length === 0) return node;
@@ -426,7 +429,7 @@ function convertEmbedLinksInNode(
     return bareEmbedRefConversion;
   }
 
-  const unbracketedSourceRefConversion = convertUnbracketedSourceEmbedRefsInTextNode(
+  const unbracketedSourceRefConversion = convertUnbracketedDomainEmbedRefsInTextNode(
     node,
     fallbackAppId,
   );
