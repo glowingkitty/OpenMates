@@ -94,11 +94,11 @@
         ...(projectsEnabled
             ? [{ href: '/projects', testId: 'projects-nav-link', label: $text('navigation.projects'), iconClass: 'project-icon', active: isProjectsRoute, disabled: false }]
             : []),
-        ...(plansEnabled
-            ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
-            : []),
         ...(tasksEnabled
             ? [{ href: '/tasks', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: isTasksRoute, disabled: false }]
+            : []),
+        ...(plansEnabled
+            ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
             : []),
         ...(workflowsEnabled
             ? [{ href: '/workflows', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: isWorkflowsRoute, disabled: false }]
