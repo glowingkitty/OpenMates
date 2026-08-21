@@ -211,21 +211,25 @@ def build_tutorial_timeline(
     device_profile: str,
     checkpoint_frames: dict[str, dict[str, str]],
     source_duration_ms: int,
+    assertion_results: list[dict[str, Any]] | None = None,
+    source_start_ms: int = 0,
 ) -> list[dict[str, Any]]:
     """Compile a full source replay with inserted frame-quantized checkpoint holds."""
     if source_duration_ms <= 0:
         raise DemonstrationError("Proof tutorial source duration must be positive")
+    if source_start_ms < 0 or source_start_ms >= source_duration_ms:
+        raise DemonstrationError("Proof tutorial source start must be inside the source video")
     policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(policy.get("readingWordsPerSecond") or 0)
     minimum_hold = int(policy.get("minimumHoldMs") or 0)
     maximum_hold = int(policy.get("maximumHoldMs") or 0)
     if words_per_second <= 0 or minimum_hold <= 0 or maximum_hold < minimum_hold:
         raise DemonstrationError("Proof tutorial timing policy is invalid")
-    checkpoints = {
-        str(event.get("id")): int(event["at_ms"])
-        for event in events
-        if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
-    }
+    checkpoints = tutorial_checkpoint_times(
+        contract=contract,
+        events=events,
+        assertion_results=assertion_results or [],
+    )
     cues = [
         cue
         for cue in contract.get("transcript", [])
@@ -234,7 +238,7 @@ def build_tutorial_timeline(
     if not cues:
         raise DemonstrationError(f"Proof contract has no transcript for {device_profile}")
     segments: list[dict[str, Any]] = []
-    previous_source_at = 0
+    previous_source_at = source_start_ms
     previous_checkpoint_at = -1
     for cue in cues:
         checkpoint_id = str(cue.get("checkpoint") or "")
@@ -292,6 +296,50 @@ def build_tutorial_timeline(
             }
         )
     return segments
+
+
+def tutorial_source_start_ms(assertion_results: list[dict[str, Any]]) -> int:
+    """Trim only the pre-proof blank/setup lead before the first visible assertion."""
+    passed_times = [
+        int(result["at_ms"])
+        for result in assertion_results
+        if isinstance(result, dict)
+        and result.get("status") == "passed"
+        and isinstance(result.get("at_ms"), (int, float))
+    ]
+    if not passed_times:
+        return 0
+    return max(0, min(passed_times) - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
+
+
+def tutorial_checkpoint_times(
+    *,
+    contract: dict[str, Any],
+    events: list[dict[str, Any]],
+    assertion_results: list[dict[str, Any]],
+) -> dict[str, int]:
+    """Prefer passed assertion timestamps over later checkpoint events for freeze frames."""
+    checkpoints = {
+        str(event.get("id")): int(event["at_ms"])
+        for event in events
+        if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
+    }
+    assertion_checkpoints = {
+        str(assertion.get("id")): str(assertion.get("checkpoint") or "")
+        for assertion in contract.get("assertions", [])
+        if isinstance(assertion, dict)
+    }
+    passed_by_checkpoint: dict[str, list[int]] = {}
+    for result in assertion_results:
+        if not isinstance(result, dict) or result.get("status") != "passed":
+            continue
+        checkpoint_id = assertion_checkpoints.get(str(result.get("id") or ""), "")
+        if checkpoint_id and isinstance(result.get("at_ms"), (int, float)):
+            passed_by_checkpoint.setdefault(checkpoint_id, []).append(int(result["at_ms"]))
+    for checkpoint_id, passed_times in passed_by_checkpoint.items():
+        if checkpoint_id in checkpoints and passed_times:
+            checkpoints[checkpoint_id] = max(passed_times)
+    return checkpoints
 
 
 def build_tutorial_review_timing(
@@ -1743,20 +1791,33 @@ def produce_playwright_demonstration(
     tutorial_caption_segments: list[dict[str, Any]] | None = None
     tutorial_evidence_intervals: dict[str, list[list[float]]] | None = None
     if spec_timeline is not None:
-        checkpoint_frames = {
-            str(frame.get("checkpoint") or ""): {
-                "path": str(frame.get("path") or ""),
-                "sha256": str(frame.get("sha256") or ""),
+        checkpoint_times = tutorial_checkpoint_times(
+            contract=spec_timeline["contract"],
+            events=spec_timeline["events"],
+            assertion_results=spec_timeline.get("assertion_results", []),
+        )
+        source_start_ms = tutorial_source_start_ms(spec_timeline.get("assertion_results", []))
+        checkpoint_frame_dir = run_dir / "checkpoint-source-frames"
+        checkpoint_frame_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_frames = {}
+        for checkpoint_id, checkpoint_at_ms in checkpoint_times.items():
+            frame = extract_frame(
+                render_source_video,
+                timestamp_seconds=checkpoint_at_ms / 1000,
+                output_path=checkpoint_frame_dir / f"{checkpoint_id}.png",
+            )
+            checkpoint_frames[checkpoint_id] = {
+                "path": str(frame["path"]),
+                "sha256": str(frame["sha256"]),
             }
-            for frame in spec_timeline.get("checkpoint_frames", [])
-            if isinstance(frame, dict)
-        }
         tutorial_segments = build_tutorial_timeline(
             contract=spec_timeline["contract"],
             events=spec_timeline["events"],
             device_profile=str(device_profile["id"]),
             checkpoint_frames=checkpoint_frames,
             source_duration_ms=round(float(source_metadata["duration_seconds"]) * 1000),
+            assertion_results=spec_timeline.get("assertion_results", []),
+            source_start_ms=source_start_ms,
         )
         tutorial_caption_segments, tutorial_evidence_intervals = build_tutorial_review_timing(
             contract=spec_timeline["contract"],

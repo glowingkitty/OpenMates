@@ -269,6 +269,63 @@ def test_tutorial_video_duration_matches_quantized_source_frame_range() -> None:
     assert round(video["duration_ms"] * 30 / 1000) == source_frames
 
 
+def test_tutorial_checkpoint_freeze_prefers_passed_assertion_timestamp() -> None:
+    module = load_module()
+    contract = {
+        "transcript": [
+            {"id": "welcome", "text": "Welcome state.", "checkpoint": "welcome", "devices": ["web-laptop"]},
+        ],
+        "assertions": [
+            {"id": "welcome.visible", "visual": "Welcome visible.", "checkpoint": "welcome", "devices": ["web-laptop"]},
+        ],
+        "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000},
+    }
+    timeline = module.build_tutorial_timeline(
+        contract=contract,
+        events=[{"id": "welcome", "kind": "checkpoint", "at_ms": 1857}],
+        device_profile="web-laptop",
+        checkpoint_frames={"welcome": {"path": "/proof/welcome.png", "sha256": "sha256:" + "a" * 64}},
+        source_duration_ms=3000,
+        assertion_results=[{"id": "welcome.visible", "status": "passed", "at_ms": 1416}],
+    )
+
+    assert timeline[0] == {"kind": "video", "source_from_ms": 0, "source_to_ms": 1416, "duration_ms": 1400.0}
+    assert timeline[1]["kind"] == "freeze"
+    assert timeline[2]["source_from_ms"] == 1416
+    assert timeline[2]["source_to_ms"] == 3000
+
+
+def test_tutorial_timeline_trims_only_preproof_lead() -> None:
+    module = load_module()
+    contract = {
+        "transcript": [
+            {"id": "welcome", "text": "Welcome state.", "checkpoint": "welcome", "devices": ["web-laptop"]},
+        ],
+        "assertions": [
+            {"id": "welcome.visible", "visual": "Welcome visible.", "checkpoint": "welcome", "devices": ["web-laptop"]},
+        ],
+        "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000},
+    }
+    source_start_ms = module.tutorial_source_start_ms([
+        {"id": "welcome.visible", "status": "passed", "at_ms": 1416},
+    ])
+    timeline = module.build_tutorial_timeline(
+        contract=contract,
+        events=[{"id": "welcome", "kind": "checkpoint", "at_ms": 1857}],
+        device_profile="web-laptop",
+        checkpoint_frames={"welcome": {"path": "/proof/welcome.png", "sha256": "sha256:" + "a" * 64}},
+        source_duration_ms=3000,
+        assertion_results=[{"id": "welcome.visible", "status": "passed", "at_ms": 1416}],
+        source_start_ms=source_start_ms,
+    )
+
+    assert source_start_ms == 1266
+    assert [(segment["source_from_ms"], segment["source_to_ms"]) for segment in timeline if segment["kind"] == "video"] == [
+        (1266, 1416),
+        (1416, 3000),
+    ]
+
+
 def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_duration() -> None:
     module = load_module()
     contract = {
@@ -366,7 +423,7 @@ def test_browser_proof_uses_only_renderer_domain_chrome() -> None:
     assert "aria-label=\"New tab\"" in renderer
     assert "maxWidth" in renderer
     assert "Paused for review" in renderer
-    assert "animations: 'disabled'" in proof_spec
+    assert "animations: 'disabled'" not in proof_spec
 
 
 def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: Path) -> None:
