@@ -246,12 +246,17 @@ def build_tutorial_timeline(
         hold = max(minimum_hold, min(maximum_hold, hold))
         hold_frames = max(1, round(hold * 30 / 1000))
         if previous_checkpoint_at >= 0:
+            source_from_frame = round(previous_checkpoint_at * 30 / 1000)
+            source_to_frame = round(checkpoint_at * 30 / 1000)
             segments.append(
                 {
                     "kind": "video",
                     "source_from_ms": previous_checkpoint_at,
                     "source_to_ms": checkpoint_at,
-                    "duration_ms": checkpoint_at - previous_checkpoint_at,
+                    "duration_ms": round(
+                        (source_to_frame - source_from_frame) * 1000 / 30,
+                        MEDIA_TIMESTAMP_DECIMALS,
+                    ),
                 }
             )
         segments.append(

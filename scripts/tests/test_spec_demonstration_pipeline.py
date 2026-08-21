@@ -236,6 +236,32 @@ def test_tutorial_timeline_rejects_missing_frames_and_non_monotonic_checkpoints(
         )
 
 
+def test_tutorial_video_duration_matches_quantized_source_frame_range() -> None:
+    module = load_module()
+    timeline = module.build_tutorial_timeline(
+        contract={
+            "transcript": [
+                {"id": "first", "text": "First state.", "checkpoint": "first", "devices": ["web-laptop"]},
+                {"id": "second", "text": "Second state.", "checkpoint": "second", "devices": ["web-laptop"]},
+            ],
+            "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1200, "maximumHoldMs": 5000},
+        },
+        events=[
+            {"id": "first", "kind": "checkpoint", "at_ms": 2022},
+            {"id": "second", "kind": "checkpoint", "at_ms": 6178},
+        ],
+        device_profile="web-laptop",
+        checkpoint_frames={
+            "first": {"path": "/proof/first.png", "sha256": "sha256:" + "a" * 64},
+            "second": {"path": "/proof/second.png", "sha256": "sha256:" + "b" * 64},
+        },
+    )
+
+    video = timeline[1]
+    source_frames = round(video["source_to_ms"] * 30 / 1000) - round(video["source_from_ms"] * 30 / 1000)
+    assert round(video["duration_ms"] * 30 / 1000) == source_frames
+
+
 def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_duration() -> None:
     module = load_module()
     contract = {
