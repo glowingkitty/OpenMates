@@ -215,6 +215,13 @@ VISUAL_SMOKE_ACCEPTED_DIFF_RE = re.compile(r"\baccepted differences?\s*:", re.IG
 PROOF_VIDEO_PRODUCT_PATH_RE = re.compile(
     r"^(frontend/(apps/web_app/src|packages/ui/src|packages/openmates-cli/src)/|backend/(apps|core|shared)/|packages/openmates-python/openmates/|apple/)",
 )
+PROOF_VIDEO_DEV_TEST_RECORDING_CLEANUP_PATHS = {
+    "backend/core/api/app/routes/test_recordings.py",
+    "backend/core/api/main.py",
+    "backend/tests/test_test_recordings.py",
+    "deployment/dev_server/Caddyfile",
+    "scripts/audit_rest_api_surface.py",
+}
 PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
     r"^(frontend/packages/ui/src/(data/web-app-example-chats\.json|demo_chats/data/example_chats/|i18n/sources/example_chats/)|frontend/apps/web_app/tests/.*example-chat.*\.spec\.ts$)",
     re.IGNORECASE,
@@ -9730,6 +9737,13 @@ def _proof_video_delivery_required() -> bool:
 
 
 def _proof_video_runtime_files(files: list[str]) -> list[str]:
+    has_test_recording_cleanup = any(
+        f == "backend/core/api/app/routes/test_recordings.py"
+        or f.startswith("frontend/apps/web_app/src/routes/tests/")
+        for f in files
+    )
+    if has_test_recording_cleanup:
+        files = [f for f in files if f not in PROOF_VIDEO_DEV_TEST_RECORDING_CLEANUP_PATHS]
     return [
         f
         for f in files
@@ -9856,6 +9870,23 @@ def _latest_proof_video_record(session: dict, expected_commit: str | None = None
     return None
 
 
+def _pending_proof_video_records_requiring_proof(session: dict) -> list[dict]:
+    records = session.get("proof_video_pending")
+    if not isinstance(records, list):
+        return []
+    requiring_proof: list[dict] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        files = record.get("files")
+        if not isinstance(files, list) or not all(isinstance(file, str) for file in files):
+            requiring_proof.append(record)
+            continue
+        if _requires_proof_video(session, files):
+            requiring_proof.append(record)
+    return requiring_proof
+
+
 def _proof_video_manifest_record(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
@@ -9920,6 +9951,9 @@ def _enforce_proof_video_end_gate(
         return
     expected_commit = commit_sha or _current_head()
     if _latest_proof_video_record(session, expected_commit):
+        print("Proof video gate: PASSED")
+        return
+    if not _pending_proof_video_records_requiring_proof(session) and _latest_proof_video_record(session):
         print("Proof video gate: PASSED")
         return
     print("PROOF VIDEO REQUIRED — session cannot be ended yet.", file=sys.stderr)

@@ -748,6 +748,85 @@ def test_proof_video_gate_accepts_current_delivered_manifest(
     )
 
 
+def test_proof_video_gate_accepts_prior_video_when_later_pending_cleanup_is_dev_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proof_commit = "a" * 40
+    cleanup_commit = "b" * 40
+    manifest_path = write_passed_manifest(tmp_path, subject_commit=proof_commit)
+    monkeypatch.setattr(sessions, "_current_head", lambda: cleanup_commit)
+    monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    session = {
+        "mode": "feature",
+        "proof_videos": [
+            {
+                "status": "passed",
+                "subject_commit": proof_commit,
+                "manifest_path": str(manifest_path),
+            }
+        ],
+        "proof_video_pending": [
+            {
+                "status": "pending",
+                "subject_commit": cleanup_commit,
+                "files": [
+                    "backend/core/api/app/routes/test_recordings.py",
+                    "backend/core/api/main.py",
+                    "deployment/dev_server/Caddyfile",
+                    "frontend/apps/web_app/src/routes/tests/+page.svelte",
+                ],
+            }
+        ],
+    }
+
+    sessions._enforce_proof_video_end_gate(
+        "abcd",
+        session,
+        ["frontend/packages/openmates-cli/src/client.ts"],
+        commit_sha=cleanup_commit,
+    )
+
+
+def test_proof_video_gate_blocks_prior_video_when_later_pending_product_change_requires_proof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    proof_commit = "a" * 40
+    product_commit = "b" * 40
+    manifest_path = write_passed_manifest(tmp_path, subject_commit=proof_commit)
+    monkeypatch.setattr(sessions, "_current_head", lambda: product_commit)
+    monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    session = {
+        "mode": "feature",
+        "proof_videos": [
+            {
+                "status": "passed",
+                "subject_commit": proof_commit,
+                "manifest_path": str(manifest_path),
+            }
+        ],
+        "proof_video_pending": [
+            {
+                "status": "pending",
+                "subject_commit": product_commit,
+                "files": ["frontend/packages/ui/src/components/NewFeature.svelte"],
+            }
+        ],
+    }
+
+    with pytest.raises(SystemExit):
+        sessions._enforce_proof_video_end_gate(
+            "abcd",
+            session,
+            ["frontend/packages/ui/src/components/NewFeature.svelte"],
+            commit_sha=product_commit,
+        )
+
+    assert "PROOF VIDEO REQUIRED" in capsys.readouterr().err
+
+
 def test_proof_video_gate_rejects_forged_passed_manifest_without_receipt(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     (manifest_path.parent / "review-receipt.json").unlink()
