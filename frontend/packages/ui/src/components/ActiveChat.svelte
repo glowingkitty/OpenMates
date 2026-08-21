@@ -138,7 +138,7 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import { activeTeamId } from '../stores/teamStore';
+    import { activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
@@ -3393,6 +3393,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         resumeChatImageBubbles = null;
         resumeChatIsCreditsError = false;
         resumeChatUserMessagePreview = null;
+    }
+
+    function clearWelcomeContinueItems(): void {
+        clearResumeChatCard();
+        recentChats = [];
+        priorityContinueItems = [];
+        recentChatTiltStates = [];
+        recentChatsScrolledByUser = false;
     }
 
     let recentChats = $state<RecentChatMeta[]>([]);
@@ -12024,6 +12032,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
         chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
+        const teamContextChangedHandler = (() => {
+            if (_carouselRefreshTimer) {
+                clearTimeout(_carouselRefreshTimer);
+                _carouselRefreshTimer = null;
+            }
+            if (_priorityRefreshTimer) {
+                clearTimeout(_priorityRefreshTimer);
+                _priorityRefreshTimer = null;
+            }
+            clearWelcomeContinueItems();
+            if (showWelcome && $authStore.isAuthenticated) {
+                loadRecentChatsDebounced();
+                loadPriorityContinueItemsDebounced();
+            }
+        }) as EventListenerCallback;
+        window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
+
         // ─── Chat Compression event handlers ─────────────────────────────────────────
         // When the AI worker detects a long chat history, it triggers compression before
         // preprocessing. These events update the processing phase to show a shimmer indicator.
@@ -12501,6 +12526,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
             window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
+            window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
             if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
             if (_priorityRefreshTimer) clearTimeout(_priorityRefreshTimer);
