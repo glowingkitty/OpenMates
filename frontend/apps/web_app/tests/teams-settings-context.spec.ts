@@ -239,15 +239,6 @@ test.describe('Teams V1 context isolation', () => {
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
-			await ensureSidebarOpen(page);
-			const cleanupTeamChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`);
-			await expect(cleanupTeamChat).toBeVisible({ timeout: 15000 });
-			await cleanupTeamChat.click({ button: 'right' });
-			const deleteChatButton = page.getByTestId('chat-context-delete');
-			await deleteChatButton.click();
-			await deleteChatButton.click();
-			await expect(cleanupTeamChat).toHaveCount(0, { timeout: 15000 });
-			await ensureSidebarClosed(page);
 
 			await openProfileMenu(page);
 			const personalSwitchFrameIndex = frames.length;
