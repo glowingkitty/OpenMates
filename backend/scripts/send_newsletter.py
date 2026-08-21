@@ -395,7 +395,7 @@ def _is_events_campaign(manifest: Dict[str, Any]) -> bool:
     return (manifest.get("metadata") or {}).get("campaign_type") == EVENTS_CAMPAIGN_TYPE
 
 
-def _local_header_image_data_uri(manifest: Dict[str, Any], lang: str) -> Optional[str]:
+def _local_header_image_data_uri(manifest: Dict[str, Any], lang: str, path_key: str = "path") -> Optional[str]:
     assets = manifest.get("campaign_assets") or {}
     header_assets = assets.get("header") if isinstance(assets, dict) else None
     if not isinstance(header_assets, dict):
@@ -405,7 +405,7 @@ def _local_header_image_data_uri(manifest: Dict[str, Any], lang: str) -> Optiona
     if not isinstance(header, dict):
         return None
 
-    raw_path = str(header.get("path") or "").strip()
+    raw_path = str(header.get(path_key) or "").strip()
     if not raw_path:
         return None
 
@@ -727,10 +727,17 @@ def build_context(
             "newsletter_title": (manifest.get("title") or {}).get(lang) or (manifest.get("title") or {}).get("en"),
             "newsletter_subtitle": None,
             "newsletter_header_image_src": _local_header_image_data_uri(manifest, lang),
+            "newsletter_header_mobile_image_src": _local_header_image_data_uri(manifest, lang, "mobile_path"),
             "newsletter_header_image_alt": _local_header_image_alt(manifest, lang),
+            "newsletter_header_image_width": "600px",
+            "newsletter_header_mobile_image_width": "390px",
+            "newsletter_header_image_padding": "0 0 30px 0",
+            "newsletter_content_padding": "0 24px 20px 24px",
             "cta_url": None,
             "cta_text": None,
             "show_social_media": False,
+            "is_events_newsletter": True,
+            "hide_email_brand_header": True,
             "manage_settings_url": manage_settings_url,
             "unsubscribe_url": unsubscribe_url if not is_registered else None,
             "darkmode": darkmode,

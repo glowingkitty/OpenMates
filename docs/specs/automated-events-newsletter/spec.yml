@@ -56,7 +56,7 @@ documentation_impact:
 
 goal: >
   Announce upcoming OpenMates events to confirmed subscribers every two weeks
-  through an accessible English/German email that uses approved exported Figma
+  through an accessible English/German email that uses approved Figma-matched
   visuals, gives the administrator 24 hours to correct or cancel each campaign,
   falls back to Luma until an OpenMates event page is live, and sends once only
   to subscribers who keep OpenMates Events enabled.
@@ -230,7 +230,7 @@ scenarios:
       - Re-running unchanged inputs for the same cadence anchor reuses the same campaign rather than creating a duplicate.
 
   - id: S-3
-    title: Exported Figma visuals remain accessible in email
+    title: Figma-matched visuals remain accessible in email
     given:
       - Localized red-header and event-card PNGs exist for every selected event.
     when:
@@ -424,11 +424,16 @@ acceptance_criteria:
 
 assumptions:
   - id: A-1
-    text: The administrator will provide final exported PNGs for the localized red header and every selected event card before the first dev preview.
-    category: external_dependency
+    text: The localized red header can be generated from the reusable Svelte source and every selected event card PNG exists before the first dev preview.
+    category: content
     required_before: task_execution
-    status: unchecked
-    blocker: Missing assets block preview by contract; request the files after spec creation.
+    status: confirmed
+    evidence:
+      - source: scripts/generate_events_newsletter_header_assets.mjs
+        summary: Generated localized desktop 1155x322 and mobile 780x258 EN/DE header PNGs from frontend/packages/ui/src/components/newsletter/EventsNewsletterHeader.svelte.
+      - source: test-results/events-newsletter/visual-corrected-responsive-en and test-results/events-newsletter/visual-corrected-responsive-de
+        summary: Local Playwright visual smoke captured reviewed laptop/mobile email screenshots with no clipping, overlap, broken images, missing header, or localization mismatch.
+    blocker: Missing assets block preview by contract; regenerate the header PNGs and replace missing event-card PNGs before preview.
   - id: A-2
     text: German newsletter copy can be authored from the supplied English event descriptions and approved by inspecting the German preview.
     category: content
@@ -639,7 +644,7 @@ tests:
       - Alt text and required event details remain in semantic HTML with valid destinations.
       - Missing, unsafe, or oversized assets block rendering before provider send.
     red_phase: {required: true, expected: fail_before_implementation, status: passed, evidence: {status: failed_expected, summary: "python3 -m pytest backend/tests/test_newsletter_categories.py -q failed at collection before implementation because newsletter_utils eagerly imported Directus/Redis and the canonical category helper did not exist.", timestamp: "2026-08-20T16:36:43Z"}}
-    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, summary: "python3 -m pytest backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_newsletter_categories.py -q passed 14 tests in 0.53s.", timestamp: "2026-08-20T16:36:43Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, summary: "python3 -m pytest backend/tests/test_html_processor.py backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_events_newsletter_render.py backend/tests/test_openmates_events_web_generation.py backend/tests/test_newsletter_categories.py -q passed 20 tests in 3.34s after final free-webinars intro, friendly closing copy, payload-hash email-copy coverage, and direct html_processor title-protection coverage were verified.", timestamp: "2026-08-21T12:23:56Z"}}
   - id: T-CAMPAIGN-LIFECYCLE
     type: pytest
     file: backend/tests/test_newsletter_campaign_lifecycle.py
@@ -730,9 +735,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-3, AC-9]
-    status: pending
+    status: blocked
     command: python3 scripts/verify_events_newsletter_campaign.py --base-url https://api.dev.openmates.org --send-admin-previews
-    evidence: {status: "", summary: "Review received EN/DE emails against the Figma reference, asset order, links, clipping, image blocking, and HTML details.", timestamp: ""}
+    evidence: {status: admin_preview_sent, summary: "Final EN/DE events previews were sent to the admin test mailbox only with payload_hash=d6588643c59f04893057b502d25b483615dda36d441df5710c2c1c3ee93e755c after local and container dry-run renders. Awaiting mailbox review of the OpenMates favicon, mirrored decorative icons, responsive mobile header fallback, wider content width, smaller body text, larger event titles, German umlauts, free-webinars intro, friendly closing copy, links, clipping, image blocking, and HTML details.", timestamp: "2026-08-21T12:05:54Z"}
   - id: V-CREATE-NEWSLETTER-SKILL
     kind: deterministic_check
     phase: green
@@ -990,7 +995,7 @@ tasks:
   - id: T-6
     title: Add accessible events email rendering and asset validation
     phase: working_tasks
-    status: pending
+    status: done
     covers:
       scenarios: [S-3, S-7]
       acceptance_criteria: [AC-3, AC-7, AC-9]
@@ -1007,8 +1012,7 @@ tasks:
     follow_up_tasks: [T-7]
     ownership: {session: 8a6f, files: [backend/core/api/templates/email/newsletter.mjml, backend/scripts/send_newsletter.py, backend/tests/test_events_newsletter_render.py], shared_files: [shared/events/openmates_events.yml]}
     independently_deployable: false
-    blockers:
-      - Final exported header and event-card PNGs are required before dev preview evidence.
+    blockers: []
   - id: T-7
     title: Update create-newsletter skill and agent parity
     phase: working_tasks
@@ -1087,7 +1091,7 @@ tasks:
   - id: T-11
     title: Send admin-only dev previews and review final newsletter artifacts
     phase: running_checks
-    status: pending
+    status: blocked
     covers:
       scenarios: [S-3, S-4, S-5, S-7, S-8]
       acceptance_criteria: [AC-3, AC-4, AC-5, AC-7, AC-8, AC-9]
@@ -1101,7 +1105,7 @@ tasks:
     ownership: {session: 8a6f, files: [docs/specs/automated-events-newsletter/spec.yml], shared_files: []}
     independently_deployable: false
     blockers:
-      - Final exported assets must be present and reviewed.
+      - Corrected EN/DE previews were sent to the admin test mailbox and must be reviewed before any production approval request.
       - This task may send only admin previews and simulations, never real-user broadcasts.
   - id: T-12
     title: Record exact-payload production consent gate and final spec verification
@@ -1147,16 +1151,40 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-20T16:36:43Z"
     evidence: Local pytest passed 14 tests in 0.53s and verifier --help worked, but python3 scripts/verify_newsletter_categories.py --base-url https://api.dev.openmates.org returned missing OPENMATES_TEST_ACCOUNT_API_KEY or OPENMATES_SMOKE_API_KEY before any REST mutation.
+  - id: ATTEMPT-5
+    task_id: T-11
+    approach: Replace the rejected generated header with the actual Figma header export, remove the generic newsletter shell/header for events, restyle event cards and details to the approved Figma hierarchy, and keep required HTML details/links available.
+    outcome: blocked
+    recorded_at: "2026-08-20T20:10:00Z"
+    evidence: python3 -m pytest backend/tests/test_events_newsletter_render.py backend/tests/test_events_newsletter_generator.py backend/tests/test_openmates_event_registry.py -q passed 12 tests in 1.80s; docker dry-run render wrote patched-fluid EN/DE HTML with no emails sent; python3 scripts/playwright_visual_smoke.py --url file:///.../test-results/events-newsletter/patched-fluid-en.html --out test-results/events-newsletter/visual-patched-fluid-en --wait-ms 1000 passed laptop/mobile with no broken images or overflow.
+  - id: ATTEMPT-6
+    task_id: T-11
+    approach: Replace the shared English hero dependency with a reusable localized Svelte header component, export EN/DE PNGs through a deterministic Vite/Playwright screenshot script, rerender both emails, and send corrected admin-only previews.
+    outcome: succeeded
+    recorded_at: "2026-08-20T20:42:44Z"
+    evidence: node scripts/generate_events_newsletter_header_assets.mjs generated 1155x322 EN/DE PNGs; python3 -m pytest backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_events_newsletter_render.py backend/tests/test_openmates_events_web_generation.py backend/tests/test_newsletter_categories.py -q passed 18 tests in 3.18s; python3 scripts/playwright_visual_smoke.py produced reviewed EN/DE laptop/mobile email screenshots with no defects; docker exec api ... send_newsletter.py --events-preview --admin-email testing@openmates.org --run-at 2026-08-20T12:00:00+02:00 sent EN and DE previews only and logged that no subscribers were fetched or broadcast.
+  - id: ATTEMPT-7
+    task_id: T-11
+    approach: Apply admin visual corrections by using the OpenMates favicon in the header, mirroring decorative icon angles, generating mobile header assets, switching responsive-capable clients through a picture source with desktop fallback, widening the content body, reducing body text to 16px, making event titles 18px/800, and restoring German umlauts.
+    outcome: succeeded
+    recorded_at: "2026-08-21T11:26:46Z"
+    evidence: node scripts/generate_events_newsletter_header_assets.mjs generated desktop and mobile EN/DE PNGs; local rendered EN/DE HTML at test-results/events-newsletter/corrected-responsive-*.html passed Playwright visual smoke and manual screenshot review; python3 -m pytest backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_events_newsletter_render.py backend/tests/test_openmates_events_web_generation.py backend/tests/test_newsletter_categories.py -q passed 18 tests in 3.27s; docker exec api ... send_newsletter.py --events-preview --admin-email testing@openmates.org --run-at 2026-08-20T12:00:00+02:00 sent EN and DE previews only for payload_hash=78ef195d252a884c11f999b569cdd5c059a468a04f4964b20847ffb502352e8e and logged that no subscribers were fetched or broadcast.
+  - id: ATTEMPT-8
+    task_id: T-11
+    approach: Replace the cadence parenthetical with a friendly closing sentence, change the intro to advertise free webinars, and include renderer email-copy labels in the hashed payload metadata so exact-payload consent changes when email copy changes.
+    outcome: succeeded
+    recorded_at: "2026-08-21T12:05:54Z"
+    evidence: Rendered final-copy EN/DE HTML contained the new free-webinars intro and friendly closing, with no cadence parenthetical; visual smoke passed for EN/DE laptop/mobile; python3 -m pytest backend/tests/test_html_processor.py backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_events_newsletter_render.py backend/tests/test_openmates_events_web_generation.py backend/tests/test_newsletter_categories.py -q passed 20 tests in 3.34s; ./scripts/lint_changed.sh --svelte --path frontend/packages/ui/src/components/newsletter/EventsNewsletterHeader.svelte passed design-token validation after tokenizing the image-source component; tokenized header PNG regeneration kept payload_hash=d6588643c59f04893057b502d25b483615dda36d441df5710c2c1c3ee93e755c; docker exec api ... send_newsletter.py --events-preview --admin-email testing@openmates.org --run-at 2026-08-20T12:00:00+02:00 sent EN and DE previews only for that payload hash and logged that no subscribers were fetched or broadcast.
 
 handoff:
-  current_task_id: T-3
-  next_action: Provide or configure a disposable test/smoke API key, deploy or restart the changed API code on the dev stack, then run the live REST verifier.
-  command: python3 -m pytest backend/tests/test_newsletter_categories.py -q && python3 scripts/verify_newsletter_categories.py --base-url https://api.dev.openmates.org
-  expected_outcome: The local category tests remain green and the live dev REST verifier proves GET/PATCH canonical category behavior using a test account without touching real subscribers.
+  current_task_id: T-11
+  next_action: Review the corrected EN/DE admin-preview emails in the test mailbox; do not request or perform any production broadcast until fresh explicit consent names the exact campaign slug and payload hash.
+  command: python3 -m pytest backend/tests/test_openmates_event_registry.py backend/tests/test_events_newsletter_generator.py backend/tests/test_events_newsletter_render.py backend/tests/test_openmates_events_web_generation.py backend/tests/test_newsletter_categories.py -q && python3 scripts/spec_validate.py docs/specs/automated-events-newsletter/spec.yml
+  expected_outcome: The events email keeps the approved Figma-matched hierarchy, localized responsive Svelte-generated header images, readable desktop/mobile rendered artifacts, corrected German umlauts, and required HTML event details/links.
   blocker:
-    task_id: T-6
+    task_id: T-11
     requires_user_input: true
-    reason: Final exported Figma PNGs are required before dev preview evidence can be produced.
-    question: Provide localized red-header PNGs and one localized event-card PNG per selected event, or confirm that one shared visual per event should be used for both EN and DE.
-    next_action: Store provided assets under the path chosen during T-6 and record the exact filenames in shared/events/openmates_events.yml.
+    reason: Corrected admin-only previews have been sent; production enablement remains blocked until the admin review and exact-payload production consent gate are complete.
+    question: Confirm whether the corrected EN/DE admin previews look right in the mailbox.
+    next_action: If the previews need changes, correct and resend admin-only previews; if they are approved, continue remaining spec gates before asking separately about production.
   last_verified_commit: 6250a6877e10787f4ca59e110430e7d4b1c88563

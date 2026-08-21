@@ -118,7 +118,7 @@ export const OPENMATES_EVENTS: OpenMatesEvent[] = [
     "event_type": "PHYSICAL",
     "venue": {
       "name": "xHain Glitch",
-      "address": "Gruenberger Str. 20, 10243 Berlin",
+      "address": "Grünberger Str. 20, 10243 Berlin",
       "city": "Berlin",
       "country": "Germany"
     },

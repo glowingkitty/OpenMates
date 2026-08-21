@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from PIL import Image
 
@@ -28,6 +29,10 @@ SUPPORTED_LANGUAGES = ("en", "de")
 REPO_ROOT = Path(os.getenv("OPENMATES_REPO_ROOT", Path(__file__).resolve().parents[3]))
 EMAIL_CARD_MAX_WIDTH = 640
 EMAIL_CARD_JPEG_QUALITY = 78
+EMAIL_CONTENT_MAX_WIDTH = 520
+EMAIL_BODY_FONT_SIZE = 16
+EMAIL_HEADING_FONT_SIZE = 30
+EMAIL_EVENT_TITLE_FONT_SIZE = 18
 
 
 def select_events_for_newsletter(
@@ -103,7 +108,7 @@ def build_events_campaign_payload(
         },
         "subtitle": {
             "en": "Join our next webinars, meetup, and community hour.",
-            "de": "Sei bei den naechsten Webinaren, dem Meetup und dem Community Call dabei.",
+            "de": "Sei bei den nächsten Webinaren, dem Meetup und dem Community Call dabei.",
         },
         "cta_text": {
             "en": "See all events",
@@ -116,6 +121,7 @@ def build_events_campaign_payload(
             "generated_at": run_at.isoformat(),
             "window_days": NEWSLETTER_WINDOW_DAYS,
             "event_ids": [event["id"] for event in selected_events],
+            "email_copy": {language: _labels(language) for language in SUPPORTED_LANGUAGES},
         },
     }
     payload["metadata"]["payload_hash"] = _payload_hash(payload)
@@ -143,11 +149,13 @@ def build_events_email_html(
 
     labels = _labels(language)
     parts = [
-        f"<p>{html.escape(labels['intro'])}</p>",
-        '<div style="margin:0;padding:0;">',
+        f'<div style="margin:0 auto;padding:0;background-color:#ffffff;color:#000000;font-family:Arial, Helvetica, sans-serif;max-width:{EMAIL_CONTENT_MAX_WIDTH}px;width:100%;">',
+        f'<p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 24px 0;color:#000000;font-weight:700;">{html.escape(labels["intro"])}</p>',
+        f'<h2 style="font-size:{EMAIL_HEADING_FONT_SIZE}px;line-height:1.25;margin:0 0 16px 0;color:#000000;font-weight:800;">{html.escape(labels["heading"])}</h2>',
     ]
     for event in selected_events:
         parts.append(_event_card_html(event, language, labels, base_url, is_openmates_url_live, repo_root or REPO_ROOT))
+    parts.append(f'<p style="font-size:16px;line-height:1.35;margin:28px 0 0 0;color:#000000;font-weight:700;">{html.escape(labels["closing_note"])}</p>')
     parts.append("</div>")
     return "\n".join(parts)
 
@@ -178,7 +186,7 @@ def _build_language_body(
 ) -> str:
     intro = {
         "en": "Here are the next OpenMates events from the public event calendar.",
-        "de": "Hier sind die naechsten OpenMates Events aus dem oeffentlichen Eventkalender.",
+        "de": "Hier sind die nächsten OpenMates Events aus dem öffentlichen Eventkalender.",
     }[language]
     lines = [intro, ""]
     for event in selected_events:
@@ -203,17 +211,23 @@ def _build_language_body(
 def _labels(language: str) -> dict[str, str]:
     return {
         "en": {
-            "intro": "Here are the next OpenMates events from our public event calendar.",
+            "intro": "Our first ever online meetup, a new in person meetup and free webinars!",
+            "heading": "Upcoming events",
+            "closing_note": "Hope to see you at the upcoming events! And stay tuned for the next newsletter.",
             "when": "When",
-            "where": "Where",
-            "details": "Open in OpenMates",
+            "where_online": "on",
+            "where_venue": "at",
+            "details": "Open event details",
             "register": "Register on Luma",
         },
         "de": {
-            "intro": "Hier sind die naechsten OpenMates Events aus unserem oeffentlichen Eventkalender.",
+            "intro": "Unser erstes Online-Meetup, ein neues Vor-Ort-Meetup und kostenlose Webinare!",
+            "heading": "Kommende Events",
+            "closing_note": "Wir hoffen, dich bei den kommenden Events zu sehen! Und freu dich auf den nächsten Newsletter.",
             "when": "Wann",
-            "where": "Wo",
-            "details": "In OpenMates oeffnen",
+            "where_online": "auf",
+            "where_venue": "bei",
+            "details": "Eventdetails öffnen",
             "register": "Auf Luma anmelden",
         },
     }[language]
@@ -230,9 +244,9 @@ def _event_card_html(
     content = event["localized_content"][language]
     title = html.escape(str(content["title"]))
     summary = html.escape(str(content["summary"]))
-    description = html.escape(str(content["description"]))
     date_line = html.escape(_format_event_time(event, language))
     location = html.escape(_format_event_location(event, language))
+    location_prefix = html.escape(labels["where_venue"] if event.get("venue") else labels["where_online"])
     event_page_url = html.escape(_event_page_url(event, base_url), quote=True)
     register_url = html.escape(resolve_event_destination(event, is_openmates_url_live=is_openmates_url_live), quote=True)
     image_src = html.escape(_event_card_data_uri(event, language, repo_root), quote=True)
@@ -240,14 +254,12 @@ def _event_card_html(
     details_label = html.escape(labels["details"])
     register_label = html.escape(labels["register"])
 
-    return f'''<section style="margin:0 0 30px 0;padding:0 0 28px 0;border-bottom:1px solid #dddddd;">
-  <p style="margin:0 0 16px 0;text-align:center;"><a href="{event_page_url}" style="display:inline-block;text-decoration:none;"><img src="{image_src}" alt="{image_alt}" width="640" style="max-width:100%;height:auto;display:block;border:0;border-radius:18px;" /></a></p>
-  <h2 style="font-size:24px;line-height:1.18;margin:0 0 12px 0;color:#111111;">{title}</h2>
-  <p style="font-size:16px;line-height:1.55;margin:0 0 14px 0;color:#333333;">{summary}</p>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 16px 0;color:#4b4b4b;">{description}</p>
-  <p style="font-size:14px;line-height:1.55;margin:0 0 4px 0;color:#333333;"><strong>{html.escape(labels['when'])}:</strong> {date_line}</p>
-  <p style="font-size:14px;line-height:1.55;margin:0 0 18px 0;color:#333333;"><strong>{html.escape(labels['where'])}:</strong> {location}</p>
-  <p style="margin:0;text-align:center;"><a href="{event_page_url}" style="background-color:#ff553b;border-radius:20px;color:#ffffff;display:inline-block;font-family:Arial, Helvetica, sans-serif;font-size:15px;font-weight:bold;line-height:20px;margin:0 6px 10px 0;padding:12px 18px;text-decoration:none;">{details_label}</a><a href="{register_url}" style="background-color:#681227;border-radius:20px;color:#ffffff;display:inline-block;font-family:Arial, Helvetica, sans-serif;font-size:15px;font-weight:bold;line-height:20px;margin:0 0 10px 6px;padding:12px 18px;text-decoration:none;">{register_label}</a></p>
+    return f'''<section style="margin:0 0 34px 0;padding:0;background-color:#ffffff;color:#000000;">
+  <p style="margin:0 0 16px 0;text-align:center;"><a href="{event_page_url}" style="display:inline-block;text-decoration:none;"><img src="{image_src}" alt="{image_alt}" width="672" style="max-width:100%;height:auto;display:block;border:0;border-radius:24px;" /></a></p>
+  <h3 style="font-size:{EMAIL_EVENT_TITLE_FONT_SIZE}px;line-height:1.3;margin:0 0 8px 0;color:#000000;font-weight:800;">{title}</h3>
+  <p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 18px 0;color:#000000;font-weight:700;">{summary}</p>
+  <p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 14px 0;color:#000000;font-weight:800;">{date_line}<br />{location_prefix} {location}</p>
+  <p style="font-size:15px;line-height:1.4;margin:0 0 6px 0;color:#000000;font-weight:700;"><a href="{event_page_url}" style="color:#4867CD;text-decoration:none;">{details_label}</a> &nbsp;|&nbsp; <a href="{register_url}" style="color:#4867CD;text-decoration:none;">{register_label}</a></p>
 </section>'''
 
 
@@ -271,20 +283,35 @@ def _event_card_data_uri(event: dict[str, Any], language: str, repo_root: Path) 
 
 
 def _format_event_time(event: dict[str, Any], language: str) -> str:
-    starts_at = datetime.fromisoformat(str(event["starts_at"]))
-    ends_at = datetime.fromisoformat(str(event["ends_at"]))
-    date = starts_at.strftime("%d.%m.%Y" if language == "de" else "%b %-d, %Y")
-    start_time = starts_at.strftime("%H:%M")
-    end_time = ends_at.strftime("%H:%M")
-    return f"{date}, {start_time}-{end_time} {event['timezone']}"
+    starts_at = _event_datetime(event, "starts_at")
+    ends_at = _event_datetime(event, "ends_at")
+    timezone_label = starts_at.strftime("%Z") or str(event["timezone"])
+    if language == "de":
+        date = starts_at.strftime("%d.%m.%Y")
+        start_time = starts_at.strftime("%H:%M")
+        end_time = ends_at.strftime("%H:%M")
+    else:
+        date = starts_at.strftime("%a, %b %-d, %Y")
+        start_time = starts_at.strftime("%-I:%M %p")
+        end_time = ends_at.strftime("%-I:%M %p")
+    return f"{date}, {start_time} - {end_time} {timezone_label}"
 
 
 def _format_event_location(event: dict[str, Any], language: str) -> str:
     if event.get("venue"):
         return str(event["venue"])
     if event.get("online_url"):
-        return "Online" if language == "en" else "Online"
+        parsed = urlparse(str(event["online_url"]))
+        return parsed.netloc or str(event["online_url"])
     return str(event.get("luma_url") or "")
+
+
+def _event_datetime(event: dict[str, Any], field: str) -> datetime:
+    value = datetime.fromisoformat(str(event[field]))
+    timezone_name = str(event.get("timezone") or "")
+    if timezone_name:
+        value = value.astimezone(ZoneInfo(timezone_name))
+    return value
 
 
 def _event_page_url(event: dict[str, Any], base_url: str) -> str:

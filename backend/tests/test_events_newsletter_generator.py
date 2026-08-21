@@ -83,6 +83,8 @@ def test_campaign_payload_is_deterministic_for_same_cadence_window() -> None:
     assert first["category"] == "openmates_events"
     assert first["metadata"]["event_ids"] == [event["id"] for event in selected]
     assert len(first["metadata"]["payload_hash"]) == 64
+    assert first["metadata"]["email_copy"]["en"]["closing_note"].startswith("Hope to see you")
+    assert first["metadata"]["email_copy"]["de"]["intro"].endswith("kostenlose Webinare!")
     assert "openmates-community-hour-2026-08-25" in first["body_markdown"]["en"]
     assert "OpenMates Monthly Community Hour" in first["body_markdown"]["en"]
     assert "OpenMates Monatlicher Community Call" in first["body_markdown"]["de"]

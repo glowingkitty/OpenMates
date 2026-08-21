@@ -51,8 +51,11 @@ def test_openmates_events_registry_schema_is_complete_and_safe() -> None:
     for language in ("en", "de"):
         header = registry["campaign"]["assets"]["header"][language]
         header_path = Path(header["path"])
+        mobile_header_path = Path(header["mobile_path"])
         assert header_path.suffix == ".png"
+        assert mobile_header_path.suffix == ".png"
         assert (REPO_ROOT / header_path).exists()
+        assert (REPO_ROOT / mobile_header_path).exists()
         assert header["alt"]
 
     for event in events:
