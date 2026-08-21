@@ -173,7 +173,7 @@ test.describe('Teams V1 context isolation', () => {
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.locator('.active-chat-container')).not.toHaveClass(/dimmed/, { timeout: 15000 });
-			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, { timeout: 15000 });
 			await openProfileMenu(page);
 			await expect(page.getByTestId('team-context-dropdown')).toHaveValue(teamId, { timeout: 15000 });
 			await page.waitForTimeout(6000);
@@ -189,7 +189,7 @@ test.describe('Teams V1 context isolation', () => {
 			await page.waitForTimeout(6000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
-			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, { timeout: 15000 });
 
 			const sendFrameIndex = frames.length;
 			const messageInput = page.locator('[data-action="message-input"]').last();

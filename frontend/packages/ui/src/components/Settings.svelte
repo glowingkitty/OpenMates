@@ -3065,10 +3065,12 @@ changes to the documentation (to keep the documentation up to date).
                         <span
                             class="profile-team-badge"
                             data-testid="profile-active-team-avatar"
-                            aria-hidden="true"
+                            aria-label={`Active team: ${$activeTeam.name}`}
+                            title={`Active team: ${$activeTeam.name}`}
                             style:background={getTeamAvatarBackground($activeTeam)}
                         >
                             <span class="profile-team-badge-icon"></span>
+                            <span class="profile-team-badge-label">{$activeTeam.name}</span>
                         </span>
                     {/if}
                 </div>
@@ -3606,12 +3608,14 @@ changes to the documentation (to keep the documentation up to date).
     .profile-team-badge {
         position: absolute;
         right: -0.125rem;
-        bottom: -0.125rem;
+        bottom: -0.5rem;
         display: flex;
-        width: 1.25rem;
+        max-width: 9rem;
         height: 1.25rem;
         align-items: center;
         justify-content: center;
+        gap: 0.25rem;
+        padding: 0 0.4rem;
         border: 0.125rem solid var(--color-grey-0);
         border-radius: var(--radius-full);
         box-shadow: var(--shadow-xs);
@@ -3630,6 +3634,17 @@ changes to the documentation (to keep the documentation up to date).
         mask-position: center;
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
+        flex: 0 0 auto;
+    }
+
+    .profile-team-badge-label {
+        overflow: hidden;
+        color: var(--color-font-button);
+        font-size: 0.625rem;
+        font-weight: 700;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .language-icon-container {
