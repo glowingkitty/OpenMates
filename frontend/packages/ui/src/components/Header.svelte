@@ -1126,8 +1126,8 @@
     }
 
     .plan-icon {
-        -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-        mask-image: url('@openmates/ui/static/icons/planning.svg');
+        -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+        mask-image: url('@openmates/ui/static/icons/task.svg');
     }
 
     .workflow-icon {
@@ -1136,8 +1136,8 @@
     }
 
     .task-icon {
-        -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-        mask-image: url('@openmates/ui/static/icons/task.svg');
+        -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+        mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
     }
 
     .workspace-select-shell {

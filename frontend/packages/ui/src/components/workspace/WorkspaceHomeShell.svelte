@@ -672,8 +672,8 @@
   }
 
   .workspace-surface-background-icon[data-surface='plans'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-    mask-image: url('@openmates/ui/static/icons/planning.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+    mask-image: url('@openmates/ui/static/icons/task.svg');
   }
 
   .workspace-surface-background-icon[data-surface='workflows'] {
@@ -682,8 +682,8 @@
   }
 
   .workspace-surface-background-icon[data-surface='tasks'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-    mask-image: url('@openmates/ui/static/icons/task.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
   }
 
   .workspace-surface-background-icon[data-surface='teams'] {
@@ -780,13 +780,13 @@
   }
 
   .workspace-show-all-link[data-surface='tasks'] .workspace-link-icon-surface {
-    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-    mask-image: url('@openmates/ui/static/icons/task.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
   }
 
   .workspace-show-all-link[data-surface='plans'] .workspace-link-icon-surface {
-    -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-    mask-image: url('@openmates/ui/static/icons/planning.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+    mask-image: url('@openmates/ui/static/icons/task.svg');
   }
 
   .recent-chats-scroll-container {

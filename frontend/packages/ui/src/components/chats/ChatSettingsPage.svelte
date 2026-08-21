@@ -24,8 +24,8 @@
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
   const tabs = [
-    { id: 'plan', icon: 'planning' },
-    { id: 'tasks', icon: 'task' },
+    { id: 'plan', icon: 'task' },
+    { id: 'tasks', icon: 'projectmanagement' },
     { id: 'files', icon: 'files' },
     { id: 'usage', icon: 'usage' },
     { id: 'share', icon: 'share' },

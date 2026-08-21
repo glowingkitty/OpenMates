@@ -14684,8 +14684,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 	}
 
 	.guest-workspace-icon[data-surface='plans'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-		mask-image: url('@openmates/ui/static/icons/planning.svg');
+		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+		mask-image: url('@openmates/ui/static/icons/task.svg');
 	}
 
 	.guest-workspace-icon[data-surface='workflows'] {
@@ -14694,8 +14694,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 	}
 
 	.guest-workspace-icon[data-surface='tasks'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-		mask-image: url('@openmates/ui/static/icons/task.svg');
+		-webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+		mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
 	}
 
     .guest-interest-tags-overlay {
