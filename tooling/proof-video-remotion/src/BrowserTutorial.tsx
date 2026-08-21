@@ -1,8 +1,8 @@
 /**
  * Deterministic browser-shell composition for real Playwright recordings.
  *
- * Real Playwright action intervals play between attested checkpoint holds. The
- * browser shell supplies domain context without altering the captured page.
+ * The real Playwright source stays chronological from start to finish. Attested
+ * checkpoint holds are inserted as explicit paused states for review.
  */
 
 import React from 'react';
@@ -11,6 +11,34 @@ import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile} from 'remotion'
 import type {BrowserTutorialProps, TutorialSegment} from './types';
 
 const frames = (milliseconds: number, fps: number) => Math.max(1, Math.round(milliseconds * fps / 1000));
+
+const PauseBadge: React.FC = () => (
+	<div style={{
+		alignItems: 'center',
+		backdropFilter: 'blur(16px)',
+		background: 'rgba(15, 23, 42, 0.72)',
+		border: '1px solid rgba(255, 255, 255, 0.28)',
+		borderRadius: 999,
+		bottom: 18,
+		boxShadow: '0 12px 32px rgba(15, 23, 42, 0.22)',
+		color: '#fff',
+		display: 'flex',
+		fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+		fontSize: 14,
+		fontWeight: 650,
+		gap: 9,
+		letterSpacing: '0.01em',
+		padding: '9px 13px',
+		position: 'absolute',
+		right: 18,
+	}}>
+		<span aria-hidden="true" style={{display: 'inline-flex', gap: 3}}>
+			<span style={{background: '#fff', borderRadius: 2, height: 13, width: 4}} />
+			<span style={{background: '#fff', borderRadius: 2, height: 13, width: 4}} />
+		</span>
+		<span>Paused for review</span>
+	</div>
+);
 
 const Segment: React.FC<{segment: TutorialSegment; source: string; fps: number}> = ({segment, source, fps}) => {
 	if (segment.kind === 'video') {
@@ -24,7 +52,12 @@ const Segment: React.FC<{segment: TutorialSegment; source: string; fps: number}>
 			/>
 		);
 	}
-	return <Img src={staticFile(segment.source_image)} style={{width: '100%', height: '100%', objectFit: 'fill'}} />;
+	return (
+		<AbsoluteFill>
+			<Img src={staticFile(segment.source_image)} style={{width: '100%', height: '100%', objectFit: 'fill'}} />
+			<PauseBadge />
+		</AbsoluteFill>
+	);
 };
 
 const browserLayout = (props: BrowserTutorialProps) => {

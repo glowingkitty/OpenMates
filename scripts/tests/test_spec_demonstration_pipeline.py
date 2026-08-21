@@ -109,15 +109,19 @@ def test_tutorial_timeline_uses_attested_checkpoint_frame_and_quantized_hold() -
         checkpoint_frames={
             "result-visible": {"path": "/proof/result.png", "sha256": "sha256:" + "a" * 64}
         },
+        source_duration_ms=740,
     )
 
-    assert timeline == [{
-        "kind": "freeze",
-        "source_image": "/proof/result.png",
-        "source_sha256": "sha256:" + "a" * 64,
-        "duration_ms": 3600.0,
-        "cue_id": "result",
-    }]
+    assert timeline == [
+        {"kind": "video", "source_from_ms": 0, "source_to_ms": 740, "duration_ms": 733.333},
+        {
+            "kind": "freeze",
+            "source_image": "/proof/result.png",
+            "source_sha256": "sha256:" + "a" * 64,
+            "duration_ms": 3600.0,
+            "cue_id": "result",
+        },
+    ]
 
 
 def test_tutorial_timeline_scopes_review_intervals_to_checkpoint_frames() -> None:
@@ -167,6 +171,7 @@ def test_tutorial_timeline_scopes_review_intervals_to_checkpoint_frames() -> Non
             "welcome-visible": {"path": "/proof/welcome.png", "sha256": "sha256:" + "a" * 64},
             "result-visible": {"path": "/proof/result.png", "sha256": "sha256:" + "b" * 64},
         },
+        source_duration_ms=2000,
     )
     captions, evidence = module.build_tutorial_review_timing(
         contract=contract,
@@ -175,26 +180,25 @@ def test_tutorial_timeline_scopes_review_intervals_to_checkpoint_frames() -> Non
         narration_id="NARR-1",
     )
 
-    assert [segment["kind"] for segment in timeline] == ["freeze", "video", "freeze"]
-    assert timeline[1] == {
-        "kind": "video",
-        "source_from_ms": 1000,
-        "source_to_ms": 1600,
-        "duration_ms": 600,
-    }
+    assert [segment["kind"] for segment in timeline] == ["video", "freeze", "video", "freeze", "video"]
+    assert [(segment["source_from_ms"], segment["source_to_ms"]) for segment in timeline if segment["kind"] == "video"] == [
+        (0, 1000),
+        (1000, 1600),
+        (1600, 2000),
+    ]
     assert [segment["source_image"] for segment in timeline if segment["kind"] == "freeze"] == [
         "/proof/welcome.png",
         "/proof/result.png",
     ]
     assert captions[0]["start"] == 0.0
-    assert captions[0]["end"] == 4.0
+    assert captions[0]["end"] == 5.0
     assert captions[0]["claim_ids"] == ["welcome.visible"]
-    assert captions[1]["start"] == 4.0
-    assert captions[1]["end"] == 8.6
+    assert captions[1]["start"] == 5.0
+    assert captions[1]["end"] == 9.6
     assert captions[1]["claim_ids"] == ["result.visible"]
     assert evidence == {
-        "welcome.visible": [[0.0, 4.0]],
-        "result.visible": [[4.6, 8.6]],
+        "welcome.visible": [[1.0, 5.0]],
+        "result.visible": [[5.6, 9.6]],
     }
 
 
@@ -213,6 +217,7 @@ def test_tutorial_timeline_rejects_missing_frames_and_non_monotonic_checkpoints(
             events=[{"id": "first-visible", "kind": "checkpoint", "at_ms": 700}],
             device_profile="web-laptop",
             checkpoint_frames={},
+            source_duration_ms=700,
         )
 
     second_cue = {
@@ -233,6 +238,7 @@ def test_tutorial_timeline_rejects_missing_frames_and_non_monotonic_checkpoints(
                 "first-visible": {"path": "/proof/first.png", "sha256": "sha256:" + "a" * 64},
                 "second-visible": {"path": "/proof/second.png", "sha256": "sha256:" + "b" * 64},
             },
+            source_duration_ms=800,
         )
 
 
@@ -255,9 +261,10 @@ def test_tutorial_video_duration_matches_quantized_source_frame_range() -> None:
             "first": {"path": "/proof/first.png", "sha256": "sha256:" + "a" * 64},
             "second": {"path": "/proof/second.png", "sha256": "sha256:" + "b" * 64},
         },
+        source_duration_ms=6178,
     )
 
-    video = timeline[1]
+    video = timeline[2]
     source_frames = round(video["source_to_ms"] * 30 / 1000) - round(video["source_from_ms"] * 30 / 1000)
     assert round(video["duration_ms"] * 30 / 1000) == source_frames
 
@@ -358,6 +365,7 @@ def test_browser_proof_uses_only_renderer_domain_chrome() -> None:
     assert ">OpenMates</div>" not in renderer
     assert "aria-label=\"New tab\"" in renderer
     assert "maxWidth" in renderer
+    assert "Paused for review" in renderer
 
 
 def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: Path) -> None:

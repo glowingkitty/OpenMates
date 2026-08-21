@@ -128,6 +128,7 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
+TUTORIAL_RENDER_FPS = 30
 PROOF_PRIVACY_SCAN_DISABLED = {
     "status": "not_applicable",
     "scan": "disabled",
@@ -209,8 +210,11 @@ def build_tutorial_timeline(
     events: list[dict[str, Any]],
     device_profile: str,
     checkpoint_frames: dict[str, dict[str, str]],
+    source_duration_ms: int,
 ) -> list[dict[str, Any]]:
-    """Compile attested checkpoint pixels into frame-quantized readable holds."""
+    """Compile a full source replay with inserted frame-quantized checkpoint holds."""
+    if source_duration_ms <= 0:
+        raise DemonstrationError("Proof tutorial source duration must be positive")
     policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(policy.get("readingWordsPerSecond") or 0)
     minimum_hold = int(policy.get("minimumHoldMs") or 0)
@@ -230,6 +234,7 @@ def build_tutorial_timeline(
     if not cues:
         raise DemonstrationError(f"Proof contract has no transcript for {device_profile}")
     segments: list[dict[str, Any]] = []
+    previous_source_at = 0
     previous_checkpoint_at = -1
     for cue in cues:
         checkpoint_id = str(cue.get("checkpoint") or "")
@@ -244,17 +249,19 @@ def build_tutorial_timeline(
         word_count = len(str(cue.get("text") or "").split())
         hold = round((word_count / words_per_second) * 1000)
         hold = max(minimum_hold, min(maximum_hold, hold))
-        hold_frames = max(1, round(hold * 30 / 1000))
-        if previous_checkpoint_at >= 0:
-            source_from_frame = round(previous_checkpoint_at * 30 / 1000)
-            source_to_frame = round(checkpoint_at * 30 / 1000)
+        hold_frames = max(1, round(hold * TUTORIAL_RENDER_FPS / 1000))
+        if checkpoint_at > source_duration_ms:
+            raise DemonstrationError("Proof checkpoint is outside the source video")
+        if checkpoint_at > previous_source_at:
+            source_from_frame = round(previous_source_at * TUTORIAL_RENDER_FPS / 1000)
+            source_to_frame = round(checkpoint_at * TUTORIAL_RENDER_FPS / 1000)
             segments.append(
                 {
                     "kind": "video",
-                    "source_from_ms": previous_checkpoint_at,
+                    "source_from_ms": previous_source_at,
                     "source_to_ms": checkpoint_at,
                     "duration_ms": round(
-                        (source_to_frame - source_from_frame) * 1000 / 30,
+                        (source_to_frame - source_from_frame) * 1000 / TUTORIAL_RENDER_FPS,
                         MEDIA_TIMESTAMP_DECIMALS,
                     ),
                 }
@@ -264,11 +271,26 @@ def build_tutorial_timeline(
                 "kind": "freeze",
                 "source_image": frame["path"],
                 "source_sha256": frame["sha256"],
-                "duration_ms": round(hold_frames * 1000 / 30, MEDIA_TIMESTAMP_DECIMALS),
+                "duration_ms": round(hold_frames * 1000 / TUTORIAL_RENDER_FPS, MEDIA_TIMESTAMP_DECIMALS),
                 "cue_id": str(cue.get("id") or ""),
             }
         )
+        previous_source_at = checkpoint_at
         previous_checkpoint_at = checkpoint_at
+    if source_duration_ms > previous_source_at:
+        source_from_frame = round(previous_source_at * TUTORIAL_RENDER_FPS / 1000)
+        source_to_frame = round(source_duration_ms * TUTORIAL_RENDER_FPS / 1000)
+        segments.append(
+            {
+                "kind": "video",
+                "source_from_ms": previous_source_at,
+                "source_to_ms": source_duration_ms,
+                "duration_ms": round(
+                    (source_to_frame - source_from_frame) * 1000 / TUTORIAL_RENDER_FPS,
+                    MEDIA_TIMESTAMP_DECIMALS,
+                ),
+            }
+        )
     return segments
 
 
@@ -1734,6 +1756,7 @@ def produce_playwright_demonstration(
             events=spec_timeline["events"],
             device_profile=str(device_profile["id"]),
             checkpoint_frames=checkpoint_frames,
+            source_duration_ms=round(float(source_metadata["duration_seconds"]) * 1000),
         )
         tutorial_caption_segments, tutorial_evidence_intervals = build_tutorial_review_timing(
             contract=spec_timeline["contract"],

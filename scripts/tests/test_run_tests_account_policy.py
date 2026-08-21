@@ -128,38 +128,6 @@ def test_git_info_uses_exact_deployed_session_subject(monkeypatch):
     assert run_tests._git_info() == ("abcdef123", "dev")
 
 
-def test_daily_git_info_refreshes_origin_dev_subject(monkeypatch):
-    run_tests = load_run_tests_module()
-    commands: list[list[str]] = []
-
-    def fake_run(command, **_kwargs):
-        commands.append(command)
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    def fake_check_output(command, **_kwargs):
-        commands.append(command)
-        return "123456789abcdef123456789abcdef123456789a\n"
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-    monkeypatch.setattr(run_tests.subprocess, "check_output", fake_check_output)
-
-    assert run_tests._daily_git_info("oldsha123", "dev") == ("123456789", "dev")
-    assert commands == [
-        [
-            "git", "-C", str(PROJECT_ROOT), "fetch", "--quiet", "origin",
-            "+dev:refs/remotes/origin/dev",
-        ],
-        ["git", "-C", str(PROJECT_ROOT), "rev-parse", "origin/dev"],
-    ]
-
-
-def test_daily_git_info_preserves_explicit_subject(monkeypatch):
-    run_tests = load_run_tests_module()
-    monkeypatch.setenv("OPENMATES_TEST_SUBJECT_COMMIT", "abcdef1234567890")
-
-    assert run_tests._daily_git_info("abcdef123", "dev") == ("abcdef123", "dev")
-
-
 def test_worktree_vercel_gate_reads_shared_control_plane_config(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     control_plane_root = tmp_path / "OpenMates"

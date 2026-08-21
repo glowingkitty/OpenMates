@@ -420,11 +420,7 @@ jobs:
         id: pw_run
         continue-on-error: true
         run: |
-          if [ -f scripts/audit_cli_e2e_recording.py ]; then
-            python3 scripts/audit_cli_e2e_recording.py
-          else
-            echo "::warning::scripts/audit_cli_e2e_recording.py is absent from checkout_ref=${{ inputs.checkout_ref }}; skipping recorder audit for this historical subject commit."
-          fi
+          python3 scripts/audit_cli_e2e_recording.py
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           set +e
