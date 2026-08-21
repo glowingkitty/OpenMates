@@ -67,6 +67,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       image_tag: ${{ steps.version.outputs.image_tag }}
+      ref_tag: ${{ steps.version.outputs.ref_tag }}
       build_timestamp: ${{ steps.version.outputs.build_timestamp }}
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +97,12 @@ jobs:
             VERSION="$(node scripts/prepare_cli_publish_version.mjs --channel=dev --dry-run)"
             IMAGE_TAG="v${VERSION}"
           fi
+          REF_TAG="$(printf '%s' "${GITHUB_REF_NAME:-unknown}" | tr '/:@ ' '----' | sed -E 's/[^A-Za-z0-9_.-]+/-/g; s/^[.-]+//; s/[.-]+$//; s/-+/-/g')"
+          if [ -z "$REF_TAG" ]; then
+            REF_TAG="sha-${GITHUB_SHA:0:12}"
+          fi
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "ref_tag=${REF_TAG:0:128}" >> "$GITHUB_OUTPUT"
           echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
   build-api:
@@ -129,7 +135,7 @@ jobs:
           cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/openmates-api:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.image_tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:sha-${{ github.sha }}
           build-args: |
             BUILD_COMMIT_SHA=${{ github.sha }}
@@ -172,7 +178,7 @@ jobs:
           cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/openmates-docs-worker:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ needs.prepare.outputs.image_tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:sha-${{ github.sha }}
           build-args: |
             OPENMATES_IMAGE_TAG=${{ needs.prepare.outputs.image_tag }}
@@ -235,7 +241,7 @@ jobs:
           cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/{2}:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE, matrix.image) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.image_tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:sha-${{ github.sha }}
           build-args: |
             BUILD_COMMIT_SHA=${{ github.sha }}
