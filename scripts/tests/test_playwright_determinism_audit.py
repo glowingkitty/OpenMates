@@ -115,6 +115,13 @@ def test_logged_out_shared_chat_uses_declared_isolated_context() -> None:
     assert "state declaration" in audit.lower()
 
 
+def test_playwright_workflow_tolerates_historical_checkout_refs() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/playwright-spec.yml").read_text(encoding="utf-8")
+
+    assert "if [ -f scripts/audit_cli_e2e_recording.py ]; then" in workflow
+    assert "skipping recorder audit for this historical subject commit" in workflow
+
+
 def test_delivery_coverage_mode_links_lower_layers_and_unique_browser_assertions(capsys) -> None:
     audit = load_audit_module()
 

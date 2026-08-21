@@ -23,6 +23,30 @@ history, claims, and running-state bookkeeping stay in sync.
 - `scripts/auto_fix_failed_tests.py` consumes deterministic triage groups from
   `scripts/tests.py` and verifies through `scripts/tests.py run`.
 
+## Nightly Subject And Backend Preconditions
+
+Delayed `--daily` runs test the latest `origin/dev` commit, not whichever commit
+the dev host checkout happened to have when the cron command started. The runner
+refreshes `origin/dev`, records that SHA as the subject, gates Vercel against the
+same SHA, and passes the full subject through `checkout_ref` to Playwright jobs.
+`OPENMATES_TEST_SUBJECT_COMMIT` remains the explicit override for commit-bound
+verification sessions.
+
+Default development Playwright runs use real dev backend containers with cached
+external-provider replay enabled (`MOCK_EXTERNAL_APIS=true`). The live-mock
+preflight fails closed when required running containers such as `api`,
+`app-ai-worker`, or `task-worker` would ignore those markers. Conditional worker
+containers that are intentionally absent from a reduced dev service set are
+reported as warnings rather than blocking every spec before dispatch; specs that
+actually require one of those queues still fail normally and are triaged as real
+test/runtime failures.
+
+The reusable Playwright workflow is branch-defined but checks out a subject
+commit supplied by the runner. Workflow-local guard scripts must therefore be
+backward-compatible with historical `checkout_ref`s: if a guard script is absent
+from the checked-out subject, the workflow must warn or use a stable inline
+fallback instead of failing before Playwright starts.
+
 ## Release Core Journeys
 
 `.github/workflows/release-core-journeys.yml` is the deliberate exception to the

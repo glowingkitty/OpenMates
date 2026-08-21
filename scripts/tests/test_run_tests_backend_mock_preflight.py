@@ -77,6 +77,36 @@ def test_backend_live_mock_preflight_fails_when_container_would_ignore_markers(m
     assert "MOCK_EXTERNAL_APIS" in error
 
 
+def test_backend_live_mock_preflight_allows_absent_conditional_workers(monkeypatch) -> None:
+    run_tests = load_run_tests_module()
+
+    def fake_env(container: str, key: str):
+        if container in run_tests.BACKEND_LIVE_MOCK_CONDITIONAL_CONTAINERS:
+            return (None, f"Error response from daemon: No such container: {container}")
+        return ({"SERVER_ENVIRONMENT": "development", "MOCK_EXTERNAL_APIS": "true"}[key], None)
+
+    monkeypatch.setattr(run_tests, "_docker_container_env", fake_env)
+
+    assert run_tests._development_backend_live_mock_preflight_error() is None
+
+
+def test_backend_live_mock_preflight_fails_when_required_container_is_absent(monkeypatch) -> None:
+    run_tests = load_run_tests_module()
+
+    def fake_env(container: str, key: str):
+        if container == "api":
+            return (None, "Error response from daemon: No such container: api")
+        return ({"SERVER_ENVIRONMENT": "development", "MOCK_EXTERNAL_APIS": "true"}[key], None)
+
+    monkeypatch.setattr(run_tests, "_docker_container_env", fake_env)
+
+    error = run_tests._development_backend_live_mock_preflight_error()
+
+    assert error is not None
+    assert "api: container is not running" in error
+    assert "app-ai-worker" not in error
+
+
 def test_only_failed_synthetic_backend_preflight_records_pass_when_env_fixed(
     tmp_path,
     monkeypatch,
@@ -96,9 +126,9 @@ def test_only_failed_synthetic_backend_preflight_records_pass_when_env_fixed(
     orchestrator = run_tests.TestOrchestrator(
         SimpleNamespace(
             suite="playwright",
-                spec=None,
-                core_journeys=False,
-                only_failed=True,
+            spec=None,
+            core_journeys=False,
+            only_failed=True,
             daily=False,
             force=False,
             environment="development",
@@ -108,6 +138,7 @@ def test_only_failed_synthetic_backend_preflight_records_pass_when_env_fixed(
             no_fail_fast=False,
             no_mocks=False,
             record_live_fixtures=False,
+            proof_video_profile="",
             dry_run=False,
         )
     )
