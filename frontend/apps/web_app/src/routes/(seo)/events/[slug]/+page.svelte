@@ -14,10 +14,12 @@
 	const descriptionParagraphs = $derived(data.event.description.split('\n\n').filter(Boolean));
 	const eventStart = $derived(new Date(data.event.date_start));
 	const eventEnd = $derived(new Date(data.event.date_end));
+	const eventTimeZone = $derived(data.event.timezone || undefined);
 	const dateLine = $derived(
 		Number.isNaN(eventStart.getTime())
 			? ''
 			: eventStart.toLocaleDateString(undefined, {
+				timeZone: eventTimeZone,
 				weekday: 'long',
 				year: 'numeric',
 				month: 'long',
@@ -25,9 +27,9 @@
 			})
 	);
 	const timeLine = $derived(
-		Number.isNaN(eventStart.getTime())
+		Number.isNaN(eventStart.getTime()) || Number.isNaN(eventEnd.getTime())
 			? ''
-			: `${eventStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} to ${eventEnd.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+			: `${eventStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: eventTimeZone })} to ${eventEnd.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: eventTimeZone })}`
 	);
 
 </script>
@@ -43,14 +45,14 @@
 	<meta property="og:url" content={data.canonicalUrl} />
 	<meta property="og:title" content="{data.event.title} — OpenMates Events" />
 	<meta property="og:description" content={data.event.summary} />
-	<meta property="og:image" content={data.event.image_url} />
+	<meta property="og:image" content={data.imageUrl} />
 	<meta property="og:site_name" content="OpenMates" />
 
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:url" content={data.canonicalUrl} />
 	<meta name="twitter:title" content="{data.event.title} — OpenMates Events" />
 	<meta name="twitter:description" content={data.event.summary} />
-	<meta name="twitter:image" content={data.event.image_url} />
+	<meta name="twitter:image" content={data.imageUrl} />
 
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}

@@ -10,15 +10,20 @@
 
 	let { data }: { data: PageData } = $props();
 
-	function formatDate(value: string): string {
+	function formatDate(value: string, timeZone: string): string {
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return '';
 		return date.toLocaleDateString(undefined, {
+			timeZone,
 			weekday: 'short',
 			month: 'short',
 			day: 'numeric',
 			year: 'numeric'
 		});
+	}
+
+	function formatLocation(city: string, country: string): string {
+		return [city, country].filter(Boolean).join(', ');
 	}
 </script>
 
@@ -72,8 +77,8 @@
 							<span class="event-title">{event.title}</span>
 							<span class="event-summary">{event.summary}</span>
 							<span class="event-meta">
-								<time datetime={event.date_start}>{formatDate(event.date_start)}</time>
-								<span>{event.venue.city}, {event.venue.country}</span>
+								<time datetime={event.date_start}>{formatDate(event.date_start, event.timezone)}</time>
+								<span>{formatLocation(event.venue.city, event.venue.country)}</span>
 							</span>
 						</span>
 					</a>
