@@ -237,6 +237,17 @@ test.describe('Teams V1 context isolation', () => {
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
+			await ensureSidebarOpen(page);
+			const visibleTeamChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`);
+			await expect(visibleTeamChat).toBeVisible({ timeout: 30000 });
+			await expect(visibleTeamChat).toContainText('New team chat', { timeout: 15000 });
+			for (const personalChatId of personalChatIds) {
+				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
+			}
+			// Hold the uniquely titled Team row before switching contexts so the
+			// visual proof cannot confuse it with an unrelated Personal "Untitled chat".
+			await page.waitForTimeout(6000);
+			await ensureSidebarClosed(page);
 
 			await openProfileMenu(page);
 			const personalSwitchFrameIndex = frames.length;
