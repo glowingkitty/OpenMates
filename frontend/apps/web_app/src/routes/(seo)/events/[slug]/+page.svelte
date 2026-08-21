@@ -3,11 +3,10 @@
 
   Crawlable public event page for /events/{slug}. Search engines and link
   preview bots receive semantic event content, canonical tags, OG tags, and
-  schema.org/Event JSON-LD. Human browsers forward into the SPA fullscreen
-  event embed via the slug-based #embed-id value.
+  schema.org/Event JSON-LD. The page keeps its canonical URL stable for
+  Google; users can open the interactive SPA event view from the CTA.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -31,12 +30,6 @@
 			: `${eventStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} to ${eventEnd.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
 	);
 
-	onMount(() => {
-		if (data.spaUrl) {
-			const { pathname, search, hash } = new URL(data.spaUrl);
-			window.location.replace(pathname + search + hash);
-		}
-	});
 </script>
 
 <svelte:head>
@@ -75,8 +68,8 @@
 		<section class="details" aria-label="Event details">
 			<div>
 				<strong>Date & Time</strong>
-				<span>{dateLine}</span>
-				<span>{timeLine}</span>
+				<time datetime={data.event.date_start}>{dateLine}</time>
+				<time datetime={data.event.date_start}>{timeLine}</time>
 			</div>
 			<div>
 				<strong>Location</strong>
@@ -174,6 +167,11 @@
 		border: 1px solid #e8e8e8;
 		border-radius: 16px;
 		background: #fafafa;
+	}
+
+	.details strong,
+	.details time {
+		font-style: normal;
 	}
 
 	.details strong {
