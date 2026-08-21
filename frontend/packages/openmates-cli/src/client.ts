@@ -3565,7 +3565,7 @@ export class OpenMatesClient {
       const workflow = await this.getWorkflow(workflowId, { personal: true });
       return {
         objectId: workflowId,
-        slug: await decryptObjectSlug(workflow.encrypted_slug, masterKey),
+        slug: workflow.slug || await decryptObjectSlug(workflow.encrypted_slug, masterKey),
         objectKey: teamKey,
       };
     }
