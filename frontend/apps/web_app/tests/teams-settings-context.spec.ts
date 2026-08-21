@@ -217,6 +217,8 @@ test.describe('Teams V1 context isolation', () => {
 			await ensureSidebarOpen(page);
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`)).toBeVisible({ timeout: 30000 });
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`)).toHaveCount(0);
+			// Keep the verified Personal-only list visible long enough for proof capture.
+			await page.waitForTimeout(1000);
 			await ensureSidebarClosed(page);
 
 			await openProfileMenu(page);
