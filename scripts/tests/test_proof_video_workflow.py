@@ -767,6 +767,30 @@ def test_review_budget_does_not_roll_over_passed_prior_source() -> None:
         )
 
 
+def test_review_budget_rolls_over_when_latest_source_supersedes_an_older_pass() -> None:
+    budget = {
+        "ai_review_calls": 4,
+        "submitted_frames": 46,
+        "reservations": [
+            {"device": "web-laptop", "source_artifact_hash": "sha256:passed-video", "status": "passed"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:failed-video", "status": "capture_defect"},
+        ],
+    }
+
+    rolled = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        source_artifact_hash="sha256:fixed-video",
+    )
+
+    assert rolled["active_epoch"] == 1
+    assert rolled["ai_review_calls"] == 1
+    assert rolled["superseded_review_epochs"][-1]["reason"] == "new_source_after_nonpassing_device_reviews"
+
+
 def test_review_budget_rolls_over_for_first_review_of_another_required_device() -> None:
     budget = {
         "active_epoch": 2,

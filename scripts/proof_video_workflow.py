@@ -496,8 +496,8 @@ def _roll_over_review_budget(
     if not reservations:
         return False
     device_reservations = [item for item in reservations if item.get("device") == device]
-    statuses = [str(item.get("status") or "") for item in device_reservations]
-    if any(not status or status == "passed" for status in statuses):
+    latest_device_status = str(device_reservations[-1].get("status") or "") if device_reservations else ""
+    if device_reservations and (not latest_device_status or latest_device_status == "passed"):
         return False
     prior_sources = {str(item.get("source_artifact_hash") or "") for item in device_reservations}
     if source_artifact_hash in prior_sources:
