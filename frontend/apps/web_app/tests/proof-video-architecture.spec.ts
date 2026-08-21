@@ -15,7 +15,7 @@ const {createVideoProofRuntime, defineVideoProof} = require('./helpers/video-pro
 const PROOF_DOMAIN = 'app.dev.openmates.org';
 
 async function captureBrowserProofFrame(page: any): Promise<Buffer> {
-	return page.screenshot({type: 'png'});
+	return page.screenshot({type: 'png', animations: 'disabled'});
 }
 
 const proofContract = defineVideoProof({

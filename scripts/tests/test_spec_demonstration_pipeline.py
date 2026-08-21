@@ -366,6 +366,7 @@ def test_browser_proof_uses_only_renderer_domain_chrome() -> None:
     assert "aria-label=\"New tab\"" in renderer
     assert "maxWidth" in renderer
     assert "Paused for review" in renderer
+    assert "animations: 'disabled'" in proof_spec
 
 
 def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: Path) -> None:
