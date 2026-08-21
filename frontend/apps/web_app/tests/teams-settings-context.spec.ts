@@ -150,6 +150,7 @@ test.describe('Teams V1 context isolation', () => {
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
+			await page.waitForTimeout(2000);
 
 			await ensureSidebarOpen(page);
 			for (const personalChatId of personalChatIds) {
@@ -200,6 +201,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
+			await page.waitForTimeout(2000);
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
