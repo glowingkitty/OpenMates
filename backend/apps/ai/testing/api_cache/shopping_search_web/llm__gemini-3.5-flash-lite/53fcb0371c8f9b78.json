@@ -1,0 +1,130 @@
+{
+  "fingerprint": "53fcb0371c8f9b78",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T11:40:55.653204+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "d2d7c236ca90c114",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]{title,brand,price_cents,was_price_cents,grammage,deposit_cents,purchase_url,category_path,attributes_is_organic,attributes_is_vegan,attributes_is_vegetarian,attributes_is_dairy_free,attrib..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are some organic yogurt options available from REWE in Germany:\n\n* [REWE Bio Joghurt mild 3,8% 500g](embed:rewe-bio-joghurt-ml4)\n* [REWE Bio Joghurt Mild 1,8% 500g](embed:rewe-bio-joghurt-xdO)\n* [REWE Bio Joghurt mild mit Heidelbeere-Cassis 500g](embed:rewe-bio-joghurt-YHM)\n* [REWE Bio Joghurt Mango Vanille 500g](embed:rewe-bio-joghurt-gSd)\n* [REWE Bio Joghurt Erdbeere 150g](embed:rewe-bio-joghurt-glC)\n* [REWE Bio Joghurt mild Zitrone 150g](embed:rewe-bio-joghurt-sZz)\n* [REWE Bio Joghurt Mild 1,8% 150g](embed:rewe-bio-joghurt-EXz)\n* [REWE Bio Joghurt mild 150g](embed:rewe-bio-joghurt-JqE)\n* [REWE Bio Joghurt Mild 0,1% 500g](embed:rewe-bio-joghurt-OrF)\n* [REWE Bio Joghurt mild 500g](embed:rewe-bio-joghurt-vY5)\n\n```embeds_results_view\ntitle: Bio Joghurt Options at REWE\nembeds: rewe-bio-joghurt-ml4, rewe-bio-joghurt-xdO, rewe-bio-joghurt-YHM, rewe-bio-joghurt-gSd, rewe-bio-joghurt-glC, rewe-bio-joghurt-sZz, rewe-bio-joghurt-EXz, rewe-bio-joghurt-JqE, rewe-bio-joghurt-OrF, rewe-bio-joghurt-vY5\n```\n\nWould you like to search for other grocery items or compare prices across different supermarkets?",
+    "chunk_count": 24,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " some organic yogurt options available from REWE in Germany:\n\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild 3,8% 500g](embed:rewe-bio-joghurt-ml4)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt Mild 1,8% 500g](embed:rewe-"
+      },
+      {
+        "kind": "text",
+        "value": "bio-joghurt-xdO)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild mit Heidelbeere-Cassis 500g](embed:rewe-bio-joghurt-YHM)\n"
+      },
+      {
+        "kind": "text",
+        "value": "* [REWE Bio Joghurt Mango Vanille 500g](embed:rewe-bio-joghurt-"
+      },
+      {
+        "kind": "text",
+        "value": "gSd)\n* [REWE Bio Joghurt Erdbeere 150g](embed:rewe"
+      },
+      {
+        "kind": "text",
+        "value": "-bio-joghurt-glC)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild Zitrone 150g](embed:rewe-bio-joghurt-sZz)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt Mild 1,8% 150g](embed:rewe-bio-"
+      },
+      {
+        "kind": "text",
+        "value": "joghurt-EXz)\n* [REWE Bio Joghurt mild 150g](embed"
+      },
+      {
+        "kind": "text",
+        "value": ":rewe-bio-joghurt-JqE)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt Mild 0,1% 500g](embed:rewe-bio-joghurt-OrF"
+      },
+      {
+        "kind": "text",
+        "value": ")\n* [REWE Bio Joghurt mild 500g](embed:rewe-bio-"
+      },
+      {
+        "kind": "text",
+        "value": "joghurt-vY5)\n\n```embeds_results_view\ntitle: Bio Joghurt Options"
+      },
+      {
+        "kind": "text",
+        "value": " at REWE\nembeds: rewe-bio-joghurt-ml4, rewe-bio-"
+      },
+      {
+        "kind": "text",
+        "value": "joghurt-xdO, rewe-bio-joghurt-YHM, rewe-bio-"
+      },
+      {
+        "kind": "text",
+        "value": "joghurt-gSd, rewe-bio-joghurt-glC, rewe-bio-"
+      },
+      {
+        "kind": "text",
+        "value": "joghurt-sZz, rewe-bio-joghurt-EXz, rewe-bio"
+      },
+      {
+        "kind": "text",
+        "value": "-joghurt-JqE, rewe-bio-joghurt-OrF, rewe-"
+      },
+      {
+        "kind": "text",
+        "value": "bio-joghurt-vY5\n```\n\nWould you like to search for other grocery items or compare prices"
+      },
+      {
+        "kind": "text",
+        "value": " across different supermarkets?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15550,
+          "candidates_token_count": 515,
+          "total_token_count": 16065,
+          "user_input_tokens": 1158,
+          "system_prompt_tokens": 13046
+        }
+      }
+    ]
+  }
+}

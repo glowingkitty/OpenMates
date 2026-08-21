@@ -98,6 +98,7 @@ def test_worker_edit_gate_blocks_python_rejections() -> None:
         assert.equal(calls[0].command, 'python3');
         assert.deepEqual(calls[0].args.slice(0, 5), ['scripts/tests.py', 'campaign', 'edit-gate', '--session', 'ses_worker']);
         assert.deepEqual(calls[0].args.slice(-2), ['--file', 'frontend/test-1.test.ts']);
+        assert.equal(calls[0].options.timeout, 10000);
 
         const allowed = workerEditGateDecisionForTest({
           sessionID: 'ses_worker',
@@ -105,6 +106,60 @@ def test_worker_edit_gate_blocks_python_rejections() -> None:
           run: () => ({ status: 0, stderr: '', stdout: '{"ok": true}' }),
         });
         assert.equal(allowed.decision, 'allow');
+        """
+    )
+
+
+def test_worker_gates_warn_and_continue_when_directus_is_unavailable() -> None:
+    run_hook_assertion(
+        """
+        import { strict as assert } from 'node:assert';
+        import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
+
+        const {
+          directusControlPlaneUnavailableForTest,
+          workerBashGateDecisionForTest,
+          workerEditGateDecisionForTest,
+          workerEditPathDecisionForTest,
+        } = OpenMatesHooks.test;
+        const unavailable = {
+          status: 1,
+          stdout: '',
+          stderr: 'Directus test control-plane request failed: GET /items/test_claims: <urlopen error [Errno 111] Connection refused>',
+        };
+
+        assert.equal(directusControlPlaneUnavailableForTest(unavailable), true);
+        assert.equal(directusControlPlaneUnavailableForTest({ status: 1, stderr: 'Worker edit blocked' }), false);
+
+        for (const decision of [
+          workerEditGateDecisionForTest({
+            sessionID: 'ses_worker',
+            files: ['frontend/test-1.test.ts'],
+            run: () => unavailable,
+          }),
+          workerEditPathDecisionForTest({
+            sessionID: 'ses_worker',
+            files: ['/tmp/outside.ts'],
+            relativePaths: [],
+            run: () => unavailable,
+          }),
+          workerBashGateDecisionForTest({
+            sessionID: 'ses_worker',
+            command: 'python3 scripts/custom_tool.py --fix',
+            run: () => unavailable,
+          }),
+        ]) {
+          assert.equal(decision.decision, 'warn');
+          assert.match(decision.message, /DIRECTUS CONTROL PLANE IS UNAVAILABLE/);
+          assert.match(decision.message, /Continuing without Directus-backed campaign worker enforcement/);
+        }
+
+        const spawnFailure = workerEditGateDecisionForTest({
+          sessionID: 'ses_worker',
+          files: ['frontend/test-1.test.ts'],
+          run: () => ({ status: null, error: new Error('spawn failed'), stdout: '', stderr: '' }),
+        });
+        assert.equal(spawnFailure.decision, 'warn');
         """
     )
 
@@ -263,36 +318,24 @@ def test_merged_worktree_recovery_message_names_force_end() -> None:
     )
 
 
-def test_opencode_notifier_hook_events_are_bounded() -> None:
+def test_opencode_discord_notifier_is_not_registered() -> None:
     run_hook_assertion(
         """
         import { strict as assert } from 'node:assert';
+        import { readFileSync } from 'node:fs';
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
-        const { completedAssistantMessageID, isTodoWriteTool, notifierEventArgsForTest, presenceIsLive } = OpenMatesHooks.test;
-        const completed = {
-          type: 'message.updated',
-          properties: { info: { id: 'msg-1', role: 'assistant', time: { completed: 123 } }, sessionID: 'ses-parent' },
-        };
-        assert.equal(completedAssistantMessageID(completed), 'msg-1');
-        assert.equal(completedAssistantMessageID({ type: 'message.completed', properties: { role: 'assistant', messageID: 'msg-2', completed: true } }), 'msg-2');
-        assert.equal(completedAssistantMessageID({ type: 'assistant.completed', properties: { message: { id: 'msg-3', role: 'assistant', time: { completed: 123 } } } }), 'msg-3');
-        assert.equal(completedAssistantMessageID({ type: 'message.updated', properties: { info: { id: 'msg-user', role: 'user', time: { completed: 123 } }, sessionID: 'ses-parent' } }), '');
+        const { isTodoWriteTool, presenceIsLive } = OpenMatesHooks.test;
         for (const tool of ['todowrite', 'todo_write', 'todo.write', 'TodoWrite']) assert.equal(isTodoWriteTool(tool), true, tool);
         assert.equal(isTodoWriteTool('task'), false);
-
-        const taskArgs = notifierEventArgsForTest({
-          eventType: 'task-list-changed',
-          sessionID: 'ses-parent',
-          todos: [{ content: 'Update tests', status: 'in_progress', priority: 'high' }],
-        });
-        assert.deepEqual(taskArgs, []);
-
-        const completionArgs = notifierEventArgsForTest({ eventType: 'response-completed', sessionID: 'ses-parent', messageID: 'msg-1' });
-        assert.deepEqual(completionArgs.slice(1), ['--event', 'response-completed', '--session-id', 'ses-parent', '--message-id', 'msg-1']);
         assert.equal(presenceIsLive({ execution: 'busy', turn: 'none' }), true);
         assert.equal(presenceIsLive({ execution: 'idle', turn: 'streaming' }), true);
         assert.equal(presenceIsLive({ execution: 'idle', turn: 'completed' }), false);
+
+        assert.equal('completedAssistantMessageID' in OpenMatesHooks.test, false);
+        assert.equal('notifierEventArgsForTest' in OpenMatesHooks.test, false);
+        const source = readFileSync('./.opencode/plugins/openmates-hooks.js', 'utf8');
+        assert.doesNotMatch(source, /opencode_progress_notifier|response-completed|scheduleNotifierEvent/);
         """
     )
 

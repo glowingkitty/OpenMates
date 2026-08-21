@@ -251,26 +251,25 @@ test("bash guard allows source file references that are not writes", async () =>
   await assert.doesNotReject(() => runBeforeShell("docker compose -f backend/core/docker-compose.yml ps"));
 });
 
-test("bash guard blocks Docker Compose mutations without the Docker lock", async () => {
+test("bash guard blocks direct Docker Compose lifecycle mutations", async () => {
   await assert.rejects(
     () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
-    /Reason: Docker Compose mutations require.*Next: run python3 scripts\/sessions\.py lock/,
+    /Reason: Direct Docker Compose lifecycle mutations bypass.*Next: use openmates server/,
   );
 });
 
-test("Docker mutation decision allows the current session's Docker lock", () => {
+test("Docker mutation decision rejects direct Compose even with a Docker lock", () => {
   const data = {
     locks: { docker_rebuild: { status: "IN_PROGRESS", claimed_by: "abcd" } },
     sessions: { abcd: { opencode_session_id: "test-session" } },
   };
-  assert.deepEqual(
-    pluginModule.OpenMatesHooks.test.dockerMutationDecisionForTest({
+  const decision = pluginModule.OpenMatesHooks.test.dockerMutationDecisionForTest({
       command: "docker compose --env-file .env -f backend/core/docker-compose.yml build api",
       sessionID: "test-session",
       data,
-    }),
-    { decision: "allow", message: "Docker lock held by this session" },
-  );
+    });
+  assert.equal(decision.decision, "block");
+  assert.match(decision.message, /openmates server restart --rebuild/);
 });
 
 test("bash guard allows programmatic source reads", async () => {

@@ -1,0 +1,2965 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-13'
+generated_at: '2026-08-14T00:20:05+00:00'
+range:
+  since: '2026-08-13T00:00:00+00:00'
+  until: '2026-08-14T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 59
+  section_counts:
+    features: 3
+    bug_fixes: 34
+    improvements: 0
+    docs: 1
+    tests: 13
+    infrastructure: 0
+    internal: 8
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 17
+  dev_only_items: 59
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add encrypted CLI object slugs'
+    section: features
+    commits:
+    - b3721897a
+    authored_at: '2026-08-13T18:28:01+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/team_workspace_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/core/directus/setup/migrate_encrypted_slug_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/encrypted_slug_metadata.py
+    - backend/tests/test_cli_object_slugs.py
+    - backend/tests/test_teams_move_authorization.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/cli/contract.yml
+    - contracts/surfaces/cli/examples.yml
+    - docs/specs/cli-encrypted-slugs/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/objectSlugs.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - packages/openmates-python/tests/test_workflows.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:projects, platform:tasks, platform:teams, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add teams cli context proof'
+    section: features
+    commits:
+    - 860f432aa
+    authored_at: '2026-08-13T15:49:25+00:00'
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: align workspace shell parity'
+    section: features
+    commits:
+    - 7b94193f4
+    authored_at: '2026-08-13T14:10:42+00:00'
+    changed_paths:
+    - contracts/features/workspace-shell/contract.yml
+    - contracts/features/workspace-shell/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: Fix team chat preflight slug metadata
+    section: bug_fixes
+    commits:
+    - 3040be8f5
+    authored_at: '2026-08-13T22:24:47+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix teams CLI proof chat isolation
+    section: bug_fixes
+    commits:
+    - 88690ff9d
+    authored_at: '2026-08-13T22:12:01+00:00'
+    changed_paths:
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject failed cli proof captures'
+    section: bug_fixes
+    commits:
+    - b4efee99e
+    authored_at: '2026-08-13T18:21:29+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear chat hash on new chat'
+    section: bug_fixes
+    commits:
+    - 119c717e7
+    authored_at: '2026-08-13T18:14:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep cli proof evidence visible'
+    section: bug_fixes
+    commits:
+    - 6237dd432
+    authored_at: '2026-08-13T18:11:59+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show approved teams proof commands'
+    section: bug_fixes
+    commits:
+    - 139dfe55b
+    authored_at: '2026-08-13T18:01:35+00:00'
+    changed_paths:
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clamp proof video review intervals'
+    section: bug_fixes
+    commits:
+    - fce52404b
+    authored_at: '2026-08-13T17:52:43+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: capture exact proof recording profiles'
+    section: bug_fixes
+    commits:
+    - 8c587df63
+    authored_at: '2026-08-13T17:37:10+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound cli proof video timing'
+    section: bug_fixes
+    commits:
+    - 4418a59a3
+    authored_at: '2026-08-13T17:31:20+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disambiguate multi-video proof sources'
+    section: bug_fixes
+    commits:
+    - 20a52bb5b
+    authored_at: '2026-08-13T17:15:06+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve landing intro stories'
+    section: bug_fixes
+    commits:
+    - 623d48df5
+    authored_at: '2026-08-13T16:41:09+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingMatesFocusDemo.svelte
+    - frontend/packages/ui/src/components/landing/LandingPeopleExperienceDemo.svelte
+    - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: attest multi-video proof recordings'
+    section: bug_fixes
+    commits:
+    - 8893425b4
+    authored_at: '2026-08-13T16:02:16+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden proof recording provenance'
+    section: bug_fixes
+    commits:
+    - caa991b86
+    authored_at: '2026-08-13T15:32:19+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match recording workflow run ids'
+    section: bug_fixes
+    commits:
+    - 4c77f2619
+    authored_at: '2026-08-13T15:16:23+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: attest downloaded test recordings'
+    section: bug_fixes
+    commits:
+    - 4343f10d6
+    authored_at: '2026-08-13T15:03:30+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: contain tasks workspace shell'
+    section: bug_fixes
+    commits:
+    - b8c1e85f0
+    authored_at: '2026-08-13T14:46:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: record full deploy-gated test commits'
+    section: bug_fixes
+    commits:
+    - 3305af450
+    authored_at: '2026-08-13T14:43:11+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align notification progress state'
+    section: bug_fixes
+    commits:
+    - 1fbf03e14
+    authored_at: '2026-08-13T14:31:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: size audio recording overlay from container style'
+    section: bug_fixes
+    commits:
+    - 69716445c
+    authored_at: '2026-08-13T14:14:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reserve recording overlay height immediately'
+    section: bug_fixes
+    commits:
+    - 04b9d80d3
+    authored_at: '2026-08-13T13:51:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain mobile notifications'
+    section: bug_fixes
+    commits:
+    - a360b6629
+    authored_at: '2026-08-13T13:47:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let recording overlay escape compact composer'
+    section: bug_fixes
+    commits:
+    - f61958796
+    authored_at: '2026-08-13T13:34:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep proof-video workflow actionable'
+    section: bug_fixes
+    commits:
+    - d2215a7b3
+    authored_at: '2026-08-13T13:12:53+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include already-encrypted embed update type'
+    section: bug_fixes
+    commits:
+    - ff239b64b
+    authored_at: '2026-08-13T13:10:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include encrypted embed update type'
+    section: bug_fixes
+    commits:
+    - 164680a63
+    authored_at: '2026-08-13T12:56:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show full-width mobile carousel controls'
+    section: bug_fixes
+    commits:
+    - 433c21d69
+    authored_at: '2026-08-13T12:54:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize remaining audio test failures'
+    section: bug_fixes
+    commits:
+    - b220bfd51
+    authored_at: '2026-08-13T12:38:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix OpenCode event notification hooks
+    section: bug_fixes
+    commits:
+    - 7adbdd65c
+    authored_at: '2026-08-13T12:21:38+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_recovery.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve image child carousel identity'
+    section: bug_fixes
+    commits:
+    - '105164900'
+    authored_at: '2026-08-13T11:31:01+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    - frontend/packages/ui/src/services/__tests__/embedStoreImageRef.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/extract-shared-chat.mjs
+    - scripts/tests/extract_shared_chat.test.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh finalized deferred audio messages'
+    section: bug_fixes
+    commits:
+    - cf274f292
+    authored_at: '2026-08-13T11:10:05+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/handlers/deferredSendMessageEvents.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/deferredSendMessageEvents.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve PDF draft uploads'
+    section: bug_fixes
+    commits:
+    - 097c9093c
+    authored_at: '2026-08-13T10:41:27+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load proof cleanup environment safely'
+    section: bug_fixes
+    commits:
+    - 80d88c0fc
+    authored_at: '2026-08-13T10:30:28+00:00'
+    changed_paths:
+    - scripts/cleanup-proof-videos.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: schedule safe proof video cleanup'
+    section: bug_fixes
+    commits:
+    - 741b36dc7
+    authored_at: '2026-08-13T10:29:47+00:00'
+    changed_paths:
+    - scripts/cleanup-proof-videos.sh
+    - scripts/tests/test_disk_cleanup_safety.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound disk cleanup and recording retention'
+    section: bug_fixes
+    commits:
+    - df64d9937
+    authored_at: '2026-08-13T10:19:05+00:00'
+    changed_paths:
+    - scripts/docker-cleanup.sh
+    - scripts/run_tests.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: add scan-first opencode final guidance'
+    section: docs
+    commits:
+    - 8123a8951
+    authored_at: '2026-08-13T13:39:07+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: fix tasks workspace proof recording'
+    section: tests
+    commits:
+    - 02176cea3
+    authored_at: '2026-08-13T22:36:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record workspace proof at exact viewport sizes'
+    section: tests
+    commits:
+    - d0289c48f
+    authored_at: '2026-08-13T22:18:00+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize workspace shell scroll assertion'
+    section: tests
+    commits:
+    - 8c8b08af3
+    authored_at: '2026-08-13T14:27:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize notification contract fixture'
+    section: tests
+    commits:
+    - 6d3276c4b
+    authored_at: '2026-08-13T14:07:03+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: guard proof-video deploy lifecycle'
+    section: tests
+    commits:
+    - d69b78b5b
+    authored_at: '2026-08-13T13:37:21+00:00'
+    changed_paths:
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture forced logout notification'
+    section: tests
+    commits:
+    - 4d5c8ffd1
+    authored_at: '2026-08-13T13:23:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover mobile notification dismissal'
+    section: tests
+    commits:
+    - 585bb582c
+    authored_at: '2026-08-13T12:50:39+00:00'
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover mobile image carousel layout'
+    section: tests
+    commits:
+    - ddaee63d9
+    authored_at: '2026-08-13T12:30:26+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize proof message entry'
+    section: tests
+    commits:
+    - 019176de0
+    authored_at: '2026-08-13T11:52:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hide proof fixture marker'
+    section: tests
+    commits:
+    - 215a363ce
+    authored_at: '2026-08-13T11:39:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover shared image carousel reload'
+    section: tests
+    commits:
+    - 317be608b
+    authored_at: '2026-08-13T11:06:35+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize default model proof settings open'
+    section: tests
+    commits:
+    - aeee70708
+    authored_at: '2026-08-13T10:53:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: unblock default model phone proof'
+    section: tests
+    commits:
+    - 914c773f5
+    authored_at: '2026-08-13T10:32:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: Skip OpenCode notifications while running
+    section: internal
+    commits:
+    - 62b160fad
+    authored_at: '2026-08-13T15:32:00+00:00'
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Delay OpenCode response notifications
+    section: internal
+    commits:
+    - 1170772ac
+    authored_at: '2026-08-13T14:18:38+00:00'
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Make OpenCode notifications deterministic
+    section: internal
+    commits:
+    - c96f1a0da
+    authored_at: '2026-08-13T14:08:11+00:00'
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Limit OpenCode notifications to chat completion
+    section: internal
+    commits:
+    - f5fea26ee
+    authored_at: '2026-08-13T13:18:55+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Simplify OpenCode Discord notification text
+    section: internal
+    commits:
+    - 978d4a262
+    authored_at: '2026-08-13T12:33:42+00:00'
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Replace OpenCode progress notifications with event events
+    section: internal
+    commits:
+    - 18dac8ea4
+    authored_at: '2026-08-13T11:08:18+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Sync proof-video OpenCode mirrors
+    section: internal
+    commits:
+    - ff938ab6c
+    authored_at: '2026-08-13T11:01:01+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Focus proof-video workflow
+    section: internal
+    commits:
+    - 893a51b4c
+    authored_at: '2026-08-13T10:54:13+00:00'
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: fix tasks workspace proof recording'
+    commits:
+    - 02176cea3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Fix team chat preflight slug metadata
+    commits:
+    - 3040be8f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record workspace proof at exact viewport sizes'
+    commits:
+    - d0289c48f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix teams CLI proof chat isolation
+    commits:
+    - 88690ff9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add encrypted CLI object slugs'
+    commits:
+    - b3721897a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: reject failed cli proof captures'
+    commits:
+    - b4efee99e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clear chat hash on new chat'
+    commits:
+    - 119c717e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep cli proof evidence visible'
+    commits:
+    - 6237dd432
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show approved teams proof commands'
+    commits:
+    - 139dfe55b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clamp proof video review intervals'
+    commits:
+    - fce52404b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: capture exact proof recording profiles'
+    commits:
+    - 8c587df63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound cli proof video timing'
+    commits:
+    - 4418a59a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: disambiguate multi-video proof sources'
+    commits:
+    - 20a52bb5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve landing intro stories'
+    commits:
+    - 623d48df5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: attest multi-video proof recordings'
+    commits:
+    - 8893425b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add teams cli context proof'
+    commits:
+    - 860f432aa
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: harden proof recording provenance'
+    commits:
+    - caa991b86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Skip OpenCode notifications while running
+    commits:
+    - 62b160fad
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: match recording workflow run ids'
+    commits:
+    - 4c77f2619
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: attest downloaded test recordings'
+    commits:
+    - 4343f10d6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: contain tasks workspace shell'
+    commits:
+    - b8c1e85f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: record full deploy-gated test commits'
+    commits:
+    - 3305af450
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align notification progress state'
+    commits:
+    - 1fbf03e14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize workspace shell scroll assertion'
+    commits:
+    - 8c8b08af3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Delay OpenCode response notifications
+    commits:
+    - 1170772ac
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: size audio recording overlay from container style'
+    commits:
+    - 69716445c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: align workspace shell parity'
+    commits:
+    - 7b94193f4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Make OpenCode notifications deterministic
+    commits:
+    - c96f1a0da
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize notification contract fixture'
+    commits:
+    - 6d3276c4b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reserve recording overlay height immediately'
+    commits:
+    - 04b9d80d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: constrain mobile notifications'
+    commits:
+    - a360b6629
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: add scan-first opencode final guidance'
+    commits:
+    - 8123a8951
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: guard proof-video deploy lifecycle'
+    commits:
+    - d69b78b5b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: let recording overlay escape compact composer'
+    commits:
+    - f61958796
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: capture forced logout notification'
+    commits:
+    - 4d5c8ffd1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Limit OpenCode notifications to chat completion
+    commits:
+    - f5fea26ee
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep proof-video workflow actionable'
+    commits:
+    - d2215a7b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: include already-encrypted embed update type'
+    commits:
+    - ff239b64b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: include encrypted embed update type'
+    commits:
+    - 164680a63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show full-width mobile carousel controls'
+    commits:
+    - 433c21d69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover mobile notification dismissal'
+    commits:
+    - 585bb582c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize remaining audio test failures'
+    commits:
+    - b220bfd51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Simplify OpenCode Discord notification text
+    commits:
+    - 978d4a262
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover mobile image carousel layout'
+    commits:
+    - ddaee63d9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix OpenCode event notification hooks
+    commits:
+    - 7adbdd65c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize proof message entry'
+    commits:
+    - 019176de0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hide proof fixture marker'
+    commits:
+    - 215a363ce
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve image child carousel identity'
+    commits:
+    - '105164900'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh finalized deferred audio messages'
+    commits:
+    - cf274f292
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Replace OpenCode progress notifications with event events
+    commits:
+    - 18dac8ea4
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover shared image carousel reload'
+    commits:
+    - 317be608b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Sync proof-video OpenCode mirrors
+    commits:
+    - ff938ab6c
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Focus proof-video workflow
+    commits:
+    - 893a51b4c
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize default model proof settings open'
+    commits:
+    - aeee70708
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve PDF draft uploads'
+    commits:
+    - 097c9093c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: unblock default model phone proof'
+    commits:
+    - 914c773f5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load proof cleanup environment safely'
+    commits:
+    - 80d88c0fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: schedule safe proof video cleanup'
+    commits:
+    - 741b36dc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound disk cleanup and recording retention'
+    commits:
+    - df64d9937
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add encrypted CLI object slugs'
+    commits:
+    - b3721897a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: align workspace shell parity'
+    commits:
+    - 7b94193f4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add encrypted CLI object slugs'
+    commits:
+    - b3721897a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: clear chat hash on new chat'
+    commits:
+    - 119c717e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: capture exact proof recording profiles'
+    commits:
+    - 8c587df63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: improve landing intro stories'
+    commits:
+    - 623d48df5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add teams cli context proof'
+    commits:
+    - 860f432aa
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: contain tasks workspace shell'
+    commits:
+    - b8c1e85f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align notification progress state'
+    commits:
+    - 1fbf03e14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: size audio recording overlay from container style'
+    commits:
+    - 69716445c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: align workspace shell parity'
+    commits:
+    - 7b94193f4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reserve recording overlay height immediately'
+    commits:
+    - 04b9d80d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: constrain mobile notifications'
+    commits:
+    - a360b6629
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: let recording overlay escape compact composer'
+    commits:
+    - f61958796
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show full-width mobile carousel controls'
+    commits:
+    - 433c21d69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize remaining audio test failures'
+    commits:
+    - b220bfd51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve image child carousel identity'
+    commits:
+    - '105164900'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh finalized deferred audio messages'
+    commits:
+    - cf274f292
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve PDF draft uploads'
+    commits:
+    - 097c9093c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 02176cea3144494771118b6eecf3d6868327de1c
+    short_sha: 02176cea3
+    authored_at: '2026-08-13T22:36:53+00:00'
+    subject: 'test: fix tasks workspace proof recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    related_feature_ids:
+    - platform:tasks
+  - sha: 3040be8f5c3332f915f7b35feea73c4db94148fd
+    short_sha: 3040be8f5
+    authored_at: '2026-08-13T22:24:47+00:00'
+    subject: Fix team chat preflight slug metadata
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    related_feature_ids: []
+  - sha: d0289c48f0a40ed8acf65873658fab4ae1cccabf
+    short_sha: d0289c48f
+    authored_at: '2026-08-13T22:18:00+00:00'
+    subject: 'test: record workspace proof at exact viewport sizes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    related_feature_ids: []
+  - sha: 88690ff9d010d10b4e35fdff19788674fb37e161
+    short_sha: 88690ff9d
+    authored_at: '2026-08-13T22:12:01+00:00'
+    subject: Fix teams CLI proof chat isolation
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: b3721897ab3b1cbeadce3b3e589e051235145aed
+    short_sha: b3721897a
+    authored_at: '2026-08-13T18:28:01+00:00'
+    subject: 'feat: add encrypted CLI object slugs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/team_workspace_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/core/directus/setup/migrate_encrypted_slug_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/encrypted_slug_metadata.py
+    - backend/tests/test_cli_object_slugs.py
+    - backend/tests/test_teams_move_authorization.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/cli/contract.yml
+    - contracts/surfaces/cli/examples.yml
+    - docs/specs/cli-encrypted-slugs/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/objectSlugs.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - packages/openmates-python/tests/test_workflows.py
+    related_feature_ids:
+    - platform:plans
+    - platform:projects
+    - platform:tasks
+    - platform:teams
+    - platform:workflows
+  - sha: b4efee99ee982d75aa27ac16f6c548a348daefab
+    short_sha: b4efee99e
+    authored_at: '2026-08-13T18:21:29+00:00'
+    subject: 'fix: reject failed cli proof captures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 119c717e798a38bc16b6233eea5293fa91854ba5
+    short_sha: 119c717e7
+    authored_at: '2026-08-13T18:14:50+00:00'
+    subject: 'fix: clear chat hash on new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    related_feature_ids: []
+  - sha: 6237dd43267e563d39c35c496af876bb196a9799
+    short_sha: 6237dd432
+    authored_at: '2026-08-13T18:11:59+00:00'
+    subject: 'fix: keep cli proof evidence visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 139dfe55badff4aa6a73c5ab5265218bf3a2d665
+    short_sha: 139dfe55b
+    authored_at: '2026-08-13T18:01:35+00:00'
+    subject: 'fix: show approved teams proof commands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: fce52404befa945104d78ead1344dd9353c31da5
+    short_sha: fce52404b
+    authored_at: '2026-08-13T17:52:43+00:00'
+    subject: 'fix: clamp proof video review intervals'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 8c587df63d1b320799830251f7606aa06b9508eb
+    short_sha: 8c587df63
+    authored_at: '2026-08-13T17:37:10+00:00'
+    subject: 'fix: capture exact proof recording profiles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 4418a59a37f91657e43e2c9f08c77a803b0108d8
+    short_sha: 4418a59a3
+    authored_at: '2026-08-13T17:31:20+00:00'
+    subject: 'fix: bound cli proof video timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 20a52bb5bc3589ee390d55a814bab4305a1ea350
+    short_sha: 20a52bb5b
+    authored_at: '2026-08-13T17:15:06+00:00'
+    subject: 'fix: disambiguate multi-video proof sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 623d48df5ccef096ef3888975a10cce485104898
+    short_sha: 623d48df5
+    authored_at: '2026-08-13T16:41:09+00:00'
+    subject: 'fix: improve landing intro stories'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingMatesFocusDemo.svelte
+    - frontend/packages/ui/src/components/landing/LandingPeopleExperienceDemo.svelte
+    - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    related_feature_ids: []
+  - sha: 8893425b40835f941d7daaa5769b86c0eae8c622
+    short_sha: 8893425b4
+    authored_at: '2026-08-13T16:02:16+00:00'
+    subject: 'fix: attest multi-video proof recordings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 860f432aa5e373a847da6c6e7f87baa526551fbe
+    short_sha: 860f432aa
+    authored_at: '2026-08-13T15:49:25+00:00'
+    subject: 'feat: add teams cli context proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: caa991b865338892379e5936fcc6b73bdb7a258a
+    short_sha: caa991b86
+    authored_at: '2026-08-13T15:32:19+00:00'
+    subject: 'fix: harden proof recording provenance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 62b160fad9a8acffeb890a3f79959ec5d82f20a0
+    short_sha: 62b160fad
+    authored_at: '2026-08-13T15:32:00+00:00'
+    subject: Skip OpenCode notifications while running
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 4c77f2619d79182b50dc02227b42fd6479434dd8
+    short_sha: 4c77f2619
+    authored_at: '2026-08-13T15:16:23+00:00'
+    subject: 'fix: match recording workflow run ids'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 4343f10d6e3d9fa076c2d9dbdb940f2e41f7c12c
+    short_sha: 4343f10d6
+    authored_at: '2026-08-13T15:03:30+00:00'
+    subject: 'fix: attest downloaded test recordings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: b8c1e85f06721e4075a271c30999243b962be372
+    short_sha: b8c1e85f0
+    authored_at: '2026-08-13T14:46:39+00:00'
+    subject: 'fix: contain tasks workspace shell'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 3305af450f24dc6af601280a4b76690b443e5354
+    short_sha: 3305af450
+    authored_at: '2026-08-13T14:43:11+00:00'
+    subject: 'fix: record full deploy-gated test commits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 1fbf03e146b1039f5416ca42bb1b09055d6ccfe7
+    short_sha: 1fbf03e14
+    authored_at: '2026-08-13T14:31:47+00:00'
+    subject: 'fix: align notification progress state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    related_feature_ids: []
+  - sha: 8c8b08af3f13c9460dbae6aececf92064b54bcb9
+    short_sha: 8c8b08af3
+    authored_at: '2026-08-13T14:27:57+00:00'
+    subject: 'test: stabilize workspace shell scroll assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    related_feature_ids: []
+  - sha: 1170772ac731da00c0a81da04f4676e2608dcbb0
+    short_sha: 1170772ac
+    authored_at: '2026-08-13T14:18:38+00:00'
+    subject: Delay OpenCode response notifications
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 69716445cad93deae8724bc795c0e31028f39d54
+    short_sha: 69716445c
+    authored_at: '2026-08-13T14:14:47+00:00'
+    subject: 'fix: size audio recording overlay from container style'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7b94193f464038fdc8b5518f24554ccfdd884b8b
+    short_sha: 7b94193f4
+    authored_at: '2026-08-13T14:10:42+00:00'
+    subject: 'feat: align workspace shell parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/workspace-shell/contract.yml
+    - contracts/features/workspace-shell/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    related_feature_ids:
+    - platform:tasks
+  - sha: c96f1a0da46a850a7b57b1b6d15d487486cf8d8f
+    short_sha: c96f1a0da
+    authored_at: '2026-08-13T14:08:11+00:00'
+    subject: Make OpenCode notifications deterministic
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 6d3276c4b23d86ca97f89c5fae6e04b27883eaed
+    short_sha: 6d3276c4b
+    authored_at: '2026-08-13T14:07:03+00:00'
+    subject: 'test: stabilize notification contract fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 04b9d80d3ff2dd5d8f1dc4108419842d4af3fbfd
+    short_sha: 04b9d80d3
+    authored_at: '2026-08-13T13:51:03+00:00'
+    subject: 'fix: reserve recording overlay height immediately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: a360b6629f88d8e3d5f25a31363e51fcb81780fc
+    short_sha: a360b6629
+    authored_at: '2026-08-13T13:47:52+00:00'
+    subject: 'fix: constrain mobile notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 8123a895106e113b2904c771e2f29345789ea322
+    short_sha: 8123a8951
+    authored_at: '2026-08-13T13:39:07+00:00'
+    subject: 'docs: add scan-first opencode final guidance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    related_feature_ids: []
+  - sha: d69b78b5b1409cba9ee4bf00e6038bb4ee3c40ee
+    short_sha: d69b78b5b
+    authored_at: '2026-08-13T13:37:21+00:00'
+    subject: 'test: guard proof-video deploy lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: f619587968dc1766fb825bd108bcf3d69326490b
+    short_sha: f61958796
+    authored_at: '2026-08-13T13:34:21+00:00'
+    subject: 'fix: let recording overlay escape compact composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 4d5c8ffd1f9ce774575c7ab79a40a4f8c4710a88
+    short_sha: 4d5c8ffd1
+    authored_at: '2026-08-13T13:23:43+00:00'
+    subject: 'test: capture forced logout notification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: f5fea26ee62f6ec65ea946248d7d801e5b113173
+    short_sha: f5fea26ee
+    authored_at: '2026-08-13T13:18:55+00:00'
+    subject: Limit OpenCode notifications to chat completion
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: d2215a7b35c1af6775a488571f91fdfd7dfaa526
+    short_sha: d2215a7b3
+    authored_at: '2026-08-13T13:12:53+00:00'
+    subject: 'fix: keep proof-video workflow actionable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: ff239b64bca8c0f17a34f639dcce2e6c4a57ca72
+    short_sha: ff239b64b
+    authored_at: '2026-08-13T13:10:44+00:00'
+    subject: 'fix: include already-encrypted embed update type'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 164680a63cbc0d2e76da0120a5f813499fc2d7d4
+    short_sha: 164680a63
+    authored_at: '2026-08-13T12:56:21+00:00'
+    subject: 'fix: include encrypted embed update type'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 433c21d6910c52928f264c6e6b3be3c0c31bc1a5
+    short_sha: 433c21d69
+    authored_at: '2026-08-13T12:54:07+00:00'
+    subject: 'fix: show full-width mobile carousel controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids: []
+  - sha: 585bb582c49f9f9bbe0dea095c28d22e89fcfc2a
+    short_sha: 585bb582c
+    authored_at: '2026-08-13T12:50:39+00:00'
+    subject: 'test: cover mobile notification dismissal'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: b220bfd51a90d4e2f70a424b44ace81dd2e8ba88
+    short_sha: b220bfd51
+    authored_at: '2026-08-13T12:38:41+00:00'
+    subject: 'fix: stabilize remaining audio test failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 978d4a2620089012d5103611266f073d8a85f6e0
+    short_sha: 978d4a262
+    authored_at: '2026-08-13T12:33:42+00:00'
+    subject: Simplify OpenCode Discord notification text
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: ddaee63d97bd1761bc01c4381121ee00b384ab89
+    short_sha: ddaee63d9
+    authored_at: '2026-08-13T12:30:26+00:00'
+    subject: 'test: cover mobile image carousel layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    related_feature_ids: []
+  - sha: 7adbdd65c65660f41203bc55631637bbc9027827
+    short_sha: 7adbdd65c
+    authored_at: '2026-08-13T12:21:38+00:00'
+    subject: Fix OpenCode event notification hooks
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_recovery.py
+    related_feature_ids: []
+  - sha: 019176de0f5437c5538efb6f764a4cae05bd8a3a
+    short_sha: 019176de0
+    authored_at: '2026-08-13T11:52:14+00:00'
+    subject: 'test: stabilize proof message entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    related_feature_ids: []
+  - sha: 215a363ceddab189626d1f5eada20935a41d8d1b
+    short_sha: 215a363ce
+    authored_at: '2026-08-13T11:39:13+00:00'
+    subject: 'test: hide proof fixture marker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 1051649003318706d4a7bc5aa0371c6d541624d2
+    short_sha: '105164900'
+    authored_at: '2026-08-13T11:31:01+00:00'
+    subject: 'fix: preserve image child carousel identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    - frontend/packages/ui/src/services/__tests__/embedStoreImageRef.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/extract-shared-chat.mjs
+    - scripts/tests/extract_shared_chat.test.mjs
+    related_feature_ids: []
+  - sha: cf274f292f7d4bf27f3af905497949c4b157cdb0
+    short_sha: cf274f292
+    authored_at: '2026-08-13T11:10:05+00:00'
+    subject: 'fix: refresh finalized deferred audio messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/handlers/deferredSendMessageEvents.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/deferredSendMessageEvents.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 18dac8ea4d74ecf6bd837c763f5a9a64bed768b6
+    short_sha: 18dac8ea4
+    authored_at: '2026-08-13T11:08:18+00:00'
+    subject: Replace OpenCode progress notifications with event events
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 317be608b42d7de87204c6305fa3c2812b5b25e2
+    short_sha: 317be608b
+    authored_at: '2026-08-13T11:06:35+00:00'
+    subject: 'test: cover shared image carousel reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    related_feature_ids: []
+  - sha: ff938ab6c43c5bd1acc9036b381ffebe98f2b8b5
+    short_sha: ff938ab6c
+    authored_at: '2026-08-13T11:01:01+00:00'
+    subject: Sync proof-video OpenCode mirrors
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    related_feature_ids: []
+  - sha: 893a51b4c72db38e9e65c8729b368abd79b39d08
+    short_sha: 893a51b4c
+    authored_at: '2026-08-13T10:54:13+00:00'
+    subject: Focus proof-video workflow
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: aeee70708f2b91d67df107c82fd1fd3f5375ce92
+    short_sha: aeee70708
+    authored_at: '2026-08-13T10:53:01+00:00'
+    subject: 'test: stabilize default model proof settings open'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    related_feature_ids: []
+  - sha: 097c9093c98b9d4f84ee35b4c6ad8aa7ac073712
+    short_sha: 097c9093c
+    authored_at: '2026-08-13T10:41:27+00:00'
+    subject: 'fix: preserve PDF draft uploads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 914c773f5dfc6278907656c20fb308365c1dae8c
+    short_sha: 914c773f5
+    authored_at: '2026-08-13T10:32:52+00:00'
+    subject: 'test: unblock default model phone proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    related_feature_ids: []
+  - sha: 80d88c0fc5d0055f0eb4e891f75cf8d85c3e9756
+    short_sha: 80d88c0fc
+    authored_at: '2026-08-13T10:30:28+00:00'
+    subject: 'fix: load proof cleanup environment safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/cleanup-proof-videos.sh
+    related_feature_ids: []
+  - sha: 741b36dc7a73c411c016f7a0990aa100f0db2df6
+    short_sha: 741b36dc7
+    authored_at: '2026-08-13T10:29:47+00:00'
+    subject: 'fix: schedule safe proof video cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/cleanup-proof-videos.sh
+    - scripts/tests/test_disk_cleanup_safety.py
+    related_feature_ids: []
+  - sha: df64d9937d002ba97b2b4d068499f3ad80152086
+    short_sha: df64d9937
+    authored_at: '2026-08-13T10:19:05+00:00'
+    subject: 'fix: bound disk cleanup and recording retention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/docker-cleanup.sh
+    - scripts/run_tests.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on core infrastructure and UI refinements today, particularly regarding CLI security, mobile
+    notification behavior, and media handling. Significant internal progress was made on automated proof-video workflows and
+    OpenCode notification systems, though most user-facing changes remain in development.
+  released_changes: []
+  bug_fixes:
+  - text: The application now clears the chat hash when starting a new chat to ensure a clean state.
+    evidence:
+      commits:
+      - 119c717e7
+    release_status: dev_only
+  - text: Notification progress states have been aligned for better visual consistency.
+    evidence:
+      commits:
+      - 1fbf03e14
+    release_status: dev_only
+  - text: Mobile image carousels received layout improvements, including full-width controls and better identity preservation
+      for child images.
+    evidence:
+      commits:
+      - 433c21d69
+      - '105164900'
+    release_status: dev_only
+  - text: Audio recording overlays were refined to better handle container sizing, height reservation, and compact composer
+      layouts.
+    evidence:
+      commits:
+      - 69716445c
+      - 04b9d80d3
+      - f61958796
+      - cf274f292
+    release_status: dev_only
+  - text: A fix was implemented to ensure PDF draft uploads are preserved during the message entry process.
+    evidence:
+      commits:
+      - 097c9093c
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added encrypted object slugs to the CLI and SDK, enhancing security for plans, projects, tasks, and workflows.
+    evidence:
+      commits:
+      - b3721897a
+    release_status: dev_only
+  - text: The workspace shell was updated to align parity across different views, specifically refining the container for
+      tasks.
+    evidence:
+      commits:
+      - 7b94193f4
+      - b8c1e85f0
+    release_status: dev_only
+  - text: Mobile notifications are being constrained to prevent UI overlap within workflow and task views.
+    evidence:
+      commits:
+      - a360b6629
+    release_status: dev_only
+  internal_progress:
+  - text: The proof-video workflow was focused and hardened, including new automated cleanup scripts for disk management and
+      recording retention.
+    evidence:
+      commits:
+      - 893a51b4c
+      - ff938ab6c
+      - d2215a7b3
+      - 80d88c0fc
+      - 741b36dc7
+      - df64d9937
+    release_status: dev_only
+  - text: OpenCode progress notifications were transitioned to a more deterministic event-based system with Discord integration
+      refinements.
+    evidence:
+      commits:
+      - 18dac8ea4
+      - 62b160fad
+      - 1170772ac
+      - c96f1a0da
+      - f5fea26ee
+      - 978d4a262
+      - 7adbdd65c
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Encrypted CLI object slugs and SDK reference updates.
+      evidence:
+        commits:
+        - b3721897a
+      reason: Relates to disabled features (plans, projects, tasks, teams, workflows) and is not yet released to main.
+    - text: Workspace shell parity and task container refinements.
+      evidence:
+        commits:
+        - 7b94193f4
+        - b8c1e85f0
+      reason: Relates to the disabled tasks platform and is not yet released to main.
+    - text: Audio recording overlay UI improvements.
+      evidence:
+        commits:
+        - 69716445c
+        - 04b9d80d3
+        - f61958796
+      reason: Feature is currently in dev_only status.
+    rationale: No items from this period have been released to the main branch or marked as ready for public communication.
+      Major work on CLI infrastructure and Workspace shells remains gated behind disabled features.
+  social_video_recommendations:
+  - idea: Demonstrate the refined audio recording overlay and how it seamlessly escapes the compact message composer on mobile.
+    priority: medium
+    reason: This provides a clear visual improvement to the mobile messaging experience.
+    evidence:
+      commits:
+      - 69716445c
+      - 04b9d80d3
+      - f61958796
+  quality_notes:
+  - Extensive stabilization of audio and notification test suites was performed to reduce CI flakiness.
+  - Provenance hardening for automated test recordings ensures higher reliability of visual evidence.
+  validation_warnings: []

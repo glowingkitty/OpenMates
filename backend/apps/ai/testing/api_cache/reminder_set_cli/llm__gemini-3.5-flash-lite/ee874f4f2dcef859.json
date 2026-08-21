@@ -1,0 +1,58 @@
+{
+  "fingerprint": "ee874f4f2dcef859",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "reminder_set_cli",
+  "recorded_at": "2026-08-15T12:14:20.266115+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "6919f3a00e1e5a04",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Remind me to check my email tomorrow at 9am"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "reminder-set-reminder-a05cfb20",
+          "function_name": "reminder-set-reminder",
+          "function_arguments_raw": "{\"prompt\": \"Check my email\", \"trigger_type\": \"specific\", \"timezone\": \"UTC\", \"response_type\": \"simple\", \"trigger_datetime\": \"2026-08-16T09:00:00\", \"target_type\": \"existing_chat\"}",
+          "function_arguments_parsed": {
+            "prompt": "Check my email",
+            "trigger_type": "specific",
+            "timezone": "UTC",
+            "response_type": "simple",
+            "trigger_datetime": "2026-08-16T09:00:00",
+            "target_type": "existing_chat"
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPj3y/aQ5UKzCugVSrBRZmsn4tmrXAAMiWpN7l467YO7be0NZC1o973pNgqUGNYsQs403XoruBTDFaloWumbgbVS725MglaW1Xb2MRTFxVrRTkpzP4Go9q"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15380,
+          "candidates_token_count": 78,
+          "total_token_count": 15458,
+          "user_input_tokens": 14,
+          "system_prompt_tokens": 14339
+        }
+      }
+    ]
+  }
+}

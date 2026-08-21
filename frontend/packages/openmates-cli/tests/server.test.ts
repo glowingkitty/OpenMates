@@ -11,7 +11,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -90,6 +89,15 @@ import {
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
 
+const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
+const TEST_STATE_DIR = join(tmpdir(), `openmates-cli-state-${process.pid}-${Date.now()}`);
+process.env.OPENMATES_STATE_DIR = TEST_STATE_DIR;
+after(() => {
+  rmSync(TEST_STATE_DIR, { recursive: true, force: true });
+  if (ORIGINAL_STATE_DIR === undefined) delete process.env.OPENMATES_STATE_DIR;
+  else process.env.OPENMATES_STATE_DIR = ORIGINAL_STATE_DIR;
+});
+
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
 // from the built dist/. For unit tests of pure functions, we test the logic
@@ -144,7 +152,9 @@ function readEnvMapForComposeTest(installPath: string): Record<string, string> {
 
 function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
   const resolvedInstallMode = installMode ?? (
-    existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
+    existsSync(join(installPath, "backend", "core", "docker-compose.yml"))
+      ? "source"
+      : existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
   );
   const env = readEnvMapForComposeTest(installPath);
   const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true" ? "official_cloud" : "self_host";
@@ -296,7 +306,7 @@ function docAssert(claimId: string, assertion: () => void): void {
 // ---------------------------------------------------------------------------
 
 describe("ServerConfig", () => {
-  const STATE_DIR = join(homedir(), ".openmates");
+  const STATE_DIR = TEST_STATE_DIR;
   const CONFIG_PATH = join(STATE_DIR, "server.json");
   let backupExists = false;
   let backupContent: string | null = null;
@@ -324,6 +334,8 @@ describe("ServerConfig", () => {
         installPath: "/tmp/test-openmates",
         installedAt: Date.now(),
         composeProfile: "core",
+        installMode: "source",
+        sourceStrategy: "working_tree",
         apiUrl: "http://localhost:8000",
         appUrl: "http://localhost:5173",
       };
@@ -332,6 +344,8 @@ describe("ServerConfig", () => {
       assert.ok(loaded);
       assert.equal(loaded.installPath, config.installPath);
       assert.equal(loaded.composeProfile, "core");
+      assert.equal(loaded.installMode, "source");
+      assert.equal(loaded.sourceStrategy, "working_tree");
       assert.equal(loaded.apiUrl, "http://localhost:8000");
       assert.equal(loaded.appUrl, "http://localhost:5173");
     });
@@ -762,8 +776,12 @@ describe("role-based server planning", () => {
   it("resolves core observability profiles and alert opt-in", () => {
     assert.deepEqual(planServerRuntime({ role: "core", profile: "minimal" }).profileServices, []);
     assert.deepEqual(planServerRuntime({ role: "core", profile: "standard" }).profileServices, ["openobserve", "promtail"]);
-    assert.deepEqual(planServerRuntime({ role: "core", profile: "production" }).profileServices, ["openobserve", "promtail", "prometheus", "cadvisor"]);
+    assert.deepEqual(planServerRuntime({ role: "core", profile: "production" }).profileServices, ["openobserve", "promtail", "prometheus", "cadvisor", "node-exporter"]);
     assert.ok(planServerRuntime({ role: "core", profile: "production", withAlerts: true }).profileServices.includes("alertmanager"));
+    assert.ok(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("node-exporter"));
+    assert.ok(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("workflow-worker"));
+    assert.equal(planServerRuntime({ role: "core", profile: "production", includeWebapp: false }).defaultServices.includes("webapp"), false);
+    assert.equal(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("webapp"), true);
   });
 
   it("validates role-specific service selections before Docker is called", () => {

@@ -149,7 +149,7 @@ OPENCODE_COORDINATION_TERMS = {
     'runBridge("PreToolUse"',
     "edit-lease",
     'OPENMATES_ROOT_GUARD || "strict"',
-    "Docker Compose mutations require",
+    "Direct Docker Compose lifecycle mutations bypass",
 }
 OPENCODE_WARNING_TERMS = {"additionalContext", "WARNING: File", "exit 0"}
 FORBIDDEN_COORDINATION_TERMS = {
@@ -206,10 +206,8 @@ def audit_skills(root: Path = REPO_ROOT) -> list[str]:
             failures.append(f"missing canonical skill: {rel_path}")
             continue
         text = path.read_text(encoding="utf-8")
-        normalized_paragraphs = [" ".join(paragraph.split()) for paragraph in re.split(r"\n\s*\n", text)]
         for term in sorted(terms):
-            normalized_term = " ".join(term.split())
-            if not any(normalized_term in paragraph for paragraph in normalized_paragraphs):
+            if term not in text:
                 failures.append(f"{rel_path} missing required term: {term}")
     return failures
 

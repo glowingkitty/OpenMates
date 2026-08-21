@@ -54,7 +54,7 @@ const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
-const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
+const DOCKER_LIFECYCLE_MARKER = "[OpenMates server lifecycle guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
 const COMPOSE_OPTIONS_WITH_VALUES = new Set(["-f", "--file", "--env-file", "-p", "--project-name", "--profile", "--project-directory"]);
 const CLI_AUTH_ERROR_PATTERNS = [
@@ -1399,24 +1399,14 @@ function dockerComposeMutation(command) {
   return false;
 }
 
-function sessionHasDockerLock(sessionID, data = sessionsData()) {
-  const record = activeSessionRecord(sessionID, data);
-  const shortID = record?.id || sessionID || "";
-  const lock = data?.locks?.docker_rebuild || {};
-  return lock.status === "IN_PROGRESS" && lock.claimed_by === shortID;
-}
-
-function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
+function dockerMutationDecisionForTest({ command = "" } = {}) {
   if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
-  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
-  const record = activeSessionRecord(sessionID, data || sessionsData());
-  const shortID = record?.id || "<id>";
   return {
     decision: "block",
     message: actionable(
-      DOCKER_LOCK_MARKER,
-      "Docker Compose mutations require the current sessions.py Docker lock.",
-      `run python3 scripts/sessions.py lock --session ${shortID} --type docker, retry once, then release immediately with python3 scripts/sessions.py unlock --session ${shortID} --type docker.`,
+      DOCKER_LIFECYCLE_MARKER,
+      "Direct Docker Compose lifecycle mutations bypass the registered OpenMates source and service policy.",
+      "use openmates server start, stop, restart, or update; use openmates server restart --rebuild [--services <service>] for rebuilds.",
     ),
   };
 }

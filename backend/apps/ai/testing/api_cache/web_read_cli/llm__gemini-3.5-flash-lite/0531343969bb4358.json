@@ -1,0 +1,62 @@
+{
+  "fingerprint": "0531343969bb4358",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_cli",
+  "recorded_at": "2026-08-15T12:10:22.197927+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "0e4e0191daab395b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "url: \"https://example.com\"\ntitle: Example Domain\nmarkdown: \"# Example Domain\\n\\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\\n\\n[Learn more](ht..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "The webpage at `https://example.com` (titled [Example Domain](embed:1)) serves as a placeholder domain intended for use in illustrative examples and documentation. \n\nAccording to the page:\n> [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:1)\n\nYou can find more information via their [IANA link](https://iana.org/domains/example).\n\n***\n\n**Would you like to explore anything else?**\n* Search for another URL or topic\n* Learn more about how domain names and IANA work",
+    "chunk_count": 7,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "The webpage"
+      },
+      {
+        "kind": "text",
+        "value": " at `https://example.com` (titled [Example Domain](embed:"
+      },
+      {
+        "kind": "text",
+        "value": "1)) serves as a placeholder domain intended for use in illustrative examples and documentation. \n\nAccording to the page:\n>"
+      },
+      {
+        "kind": "text",
+        "value": " [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:1)\n\nYou can find more information via"
+      },
+      {
+        "kind": "text",
+        "value": " their [IANA link](https://iana.org/domains/example).\n\n***\n\n**Would you like to explore anything"
+      },
+      {
+        "kind": "text",
+        "value": " else?**\n* Search for another URL or topic\n* Learn more about how domain names and IANA work"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14607,
+          "candidates_token_count": 121,
+          "total_token_count": 14728,
+          "user_input_tokens": 201,
+          "system_prompt_tokens": 13423
+        }
+      }
+    ]
+  }
+}

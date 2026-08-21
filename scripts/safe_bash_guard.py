@@ -16,20 +16,19 @@ from pathlib import Path
 
 SEPARATORS = {";", "&", "&&", "||", "|"}
 INSTALL_SUBCOMMANDS = {"add", "install", "i"}
-PACKAGE_MUTATION_SUBCOMMANDS = {
-    "add",
-    "install",
-    "i",
-    "remove",
-    "rm",
-    "uninstall",
-    "update",
-    "upgrade",
-}
-PINNED_OPENCODE_VERSION = "1.17.20"
 GIT_OPTIONS_WITH_VALUES = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 ENV_OPTIONS_WITH_VALUES = {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}
 TIMEOUT_OPTIONS_WITH_VALUES = {"-k", "--kill-after", "-s", "--signal"}
+DOCKER_COMPOSE_MUTATIONS = {"build", "down", "kill", "restart", "rm", "start", "stop", "up"}
+COMPOSE_OPTIONS_WITH_VALUES = {
+    "-f",
+    "--file",
+    "--env-file",
+    "-p",
+    "--project-name",
+    "--profile",
+    "--project-directory",
+}
 
 
 def block(reason: str) -> int:
@@ -135,42 +134,14 @@ def skip_option(args: list[str], index: int, options_with_values: set[str]) -> i
     return index + 1
 
 
-def is_opencode_package(arg: str) -> bool:
-    return arg == "opencode-ai" or arg.startswith("opencode-ai@")
-
-
-def package_manager_mutates_opencode(command: str, args: list[str]) -> bool:
-    if command not in {"npm", "pnpm", "bun", "yarn"}:
-        return False
-
-    positional = [arg for arg in args if arg == "-" or not arg.startswith("-")]
-    if not positional:
-        return False
-
-    if command == "yarn" and positional[:2] in (["global", "add"], ["global", "remove"]):
-        return any(is_opencode_package(arg) for arg in positional[2:])
-
-    subcommand = positional[0]
-    if subcommand not in PACKAGE_MUTATION_SUBCOMMANDS:
-        return False
-    if any(is_opencode_package(arg) for arg in positional[1:]):
-        return True
-
-    # A package-less global update upgrades every installed global package,
-    # including OpenCode.
-    return subcommand in {"update", "upgrade"} and len(positional) == 1 and any(
-        arg in {"-g", "--global"} for arg in args
-    )
-
-
 def check_invocation(command: str, args: list[str]) -> str | None:
-    if package_manager_mutates_opencode(command, args) or (
-        command == "opencode" and next_non_option(args) in {"update", "upgrade"}
-    ):
+    compose_action = docker_compose_action(command, args)
+    if compose_action in DOCKER_COMPOSE_MUTATIONS:
         return (
-            "BLOCKED: OpenCode is pinned to "
-            f"{PINNED_OPENCODE_VERSION}. Agents may not install, uninstall, or upgrade OpenCode. "
-            "The user must update it manually from their terminal when explicitly desired."
+            "BLOCKED: Direct Docker Compose lifecycle mutations bypass the registered "
+            "OpenMates source and service policy. Use openmates server start, stop, "
+            "restart, or update instead; for rebuilds use "
+            "openmates server restart --rebuild [--services <service>]."
         )
 
     if command == "pnpm":
@@ -203,6 +174,34 @@ def check_invocation(command: str, args: list[str]) -> str | None:
     if subcommand == "add" and any(arg in {"-A", "--all", "."} for arg in subcommand_args):
         return "BLOCKED: git add -A / git add . stages everything. Add specific files by name instead."
     return None
+
+
+def docker_compose_action(command: str, args: list[str]) -> str:
+    if command == "docker-compose":
+        return compose_action_from_args(args, 0)
+    if command != "docker":
+        return ""
+    try:
+        compose_index = next(
+            index for index, arg in enumerate(args) if basename(arg) == "compose"
+        )
+    except StopIteration:
+        return ""
+    return compose_action_from_args(args, compose_index + 1)
+
+
+def compose_action_from_args(args: list[str], start_index: int) -> str:
+    index = start_index
+    while index < len(args):
+        arg = args[index]
+        if arg == "--":
+            index += 1
+            continue
+        if arg.startswith("-"):
+            index = skip_option(args, index, COMPOSE_OPTIONS_WITH_VALUES)
+            continue
+        return basename(arg)
+    return ""
 
 
 def git_subcommand(args: list[str]) -> tuple[str, list[str]]:

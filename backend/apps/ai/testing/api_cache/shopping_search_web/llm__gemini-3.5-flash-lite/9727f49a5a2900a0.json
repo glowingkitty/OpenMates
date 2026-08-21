@@ -1,0 +1,59 @@
+{
+  "fingerprint": "9727f49a5a2900a0",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T10:52:41.551824+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "467ab26add498630",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find bio joghurt on REWE"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "shopping-search_products-44191cba",
+          "function_name": "shopping-search-products",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"bio joghurt\", \"category\": \"grocery\", \"provider\": \"REWE\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "bio joghurt",
+                "category": "grocery",
+                "provider": "REWE"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPWLJntc7eZ5cuQahflEgMGAjI+suLk7/8JnMo6VmozMHjuDT6rB7srPlQeVPl/35UQnpZH3RM+q2/ss4hPbLzot2Kj22YiHFKdPpW/A6chFBj+qrfUzK+"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 13983,
+          "candidates_token_count": 36,
+          "total_token_count": 14019,
+          "user_input_tokens": 9,
+          "system_prompt_tokens": 13046
+        }
+      }
+    ]
+  }
+}

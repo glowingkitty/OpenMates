@@ -1,0 +1,102 @@
+{
+  "fingerprint": "ab7da3a7d9cf577f",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "code_search_repos_web",
+  "recorded_at": "2026-08-14T10:58:08.206383+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 5,
+    "temperature": 0.3,
+    "tool_choice": "auto",
+    "last_message_hash": "5222e966ca2af89b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[6]{url,html_url,full_name,owner_login,name,description,visibility,private,fork,archived,disabled,is_template,default_branch,primary_language,languages,topics,license_name,license_spdx_id,stars..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are some notable GitHub repositories for Svelte markdown editor libraries and applications found via code search:\n\n- [pd4d10/hashmd](embed:hashmd-0eF): A hackable Markdown editor and viewer built with TypeScript and Svelte.\n- [BearToCode/carta](embed:carta-EvL): A lightweight, fast, and extensible Svelte Markdown editor and viewer supporting Katex, math, and slash commands.\n- [rossrobino/typo](embed:typo-Q6E): A web-based Markdown editor built with [Svelte](wiki:Svelte) and SvelteKit.\n- [lockedmutex/rhyolite](embed:rhyolite-CNe): A simple markdown editor and knowledge base built with Rust, Tauri, and Svelte.\n- [ajkdrag/otterly](embed:otterly-dRR): A local-first, privacy-focused WYSIWYG Markdown vault with full-text search and wiki-links, built using [Tauri](wiki:Tauri_(software)), Svelte, and Rust.\n- [vaibhav-kakde-in/mdhero](embed:mdhero-e7E): A native Markdown viewer and lightweight editor for desktop systems using Tauri and Svelte.\n\n```embeds_results_view\ntitle: Svelte Markdown Editors\nembeds: hashmd-0eF, carta-EvL, typo-Q6E, rhyolite-CNe, otterly-dRR, mdhero-e7E\n```\n\nWould you like to explore how to integrate one of these editors into a Svelte project, or are you looking for a specific feature like real-time preview or syntax highlighting?",
+    "chunk_count": 17,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " some notable GitHub repositories for Svelte markdown editor libraries and applications found via code search:\n\n"
+      },
+      {
+        "kind": "text",
+        "value": "- [pd4d10/hashmd](embed:hashmd-0eF): A hackable Markdown editor and"
+      },
+      {
+        "kind": "text",
+        "value": " viewer built with TypeScript and Svelte.\n- [BearToCode/carta](embed:carta-EvL):"
+      },
+      {
+        "kind": "text",
+        "value": " A lightweight, fast, and extensible Svelte Markdown editor and viewer supporting Katex, math, and slash commands.\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [rossrobino/typo](embed:typo-Q6E): A web-based Markdown editor built"
+      },
+      {
+        "kind": "text",
+        "value": " with [Svelte](wiki:Svelte) and SvelteKit.\n- [lockedmutex/rhyolite](embed:r"
+      },
+      {
+        "kind": "text",
+        "value": "hyolite-CNe): A simple markdown editor and knowledge base built with Rust, Tauri, and Svelte.\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [ajkdrag/otterly](embed:otterly-dRR): A local-first, privacy-focused"
+      },
+      {
+        "kind": "text",
+        "value": " WYSIWYG Markdown vault with full-text search and wiki-links, built using [Tauri](wiki:Tauri_(software"
+      },
+      {
+        "kind": "text",
+        "value": ")), Svelte, and Rust.\n- [vaibhav-kakde-in/mdhero](embed:mdhero-"
+      },
+      {
+        "kind": "text",
+        "value": "e7E): A native Markdown viewer and lightweight editor for desktop systems using Tauri and Svelte.\n\n```embeds_results"
+      },
+      {
+        "kind": "text",
+        "value": "_view\ntitle: Svelte Markdown Editors\nembeds: hashmd-0eF, carta-EvL, typo-"
+      },
+      {
+        "kind": "text",
+        "value": "Q6E, rhyolite-CNe, otterly-dRR, mdhero-e7E\n"
+      },
+      {
+        "kind": "text",
+        "value": "```\n\nWould you like to explore how to integrate one of these editors into a Svelte project, or are you looking for a specific feature"
+      },
+      {
+        "kind": "text",
+        "value": " like real-time preview or syntax highlighting?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15479,
+          "candidates_token_count": 365,
+          "total_token_count": 15844,
+          "user_input_tokens": 1133,
+          "system_prompt_tokens": 13154
+        }
+      }
+    ]
+  }
+}

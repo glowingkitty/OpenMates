@@ -1,0 +1,58 @@
+{
+  "fingerprint": "def9ac1a8d3743d1",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "videos_search_cli",
+  "recorded_at": "2026-08-15T12:14:10.526849+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "e51e6322aea4c008",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,age,viewCount,likeCount,commentCount,tags,channelTitle,publishedAt,duration,embed_ref}:\n  Python Programming Tutorial for Beginners,\"https://www.youtube.com/watch?v=kq..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the videos matching your query:\n\n[!](embed:youtube.com-i3r)\n[!](embed:youtube.com-SmF)\n\n```embeds_results_view\ntitle: Videos for openmates_e2e_video_fixture_python\nembeds: youtube.com-i3r, youtube.com-SmF\n```\n\nWould you like to explore more Python programming tutorials or dive into a specific topic?",
+    "chunk_count": 6,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here"
+      },
+      {
+        "kind": "text",
+        "value": " are the videos matching your query:\n\n[!](embed:youtube.com-i"
+      },
+      {
+        "kind": "text",
+        "value": "3r)\n[!](embed:youtube.com-SmF)\n\n```embeds_results_view\n"
+      },
+      {
+        "kind": "text",
+        "value": "title: Videos for openmates_e2e_video_fixture_python\nembeds: youtube.com-i3r"
+      },
+      {
+        "kind": "text",
+        "value": ", youtube.com-SmF\n```\n\nWould you like to explore more Python programming tutorials or dive into a specific topic?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15088,
+          "candidates_token_count": 95,
+          "total_token_count": 15183,
+          "user_input_tokens": 267,
+          "system_prompt_tokens": 13720
+        }
+      }
+    ]
+  }
+}

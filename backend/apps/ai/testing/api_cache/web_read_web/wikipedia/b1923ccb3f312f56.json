@@ -2,7 +2,7 @@
   "fingerprint": "b1923ccb3f312f56",
   "category": "wikipedia",
   "group_id": "web_read_web",
-  "recorded_at": "2026-08-15T12:10:57.746373+00:00",
+  "recorded_at": "2026-08-15T15:48:20.541004+00:00",
   "request": {
     "method": "GET",
     "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Internet_Assigned_Numbers_Authority&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
@@ -10,8 +10,8 @@
   "response": {
     "status_code": 200,
     "headers": {
-      "date": "Sat, 15 Aug 2026 12:10:57 GMT",
-      "server": "mw-api-ext.eqiad.main-6787dc66b6-vkqkv",
+      "date": "Sat, 15 Aug 2026 15:48:20 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-lmwbw",
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
       "x-frame-options": "DENY",
@@ -29,9 +29,9 @@
       "x-client-ip": "46.62.139.27",
       "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
       "content-length": "382",
-      "x-request-id": "cdf2cd08-6047-4ff1-bb92-391e5f060d92",
+      "x-request-id": "be7d1fc0-756b-46ff-8662-fb5a47a239f2",
       "x-analytics": "",
-      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"3577085517\""
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"2804098113\""
     },
     "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Internet_Assigned_Numbers_Authority\",\"to\":\"Internet Assigned Numbers Authority\"}],\"pages\":[{\"pageid\":84022,\"ns\":0,\"title\":\"Internet Assigned Numbers Authority\",\"pageprops\":{\"wikibase_item\":\"Q242540\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Internet_map_1024_-_transparent%2C_inverted.png/330px-Internet_map_1024_-_transparent%2C_inverted.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":300},\"description\":\"Standards organization overseeing IP addresses\",\"descriptionsource\":\"local\"}]}}"
   }

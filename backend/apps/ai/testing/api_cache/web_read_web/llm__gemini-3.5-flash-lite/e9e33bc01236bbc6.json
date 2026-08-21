@@ -1,0 +1,74 @@
+{
+  "fingerprint": "e9e33bc01236bbc6",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_web",
+  "recorded_at": "2026-08-15T15:48:16.218415+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "0e4e0191daab395b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "url: \"https://example.com\"\ntitle: Example Domain\nmarkdown: \"# Example Domain\\n\\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\\n\\n[Learn more](ht..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "> [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:example.com)\n\nThe [Example Domain](embed:example.com) webpage is a placeholder site managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (the Internet Assigned Numbers Authority). It is specifically designated for use in illustrative examples in documents, manuals, and tutorials so that writers do not need to coordinate domain name availability or ask for permission. \n\nKey details from the page:\n* **Purpose:** Documentation and instructional examples.\n* **Usage Warning:** Users are instructed to avoid using this domain in live operations or production environments.\n* **More Information:** You can learn more directly from the [IANA official example domains page](https://iana.org/domains/example).\n\n***\n\n**Would you like to explore anything else, or do you have another page you would like me to summarize?**",
+    "chunk_count": 10,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": ">"
+      },
+      {
+        "kind": "text",
+        "value": " [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:example.com)\n\nThe [Example Domain](embed:example.com) webpage is a placeholder site"
+      },
+      {
+        "kind": "text",
+        "value": " managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (the Internet Assigned Numbers Authority). It is"
+      },
+      {
+        "kind": "text",
+        "value": " specifically designated for use in illustrative examples in documents, manuals, and tutorials so that writers do not need to coordinate domain name"
+      },
+      {
+        "kind": "text",
+        "value": " availability or ask for permission. \n\nKey details from the page:\n* **Purpose:** Documentation and instructional examples."
+      },
+      {
+        "kind": "text",
+        "value": "\n* **Usage Warning:** Users are instructed to avoid using this domain in live operations or production environments.\n* **More"
+      },
+      {
+        "kind": "text",
+        "value": " Information:** You can learn more directly from the [IANA official example domains page](https://iana.org/domains/example)."
+      },
+      {
+        "kind": "text",
+        "value": "\n\n***\n\n**Would you like to explore anything else, or do you have another page you would like me to summarize"
+      },
+      {
+        "kind": "text",
+        "value": "?**"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14669,
+          "candidates_token_count": 175,
+          "total_token_count": 14844,
+          "user_input_tokens": 256,
+          "system_prompt_tokens": 13415
+        }
+      }
+    ]
+  }
+}

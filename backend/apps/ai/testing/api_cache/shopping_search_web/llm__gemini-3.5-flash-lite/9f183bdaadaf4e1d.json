@@ -1,0 +1,56 @@
+{
+  "fingerprint": "9f183bdaadaf4e1d",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T10:52:50.011680+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 6,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "8c533a59a18dc9dd",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[6]:\n  - title: REWE Bio Joghurt mild 500g bei REWE online bestellen!\n    url: \"https://www.rewe.de/shop/p/rewe-bio-joghurt-mild-500g/1144899\"\n    description: REWE Bio Joghurt mild 500g im Onl..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "images-search-c7ef39c5",
+          "function_name": "images-search",
+          "function_arguments_raw": "{\"requests\": [\"REWE Bio Joghurt mild 500g\", \"REWE Bio Joghurt mild 1.8 150g\"]}",
+          "function_arguments_parsed": {
+            "requests": [
+              "REWE Bio Joghurt mild 500g",
+              "REWE Bio Joghurt mild 1.8 150g"
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPQizbFT7bMYg4dkOqcD8ytpinNuD1rdziv1qm+PjYcAXtMuSWCimb36ZgIRc0kwt9u9I3aNgl663SDCwiI0PpzSZb7H33VcHbGW8HD7otgiq/jUQKSEUl"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15858,
+          "candidates_token_count": 46,
+          "total_token_count": 15904,
+          "user_input_tokens": 1576,
+          "system_prompt_tokens": 13046
+        }
+      }
+    ]
+  }
+}

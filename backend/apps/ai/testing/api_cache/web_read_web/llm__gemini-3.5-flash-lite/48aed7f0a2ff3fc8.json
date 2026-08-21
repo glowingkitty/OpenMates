@@ -1,0 +1,58 @@
+{
+  "fingerprint": "48aed7f0a2ff3fc8",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_web",
+  "recorded_at": "2026-08-15T15:48:11.931216+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "bc44fd68aa46e1b5",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Read this page and summarize it: \n```toon\nurl: \"https://example.com\"\ntitle: Example Domain\ndescription: null\nfavicon: \"data:,\"\nimage: null\nsite_name: example.com\nfetched_at: \"2026-08-15T15:48:..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-read-d1875d8c",
+          "function_name": "web-read",
+          "function_arguments_raw": "{\"requests\": [{\"id\": 1, \"url\": \"https://example.com\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "id": 1,
+                "url": "https://example.com"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPV2rgnVhj72CT8rDCXcBuaUG4raKhV4qPAEMlHsn6rH+npnLwr9kTJMekGnbEFsZYEkzcwGROvbvv0c4ppb3i+o/0rqX3dzjDqjsr2tS3JfpPC9ZVfDYD"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14423,
+          "candidates_token_count": 27,
+          "total_token_count": 14450,
+          "user_input_tokens": 68,
+          "system_prompt_tokens": 13415
+        }
+      }
+    ]
+  }
+}

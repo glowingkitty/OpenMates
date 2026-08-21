@@ -1,0 +1,70 @@
+{
+  "fingerprint": "f9cf63d3a3fdc272",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_web",
+  "recorded_at": "2026-08-15T14:56:10.607590+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "0e4e0191daab395b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "url: \"https://example.com\"\ntitle: Example Domain\nmarkdown: \"# Example Domain\\n\\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\\n\\n[Learn more](ht..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "> [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:example.com-3Nf)\n\nThe webpage at [Example Domain](embed:example.com-3Nf) is a reserved placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) ([Internet Assigned Numbers Authority](https://iana.org/domains/example)). Its primary purpose is to provide a safe, standardized example URL for use in technical documentation, manuals, and tutorials so that authors can reference a working domain without requiring special permission or risking conflicts with live websites.\n\n***\n\nWould you like to explore how reserved domains work in networking standards, or are you looking for help drafting documentation?",
+    "chunk_count": 9,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": ">"
+      },
+      {
+        "kind": "text",
+        "value": " [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed"
+      },
+      {
+        "kind": "text",
+        "value": ":example.com-3Nf)\n\nThe webpage at [Example Domain](embed:example.com-3N"
+      },
+      {
+        "kind": "text",
+        "value": "f) is a reserved placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) ("
+      },
+      {
+        "kind": "text",
+        "value": "[Internet Assigned Numbers Authority](https://iana.org/domains/example)). Its primary purpose is to provide a safe, standardized"
+      },
+      {
+        "kind": "text",
+        "value": " example URL for use in technical documentation, manuals, and tutorials so that authors can reference a working domain without requiring special permission or risking"
+      },
+      {
+        "kind": "text",
+        "value": " conflicts with live websites.\n\n***\n\nWould you like to explore how reserved domains work in networking standards, or are you looking"
+      },
+      {
+        "kind": "text",
+        "value": " for help drafting documentation?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14677,
+          "candidates_token_count": 150,
+          "total_token_count": 14827,
+          "user_input_tokens": 256,
+          "system_prompt_tokens": 13423
+        }
+      }
+    ]
+  }
+}

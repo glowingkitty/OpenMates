@@ -67,7 +67,7 @@ Only do a full teardown + rebuild when:
 - You changed environment variables or Docker configs
 - Something is broken and you need a clean slate
 
-The session restart command intentionally does not expose `down` or volume deletion. Those operations require an explicit operator maintenance window after dependent tests have been stopped; do not run them from an ordinary agent session.
+The server CLI intentionally keeps cache deletion behind the explicit `openmates server restart --rebuild --reset-cache` flag. Direct mutating `docker compose` lifecycle commands are blocked; use `openmates server restart --services ...` for scoped changes or `openmates server restart --rebuild` for the registered runtime.
 
 After restarting, verify the affected services are healthy:
 

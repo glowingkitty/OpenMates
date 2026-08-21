@@ -178,6 +178,7 @@ const CORE_WORKER_SERVICES = [
   "core-worker",
   "user-tasks-worker",
   "reminder-worker",
+  "workflow-worker",
   "task-scheduler",
   "app-ai-worker",
   "app-images-worker",
@@ -201,14 +202,14 @@ const COMPOSE_OVERRIDE = "backend/core/docker-compose.override.yml";
 const CORE_OBSERVABILITY_BY_PROFILE: Record<CoreProfile, string[]> = {
   minimal: [],
   standard: ["openobserve", "promtail"],
-  production: ["openobserve", "promtail", "prometheus", "cadvisor"],
+  production: ["openobserve", "promtail", "prometheus", "cadvisor", "node-exporter"],
 };
 
 const ROLE_DEFINITIONS: Record<ServerRole, RoleDefinition> = {
   core: {
     dataBearing: true,
     requiredServices: ["api", "cms", "cms-database", "cache", "vault", "vault-setup", "cms-setup"],
-    optionalServices: [...CORE_WORKER_SERVICES, "admin-sidecar", "webapp", "openobserve", "promtail", "prometheus", "cadvisor", "alertmanager"],
+    optionalServices: [...CORE_WORKER_SERVICES, "admin-sidecar", "webapp", "openobserve", "promtail", "prometheus", "cadvisor", "node-exporter", "alertmanager"],
     healthChecks: ["http://localhost:8000/health"],
     templatePath: "templates/core/docker-compose.selfhost.yml",
     composeFile: "backend/core/docker-compose.selfhost.yml",
@@ -467,7 +468,7 @@ export function planDockerComposeArgs(input: DockerComposeArgsInput): string[] {
   return appendOpenMatesCloudComposeFiles(args, overlayPlan);
 }
 
-export function planServerRuntime(input: { role?: ServerRole | string; profile?: CoreProfile; withAlerts?: boolean }): RuntimePlan {
+export function planServerRuntime(input: { role?: ServerRole | string; profile?: CoreProfile; withAlerts?: boolean; includeWebapp?: boolean }): RuntimePlan {
   const role = parseServerRole(input.role);
   const definition = ROLE_DEFINITIONS[role];
   const coreProfile: CoreProfile = input.profile ?? "production";
@@ -475,8 +476,9 @@ export function planServerRuntime(input: { role?: ServerRole | string; profile?:
   const profileServices = role === "core" ? [...CORE_OBSERVABILITY_BY_PROFILE[coreProfile]] : [];
   if (role === "core" && input.withAlerts) profileServices.push("alertmanager");
 
+  const webappServices = input.includeWebapp === false ? [] : ["webapp"];
   const defaultServices = role === "core"
-    ? unique([...definition.requiredServices, ...CORE_WORKER_SERVICES, "admin-sidecar", ...profileServices, "webapp"])
+    ? unique([...definition.requiredServices, ...CORE_WORKER_SERVICES, "admin-sidecar", ...profileServices, ...webappServices])
     : unique([...definition.requiredServices, ...definition.optionalServices]);
 
   return {

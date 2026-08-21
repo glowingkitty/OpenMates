@@ -1,0 +1,70 @@
+{
+  "fingerprint": "9e9021b9071ce849",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_cli",
+  "recorded_at": "2026-08-15T15:15:01.130455+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "0e4e0191daab395b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "url: \"https://example.com\"\ntitle: Example Domain\nmarkdown: \"# Example Domain\\n\\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\\n\\n[Learn more](ht..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "> [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:https://example.com)\n\nThe webpage at [Example Domain](embed:https://example.com) is a reserved placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (Internet Assigned Numbers Authority) specifically for use in illustrative examples, documentation, and tutorials. It allows authors and developers to reference a standard URL without needing prior permission or coordination. \n\nThe site advises readers to avoid using this domain in actual live operations or production systems. You can read more about its intended purpose on the [IANA Example Domains page](https://iana.org/domains/example).\n\n***\n\nWould you like to explore how documentation domains are managed, or is there another URL you would like me to read and summarize?",
+    "chunk_count": 9,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": ">"
+      },
+      {
+        "kind": "text",
+        "value": " [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:https://example.com)\n\nThe webpage at [Example Domain](embed:https://example.com)"
+      },
+      {
+        "kind": "text",
+        "value": " is a reserved placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (Internet Assigned Numbers"
+      },
+      {
+        "kind": "text",
+        "value": " Authority) specifically for use in illustrative examples, documentation, and tutorials. It allows authors and developers to reference a standard URL"
+      },
+      {
+        "kind": "text",
+        "value": " without needing prior permission or coordination. \n\nThe site advises readers to avoid using this domain in actual live operations or production systems"
+      },
+      {
+        "kind": "text",
+        "value": ". You can read more about its intended purpose on the [IANA Example Domains page](https://iana.org/domains/example)."
+      },
+      {
+        "kind": "text",
+        "value": "\n\n***\n\nWould you like to explore how documentation domains are managed, or is there another URL you would like me to read and"
+      },
+      {
+        "kind": "text",
+        "value": " summarize?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14607,
+          "candidates_token_count": 155,
+          "total_token_count": 14762,
+          "user_input_tokens": 201,
+          "system_prompt_tokens": 13423
+        }
+      }
+    ]
+  }
+}

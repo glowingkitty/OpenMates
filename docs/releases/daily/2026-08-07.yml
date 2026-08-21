@@ -1,0 +1,3474 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-07'
+generated_at: '2026-08-08T00:20:06+00:00'
+range:
+  since: '2026-08-07T00:00:00+00:00'
+  until: '2026-08-08T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 63
+  section_counts:
+    features: 3
+    bug_fixes: 32
+    improvements: 0
+    docs: 6
+    tests: 20
+    infrastructure: 2
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 21
+  dev_only_items: 63
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add contract-driven development workflow'
+    section: features
+    commits:
+    - 5f656ea95
+    authored_at: '2026-08-07T18:22:24+00:00'
+    changed_paths:
+    - .agents/skills/backfill-contract/SKILL.md
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/define-contract/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/contract-verifier.md
+    - .claude/hooks/contract-test-impact.sh
+    - .claude/rules/testing.md
+    - .claude/settings.json
+    - .claude/skills/backfill-contract/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/contract-verifier.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/agents/contract-verifier.md
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/app-skills/web-search/contract.yml
+    - contracts/features/app-skills/web-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/schema/contract.schema.yml
+    - contracts/schema/examples.schema.yml
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/semantic/README.md
+    - docs/architecture/semantic/domains/web-search.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/reference/contracts/web-search.md
+    - docs/specs/README.md
+    - docs/specs/contract-driven-development/spec.yml
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/contracts.py
+    - scripts/sessions.py
+    - scripts/spec_validate.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_contract_backfill_hook.py
+    - scripts/tests/test_contract_docs.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contract_release_trace.py
+    - scripts/tests/test_contract_spec_archive.py
+    - scripts/tests/test_contract_test_metadata.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_sessions_contract_gate.py
+    - scripts/tests/test_spec_workflow_validation.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add safe root usage backfill'
+    section: features
+    commits:
+    - aab69fd06
+    authored_at: '2026-08-07T16:32:21+00:00'
+    changed_paths:
+    - backend/scripts/backfill_root_chat_usage.py
+    - backend/tests/test_backfill_root_chat_usage.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: expose detailed usage through CLI and SDKs'
+    section: features
+    commits:
+    - aaed6ab2e
+    authored_at: '2026-08-07T14:55:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: dispatch newly deployed specs'
+    section: bug_fixes
+    commits:
+    - 1633d5cad
+    authored_at: '2026-08-07T23:14:35+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: block stale merged worktree reuse'
+    section: bug_fixes
+    commits:
+    - 224148a21
+    authored_at: '2026-08-07T22:32:03+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/contracts.py
+    - scripts/sessions.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: terminalize delegated research children'
+    section: bug_fixes
+    commits:
+    - 99ed60459
+    authored_at: '2026-08-07T21:53:55+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_sub_chat_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: raise welcome chat controls'
+    section: bug_fixes
+    commits:
+    - 1e3239daa
+    authored_at: '2026-08-07T21:47:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow reasoning within research budget'
+    section: bug_fixes
+    commits:
+    - 2904fa40e
+    authored_at: '2026-08-07T21:37:06+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_sub_chat_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound orchestrated inference reservations'
+    section: bug_fixes
+    commits:
+    - efecdf98c
+    authored_at: '2026-08-07T21:22:53+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_sub_chat_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep anonymous chats interactive'
+    section: bug_fixes
+    commits:
+    - c830368bd
+    authored_at: '2026-08-07T21:18:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve deep research continuation lifecycle'
+    section: bug_fixes
+    commits:
+    - 1bfeb71cc
+    authored_at: '2026-08-07T20:44:59+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore welcome chat interactions'
+    section: bug_fixes
+    commits:
+    - b4308c2ff
+    authored_at: '2026-08-07T20:35:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep cli open through focus continuation'
+    section: bug_fixes
+    commits:
+    - 1c70abb3f
+    authored_at: '2026-08-07T20:21:19+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align web search with contract'
+    section: bug_fixes
+    commits:
+    - 66875c82c
+    authored_at: '2026-08-07T20:09:21+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesTests/WebSearchContractParityTests.swift
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_web_search_contract.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/sdk_cli_parity_live_smoke.py
+    - scripts/tests/test_web_search_live_contract_surfaces.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web, embed:web:search, platform:ios, platform:macos, skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow deep research root delegation'
+    section: bug_fixes
+    commits:
+    - '197553047'
+    authored_at: '2026-08-07T19:53:11+00:00'
+    changed_paths:
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_sub_chat_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: converge inserted streaming blocks'
+    section: bug_fixes
+    commits:
+    - 2f63da365
+    authored_at: '2026-08-07T18:06:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry rejected streaming diffs by block'
+    section: bug_fixes
+    commits:
+    - 36f3116c4
+    authored_at: '2026-08-07T17:28:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate billing email delivery queue'
+    section: bug_fixes
+    commits:
+    - 68a58479d
+    authored_at: '2026-08-07T16:52:44+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use setup runtime database driver'
+    section: bug_fixes
+    commits:
+    - c2c4e35dd
+    authored_at: '2026-08-07T16:36:00+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/scripts/backfill_root_chat_usage.py
+    - backend/tests/test_persistence_tasks.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound pending embed safety net runtime'
+    section: bug_fixes
+    commits:
+    - 872f0e991
+    authored_at: '2026-08-07T15:51:46+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_persistence_tasks.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: block unbounded async work in sub-chat trees'
+    section: bug_fixes
+    commits:
+    - adc3b1d7c
+    authored_at: '2026-08-07T15:42:10+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fail closed on duplicate team ledgers'
+    section: bug_fixes
+    commits:
+    - 3855b3d03
+    authored_at: '2026-08-07T14:20:58+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound sub-chat orchestration billing'
+    section: bug_fixes
+    commits:
+    - 6fefbe88d
+    authored_at: '2026-08-07T14:04:06+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_app.py
+    - backend/core/api/app/routes/creators.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_confirmation_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/account_import_service.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/tasks/storage_billing_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/package.json
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/index.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/core/directus/schemas/billing_charge_identities.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_batches.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_children.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_operations.yml
+    - backend/core/directus/schemas/sub_chat_orchestrations.yml
+    - backend/core/directus/schemas/usage.yml
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_billing_idempotency.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_usage_root_chat_aggregation.py
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:transcribe, platform:teams, skill:ai:ask, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: support configured cloud overlay paths'
+    section: bug_fixes
+    commits:
+    - 99060eaa3
+    authored_at: '2026-08-07T13:53:33+00:00'
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate official cloud overlay path'
+    section: bug_fixes
+    commits:
+    - 5ed70b8fd
+    authored_at: '2026-08-07T13:28:03+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve official cloud billing on restart'
+    section: bug_fixes
+    commits:
+    - 6f1f4086c
+    authored_at: '2026-08-07T13:15:08+00:00'
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve nested sub-chat completion lifecycle'
+    section: bug_fixes
+    commits:
+    - f4d07b34f
+    authored_at: '2026-08-07T10:34:07+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify agent workflow retrospectives'
+    section: bug_fixes
+    commits:
+    - 479bcddc2
+    authored_at: '2026-08-07T10:10:43+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve grouped daily email summaries'
+    section: bug_fixes
+    commits:
+    - f35ce2286
+    authored_at: '2026-08-07T09:59:54+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_test_run_summary_email_task.py
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seal replayed focus activation messages'
+    section: bug_fixes
+    commits:
+    - 7e903d2f3
+    authored_at: '2026-08-07T02:35:25+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seal deferred focus activation messages'
+    section: bug_fixes
+    commits:
+    - e760a116d
+    authored_at: '2026-08-07T02:22:11+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reconcile failed assistant storage immediately'
+    section: bug_fixes
+    commits:
+    - a21efe68b
+    authored_at: '2026-08-07T02:04:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: confirm assistant storage after durability'
+    section: bug_fixes
+    commits:
+    - af517054d
+    authored_at: '2026-08-07T01:50:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_persistence_tasks.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: start logout database purges together'
+    section: bug_fixes
+    commits:
+    - 6f32c20bd
+    authored_at: '2026-08-07T01:14:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: top up authenticated test identities'
+    section: bug_fixes
+    commits:
+    - 06631b39c
+    authored_at: '2026-08-07T00:17:10+00:00'
+    changed_paths:
+    - backend/scripts/top_up_test_account_credits.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record migration and billing visual evidence'
+    section: docs
+    commits:
+    - efcb5c105
+    authored_at: '2026-08-07T18:25:24+00:00'
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record signup and billing gate recovery'
+    section: docs
+    commits:
+    - 8307b6a1b
+    authored_at: '2026-08-07T17:17:43+00:00'
+    changed_paths:
+    - docs/specs/release-core-journeys-gate/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: specify sub-chat billing integrity'
+    section: docs
+    commits:
+    - bd29881fb
+    authored_at: '2026-08-07T12:00:23+00:00'
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record nested sub-chat verification'
+    section: docs
+    commits:
+    - fbbd12ae0
+    authored_at: '2026-08-07T10:52:54+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: sync clarification skill mirrors'
+    section: docs
+    commits:
+    - 9c055d3a3
+    authored_at: '2026-08-07T10:32:45+00:00'
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record focus reliability green evidence'
+    section: docs
+    commits:
+    - e5c186d82
+    authored_at: '2026-08-07T02:51:22+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: wait for Deep research completion'
+    section: tests
+    commits:
+    - 02c480879
+    authored_at: '2026-08-07T23:57:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss overlay before focus mention'
+    section: tests
+    commits:
+    - 8c493e002
+    authored_at: '2026-08-07T23:24:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate deep research web proof'
+    section: tests
+    commits:
+    - c0df9e16e
+    authored_at: '2026-08-07T23:07:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: activate deep research explicitly'
+    section: tests
+    commits:
+    - 139833fab
+    authored_at: '2026-08-07T22:41:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover deep research web synthesis'
+    section: tests
+    commits:
+    - c286b4bf4
+    authored_at: '2026-08-07T22:18:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align cli sub-chat continuation fixture'
+    section: tests
+    commits:
+    - e9074c5b0
+    authored_at: '2026-08-07T20:27:08+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix compressor provider patches'
+    section: tests
+    commits:
+    - d5771a1cf
+    authored_at: '2026-08-07T20:00:28+00:00'
+    changed_paths:
+    - backend/tests/test_chat_compressor.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make streaming fallback contract deterministic'
+    section: tests
+    commits:
+    - 75f29ff44
+    authored_at: '2026-08-07T17:43:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provide timer for streaming editor contract'
+    section: tests
+    commits:
+    - e5955c449
+    authored_at: '2026-08-07T17:20:41+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce rejected streaming block transition'
+    section: tests
+    commits:
+    - c6adf30df
+    authored_at: '2026-08-07T17:17:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture mobile billing usage detail'
+    section: tests
+    commits:
+    - c59f15ecc
+    authored_at: '2026-08-07T16:43:17+00:00'
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify detailed usage across clients'
+    section: tests
+    commits:
+    - 50536a12b
+    authored_at: '2026-08-07T15:06:17+00:00'
+    changed_paths:
+    - scripts/verify_usage_overview_cli_sdk.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: integrate idle session d401'
+    section: tests
+    commits:
+    - 556ff3866
+    authored_at: '2026-08-07T13:17:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: integrate idle session 3a00'
+    section: tests
+    commits:
+    - d89b12aaf
+    authored_at: '2026-08-07T13:16:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize managed signup checkout selection'
+    section: tests
+    commits:
+    - '237123682'
+    authored_at: '2026-08-07T12:20:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run internal email route contract without plugin'
+    section: tests
+    commits:
+    - 6d8ff1e1c
+    authored_at: '2026-08-07T10:10:32+00:00'
+    changed_paths:
+    - backend/tests/test_internal_api.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: allow identical chat transcripts in parity oracle'
+    section: tests
+    commits:
+    - 17e2922cf
+    authored_at: '2026-08-07T01:10:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate mobile focus visual capture'
+    section: tests
+    commits:
+    - 9f1a64b87
+    authored_at: '2026-08-07T00:54:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture authenticated mobile focus state'
+    section: tests
+    commits:
+    - 9e9814439
+    authored_at: '2026-08-07T00:41:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert focus chat encryption invariants'
+    section: tests
+    commits:
+    - 3e6071146
+    authored_at: '2026-08-07T00:26:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: run scheduled test smoke daily'
+    section: infrastructure
+    commits:
+    - 494717f69
+    authored_at: '2026-08-07T16:13:17+00:00'
+    changed_paths:
+    - .github/workflows/app-skill-cli-smoke.yml
+    - .github/workflows/selfhost-smoke.yml
+    - .github/workflows/tasks-main-processor-cli-smoke.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: require contextual clarification guidance'
+    section: infrastructure
+    commits:
+    - 835b2f718
+    authored_at: '2026-08-07T10:31:19+00:00'
+    changed_paths:
+    - .claude/rules/planning.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: wait for Deep research completion'
+    commits:
+    - 02c480879
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: dismiss overlay before focus mention'
+    commits:
+    - 8c493e002
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: dispatch newly deployed specs'
+    commits:
+    - 1633d5cad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate deep research web proof'
+    commits:
+    - c0df9e16e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: activate deep research explicitly'
+    commits:
+    - 139833fab
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: block stale merged worktree reuse'
+    commits:
+    - 224148a21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover deep research web synthesis'
+    commits:
+    - c286b4bf4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: terminalize delegated research children'
+    commits:
+    - 99ed60459
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: raise welcome chat controls'
+    commits:
+    - 1e3239daa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow reasoning within research budget'
+    commits:
+    - 2904fa40e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: bound orchestrated inference reservations'
+    commits:
+    - efecdf98c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep anonymous chats interactive'
+    commits:
+    - c830368bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve deep research continuation lifecycle'
+    commits:
+    - 1bfeb71cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore welcome chat interactions'
+    commits:
+    - b4308c2ff
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align cli sub-chat continuation fixture'
+    commits:
+    - e9074c5b0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep cli open through focus continuation'
+    commits:
+    - 1c70abb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: align web search with contract'
+    commits:
+    - 66875c82c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'test: fix compressor provider patches'
+    commits:
+    - d5771a1cf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow deep research root delegation'
+    commits:
+    - '197553047'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record migration and billing visual evidence'
+    commits:
+    - efcb5c105
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add contract-driven development workflow'
+    commits:
+    - 5f656ea95
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: converge inserted streaming blocks'
+    commits:
+    - 2f63da365
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make streaming fallback contract deterministic'
+    commits:
+    - 75f29ff44
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retry rejected streaming diffs by block'
+    commits:
+    - 36f3116c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provide timer for streaming editor contract'
+    commits:
+    - e5955c449
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record signup and billing gate recovery'
+    commits:
+    - 8307b6a1b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reproduce rejected streaming block transition'
+    commits:
+    - c6adf30df
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate billing email delivery queue'
+    commits:
+    - 68a58479d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: capture mobile billing usage detail'
+    commits:
+    - c59f15ecc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use setup runtime database driver'
+    commits:
+    - c2c4e35dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add safe root usage backfill'
+    commits:
+    - aab69fd06
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: run scheduled test smoke daily'
+    commits:
+    - 494717f69
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound pending embed safety net runtime'
+    commits:
+    - 872f0e991
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: block unbounded async work in sub-chat trees'
+    commits:
+    - adc3b1d7c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: verify detailed usage across clients'
+    commits:
+    - 50536a12b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: expose detailed usage through CLI and SDKs'
+    commits:
+    - aaed6ab2e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: fail closed on duplicate team ledgers'
+    commits:
+    - 3855b3d03
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound sub-chat orchestration billing'
+    commits:
+    - 6fefbe88d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: support configured cloud overlay paths'
+    commits:
+    - 99060eaa3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: validate official cloud overlay path'
+    commits:
+    - 5ed70b8fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: integrate idle session d401'
+    commits:
+    - 556ff3866
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: integrate idle session 3a00'
+    commits:
+    - d89b12aaf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve official cloud billing on restart'
+    commits:
+    - 6f1f4086c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize managed signup checkout selection'
+    commits:
+    - '237123682'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: specify sub-chat billing integrity'
+    commits:
+    - bd29881fb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record nested sub-chat verification'
+    commits:
+    - fbbd12ae0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve nested sub-chat completion lifecycle'
+    commits:
+    - f4d07b34f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'chore: sync clarification skill mirrors'
+    commits:
+    - 9c055d3a3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: require contextual clarification guidance'
+    commits:
+    - 835b2f718
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify agent workflow retrospectives'
+    commits:
+    - 479bcddc2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: run internal email route contract without plugin'
+    commits:
+    - 6d8ff1e1c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve grouped daily email summaries'
+    commits:
+    - f35ce2286
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record focus reliability green evidence'
+    commits:
+    - e5c186d82
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: seal replayed focus activation messages'
+    commits:
+    - 7e903d2f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: seal deferred focus activation messages'
+    commits:
+    - e760a116d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: reconcile failed assistant storage immediately'
+    commits:
+    - a21efe68b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: confirm assistant storage after durability'
+    commits:
+    - af517054d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: start logout database purges together'
+    commits:
+    - 6f32c20bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: allow identical chat transcripts in parity oracle'
+    commits:
+    - 17e2922cf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate mobile focus visual capture'
+    commits:
+    - 9f1a64b87
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: capture authenticated mobile focus state'
+    commits:
+    - 9e9814439
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert focus chat encryption invariants'
+    commits:
+    - 3e6071146
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: top up authenticated test identities'
+    commits:
+    - 06631b39c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: align web search with contract'
+    commits:
+    - 66875c82c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'feat: add contract-driven development workflow'
+    commits:
+    - 5f656ea95
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: terminalize delegated research children'
+    commits:
+    - 99ed60459
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: raise welcome chat controls'
+    commits:
+    - 1e3239daa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow reasoning within research budget'
+    commits:
+    - 2904fa40e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: bound orchestrated inference reservations'
+    commits:
+    - efecdf98c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep anonymous chats interactive'
+    commits:
+    - c830368bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve deep research continuation lifecycle'
+    commits:
+    - 1bfeb71cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore welcome chat interactions'
+    commits:
+    - b4308c2ff
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep cli open through focus continuation'
+    commits:
+    - 1c70abb3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: align web search with contract'
+    commits:
+    - 66875c82c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: allow deep research root delegation'
+    commits:
+    - '197553047'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add contract-driven development workflow'
+    commits:
+    - 5f656ea95
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate billing email delivery queue'
+    commits:
+    - 68a58479d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: block unbounded async work in sub-chat trees'
+    commits:
+    - adc3b1d7c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: expose detailed usage through CLI and SDKs'
+    commits:
+    - aaed6ab2e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound sub-chat orchestration billing'
+    commits:
+    - 6fefbe88d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve nested sub-chat completion lifecycle'
+    commits:
+    - f4d07b34f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve grouped daily email summaries'
+    commits:
+    - f35ce2286
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: seal replayed focus activation messages'
+    commits:
+    - 7e903d2f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: seal deferred focus activation messages'
+    commits:
+    - e760a116d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: confirm assistant storage after durability'
+    commits:
+    - af517054d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: start logout database purges together'
+    commits:
+    - 6f32c20bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 02c4808797d32e36a70083bf2cd565c7fdabdedf
+    short_sha: 02c480879
+    authored_at: '2026-08-07T23:57:53+00:00'
+    subject: 'test: wait for Deep research completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 8c493e002b5052c20d57d23123910a2a46b1dee0
+    short_sha: 8c493e002
+    authored_at: '2026-08-07T23:24:35+00:00'
+    subject: 'test: dismiss overlay before focus mention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 1633d5cad74b665bde5a3ff82ea900f5340523e9
+    short_sha: 1633d5cad
+    authored_at: '2026-08-07T23:14:35+00:00'
+    subject: 'fix: dispatch newly deployed specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: c0df9e16e7b3907ce455e3e74d8fd02cfc2ce1c9
+    short_sha: c0df9e16e
+    authored_at: '2026-08-07T23:07:11+00:00'
+    subject: 'test: isolate deep research web proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 139833fabd1a918a9b9bdb68656b27b30a5844ce
+    short_sha: 139833fab
+    authored_at: '2026-08-07T22:41:43+00:00'
+    subject: 'test: activate deep research explicitly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 224148a217b80a1dd5b51c14f940080c2e913c11
+    short_sha: 224148a21
+    authored_at: '2026-08-07T22:32:03+00:00'
+    subject: 'fix: block stale merged worktree reuse'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/contracts.py
+    - scripts/sessions.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: c286b4bf4ac08110ce657bd415b2c4315842a8aa
+    short_sha: c286b4bf4
+    authored_at: '2026-08-07T22:18:43+00:00'
+    subject: 'test: cover deep research web synthesis'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 99ed6045931adc1b41d911fa05bd434416a667a6
+    short_sha: 99ed60459
+    authored_at: '2026-08-07T21:53:55+00:00'
+    subject: 'fix: terminalize delegated research children'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_sub_chat_orchestration.py
+    related_feature_ids:
+    - app:ai
+  - sha: 1e3239daa85c069e255e817268d3bd9f6fcebf60
+    short_sha: 1e3239daa
+    authored_at: '2026-08-07T21:47:38+00:00'
+    subject: 'fix: raise welcome chat controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 2904fa40e9ecfd3a8f54af93b710134c71ec8607
+    short_sha: 2904fa40e
+    authored_at: '2026-08-07T21:37:06+00:00'
+    subject: 'fix: allow reasoning within research budget'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_sub_chat_orchestration.py
+    related_feature_ids:
+    - app:ai
+  - sha: efecdf98ccb481e9b34df24d742d5296e4d04178
+    short_sha: efecdf98c
+    authored_at: '2026-08-07T21:22:53+00:00'
+    subject: 'fix: bound orchestrated inference reservations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_sub_chat_orchestration.py
+    related_feature_ids:
+    - app:ai
+  - sha: c830368bd5d808258cad5f8f0b692c1d006a8cd6
+    short_sha: c830368bd
+    authored_at: '2026-08-07T21:18:00+00:00'
+    subject: 'fix: keep anonymous chats interactive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    related_feature_ids: []
+  - sha: 1bfeb71ccc0bdaf191e957bf1297c8116f1f2eac
+    short_sha: 1bfeb71cc
+    authored_at: '2026-08-07T20:44:59+00:00'
+    subject: 'fix: preserve deep research continuation lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: b4308c2ff28d9b1bed60677ad2a901feaef0dcc1
+    short_sha: b4308c2ff
+    authored_at: '2026-08-07T20:35:01+00:00'
+    subject: 'fix: restore welcome chat interactions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    related_feature_ids: []
+  - sha: e9074c5b0fa9de3a5720f212ae84b523768571d1
+    short_sha: e9074c5b0
+    authored_at: '2026-08-07T20:27:08+00:00'
+    subject: 'test: align cli sub-chat continuation fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: 1c70abb3fe5e22afccdf44f5bb59796bd5dca75d
+    short_sha: 1c70abb3f
+    authored_at: '2026-08-07T20:21:19+00:00'
+    subject: 'fix: keep cli open through focus continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 66875c82c5febc529bcc73a74880341161c126ea
+    short_sha: 66875c82c
+    authored_at: '2026-08-07T20:09:21+00:00'
+    subject: 'fix: align web search with contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesTests/WebSearchContractParityTests.swift
+    - backend/apps/web/app.yml
+    - backend/apps/web/skills/search_fixture.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_web_search_contract.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/sdk_cli_parity_live_smoke.py
+    - scripts/tests/test_web_search_live_contract_surfaces.py
+    related_feature_ids:
+    - app:web
+    - embed:web:search
+    - platform:ios
+    - platform:macos
+    - skill:web:search
+  - sha: d5771a1cf68bdc1a5482c95752c69af071203e4c
+    short_sha: d5771a1cf
+    authored_at: '2026-08-07T20:00:28+00:00'
+    subject: 'test: fix compressor provider patches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_chat_compressor.py
+    related_feature_ids: []
+  - sha: 197553047b84476d8f19c6f874bdca61c44002a6
+    short_sha: '197553047'
+    authored_at: '2026-08-07T19:53:11+00:00'
+    subject: 'fix: allow deep research root delegation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_sub_chat_orchestration.py
+    related_feature_ids:
+    - app:ai
+  - sha: efcb5c1057963322b78d59c0f003dd1bf3d31dc6
+    short_sha: efcb5c105
+    authored_at: '2026-08-07T18:25:24+00:00'
+    subject: 'docs: record migration and billing visual evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    related_feature_ids: []
+  - sha: 5f656ea95c60670903e3b907a4fade5ec0c2c29b
+    short_sha: 5f656ea95
+    authored_at: '2026-08-07T18:22:24+00:00'
+    subject: 'feat: add contract-driven development workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/backfill-contract/SKILL.md
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/define-contract/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/contract-verifier.md
+    - .claude/hooks/contract-test-impact.sh
+    - .claude/rules/testing.md
+    - .claude/settings.json
+    - .claude/skills/backfill-contract/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/contract-verifier.toml
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/agents/contract-verifier.md
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/app-skills/web-search/contract.yml
+    - contracts/features/app-skills/web-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/schema/contract.schema.yml
+    - contracts/schema/examples.schema.yml
+    - docs/architecture/agent-tooling-parity.yml
+    - docs/architecture/semantic/README.md
+    - docs/architecture/semantic/domains/web-search.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/reference/contracts/web-search.md
+    - docs/specs/README.md
+    - docs/specs/contract-driven-development/spec.yml
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/contracts.py
+    - scripts/sessions.py
+    - scripts/spec_validate.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_contract_backfill_hook.py
+    - scripts/tests/test_contract_docs.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contract_release_trace.py
+    - scripts/tests/test_contract_spec_archive.py
+    - scripts/tests/test_contract_test_metadata.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_sessions_contract_gate.py
+    - scripts/tests/test_spec_workflow_validation.py
+    related_feature_ids: []
+  - sha: 2f63da365855a85808b2ae239ebc0abacb20490f
+    short_sha: 2f63da365
+    authored_at: '2026-08-07T18:06:22+00:00'
+    subject: 'fix: converge inserted streaming blocks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    related_feature_ids: []
+  - sha: 75f29ff4490b27ca77d5e6510bf21963e676950f
+    short_sha: 75f29ff44
+    authored_at: '2026-08-07T17:43:20+00:00'
+    subject: 'test: make streaming fallback contract deterministic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    related_feature_ids: []
+  - sha: 36f3116c496c0596812d79c525359c6fec429c85
+    short_sha: 36f3116c4
+    authored_at: '2026-08-07T17:28:07+00:00'
+    subject: 'fix: retry rejected streaming diffs by block'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    related_feature_ids: []
+  - sha: e5955c449219dd753519789077c4bf87f128b181
+    short_sha: e5955c449
+    authored_at: '2026-08-07T17:20:41+00:00'
+    subject: 'test: provide timer for streaming editor contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    related_feature_ids: []
+  - sha: 8307b6a1b49eaf7475ac99b99769ae40a347ee5c
+    short_sha: 8307b6a1b
+    authored_at: '2026-08-07T17:17:43+00:00'
+    subject: 'docs: record signup and billing gate recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/release-core-journeys-gate/spec.yml
+    related_feature_ids: []
+  - sha: c6adf30df319f17a0f94042c899f5af63116a589
+    short_sha: c6adf30df
+    authored_at: '2026-08-07T17:17:19+00:00'
+    subject: 'test: reproduce rejected streaming block transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    related_feature_ids: []
+  - sha: 68a58479d881213f5e9ab79d400520a179f295a2
+    short_sha: 68a58479d
+    authored_at: '2026-08-07T16:52:44+00:00'
+    subject: 'fix: isolate billing email delivery queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: c59f15ecc00594d0c5174686f546657d378a10f3
+    short_sha: c59f15ecc
+    authored_at: '2026-08-07T16:43:17+00:00'
+    subject: 'test: capture mobile billing usage detail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    related_feature_ids: []
+  - sha: c2c4e35dd519d68b63bd4f99cf063f61ad49d8fc
+    short_sha: c2c4e35dd
+    authored_at: '2026-08-07T16:36:00+00:00'
+    subject: 'fix: use setup runtime database driver'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/scripts/backfill_root_chat_usage.py
+    - backend/tests/test_persistence_tasks.py
+    related_feature_ids: []
+  - sha: aab69fd061afdad090d893015989454fb9f4b199
+    short_sha: aab69fd06
+    authored_at: '2026-08-07T16:32:21+00:00'
+    subject: 'feat: add safe root usage backfill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/backfill_root_chat_usage.py
+    - backend/tests/test_backfill_root_chat_usage.py
+    related_feature_ids: []
+  - sha: 494717f692bf6df29fa419cdf334ad54f5ecbc5f
+    short_sha: 494717f69
+    authored_at: '2026-08-07T16:13:17+00:00'
+    subject: 'ci: run scheduled test smoke daily'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/app-skill-cli-smoke.yml
+    - .github/workflows/selfhost-smoke.yml
+    - .github/workflows/tasks-main-processor-cli-smoke.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    related_feature_ids: []
+  - sha: 872f0e991de66291ba1515ebe57a4e14633200ee
+    short_sha: 872f0e991
+    authored_at: '2026-08-07T15:51:46+00:00'
+    subject: 'fix: bound pending embed safety net runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_persistence_tasks.py
+    related_feature_ids: []
+  - sha: adc3b1d7c4daba1168348c0283b9a0ec260d8a8d
+    short_sha: adc3b1d7c
+    authored_at: '2026-08-07T15:42:10+00:00'
+    subject: 'fix: block unbounded async work in sub-chat trees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    related_feature_ids:
+    - app:ai
+  - sha: 50536a12b1e2482f62777ebc93dd8f01639a0ae7
+    short_sha: 50536a12b
+    authored_at: '2026-08-07T15:06:17+00:00'
+    subject: 'test: verify detailed usage across clients'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/verify_usage_overview_cli_sdk.py
+    related_feature_ids: []
+  - sha: aaed6ab2e171ed79ea8c8a30a92fbb6a3f96996c
+    short_sha: aaed6ab2e
+    authored_at: '2026-08-07T14:55:08+00:00'
+    subject: 'feat: expose detailed usage through CLI and SDKs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: 3855b3d03442080c417f48392e2460490f5459eb
+    short_sha: 3855b3d03
+    authored_at: '2026-08-07T14:20:58+00:00'
+    subject: 'fix: fail closed on duplicate team ledgers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    related_feature_ids: []
+  - sha: 6fefbe88d015dc5a0b0da6adc7243a90d181bd6c
+    short_sha: 6fefbe88d
+    authored_at: '2026-08-07T14:04:06+00:00'
+    subject: 'fix: bound sub-chat orchestration billing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_app.py
+    - backend/core/api/app/routes/creators.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_confirmation_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/account_import_service.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/tasks/storage_billing_tasks.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/package.json
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/index.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/core/directus/schemas/billing_charge_identities.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_batches.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_children.yml
+    - backend/core/directus/schemas/sub_chat_orchestration_operations.yml
+    - backend/core/directus/schemas/sub_chat_orchestrations.yml
+    - backend/core/directus/schemas/usage.yml
+    - backend/core/directus/setup/migrate_sub_chat_orchestration_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_billing_idempotency.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - backend/tests/test_usage_root_chat_aggregation.py
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:transcribe
+    - platform:teams
+    - skill:ai:ask
+    - skill:audio:transcribe
+  - sha: 99060eaa3a272d68ef7d0a6cc26f83e09c225dc8
+    short_sha: 99060eaa3
+    authored_at: '2026-08-07T13:53:33+00:00'
+    subject: 'fix: support configured cloud overlay paths'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 5ed70b8fd473ed2009ed6d90a1aff244705f3e6b
+    short_sha: 5ed70b8fd
+    authored_at: '2026-08-07T13:28:03+00:00'
+    subject: 'fix: validate official cloud overlay path'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 556ff3866a2ff16630007a337a46e777bf8558de
+    short_sha: 556ff3866
+    authored_at: '2026-08-07T13:17:21+00:00'
+    subject: 'chore: integrate idle session d401'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: d89b12aafd71dfe084f569a8a1372fcc757eb2a7
+    short_sha: d89b12aaf
+    authored_at: '2026-08-07T13:16:31+00:00'
+    subject: 'chore: integrate idle session 3a00'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    related_feature_ids: []
+  - sha: 6f1f4086c4ffda048819ed77cc3807bfb8b0d348
+    short_sha: 6f1f4086c
+    authored_at: '2026-08-07T13:15:08+00:00'
+    subject: 'fix: preserve official cloud billing on restart'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/openmatescloud-billing-overlay/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 237123682a12ea2e45da0fec415346354f8d5d63
+    short_sha: '237123682'
+    authored_at: '2026-08-07T12:20:56+00:00'
+    subject: 'test: stabilize managed signup checkout selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: bd29881fb392380cb065d62022f257d9253b1e13
+    short_sha: bd29881fb
+    authored_at: '2026-08-07T12:00:23+00:00'
+    subject: 'docs: specify sub-chat billing integrity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    related_feature_ids: []
+  - sha: fbbd12ae046eaa7f207d0471cb08314dcd2cb1a7
+    short_sha: fbbd12ae0
+    authored_at: '2026-08-07T10:52:54+00:00'
+    subject: 'docs: record nested sub-chat verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids: []
+  - sha: f4d07b34f3073fe2eb0c13e93ce077d5b6d63fa0
+    short_sha: f4d07b34f
+    authored_at: '2026-08-07T10:34:07+00:00'
+    subject: 'fix: preserve nested sub-chat completion lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: 9c055d3a336b8dcea0f05d0f3466d65b8319a516
+    short_sha: 9c055d3a3
+    authored_at: '2026-08-07T10:32:45+00:00'
+    subject: 'chore: sync clarification skill mirrors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    related_feature_ids: []
+  - sha: 835b2f718bcf042df9e94b8052ad6f2fb5b10eb5
+    short_sha: 835b2f718
+    authored_at: '2026-08-07T10:31:19+00:00'
+    subject: 'chore: require contextual clarification guidance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/planning.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    related_feature_ids: []
+  - sha: 479bcddc22c5d211fccaac0b4f4aac0565ac4d75
+    short_sha: 479bcddc2
+    authored_at: '2026-08-07T10:10:43+00:00'
+    subject: 'fix: clarify agent workflow retrospectives'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    related_feature_ids: []
+  - sha: 6d8ff1e1c98f098183141503108bc0c37ecea02f
+    short_sha: 6d8ff1e1c
+    authored_at: '2026-08-07T10:10:32+00:00'
+    subject: 'test: run internal email route contract without plugin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_internal_api.py
+    related_feature_ids: []
+  - sha: f35ce2286a6feca3d0860c2ab251d2fac14169f4
+    short_sha: f35ce2286
+    authored_at: '2026-08-07T09:59:54+00:00'
+    subject: 'fix: preserve grouped daily email summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_test_run_summary_email_task.py
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    related_feature_ids: []
+  - sha: e5c186d82aa1a73cd21b850065975cb7e5345a04
+    short_sha: e5c186d82
+    authored_at: '2026-08-07T02:51:22+00:00'
+    subject: 'docs: record focus reliability green evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids: []
+  - sha: 7e903d2f314c2b63736af04c0de6497ead7b1711
+    short_sha: 7e903d2f3
+    authored_at: '2026-08-07T02:35:25+00:00'
+    subject: 'fix: seal replayed focus activation messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    related_feature_ids:
+    - app:ai
+  - sha: e760a116d829d6acc9e2587b5e13103faecd0991
+    short_sha: e760a116d
+    authored_at: '2026-08-07T02:22:11+00:00'
+    subject: 'fix: seal deferred focus activation messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: a21efe68b59303bd8820f933ed1fd0c13f736835
+    short_sha: a21efe68b
+    authored_at: '2026-08-07T02:04:33+00:00'
+    subject: 'fix: reconcile failed assistant storage immediately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: af517054d999651da70321e41c74c1d7d5145f8e
+    short_sha: af517054d
+    authored_at: '2026-08-07T01:50:26+00:00'
+    subject: 'fix: confirm assistant storage after durability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_persistence_tasks.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 6f32c20bd677ba832248562298ab7af46a8c6bc0
+    short_sha: 6f32c20bd
+    authored_at: '2026-08-07T01:14:44+00:00'
+    subject: 'fix: start logout database purges together'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    related_feature_ids: []
+  - sha: 17e2922cfd3d477f6dba6fb314da7098c75e165c
+    short_sha: 17e2922cf
+    authored_at: '2026-08-07T01:10:42+00:00'
+    subject: 'test: allow identical chat transcripts in parity oracle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    related_feature_ids: []
+  - sha: 9f1a64b879470e1d062b08b84755e5ff61b5cd5c
+    short_sha: 9f1a64b87
+    authored_at: '2026-08-07T00:54:33+00:00'
+    subject: 'test: isolate mobile focus visual capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 9e98144394b04d94ff801c25d9943610e09ad04e
+    short_sha: 9e9814439
+    authored_at: '2026-08-07T00:41:28+00:00'
+    subject: 'test: capture authenticated mobile focus state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 3e60711464bc9fcfea44bd026acca49106c0019d
+    short_sha: 3e6071146
+    authored_at: '2026-08-07T00:26:15+00:00'
+    subject: 'test: assert focus chat encryption invariants'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 06631b39c15088148a57a1009dacf4c45e15df55
+    short_sha: 06631b39c
+    authored_at: '2026-08-07T00:17:10+00:00'
+    subject: 'fix: top up authenticated test identities'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/top_up_test_account_credits.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the reliability of complex AI workflows, specifically targeting sub-chat orchestration and
+    deep research lifecycles. A major architectural addition was the introduction of a contract-driven development workflow
+    designed to ensure parity between agents and product tools. Significant work also went into hardening billing integrity
+    and improving the interactivity of anonymous user sessions.
+  released_changes: []
+  bug_fixes:
+  - text: Hardened AI sub-chat orchestration by enforcing reasoning budgets, terminalizing delegated research children, and
+      ensuring continuation lifecycles are preserved across sessions.
+    evidence:
+      commits:
+      - 99ed60459
+      - 2904fa40e
+      - efecdf98c
+      - 1bfeb71cc
+      - 1c70abb3f
+      - '197553047'
+      - f4d07b34f
+      - 7e903d2f3
+      - e760a116d
+      - 6fefbe88d
+      - adc3b1d7c
+    release_status: dev_only
+  - text: Improved UI stability by restoring welcome chat interactions, ensuring anonymous chats remain interactive, and synchronizing
+      database purges during logout.
+    evidence:
+      commits:
+      - 1e3239daa
+      - c830368bd
+      - b4308c2ff
+      - 6f32c20bd
+    release_status: dev_only
+  - text: Refined data persistence by confirming assistant storage only after durability is reached and bounding the runtime
+      of safety-net tasks for pending embeds.
+    evidence:
+      commits:
+      - af517054d
+      - a21efe68b
+      - c2c4e35dd
+      - 872f0e991
+    release_status: dev_only
+  unreleased_progress:
+  - text: A new contract-driven development workflow was added to define and verify interactions between agents and system
+      skills.
+    evidence:
+      commits:
+      - 5f656ea95
+    release_status: dev_only
+  - text: Detailed usage statistics and token breakdowns are now exposed through the OpenMates CLI and Python SDK.
+    evidence:
+      commits:
+      - aaed6ab2e
+      - 50536a12b
+    release_status: dev_only
+  - text: Web search capabilities were aligned with new contract specifications, including initial support for mobile intent
+      structures.
+    evidence:
+      commits:
+      - 66875c82c
+    release_status: dev_only
+  internal_progress:
+  - text: Isolated the billing email delivery queue to prevent congestion in core service processing.
+    evidence:
+      commits:
+      - 68a58479d
+    release_status: dev_only
+  - text: Implemented daily scheduled smoke tests for app skills and self-hosted deployment configurations.
+    evidence:
+      commits:
+      - 494717f69
+    release_status: dev_only
+  - text: Updated agent workflow guidelines to require contextual clarification and synchronized skill mirrors for better
+      output quality.
+    evidence:
+      commits:
+      - 835b2f718
+      - 479bcddc2
+      - 9c055d3a3
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Contract-driven development workflow for agents.
+      evidence:
+        commits:
+        - 5f656ea95
+      reason: This feature is currently dev_only and not reachable from the main branch.
+    - text: Detailed usage exposure via CLI and SDKs.
+      evidence:
+        commits:
+        - aaed6ab2e
+      reason: This feature is currently dev_only and not reachable from the main branch.
+    - text: Web search contract alignment for mobile platforms.
+      evidence:
+        commits:
+        - 66875c82c
+      reason: Relates to disabled platforms (iOS/macOS) and is dev_only.
+    rationale: No items from this period have reached the main branch or been marked as ready for public communication. All
+      significant features and fixes are currently in development.
+  social_video_recommendations:
+  - idea: Demonstrate Deep Research resilience by showing a session continuing seamlessly after a CLI or browser restart.
+    priority: medium
+    reason: The project has landed several fixes specifically for continuation lifecycles in complex research tasks.
+    evidence:
+      commits:
+      - 1bfeb71cc
+      - 1c70abb3f
+  quality_notes:
+  - Heavy emphasis on automated testing for deep research and sub-chat orchestration indicates a push for production-grade
+    reliability in agentic workflows.
+  - The introduction of contract-driven development suggests a shift toward more rigorous specification for AI-integrated
+    features.
+  validation_warnings: []

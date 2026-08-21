@@ -1,0 +1,82 @@
+{
+  "fingerprint": "8e319701c0846bbd",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T10:52:58.282658+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 10,
+    "tools_count": 0,
+    "temperature": 0.4,
+    "tool_choice": "none",
+    "last_message_hash": "77c550bbf577f670",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[6]{title,source_page_url,image_url,source,embed_ref}:\n  \"Rewe Bio Joghurt mild 3,8% 500g 2x\",\"https://www.goflink.com/shop/de-DE/product/rewe-bio-joghurt-mild-3-8-500g-11014245\",\"https://res.c..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "REWE offers a variety of organic yogurt options under their **REWE Bio** brand, available in different fat percentages and container sizes. Here are some options you can find:\n\n* [REWE Bio Joghurt mild 500g](embed:rewe.de-HjM) (available in regular fat / ~3.8%, low-fat 1.8%, and 0.1% fat)\n* [REWE Bio Joghurt mild 150g](embed:rewe.de-2AY) (smaller single-serving size)\n\n[!](embed:rewe.de-SLV)\n[!](embed:rewe.de-JNJ)\n[!](embed:rewe.de-sf7)\n\n> [REWE Bio Joghurt mild 500g im Online-Supermarkt](embed:rewe.de-HjM)\n\nWould you like to check availability at a specific local REWE store, or are you looking for a specific type of yogurt (like Greek yogurt or plant-based alternatives)?",
+    "chunk_count": 12,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "REWE"
+      },
+      {
+        "kind": "text",
+        "value": " offers a variety of organic yogurt options under their **REWE Bio** brand, available"
+      },
+      {
+        "kind": "text",
+        "value": " in different fat percentages and container sizes. Here are some options you can find:\n\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild 500g](embed:rewe.de-HjM) (available in regular fat /"
+      },
+      {
+        "kind": "text",
+        "value": " ~3.8%, low-fat 1.8%, and 0.1% fat)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild 150g](embed:rewe.de-2AY) (smaller single-serving size"
+      },
+      {
+        "kind": "text",
+        "value": ")\n\n[!](embed:rewe.de-SLV)\n[!](embed:rewe.de-J"
+      },
+      {
+        "kind": "text",
+        "value": "NJ)\n[!](embed:rewe.de-sf7)\n\n>"
+      },
+      {
+        "kind": "text",
+        "value": " [REWE Bio Joghurt mild 500g im Online-Supermarkt](embed:rewe.de-HjM)\n\nWould you like to check"
+      },
+      {
+        "kind": "text",
+        "value": " availability at a specific local REWE store, or are you looking for a specific type of yogurt (like Greek yogurt or plant"
+      },
+      {
+        "kind": "text",
+        "value": "-based alternatives)?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15160,
+          "candidates_token_count": 228,
+          "total_token_count": 15388,
+          "user_input_tokens": 2704,
+          "system_prompt_tokens": 10866
+        }
+      }
+    ]
+  }
+}

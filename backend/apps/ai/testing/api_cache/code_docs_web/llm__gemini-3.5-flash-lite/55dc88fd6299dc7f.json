@@ -1,0 +1,54 @@
+{
+  "fingerprint": "55dc88fd6299dc7f",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "code_docs_web",
+  "recorded_at": "2026-08-14T10:57:29.663203+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "79259eccf192173f",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Show me React useState documentation"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "code-get_docs-667a2289",
+          "function_name": "code-get-docs",
+          "function_arguments_raw": "{\"library\": \"React\", \"question\": \"useState hook documentation\"}",
+          "function_arguments_parsed": {
+            "library": "React",
+            "question": "useState hook documentation"
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIP/fLB+t+uUAoIpU2JdYgs9z+HiTKFo7UdEdmgw8RbnJKDpREZDEoc/doah68oYrNQ9CZ4rnxlDy0wIf3A2M+mVpOTX4TxO+B9ouBWLSn6c/qj6re6HxR2"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 13810,
+          "candidates_token_count": 26,
+          "total_token_count": 13836,
+          "user_input_tokens": 8,
+          "system_prompt_tokens": 12899
+        }
+      }
+    ]
+  }
+}

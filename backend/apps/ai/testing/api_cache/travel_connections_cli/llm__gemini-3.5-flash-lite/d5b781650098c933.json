@@ -1,0 +1,67 @@
+{
+  "fingerprint": "d5b781650098c933",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_connections_cli",
+  "recorded_at": "2026-08-15T12:14:09.071785+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "114fad1c7e1fe069",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find flights from Berlin to Munich next week"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "travel-search_connections-f587a140",
+          "function_name": "travel-search-connections",
+          "function_arguments_raw": "{\"transport_methods\": [\"train\", \"airplane\"], \"requests\": [{\"transport_methods\": [\"train\", \"airplane\"], \"destination\": \"Munich\", \"origin\": \"Berlin\", \"date\": \"2026-08-17\"}]}",
+          "function_arguments_parsed": {
+            "transport_methods": [
+              "train",
+              "airplane"
+            ],
+            "requests": [
+              {
+                "transport_methods": [
+                  "train",
+                  "airplane"
+                ],
+                "destination": "Munich",
+                "origin": "Berlin",
+                "date": "2026-08-17"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPI7Zs/K+f2nzXIMZ0Gx9tfrL2DbxSIZDsixHGgG+HUnzH18ZsS/RMNIQyF+QDod7P5eIadZE3DY5PmJF2qJBlHpEqRdmRTXHrvZcfurGmRaAWNFHLiCro"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15774,
+          "candidates_token_count": 68,
+          "total_token_count": 15842,
+          "user_input_tokens": 10,
+          "system_prompt_tokens": 14814
+        }
+      }
+    ]
+  }
+}

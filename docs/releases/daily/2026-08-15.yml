@@ -1,0 +1,3771 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-15'
+generated_at: '2026-08-16T00:20:06+00:00'
+range:
+  since: '2026-08-15T00:00:00+00:00'
+  until: '2026-08-16T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 73
+  section_counts:
+    features: 5
+    bug_fixes: 33
+    improvements: 1
+    docs: 3
+    tests: 23
+    infrastructure: 1
+    internal: 7
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 24
+  dev_only_items: 73
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Discord health transition alerts'
+    section: features
+    commits:
+    - cd00fc913
+    authored_at: '2026-08-15T21:58:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/health_status_alert_email_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/templates/email/health-status-alert.mjml
+    - backend/tests/test_health_status_alerts.py
+    - docs/architecture/infrastructure/health-checks.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enforce scoped AI task concurrency'
+    section: features
+    commits:
+    - 4ee355ed9
+    authored_at: '2026-08-15T17:39:27+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_admission_service.py
+    - backend/core/api/app/services/user_task_execution_service.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/tasks/user_task_scheduler.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/self-hosting/setup.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add durable operational purchase monitoring'
+    section: features
+    commits:
+    - 7ab9f2b89
+    authored_at: '2026-08-15T13:29:15+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/cache_stats_mixin.py
+    - backend/core/api/app/services/directus/apple_iap_transaction_methods.py
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/services/purchase_settlement_ledger.py
+    - backend/core/api/app/services/server_stats_service.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/core/api/app/utils/log_filters.py
+    - backend/core/api/templates/email/operational_monitoring_digest.mjml
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/apple_iap_transactions.yml
+    - backend/core/directus/schemas/credit_purchase_settlements.yml
+    - backend/core/directus/schemas/operational_monitoring_events.yml
+    - backend/scripts/approve_bank_transfer.py
+    - backend/tests/test_apple_iap_payment_replay.py
+    - backend/tests/test_approve_bank_transfer_script.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - backend/tests/test_purchase_settlement_ledger.py
+    - contracts/architecture/operational-monitoring/contract.yml
+    - contracts/architecture/operational-monitoring/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - scripts/audit_operational_monitoring_contract.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add device-scoped proof captions'
+    section: features
+    commits:
+    - e270eb849
+    authored_at: '2026-08-15T10:47:14+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_response_media.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: move Teams management into Settings'
+    section: features
+    commits:
+    - b546a11db
+    authored_at: '2026-08-15T09:26:41+00:00'
+    changed_paths:
+    - contracts/features/teams/contract.yml
+    - contracts/features/teams/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/utils/teamAvatar.ts
+    - scripts/tests/test_teams_settings_only_guard.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: Fix proof artifact path resolution
+    section: bug_fixes
+    commits:
+    - ae78feea3
+    authored_at: '2026-08-15T22:04:16+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make OpenCode routing failures diagnosable'
+    section: bug_fixes
+    commits:
+    - d4d578994
+    authored_at: '2026-08-15T21:43:28+00:00'
+    changed_paths:
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/_workflow_review_helper.py
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/opencode_presence_store.py
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/verify_opencode_presence_live.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry temporary Brave rate limits'
+    section: bug_fixes
+    commits:
+    - 212a668f5
+    authored_at: '2026-08-15T21:33:13+00:00'
+    changed_paths:
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix OpenAI stream fallback on provider errors
+    section: bug_fixes
+    commits:
+    - 7e5c71cb2
+    authored_at: '2026-08-15T21:18:06+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_openai_tool_choice.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route Docker rebuilds through session worktrees'
+    section: bug_fixes
+    commits:
+    - 010d38a77
+    authored_at: '2026-08-15T19:54:40+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate AI Task reconciliation queue'
+    section: bug_fixes
+    commits:
+    - 4230b9500
+    authored_at: '2026-08-15T19:23:49+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fence stale AI task dispatches'
+    section: bug_fixes
+    commits:
+    - c18fd953c
+    authored_at: '2026-08-15T18:34:21+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/tasks-v1/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix shared asset proof arrow direction
+    section: bug_fixes
+    commits:
+    - c6e747283
+    authored_at: '2026-08-15T18:02:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wrap long settings detail values'
+    section: bug_fixes
+    commits:
+    - '669115110'
+    authored_at: '2026-08-15T17:47:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsDetailRow.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize operational ledger watermark timestamps'
+    section: bug_fixes
+    commits:
+    - dc1c9f5d8
+    authored_at: '2026-08-15T17:44:56+00:00'
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix shared asset proof carousel click
+    section: bug_fixes
+    commits:
+    - cb7e0bf88
+    authored_at: '2026-08-15T17:22:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align proof video viewport with recording'
+    section: bug_fixes
+    commits:
+    - a5017a83e
+    authored_at: '2026-08-15T16:21:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep proof video viewport full frame'
+    section: bug_fixes
+    commits:
+    - ff0572d58
+    authored_at: '2026-08-15T15:56:17+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix proof video GitHub run privacy scan
+    section: bug_fixes
+    commits:
+    - c29fb55af
+    authored_at: '2026-08-15T15:48:31+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match numeric proof run ids'
+    section: bug_fixes
+    commits:
+    - cc162d8e0
+    authored_at: '2026-08-15T14:30:11+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: widen landing mobile action rows'
+    section: bug_fixes
+    commits:
+    - e4777bb87
+    authored_at: '2026-08-15T14:01:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: disable proof video pii redaction'
+    section: bug_fixes
+    commits:
+    - 4c48da93c
+    authored_at: '2026-08-15T13:47:45+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing subslides readable on mobile'
+    section: bug_fixes
+    commits:
+    - b117072b7
+    authored_at: '2026-08-15T13:44:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingSubslideMotion.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid blank landing signup stage'
+    section: bug_fixes
+    commits:
+    - 01ec77c46
+    authored_at: '2026-08-15T13:31:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reduce OpenCode workflow blockers'
+    section: bug_fixes
+    commits:
+    - d0d8c946d
+    authored_at: '2026-08-15T13:18:30+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/audit_opencode_output_quality.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten landing mobile story heading'
+    section: bug_fixes
+    commits:
+    - a1240b1c1
+    authored_at: '2026-08-15T13:11:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat sync pending during cold cache'
+    section: bug_fixes
+    commits:
+    - bf9969165
+    authored_at: '2026-08-15T12:40:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix landing story timing assertion
+    section: bug_fixes
+    commits:
+    - da7c43b6b
+    authored_at: '2026-08-15T12:36:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing carousel slides readable'
+    section: bug_fixes
+    commits:
+    - dc74161cf
+    authored_at: '2026-08-15T12:23:10+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: exclude validated GitHub run IDs from proof privacy scan'
+    section: bug_fixes
+    commits:
+    - f4dde892c
+    authored_at: '2026-08-15T12:13:52+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix landing intro story mobile layout
+    section: bug_fixes
+    commits:
+    - 37125dda8
+    authored_at: '2026-08-15T12:12:16+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingMatesFocusDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make news preview fixtures self-contained'
+    section: bug_fixes
+    commits:
+    - 40fbb04d7
+    authored_at: '2026-08-15T12:09:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.preview.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fail cancelled Playwright dispatches'
+    section: bug_fixes
+    commits:
+    - c5ad69bc7
+    authored_at: '2026-08-15T11:59:25+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add app skill billing idempotency keys'
+    section: bug_fixes
+    commits:
+    - 13b3cdf6a
+    authored_at: '2026-08-15T10:55:35+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_billing_idempotency.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix landing hero transition blank frames
+    section: bug_fixes
+    commits:
+    - 82f257017
+    authored_at: '2026-08-15T10:20:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize active chat hash clearing'
+    section: bug_fixes
+    commits:
+    - 8d9d06dc2
+    authored_at: '2026-08-15T09:23:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize stacked notification inset'
+    section: bug_fixes
+    commits:
+    - 61cc3a0b2
+    authored_at: '2026-08-15T09:16:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: redact Discord webhook logs'
+    section: bug_fixes
+    commits:
+    - 29ba2c1dc
+    authored_at: '2026-08-15T09:00:44+00:00'
+    changed_paths:
+    - backend/core/api/app/utils/log_filters.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'refactor: remove obsolete Teams workspace'
+    section: improvements
+    commits:
+    - 40024664d
+    authored_at: '2026-08-15T10:03:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: clarify workflow retrospective efficiency guidance'
+    section: docs
+    commits:
+    - 5520a9203
+    authored_at: '2026-08-15T13:02:19+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record caption player smoke'
+    section: docs
+    commits:
+    - ee5b75dc5
+    authored_at: '2026-08-15T11:28:41+00:00'
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record operational monitoring evidence'
+    section: docs
+    commits:
+    - d65c1194c
+    authored_at: '2026-08-15T08:55:08+00:00'
+    changed_paths:
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: Use visible shared image proof fixture
+    section: tests
+    commits:
+    - 6109effd5
+    authored_at: '2026-08-15T21:34:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bind AI Task queue recovery evidence'
+    section: tests
+    commits:
+    - 75f5ea657
+    authored_at: '2026-08-15T19:33:50+00:00'
+    changed_paths:
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/tasks-v1/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hold Teams proof milestones'
+    section: tests
+    commits:
+    - 7c940d141
+    authored_at: '2026-08-15T16:35:29+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: lazily wrap live mock llm registry'
+    section: tests
+    commits:
+    - f4f0126cc
+    authored_at: '2026-08-15T15:38:34+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/utils/llm_utils.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use responsive landing mate row assertions'
+    section: tests
+    commits:
+    - 719f22ee5
+    authored_at: '2026-08-15T14:34:16+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use demo canvas for notification proof'
+    section: tests
+    commits:
+    - 818e536ee
+    authored_at: '2026-08-15T14:04:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cache non-stream live mock llm calls'
+    section: tests
+    commits:
+    - 7068954f1
+    authored_at: '2026-08-15T13:59:25+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hold notification stack proof states'
+    section: tests
+    commits:
+    - 1e8499d96
+    authored_at: '2026-08-15T13:38:38+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize live mock web read cache matching'
+    section: tests
+    commits:
+    - addea2c7e
+    authored_at: '2026-08-15T13:08:51+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: allow user-waived proof video evidence'
+    section: tests
+    commits:
+    - c270de1ff
+    authored_at: '2026-08-15T12:58:44+00:00'
+    changed_paths:
+    - docs/specs/search-skill-embed-reliability/spec.yml
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add app skill web live mock caches'
+    section: tests
+    commits:
+    - 779b5432d
+    authored_at: '2026-08-15T12:31:01+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/3a2a3b011bf502b4.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/3a39cb0bdd872356.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/61fb2734abccbffe.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/668091bcc45f9d71.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/884e9942b012d9fb.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/8b38b3121ebe56c1.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/0b25b1d61669a063.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/69e90d1ff66ed921.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/b0e119247a7df998.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/e55b783f875521c2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ea374a7cbb15ada2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ed8708dfd5109ff0.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ff56a0b4c4bd7ef8.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/2e10cdbc1e1e07b2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/3f44862aaf682c04.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/44080a2ecd574bee.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/1c3b16ea8c0459ef.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/912aeeb2fdc986b8.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/a1f176b7793bc1a5.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/faaff6089bd69c5f.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/3de715f08205ab1b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/4dbac4d9a2b01350.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/d6d3a3ed37a9101b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/llm__gemini-3.5-flash-lite/1308267474719c5b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/llm__gemini-3.5-flash-lite/4941447a6aec9082.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikidata/142646e9bc0b3a49.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikipedia/28677ed7bae19ae4.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikipedia/9958b34ad1e16b05.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/1ae1c68a63b38784.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/82526394efb96f6f.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/d465b9c990b9d2b5.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/70ca3f8a047afea4.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/761ec0ae7420e701.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/a53f657fb36734cc.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/f9aab1fb8e7f38db.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikidata/59e23a1380738e22.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikidata/f0f1f396e7be9f15.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/9f4cc8c83617f057.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/a4fbfba0d4be1171.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/e8564d9edb6ec93c.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/brave/a246bbfa77bac7a4.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/0edb469a7b88b511.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/b409037d727fad27.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/c1b9797ba988b22e.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/dd22b0a6fcfd6613.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/wikipedia/c0470a9a7dba1cd1.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/7865061aa6076033.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/cd45c8acb1398a04.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/d864508ff6b95a40.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/llm__gemini-3.5-flash-lite/000d9b9cf4d39243.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/llm__gemini-3.5-flash-lite/431434fa9b9a4ddd.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/5c9dea8ffec00686.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/7650fcb2f3f5b71f.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/db593598ce59f10f.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/470dd90f7612c967.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/cc3c22425c086e42.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/d5df4117d59e4756.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/f21bcd9e5103b0e9.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/30a5cd138dd83200.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/43cb7eb91564f70b.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/9fe90b4a5fc3e60f.json
+    - backend/apps/ai/testing/api_cache/web_read_web/llm__gemini-3.5-flash-lite/24a2780d6439709d.json
+    - backend/apps/ai/testing/api_cache/web_read_web/llm__gemini-3.5-flash-lite/86a146bf2c617153.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikidata/540d42a177641423.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/01f073ff82b21702.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/b1923ccb3f312f56.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/e344514c5c1f7294.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add app skill live mock caches'
+    section: tests
+    commits:
+    - e22d08d6a
+    authored_at: '2026-08-15T12:27:51+00:00'
+    changed_paths:
+    - scripts/import_live_mock_cache.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align chat send wait with preflight'
+    section: tests
+    commits:
+    - af06153f9
+    authored_at: '2026-08-15T11:52:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use unique shared asset proof slug'
+    section: tests
+    commits:
+    - 1fab2fc9b
+    authored_at: '2026-08-15T11:28:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize notification stack trigger'
+    section: tests
+    commits:
+    - 885f9f695
+    authored_at: '2026-08-15T11:22:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh news search replay'
+    section: tests
+    commits:
+    - 153e6a4c2
+    authored_at: '2026-08-15T11:14:14+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/news_search_web/llm__gemini-3.5-flash-lite/424d306ca0284cb7.json
+    - backend/apps/ai/testing/api_cache/news_search_web/llm__gemini-3.5-flash-lite/cf1797d6efe0e6fc.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: seed stacked notification e2e gate'
+    section: tests
+    commits:
+    - b2a64e45e
+    authored_at: '2026-08-15T11:05:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use visible Teams settings back control'
+    section: tests
+    commits:
+    - 4e57c96ae
+    authored_at: '2026-08-15T11:00:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover stacked notification deck'
+    section: tests
+    commits:
+    - 176d67479
+    authored_at: '2026-08-15T10:42:05+00:00'
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/features/notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid self-blocking proof gate relevance'
+    section: tests
+    commits:
+    - 2f90d61ef
+    authored_at: '2026-08-15T10:09:27+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: allow proof gates through unrelated dev changes'
+    section: tests
+    commits:
+    - 732df2add
+    authored_at: '2026-08-15T10:05:42+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose shared asset proof frames'
+    section: tests
+    commits:
+    - 78dc2d4fe
+    authored_at: '2026-08-15T09:13:44+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: shorten workspace proof captures'
+    section: tests
+    commits:
+    - cc1f194bc
+    authored_at: '2026-08-15T09:00:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: pin agent OpenCode version'
+    section: infrastructure
+    commits:
+    - 59a5468e9
+    authored_at: '2026-08-15T09:52:33+00:00'
+    changed_paths:
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_opencode_version_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Bound shared asset proof carousel click
+    section: internal
+    commits:
+    - 8a972be47
+    authored_at: '2026-08-15T18:41:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Trim shared asset proof capture
+    section: internal
+    commits:
+    - 95d65d749
+    authored_at: '2026-08-15T16:36:34+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Record shared asset proof-only video
+    section: internal
+    commits:
+    - a797348f2
+    authored_at: '2026-08-15T15:59:28+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Disable task update jobs in shared asset proof
+    section: internal
+    commits:
+    - 4e92a6dcc
+    authored_at: '2026-08-15T13:27:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Replace Gemini Flash model
+    section: internal
+    commits:
+    - c8db39a95
+    authored_at: '2026-08-15T11:36:12+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/testing/fixtures/focus_career_1.json
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/code/app.yml
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/test_gemini_ai_studio_models.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - shared/config/costs.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:ai, app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Hide dev label in landing proof
+    section: internal
+    commits:
+    - 85422e9c9
+    authored_at: '2026-08-15T11:21:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - scripts/proof_video_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Classify CLI context commands in parity audit
+    section: internal
+    commits:
+    - c3253b569
+    authored_at: '2026-08-15T10:37:25+00:00'
+    changed_paths:
+    - scripts/audit_sdk_cli_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: Fix proof artifact path resolution
+    commits:
+    - ae78feea3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add Discord health transition alerts'
+    commits:
+    - cd00fc913
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make OpenCode routing failures diagnosable'
+    commits:
+    - d4d578994
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Use visible shared image proof fixture
+    commits:
+    - 6109effd5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retry temporary Brave rate limits'
+    commits:
+    - 212a668f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix OpenAI stream fallback on provider errors
+    commits:
+    - 7e5c71cb2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: route Docker rebuilds through session worktrees'
+    commits:
+    - 010d38a77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bind AI Task queue recovery evidence'
+    commits:
+    - 75f5ea657
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate AI Task reconciliation queue'
+    commits:
+    - 4230b9500
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Bound shared asset proof carousel click
+    commits:
+    - 8a972be47
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fence stale AI task dispatches'
+    commits:
+    - c18fd953c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Fix shared asset proof arrow direction
+    commits:
+    - c6e747283
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: wrap long settings detail values'
+    commits:
+    - '669115110'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: normalize operational ledger watermark timestamps'
+    commits:
+    - dc1c9f5d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: enforce scoped AI task concurrency'
+    commits:
+    - 4ee355ed9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Fix shared asset proof carousel click
+    commits:
+    - cb7e0bf88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Trim shared asset proof capture
+    commits:
+    - 95d65d749
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hold Teams proof milestones'
+    commits:
+    - 7c940d141
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align proof video viewport with recording'
+    commits:
+    - a5017a83e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Record shared asset proof-only video
+    commits:
+    - a797348f2
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep proof video viewport full frame'
+    commits:
+    - ff0572d58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix proof video GitHub run privacy scan
+    commits:
+    - c29fb55af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: lazily wrap live mock llm registry'
+    commits:
+    - f4f0126cc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: use responsive landing mate row assertions'
+    commits:
+    - 719f22ee5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: match numeric proof run ids'
+    commits:
+    - cc162d8e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use demo canvas for notification proof'
+    commits:
+    - 818e536ee
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: widen landing mobile action rows'
+    commits:
+    - e4777bb87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cache non-stream live mock llm calls'
+    commits:
+    - 7068954f1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: disable proof video pii redaction'
+    commits:
+    - 4c48da93c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep landing subslides readable on mobile'
+    commits:
+    - b117072b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: hold notification stack proof states'
+    commits:
+    - 1e8499d96
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid blank landing signup stage'
+    commits:
+    - 01ec77c46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add durable operational purchase monitoring'
+    commits:
+    - 7ab9f2b89
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Disable task update jobs in shared asset proof
+    commits:
+    - 4e92a6dcc
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reduce OpenCode workflow blockers'
+    commits:
+    - d0d8c946d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: tighten landing mobile story heading'
+    commits:
+    - a1240b1c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize live mock web read cache matching'
+    commits:
+    - addea2c7e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: clarify workflow retrospective efficiency guidance'
+    commits:
+    - 5520a9203
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: allow user-waived proof video evidence'
+    commits:
+    - c270de1ff
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep chat sync pending during cold cache'
+    commits:
+    - bf9969165
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix landing story timing assertion
+    commits:
+    - da7c43b6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add app skill web live mock caches'
+    commits:
+    - 779b5432d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: add app skill live mock caches'
+    commits:
+    - e22d08d6a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep landing carousel slides readable'
+    commits:
+    - dc74161cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: exclude validated GitHub run IDs from proof privacy scan'
+    commits:
+    - f4dde892c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix landing intro story mobile layout
+    commits:
+    - 37125dda8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make news preview fixtures self-contained'
+    commits:
+    - 40fbb04d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: fail cancelled Playwright dispatches'
+    commits:
+    - c5ad69bc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align chat send wait with preflight'
+    commits:
+    - af06153f9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Replace Gemini Flash model
+    commits:
+    - c8db39a95
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'docs: record caption player smoke'
+    commits:
+    - ee5b75dc5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use unique shared asset proof slug'
+    commits:
+    - 1fab2fc9b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize notification stack trigger'
+    commits:
+    - 885f9f695
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Hide dev label in landing proof
+    commits:
+    - 85422e9c9
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh news search replay'
+    commits:
+    - 153e6a4c2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: seed stacked notification e2e gate'
+    commits:
+    - b2a64e45e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use visible Teams settings back control'
+    commits:
+    - 4e57c96ae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: add app skill billing idempotency keys'
+    commits:
+    - 13b3cdf6a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add device-scoped proof captions'
+    commits:
+    - e270eb849
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover stacked notification deck'
+    commits:
+    - 176d67479
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Classify CLI context commands in parity audit
+    commits:
+    - c3253b569
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix landing hero transition blank frames
+    commits:
+    - 82f257017
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: avoid self-blocking proof gate relevance'
+    commits:
+    - 2f90d61ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: allow proof gates through unrelated dev changes'
+    commits:
+    - 732df2add
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'refactor: remove obsolete Teams workspace'
+    commits:
+    - 40024664d
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'chore: pin agent OpenCode version'
+    commits:
+    - 59a5468e9
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: move Teams management into Settings'
+    commits:
+    - b546a11db
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize active chat hash clearing'
+    commits:
+    - 8d9d06dc2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize stacked notification inset'
+    commits:
+    - 61cc3a0b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: expose shared asset proof frames'
+    commits:
+    - 78dc2d4fe
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: redact Discord webhook logs'
+    commits:
+    - 29ba2c1dc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: shorten workspace proof captures'
+    commits:
+    - cc1f194bc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record operational monitoring evidence'
+    commits:
+    - d65c1194c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: Replace Gemini Flash model
+    commits:
+    - c8db39a95
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: Fix OpenAI stream fallback on provider errors
+    commits:
+    - 7e5c71cb2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: isolate AI Task reconciliation queue'
+    commits:
+    - 4230b9500
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fence stale AI task dispatches'
+    commits:
+    - c18fd953c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: Fix shared asset proof arrow direction
+    commits:
+    - c6e747283
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wrap long settings detail values'
+    commits:
+    - '669115110'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: enforce scoped AI task concurrency'
+    commits:
+    - 4ee355ed9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: Fix shared asset proof carousel click
+    commits:
+    - cb7e0bf88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align proof video viewport with recording'
+    commits:
+    - a5017a83e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep proof video viewport full frame'
+    commits:
+    - ff0572d58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: widen landing mobile action rows'
+    commits:
+    - e4777bb87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep landing subslides readable on mobile'
+    commits:
+    - b117072b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid blank landing signup stage'
+    commits:
+    - 01ec77c46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add durable operational purchase monitoring'
+    commits:
+    - 7ab9f2b89
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tighten landing mobile story heading'
+    commits:
+    - a1240b1c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix landing story timing assertion
+    commits:
+    - da7c43b6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep landing carousel slides readable'
+    commits:
+    - dc74161cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix landing intro story mobile layout
+    commits:
+    - 37125dda8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make news preview fixtures self-contained'
+    commits:
+    - 40fbb04d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add app skill billing idempotency keys'
+    commits:
+    - 13b3cdf6a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix landing hero transition blank frames
+    commits:
+    - 82f257017
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'refactor: remove obsolete Teams workspace'
+    commits:
+    - 40024664d
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: move Teams management into Settings'
+    commits:
+    - b546a11db
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize active chat hash clearing'
+    commits:
+    - 8d9d06dc2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize stacked notification inset'
+    commits:
+    - 61cc3a0b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ae78feea3ce1683a82b28705fc465920980fca27
+    short_sha: ae78feea3
+    authored_at: '2026-08-15T22:04:16+00:00'
+    subject: Fix proof artifact path resolution
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: cd00fc9139f768cba3549ee06d28b75038c1f41b
+    short_sha: cd00fc913
+    authored_at: '2026-08-15T21:58:19+00:00'
+    subject: 'feat: add Discord health transition alerts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/health_status_alert_email_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/templates/email/health-status-alert.mjml
+    - backend/tests/test_health_status_alerts.py
+    - docs/architecture/infrastructure/health-checks.md
+    related_feature_ids: []
+  - sha: d4d57899407f6e189f2b32fd18c81ab06faf888a
+    short_sha: d4d578994
+    authored_at: '2026-08-15T21:43:28+00:00'
+    subject: 'fix: make OpenCode routing failures diagnosable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/_workflow_review_helper.py
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/opencode_presence_store.py
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_privacy.py
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/verify_opencode_presence_live.py
+    related_feature_ids: []
+  - sha: 6109effd5eca550c533ce463ee6da03cc3b16ceb
+    short_sha: 6109effd5
+    authored_at: '2026-08-15T21:34:47+00:00'
+    subject: Use visible shared image proof fixture
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 212a668f54a587607e98662ef2a20a910576e737
+    short_sha: 212a668f5
+    authored_at: '2026-08-15T21:33:13+00:00'
+    subject: 'fix: retry temporary Brave rate limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7e5c71cb2072d1853b1dbd7284c794914e15333c
+    short_sha: 7e5c71cb2
+    authored_at: '2026-08-15T21:18:06+00:00'
+    subject: Fix OpenAI stream fallback on provider errors
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_openai_tool_choice.py
+    related_feature_ids:
+    - app:ai
+  - sha: 010d38a773a0018c1af2ec350d5518448d98d2e9
+    short_sha: 010d38a77
+    authored_at: '2026-08-15T19:54:40+00:00'
+    subject: 'fix: route Docker rebuilds through session worktrees'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    related_feature_ids: []
+  - sha: 75f5ea65720ed7d0669d03d39e9b358f5c97e5da
+    short_sha: 75f5ea657
+    authored_at: '2026-08-15T19:33:50+00:00'
+    subject: 'test: bind AI Task queue recovery evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/tasks-v1/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 4230b9500f63dd22a24035d43b0f05ea64c979a0
+    short_sha: 4230b9500
+    authored_at: '2026-08-15T19:23:49+00:00'
+    subject: 'fix: isolate AI Task reconciliation queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: 8a972be470c279050f94bd705d71be803e76eea9
+    short_sha: 8a972be47
+    authored_at: '2026-08-15T18:41:53+00:00'
+    subject: Bound shared asset proof carousel click
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: c18fd953c72253f8b9bda73bb1d61e3f43244aa8
+    short_sha: c18fd953c
+    authored_at: '2026-08-15T18:34:21+00:00'
+    subject: 'fix: fence stale AI task dispatches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/tasks-v1/spec.yml
+    related_feature_ids:
+    - app:ai
+    - platform:tasks
+  - sha: c6e747283016df4066fd3ec139776e2ab16a694b
+    short_sha: c6e747283
+    authored_at: '2026-08-15T18:02:04+00:00'
+    subject: Fix shared asset proof arrow direction
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 66911511019fc798616bde8ac6e92416553b22d9
+    short_sha: '669115110'
+    authored_at: '2026-08-15T17:47:38+00:00'
+    subject: 'fix: wrap long settings detail values'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsDetailRow.svelte
+    related_feature_ids: []
+  - sha: dc1c9f5d88dbefc00189d291e5060312e8de27b5
+    short_sha: dc1c9f5d8
+    authored_at: '2026-08-15T17:44:56+00:00'
+    subject: 'fix: normalize operational ledger watermark timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    related_feature_ids: []
+  - sha: 4ee355ed986e4d75a09c05cfd7a582fbec314c6d
+    short_sha: 4ee355ed9
+    authored_at: '2026-08-15T17:39:27+00:00'
+    subject: 'feat: enforce scoped AI task concurrency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_queue_continuation.py
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_admission_service.py
+    - backend/core/api/app/services/user_task_execution_service.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/tasks/user_task_scheduler.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_queue_auto_continuation.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/self-hosting/setup.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    related_feature_ids:
+    - app:ai
+    - platform:tasks
+  - sha: cb7e0bf88799921d9d0501f254c2feb55bb830df
+    short_sha: cb7e0bf88
+    authored_at: '2026-08-15T17:22:17+00:00'
+    subject: Fix shared asset proof carousel click
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 95d65d74911beb97b5e528c47722d5a388c9b8d7
+    short_sha: 95d65d749
+    authored_at: '2026-08-15T16:36:34+00:00'
+    subject: Trim shared asset proof capture
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 7c940d14189d692f5c81efa8e2ad4a5e73c9cd5f
+    short_sha: 7c940d141
+    authored_at: '2026-08-15T16:35:29+00:00'
+    subject: 'test: hold Teams proof milestones'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    related_feature_ids: []
+  - sha: a5017a83e9a5f2b9c72057e1ecfae51f3a9015c6
+    short_sha: a5017a83e
+    authored_at: '2026-08-15T16:21:55+00:00'
+    subject: 'fix: align proof video viewport with recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: a797348f237fff241d44c83aa7cb3a07c3720cfd
+    short_sha: a797348f2
+    authored_at: '2026-08-15T15:59:28+00:00'
+    subject: Record shared asset proof-only video
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: ff0572d58133cf19c0808e3445a93f475b6fb8ea
+    short_sha: ff0572d58
+    authored_at: '2026-08-15T15:56:17+00:00'
+    subject: 'fix: keep proof video viewport full frame'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: c29fb55af1359d06cc4ca431994ea860180b3d4a
+    short_sha: c29fb55af
+    authored_at: '2026-08-15T15:48:31+00:00'
+    subject: Fix proof video GitHub run privacy scan
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: f4f0126ccc27f26f42472dc89f40fc196be55e8a
+    short_sha: f4f0126cc
+    authored_at: '2026-08-15T15:38:34+00:00'
+    subject: 'test: lazily wrap live mock llm registry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/utils/llm_utils.py
+    related_feature_ids:
+    - app:ai
+  - sha: 719f22ee522e58f2c64d896d2010883cd80b44ff
+    short_sha: 719f22ee5
+    authored_at: '2026-08-15T14:34:16+00:00'
+    subject: 'test: use responsive landing mate row assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: cc162d8e092c8e1174fbbc93ad6605f21c2c5044
+    short_sha: cc162d8e0
+    authored_at: '2026-08-15T14:30:11+00:00'
+    subject: 'fix: match numeric proof run ids'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 818e536ee882093103edbe0c23efa7f53fe2c56e
+    short_sha: 818e536ee
+    authored_at: '2026-08-15T14:04:19+00:00'
+    subject: 'test: use demo canvas for notification proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: e4777bb87263efd2cfae584f3361e83e293bfd6b
+    short_sha: e4777bb87
+    authored_at: '2026-08-15T14:01:41+00:00'
+    subject: 'fix: widen landing mobile action rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    related_feature_ids: []
+  - sha: 7068954f18d5126addc0b3a5c6d11a8f10f93165
+    short_sha: 7068954f1
+    authored_at: '2026-08-15T13:59:25+00:00'
+    subject: 'test: cache non-stream live mock llm calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 4c48da93c75750f1e1c785dfb191c5ef29032cd7
+    short_sha: 4c48da93c
+    authored_at: '2026-08-15T13:47:45+00:00'
+    subject: 'fix: disable proof video pii redaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: b117072b79baea0a114535f3b683bacd8b00137b
+    short_sha: b117072b7
+    authored_at: '2026-08-15T13:44:38+00:00'
+    subject: 'fix: keep landing subslides readable on mobile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/landing/LandingSubslideMotion.svelte
+    related_feature_ids: []
+  - sha: 1e8499d96d1b8ee78231ce58dc0347abccf3c24e
+    short_sha: 1e8499d96
+    authored_at: '2026-08-15T13:38:38+00:00'
+    subject: 'test: hold notification stack proof states'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: 01ec77c467ce4ff8943a042e22d995dc3b14a6aa
+    short_sha: 01ec77c46
+    authored_at: '2026-08-15T13:31:16+00:00'
+    subject: 'fix: avoid blank landing signup stage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 7ab9f2b890d1107452691b4fbd02b11cd8693d79
+    short_sha: 7ab9f2b89
+    authored_at: '2026-08-15T13:29:15+00:00'
+    subject: 'feat: add durable operational purchase monitoring'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/cache_stats_mixin.py
+    - backend/core/api/app/services/directus/apple_iap_transaction_methods.py
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/services/purchase_settlement_ledger.py
+    - backend/core/api/app/services/server_stats_service.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/core/api/app/utils/log_filters.py
+    - backend/core/api/templates/email/operational_monitoring_digest.mjml
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/apple_iap_transactions.yml
+    - backend/core/directus/schemas/credit_purchase_settlements.yml
+    - backend/core/directus/schemas/operational_monitoring_events.yml
+    - backend/scripts/approve_bank_transfer.py
+    - backend/tests/test_apple_iap_payment_replay.py
+    - backend/tests/test_approve_bank_transfer_script.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - backend/tests/test_purchase_settlement_ledger.py
+    - contracts/architecture/operational-monitoring/contract.yml
+    - contracts/architecture/operational-monitoring/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - scripts/audit_operational_monitoring_contract.py
+    related_feature_ids: []
+  - sha: 4e92a6dcc05727585b8921122512a205ab0dab8c
+    short_sha: 4e92a6dcc
+    authored_at: '2026-08-15T13:27:00+00:00'
+    subject: Disable task update jobs in shared asset proof
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: d0d8c946d732d8d65a71c8f8f3a0ac6dba46f8f8
+    short_sha: d0d8c946d
+    authored_at: '2026-08-15T13:18:30+00:00'
+    subject: 'fix: reduce OpenCode workflow blockers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/audit_opencode_output_quality.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_vercel_build_machine_gate.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: a1240b1c1faf7e96a21a53d1ecf233df09b94421
+    short_sha: a1240b1c1
+    authored_at: '2026-08-15T13:11:44+00:00'
+    subject: 'fix: tighten landing mobile story heading'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: addea2c7e3cea0f8c2b0cf7586a73553759c019b
+    short_sha: addea2c7e
+    authored_at: '2026-08-15T13:08:51+00:00'
+    subject: 'test: stabilize live mock web read cache matching'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 5520a9203df186101c47e06eac76bd02dfb3b02b
+    short_sha: 5520a9203
+    authored_at: '2026-08-15T13:02:19+00:00'
+    subject: 'docs: clarify workflow retrospective efficiency guidance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    related_feature_ids: []
+  - sha: c270de1ff7bd999492f8853ec674e6bdc59c8d90
+    short_sha: c270de1ff
+    authored_at: '2026-08-15T12:58:44+00:00'
+    subject: 'test: allow user-waived proof video evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/search-skill-embed-reliability/spec.yml
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: bf99691657d1c10f89103e89b80f6609093392d4
+    short_sha: bf9969165
+    authored_at: '2026-08-15T12:40:25+00:00'
+    subject: 'fix: keep chat sync pending during cold cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: da7c43b6b83cd19d45caec50c3a414cef1994cc6
+    short_sha: da7c43b6b
+    authored_at: '2026-08-15T12:36:32+00:00'
+    subject: Fix landing story timing assertion
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+  - sha: 779b5432d45313745fb0a659b5895413a3391a75
+    short_sha: 779b5432d
+    authored_at: '2026-08-15T12:31:01+00:00'
+    subject: 'test: add app skill web live mock caches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/3a2a3b011bf502b4.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/3a39cb0bdd872356.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/61fb2734abccbffe.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/668091bcc45f9d71.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/884e9942b012d9fb.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/brave/8b38b3121ebe56c1.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/0b25b1d61669a063.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/69e90d1ff66ed921.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/b0e119247a7df998.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/e55b783f875521c2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ea374a7cbb15ada2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ed8708dfd5109ff0.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/llm__gemini-3.5-flash-lite/ff56a0b4c4bd7ef8.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/2e10cdbc1e1e07b2.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/3f44862aaf682c04.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikidata/44080a2ecd574bee.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/1c3b16ea8c0459ef.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/912aeeb2fdc986b8.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/a1f176b7793bc1a5.json
+    - backend/apps/ai/testing/api_cache/electronics_search_web/wikipedia/faaff6089bd69c5f.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/3de715f08205ab1b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/4dbac4d9a2b01350.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/brave/d6d3a3ed37a9101b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/llm__gemini-3.5-flash-lite/1308267474719c5b.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/llm__gemini-3.5-flash-lite/4941447a6aec9082.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikidata/142646e9bc0b3a49.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikipedia/28677ed7bae19ae4.json
+    - backend/apps/ai/testing/api_cache/reminder_set_web/wikipedia/9958b34ad1e16b05.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/1ae1c68a63b38784.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/82526394efb96f6f.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/brave/d465b9c990b9d2b5.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/70ca3f8a047afea4.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/761ec0ae7420e701.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/a53f657fb36734cc.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/llm__gemini-3.5-flash-lite/f9aab1fb8e7f38db.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikidata/59e23a1380738e22.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikidata/f0f1f396e7be9f15.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/9f4cc8c83617f057.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/a4fbfba0d4be1171.json
+    - backend/apps/ai/testing/api_cache/travel_connections_web/wikipedia/e8564d9edb6ec93c.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/brave/a246bbfa77bac7a4.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/0edb469a7b88b511.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/b409037d727fad27.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/c1b9797ba988b22e.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/llm__gemini-3.5-flash-lite/dd22b0a6fcfd6613.json
+    - backend/apps/ai/testing/api_cache/travel_stays_web/wikipedia/c0470a9a7dba1cd1.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/7865061aa6076033.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/cd45c8acb1398a04.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/brave/d864508ff6b95a40.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/llm__gemini-3.5-flash-lite/000d9b9cf4d39243.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/llm__gemini-3.5-flash-lite/431434fa9b9a4ddd.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/5c9dea8ffec00686.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/7650fcb2f3f5b71f.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikidata/db593598ce59f10f.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/470dd90f7612c967.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/cc3c22425c086e42.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/d5df4117d59e4756.json
+    - backend/apps/ai/testing/api_cache/videos_search_web/wikipedia/f21bcd9e5103b0e9.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/30a5cd138dd83200.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/43cb7eb91564f70b.json
+    - backend/apps/ai/testing/api_cache/web_read_web/brave/9fe90b4a5fc3e60f.json
+    - backend/apps/ai/testing/api_cache/web_read_web/llm__gemini-3.5-flash-lite/24a2780d6439709d.json
+    - backend/apps/ai/testing/api_cache/web_read_web/llm__gemini-3.5-flash-lite/86a146bf2c617153.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikidata/540d42a177641423.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/01f073ff82b21702.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/b1923ccb3f312f56.json
+    - backend/apps/ai/testing/api_cache/web_read_web/wikipedia/e344514c5c1f7294.json
+    related_feature_ids:
+    - app:ai
+  - sha: e22d08d6a08dc99319539b72bcc4e3c52ecc1cc9
+    short_sha: e22d08d6a
+    authored_at: '2026-08-15T12:27:51+00:00'
+    subject: 'test: add app skill live mock caches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/import_live_mock_cache.py
+    related_feature_ids: []
+  - sha: dc74161cfc9ceed403d0d11a2c76f3b471c1aa14
+    short_sha: dc74161cf
+    authored_at: '2026-08-15T12:23:10+00:00'
+    subject: 'fix: keep landing carousel slides readable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: f4dde892cc6b17c0989847968fae1d2a36afa038
+    short_sha: f4dde892c
+    authored_at: '2026-08-15T12:13:52+00:00'
+    subject: 'fix: exclude validated GitHub run IDs from proof privacy scan'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 37125dda81e54aaab4b9a903fe085b6de47db0b6
+    short_sha: 37125dda8
+    authored_at: '2026-08-15T12:12:16+00:00'
+    subject: Fix landing intro story mobile layout
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingMatesFocusDemo.svelte
+    related_feature_ids: []
+  - sha: 40fbb04d78e6268d1e9b8a2a5e616b553c1e21e8
+    short_sha: 40fbb04d7
+    authored_at: '2026-08-15T12:09:55+00:00'
+    subject: 'fix: make news preview fixtures self-contained'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.preview.ts
+    related_feature_ids: []
+  - sha: c5ad69bc754db7fca14d5163079d1cacd9e4e9ce
+    short_sha: c5ad69bc7
+    authored_at: '2026-08-15T11:59:25+00:00'
+    subject: 'fix: fail cancelled Playwright dispatches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: af06153f91ec86fb8d1074a55a03850f2ab0379e
+    short_sha: af06153f9
+    authored_at: '2026-08-15T11:52:26+00:00'
+    subject: 'test: align chat send wait with preflight'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: c8db39a95498c47567a2ab2a41fedb0c24f3c0ce
+    short_sha: c8db39a95
+    authored_at: '2026-08-15T11:36:12+00:00'
+    subject: Replace Gemini Flash model
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/testing/fixtures/focus_career_1.json
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/code/app.yml
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/test_gemini_ai_studio_models.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/open-meteo-weather-notebook.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - shared/config/costs.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+  - sha: ee5b75dc58be0b0b4d1cbc89dae950728272eb49
+    short_sha: ee5b75dc5
+    authored_at: '2026-08-15T11:28:41+00:00'
+    subject: 'docs: record caption player smoke'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    related_feature_ids: []
+  - sha: 1fab2fc9bb45426ce644ab78f711f4ff70fe1615
+    short_sha: 1fab2fc9b
+    authored_at: '2026-08-15T11:28:14+00:00'
+    subject: 'test: use unique shared asset proof slug'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 885f9f695649891a3c4237e799e767757c66ed7e
+    short_sha: 885f9f695
+    authored_at: '2026-08-15T11:22:49+00:00'
+    subject: 'test: stabilize notification stack trigger'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: 85422e9c98695a6bd63070aac4c16e7be50bfd5d
+    short_sha: 85422e9c9
+    authored_at: '2026-08-15T11:21:36+00:00'
+    subject: Hide dev label in landing proof
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - scripts/proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 153e6a4c29b4a37bef7b7a4092f54ba0c258be89
+    short_sha: 153e6a4c2
+    authored_at: '2026-08-15T11:14:14+00:00'
+    subject: 'test: refresh news search replay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/news_search_web/llm__gemini-3.5-flash-lite/424d306ca0284cb7.json
+    - backend/apps/ai/testing/api_cache/news_search_web/llm__gemini-3.5-flash-lite/cf1797d6efe0e6fc.json
+    related_feature_ids:
+    - app:ai
+  - sha: b2a64e45ec46fc3dd10bd66f9670f1730a0ed7f3
+    short_sha: b2a64e45e
+    authored_at: '2026-08-15T11:05:05+00:00'
+    subject: 'test: seed stacked notification e2e gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: 4e57c96ae941e3d91e4fe0e0548d2f60d29d28b8
+    short_sha: 4e57c96ae
+    authored_at: '2026-08-15T11:00:49+00:00'
+    subject: 'test: use visible Teams settings back control'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    related_feature_ids: []
+  - sha: 13b3cdf6acea8e7f6fd6df8ece9afa716e2b8fe9
+    short_sha: 13b3cdf6a
+    authored_at: '2026-08-15T10:55:35+00:00'
+    subject: 'fix: add app skill billing idempotency keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_billing_idempotency.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e270eb84900dd54d05028648166a0367d0d3ddde
+    short_sha: e270eb849
+    authored_at: '2026-08-15T10:47:14+00:00'
+    subject: 'feat: add device-scoped proof captions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_response_media.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 176d67479c47134edddb776942d4315c7811db91
+    short_sha: 176d67479
+    authored_at: '2026-08-15T10:42:05+00:00'
+    subject: 'test: cover stacked notification deck'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/features/notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+  - sha: c3253b569c784f134a24a0297fbcdcaccc8e9edf
+    short_sha: c3253b569
+    authored_at: '2026-08-15T10:37:25+00:00'
+    subject: Classify CLI context commands in parity audit
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids: []
+  - sha: 82f257017ec6679a4f7d85747cd5127ac8c30e59
+    short_sha: 82f257017
+    authored_at: '2026-08-15T10:20:54+00:00'
+    subject: Fix landing hero transition blank frames
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2f90d61ef9cb423bada87df4080441130b44f0bb
+    short_sha: 2f90d61ef
+    authored_at: '2026-08-15T10:09:27+00:00'
+    subject: 'test: avoid self-blocking proof gate relevance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 732df2add2424fbb896e0f2e358846404c9f0257
+    short_sha: 732df2add
+    authored_at: '2026-08-15T10:05:42+00:00'
+    subject: 'test: allow proof gates through unrelated dev changes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 40024664d6917a5967854531b1538ee74021f801
+    short_sha: 40024664d
+    authored_at: '2026-08-15T10:03:35+00:00'
+    subject: 'refactor: remove obsolete Teams workspace'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    related_feature_ids:
+    - platform:teams
+  - sha: 59a5468e916f707fd69446c7ee83c8094b2654f8
+    short_sha: 59a5468e9
+    authored_at: '2026-08-15T09:52:33+00:00'
+    subject: 'chore: pin agent OpenCode version'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_opencode_version_guard.py
+    related_feature_ids: []
+  - sha: b546a11dbb894e23bb5885bdb5e7db1008c49d00
+    short_sha: b546a11db
+    authored_at: '2026-08-15T09:26:41+00:00'
+    subject: 'feat: move Teams management into Settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/teams/contract.yml
+    - contracts/features/teams/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/utils/teamAvatar.ts
+    - scripts/tests/test_teams_settings_only_guard.py
+    related_feature_ids: []
+  - sha: 8d9d06dc2bc4f058dceea371e7685deeb35bed8b
+    short_sha: 8d9d06dc2
+    authored_at: '2026-08-15T09:23:57+00:00'
+    subject: 'fix: stabilize active chat hash clearing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    related_feature_ids: []
+  - sha: 61cc3a0b2b4b8a0c312f7ab49864560fc1904a80
+    short_sha: 61cc3a0b2
+    authored_at: '2026-08-15T09:16:01+00:00'
+    subject: 'fix: stabilize stacked notification inset'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+  - sha: 78dc2d4fe29205962b0d41f294a8677615d1f19d
+    short_sha: 78dc2d4fe
+    authored_at: '2026-08-15T09:13:44+00:00'
+    subject: 'test: expose shared asset proof frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 29ba2c1dcd899ffb8191b6dfb4d86868ec22d1ee
+    short_sha: 29ba2c1dc
+    authored_at: '2026-08-15T09:00:44+00:00'
+    subject: 'fix: redact Discord webhook logs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/utils/log_filters.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cc1f194bce4f091859d1255069734cb7b3349864
+    short_sha: cc1f194bc
+    authored_at: '2026-08-15T09:00:24+00:00'
+    subject: 'test: shorten workspace proof captures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    related_feature_ids: []
+  - sha: d65c1194cbd34758be8d919f21311bd8f6a76d51
+    short_sha: d65c1194c
+    authored_at: '2026-08-15T08:55:08+00:00'
+    subject: 'docs: record operational monitoring evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on strengthening AI task infrastructure, optimizing the landing page for mobile users, and migrating
+    Teams management into the settings interface. Significant internal work was also completed to update AI models and refine
+    automated proof-of-work video generation.
+  released_changes: []
+  bug_fixes:
+  - text: A series of refinements to the landing page improved mobile action rows, subslide readability, and hero transitions
+      to prevent blank frames.
+    evidence:
+      commits:
+      - e4777bb87
+      - b117072b7
+      - a1240b1c1
+      - 37125dda8
+      - 82f257017
+      - dc74161cf
+      - 01ec77c46
+    release_status: dev_only
+  - text: AI task reliability was improved by adding stream fallbacks for provider errors and fencing stale task dispatches.
+    evidence:
+      commits:
+      - 7e5c71cb2
+      - c18fd953c
+    release_status: dev_only
+  - text: UI stability fixes addressed long text wrapping in settings, notification stack insets, and active chat hash clearing.
+    evidence:
+      commits:
+      - '669115110'
+      - 61cc3a0b2
+      - 8d9d06dc2
+    release_status: dev_only
+  - text: Idempotency keys were added to app skill billing to prevent duplicate charges.
+    evidence:
+      commits:
+      - 13b3cdf6a
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates is implementing scoped AI task concurrency and isolating the task reconciliation queue to improve processing
+      efficiency.
+    evidence:
+      commits:
+      - 4ee355ed9
+      - 4230b9500
+    release_status: dev_only
+  - text: Teams management is being moved into the Settings interface, accompanied by the removal of the legacy standalone
+      Teams workspace.
+    evidence:
+      commits:
+      - b546a11db
+      - 40024664d
+    release_status: dev_only
+  - text: New operational monitoring capabilities are in development, including durable purchase tracking and health status
+      alerts via Discord.
+    evidence:
+      commits:
+      - 7ab9f2b89
+      - cd00fc913
+    release_status: dev_only
+  internal_progress:
+  - text: The Gemini Flash model was replaced across AI and code generation services, including updates to model selection
+      logic and cost configurations.
+    evidence:
+      commits:
+      - c8db39a95
+    release_status: dev_only
+  - text: Internal proof video workflows were enhanced with device-scoped captions, viewport alignment fixes, and improved
+      artifact path resolution.
+    evidence:
+      commits:
+      - e270eb849
+      - a5017a83e
+      - ff0572d58
+      - ae78feea3
+      - c29fb55af
+    release_status: dev_only
+  - text: OpenCode development infrastructure was updated to pin agent versions and improve the diagnosability of routing
+      failures.
+    evidence:
+      commits:
+      - d4d578994
+      - d0d8c946d
+      - 59a5468e9
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Scoped AI task concurrency and queue isolation.
+      evidence:
+        commits:
+        - 4ee355ed9
+        - 4230b9500
+      reason: AI task concurrency and queue isolation work is currently dev-only and relates to unreleased platform features.
+    - text: Migration of Teams management into Settings.
+      evidence:
+        commits:
+        - b546a11db
+        - 40024664d
+      reason: Teams management migration is part of a disabled feature set and remains in development.
+    rationale: No items from this period are currently released to the main branch or marked as ready for public communication.
+      Work is primarily focused on internal infrastructure and unreleased feature modules.
+  social_video_recommendations: []
+  quality_notes:
+  - Heavy emphasis on stabilizing the 'proof' video pipeline for feature verification.
+  - Extensive use of API response caching and live mock fixtures to ensure test reliability for AI skills.
+  - Proactive monitoring added for purchase settlements and system health.
+  validation_warnings: []

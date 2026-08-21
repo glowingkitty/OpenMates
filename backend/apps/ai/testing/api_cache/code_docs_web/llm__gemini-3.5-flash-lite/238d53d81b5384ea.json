@@ -1,0 +1,102 @@
+{
+  "fingerprint": "238d53d81b5384ea",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "code_docs_web",
+  "recorded_at": "2026-08-14T10:57:38.729324+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "c46126e83fd73166",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "library_id: /reactjs/react.dev\nlibrary_title: React\nlibrary_description: \"React.dev is the official documentation website for React, a JavaScript library for building user interfaces, providing guides..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here is the official documentation and usage guide for the `[useState](wiki:React_(JavaScript_library)#Hooks)` Hook in [React](wiki:React_(JavaScript_library)).\n\n### Importing `useState`\nTo use state in a functional component, import `useState` from the `react` package:\n\n```javascript:Counter.jsx\nimport { useState } from 'react';\n```\n\n### Basic Syntax\n```javascript\nconst [state, setState] = useState(initialState);\n```\n- **`state`**: The current state. During the first render, it will match the `initialState` you passed.\n- **`setState`**: The setter function that lets you update the state to a new value and trigger a re-render.\n\n---\n\n### Example: Counter Component\nHere is a simple example demonstrating how to manage state using a counter:\n\n```jsx:Counter.jsx\nimport { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n\n  function handleClick() {\n    setCount(count + 1); // Updates state and triggers re-render\n  }\n\n  return (\n    <button onClick={handleClick}>\n      You pressed me {count} times\n    </button>\n  );\n}\n\nexport default Counter;\n```\n\nFor more detailed information, check out the official [React documentation](https://react.dev/reference/react/useState).\n\n---\n\n1. Would you like to see how to use functional updates when your new state depends on the previous state?\n2. Are you looking to manage more complex state structures, such as objects or arrays, using `useState`?",
+    "chunk_count": 17,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here is"
+      },
+      {
+        "kind": "text",
+        "value": " the official documentation and usage guide for the `[useState](wiki:React_("
+      },
+      {
+        "kind": "text",
+        "value": "JavaScript_library)#Hooks)` Hook in [React](wiki:React_(JavaScript_library)).\n\n### Importing `useState`\n"
+      },
+      {
+        "kind": "text",
+        "value": "To use state in a functional component, import `useState` from the `react` package:\n\n```javascript:Counter"
+      },
+      {
+        "kind": "text",
+        "value": ".jsx\nimport { useState } from 'react';\n```\n\n### Basic Syntax\n```javascript\nconst"
+      },
+      {
+        "kind": "text",
+        "value": " [state, setState] = useState(initialState);\n```\n- **`state`**: The current state. During the first render, it will"
+      },
+      {
+        "kind": "text",
+        "value": " match the `initialState` you passed.\n- **`setState`**: The setter function that lets you update the state to"
+      },
+      {
+        "kind": "text",
+        "value": " a new value and trigger a re-render.\n\n---\n\n### Example: Counter Component\nHere is a simple example"
+      },
+      {
+        "kind": "text",
+        "value": " demonstrating how to manage state using a counter:\n\n```jsx:Counter.jsx\nimport { useState } from 'react';"
+      },
+      {
+        "kind": "text",
+        "value": "\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n\n  function handleClick() {"
+      },
+      {
+        "kind": "text",
+        "value": "\n    setCount(count + 1); // Updates state and triggers re-render\n  }\n\n  return (\n    <"
+      },
+      {
+        "kind": "text",
+        "value": "button onClick={handleClick}>\n      You pressed me {count} times\n    </button>\n  );\n}\n\n"
+      },
+      {
+        "kind": "text",
+        "value": "export default Counter;\n```\n\nFor more detailed information, check out the official [React documentation](https://react.dev"
+      },
+      {
+        "kind": "text",
+        "value": "/reference/react/useState).\n\n---\n\n1. Would you like to see how to use functional updates when your"
+      },
+      {
+        "kind": "text",
+        "value": " new state depends on the previous state?\n2. Are you looking to manage more complex state structures, such as objects or arrays,"
+      },
+      {
+        "kind": "text",
+        "value": " using `useState`?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14576,
+          "candidates_token_count": 354,
+          "total_token_count": 14930,
+          "user_input_tokens": 633,
+          "system_prompt_tokens": 12899
+        }
+      }
+    ]
+  }
+}

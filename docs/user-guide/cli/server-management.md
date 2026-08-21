@@ -91,6 +91,15 @@ The generated `.env` includes `PRODUCTION_URL="http://localhost:5173"` so the pr
 
 Source mode is the contributor/fork path. Use `--from-source` to clone the official repository, or `--source-path <dir>` to clone from an existing local checkout. Source mode requires Git for clone-based installs and updates, and rebuilds Docker images locally.
 
+To manage an existing checkout in place without cloning, pulling, or changing its Git state, register it as a working-tree server:
+
+```bash
+openmates server register --path /path/to/OpenMates
+openmates server register --path /path/to/OpenMates --official-cloud --with-overrides --exclude webapp
+```
+
+Registration only records the runtime mode, Compose overlays, and default service set. An official-cloud registration automatically excludes the bundled web app; normal self-host registrations and installations continue to include it.
+
 Image-mode install defaults to `invite_only`. The install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`. Source-mode installs still use the repository setup script behavior.
 
 | Option | Default | Description |
@@ -216,7 +225,7 @@ Image-mode installs refresh the runtime Compose template from the packaged CLI t
 
 For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
 
-Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. The `--force` flag only applies to source-mode Git updates.
+Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
 
 After the provider-free runtime checklist passes on an interactive core-server update, the CLI offers `Continue with quick server test?`. The optional test uses the CLI account logged into that self-hosted instance to create, reload, and remove one temporary encrypted AI chat, run `math.calculate`, and run a one-result `web.search`. These checks may consume account credits, so declining does not affect the successful deterministic update and `--yes` never authorizes them.
 

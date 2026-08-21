@@ -1,0 +1,142 @@
+{
+  "fingerprint": "9ee295b355ceca6d",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_connections_cli",
+  "recorded_at": "2026-08-15T12:14:28.860846+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "fd31c65029ff4ff5",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[20]:\n  - transport_method: train\n    source_provider: flix\n    trip_type: one_way\n    total_price: \"46.48\"\n    currency: EUR\n    bookable_seats: null\n    last_ticketing_date: null\n    legs[1]:..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the available travel options from Berlin to Munich for next week (Monday, August 17, 2026). \n\n*(Note: Direct non-stop flights between Berlin and Munich are operated by [Lufthansa](embed:lufthansa-2026-KIo) and [Lufthansa City Airlines](embed:lufthansa-2026-aN8), but high-speed trains ([Deutsche Bahn ICE](embed:ice-0936-C9z)) offer a faster total city-to-city travel time without airport security or layovers at a lower price point.)*\n\n### Direct & Connecting Flights\n* [Lufthansa 12:50 – 14:00 (Direct)](embed:lufthansa-2026-KIo) — €335 (1h 10m)\n* [Lufthansa 18:20 – 19:30 (Direct)](embed:lufthansa-2026-lbX) — €352 (1h 10m)\n* [Lufthansa 19:50 – 21:00 (Direct)](embed:lufthansa-2026-NXN) — €352 (1h 10m)\n* [Lufthansa City Airlines 09:50 – 11:00 (Direct)](embed:lufthansa-2026-aN8) — €491 (1h 10m)\n* [Condor via Frankfurt 11:50 – 15:30](embed:condor-2026-kU5) — €216 (3h 40m)\n\n### High-Speed Trains (Deutsche Bahn ICE)\n* [ICE 505 (08:29 – 13:08)](embed:ice-0829-EXI) — €88.99 (4h 39m, Direct)\n* [ICE 1505 (09:36 – 13:43)](embed:ice-0936-C9z) — €87.99 (4h 7m, Direct)\n* [ICE 1007 (10:37 – 14:46)](embed:ice-1037-5bd) — €96.99 (4h 9m, Direct)\n\n```embeds_results_view\ntitle: Travel from Berlin to Munich\nembeds: lufthansa-2026-KIo, ice-0936-C9z, condor-2026-kU5\n```\n\nWould you like to refine the search by preferred departure time, or check return options?",
+    "chunk_count": 27,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the available travel options from Berlin to Munich for next week (Monday, August 17,"
+      },
+      {
+        "kind": "text",
+        "value": " 2026). \n\n*(Note: Direct non-stop flights between Berlin and Munich are operated by"
+      },
+      {
+        "kind": "text",
+        "value": " [Lufthansa](embed:lufthansa-2026-KIo) and [Lufthansa City Airlines](embed:l"
+      },
+      {
+        "kind": "text",
+        "value": "ufthansa-2026-aN8), but high-speed trains ([Deutsche Bahn ICE](embed:ice-0"
+      },
+      {
+        "kind": "text",
+        "value": "936-C9z)) offer a faster total city-to-city travel time without airport security or lay"
+      },
+      {
+        "kind": "text",
+        "value": "overs at a lower price point.)*\n\n### Direct & Connecting Flights\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [Lufthansa 12:50 – 14:00 (Direct)](embed:lufthansa-2026-KIo) — €33"
+      },
+      {
+        "kind": "text",
+        "value": "5 (1h 10m)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [Lufthansa 18:20 – 19:30 (Direct)](embed:lufthansa-2026-lbX) — €352"
+      },
+      {
+        "kind": "text",
+        "value": " (1h 10m)\n* [Lufthansa 19:50 – 21:00 (Direct)]("
+      },
+      {
+        "kind": "text",
+        "value": "embed:lufthansa-2026-NXN) — €352 (1h 10"
+      },
+      {
+        "kind": "text",
+        "value": "m)\n* [Lufthansa City Airlines 09:50 – 11:00 (Direct)](embed:l"
+      },
+      {
+        "kind": "text",
+        "value": "ufthansa-2026-aN8) — €491 (1h 10m)"
+      },
+      {
+        "kind": "text",
+        "value": "\n* [Condor via Frankfurt 11:50 – 15:30](embed:condor-2"
+      },
+      {
+        "kind": "text",
+        "value": "026-kU5) — €216 (3h 40m)\n\n### High-Speed Trains"
+      },
+      {
+        "kind": "text",
+        "value": " (Deutsche Bahn ICE)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [ICE 505 (08:29 – 13:08)](embed:ice-0829-EXI) — €88.99 (4h "
+      },
+      {
+        "kind": "text",
+        "value": "39m, Direct)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [ICE 1505 (09:36 – 13:43)](embed:ice-0936-C9z) — €87.99"
+      },
+      {
+        "kind": "text",
+        "value": " (4h 7m, Direct)\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [ICE 1007 (10:37 – 14:46)](embed:ice-1037-5bd) — €96.99 (4"
+      },
+      {
+        "kind": "text",
+        "value": "h 9m, Direct)\n\n```embeds_results_view\ntitle: Travel from Berlin to Munich\n"
+      },
+      {
+        "kind": "text",
+        "value": "embeds: lufthansa-2026-KIo, ice-0936-C9z, cond"
+      },
+      {
+        "kind": "text",
+        "value": "or-2026-kU5\n```\n\nWould you like to refine the search by preferred departure time, or check"
+      },
+      {
+        "kind": "text",
+        "value": " return options?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 41262,
+          "candidates_token_count": 612,
+          "total_token_count": 41874,
+          "user_input_tokens": 20009,
+          "system_prompt_tokens": 14814
+        }
+      }
+    ]
+  }
+}

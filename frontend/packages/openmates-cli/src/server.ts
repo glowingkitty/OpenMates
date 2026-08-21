@@ -343,6 +343,7 @@ function getInstallMode(
   config: ServerConfig | null = loadConfigForInstallPath(installPath),
 ): NonNullable<ServerConfig["installMode"]> {
   if (config?.installMode) return config.installMode;
+  if (existsSync(join(installPath, SOURCE_COMPOSE_FILE))) return "source";
   if (Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) return "image";
   return "source";
 }
@@ -394,6 +395,23 @@ function selectedComposeServices(role: ServerRole, flags: Record<string, string 
     services: typeof flags.services === "string" ? flags.services : undefined,
     exclude: typeof flags.exclude === "string" ? flags.exclude : undefined,
   });
+}
+
+function lifecycleServiceSelection(
+  role: ServerRole,
+  flags: Record<string, string | boolean>,
+  config: ServerConfig | null,
+): { services: string[]; requested: boolean } {
+  if (hasServiceFilter(flags)) {
+    return { services: selectedComposeServices(role, flags), requested: true };
+  }
+  if (config?.defaultServices?.length) {
+    return {
+      services: resolveServiceSelection(role, { services: config.defaultServices }),
+      requested: true,
+    };
+  }
+  return { services: [], requested: false };
 }
 
 function shouldPullImages(): boolean {
@@ -1715,11 +1733,12 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "ps"];
+  const selection = lifecycleServiceSelection(role, flags, config);
 
   if (flags.json === true) {
     args.push("--format", "json");
   }
-  if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
+  if (selection.requested) args.push(...selection.services);
 
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
@@ -1731,17 +1750,17 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   ensureGitWorkDirEnv(installPath);
   warnIfMissingLlmCredentials(installPath);
 
-  const withOverrides = flags["with-overrides"] === true;
   const config = loadConfigForInstallPath(installPath);
+  const withOverrides = flags["with-overrides"] === true || config?.composeProfile === "full";
   const role = getServerRole(flags, config);
   const installMode = getInstallMode(installPath, config);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
+  const selection = lifecycleServiceSelection(role, flags, config);
   const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
   const args = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
-  if (hasServiceFilter(flags)) {
-    const services = selectedComposeServices(role, flags);
-    pullArgs.push(...services);
-    args.push(...services);
+  if (selection.requested) {
+    pullArgs.push(...selection.services);
+    args.push(...selection.services);
   }
 
   // Update saved profile if starting with overrides
@@ -1783,8 +1802,9 @@ async function serverStop(flags: Record<string, string | boolean>): Promise<void
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
-  const args = hasServiceFilter(flags)
-    ? [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "stop", ...selectedComposeServices(role, flags)]
+  const selection = lifecycleServiceSelection(role, flags, config);
+  const args = selection.requested
+    ? [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "stop", ...selection.services]
     : [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "down"];
 
   console.error("Stopping OpenMates server...");
@@ -1806,42 +1826,49 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
+  const selection = lifecycleServiceSelection(role, flags, config);
 
   if (flags.rebuild === true) {
-    if (hasServiceFilter(flags)) {
-      throw new Error("--services/--exclude cannot be combined with --rebuild. Use graceful restart for service-scoped restarts.");
-    }
     if (installMode === "image") {
       throw new Error(
         "Image-mode installs use prebuilt images and cannot rebuild locally. " +
         "Run 'openmates server update' to pull newer images, or reinstall with --from-source to build from source.",
       );
     }
-    // Full rebuild: down → rm cache → build → up
+    // Full rebuild: down → optional cache reset → selected build → selected up
     console.error("Rebuilding OpenMates server (this may take a few minutes)...");
     const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    // Remove cache volume (non-fatal if it doesn't exist)
-    try {
-      exec("docker volume rm openmates-cache-data", installPath);
-    } catch {
-      // Volume may not exist — that's fine
+    if (flags["reset-cache"] === true) {
+      try {
+        exec("docker volume rm openmates-cache-data", installPath);
+      } catch {
+        // Volume may not exist — that's fine.
+      }
     }
 
-    const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
+    const buildArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "build"],
+      selection.services,
+      selection.requested,
+    );
     code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
+    const upArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+      selection.services,
+      selection.requested,
+    );
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Graceful restart (no rebuild)
     console.error("Restarting OpenMates server...");
     const args = [...composeArgs(installPath, withOverrides, installMode, role), "restart"];
-    if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
+    if (selection.requested) args.push(...selection.services);
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -1860,6 +1887,7 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
+  const selection = lifecycleServiceSelection(role, flags, config);
   const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "logs"];
 
   if (flags.follow === true || flags.f === true) {
@@ -1873,17 +1901,95 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
     args.push("--tail", "100");
   }
 
-  if (hasServiceFilter(flags)) {
-    args.push(...selectedComposeServices(role, flags));
-  } else {
-    const container = flags.container;
-    if (typeof container === "string") {
-      args.push(container);
-    }
+  const container = flags.container;
+  if (typeof container === "string" && !hasServiceFilter(flags)) {
+    args.push(container);
+  } else if (selection.requested) {
+    args.push(...selection.services);
   }
 
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
+}
+
+async function serverRegister(flags: Record<string, string | boolean>): Promise<void> {
+  requireDocker();
+  requireGit();
+  const installPath = resolveServerPath(
+    typeof flags.path === "string" ? flags : { ...flags, path: process.cwd() },
+  );
+  const envPath = join(installPath, ".env");
+  if (!existsSync(join(installPath, SOURCE_COMPOSE_FILE))) {
+    throw new Error(`Source Compose file not found: ${join(installPath, SOURCE_COMPOSE_FILE)}`);
+  }
+  if (!existsSync(envPath)) {
+    throw new Error(`Runtime env file not found: ${envPath}`);
+  }
+
+  const gitRoot = resolve(exec("git rev-parse --show-toplevel", installPath));
+  if (gitRoot !== installPath) {
+    throw new Error(`--path must point to the OpenMates Git checkout root (${gitRoot}).`);
+  }
+
+  const existing = loadServerConfig();
+  if (existing?.installPath && resolve(existing.installPath) !== installPath && flags.yes !== true) {
+    throw new Error(
+      `Another server is registered at ${existing.installPath}. ` +
+      "Rerun with --yes to replace the local CLI registration; no server data will be changed.",
+    );
+  }
+
+  const role = getServerRole(flags, null);
+  const profile = getCoreProfile(flags, null);
+  const deploymentFlagSpecified = flags["official-cloud"] === true || typeof flags["deployment-mode"] === "string";
+  const deploymentMode = deploymentFlagSpecified
+    ? getServerDeploymentMode(flags, null)
+    : getInstallDeploymentMode(installPath, null);
+  if (deploymentMode === "official_cloud" && role !== "core") {
+    throw new Error("Official-cloud overlay registration is only supported for the core server role.");
+  }
+  const overlayPath = getOpenMatesCloudOverlayPath(flags, null)
+    ?? readEnvMap(installPath).OPENMATES_CLOUD_OVERLAY_PATH
+    ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(overlayPath);
+  if (deploymentMode === "official_cloud" && (!existsSync(overlayPath) || !existsSync(overlayComposeFile))) {
+    throw new Error(`OpenMatesCloud overlay path is required for official-cloud mode: ${overlayPath}`);
+  }
+
+  const runtimePlan = planServerRuntime({
+    role,
+    profile,
+    withAlerts: flags["with-alerts"] === true,
+    includeWebapp: deploymentMode !== "official_cloud",
+  });
+  const defaultServices = hasServiceFilter(flags)
+    ? selectedComposeServices(role, flags)
+    : runtimePlan.defaultServices;
+  const cliUrls = deriveSelfHostCliUrls(readFileSync(envPath, "utf-8"));
+  const config: ServerConfig = {
+    installPath,
+    installedAt: existing?.installPath === installPath ? existing.installedAt : Date.now(),
+    composeProfile: flags["with-overrides"] === true ? "full" : "core",
+    serverRole: role,
+    serverProfile: profile,
+    defaultServices,
+    composeFiles: [SOURCE_COMPOSE_FILE],
+    installMode: "source",
+    sourceStrategy: "working_tree",
+    deploymentMode,
+    openMatesCloudOverlayPath: deploymentMode === "official_cloud" ? overlayPath : undefined,
+    ...cliUrls,
+  };
+  saveServerConfig(config);
+
+  if (flags.json === true) {
+    printJson({ command: "register", status: "success", ...config });
+  } else {
+    console.log(`Registered existing OpenMates checkout at ${installPath}.`);
+    console.log("Mode: source (current working tree; Git is never pulled automatically)");
+    console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud backend" : "self-host"}`);
+    console.log(`Services: ${defaultServices.join(", ")}`);
+  }
 }
 
 async function serverInstall(flags: Record<string, string | boolean>): Promise<void> {
@@ -1897,7 +2003,12 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (deploymentMode === "official_cloud" && role !== "core") {
     throw new Error("Official-cloud overlay installs are only supported for the core server role.");
   }
-  const runtimePlan = planServerRuntime({ role, profile, withAlerts: flags["with-alerts"] === true });
+  const runtimePlan = planServerRuntime({
+    role,
+    profile,
+    withAlerts: flags["with-alerts"] === true,
+    includeWebapp: deploymentMode !== "official_cloud",
+  });
 
   // Check if already installed
   if (existsSync(join(installPath, SOURCE_COMPOSE_FILE)) || Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) {
@@ -2034,8 +2145,9 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     serverProfile: profile,
     defaultServices: runtimePlan.defaultServices,
     composeFiles: runtimePlan.composeFiles,
-    installMode: "source",
-    deploymentMode,
+      installMode: "source",
+      sourceStrategy: "managed_clone",
+      deploymentMode,
     openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
     ...cliUrls,
   });
@@ -2340,8 +2452,10 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
-  const filterRequested = hasServiceFilter(flags);
-  const selectedServices = filterRequested ? selectedComposeServices(role, flags) : [];
+  const selection = lifecycleServiceSelection(role, flags, config);
+  const filterRequested = selection.requested;
+  const selectedServices = selection.services;
+  const sourceStrategy = config?.sourceStrategy ?? "managed_clone";
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
   const secretPreflight = runtimeSecretPreflight(installPath, role);
   const missingOrUnverifiedSecrets = [
@@ -2548,44 +2662,40 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         status: "planned",
         path: installPath,
         mode: "source",
+        sourceStrategy,
         selectedServices: filterRequested ? selectedServices : "all",
         checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
       });
     } else {
       console.log("Update plan:");
-      console.log("  Mode:          source");
+      console.log(`  Mode:          source (${sourceStrategy === "working_tree" ? "current working tree" : "managed clone"})`);
       console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
       console.log(`  Web health:    ${shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
-      console.log("  Commands:      git pull --ff-only, docker compose build, docker compose up -d, health checks");
+      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, docker compose up -d, health checks`);
     }
     return;
   }
 
-  requireGit();
-
-  // Pull latest code
-  if (flags.force === true) {
-    console.error("Stashing local changes...");
-    try { exec("git stash", installPath); } catch { /* nothing to stash */ }
-  }
-
-  try {
-    const pullOutput = exec("git pull --ff-only", installPath);
-    console.error(pullOutput || "Already up to date.");
-  } catch {
+  if (sourceStrategy === "working_tree") {
     if (flags.force === true) {
-      // Restore stash before throwing
-      try { exec("git stash pop", installPath); } catch { /* no stash */ }
+      throw new Error("--force is not supported for registered working-tree servers; commit or resolve local changes explicitly.");
     }
-    throw new Error(
-      "Failed to pull updates. Your local branch may have diverged.\n" +
-      "Use --force to stash local changes and retry, or resolve manually with git.",
-    );
-  }
-
-  if (flags.force === true) {
-    try { exec("git stash pop", installPath); } catch { /* no stash to pop */ }
+    console.error("Using the registered working tree without pulling or changing Git state.");
+  } else {
+    requireGit();
+    if (flags.force === true) {
+      throw new Error("--force is disabled because automated git stash is unsafe. Resolve local changes explicitly, then rerun update.");
+    }
+    try {
+      const pullOutput = exec("git pull --ff-only", installPath);
+      console.error(pullOutput || "Already up to date.");
+    } catch {
+      throw new Error(
+        "Failed to pull updates. Your local branch may have diverged or contain local changes.\n" +
+        "Resolve the working tree explicitly, then rerun update.",
+      );
+    }
   }
 
   // Rebuild and restart
@@ -3648,6 +3758,7 @@ Usage: openmates server <command> [options]
 
 Commands:
   install         Install OpenMates server (prebuilt GHCR images by default)
+  register        Adopt an existing source checkout without cloning or changing Git state
   start           Start the server
   stop            Stop the server
   restart         Restart the server
@@ -3687,6 +3798,16 @@ Command Options:
     --deployment-mode <mode>  self-host or official-cloud
     --openmatescloud-path <dir>  Overlay checkout path (default: sibling OpenMatesCloud)
 
+  register:
+    --path <dir>        Existing OpenMates checkout (default: current directory)
+    --official-cloud   Use the sibling/configured OpenMatesCloud backend overlay
+    --with-overrides   Persist local admin/Directus port overrides
+    --profile <name>   Core profile: minimal, standard, or production
+    --with-alerts      Include alertmanager in the persisted service set
+    --services <csv>   Persist only selected role services
+    --exclude <csv>    Persist all role services except selected services
+    --yes              Replace a different saved local server registration
+
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
     --services <csv>    Start only selected role services
@@ -3694,6 +3815,7 @@ Command Options:
 
   restart:
     --rebuild           Full rebuild (down + build + up) instead of graceful restart
+    --reset-cache       Delete the cache volume during --rebuild (never implicit)
     --services <csv>    Restart only selected role services
     --exclude <csv>     Restart all role services except selected services
 
@@ -3779,6 +3901,7 @@ Command Options:
 
 Examples:
   openmates server install
+  openmates server register --path . --official-cloud --with-overrides --exclude webapp
   openmates server install --from-source --official-cloud --openmatescloud-path ../OpenMatesCloud
   openmates server start --with-overrides
   openmates server logs --container api --follow
@@ -3814,6 +3937,7 @@ export async function handleServer(
   }
 
   switch (subcommand) {
+    case "register":   return serverRegister(flags);
     case "status":     return serverStatus(flags);
     case "start":      return serverStart(flags);
     case "stop":       return serverStop(flags);

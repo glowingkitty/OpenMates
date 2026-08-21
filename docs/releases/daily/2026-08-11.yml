@@ -1,0 +1,3459 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-11'
+generated_at: '2026-08-12T00:20:06+00:00'
+range:
+  since: '2026-08-11T00:00:00+00:00'
+  until: '2026-08-12T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 56
+  section_counts:
+    features: 7
+    bug_fixes: 30
+    improvements: 0
+    docs: 6
+    tests: 8
+    infrastructure: 0
+    internal: 5
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 56
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: store audio app-skill outputs as generated assets'
+    section: features
+    commits:
+    - c4ab9796a
+    authored_at: '2026-08-11T20:12:08+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/apps/audio/tasks/__init__.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/python_utils/generated_assets/__init__.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/static/store-examples/audio-generate-openmates-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-generate-product-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-friendly-welcome-message.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-openmates-welcome-message.mp3
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioGeneratedEmbedContent.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-openmates-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-openmates-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/generate_audio_sample_artifacts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:generate, embed:audio:speak, skill:audio:generate,
+      skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: surface chat files in settings and CLI'
+    section: features
+    commits:
+    - 903ebad36
+    authored_at: '2026-08-11T18:33:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatSettingsFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatFiles.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enforce strict proof videos'
+    section: features
+    commits:
+    - e7ae53cf9
+    authored_at: '2026-08-11T18:08:31+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/bash-guard.sh
+    - .codex/hooks/check-uncommitted.sh
+    - .codex/hooks/contract-test-impact.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    - scripts/tests/test_sync_agent_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: send progress deltas after first mention'
+    section: features
+    commits:
+    - db703f4ba
+    authored_at: '2026-08-11T18:05:02+00:00'
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: reduce progress notifier cost'
+    section: features
+    commits:
+    - 26c538829
+    authored_at: '2026-08-11T16:03:14+00:00'
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: deep link example chat costs to usage'
+    section: features
+    commits:
+    - ccdfcbe99
+    authored_at: '2026-08-11T15:12:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: support OpenMatesCloud session workflow'
+    section: features
+    commits:
+    - daea9ddd4
+    authored_at: '2026-08-11T13:53:31+00:00'
+    changed_paths:
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/bash-guard.sh
+    - .claude/hooks/check-uncommitted.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/agent-workflow-core.md
+    - opencode.json
+    - scripts/audit_native_worktree_scope.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: mount media rollout config in audio worker'
+    section: bug_fixes
+    commits:
+    - e4a49b2b4
+    authored_at: '2026-08-11T20:35:40+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/audit_media_encryption_rollout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress authenticated welcome behind composer'
+    section: bug_fixes
+    commits:
+    - 6dbfae61d
+    authored_at: '2026-08-11T19:39:01+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - scripts/tests/test_message_input_welcome_contract.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep official cloud backend-only'
+    section: bug_fixes
+    commits:
+    - a2fdc695d
+    authored_at: '2026-08-11T19:31:51+00:00'
+    changed_paths:
+    - .agents/skills/prod-ssh/SKILL.md
+    - .claude/skills/prod-ssh/SKILL.md
+    - backend/core/docker-compose.no-webapp.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.no-webapp.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show complete notifier tasks'
+    section: bug_fixes
+    commits:
+    - 63e390d73
+    authored_at: '2026-08-11T17:19:38+00:00'
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve sessions output coordination'
+    section: bug_fixes
+    commits:
+    - b02a347df
+    authored_at: '2026-08-11T17:07:21+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_sessions_presence_status.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Gemini progress notifier buckets'
+    section: bug_fixes
+    commits:
+    - 031c0d3de
+    authored_at: '2026-08-11T16:44:59+00:00'
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine chat share settings'
+    section: bug_fixes
+    commits:
+    - 8e30afb59
+    authored_at: '2026-08-11T16:31:12+00:00'
+    changed_paths:
+    - contracts/features/chat-share-settings/contract.yml
+    - contracts/features/chat-share-settings/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route bank transfer settlement alerts'
+    section: bug_fixes
+    commits:
+    - 70e48a55f
+    authored_at: '2026-08-11T16:12:28+00:00'
+    changed_paths:
+    - .agents/skills/prod-ssh/SKILL.md
+    - .claude/skills/prod-ssh/SKILL.md
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_bank_transfer_duplicate_reference_email.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose generated audio example files'
+    section: bug_fixes
+    commits:
+    - 7872aa931
+    authored_at: '2026-08-11T15:56:56+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/services/generatedAudioExport.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve chat usage settings deep links'
+    section: bug_fixes
+    commits:
+    - e9ef0b695
+    authored_at: '2026-08-11T15:28:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify billing secrets from Vault'
+    section: bug_fixes
+    commits:
+    - f8b9df317
+    authored_at: '2026-08-11T15:16:19+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress guest welcome while composer is active'
+    section: bug_fixes
+    commits:
+    - b6302ad63
+    authored_at: '2026-08-11T14:19:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add PDF upload billing idempotency'
+    section: bug_fixes
+    commits:
+    - 94e498576
+    authored_at: '2026-08-11T13:47:55+00:00'
+    changed_paths:
+    - backend/tests/test_billing_idempotency.py
+    - backend/upload/billing_payloads.py
+    - backend/upload/routes/upload_route.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bill generated audio by duration'
+    section: bug_fixes
+    commits:
+    - bef48db31
+    authored_at: '2026-08-11T13:17:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:generate, embed:audio:speak, skill:audio:generate,
+      skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject empty debug group completion'
+    section: bug_fixes
+    commits:
+    - 03e6c3d2e
+    authored_at: '2026-08-11T13:06:41+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid Directus timeout completing test groups'
+    section: bug_fixes
+    commits:
+    - 3a55325b0
+    authored_at: '2026-08-11T12:59:20+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Directus campaign token minting'
+    section: bug_fixes
+    commits:
+    - 95a43d88e
+    authored_at: '2026-08-11T12:46:17+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: parallelize startup metadata sync'
+    section: bug_fixes
+    commits:
+    - 4a8ecb303
+    authored_at: '2026-08-11T12:14:02+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock recovery key login transition'
+    section: bug_fixes
+    commits:
+    - 30d05e744
+    authored_at: '2026-08-11T12:10:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EnterRecoveryKey.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize auth login cache fallback'
+    section: bug_fixes
+    commits:
+    - 4f08b38a4
+    authored_at: '2026-08-11T11:16:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_recoverykey.py
+    - backend/tests/test_auth_endpoints.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock chat sync recovery'
+    section: bug_fixes
+    commits:
+    - cc19be438
+    authored_at: '2026-08-11T11:14:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: treat pasted embeds as sendable content'
+    section: bug_fixes
+    commits:
+    - 5ef2772f1
+    authored_at: '2026-08-11T11:09:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize assistant mock replay timing'
+    section: bug_fixes
+    commits:
+    - 95c7fa251
+    authored_at: '2026-08-11T11:02:06+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve paste recovery after conversion'
+    section: bug_fixes
+    commits:
+    - a1a8298a6
+    authored_at: '2026-08-11T10:47:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize paste recovery chip'
+    section: bug_fixes
+    commits:
+    - 62c7b43fc
+    authored_at: '2026-08-11T10:24:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove nightly Linear task enricher'
+    section: bug_fixes
+    commits:
+    - 8ff993781
+    authored_at: '2026-08-11T10:09:49+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - scripts/linear-cron-setup.sh
+    - scripts/linear-enricher.py
+    - scripts/prompts/linear-task-research.md
+    - scripts/tests/test_architecture_behavioral_claims.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize reminder email and sub-chat previews'
+    section: bug_fixes
+    commits:
+    - 4fc1a1018
+    authored_at: '2026-08-11T03:59:09+00:00'
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_reminder_email_notifications.py
+    - backend/tests/test_tasks_api_security.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:reminder'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: scope generated audio preview playback'
+    section: bug_fixes
+    commits:
+    - d7f949f88
+    authored_at: '2026-08-11T03:18:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:generate, embed:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make generated audio examples playable'
+    section: bug_fixes
+    commits:
+    - 71c91229c
+    authored_at: '2026-08-11T02:58:01+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - frontend/apps/web_app/static/store-examples/audio-generate-product-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-friendly-welcome-message.mp3
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-confirmation-tick.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_confirmation_tick.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_product_success_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_welcome_message.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:generate, embed:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize notification and sub-chat previews'
+    section: bug_fixes
+    commits:
+    - f2cc03f52
+    authored_at: '2026-08-11T02:24:41+00:00'
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/features/notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: persist mobile audio proof manifest'
+    section: docs
+    commits:
+    - 9ee35d331
+    authored_at: '2026-08-11T22:34:28+00:00'
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-example-generated-assets-phone-proof-manifest.json
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record mobile audio proof evidence'
+    section: docs
+    commits:
+    - 78e5af87c
+    authored_at: '2026-08-11T22:30:22+00:00'
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Sync fix-tests skill mirror
+    section: docs
+    commits:
+    - d751c3ab7
+    authored_at: '2026-08-11T20:55:35+00:00'
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Record test debug campaign evidence
+    section: docs
+    commits:
+    - be1b33e45
+    authored_at: '2026-08-11T20:53:49+00:00'
+    changed_paths:
+    - docs/specs/test-debug-campaigns/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record chat settings evidence'
+    section: docs
+    commits:
+    - 72d8919ca
+    authored_at: '2026-08-11T17:12:45+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: backfill tasks contract'
+    section: docs
+    commits:
+    - 4efb9c08a
+    authored_at: '2026-08-11T02:08:43+00:00'
+    changed_paths:
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_workflow_task_projections.py
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: record audio generated asset evidence'
+    section: tests
+    commits:
+    - 21ebe73ea
+    authored_at: '2026-08-11T22:06:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-sdk-cli-20260811-205505.json
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-sfx-confirmation-tick.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-default.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-flash.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - scripts/playwright_visual_smoke.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/verify_audio_sdk_cli_live_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover generated audio example file exports'
+    section: tests
+    commits:
+    - 526390c2d
+    authored_at: '2026-08-11T16:02:03+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align guest navigation with composer suppression'
+    section: tests
+    commits:
+    - b98822c24
+    authored_at: '2026-08-11T14:41:21+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for example chat settings route'
+    section: tests
+    commits:
+    - 298cf130f
+    authored_at: '2026-08-11T14:06:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add message input guest suppression contract'
+    section: tests
+    commits:
+    - d3a581521
+    authored_at: '2026-08-11T13:47:22+00:00'
+    changed_paths:
+    - contracts/features/message-input/contract.yml
+    - contracts/features/message-input/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize PII fullscreen toggle spec'
+    section: tests
+    commits:
+    - 31ec8d24c
+    authored_at: '2026-08-11T12:27:12+00:00'
+    changed_paths:
+    - contracts/features/pii-protection/contract.yml
+    - contracts/features/pii-protection/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: backfill Plans gate specs'
+    section: tests
+    commits:
+    - 88b09076a
+    authored_at: '2026-08-11T09:51:22+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce broken generated audio examples'
+    section: tests
+    commits:
+    - 23212f686
+    authored_at: '2026-08-11T02:28:59+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: Harden parallel test debug workers
+    section: internal
+    commits:
+    - 18e5b2cba
+    authored_at: '2026-08-11T20:50:49+00:00'
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Align Apple message input parity
+    section: internal
+    commits:
+    - af10e174d
+    authored_at: '2026-08-11T15:05:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/apple_ui_contracts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize recovery key settings readiness
+    section: internal
+    commits:
+    - c29212fab
+    authored_at: '2026-08-11T13:30:08+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Use GPT-5.5 xhigh for spawned execute workers
+    section: internal
+    commits:
+    - c3b72dfa3
+    authored_at: '2026-08-11T10:36:16+00:00'
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - scripts/_zellij_utils.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Hide internal OpenCode cron research mode
+    section: internal
+    commits:
+    - 3a6e97f90
+    authored_at: '2026-08-11T10:12:48+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - opencode.json
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: persist mobile audio proof manifest'
+    commits:
+    - 9ee35d331
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record mobile audio proof evidence'
+    commits:
+    - 78e5af87c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record audio generated asset evidence'
+    commits:
+    - 21ebe73ea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Sync fix-tests skill mirror
+    commits:
+    - d751c3ab7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Record test debug campaign evidence
+    commits:
+    - be1b33e45
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Harden parallel test debug workers
+    commits:
+    - 18e5b2cba
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: mount media rollout config in audio worker'
+    commits:
+    - e4a49b2b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: store audio app-skill outputs as generated assets'
+    commits:
+    - c4ab9796a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: suppress authenticated welcome behind composer'
+    commits:
+    - 6dbfae61d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep official cloud backend-only'
+    commits:
+    - a2fdc695d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: surface chat files in settings and CLI'
+    commits:
+    - 903ebad36
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: enforce strict proof videos'
+    commits:
+    - e7ae53cf9
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: send progress deltas after first mention'
+    commits:
+    - db703f4ba
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show complete notifier tasks'
+    commits:
+    - 63e390d73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record chat settings evidence'
+    commits:
+    - 72d8919ca
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve sessions output coordination'
+    commits:
+    - b02a347df
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Gemini progress notifier buckets'
+    commits:
+    - 031c0d3de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refine chat share settings'
+    commits:
+    - 8e30afb59
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route bank transfer settlement alerts'
+    commits:
+    - 70e48a55f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: reduce progress notifier cost'
+    commits:
+    - 26c538829
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover generated audio example file exports'
+    commits:
+    - 526390c2d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: expose generated audio example files'
+    commits:
+    - 7872aa931
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve chat usage settings deep links'
+    commits:
+    - e9ef0b695
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: verify billing secrets from Vault'
+    commits:
+    - f8b9df317
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: deep link example chat costs to usage'
+    commits:
+    - ccdfcbe99
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Align Apple message input parity
+    commits:
+    - af10e174d
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: align guest navigation with composer suppression'
+    commits:
+    - b98822c24
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: suppress guest welcome while composer is active'
+    commits:
+    - b6302ad63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for example chat settings route'
+    commits:
+    - 298cf130f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: support OpenMatesCloud session workflow'
+    commits:
+    - daea9ddd4
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: add PDF upload billing idempotency'
+    commits:
+    - 94e498576
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add message input guest suppression contract'
+    commits:
+    - d3a581521
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Stabilize recovery key settings readiness
+    commits:
+    - c29212fab
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bill generated audio by duration'
+    commits:
+    - bef48db31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: reject empty debug group completion'
+    commits:
+    - 03e6c3d2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid Directus timeout completing test groups'
+    commits:
+    - 3a55325b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Directus campaign token minting'
+    commits:
+    - 95a43d88e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize PII fullscreen toggle spec'
+    commits:
+    - 31ec8d24c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: parallelize startup metadata sync'
+    commits:
+    - 4a8ecb303
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: unblock recovery key login transition'
+    commits:
+    - 30d05e744
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize auth login cache fallback'
+    commits:
+    - 4f08b38a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: unblock chat sync recovery'
+    commits:
+    - cc19be438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: treat pasted embeds as sendable content'
+    commits:
+    - 5ef2772f1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize assistant mock replay timing'
+    commits:
+    - 95c7fa251
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve paste recovery after conversion'
+    commits:
+    - a1a8298a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Use GPT-5.5 xhigh for spawned execute workers
+    commits:
+    - c3b72dfa3
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize paste recovery chip'
+    commits:
+    - 62c7b43fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Hide internal OpenCode cron research mode
+    commits:
+    - 3a6e97f90
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remove nightly Linear task enricher'
+    commits:
+    - 8ff993781
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: backfill Plans gate specs'
+    commits:
+    - 88b09076a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize reminder email and sub-chat previews'
+    commits:
+    - 4fc1a1018
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+  - title: 'fix: scope generated audio preview playback'
+    commits:
+    - d7f949f88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: make generated audio examples playable'
+    commits:
+    - 71c91229c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: reproduce broken generated audio examples'
+    commits:
+    - 23212f686
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize notification and sub-chat previews'
+    commits:
+    - f2cc03f52
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: backfill tasks contract'
+    commits:
+    - 4efb9c08a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: store audio app-skill outputs as generated assets'
+    commits:
+    - c4ab9796a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: keep official cloud backend-only'
+    commits:
+    - a2fdc695d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bill generated audio by duration'
+    commits:
+    - bef48db31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: unblock chat sync recovery'
+    commits:
+    - cc19be438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make generated audio examples playable'
+    commits:
+    - 71c91229c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: store audio app-skill outputs as generated assets'
+    commits:
+    - c4ab9796a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: suppress authenticated welcome behind composer'
+    commits:
+    - 6dbfae61d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep official cloud backend-only'
+    commits:
+    - a2fdc695d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: surface chat files in settings and CLI'
+    commits:
+    - 903ebad36
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine chat share settings'
+    commits:
+    - 8e30afb59
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route bank transfer settlement alerts'
+    commits:
+    - 70e48a55f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: expose generated audio example files'
+    commits:
+    - 7872aa931
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve chat usage settings deep links'
+    commits:
+    - e9ef0b695
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: deep link example chat costs to usage'
+    commits:
+    - ccdfcbe99
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: suppress guest welcome while composer is active'
+    commits:
+    - b6302ad63
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bill generated audio by duration'
+    commits:
+    - bef48db31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: parallelize startup metadata sync'
+    commits:
+    - 4a8ecb303
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: unblock recovery key login transition'
+    commits:
+    - 30d05e744
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize auth login cache fallback'
+    commits:
+    - 4f08b38a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: unblock chat sync recovery'
+    commits:
+    - cc19be438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: treat pasted embeds as sendable content'
+    commits:
+    - 5ef2772f1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize assistant mock replay timing'
+    commits:
+    - 95c7fa251
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve paste recovery after conversion'
+    commits:
+    - a1a8298a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize paste recovery chip'
+    commits:
+    - 62c7b43fc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize reminder email and sub-chat previews'
+    commits:
+    - 4fc1a1018
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    newsletter_ready: false
+  - title: 'fix: scope generated audio preview playback'
+    commits:
+    - d7f949f88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: make generated audio examples playable'
+    commits:
+    - 71c91229c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize notification and sub-chat previews'
+    commits:
+    - f2cc03f52
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9ee35d3315c2acde83fa782066855888d3d9dafb
+    short_sha: 9ee35d331
+    authored_at: '2026-08-11T22:34:28+00:00'
+    subject: 'docs: persist mobile audio proof manifest'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-example-generated-assets-phone-proof-manifest.json
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    related_feature_ids: []
+  - sha: 78e5af87c64f23b56ad3b6cb4b7eaad0f838ac61
+    short_sha: 78e5af87c
+    authored_at: '2026-08-11T22:30:22+00:00'
+    subject: 'docs: record mobile audio proof evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    related_feature_ids: []
+  - sha: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
+    short_sha: 21ebe73ea
+    authored_at: '2026-08-11T22:06:15+00:00'
+    subject: 'test: record audio generated asset evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-sdk-cli-20260811-205505.json
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-sfx-confirmation-tick.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-default.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-flash.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/manifest.json
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - scripts/playwright_visual_smoke.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/verify_audio_sdk_cli_live_smoke.py
+    related_feature_ids: []
+  - sha: d751c3ab74e6879fc74c2c7f7c2c17c6d5573f68
+    short_sha: d751c3ab7
+    authored_at: '2026-08-11T20:55:35+00:00'
+    subject: Sync fix-tests skill mirror
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    related_feature_ids: []
+  - sha: be1b33e45d62ddfd406f4185e9bb832841d8af9b
+    short_sha: be1b33e45
+    authored_at: '2026-08-11T20:53:49+00:00'
+    subject: Record test debug campaign evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/test-debug-campaigns/spec.yml
+    related_feature_ids: []
+  - sha: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+    short_sha: 18e5b2cba
+    authored_at: '2026-08-11T20:50:49+00:00'
+    subject: Harden parallel test debug workers
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: e4a49b2b469d3bc515d6eb7c492c4d7db465d184
+    short_sha: e4a49b2b4
+    authored_at: '2026-08-11T20:35:40+00:00'
+    subject: 'fix: mount media rollout config in audio worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/audit_media_encryption_rollout.py
+    related_feature_ids: []
+  - sha: c4ab9796a1e3e1c4b411cf9752932698b95cb869
+    short_sha: c4ab9796a
+    authored_at: '2026-08-11T20:12:08+00:00'
+    subject: 'feat: store audio app-skill outputs as generated assets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/celery_helpers.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/apps/audio/tasks/__init__.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/python_utils/generated_assets/__init__.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/static/store-examples/audio-generate-openmates-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-generate-product-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-friendly-welcome-message.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-openmates-welcome-message.mp3
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioGeneratedEmbedContent.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-openmates-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-openmates-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/generate_audio_sample_artifacts.py
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:generate
+    - embed:audio:speak
+    - skill:audio:generate
+    - skill:audio:speak
+  - sha: 6dbfae61db3458c0c0f62f0a646b42ad45226e65
+    short_sha: 6dbfae61d
+    authored_at: '2026-08-11T19:39:01+00:00'
+    subject: 'fix: suppress authenticated welcome behind composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - scripts/tests/test_message_input_welcome_contract.py
+    related_feature_ids: []
+  - sha: a2fdc695d904b50d85e83d99c4de29abcf88812d
+    short_sha: a2fdc695d
+    authored_at: '2026-08-11T19:31:51+00:00'
+    subject: 'fix: keep official cloud backend-only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/prod-ssh/SKILL.md
+    - .claude/skills/prod-ssh/SKILL.md
+    - backend/core/docker-compose.no-webapp.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.no-webapp.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 903ebad369ca03b2d09c1468a3ca1ae108ae6227
+    short_sha: 903ebad36
+    authored_at: '2026-08-11T18:33:15+00:00'
+    subject: 'feat: surface chat files in settings and CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatSettingsFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatFiles.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: e7ae53cf95c3fe97e5634b0be679fa4d259d47aa
+    short_sha: e7ae53cf9
+    authored_at: '2026-08-11T18:08:31+00:00'
+    subject: 'feat: enforce strict proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/bash-guard.sh
+    - .codex/hooks/check-uncommitted.sh
+    - .codex/hooks/contract-test-impact.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/spec_evidence.py
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    - scripts/tests/test_sync_agent_parity.py
+    related_feature_ids: []
+  - sha: db703f4ba2ae5fdcc5c51822ce2f5d7f0c4aa89b
+    short_sha: db703f4ba
+    authored_at: '2026-08-11T18:05:02+00:00'
+    subject: 'feat: send progress deltas after first mention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 63e390d73444f159b956205ba996b4240a61fd4e
+    short_sha: 63e390d73
+    authored_at: '2026-08-11T17:19:38+00:00'
+    subject: 'fix: show complete notifier tasks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 72d8919caa7f4176fe2122c541ad70602cd79d71
+    short_sha: 72d8919ca
+    authored_at: '2026-08-11T17:12:45+00:00'
+    subject: 'docs: record chat settings evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids: []
+  - sha: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+    short_sha: b02a347df
+    authored_at: '2026-08-11T17:07:21+00:00'
+    subject: 'fix: improve sessions output coordination'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_sessions_presence_status.py
+    related_feature_ids: []
+  - sha: 031c0d3de228001fa32d28bbfa59de4a859edb68
+    short_sha: 031c0d3de
+    authored_at: '2026-08-11T16:44:59+00:00'
+    subject: 'fix: restore Gemini progress notifier buckets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 8e30afb5914b9fdfae28d51c3f0f3291df69c1c3
+    short_sha: 8e30afb59
+    authored_at: '2026-08-11T16:31:12+00:00'
+    subject: 'fix: refine chat share settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/chat-share-settings/contract.yml
+    - contracts/features/chat-share-settings/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    related_feature_ids: []
+  - sha: 70e48a55f5ce57c8cefbd6f154c75fc988d98a36
+    short_sha: 70e48a55f
+    authored_at: '2026-08-11T16:12:28+00:00'
+    subject: 'fix: route bank transfer settlement alerts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/prod-ssh/SKILL.md
+    - .claude/skills/prod-ssh/SKILL.md
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_bank_transfer_duplicate_reference_email.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 26c538829b9a761c27c267bd2efc00bb87041a31
+    short_sha: 26c538829
+    authored_at: '2026-08-11T16:03:14+00:00'
+    subject: 'feat: reduce progress notifier cost'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 526390c2d5b2bcbf96bf4960ee16bceaed6d108d
+    short_sha: 526390c2d
+    authored_at: '2026-08-11T16:02:03+00:00'
+    subject: 'test: cover generated audio example file exports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    related_feature_ids: []
+  - sha: 7872aa931623013ed1fdd6d95a1d835177791f2f
+    short_sha: 7872aa931
+    authored_at: '2026-08-11T15:56:56+00:00'
+    subject: 'fix: expose generated audio example files'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/services/generatedAudioExport.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: e9ef0b6957a3434ab610f95419e1918ebd04b1e4
+    short_sha: e9ef0b695
+    authored_at: '2026-08-11T15:28:00+00:00'
+    subject: 'fix: preserve chat usage settings deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: f8b9df317a9a458f7a2c6e40523eafc3dc661139
+    short_sha: f8b9df317
+    authored_at: '2026-08-11T15:16:19+00:00'
+    subject: 'fix: verify billing secrets from Vault'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    related_feature_ids: []
+  - sha: ccdfcbe99b237a8580567b334cdfea9bfbbaabe6
+    short_sha: ccdfcbe99
+    authored_at: '2026-08-11T15:12:50+00:00'
+    subject: 'feat: deep link example chat costs to usage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: af10e174dd2083d071b76dfcd7be0d51cfe5f510
+    short_sha: af10e174d
+    authored_at: '2026-08-11T15:05:27+00:00'
+    subject: Align Apple message input parity
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/apple_ui_contracts.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b98822c248d4d3da1e114e0a35be9ff205c4f4ec
+    short_sha: b98822c24
+    authored_at: '2026-08-11T14:41:21+00:00'
+    subject: 'test: align guest navigation with composer suppression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: b6302ad63e6c69a1eb3dd8484bf47134cfc97444
+    short_sha: b6302ad63
+    authored_at: '2026-08-11T14:19:13+00:00'
+    subject: 'fix: suppress guest welcome while composer is active'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 298cf130f9c1403ec85a6cd0324edcc9a893197b
+    short_sha: 298cf130f
+    authored_at: '2026-08-11T14:06:21+00:00'
+    subject: 'test: wait for example chat settings route'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    related_feature_ids: []
+  - sha: daea9ddd4113edd7f9cab4ee170b36fcccec8b7f
+    short_sha: daea9ddd4
+    authored_at: '2026-08-11T13:53:31+00:00'
+    subject: 'feat: support OpenMatesCloud session workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/bash-guard.sh
+    - .claude/hooks/check-uncommitted.sh
+    - .claude/hooks/pre-edit-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/contributing/guides/agent-workflow-core.md
+    - opencode.json
+    - scripts/audit_native_worktree_scope.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_recovery.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    related_feature_ids: []
+  - sha: 94e498576e25b48a21f88574f131554b72487162
+    short_sha: 94e498576
+    authored_at: '2026-08-11T13:47:55+00:00'
+    subject: 'fix: add PDF upload billing idempotency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_billing_idempotency.py
+    - backend/upload/billing_payloads.py
+    - backend/upload/routes/upload_route.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d3a581521ad99ea7fe3e93fe33de4e056254cdb2
+    short_sha: d3a581521
+    authored_at: '2026-08-11T13:47:22+00:00'
+    subject: 'test: add message input guest suppression contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/message-input/contract.yml
+    - contracts/features/message-input/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: c29212fabad49bcb897e9ffdca105f2a2f20a113
+    short_sha: c29212fab
+    authored_at: '2026-08-11T13:30:08+00:00'
+    subject: Stabilize recovery key settings readiness
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: bef48db312b2457da83408d18c25f4eb94cb2076
+    short_sha: bef48db31
+    authored_at: '2026-08-11T13:17:01+00:00'
+    subject: 'fix: bill generated audio by duration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:generate
+    - embed:audio:speak
+    - skill:audio:generate
+    - skill:audio:speak
+  - sha: 03e6c3d2ef2cbc646bd258f03053979afffc9b71
+    short_sha: 03e6c3d2e
+    authored_at: '2026-08-11T13:06:41+00:00'
+    subject: 'fix: reject empty debug group completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 3a55325b06bc4159fff8afa4034a39798be5f536
+    short_sha: 3a55325b0
+    authored_at: '2026-08-11T12:59:20+00:00'
+    subject: 'fix: avoid Directus timeout completing test groups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: 95a43d88e7db42d275eb0f1287b41af15a8fbdca
+    short_sha: 95a43d88e
+    authored_at: '2026-08-11T12:46:17+00:00'
+    subject: 'fix: restore Directus campaign token minting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: 31ec8d24c581a6c880390794427f75108414d826
+    short_sha: 31ec8d24c
+    authored_at: '2026-08-11T12:27:12+00:00'
+    subject: 'test: stabilize PII fullscreen toggle spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/pii-protection/contract.yml
+    - contracts/features/pii-protection/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    related_feature_ids: []
+  - sha: 4a8ecb3030e9eb02d566225f55733ff0c53a41f9
+    short_sha: 4a8ecb303
+    authored_at: '2026-08-11T12:14:02+00:00'
+    subject: 'fix: parallelize startup metadata sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 30d05e744af867601a7c9aca75f313806f8dc091
+    short_sha: 30d05e744
+    authored_at: '2026-08-11T12:10:35+00:00'
+    subject: 'fix: unblock recovery key login transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EnterRecoveryKey.svelte
+    related_feature_ids: []
+  - sha: 4f08b38a49ce1749714f51a2b5a6a4e4f4523648
+    short_sha: 4f08b38a4
+    authored_at: '2026-08-11T11:16:55+00:00'
+    subject: 'fix: stabilize auth login cache fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_recoverykey.py
+    - backend/tests/test_auth_endpoints.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    related_feature_ids: []
+  - sha: cc19be438727f874183e286425fc502ce58cbebd
+    short_sha: cc19be438
+    authored_at: '2026-08-11T11:14:51+00:00'
+    subject: 'fix: unblock chat sync recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 5ef2772f10e4d0b2558443d70a138133019c40f4
+    short_sha: 5ef2772f1
+    authored_at: '2026-08-11T11:09:47+00:00'
+    subject: 'fix: treat pasted embeds as sendable content'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 95c7fa2511c756ea61bf86af0bdb7dd81d4aa9c3
+    short_sha: 95c7fa251
+    authored_at: '2026-08-11T11:02:06+00:00'
+    subject: 'fix: stabilize assistant mock replay timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: a1a8298a640f312abe305f8d0095347a804c7c86
+    short_sha: a1a8298a6
+    authored_at: '2026-08-11T10:47:07+00:00'
+    subject: 'fix: preserve paste recovery after conversion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: c3b72dfa3cb0496553881acd67ebbf6e4a647620
+    short_sha: c3b72dfa3
+    authored_at: '2026-08-11T10:36:16+00:00'
+    subject: Use GPT-5.5 xhigh for spawned execute workers
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - scripts/_zellij_utils.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: 62c7b43fca456c6ddf834939e8d296e097633b72
+    short_sha: 62c7b43fc
+    authored_at: '2026-08-11T10:24:54+00:00'
+    subject: 'fix: stabilize paste recovery chip'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 3a6e97f9035e843025490d04f50cff641f667195
+    short_sha: 3a6e97f90
+    authored_at: '2026-08-11T10:12:48+00:00'
+    subject: Hide internal OpenCode cron research mode
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - opencode.json
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    related_feature_ids: []
+  - sha: 8ff993781c3cbf10cc98b45498276a12904bdd9d
+    short_sha: 8ff993781
+    authored_at: '2026-08-11T10:09:49+00:00'
+    subject: 'fix: remove nightly Linear task enricher'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - scripts/linear-cron-setup.sh
+    - scripts/linear-enricher.py
+    - scripts/prompts/linear-task-research.md
+    - scripts/tests/test_architecture_behavioral_claims.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: 88b09076a30fd25581316f36aa81689ee3dc05b0
+    short_sha: 88b09076a
+    authored_at: '2026-08-11T09:51:22+00:00'
+    subject: 'test: backfill Plans gate specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4fc1a101846c032b520705cc3384905bddefc3d0
+    short_sha: 4fc1a1018
+    authored_at: '2026-08-11T03:59:09+00:00'
+    subject: 'fix: stabilize reminder email and sub-chat previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_reminder_email_notifications.py
+    - backend/tests/test_tasks_api_security.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    related_feature_ids:
+    - app:reminder
+  - sha: d7f949f884d36cc4e45beb9b2caaef73c64b2f3a
+    short_sha: d7f949f88
+    authored_at: '2026-08-11T03:18:21+00:00'
+    subject: 'fix: scope generated audio preview playback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    related_feature_ids:
+    - embed:audio:generate
+    - embed:audio:speak
+  - sha: 71c91229c0da2ec54c5adf5802fcb3736fbbb0d5
+    short_sha: 71c91229c
+    authored_at: '2026-08-11T02:58:01+00:00'
+    subject: 'fix: make generated audio examples playable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - frontend/apps/web_app/static/store-examples/audio-generate-product-success-chime.mp3
+    - frontend/apps/web_app/static/store-examples/audio-speak-friendly-welcome-message.mp3
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-confirmation-tick.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_confirmation_tick.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_product_success_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_welcome_message.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:generate
+    - embed:audio:speak
+  - sha: 23212f686b65ec345498d75b913bc7a927742fd1
+    short_sha: 23212f686
+    authored_at: '2026-08-11T02:28:59+00:00'
+    subject: 'test: reproduce broken generated audio examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: f2cc03f5233fbd669f2928e2e83a232d9de6172c
+    short_sha: f2cc03f52
+    authored_at: '2026-08-11T02:24:41+00:00'
+    subject: 'fix: stabilize notification and sub-chat previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/notifications/contract.yml
+    - contracts/features/notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    related_feature_ids: []
+  - sha: 4efb9c08a93973e4cb41bffb0df99a6fe083ddff
+    short_sha: 4efb9c08a
+    authored_at: '2026-08-11T02:08:43+00:00'
+    subject: 'docs: backfill tasks contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_workflow_task_projections.py
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining audio generation skills, enhancing chat file management, and stabilizing the core
+    interface. Significant work was done on audio asset storage, billing by duration, and surfacing chat-related files in
+    settings.
+  released_changes: []
+  bug_fixes:
+  - text: Resolved issues where welcome messages would appear while the message composer was active.
+    evidence:
+      commits:
+      - 6dbfae61d
+      - b6302ad63
+    release_status: dev_only
+  - text: Fixed audio preview playback scoping and made example audio files playable in the store.
+    evidence:
+      commits:
+      - d7f949f88
+      - 71c91229c
+    release_status: dev_only
+  - text: Corrected bank transfer settlement alerts and added idempotency to PDF upload billing.
+    evidence:
+      commits:
+      - 70e48a55f
+      - 94e498576
+    release_status: dev_only
+  - text: Stabilized authentication and sync flows, including recovery key transitions, login cache fallbacks, and chat sync
+      recovery.
+    evidence:
+      commits:
+      - 30d05e744
+      - 4f08b38a4
+      - cc19be438
+    release_status: dev_only
+  unreleased_progress:
+  - text: Audio skills now store outputs as generated assets, calculate costs based on duration, and expose example files
+      for testing.
+    evidence:
+      commits:
+      - c4ab9796a
+      - bef48db31
+      - 7872aa931
+    release_status: dev_only
+  - text: Chat files are now surfaced in settings and the CLI, with deep links connecting example chat costs to usage data.
+    evidence:
+      commits:
+      - 903ebad36
+      - ccdfcbe99
+      - 8e30afb59
+    release_status: dev_only
+  - text: The message input now handles pasted embeds as sendable content and includes improved paste recovery.
+    evidence:
+      commits:
+      - 5ef2772f1
+      - a1a8298a6
+      - 62c7b43fc
+    release_status: dev_only
+  - text: Initial work on task contracts and Apple platform parity for voice recording views was added.
+    evidence:
+      commits:
+      - 4efb9c08a
+      - af10e174d
+    release_status: dev_only
+  internal_progress:
+  - text: OpenCode sessions now support strict proof videos, progress delta notifications, and the OpenMatesCloud session
+      workflow.
+    evidence:
+      commits:
+      - e7ae53cf9
+      - db703f4ba
+      - daea9ddd4
+    release_status: dev_only
+  - text: Infrastructure updates include parallelized startup metadata sync and the use of GPT-5.5 for execution workers.
+    evidence:
+      commits:
+      - 4a8ecb303
+      - c3b72dfa3
+    release_status: dev_only
+  - text: Testing frameworks were hardened for parallel debug workers and campaign token minting.
+    evidence:
+      commits:
+      - 18e5b2cba
+      - 95a43d88e
+      - 3a55325b0
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Audio generation refinements
+      evidence:
+        commits:
+        - c4ab9796a
+      reason: Feature is currently dev_only and not reachable from main.
+    - text: Chat file management and CLI surfacing
+      evidence:
+        commits:
+        - 903ebad36
+      reason: Feature is currently dev_only and not reachable from main.
+    - text: Task contract backfill
+      evidence:
+        commits:
+        - 4efb9c08a
+      reason: Tasks are a disabled feature and the work is dev_only.
+    rationale: All changes from this period are currently in development (dev_only) and have not been merged to the main branch
+      for public release.
+  social_video_recommendations:
+  - idea: Demonstrate the new audio generation skill that bills by duration and saves outputs as downloadable assets.
+    priority: medium
+    reason: Concrete product story with visual and audio artifacts ready for demonstration.
+    evidence:
+      commits:
+      - c4ab9796a
+      - bef48db31
+  quality_notes:
+  - Heavy focus on audio skill infrastructure and asset management.
+  - Significant cleanup of message input edge cases, specifically around pasting and welcome message suppression.
+  - No changes were merged to the main branch during this period.
+  validation_warnings: []

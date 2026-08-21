@@ -24,7 +24,7 @@ COORDINATION_PLUGIN_FIXTURE = " ".join(
         'runBridge("PreToolUse"',
         "edit-lease",
         'OPENMATES_ROOT_GUARD || "strict"',
-        "Docker Compose mutations require",
+        "Direct Docker Compose lifecycle mutations bypass",
     ]
 )
 
@@ -112,27 +112,6 @@ def test_opencode_spec_workflow_audit_detects_skill_mirror_drift(tmp_path):
     assert any("mirror drifted" in failure for failure in failures)
 
 
-def test_opencode_spec_workflow_audit_accepts_wrapped_skill_terms(tmp_path):
-    audit = load_audit_module()
-    skill = tmp_path / "skill.md"
-    skill.write_text("Publish through OpenCode\nresponse-media after review.", encoding="utf-8")
-    audit.SKILL_TERMS = {"skill.md": {"OpenCode response-media"}}
-
-    assert audit.audit_skills(tmp_path) == []
-
-
-def test_opencode_spec_workflow_audit_rejects_missing_or_separate_skill_terms(tmp_path):
-    audit = load_audit_module()
-    skill = tmp_path / "skill.md"
-    audit.SKILL_TERMS = {"skill.md": {"OpenCode response-media"}}
-
-    skill.write_text("OpenCode\n\nresponse-media", encoding="utf-8")
-    assert audit.audit_skills(tmp_path) == ["skill.md missing required term: OpenCode response-media"]
-
-    skill.write_text("OpenCode publication only", encoding="utf-8")
-    assert audit.audit_skills(tmp_path) == ["skill.md missing required term: OpenCode response-media"]
-
-
 def test_opencode_spec_workflow_audit_requires_coordination_plugin(tmp_path):
     audit = load_audit_module()
 
@@ -200,7 +179,7 @@ def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_pa
 
     assert any("edit-lease" in failure for failure in failures)
     assert any("OPENMATES_ROOT_GUARD" in failure for failure in failures)
-    assert any("Docker Compose mutations require" in failure for failure in failures)
+    assert any("Direct Docker Compose lifecycle mutations bypass" in failure for failure in failures)
 
 
 def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
