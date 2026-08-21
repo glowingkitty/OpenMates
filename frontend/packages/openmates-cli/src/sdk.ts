@@ -1405,6 +1405,10 @@ async function resolveSdkChatId(client: OpenMates, chatId: string): Promise<stri
   throw new OpenMatesConfigError(`Chat '${chatId}' was not found.`);
 }
 
+function isSdkChatNotFound(error: unknown): boolean {
+  return error instanceof OpenMatesApiError && error.status === 404;
+}
+
 async function resolveSdkPlanId(client: OpenMates, planId: string): Promise<string> {
   if (CANONICAL_UUID_PATTERN.test(planId)) return planId;
   const plans = await decryptUserPlans(await listSdkRawPlans(client, { activeOnly: false }), await client.masterKey());
@@ -1785,8 +1789,14 @@ export class OpenMatesChats {
   }
 
   async load(chatId: string): Promise<Record<string, unknown>> {
-    const resolvedChatId = await resolveSdkChatId(this.client, chatId);
-    const payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+    let payload: Record<string, unknown>;
+    try {
+      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
+    } catch (error) {
+      if (!isSdkChatNotFound(error)) throw error;
+      const resolvedChatId = await resolveSdkChatId(this.client, chatId);
+      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+    }
     return this.client.decryptLoadedChatPayload(payload);
   }
 
@@ -1831,9 +1841,9 @@ export class OpenMatesChats {
         serverMessageCount: messages.length,
       };
     }
-    const resolvedChatId = await resolveSdkChatId(this.client, options.chatId);
-    const payload = await this.client.get<Record<string, unknown>>(
-      withQuery(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}/messages`, {
+    const messageWindowPath = (chatId: string) => withQuery(
+      `/v1/sdk/chats/${encodeURIComponent(chatId)}/messages`,
+      {
         direction: options.direction ?? "latest",
         limit: options.limit ?? 30,
         before_timestamp: options.beforeTimestamp,
@@ -1842,8 +1852,16 @@ export class OpenMatesChats {
         after_message_id: options.afterMessageId,
         anchor_message_id: options.anchorMessageId,
         respect_compression_boundary: options.respectCompressionBoundary === false ? false : undefined,
-      }),
+      },
     );
+    let payload: Record<string, unknown>;
+    try {
+      payload = await this.client.get<Record<string, unknown>>(messageWindowPath(options.chatId));
+    } catch (error) {
+      if (!isSdkChatNotFound(error)) throw error;
+      const resolvedChatId = await resolveSdkChatId(this.client, options.chatId);
+      payload = await this.client.get<Record<string, unknown>>(messageWindowPath(resolvedChatId));
+    }
     const loaded = await this.client.decryptLoadedChatPayload(payload);
     const chat = loaded.chat as EncryptedChatMetadata | undefined;
     if (!chat) {

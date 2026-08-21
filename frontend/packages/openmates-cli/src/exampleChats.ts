@@ -18,6 +18,10 @@ import enLocale from "../../ui/src/i18n/locales/en.json" with { type: "json" };
 
 type LocaleNode = string | { [key: string]: LocaleNode };
 
+const EXAMPLE_CHAT_ALIASES = new Map([
+  ["example-audio-speak-friendly-welcome-message", "example-audio-speak-openmates-welcome-message"],
+]);
+
 export interface ExampleChatListItem {
   id: string;
   shortId: string;
@@ -136,7 +140,8 @@ export function listExampleChatsForApp(appId: string): ExampleChatSkillListItem[
 }
 
 export function getExampleChatConversation(query: string): ExampleChatConversation | null {
-  const normalized = query.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  const normalized = EXAMPLE_CHAT_ALIASES.get(normalizedQuery) ?? normalizedQuery;
   const chat = ALL_EXAMPLE_CHATS.find((candidate) => {
     const title = translate(candidate.title).toLowerCase();
     return (
