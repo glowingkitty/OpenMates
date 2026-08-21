@@ -104,6 +104,16 @@ async function expectContinueCardsExcludeChatIds(page: Page, forbiddenChatIds: s
 	}, { timeout: 15000 }).toEqual([]);
 }
 
+async function expectContinueCardsEmpty(page: Page): Promise<void> {
+	const cards = page.locator([
+		'[data-testid="recent-chats-scroll-container"] [data-testid="continue-priority-card"]',
+		'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-large-card"]',
+		'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-card"]',
+		'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-draft-card"]',
+	].join(', '));
+	await expect(cards).toHaveCount(0, { timeout: 15000 });
+}
+
 async function openProfileMenu(page: Page): Promise<void> {
 	await page.getByTestId('profile-container').click();
 	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 15000 });
@@ -167,6 +177,7 @@ test.describe('Teams V1 context isolation', () => {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
 			}
 			await expectContinueCardsExcludeChatIds(page, personalChatIds);
+			await expectContinueCardsEmpty(page);
 			await page.waitForTimeout(1000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);

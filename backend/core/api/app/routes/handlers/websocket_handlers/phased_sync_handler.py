@@ -1995,40 +1995,6 @@ async def handle_sync_status_request(
     try:
         try:
             logger.info(f"Handling sync status request for user {user_id}")
-
-            raw_team_id = payload.get("team_id")
-            team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
-            context_epoch = payload.get("context_epoch") if isinstance(payload.get("context_epoch"), int) else None
-
-            if team_id:
-                await directus_service.team.require_team_role(
-                    team_id,
-                    user_id,
-                    {"owner", "admin", "member", "viewer"},
-                )
-                chat_count = await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
-                await manager.send_personal_message(
-                    {
-                        "type": "sync_status_response",
-                        "payload": {
-                            "is_primed": True,
-                            "chat_count": chat_count,
-                            "timestamp": int(datetime.now(timezone.utc).timestamp()),
-                            "team_id": team_id,
-                            "context_epoch": context_epoch,
-                        }
-                    },
-                    user_id,
-                    device_fingerprint_hash
-                )
-                logger.info(
-                    "Team sync status sent for user %s: team=%s, chats=%s, context_epoch=%s",
-                    user_id,
-                    team_id,
-                    chat_count,
-                    context_epoch,
-                )
-                return
         
             # Check cache primed status
             cache_primed = await cache_service.is_user_cache_primed(user_id)

@@ -591,10 +591,8 @@ export interface SendChatMessagePayload {
   encrypted_chat_key?: string | null; // Encrypted chat key for server storage (device sync)
 }
 
-export interface RequestCacheStatusPayload {
-  team_id?: string | null;
-  context_epoch?: number;
-}
+// Request cache status payload - no fields needed, just the type
+export type RequestCacheStatusPayload = Record<string, never>;
 
 export interface SetActiveChatPayload {
   chat_id: string | null;
@@ -1172,8 +1170,6 @@ export interface SyncStatusResponsePayload {
   is_primed: boolean; // Backend sends 'is_primed' (matches CacheStatusResponsePayload)
   chat_count: number;
   timestamp: number;
-  team_id?: string | null;
-  context_epoch?: number;
 }
 
 /**

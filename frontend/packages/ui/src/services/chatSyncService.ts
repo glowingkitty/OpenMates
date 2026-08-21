@@ -564,11 +564,12 @@ export class ChatSynchronizationService extends EventTarget {
       if (!this.isPayloadForActiveContext(typedPayload)) return;
       void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload);
     });
-    webSocketService.on("sync_status_response", (payload) => {
-      const typedPayload = payload as SyncStatusResponsePayload;
-      if (!this.isPayloadForActiveContext(typedPayload)) return;
-      void phasedSyncHandlers.handleSyncStatusResponseImpl(this, typedPayload);
-    });
+    webSocketService.on("sync_status_response", (payload) =>
+      phasedSyncHandlers.handleSyncStatusResponseImpl(
+        this,
+        payload as SyncStatusResponsePayload,
+      ),
+    );
     webSocketService.on("team_chat_message_created", (payload) => {
       void this.handleTeamChatMessageCreated(payload as TeamChatMessageCreatedPayload);
     });
@@ -1896,15 +1897,10 @@ export class ChatSynchronizationService extends EventTarget {
 
   private async requestCacheStatus(): Promise<void> {
     if (!this.webSocketConnected) return;
-    const context = get(activeTeamContext);
-    const payload: RequestCacheStatusPayload = {
-      context_epoch: context.epoch,
-      ...(context.teamId ? { team_id: context.teamId } : {}),
-    };
     try {
       await webSocketService.sendMessage(
         "request_cache_status",
-        payload,
+        {} as RequestCacheStatusPayload,
       );
     } catch (error) {
       console.error(

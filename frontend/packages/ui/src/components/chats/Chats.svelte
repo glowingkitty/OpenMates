@@ -4728,7 +4728,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         height: 42px;
         border-radius: var(--radius-3);
         background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #ff6b3d));
-		color: var(--color-white-fixed, #fff);
+		color: var(--color-white);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -4742,14 +4742,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-		color: var(--color-white-fixed, #fff);
+		color: var(--color-white);
     }
 
     .event-list-date strong {
         font-size: 1.15rem;
         font-weight: 800;
         margin-top: 2px;
-		color: var(--color-white-fixed, #fff);
+		color: var(--color-white);
     }
 
     .event-list-body {
