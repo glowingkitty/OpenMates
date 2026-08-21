@@ -266,6 +266,118 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
 
 
+def test_proof_video_playwright_uses_passed_run_when_session_worktree_is_stale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+    subject_commit = "a" * 40
+    stale_session_commit = "b" * 40
+
+    def produce_playwright(**kwargs: object) -> dict[str, object]:
+        observed.update(kwargs)
+        return {"privacy": {"status": "passed"}}
+
+    def reject_clean_worktree(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("passed Playwright run binding must not require local worktree provenance")
+
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"video")
+    contract_path = tmp_path / "contract.json"
+    proof_video_workflow.write_contract(
+        contract_path,
+        {
+            "schema_version": 2,
+            "title": "Team context isolation",
+            "transcript": [{"text": "The Team workspace shows isolated chat state.", "devices": ["web-laptop"]}],
+            "assertions": [
+                {
+                    "id": "team-context-isolated",
+                    "description": "Personal chats are absent from the Team context.",
+                    "devices": ["web-laptop"],
+                }
+            ],
+            "devices": ["web-laptop"],
+        },
+    )
+    results_dir = tmp_path / "test-results"
+    proof_sources = results_dir / "proof-video-sources"
+    proof_sources.mkdir(parents=True)
+    (proof_sources / "source.json").write_text(
+        json.dumps(
+            {
+                "run_id": "gha-123-case-1",
+                "git_sha": subject_commit,
+                "source": "scripts_tests",
+                "deployment_verified": True,
+                "deployment_reference": subject_commit,
+                "target": "https://app.dev.openmates.org",
+                "spec": "teams-settings-context.spec.ts",
+                "status": "passed",
+                "artifact_path": str(video),
+                "artifact_sha256": proof_video_workflow._file_sha256(video),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(proof_video_workflow, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(proof_video_workflow, "APPROVALS_DIR", results_dir / "proof-video-approvals")
+    monkeypatch.setattr(proof_video_workflow, "PROOF_SOURCE_DIR", proof_sources)
+    monkeypatch.setattr(proof_video_workflow, "require_clean_worktree", reject_clean_worktree)
+    proof_video_workflow.record_contract_approval(
+        session_id="abcd",
+        spec_name="teams-settings-context.spec.ts",
+        contract_path=contract_path,
+    )
+    monkeypatch.setitem(sys.modules, "spec_demo", fake_spec_demo(produce_playwright=produce_playwright))
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {
+            "sessions": {
+                "abcd": {
+                    "modified_files": ["frontend/packages/ui/src/components/ActiveChat.svelte"],
+                    "worktree": {"merged_commit": stale_session_commit},
+                }
+            }
+        },
+    )
+    monkeypatch.setattr(sessions, "_save_sessions", lambda _data: None)
+    args = argparse.Namespace(
+        session="abcd",
+        proof_action="produce-playwright",
+        run_dir=tmp_path / "proof",
+        source_video=video,
+        proof_id="teams-proof",
+        subject_commit=subject_commit,
+        run_id="gha-123-case-1",
+        target_environment="https://app.dev.openmates.org",
+        test_account_provenance="reserved test account 2",
+        narration_id="NARR-1",
+        caption="The Team workspace shows isolated chat state.",
+        expected_proof="Personal chats are absent from the Team context.",
+        acceptance_criterion=["team-context-isolated"],
+        audio_path=None,
+        audio_provider="elevenlabs",
+        audio_model="eleven_flash_v2_5",
+        audio_voice="warm_neutral",
+        audio_reused_from="",
+        device_profile="web-laptop",
+        playback_rate=1.0,
+        hold_last_frame_seconds=0.0,
+        ready_timestamp_seconds=None,
+        demo_audio_path=None,
+        spec_name="teams-settings-context.spec.ts",
+        contract_path=contract_path,
+    )
+
+    sessions.cmd_proof_video(args)
+
+    assert observed["source_video"] == video
+    assert observed["source"]["subject_commit"] == subject_commit
+    assert observed["device_profile_name"] == "web-laptop"
+
+
 def test_proof_video_playwright_rejects_unverified_source_before_render(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -859,32 +971,16 @@ def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path)
 def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    run_dir = manifest_path.parent
     manifest["review"]["status"] = "render_defect"
-    manifest["video_path"] = "demo.mp4"
-    frames = run_dir / "frames"
-    frames.mkdir()
-    (frames / "frame.png").write_bytes(b"frame")
-    manifest["review"]["attempts"] = [
-        {
-            "assertions": [
-                {"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Blank."}
-            ],
-            "incidental_findings": [],
-            "reviewed_frames": ["frames/frame.png"],
-        }
-    ]
-    (run_dir / "demo.mp4").write_bytes(b"video")
+    manifest["video_path"] = str(tmp_path / "demo.mp4")
+    (tmp_path / "demo.mp4").write_bytes(b"video")
 
-    record = sessions._proof_video_manifest_record(run_dir, manifest)
+    record = sessions._proof_video_manifest_record(tmp_path, manifest)
 
     blocker_media = record["blocker_media"]
     assert blocker_media["media_status"] == "available"
-    assert blocker_media["image_path"] == str(frames / "frame.png")
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
-    assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
-    assert blocker_media["video_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
-    assert blocker_media["upload_command"] == blocker_media["image_upload_command"]
+    assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
+    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
 
 
 def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
@@ -895,19 +991,13 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
     run_dir.mkdir(parents=True)
     video = run_dir / "demo.mp4"
     captions = run_dir / "captions.vtt"
-    frame = run_dir / "frames" / "frame.png"
-    frame.parent.mkdir()
     video.write_bytes(b"video")
     captions.write_text("WEBVTT\n", encoding="utf-8")
-    frame.write_bytes(b"frame")
     monkeypatch.setattr(spec_demo, "__file__", str(tmp_path / "scripts" / "spec_demo.py"))
     manifest = {
         "spec_id": "proof",
         "review": {"status": "product_defect"},
         "video_path": "test-results/proof-videos/session/proof/demo.mp4",
-        "disposable_artifacts": [
-            {"kind": "review_frame", "path": "test-results/proof-videos/session/proof/frames/frame.png"}
-        ],
         "caption_artifact": {
             "path": "test-results/proof-videos/session/proof/captions.vtt",
             "language": "en",
@@ -918,7 +1008,6 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
     blocker_media = sessions._proof_video_blocker_media_record(run_dir, manifest)
 
     assert blocker_media["media_status"] == "available"
-    assert blocker_media["image_path"] == str(frame)
     assert blocker_media["video_path"] == str(video)
     assert blocker_media["captions_path"] == str(captions)
 

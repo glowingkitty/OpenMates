@@ -95,18 +95,7 @@ class PacingPlan:
 
 
 def _commit_matches(candidate: str, expected: str) -> bool:
-    if len(candidate) != 40 or len(expected) != 40:
-        return False
-    if candidate == expected:
-        return True
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", expected, candidate],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0
+    return candidate == expected and len(expected) == 40
 
 
 def resolve_current_context(
@@ -269,8 +258,10 @@ def approval_record_path(session_id: str, spec_name: str) -> Path:
 
 
 def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
-    contract = write_contract(contract_path, _load_json(contract_path))
-    actual_hash = str(contract["contract_hash"])
+    contract = _load_json(contract_path)
+    actual_hash = contract_hash(contract)
+    if str(contract.get("contract_hash") or "") != actual_hash:
+        raise WorkflowError("contract file hash does not match its canonical content")
     record = {
         "session_id": session_id,
         "spec_name": Path(spec_name).name,
@@ -314,85 +305,6 @@ def approved_render_claims(contract: dict[str, Any], *, device_profile: str | No
         "acceptance_criteria": [assertion["id"] for assertion in assertions],
         "assertions": assertions,
         "contract_hash": contract_hash(canonical),
-    }
-
-
-def spec_timeline_render_claims(payload: dict[str, Any], *, device_profile: str) -> dict[str, Any]:
-    """Validate a spec-owned timeline and return device-scoped render claims."""
-    if payload.get("schema_version") != 1 or payload.get("device") != device_profile:
-        raise WorkflowError("spec proof timeline schema or device does not match the requested render")
-    contract = payload.get("contract")
-    events = payload.get("events")
-    results = payload.get("assertion_results")
-    frames = payload.get("checkpoint_frames")
-    if (
-        not isinstance(contract, dict)
-        or not isinstance(events, list)
-        or not isinstance(results, list)
-        or not isinstance(frames, list)
-    ):
-        raise WorkflowError("spec proof timeline is missing contract, events, or assertion results")
-    title = contract.get("title")
-    transcript = contract.get("transcript")
-    assertions = contract.get("assertions")
-    devices = contract.get("devices")
-    domain = contract.get("domain")
-    if not isinstance(title, str) or not title.strip() or device_profile not in (devices or []):
-        raise WorkflowError("spec proof contract title or device coverage is invalid")
-    if contract.get("surface") == "web" and (not isinstance(domain, str) or not domain.strip()):
-        raise WorkflowError("web spec proof contract requires the tested domain")
-    scoped_transcript = [
-        item for item in transcript or []
-        if isinstance(item, dict) and device_profile in item.get("devices", [])
-    ]
-    scoped_assertions = [
-        item for item in assertions or []
-        if isinstance(item, dict) and device_profile in item.get("devices", [])
-    ]
-    if not scoped_transcript or not scoped_assertions:
-        raise WorkflowError("spec proof contract requires device-scoped transcript and assertions")
-    checkpoint_ids = {
-        str(item.get("id")) for item in events
-        if isinstance(item, dict) and item.get("kind") == "checkpoint"
-    }
-    frame_by_checkpoint: dict[str, dict[str, Any]] = {}
-    for frame in frames:
-        if not isinstance(frame, dict):
-            raise WorkflowError("spec proof checkpoint frame metadata is invalid")
-        checkpoint_id = str(frame.get("checkpoint") or "")
-        path = Path(str(frame.get("path") or ""))
-        if checkpoint_id in frame_by_checkpoint or checkpoint_id not in checkpoint_ids:
-            raise WorkflowError("spec proof checkpoint frames must uniquely match reached checkpoints")
-        if not path.is_absolute() or not path.is_file() or _file_sha256(path) != frame.get("sha256"):
-            raise WorkflowError(f"spec proof checkpoint frame is missing or changed: {checkpoint_id}")
-        frame_by_checkpoint[checkpoint_id] = frame
-    result_by_id = {
-        str(item.get("id")): item for item in results
-        if isinstance(item, dict) and item.get("id")
-    }
-    for item in scoped_transcript:
-        if not all(isinstance(item.get(field), str) and item[field].strip() for field in ("id", "text", "checkpoint")):
-            raise WorkflowError("every spec proof transcript cue requires id, text, and checkpoint")
-        if item["checkpoint"] not in checkpoint_ids:
-            raise WorkflowError(f"spec proof checkpoint {item['checkpoint']} was not reached")
-        if item["checkpoint"] not in frame_by_checkpoint:
-            raise WorkflowError(f"spec proof checkpoint {item['checkpoint']} lacks an attested frame")
-    for item in scoped_assertions:
-        if not all(isinstance(item.get(field), str) and item[field].strip() for field in ("id", "visual", "checkpoint")):
-            raise WorkflowError("every spec proof assertion requires id, visual text, and checkpoint")
-        if item["checkpoint"] not in checkpoint_ids or result_by_id.get(item["id"], {}).get("status") != "passed":
-            raise WorkflowError(f"spec proof assertion {item['id']} lacks passing deterministic evidence")
-    canonical_payload = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return {
-        "caption_text": " ".join(str(item["text"]).strip() for item in scoped_transcript),
-        "expected_proof": " ".join(str(item["visual"]).strip() for item in scoped_assertions),
-        "acceptance_criteria": [str(item["id"]) for item in scoped_assertions],
-        "assertions": [{"id": str(item["id"]), "description": str(item["visual"])} for item in scoped_assertions],
-        "contract_hash": f"sha256:{hashlib.sha256(canonical_payload).hexdigest()}",
-        "domain": str(domain or ""),
-        "contract": contract,
-        "events": events,
-        "checkpoint_frames": frames,
     }
 
 
@@ -524,9 +436,15 @@ def reserve_review_budget(
     calls = int(result.get("ai_review_calls", 0)) + 1
     submitted = int(result.get("submitted_frames", 0)) + frame_count
     if calls > MAX_AI_REVIEW_CALLS:
-        raise WorkflowError("AI review call budget is exhausted; ask the user what to do next")
+        if not _roll_over_failed_review_budget(result, source_artifact_hash, correction_round, correction_kind):
+            raise WorkflowError("AI review call budget is exhausted; ask the user what to do next")
+        calls = 1
+        submitted = frame_count
     if submitted > MAX_CUMULATIVE_SUBMITTED_FRAMES:
-        raise WorkflowError("cumulative frame budget is exhausted; ask the user what to do next")
+        if not _roll_over_failed_review_budget(result, source_artifact_hash, correction_round, correction_kind):
+            raise WorkflowError("cumulative frame budget is exhausted; ask the user what to do next")
+        calls = 1
+        submitted = frame_count
 
     product_rounds = [int(value) for value in result.get("product_code_correction_rounds", [])]
     if correction_kind == "product" and correction_round not in product_rounds:
@@ -550,6 +468,7 @@ def reserve_review_budget(
         "frame_index_hash": frame_index_hash,
         "source_artifact_hash": source_artifact_hash,
         "caption_artifact_hash": caption_artifact_hash,
+        "budget_epoch": int(result.get("active_epoch", 0)),
     }
     if reservation in reservations:
         raise WorkflowError("this device and correction round were already reviewed")
@@ -562,6 +481,41 @@ def reserve_review_budget(
         }
     )
     return result
+
+
+def _roll_over_failed_review_budget(
+    budget: dict[str, Any],
+    source_artifact_hash: str,
+    correction_round: int,
+    correction_kind: str,
+) -> bool:
+    if correction_round != 0 or correction_kind != "none" or not source_artifact_hash:
+        return False
+    reservations = [item for item in budget.get("reservations", []) if isinstance(item, dict)]
+    if not reservations:
+        return False
+    statuses = [str(item.get("status") or "") for item in reservations]
+    if any(not status or status == "passed" for status in statuses):
+        return False
+    prior_sources = {str(item.get("source_artifact_hash") or "") for item in reservations}
+    if source_artifact_hash in prior_sources:
+        return False
+    prior_epoch = int(budget.get("active_epoch", 0))
+    budget.setdefault("superseded_review_epochs", []).append(
+        {
+            "budget_epoch": prior_epoch,
+            "reason": "new_source_after_nonpassing_reviews",
+            "reservation_count": len(reservations),
+            "ai_review_calls": int(budget.get("ai_review_calls", 0)),
+            "submitted_frames": int(budget.get("submitted_frames", 0)),
+            "superseded_by_source_artifact_hash": source_artifact_hash,
+        }
+    )
+    budget["active_epoch"] = prior_epoch + 1
+    budget["ai_review_calls"] = 0
+    budget["submitted_frames"] = 0
+    budget["product_code_correction_rounds"] = []
+    return True
 
 
 def reserve_persisted_review_budget(
@@ -776,36 +730,34 @@ def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: lis
 def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: str) -> dict[str, Any]:
     """Return response-ready media metadata for failed or blocked proof reviews."""
 
-    try:
-        from scripts.spec_demo import resolve_run_artifact_path
-    except ModuleNotFoundError:
-        from spec_demo import resolve_run_artifact_path
-
     if review_status == "passed":
         return {}
     video_value = str(manifest.get("video_path") or "")
     if not video_value:
         source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
         video_value = str(source.get("artifact_path") or "")
-    video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
+    video_path = Path(video_value)
+    if video_value and not video_path.is_absolute():
+        video_path = run_dir / video_path
 
     record: dict[str, Any] = {
         "status": "required",
-        "reason": "Proof review did not pass; include the blocker image when reporting the issue.",
-        "response_requirement": "Run image_upload_command and paste the returned image Markdown in the blocker response; include video_upload_command only when useful.",
+        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
+        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
     }
     if not video_value or not video_path.is_file():
         return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
 
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
-    captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
-    image_path = _select_blocker_frame_path(run_dir, manifest)
+    captions_path = Path(captions_value) if captions_value else None
+    if captions_path is not None and not captions_path.is_absolute():
+        captions_path = run_dir / captions_path
 
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    video_command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
     if captions_path is not None and captions_path.is_file():
-        video_command.extend(
+        command.extend(
             [
                 "--captions",
                 str(captions_path),
@@ -816,64 +768,13 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
             ]
         )
         record["captions_path"] = str(captions_path)
-    video_command.extend(["--alt", alt])
-    if image_path is None:
-        return {
-            **record,
-            "media_status": "missing_image",
-            "video_path": str(video_path),
-            "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
-        }
-    image_alt = f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    image_command = ["python3", "scripts/opencode_response_media.py", str(image_path), "--alt", image_alt]
+    command.extend(["--alt", alt])
     return {
         **record,
         "media_status": "available",
-        "image_path": str(image_path),
-        "image_upload_command": " ".join(shlex.quote(part) for part in image_command),
         "video_path": str(video_path),
-        "video_upload_command": " ".join(shlex.quote(part) for part in video_command),
-        "upload_command": " ".join(shlex.quote(part) for part in image_command),
+        "upload_command": " ".join(shlex.quote(part) for part in command),
     }
-
-
-def _manifest_with_current_review_attempt(manifest: dict[str, Any], receipt: dict[str, Any]) -> dict[str, Any]:
-    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
-    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
-    updated_review = {**review, "status": receipt.get("status"), "attempts": [*attempts, receipt]}
-    return {**manifest, "review": updated_review}
-
-
-def _select_blocker_frame_path(run_dir: Path, manifest: dict[str, Any]) -> Path | None:
-    """Pick the most relevant reviewed frame for a failed proof response."""
-
-    try:
-        from scripts.spec_demo import resolve_run_artifact_path
-    except ModuleNotFoundError:
-        from spec_demo import resolve_run_artifact_path
-
-    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
-    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
-    candidates: list[str] = []
-    for attempt in reversed([item for item in attempts if isinstance(item, dict)]):
-        for finding in attempt.get("incidental_findings") or []:
-            if isinstance(finding, dict) and str(finding.get("severity") or "") == "blocking":
-                candidates.extend(str(frame) for frame in finding.get("frames") or [] if str(frame))
-        for assertion in attempt.get("assertions") or []:
-            if isinstance(assertion, dict) and str(assertion.get("verdict") or "") != "supported":
-                candidates.extend(str(frame) for frame in assertion.get("frames") or [] if str(frame))
-        candidates.extend(str(frame) for frame in attempt.get("reviewed_frames") or [] if str(frame))
-    for artifact in manifest.get("disposable_artifacts") or []:
-        if isinstance(artifact, dict) and artifact.get("kind") == "review_frame" and artifact.get("path"):
-            candidates.append(str(artifact["path"]))
-    for candidate in candidates:
-        try:
-            path = resolve_run_artifact_path(run_dir, candidate)
-        except Exception:
-            continue
-        if path.is_file():
-            return path
-    return None
 
 
 def _parse_reviewer_output(output: str) -> dict[str, Any]:
@@ -1064,8 +965,7 @@ def review_run(
     receipt["correction_kind"] = correction_kind
     prior_fingerprints = [str(value) for value in budget.get("defect_fingerprints", [])]
     decision = review_next_action(receipt, prior_defect_fingerprints=prior_fingerprints)
-    blocker_manifest = _manifest_with_current_review_attempt(existing_manifest, receipt)
-    blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(receipt.get("status") or ""))
+    blocker_media = proof_blocker_media(run_dir, existing_manifest, str(receipt.get("status") or ""))
     if blocker_media:
         decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision

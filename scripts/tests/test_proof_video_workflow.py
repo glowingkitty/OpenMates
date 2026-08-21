@@ -20,48 +20,6 @@ import pytest
 from scripts import proof_video_workflow as workflow
 
 
-def test_spec_timeline_render_claims_require_hash_bound_checkpoint_frames(tmp_path: Path) -> None:
-    frame = tmp_path / "welcome.png"
-    frame.write_bytes(b"attested pixels")
-    payload = {
-        "schema_version": 1,
-        "device": "web-laptop",
-        "contract": {
-            "id": "welcome-proof",
-            "title": "Welcome proof",
-            "surface": "web",
-            "devices": ["web-laptop"],
-            "domain": "app.dev.openmates.org",
-            "transcript": [{
-                "id": "welcome",
-                "text": "The welcome screen is visible in the browser.",
-                "checkpoint": "welcome-visible",
-                "devices": ["web-laptop"],
-            }],
-            "assertions": [{
-                "id": "welcome.visible",
-                "visual": "The welcome screen is visible.",
-                "checkpoint": "welcome-visible",
-                "devices": ["web-laptop"],
-            }],
-        },
-        "events": [{"id": "welcome-visible", "kind": "checkpoint", "at_ms": 100}],
-        "assertion_results": [{"id": "welcome.visible", "status": "passed", "at_ms": 90}],
-        "checkpoint_frames": [{
-            "checkpoint": "welcome-visible",
-            "path": str(frame),
-            "sha256": workflow._file_sha256(frame),
-        }],
-    }
-
-    claims = workflow.spec_timeline_render_claims(payload, device_profile="web-laptop")
-    assert claims["checkpoint_frames"] == payload["checkpoint_frames"]
-
-    frame.write_bytes(b"changed pixels")
-    with pytest.raises(workflow.WorkflowError, match="missing or changed"):
-        workflow.spec_timeline_render_claims(payload, device_profile="web-laptop")
-
-
 def test_resolve_current_context_matches_session_commit_and_passing_spec() -> None:
     commit = "a" * 40
     sessions = {
@@ -100,38 +58,6 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     assert context.session_id == "abcd"
     assert context.subject_commit == commit
     assert context.source_run_id == "run-current"
-
-
-def test_resolve_current_context_accepts_passing_descendant_commit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    subject_commit = "a" * 40
-    descendant_commit = "b" * 40
-    sessions = {"sessions": {"abcd": {"opencode_session_id": "ses_current"}}}
-    runs = [{
-        "run_id": "run-descendant",
-        "git_sha": descendant_commit,
-        "status": "passed",
-        "spec": "example.spec.ts",
-        "source": "scripts_tests",
-        "deployment_verified": True,
-    }]
-    monkeypatch.setattr(
-        workflow.subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=0),
-    )
-
-    context = workflow.resolve_current_context(
-        sessions,
-        opencode_session_id="ses_current",
-        subject_commit=subject_commit,
-        spec_name="example.spec.ts",
-        test_runs=runs,
-    )
-
-    assert context.subject_commit == subject_commit
-    assert context.source_run_id == "run-descendant"
 
 
 def test_control_plane_root_resolves_shared_session_registry_from_worktree(
@@ -531,34 +457,6 @@ def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
         workflow.require_recorded_approval(session_id="abcd", spec_name="example.spec.ts", contract_path=contract_path)
 
 
-def test_record_contract_approval_canonicalizes_an_unhashed_draft(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(workflow, "APPROVALS_DIR", tmp_path / "approvals")
-    contract_path = tmp_path / "contract.json"
-    contract_path.write_text(json.dumps({
-        "title": "CLI proof",
-        "transcript": ["Show the real CLI output."],
-        "assertions": [{"id": "cli.output", "description": "The CLI output is visible."}],
-        "devices": ["cli-terminal"],
-    }), encoding="utf-8")
-
-    record = workflow.record_contract_approval(
-        session_id="abcd",
-        spec_name="example.spec.ts",
-        contract_path=contract_path,
-    )
-
-    approved = json.loads(contract_path.read_text(encoding="utf-8"))
-    assert approved["contract_hash"] == record["contract_hash"]
-    assert workflow.require_recorded_approval(
-        session_id="abcd",
-        spec_name="example.spec.ts",
-        contract_path=contract_path,
-    )["title"] == "CLI proof"
-
-
 def test_deployed_run_rejects_duplicate_attestations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     commit = "a" * 40
     video = tmp_path / "video.webm"
@@ -809,6 +707,65 @@ def test_review_budget_caps_calls_frames_and_correction_rounds() -> None:
         )
 
 
+def test_review_budget_rolls_over_nonpassing_prior_sources_for_new_initial_source() -> None:
+    budget = {
+        "ai_review_calls": 4,
+        "submitted_frames": 46,
+        "product_code_correction_rounds": [1],
+        "reservations": [
+            {"source_artifact_hash": "sha256:old-video-a", "status": "product_defect"},
+            {"source_artifact_hash": "sha256:old-video-b", "status": "uncertain"},
+        ],
+    }
+
+    rolled = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:new-frames",
+        source_artifact_hash="sha256:new-video",
+        caption_artifact_hash="sha256:new-captions",
+    )
+
+    assert rolled["active_epoch"] == 1
+    assert rolled["ai_review_calls"] == 1
+    assert rolled["submitted_frames"] == 12
+    assert rolled["product_code_correction_rounds"] == []
+    assert rolled["superseded_review_epochs"] == [
+        {
+            "budget_epoch": 0,
+            "reason": "new_source_after_nonpassing_reviews",
+            "reservation_count": 2,
+            "ai_review_calls": 4,
+            "submitted_frames": 46,
+            "superseded_by_source_artifact_hash": "sha256:new-video",
+        }
+    ]
+    assert rolled["reservations"][-1]["budget_epoch"] == 1
+
+
+def test_review_budget_does_not_roll_over_passed_prior_source() -> None:
+    budget = {
+        "ai_review_calls": 4,
+        "submitted_frames": 46,
+        "reservations": [
+            {"source_artifact_hash": "sha256:old-video", "status": "passed"},
+        ],
+    }
+
+    with pytest.raises(workflow.WorkflowError, match="frame budget"):
+        workflow.reserve_review_budget(
+            budget,
+            device="web-laptop",
+            frame_count=12,
+            correction_round=0,
+            correction_kind="none",
+            source_artifact_hash="sha256:new-video",
+        )
+
+
 def test_review_budget_allows_only_one_product_code_correction_round() -> None:
     budget = workflow.reserve_review_budget(
         {},
@@ -1026,9 +983,6 @@ def test_review_run_includes_blocker_media_for_failed_review(
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
     run_dir, request = _write_review_run(tmp_path / "proof-videos" / "blocked")
-    frame = run_dir / "frames" / "frame.png"
-    frame.parent.mkdir(exist_ok=True)
-    frame.write_bytes(b"frame")
 
     def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
         return (
@@ -1054,11 +1008,8 @@ def test_review_run_includes_blocker_media_for_failed_review(
 
     blocker_media = result["blocker_media"]
     assert blocker_media["media_status"] == "available"
-    assert blocker_media["image_path"] == str(frame)
-    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
-    assert blocker_media["video_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
-    assert blocker_media["upload_command"] == blocker_media["image_upload_command"]
+    assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 

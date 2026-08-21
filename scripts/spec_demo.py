@@ -33,15 +33,6 @@ from typing import Any, Callable, Iterable
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REMOTION_BROWSER_RENDERER = REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"
-REMOTION_PROVENANCE_FILES = (
-    REPO_ROOT / "tooling/proof-video-remotion/package.json",
-    REPO_ROOT / "tooling/proof-video-remotion/src/BrowserTutorial.tsx",
-    REPO_ROOT / "tooling/proof-video-remotion/src/Root.tsx",
-    REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs",
-    REPO_ROOT / "tooling/proof-video-remotion/src/types.ts",
-    REPO_ROOT / "pnpm-lock.yaml",
-)
 TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
@@ -51,8 +42,6 @@ TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
 TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
-CLI_REAL_CAPTURE_START_TRIM_SECONDS = 0.5
-CLI_REAL_CAPTURE_END_TRIM_SECONDS = 0.6
 CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
 OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
 TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
@@ -117,18 +106,9 @@ REVIEW_METADATA_OPTIONAL_FIELDS = {
     "target_height",
     "target_width",
     "captions_sha256",
-    "browser_domain",
-    "browser_runtime",
-    "renderer",
-    "render_request_sha256",
-    "renderer_source_sha256",
-    "timeline_hash",
-    "source_start_trim_seconds",
-    "source_end_trim_seconds",
 }
 REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
 NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
-TUTORIAL_RENDER_FPS = 30
 PROOF_PRIVACY_SCAN_DISABLED = {
     "status": "not_applicable",
     "scan": "disabled",
@@ -189,359 +169,6 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
-
-
-def renderer_source_hash() -> str:
-    """Hash renderer source and pinned dependencies into proof provenance."""
-    digest = hashlib.sha256()
-    for path in REMOTION_PROVENANCE_FILES:
-        if not path.is_file():
-            raise DemonstrationError(f"Remotion provenance input is missing: {path}")
-        digest.update(str(path.relative_to(REPO_ROOT)).encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(path.read_bytes())
-        digest.update(b"\0")
-    return f"sha256:{digest.hexdigest()}"
-
-
-def build_tutorial_timeline(
-    *,
-    contract: dict[str, Any],
-    events: list[dict[str, Any]],
-    device_profile: str,
-    checkpoint_frames: dict[str, dict[str, str]],
-    source_duration_ms: int,
-    assertion_results: list[dict[str, Any]] | None = None,
-    source_start_ms: int = 0,
-) -> list[dict[str, Any]]:
-    """Compile a full source replay with inserted frame-quantized checkpoint holds."""
-    if source_duration_ms <= 0:
-        raise DemonstrationError("Proof tutorial source duration must be positive")
-    if source_start_ms < 0 or source_start_ms >= source_duration_ms:
-        raise DemonstrationError("Proof tutorial source start must be inside the source video")
-    policy = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
-    words_per_second = float(policy.get("readingWordsPerSecond") or 0)
-    minimum_hold = int(policy.get("minimumHoldMs") or 0)
-    maximum_hold = int(policy.get("maximumHoldMs") or 0)
-    if words_per_second <= 0 or minimum_hold <= 0 or maximum_hold < minimum_hold:
-        raise DemonstrationError("Proof tutorial timing policy is invalid")
-    checkpoints = tutorial_checkpoint_times(
-        contract=contract,
-        events=events,
-        assertion_results=assertion_results or [],
-    )
-    cues = [
-        cue
-        for cue in contract.get("transcript", [])
-        if isinstance(cue, dict) and device_profile in cue.get("devices", [])
-    ]
-    if not cues:
-        raise DemonstrationError(f"Proof contract has no transcript for {device_profile}")
-    segments: list[dict[str, Any]] = []
-    previous_source_at = source_start_ms
-    previous_checkpoint_at = -1
-    for cue in cues:
-        checkpoint_id = str(cue.get("checkpoint") or "")
-        if checkpoint_id not in checkpoints:
-            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} was not reached")
-        checkpoint_at = checkpoints[checkpoint_id]
-        if checkpoint_at <= previous_checkpoint_at:
-            raise DemonstrationError("Proof checkpoints must be strictly increasing")
-        frame = checkpoint_frames.get(checkpoint_id)
-        if not frame or not frame.get("path") or not frame.get("sha256"):
-            raise DemonstrationError(f"Proof checkpoint {checkpoint_id} lacks an attested frame")
-        word_count = len(str(cue.get("text") or "").split())
-        hold = round((word_count / words_per_second) * 1000)
-        hold = max(minimum_hold, min(maximum_hold, hold))
-        hold_frames = max(1, round(hold * TUTORIAL_RENDER_FPS / 1000))
-        if checkpoint_at > source_duration_ms:
-            raise DemonstrationError("Proof checkpoint is outside the source video")
-        if checkpoint_at > previous_source_at:
-            source_from_frame = round(previous_source_at * TUTORIAL_RENDER_FPS / 1000)
-            source_to_frame = round(checkpoint_at * TUTORIAL_RENDER_FPS / 1000)
-            segments.append(
-                {
-                    "kind": "video",
-                    "source_from_ms": previous_source_at,
-                    "source_to_ms": checkpoint_at,
-                    "duration_ms": round(
-                        (source_to_frame - source_from_frame) * 1000 / TUTORIAL_RENDER_FPS,
-                        MEDIA_TIMESTAMP_DECIMALS,
-                    ),
-                }
-            )
-        segments.append(
-            {
-                "kind": "freeze",
-                "source_image": frame["path"],
-                "source_sha256": frame["sha256"],
-                "duration_ms": round(hold_frames * 1000 / TUTORIAL_RENDER_FPS, MEDIA_TIMESTAMP_DECIMALS),
-                "cue_id": str(cue.get("id") or ""),
-            }
-        )
-        previous_source_at = checkpoint_at
-        previous_checkpoint_at = checkpoint_at
-    if source_duration_ms > previous_source_at:
-        source_from_frame = round(previous_source_at * TUTORIAL_RENDER_FPS / 1000)
-        source_to_frame = round(source_duration_ms * TUTORIAL_RENDER_FPS / 1000)
-        segments.append(
-            {
-                "kind": "video",
-                "source_from_ms": previous_source_at,
-                "source_to_ms": source_duration_ms,
-                "duration_ms": round(
-                    (source_to_frame - source_from_frame) * 1000 / TUTORIAL_RENDER_FPS,
-                    MEDIA_TIMESTAMP_DECIMALS,
-                ),
-            }
-        )
-    return segments
-
-
-def tutorial_source_start_ms(assertion_results: list[dict[str, Any]]) -> int:
-    """Trim only the pre-proof blank/setup lead before the first visible assertion."""
-    passed_times = [
-        int(result["at_ms"])
-        for result in assertion_results
-        if isinstance(result, dict)
-        and result.get("status") == "passed"
-        and isinstance(result.get("at_ms"), (int, float))
-    ]
-    if not passed_times:
-        return 0
-    return max(0, min(passed_times))
-
-
-def extract_best_checkpoint_frame(
-    source_video: Path,
-    *,
-    output_path: Path,
-    candidate_times_ms: Iterable[int],
-    source_duration_ms: int,
-) -> dict[str, str]:
-    """Choose the most detailed nearby source frame for a readable freeze hold."""
-    candidates = sorted({
-        max(0, min(source_duration_ms, int(candidate_time)))
-        for candidate_time in candidate_times_ms
-    })
-    if not candidates:
-        raise DemonstrationError("Checkpoint freeze requires at least one candidate frame")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    candidate_dir = output_path.parent / f".{output_path.stem}-candidates"
-    candidate_dir.mkdir(parents=True, exist_ok=True)
-    best_path: Path | None = None
-    best_size = -1
-    for candidate_time in candidates:
-        candidate_path = candidate_dir / f"{candidate_time}.png"
-        extract_frame(source_video, timestamp_seconds=candidate_time / 1000, output_path=candidate_path)
-        size = candidate_path.stat().st_size
-        if size > best_size:
-            best_path = candidate_path
-            best_size = size
-    if best_path is None:
-        raise DemonstrationError("Could not extract a checkpoint freeze frame")
-    shutil.copyfile(best_path, output_path)
-    output_path.chmod(0o600)
-    return {"path": str(output_path), "sha256": sha256_file(output_path)}
-
-
-def tutorial_checkpoint_times(
-    *,
-    contract: dict[str, Any],
-    events: list[dict[str, Any]],
-    assertion_results: list[dict[str, Any]],
-) -> dict[str, int]:
-    """Prefer passed assertion timestamps over later checkpoint events for freeze frames."""
-    checkpoints = {
-        str(event.get("id")): int(event["at_ms"])
-        for event in events
-        if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
-    }
-    assertion_checkpoints = {
-        str(assertion.get("id")): str(assertion.get("checkpoint") or "")
-        for assertion in contract.get("assertions", [])
-        if isinstance(assertion, dict)
-    }
-    passed_by_checkpoint: dict[str, list[int]] = {}
-    for result in assertion_results:
-        if not isinstance(result, dict) or result.get("status") != "passed":
-            continue
-        checkpoint_id = assertion_checkpoints.get(str(result.get("id") or ""), "")
-        if checkpoint_id and isinstance(result.get("at_ms"), (int, float)):
-            passed_by_checkpoint.setdefault(checkpoint_id, []).append(int(result["at_ms"]))
-    for checkpoint_id, passed_times in passed_by_checkpoint.items():
-        if checkpoint_id in checkpoints and passed_times:
-            checkpoints[checkpoint_id] = max(passed_times)
-    return checkpoints
-
-
-def build_tutorial_review_timing(
-    *,
-    contract: dict[str, Any],
-    segments: list[dict[str, Any]],
-    device_profile: str,
-    narration_id: str,
-) -> tuple[list[dict[str, Any]], dict[str, list[list[float]]]]:
-    """Bind captions and visual claims to their deterministic tutorial segments."""
-    cues = {
-        str(cue.get("id")): cue
-        for cue in contract.get("transcript", [])
-        if isinstance(cue, dict) and device_profile in cue.get("devices", [])
-    }
-    assertions_by_checkpoint: dict[str, list[str]] = {}
-    for assertion in contract.get("assertions", []):
-        if not isinstance(assertion, dict) or device_profile not in assertion.get("devices", []):
-            continue
-        assertions_by_checkpoint.setdefault(str(assertion.get("checkpoint") or ""), []).append(
-            str(assertion.get("id") or "")
-        )
-    captions: list[dict[str, Any]] = []
-    evidence: dict[str, list[list[float]]] = {}
-    cursor_ms = 0.0
-    caption_start_ms = 0.0
-    for segment in segments:
-        duration_ms = float(segment["duration_ms"])
-        segment_end_ms = cursor_ms + duration_ms
-        if segment.get("kind") == "freeze":
-            cue = cues.get(str(segment.get("cue_id") or ""))
-            if cue is None:
-                raise DemonstrationError("Tutorial freeze segment does not match a device-scoped transcript cue")
-            claim_ids = [
-                claim_id
-                for claim_id in assertions_by_checkpoint.get(str(cue.get("checkpoint") or ""), [])
-                if claim_id
-            ]
-            if not claim_ids:
-                raise DemonstrationError("Tutorial cue has no assertion at its checkpoint")
-            captions.append(
-                {
-                    "id": f"CAP-{len(captions) + 1}",
-                    "narration_id": narration_id,
-                    "text": str(cue.get("text") or "").strip(),
-                    "start": round(caption_start_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
-                    "end": round(segment_end_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
-                    "claim_ids": claim_ids,
-                }
-            )
-            interval = [
-                round(cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
-                round(segment_end_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
-            ]
-            for claim_id in claim_ids:
-                evidence.setdefault(claim_id, []).append(interval)
-            caption_start_ms = segment_end_ms
-        cursor_ms = segment_end_ms
-    if len(captions) != len(cues):
-        raise DemonstrationError("Tutorial segments do not cover every device-scoped transcript cue")
-    assertion_ids = {
-        str(assertion.get("id") or "")
-        for assertion in contract.get("assertions", [])
-        if isinstance(assertion, dict) and device_profile in assertion.get("devices", [])
-    }
-    if set(evidence) != assertion_ids:
-        raise DemonstrationError("Every device-scoped assertion must map to one tutorial cue checkpoint")
-    return captions, evidence
-
-
-def validate_tutorial_caption_text(caption_text: str, captions: list[dict[str, Any]]) -> str:
-    """Require the retained transcript to match the reviewed timeline cues."""
-    canonical = " ".join(str(caption.get("text") or "").strip() for caption in captions)
-    if " ".join(caption_text.split()) != " ".join(canonical.split()):
-        raise DemonstrationError("Tutorial transcript does not match the device-scoped proof captions")
-    return canonical
-
-
-def build_browser_render_request(
-    *,
-    source_video: Path,
-    domain: str,
-    device_profile: str,
-    segments: list[dict[str, Any]],
-    contract_hash: str,
-    timeline_hash: str,
-) -> dict[str, Any]:
-    """Build canonical input props for the repository-local Remotion renderer."""
-    profile = resolve_device_profile(device_profile)
-    if profile is None or profile.get("surface") != "web":
-        raise DemonstrationError("Browser tutorial rendering requires a web device profile")
-    if not re.fullmatch(r"[A-Za-z0-9.-]+", domain) or "." not in domain:
-        raise DemonstrationError("Browser tutorial requires a valid attested domain")
-    if not source_video.is_file() or not segments:
-        raise DemonstrationError("Browser tutorial requires a source video and edit segments")
-    for segment in segments:
-        if segment.get("kind") != "freeze":
-            continue
-        image_path = Path(str(segment.get("source_image") or ""))
-        if not image_path.is_absolute() or not image_path.is_file():
-            raise DemonstrationError("Browser tutorial checkpoint image is missing")
-        if sha256_file(image_path) != segment.get("source_sha256"):
-            raise DemonstrationError("Browser tutorial checkpoint image hash changed")
-    viewport = {"width": int(profile["width"]), "height": int(profile["height"])}
-    return {
-        "schemaVersion": 1,
-        "renderer": "openmates-remotion-browser-v1",
-        "sourceVideo": str(source_video.resolve()),
-        "source_sha256": sha256_file(source_video),
-        "domain": domain,
-        "deviceProfile": device_profile,
-        "viewport": viewport,
-        "output": {"width": viewport["width"], "height": viewport["height"], "fps": 30},
-        "segments": segments,
-        "contractHash": contract_hash,
-        "timelineHash": timeline_hash,
-    }
-
-
-def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
-    """Render one canonical browser request with the pinned Remotion package."""
-    if request.get("renderer") != "openmates-remotion-browser-v1":
-        raise DemonstrationError("Unsupported browser tutorial renderer")
-    if not REMOTION_BROWSER_RENDERER.is_file():
-        raise DemonstrationError("Repository-local Remotion browser renderer is missing")
-    env = dict(os.environ)
-    cached_chromium = sorted((Path.home() / ".cache/ms-playwright").glob("chromium-*/chrome-linux*/chrome"), reverse=True)
-    chromium = str(cached_chromium[0]) if cached_chromium else (
-        shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
-    )
-    if chromium:
-        env["REMOTION_BROWSER_EXECUTABLE"] = chromium
-    browser_runtime = "unknown"
-    if chromium:
-        version_result = subprocess.run([chromium, "--version"], capture_output=True, text=True, check=False)
-        if version_result.returncode == 0 and version_result.stdout.strip():
-            browser_runtime = version_result.stdout.strip()
-    request = {
-        **request,
-        "renderer_source_sha256": renderer_source_hash(),
-        "browser_runtime": browser_runtime,
-    }
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    request_path = output_path.with_suffix(".render-request.json")
-    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
-    result = subprocess.run(
-        ["node", str(REMOTION_BROWSER_RENDERER), str(request_path), str(output_path)],
-        cwd=REPO_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=180,
-    )
-    if result.returncode != 0 or not output_path.is_file():
-        raise DemonstrationError(f"Remotion browser render failed: {(result.stderr or result.stdout)[-1500:]}")
-    metadata = video_metadata(output_path)
-    expected = request["output"]
-    if (metadata["width"], metadata["height"]) != (int(expected["width"]), int(expected["height"])):
-        raise DemonstrationError("Remotion browser output dimensions do not match the canonical request")
-    return {
-        **metadata,
-        "renderer": request["renderer"],
-        "browser_domain": request["domain"],
-        "browser_runtime": request["browser_runtime"],
-        "renderer_source_sha256": request["renderer_source_sha256"],
-        "timeline_hash": request["timelineHash"],
-        "render_request_sha256": sha256_file(request_path),
-    }
 
 
 def _write_private(path: Path, content: str) -> None:
@@ -695,28 +322,6 @@ def capture_pty(
         "test_account_provenance": test_account_provenance,
         "duration_seconds": round(time.monotonic() - started, 6),
     }
-
-
-def capture_real_cli_video(
-    *,
-    argv: list[str],
-    output_dir: Path,
-    target_environment: str,
-    timeout_seconds: float,
-) -> dict[str, Any]:
-    """Capture the actual OpenMates CLI pixels through the shared graphical recorder."""
-    try:
-        from cli_video_capture import capture_cli_video
-    except ModuleNotFoundError:
-        from scripts.cli_video_capture import capture_cli_video
-
-    return capture_cli_video(
-        argv=argv,
-        output_dir=output_dir,
-        target_environment=target_environment,
-        classification="cli_e2e",
-        timeout_seconds=timeout_seconds,
-    )
 
 
 def user_facing_cli_argv(argv: list[str]) -> list[str]:
@@ -1023,8 +628,6 @@ def render_clean_video(
     playback_rate: float = 1.0,
     hold_last_frame_seconds: float = 0.0,
     demo_audio_path: Path | None = None,
-    source_start_seconds: float = 0.0,
-    source_end_seconds: float | None = None,
 ) -> None:
     """Retime a recording without shrinking it or adding tutorial overlays."""
     optional_paths = (demo_audio_path,) if demo_audio_path else ()
@@ -1041,19 +644,10 @@ def render_clean_video(
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     source_duration = media_duration_seconds(source_path)
-    start = max(0.0, float(source_start_seconds))
-    end = source_duration if source_end_seconds is None else min(source_duration, float(source_end_seconds))
-    if start >= end:
-        raise DemonstrationError("Proof trim boundaries leave no visible source video")
-    trimmed_duration = round(end - start, 3)
-    output_duration = round((trimmed_duration / playback_rate) + hold_last_frame_seconds, 3)
+    output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
-    video_filters = [
-        f"trim=start={start:g}:end={end:g}",
-        "setpts=PTS-STARTPTS",
-        f"setpts=PTS/{playback_rate:g}",
-    ]
+    video_filters = [f"setpts=PTS/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
     audio_inputs: list[str] = []
@@ -1256,10 +850,10 @@ def trim_source_to_ready_marker(
         [
             "ffmpeg",
             "-y",
-            "-ss",
-            str(trim_start),
             "-i",
             str(source_path),
+            "-ss",
+            str(trim_start),
             "-c:v",
             "libx264",
             "-preset",
@@ -1468,27 +1062,6 @@ def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds
     return clamped
 
 
-def clamp_evidence_to_duration(
-    evidence: dict[str, list[list[float]]],
-    *,
-    duration_seconds: float,
-) -> dict[str, list[list[float]]]:
-    """Clamp frame-quantized proof intervals without allowing empty evidence."""
-    clamped: dict[str, list[list[float]]] = {}
-    for claim_id, intervals in evidence.items():
-        claim_intervals: list[list[float]] = []
-        for start_value, end_value in intervals:
-            start = round(float(start_value), MEDIA_TIMESTAMP_DECIMALS)
-            end = round(min(float(end_value), duration_seconds), MEDIA_TIMESTAMP_DECIMALS)
-            if not 0 <= start < end <= duration_seconds:
-                raise DemonstrationError("Proof evidence interval is outside the rendered video duration")
-            claim_intervals.append([start, end])
-        if not claim_intervals:
-            raise DemonstrationError("Every proof assertion requires a non-empty evidence interval")
-        clamped[claim_id] = claim_intervals
-    return clamped
-
-
 def assert_realistic_tutorial_narration(text: str) -> None:
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     words = re.findall(r"\b\w+\b", text)
@@ -1519,7 +1092,6 @@ def prepare_review_artifacts(
     proof_contract_hash: str = "",
     proof_group_id: str = "",
     caption_segments: list[dict[str, Any]] | None = None,
-    proof_evidence_intervals: dict[str, list[list[float]]] | None = None,
     device_profile: dict[str, Any] | None = None,
     render_metadata: dict[str, Any] | None = None,
     scene_times: Iterable[float] = (),
@@ -1560,7 +1132,7 @@ def prepare_review_artifacts(
     ]
     claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
     if claim_ids:
-        captions = [{**caption, "claim_ids": caption.get("claim_ids") or claim_ids} for caption in captions]
+        captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     write_webvtt_segments(captions_path, captions)
     validate_webvtt_matches_segments(captions_path, captions)
@@ -1591,22 +1163,13 @@ def prepare_review_artifacts(
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
     evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
-    if proof_evidence_intervals is not None:
-        proof_evidence_intervals = clamp_evidence_to_duration(
-            proof_evidence_intervals,
-            duration_seconds=float(metadata["duration_seconds"]),
-        )
     expected = (
         [
             {
                 "claim_id": str(assertion["id"]),
                 "text": str(assertion["description"]),
                 "acceptance_criteria": [str(assertion["id"])],
-                "evidence_intervals": (
-                    proof_evidence_intervals.get(str(assertion["id"]), evidence_intervals)
-                    if proof_evidence_intervals is not None
-                    else evidence_intervals
-                ),
+                "evidence_intervals": evidence_intervals,
             }
             for assertion in proof_assertions
         ]
@@ -1706,15 +1269,25 @@ def produce_cli_demonstration(
 ) -> dict[str, Any]:
     if timeout_seconds <= 0 or timeout_seconds > 600:
         raise DemonstrationError("CLI proof timeout must be between 0 and 600 seconds")
-    capture = capture_real_cli_video(
-        argv=argv,
-        output_dir=run_dir,
+    capture = capture_pty(
+        argv,
+        run_id=run_id,
         target_environment=target_environment,
+        output_dir=run_dir,
+        test_account_provenance=test_account_provenance,
         timeout_seconds=timeout_seconds,
     )
     if capture.get("exit_status") != 0:
         raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
-    display_argv = user_facing_cli_argv(list(capture["argv"]))
+    terminal_events: list[dict[str, Any]] = []
+    try:
+        display_argv = user_facing_cli_argv(list(capture["argv"]))
+        for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
+            terminal_events.append(json.loads(line))
+    finally:
+        (run_dir / "events.jsonl").unlink(missing_ok=True)
+    timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
+    duration = float(timeline["duration_seconds"])
     captions_path = run_dir / "captions.vtt"
     video_path = run_dir / "demo.mp4"
     narration_audio = (
@@ -1729,27 +1302,18 @@ def produce_cli_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
-    raw_video_path = Path(str(capture["video_path"]))
-    raw_duration = media_duration_seconds(raw_video_path)
-    trim_start = min(CLI_REAL_CAPTURE_START_TRIM_SECONDS, max(0.0, raw_duration - 0.2))
-    trim_end = max(trim_start + 0.1, raw_duration - CLI_REAL_CAPTURE_END_TRIM_SECONDS)
-    render_clean_video(
-        raw_video_path,
+    caption_segments = write_tutorial_captions(
+        captions_path,
+        text=caption_text,
+        duration_seconds=duration,
+        narration_id=narration_id,
+        first_transition_at=timeline["first_output_at"],
+    )
+    render_terminal_video(
+        timeline,
         Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
         video_path,
-        source_start_seconds=trim_start,
-        source_end_seconds=trim_end,
     )
-    _write_private(captions_path, "WEBVTT\n\n")
-    source = {
-        "kind": "cli",
-        **capture,
-        "run_id": run_id,
-        "display_argv": display_argv,
-        "artifact_path": str(raw_video_path),
-        "artifact_hash": sha256_file(raw_video_path),
-        "test_account_provenance": test_account_provenance,
-    }
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1760,14 +1324,10 @@ def produce_cli_demonstration(
         captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
-        source=source,
+        source={"kind": "cli", **capture, "display_argv": display_argv},
         narration_audio=narration_audio,
-        device_profile=resolve_device_profile("cli-terminal"),
-        render_metadata={
-            "renderer": "openmates-real-terminal-capture-v1",
-            "source_start_trim_seconds": trim_start,
-            "source_end_trim_seconds": round(raw_duration - trim_end, MEDIA_TIMESTAMP_DECIMALS),
-        },
+        caption_segments=caption_segments,
+        state_change_times=[float(state["start"]) for state in timeline["states"][1:]],
     )
 
 
@@ -1795,13 +1355,12 @@ def produce_playwright_demonstration(
     hold_last_frame_seconds: float = 0.0,
     ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
-    spec_timeline: dict[str, Any] | None = None,
-    browser_domain: str = "",
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
     render_source_video = source_video
     trim_metadata: dict[str, Any] = {}
+    trim_start_seconds = 0.0
     if ready_timestamp_seconds is not None:
         run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         render_source_video = run_dir / "source-ready-trimmed.mp4"
@@ -1810,6 +1369,7 @@ def produce_playwright_demonstration(
             render_source_video,
             ready_timestamp_seconds=ready_timestamp_seconds,
         )
+        trim_start_seconds = float(trim_metadata.get("trim_start_seconds") or 0.0)
     source_metadata = video_metadata(render_source_video)
     device_profile = resolve_device_profile(device_profile_name)
     if device_profile is None:
@@ -1820,59 +1380,6 @@ def produce_playwright_demonstration(
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
-    tutorial_segments: list[dict[str, Any]] = []
-    tutorial_caption_segments: list[dict[str, Any]] | None = None
-    tutorial_evidence_intervals: dict[str, list[list[float]]] | None = None
-    if spec_timeline is not None:
-        checkpoint_times = tutorial_checkpoint_times(
-            contract=spec_timeline["contract"],
-            events=spec_timeline["events"],
-            assertion_results=spec_timeline.get("assertion_results", []),
-        )
-        checkpoint_event_times = {
-            str(event.get("id")): int(event["at_ms"])
-            for event in spec_timeline.get("events", [])
-            if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
-        }
-        source_start_ms = tutorial_source_start_ms(spec_timeline.get("assertion_results", []))
-        source_duration_ms = round(float(source_metadata["duration_seconds"]) * 1000)
-        checkpoint_frame_dir = run_dir / "checkpoint-source-frames"
-        checkpoint_frame_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_frames = {}
-        for checkpoint_id, checkpoint_at_ms in checkpoint_times.items():
-            lead_ms = round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000)
-            frame = extract_best_checkpoint_frame(
-                render_source_video,
-                output_path=checkpoint_frame_dir / f"{checkpoint_id}.png",
-                candidate_times_ms=[
-                    checkpoint_at_ms - lead_ms,
-                    checkpoint_at_ms,
-                    checkpoint_at_ms + lead_ms,
-                    checkpoint_event_times.get(checkpoint_id, checkpoint_at_ms),
-                ],
-                source_duration_ms=source_duration_ms,
-            )
-            checkpoint_frames[checkpoint_id] = {
-                "path": str(frame["path"]),
-                "sha256": str(frame["sha256"]),
-            }
-        tutorial_segments = build_tutorial_timeline(
-            contract=spec_timeline["contract"],
-            events=spec_timeline["events"],
-            device_profile=str(device_profile["id"]),
-            checkpoint_frames=checkpoint_frames,
-            source_duration_ms=source_duration_ms,
-            assertion_results=spec_timeline.get("assertion_results", []),
-            source_start_ms=source_start_ms,
-        )
-        tutorial_caption_segments, tutorial_evidence_intervals = build_tutorial_review_timing(
-            contract=spec_timeline["contract"],
-            segments=tutorial_segments,
-            device_profile=str(device_profile["id"]),
-            narration_id=narration_id,
-        )
-        caption_text = validate_tutorial_caption_text(caption_text, tutorial_caption_segments)
-        output_duration = round(sum(float(item["duration_ms"]) for item in tutorial_segments) / 1000, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     if demo_audio_path is not None and narration_audio_path is None:
@@ -1893,42 +1400,34 @@ def produce_playwright_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
-    if tutorial_caption_segments is not None:
-        assert_realistic_tutorial_narration(caption_text)
-        caption_segments = tutorial_caption_segments
-        write_webvtt_segments(captions_path, caption_segments)
-    else:
-        caption_segments = write_tutorial_captions(
-            captions_path,
-            text=caption_text,
-            duration_seconds=output_duration,
-            narration_id=narration_id,
-        )
+    caption_segments = write_tutorial_captions(
+        captions_path,
+        text=caption_text,
+        duration_seconds=output_duration,
+        narration_id=narration_id,
+    )
     video_path = run_dir / "demo.mp4"
-    browser_render_metadata: dict[str, Any] = {}
-    if spec_timeline is not None:
-        if narration_audio.get("path") or demo_audio_path is not None:
-            raise DemonstrationError("Spec-owned Remotion browser proofs currently require caption-only audio policy")
-        timeline_payload = json.dumps(spec_timeline, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        request = build_browser_render_request(
-            source_video=render_source_video,
-            domain=browser_domain,
-            device_profile=str(device_profile["id"]),
-            segments=tutorial_segments,
-            contract_hash=proof_contract_hash,
-            timeline_hash=f"sha256:{hashlib.sha256(timeline_payload).hexdigest()}",
-        )
-        browser_render_metadata = render_browser_tutorial(request, video_path)
-    else:
-        render_clean_video(
-            render_source_video,
-            Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
-            video_path,
-            playback_rate=playback_rate,
-            hold_last_frame_seconds=hold_last_frame_seconds,
-            demo_audio_path=demo_audio_path,
-        )
+    render_clean_video(
+        render_source_video,
+        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+        video_path,
+        playback_rate=playback_rate,
+        hold_last_frame_seconds=hold_last_frame_seconds,
+        demo_audio_path=demo_audio_path,
+    )
     scene_times = detect_scene_change_times(video_path)
+    action_times = scale_source_event_times(
+        selected.get("action_timestamps", []),
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
+    state_change_times = scale_source_event_times(
+        selected.get("state_change_timestamps", []),
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1945,33 +1444,37 @@ def produce_playwright_demonstration(
         source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
-        proof_evidence_intervals=tutorial_evidence_intervals,
         device_profile=device_profile,
         render_metadata={
             "playback_rate": playback_rate,
             "hold_last_frame_seconds": hold_last_frame_seconds,
             **trim_metadata,
             "demo_audio_mixed": demo_audio_path is not None,
-            **(
-                {
-                    "device_profile": device_profile["id"],
-                    "target_width": browser_render_metadata.get("width"),
-                    "target_height": browser_render_metadata.get("height"),
-                    "renderer": browser_render_metadata.get("renderer"),
-                    "render_request_sha256": browser_render_metadata.get("render_request_sha256"),
-                    "renderer_source_sha256": browser_render_metadata.get("renderer_source_sha256"),
-                    "browser_runtime": browser_render_metadata.get("browser_runtime"),
-                    "browser_domain": browser_render_metadata.get("browser_domain"),
-                    "timeline_hash": browser_render_metadata.get("timeline_hash"),
-                }
-                if browser_render_metadata
-                else {}
-            ),
         },
         scene_times=scene_times,
-        action_times=selected.get("action_timestamps", []),
-        state_change_times=selected.get("state_change_timestamps", []),
+        action_times=action_times,
+        state_change_times=state_change_times,
     )
+
+
+def scale_source_event_times(
+    values: Iterable[float],
+    *,
+    trim_start_seconds: float,
+    playback_rate: float,
+    output_duration_seconds: float,
+) -> list[float]:
+    if playback_rate <= 0:
+        raise DemonstrationError("Playback rate must be positive")
+    scaled: list[float] = []
+    for value in values:
+        try:
+            adjusted = (float(value) - trim_start_seconds) / playback_rate
+        except (TypeError, ValueError):
+            continue
+        if 0 <= adjusted <= output_duration_seconds:
+            scaled.append(round(adjusted, MEDIA_TIMESTAMP_DECIMALS))
+    return scaled
 
 
 def frame_index_hash(frames: list[dict[str, Any]]) -> str:
@@ -2201,15 +1704,17 @@ def build_review_frame_times(
             ):
                 event_candidates.append(rounded)
 
-    for value in scene_times:
+    event_times = [*action_times, *state_change_times]
+    for value in event_times:
         add_time(value)
+    for value in event_times:
+        add_time(value - 0.25)
+        add_time(value + 0.25)
     for start, end in caption_intervals:
         add_time(start)
         add_time(end)
-    for value in [*action_times, *state_change_times]:
-        add_time(value - 0.25)
+    for value in scene_times:
         add_time(value)
-        add_time(value + 0.25)
     remaining = MAX_REVIEW_FRAMES_PER_DEVICE - len(times)
     if remaining > 0:
         times.extend(event_candidates[:remaining])
@@ -2416,7 +1921,7 @@ def register_exact_timestamp_request(
     return record
 
 
-def detect_scene_change_times(video_path: Path, *, threshold: float = SCENE_CHANGE_THRESHOLD) -> list[float]:
+def detect_scene_change_times(video_path: Path) -> list[float]:
     """Return deterministic visual transition timestamps for bounded frame review."""
     if not video_path.is_file():
         raise DemonstrationError(f"Scene detection input does not exist: {video_path}")
@@ -2427,7 +1932,7 @@ def detect_scene_change_times(video_path: Path, *, threshold: float = SCENE_CHAN
             "-i",
             str(video_path),
             "-vf",
-            f"select='gt(scene,{threshold:g})',showinfo",
+            f"select='gt(scene,{SCENE_CHANGE_THRESHOLD:g})',showinfo",
             "-an",
             "-f",
             "null",
