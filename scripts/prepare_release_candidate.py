@@ -21,7 +21,25 @@ from pathlib import Path
 from typing import Sequence
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the main checkout that owns the registered dev runtime."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=checkout_root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
+PROJECT_ROOT = resolve_control_plane_root(Path(__file__).resolve().parent.parent)
 CORE_SERVICES = (
     "api",
     "task-worker",

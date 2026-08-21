@@ -222,6 +222,29 @@ def test_backend_attestation_preflight_fails_closed(monkeypatch: pytest.MonkeyPa
         prepare.preflight_release_candidate()
 
 
+def test_backend_attestation_resolves_control_plane_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    prepare = load_module(
+        "release_gate_prepare_root",
+        ROOT / "scripts" / "prepare_release_candidate.py",
+    )
+    checkout_root = tmp_path / "agent-f3b8"
+    git_dir = tmp_path / "main" / ".git"
+    checkout_root.mkdir()
+    git_dir.mkdir(parents=True)
+
+    def fake_run(command: list[str], **kwargs):
+        assert command == ["git", "rev-parse", "--git-common-dir"]
+        assert kwargs["cwd"] == checkout_root
+        return SimpleNamespace(returncode=0, stdout=str(git_dir), stderr="")
+
+    monkeypatch.setattr(prepare.subprocess, "run", fake_run)
+
+    assert prepare.resolve_control_plane_root(checkout_root) == git_dir.parent
+
+
 def test_backend_attestation_uses_lock_services_health_and_exact_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
