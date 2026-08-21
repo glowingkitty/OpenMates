@@ -73,9 +73,19 @@ def test_complete_recording_upload_deletes_only_bundle_directories(tmp_path: Pat
     (root / "index.json").write_text("{}", encoding="utf-8")
     uploaded_keys: list[str] = []
 
+    class EmptyRemoteClient:
+        def list_objects_v2(self, **_kwargs: object) -> dict:
+            return {"Contents": [], "IsTruncated": False}
+
     class SuccessfulUpload:
+        client = EmptyRemoteClient()
+        environment = "development"
+
         async def upload_file(self, _bucket: str, key: str, _body: bytes, _content_type: str) -> None:
             uploaded_keys.append(key)
+
+        async def delete_file(self, _bucket: str, _key: str) -> None:
+            raise AssertionError("no remote keys should be pruned")
 
     result = asyncio.run(run_tests._upload_recording_files(root, SuccessfulUpload()))
 
@@ -83,6 +93,41 @@ def test_complete_recording_upload_deletes_only_bundle_directories(tmp_path: Pat
     assert sorted(uploaded_keys) == ["latest/chat-flow/video.webm", "latest/index.json"]
     assert not bundle.exists()
     assert (root / "index.json").is_file()
+
+
+def test_recording_upload_prunes_remote_keys_outside_latest_snapshot(tmp_path: Path) -> None:
+    run_tests = load_run_tests_module()
+    root = tmp_path / "latest"
+    bundle = root / "chat-flow"
+    bundle.mkdir(parents=True)
+    (bundle / "video.webm").write_bytes(b"video")
+    (root / "index.json").write_text("{}", encoding="utf-8")
+    deleted_keys: list[str] = []
+
+    class RemoteClient:
+        def list_objects_v2(self, **_kwargs: object) -> dict:
+            return {
+                "Contents": [
+                    {"Key": "latest/chat-flow/video.webm"},
+                    {"Key": "latest/old-flow/video.webm"},
+                ],
+                "IsTruncated": False,
+            }
+
+    class SuccessfulUpload:
+        client = RemoteClient()
+        environment = "development"
+
+        async def upload_file(self, *_args: object) -> None:
+            return None
+
+        async def delete_file(self, _bucket: str, key: str) -> None:
+            deleted_keys.append(key)
+
+    result = asyncio.run(run_tests._upload_recording_files(root, SuccessfulUpload()))
+
+    assert result == (2, 1)
+    assert deleted_keys == ["latest/old-flow/video.webm"]
 
 
 def test_docker_cleanup_is_bounded_and_never_prunes_data_containers_or_volumes() -> None:

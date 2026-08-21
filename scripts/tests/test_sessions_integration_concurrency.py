@@ -5,6 +5,8 @@ These tests exercise exact-base preparation and conservative rebuilding after
 origin/dev advances. A content conflict must be explicit and must not alter dev.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -94,6 +96,38 @@ def test_parallel_preparations_are_unique_and_rebuild_on_advanced_dev(monkeypatc
 
     sessions._remove_integration_worktree(prepared_a)
     sessions._remove_integration_worktree(rebuilt_b)
+
+
+def test_prepare_integration_worktree_preserves_staged_added_files(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source_a, source_b, base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+
+    new_file = source_b / "scripts" / "audit_new.py"
+    new_file.parent.mkdir(parents=True)
+    new_file.write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
+    git(source_b, "add", "scripts/audit_new.py")
+    metadata_b = {"path": str(source_b), "base_commit": base}
+    files = ["scripts/audit_new.py"]
+    prepared = sessions._prepare_integration_worktree(
+        "bbbb",
+        metadata_b,
+        files,
+        sessions._worktree_patch_id(metadata_b, files),
+        base,
+    )
+    checkout = Path(prepared["path"])
+
+    assert (checkout / "scripts" / "audit_new.py").read_text(encoding="utf-8") == (
+        "#!/usr/bin/env python3\nprint('ok')\n"
+    )
+    assert git(checkout, "diff", "--name-only", "--cached") == "scripts/audit_new.py"
+
+    sessions._remove_integration_worktree(prepared)
 
 
 def test_advanced_base_conflict_is_explicit_and_leaves_dev_unchanged(monkeypatch, tmp_path):

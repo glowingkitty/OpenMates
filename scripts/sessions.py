@@ -2215,6 +2215,27 @@ def _worktree_untracked_files(metadata: dict) -> set[str]:
     return {line.strip() for line in stdout.splitlines() if line.strip()}
 
 
+def _worktree_new_files(metadata: dict, files: set[str]) -> set[str]:
+    """Return selected source files that do not exist in the recorded base."""
+    worktree_path = metadata.get("path")
+    base_commit = metadata.get("merged_commit") or metadata.get("base_commit") or ""
+    if not worktree_path or not base_commit:
+        return set()
+    worktree_root = Path(str(worktree_path))
+    new_files: set[str] = set()
+    for relative_path in files:
+        source = worktree_root / relative_path
+        if not source.exists():
+            continue
+        rc, _stdout, _stderr = _run_cmd(
+            ["git", "cat-file", "-e", f"{base_commit}:{relative_path}"],
+            cwd=str(worktree_root),
+        )
+        if rc != 0:
+            new_files.add(relative_path)
+    return new_files
+
+
 def _worktree_has_changes(metadata: dict) -> bool:
     return bool(_worktree_changed_files(metadata))
 
@@ -2586,9 +2607,12 @@ def _worktree_patch_id(metadata: dict, files: list[str] | None = None) -> str:
     untracked_files = _worktree_untracked_files(metadata)
     selected_files = set(files) if files is not None else None
     if selected_files is not None:
-        untracked_files &= selected_files
-        tracked_files = sorted(selected_files - untracked_files)
+        new_files = (
+            _worktree_new_files(metadata, selected_files) | untracked_files
+        ) & selected_files
+        tracked_files = sorted(selected_files - new_files)
     else:
+        new_files = untracked_files
         tracked_files = []
     diff_command = ["git", "diff", "--binary", str(base_commit), "--"]
     if files is None or tracked_files:
@@ -2605,7 +2629,7 @@ def _worktree_patch_id(metadata: dict, files: list[str] | None = None) -> str:
     else:
         diff_bytes = b""
     digest = hashlib.sha256(diff_bytes)
-    for relative_path in sorted(untracked_files):
+    for relative_path in sorted(new_files):
         path = Path(worktree_path) / relative_path
         digest.update(relative_path.encode("utf-8"))
         if path.is_file():
@@ -3043,16 +3067,19 @@ def _apply_worktree_diff_to_checkout(
             final_base=prepared_base,
         )
 
-    untracked = _worktree_untracked_files(source_metadata) & set(patch_files)
-    untracked = {
+    new_files = (
+        _worktree_untracked_files(source_metadata)
+        | _worktree_new_files(source_metadata, set(patch_files))
+    ) & set(patch_files)
+    new_files = {
         relative_path
-        for relative_path in untracked
+        for relative_path in new_files
         if _run_cmd(
             ["git", "cat-file", "-e", f"{source_base}:{relative_path}"],
             cwd=str(source_path),
         )[0] != 0
     }
-    tracked_files = [relative_path for relative_path in patch_files if relative_path not in untracked]
+    tracked_files = [relative_path for relative_path in patch_files if relative_path not in new_files]
     if tracked_files:
         with tempfile.TemporaryDirectory(prefix="openmates-integration-index-") as temp_dir:
             index_env = {**os.environ, "GIT_INDEX_FILE": str(Path(temp_dir) / "index")}
@@ -3094,7 +3121,7 @@ def _apply_worktree_diff_to_checkout(
                     final_base=prepared_base,
                 )
 
-    for relative_path in sorted(untracked):
+    for relative_path in sorted(new_files):
         source = source_path / relative_path
         destination = checkout_root / relative_path
         if not source.is_file() or source.is_symlink():
