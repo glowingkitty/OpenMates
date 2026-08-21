@@ -2387,7 +2387,7 @@ tests:
   - web app manages teams only from Settings > Teams, with no top-level `/teams` workspace surface.
   - Settings root contains a Teams item, and joined teams appear as sub-settings entries for team-specific settings.
   - user profile menu switches between Personal and joined teams, with closed/open team-avatar overlay states.
-  - switching replaces chats, billing, usage, tasks, projects, plans, workflows, memories, connected accounts, and creation targets.
+  - switching replaces chats, home "Continue where you left off" cards, billing, usage, tasks, projects, plans, workflows, memories, connected accounts, and creation targets.
   - Team Billing & Usage contains only team values and a switch-to-Personal notice.
   - every created resource is deleted through finally cleanup.
   red_phase:

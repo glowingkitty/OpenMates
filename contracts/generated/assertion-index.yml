@@ -11889,7 +11889,7 @@ assertions:
     current_direct_proof: false
   teams.context.full-switch-local:
     contract: feature.teams@1
-    fingerprint: d3fd8e090ede0caa25bbc19a545f3c3e1a79e96139bfa431689afa23fff8aa89
+    fingerprint: b88cf430063e73cf39294d40f223768895d14d8ccf680bef6ff58e8960068b4d
     direct_tests:
     - &id1335
       path: backend/tests/test_chat_turn_preflight.py
@@ -11914,7 +11914,7 @@ assertions:
       surface: gui.web
     - &id1346
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
-      line: 104
+      line: 114
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
     - &id1347
@@ -12155,7 +12155,7 @@ assertions:
       surface: rest_api
     - &id1378
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
-      line: 104
+      line: 114
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
     - &id1379

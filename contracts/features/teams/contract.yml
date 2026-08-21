@@ -222,7 +222,7 @@ assertions:
     depends_on: [models.TeamInvite, examples.team_invites]
   - id: teams.context.full-switch-local
     type: invariant
-    must: Active team context is device-local per client and resolves every supported chat, billing and usage, task, plan, project, workflow, memory, connected-account, and new-resource operation to exactly Personal or one Team; web must replace every active-context collection without mixing or retaining stale Personal or other-Team rows, and switching one client must not switch another client.
+    must: Active team context is device-local per client and resolves every supported chat, billing and usage, task, plan, project, workflow, memory, connected-account, home/welcome resume-card, and new-resource operation to exactly Personal or one Team; web must replace every active-context collection without mixing or retaining stale Personal or other-Team rows, including the sidebar and "Continue where you left off" cards, and switching one client must not switch another client.
     depends_on: [models.TeamActiveContext, examples.team_context_switching]
   - id: teams.connected-accounts.team-owned-isolation
     type: security

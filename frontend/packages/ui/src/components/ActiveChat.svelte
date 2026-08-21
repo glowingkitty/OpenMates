@@ -138,6 +138,7 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { activeTeamId } from '../stores/teamStore';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
@@ -3379,6 +3380,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return item.kind === 'chat' ? item.imageBubbles : null;
     }
 
+    function isChatInActiveTeamContext(chat: Chat, teamId: string | null): boolean {
+        return teamId ? chat.team_id === teamId : !chat.team_id;
+    }
+
+    function clearResumeChatCard(): void {
+        resumeChatData = null;
+        resumeChatTitle = null;
+        resumeChatCategory = null;
+        resumeChatIcon = null;
+        resumeChatSummary = null;
+        resumeChatImageBubbles = null;
+        resumeChatIsCreditsError = false;
+        resumeChatUserMessagePreview = null;
+    }
+
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
     let priorityContinueChatIds = $derived.by(() => new Set(
@@ -3474,13 +3490,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function loadRecentChats(): Promise<void> {
         if (!$authStore.isAuthenticated) return;
+        const contextTeamId = $activeTeamId;
         try {
             await chatDB.init();
             // Always read from IndexedDB — chatListCache is designed for sidebar
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
             let chats: Chat[] = await chatDB.getAllChats();
-            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id) && !c.parent_id && !c.is_sub_chat);
+            const filteredChats = chats.filter((c) =>
+                !isPublicChat(c.chat_id) &&
+                !c.parent_id &&
+                !c.is_sub_chat &&
+                isChatInActiveTeamContext(c, contextTeamId)
+            );
             const sorted = sortChats(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
@@ -3526,6 +3548,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function loadPriorityContinueItems(): Promise<void> {
         if (!$authStore.isAuthenticated || !showWelcome) return;
+        const contextTeamId = $activeTeamId;
 
         try {
             const nowMs = Date.now();
@@ -3541,11 +3564,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const chat = await chatDB.getChat(chatId);
                 if (!chat) continue;
                 if (chat.parent_id || chat.is_sub_chat) continue;
+                if (!isChatInActiveTeamContext(chat, contextTeamId)) continue;
                 const meta = await buildRecentChatMeta(chat);
                 chatItems.push({ ...meta, kind: 'chat', priority });
             }
 
-            const embedItems = getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
+            const embedItems = contextTeamId
+                ? []
+                : getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
             priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
@@ -3679,6 +3705,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
+        const contextTeamId = $activeTeamId;
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
@@ -3689,6 +3716,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
+        void contextTeamId;
         if (!isWelcome) {
             nonAuthRecentChatsRequestId++;
             recentChatTiltStates = [];
@@ -3705,6 +3733,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             nonAuthRecentChats = [];
             guestAllExamplesVisible = false;
             recentChatsScrolledByUser = false;
+            recentChatTiltStates = [];
+            recentChats = [];
+            priorityContinueItems = [];
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
@@ -3835,6 +3866,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
             if (chat.parent_id || chat.is_sub_chat) return false;
+            if (!isChatInActiveTeamContext(chat, $activeTeamId)) return false;
 
             // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
@@ -3967,6 +3999,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const lastOpened = $userProfile.last_opened;
+        const contextTeamId = $activeTeamId;
         // Read activeChatStore to make this effect reactive to it
         const currentActiveChat = $activeChatStore;
         const isOgExample = isOgExampleSharedChatCuttlefish();
@@ -3988,15 +4021,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
         //  not a demo/legal chat which are client-side static content)
         if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
-            resumeChatData = null;
-            resumeChatTitle = null;
-            resumeChatCategory = null;
-            resumeChatIcon = null;
-            resumeChatSummary = null;
-            resumeChatImageBubbles = null;
-            resumeChatIsCreditsError = false;
-            resumeChatUserMessagePreview = null;
+            clearResumeChatCard();
             return;
+        }
+
+        if (resumeChatData && !isChatInActiveTeamContext(resumeChatData, contextTeamId)) {
+            clearResumeChatCard();
         }
 
         // DEFENSE-IN-DEPTH: If a chat is already active in the store, don't populate
@@ -4044,6 +4074,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
         const lastOpened = $userProfile.last_opened;
+        const contextTeamId = $activeTeamId;
 
         // Sync from phasedSyncState when on the welcome screen, authenticated,
         // no chat is currently active, and phasedSyncState has resume data.
@@ -4061,6 +4092,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // immediately (sync) while loadResumeChatFromDB runs async.
             if (lastOpened && syncState.resumeChatData.chat_id !== lastOpened) {
                 console.debug(`[ActiveChat] Skipping sync bridge — stale resumeChatData (${syncState.resumeChatData.chat_id}) doesn't match last_opened (${lastOpened})`);
+                return;
+            }
+            if (!isChatInActiveTeamContext(syncState.resumeChatData, contextTeamId)) {
+                console.debug(`[ActiveChat] Skipping sync bridge — resumeChatData is outside active Team context`);
+                if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                    clearResumeChatCard();
+                }
                 return;
             }
             resumeChatData = syncState.resumeChatData;

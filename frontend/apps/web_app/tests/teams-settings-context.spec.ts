@@ -94,6 +94,16 @@ async function visibleChatIds(page: Page): Promise<string[]> {
 		.filter((chatId): chatId is string => Boolean(chatId)));
 }
 
+async function expectContinueCardsExcludeChatIds(page: Page, forbiddenChatIds: string[]): Promise<void> {
+	const forbidden = new Set(forbiddenChatIds);
+	await expect.poll(async () => {
+		const visibleIds = await page.locator('[data-testid="recent-chats-scroll-container"] [data-chat-id]').evaluateAll((cards) => cards
+			.map((card) => card.getAttribute('data-chat-id'))
+			.filter((chatId): chatId is string => Boolean(chatId)));
+		return visibleIds.filter((chatId) => forbidden.has(chatId));
+	}, { timeout: 15000 }).toEqual([]);
+}
+
 async function openProfileMenu(page: Page): Promise<void> {
 	await page.getByTestId('profile-container').click();
 	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 15000 });
@@ -156,6 +166,7 @@ test.describe('Teams V1 context isolation', () => {
 			for (const personalChatId of personalChatIds) {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
 			}
+			await expectContinueCardsExcludeChatIds(page, personalChatIds);
 			await page.waitForTimeout(1000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
