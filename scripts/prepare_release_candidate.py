@@ -22,7 +22,6 @@ from typing import Sequence
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-COMPOSE_FILE = "backend/core/docker-compose.yml"
 CORE_SERVICES = (
     "api",
     "task-worker",
@@ -103,20 +102,14 @@ def lock_command(session: str, *, acquire: bool) -> list[str]:
     ]
 
 
-def compose_prepare_command() -> list[str]:
+def managed_prepare_command() -> list[str]:
     return [
-        "docker",
-        "compose",
-        "--env-file",
-        ".env",
-        "-f",
-        COMPOSE_FILE,
-        "up",
-        "-d",
-        "--build",
-        "--force-recreate",
-        "--no-deps",
-        *CORE_SERVICES,
+        "openmates",
+        "server",
+        "restart",
+        "--rebuild",
+        "--services",
+        ",".join(CORE_SERVICES),
     ]
 
 
@@ -226,7 +219,7 @@ def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
         wait_for_exact_vercel(commit)
         run_command(lock_command(session, acquire=True))
         lock_acquired = True
-        run_command(compose_prepare_command())
+        run_command(managed_prepare_command())
         wait_for_health()
         verify_cloud_overlay()
         publish_status(commit, "success", "Exact frontend and core dev services are healthy")

@@ -242,9 +242,16 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
     )
     assert prepare.RELEASE_STATUS_CONTEXT == "Dev Release Candidate / Prepared"
     assert prepare.lock_command("f563", acquire=True)[-4:] == ["--session", "f563", "--type", "docker"]
-    assert "--force-recreate" in prepare.compose_prepare_command()
-    assert "--build" in prepare.compose_prepare_command()
-    assert prepare.compose_prepare_command()[2:4] == ["--env-file", ".env"]
+    assert prepare.managed_prepare_command() == [
+        "openmates",
+        "server",
+        "restart",
+        "--rebuild",
+        "--services",
+        ",".join(prepare.CORE_SERVICES),
+    ]
+    assert "docker" not in prepare.managed_prepare_command()
+    assert "compose" not in prepare.managed_prepare_command()
     commands: list[list[str]] = []
     monkeypatch.setattr(
         prepare,
