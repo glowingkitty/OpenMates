@@ -176,7 +176,11 @@ test.describe('Teams V1 context isolation', () => {
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
-			await page.waitForTimeout(2000);
+			await openProfileMenu(page);
+			await expect(page.getByTestId('team-context-dropdown')).toHaveValue(teamId, { timeout: 15000 });
+			await page.waitForTimeout(6000);
+			await page.getByTestId('icon-button-close').click();
+			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 
 			await ensureSidebarOpen(page);
 			for (const personalChatId of personalChatIds) {
@@ -251,14 +255,14 @@ test.describe('Teams V1 context isolation', () => {
 			await waitForPhasedSyncCompletion(frames, personalSwitchFrameIndex, null);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
+			await startNewChat(page);
+			await expect(page.getByTestId('chat-header-banner')).not.toContainText('New team chat', { timeout: 15000 });
 
 			await ensureSidebarOpen(page);
 			const visiblePersonalChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`);
 			await expect(visiblePersonalChat).toBeVisible({ timeout: 30000 });
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`)).toHaveCount(0);
-			await visiblePersonalChat.click();
-			await expect(page.getByTestId('chat-header-banner')).not.toContainText('New team chat', { timeout: 15000 });
-			// Keep the verified Personal-only list and opened Personal chat visible long enough for proof capture.
+			// Keep the verified Personal-only list and clean Personal chat visible long enough for proof capture.
 			await page.waitForTimeout(6000);
 		} finally {
 			if (teamId) {
