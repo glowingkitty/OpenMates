@@ -12033,6 +12033,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
         const teamContextChangedHandler = (() => {
+            // A chat from the previous Personal/Team workspace must never remain
+            // visible behind the context-switch confirmation. Reset synchronously
+            // to the new-chat surface before loading the new context's lists.
+            if (currentChat || activeChatStore.get()) {
+                void handleNewChatClick();
+            }
             if (_carouselRefreshTimer) {
                 clearTimeout(_carouselRefreshTimer);
                 _carouselRefreshTimer = null;

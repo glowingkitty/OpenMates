@@ -243,7 +243,7 @@ test.describe('Teams V1 context isolation', () => {
 			await waitForPhasedSyncCompletion(frames, personalSwitchFrameIndex, null);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
-			await startNewChat(page);
+			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toHaveCount(0, { timeout: 15000 });
 			// A fresh Personal chat intentionally has no header banner. Assert the
 			// Team-specific banner is absent without requiring that banner to exist.
 			await expect(page.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 15000 });
