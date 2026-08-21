@@ -78,6 +78,29 @@ vi.mock("../pendingAIResponses", () => ({
 import { sendCompletedAIResponseImpl } from "../sendersChatMessages";
 
 describe("sendCompletedAIResponseImpl", () => {
+	function makeService(overrides: Partial<ChatSynchronizationService> = {}) {
+		return {
+			webSocketConnected_FOR_SENDERS_ONLY: true,
+			isMessageSyncing: vi.fn(() => false),
+			markMessageSyncing: vi.fn(),
+			unmarkMessageSyncing: vi.fn(),
+			dispatchEvent: vi.fn(),
+			...overrides,
+		} as unknown as ChatSynchronizationService;
+	}
+
+	function makeAIMessage(overrides: Partial<Message> = {}) {
+		return {
+			message_id: "assistant-1",
+			chat_id: "chat-1",
+			role: "assistant",
+			created_at: 123,
+			status: "synced",
+			user_message_id: "user-1",
+			...overrides,
+		} as Message;
+	}
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.chatDB.getChat.mockResolvedValue({
@@ -93,24 +116,12 @@ describe("sendCompletedAIResponseImpl", () => {
 		mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
 	});
 
+	// contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.message.identity-idempotent
 	it("queues a retry when ai_response_completed send fails", async () => {
 		mocks.webSocketService.sendMessage.mockRejectedValue(new Error("socket closed"));
 
-		const service = {
-			webSocketConnected_FOR_SENDERS_ONLY: true,
-			isMessageSyncing: vi.fn(() => false),
-			markMessageSyncing: vi.fn(),
-			unmarkMessageSyncing: vi.fn(),
-			dispatchEvent: vi.fn(),
-		} as unknown as ChatSynchronizationService;
-		const aiMessage = {
-			message_id: "assistant-1",
-			chat_id: "chat-1",
-			role: "assistant",
-			created_at: 123,
-			status: "synced",
-			user_message_id: "user-1",
-		} as Message;
+		const service = makeService();
+		const aiMessage = makeAIMessage();
 
 		await sendCompletedAIResponseImpl(service, aiMessage);
 
@@ -118,24 +129,38 @@ describe("sendCompletedAIResponseImpl", () => {
 		expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
 	});
 
+	// contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence
+	it("queues a retry when chat metadata is not available yet", async () => {
+		mocks.chatDB.getChat.mockResolvedValue(null);
+		const service = makeService();
+		const aiMessage = makeAIMessage();
+
+		await sendCompletedAIResponseImpl(service, aiMessage);
+
+		expect(mocks.addPendingAIResponse).toHaveBeenCalledWith("assistant-1", "chat-1");
+		expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
+		expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+	});
+
+	// contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.sync.key-gated-recovery
+	it("queues a retry when the chat key is still recovering", async () => {
+		mocks.ensureChatKeySafeForWrite.mockResolvedValue(false);
+		const service = makeService();
+		const aiMessage = makeAIMessage();
+
+		await sendCompletedAIResponseImpl(service, aiMessage);
+
+		expect(mocks.addPendingAIResponse).toHaveBeenCalledWith("assistant-1", "chat-1");
+		expect(service.unmarkMessageSyncing).toHaveBeenCalledWith("assistant-1");
+		expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+	});
+
+	// contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.persistence.client-encrypted
 	it("does not optimistically persist messages_v before storage confirmation", async () => {
 		mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
 
-		const service = {
-			webSocketConnected_FOR_SENDERS_ONLY: true,
-			isMessageSyncing: vi.fn(() => false),
-			markMessageSyncing: vi.fn(),
-			unmarkMessageSyncing: vi.fn(),
-			dispatchEvent: vi.fn(),
-		} as unknown as ChatSynchronizationService;
-		const aiMessage = {
-			message_id: "assistant-1",
-			chat_id: "chat-1",
-			role: "assistant",
-			created_at: 123,
-			status: "synced",
-			user_message_id: "user-1",
-		} as Message;
+		const service = makeService();
+		const aiMessage = makeAIMessage();
 
 		await sendCompletedAIResponseImpl(service, aiMessage);
 
