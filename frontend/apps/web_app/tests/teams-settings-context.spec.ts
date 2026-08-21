@@ -184,7 +184,7 @@ test.describe('Teams V1 context isolation', () => {
 			}
 			await expectContinueCardsExcludeChatIds(page, personalChatIds);
 			await expectContinueCardsEmpty(page);
-			await page.waitForTimeout(1000);
+			await page.waitForTimeout(6000);
 			await ensureSidebarClosed(page);
 			await startNewChat(page);
 			await expect(page.getByTestId('profile-active-team-avatar')).toBeVisible({ timeout: 15000 });
@@ -231,7 +231,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(ordinaryTeamMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
-			await page.waitForTimeout(2000);
+			await page.waitForTimeout(6000);
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
@@ -259,7 +259,7 @@ test.describe('Teams V1 context isolation', () => {
 			await visiblePersonalChat.click();
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('New team chat', { timeout: 15000 });
 			// Keep the verified Personal-only list and opened Personal chat visible long enough for proof capture.
-			await page.waitForTimeout(3000);
+			await page.waitForTimeout(6000);
 		} finally {
 			if (teamId) {
 				const cleanupResponse = await page.request.delete(`${apiUrl}/v1/teams/${encodeURIComponent(teamId)}`);
