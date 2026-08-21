@@ -7791,7 +7791,15 @@ def _command_invokes_openmates_cli(argv: list[str]) -> bool:
 
 def _publish_proof_media_to_opencode_response(run_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Upload reviewed proof media for final OpenCode response embedding."""
-    from spec_demo import require_review_receipt_integrity, resolve_run_artifact_path
+    if "spec_demo" in sys.modules:
+        spec_demo_module = sys.modules["spec_demo"]
+    else:
+        try:
+            from scripts import spec_demo as spec_demo_module
+        except ModuleNotFoundError:
+            import spec_demo as spec_demo_module
+    require_review_receipt_integrity = spec_demo_module.require_review_receipt_integrity
+    resolve_run_artifact_path = spec_demo_module.resolve_run_artifact_path
 
     privacy_status = manifest.get("privacy", {}).get("status")
     if privacy_status not in PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":

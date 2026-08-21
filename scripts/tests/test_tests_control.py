@@ -1114,6 +1114,87 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
     assert attestation["source_run_id"] == "run-one"
 
 
+def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    video = tmp_path / "source.webm"
+    video.write_bytes(b"video")
+    frame = tmp_path / "checkpoint.png"
+    frame.write_bytes(b"frame")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text(json.dumps({
+        "schema_version": 1,
+        "device": "web-laptop",
+        "contract": {
+            "id": "proof-video-web",
+            "title": "Proof web",
+            "surface": "web",
+            "devices": ["web-laptop"],
+            "domain": "app.dev.openmates.org",
+            "transcript": [{"id": "welcome", "text": "Welcome is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+            "assertions": [{"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+        },
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 100}],
+        "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
+    }), encoding="utf-8")
+    record_path = tests_control.PROOF_SOURCE_DIR / "record.json"
+    record_path.parent.mkdir(parents=True)
+    record_path.write_text(json.dumps({
+        "run_id": "12345",
+        "git_sha": commit,
+        "spec": "proof-video-architecture.spec.ts",
+        "status": "passed",
+        "source": "scripts_tests",
+        "deployment_reference": commit,
+        "target": "development",
+        "artifact_path": str(video),
+        "artifact_sha256": tests_control._file_sha256(video),
+        "proof_timeline_path": str(timeline),
+        "proof_timeline_sha256": tests_control._file_sha256(timeline),
+    }), encoding="utf-8")
+    calls: dict[str, object] = {}
+
+    def produce(**kwargs):
+        calls["produce"] = kwargs
+        return {"spec_id": kwargs["spec_id"], "subject_commit": kwargs["subject_commit"], "publication": {"status": "pending"}}
+
+    def review(**kwargs):
+        calls["review"] = kwargs
+        return {"status": "passed", "manifest": {"review": {"status": "passed"}, "publication": {"status": "pending"}}}
+
+    def publish(run_dir, manifest):
+        calls["publish"] = {"run_dir": run_dir, "manifest": manifest}
+        return {**manifest, "publication": {"status": "delivered", "snippet_html": "<video></video>"}}
+
+    finalizations = tests_control.auto_finalize_proof_video_sources(
+        {"git_sha": commit, "run_id": "parent-run", "environment": "development"},
+        [record_path],
+        session_id="8f7c",
+        produce_hook=produce,
+        review_hook=review,
+        publish_hook=publish,
+    )
+
+    assert finalizations == [{
+        "status": "delivered",
+        "spec": "proof-video-architecture.spec.ts",
+        "run_id": "12345",
+        "run_dir": str(tests_control.RESULTS_DIR / "proof-videos" / "8f7c" / "proof-video-architecture.spec-12345"),
+        "subject_commit": commit,
+        "device_profile": "web-laptop",
+        "publication_status": "delivered",
+        "snippet_html": "<video></video>",
+    }]
+    produce_kwargs = calls["produce"]
+    assert produce_kwargs["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["caption_text"] == "Welcome is visible."
+    assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
+    assert produce_kwargs["spec_timeline"]["device"] == "web-laptop"
+    assert calls["review"]["correction_round"] == 0
+    assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]
+
+
 def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     artifact = tests_control.RESULTS_DIR / "last-run.json"

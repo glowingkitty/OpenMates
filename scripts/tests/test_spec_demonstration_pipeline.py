@@ -360,10 +360,16 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
         )
         return result.stdout
 
-    for x, y in ((720, 20), (100, 500), (700, 700), (1300, 500)):
-        expected_pixel = sample(checkpoint, x, y)
-        rendered_pixel = sample(tmp_path / "browser-tutorial.mp4", x, y, timestamp=0.5)
-        assert all(abs(expected - rendered) <= 12 for expected, rendered in zip(expected_pixel, rendered_pixel, strict=True))
+    # The output must be a browser scene, not a full-frame replay: the toolbar
+    # area differs from source pixels, while the page area still contains the
+    # real Playwright checkpoint scaled into the browser DOM viewport.
+    toolbar_pixel = sample(tmp_path / "browser-tutorial.mp4", 720, 60, timestamp=0.5)
+    source_toolbar_coordinate = sample(checkpoint, 720, 60)
+    assert any(abs(expected - rendered) > 24 for expected, rendered in zip(source_toolbar_coordinate, toolbar_pixel, strict=True))
+
+    expected_page_pixel = sample(checkpoint, 1000, 450)
+    rendered_page_pixel = sample(tmp_path / "browser-tutorial.mp4", 963, 478, timestamp=0.5)
+    assert all(abs(expected - rendered) <= 28 for expected, rendered in zip(expected_page_pixel, rendered_page_pixel, strict=True))
 
 
 def test_remotion_freezes_exact_source_frames(tmp_path: Path) -> None:

@@ -474,11 +474,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
-        run_id: local-2026-08-20-proof-render-green
-        subject_commit: 25b7bf1953db14b5ab7c39d31168f693055a9916
-        timestamp: "2026-08-20T22:02:00Z"
-        summary: Included in the 150-check focused regression covering Remotion browser composition, CLI capture media handling, blocker media, and publication paths.
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_tests_control.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_sessions_proof_video.py scripts/tests/test_proof_video_workflow.py -q
+        run_id: local-2026-08-21-browser-finalizer-green
+        subject_commit: 6250a6877e10787f4ca59e110430e7d4b1c88563
+        timestamp: "2026-08-21T01:03:08Z"
+        summary: 176 focused checks passed, including browser-frame pixel regression, automatic proof-source finalization, session publication, and review workflow coverage.
   - id: T-CLI-CAPTURE
     type: pytest
     file: scripts/tests/test_cli_video_capture.py
@@ -557,7 +557,7 @@ tests:
         target: app.dev.openmates.org
         deployment_reference: cf0a77c500e01149f199e59395c232e32eb466ea
         timestamp: "2026-08-20T20:58:00Z"
-        summary: Deployed web proof source produced exact-profile browser recording and passed bounded review as proof-video-architecture-publish.spec.
+        summary: Deployed web proof source produced exact-profile browser recording; the automatic finalizer rendered and reviewed it as proof-video-architecture.spec-32406219277 inside deterministic Mac-style browser chrome showing app.dev.openmates.org.
   - id: T-CLI-PROOF-E2E
     type: playwright
     file: frontend/apps/web_app/tests/proof-video-cli.spec.ts
@@ -609,12 +609,12 @@ verifications:
     covers: [AC-13]
     evidence:
       status: passed
-      command: python3 scripts/sessions.py proof-video publish --session 8f7c --run-dir test-results/proof-videos/8f7c/proof-video-architecture-publish.spec
-      run_id: proof-video-architecture-publish.spec
+      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --expected-commit cf0a77c500e01149f199e59395c232e32eb466ea --proof-video-profile web-laptop
+      run_id: proof-video-architecture.spec-32406219277
       subject_commit: cf0a77c500e01149f199e59395c232e32eb466ea
-      timestamp: "2026-08-20T22:27:11Z"
-      reason: Required proof-video artifact review and OpenCode response-media publication completed for the web-laptop proof.
-      summary: Web-laptop 1440x900 proof passed bounded frame review with receipt sha256:d5c285f62d6ea53f8b3f5cea599f631279cf3e353e59d353718e6213b293d86a and was published with toggleable WebVTT captions.
+      timestamp: "2026-08-21T01:00:06Z"
+      reason: Required proof-video artifact review and OpenCode response-media publication completed for the regenerated web-laptop browser-frame proof.
+      summary: Web-laptop 1440x900 proof rendered with openmates-remotion-browser-v1, shows Mac-style browser chrome and app.dev.openmates.org, passed bounded frame review with receipt sha256:34c4eb29976b0661578e80094c06bf07e961eb76d62468c158f0ef5a0450f857, and was published with video sha256:0eae03e92689c8fa646c7aa37074d7ec2b7e62fc9852cabbb421a78755091a7d plus toggleable WebVTT captions.
   - id: V-CLI-PROOF
     kind: artifact_review
     phase: final

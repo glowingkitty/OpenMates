@@ -1418,6 +1418,155 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
     return records
 
 
+def proof_video_run_directory(*, session_id: str, spec_name: str, run_id: str) -> Path:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(spec_name).stem).strip("-") or "proof-video"
+    run_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", str(run_id)).strip("-") or utc_now().replace(":", "")
+    return RESULTS_DIR / "proof-videos" / (session_id or "auto") / f"{slug}-{run_slug}"
+
+
+def proof_video_target_environment(value: str) -> str:
+    if value == "development":
+        return "https://app.dev.openmates.org"
+    return value or "https://app.dev.openmates.org"
+
+
+def upsert_session_proof_video_record(session_id: str, run_dir: Path, manifest: dict[str, Any]) -> None:
+    if not session_id:
+        return
+    data = session_control._load_sessions()
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        return
+    session_control._upsert_proof_video_record(session, run_dir, manifest)
+    session_control._save_sessions(data)
+
+
+def auto_finalize_proof_video_sources(
+    run_data: dict[str, Any],
+    proof_record_paths: list[Path],
+    *,
+    session_id: str = "",
+    produce_hook: Any | None = None,
+    review_hook: Any | None = None,
+    publish_hook: Any | None = None,
+    render_claims_hook: Any | None = None,
+) -> list[dict[str, Any]]:
+    """Render, review, and publish spec-owned web proof videos after a passed spec run."""
+
+    if not proof_record_paths:
+        return []
+    if publish_hook is None:
+        publish_hook = session_control._publish_proof_media_to_opencode_response
+
+    finalizations: list[dict[str, Any]] = []
+    for record_path in proof_record_paths:
+        record = read_json(record_path, {})
+        timeline_value = str(record.get("proof_timeline_path") or "")
+        if not timeline_value:
+            continue
+        timeline_path = Path(timeline_value)
+        if not timeline_path.is_file():
+            raise RuntimeError(f"Proof timeline attachment is missing: {timeline_value}")
+        timeline = read_json(timeline_path, {})
+        contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+        if contract.get("surface") != "web":
+            finalizations.append({
+                "status": "skipped",
+                "reason": "proof timeline is not a web Playwright recording",
+                "spec": record.get("spec"),
+                "run_id": record.get("run_id"),
+            })
+            continue
+        if produce_hook is None:
+            try:
+                from scripts.spec_demo import produce_playwright_demonstration as active_produce_hook
+            except ModuleNotFoundError:
+                from spec_demo import produce_playwright_demonstration as active_produce_hook
+        else:
+            active_produce_hook = produce_hook
+        if review_hook is None:
+            try:
+                from scripts.proof_video_workflow import review_run as active_review_hook
+            except ModuleNotFoundError:
+                from proof_video_workflow import review_run as active_review_hook
+        else:
+            active_review_hook = review_hook
+        if render_claims_hook is None:
+            try:
+                from scripts.proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+            except ModuleNotFoundError:
+                from proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+        else:
+            active_render_claims_hook = render_claims_hook
+        device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
+        claims = active_render_claims_hook(timeline, device_profile=device_profile)
+        source_video = Path(str(record.get("artifact_path") or ""))
+        if not source_video.is_file():
+            raise RuntimeError(f"Proof source video is missing: {source_video}")
+        spec_name = str(record.get("spec") or "proof-video.spec.ts")
+        run_id = str(record.get("run_id") or record.get("source_run_id") or run_data.get("run_id") or "")
+        subject_commit = str(record.get("git_sha") or run_data.get("git_sha") or "")
+        run_dir = proof_video_run_directory(session_id=session_id or "auto", spec_name=spec_name, run_id=run_id)
+        source = {
+            "source": str(record.get("source") or "scripts_tests"),
+            "status": "passed",
+            "command_or_spec": spec_name,
+            "target": proof_video_target_environment(str(record.get("target") or run_data.get("environment") or "")),
+            "deployment_reference": str(record.get("deployment_reference") or run_data.get("deployment_reference") or subject_commit),
+            "run_id": run_id,
+            "subject_commit": subject_commit,
+            "artifact_path": str(source_video),
+            "artifact_sha256": str(record.get("artifact_sha256") or ""),
+            "test_account_provenance": str(record.get("test_account_provenance") or "GitHub Actions E2E account slot"),
+        }
+        manifest = active_produce_hook(
+            run_dir=run_dir,
+            source_video=source_video,
+            source=source,
+            spec_id=str(contract.get("id") or Path(spec_name).stem),
+            subject_commit=subject_commit,
+            narration_id=f"auto-{Path(spec_name).stem}",
+            caption_text=claims["caption_text"],
+            expected_proof=claims["expected_proof"],
+            acceptance_criteria=claims["acceptance_criteria"],
+            proof_assertions=claims["assertions"],
+            proof_contract_hash=claims["contract_hash"],
+            proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
+            narration_audio_path=None,
+            device_profile_name=device_profile,
+            playback_rate=1.0,
+            hold_last_frame_seconds=0.0,
+            spec_timeline=timeline,
+            browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
+        )
+        review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")
+        manifest = review.get("manifest") if isinstance(review.get("manifest"), dict) else manifest
+        if review.get("status") != "passed":
+            finalizations.append({
+                "status": "review_failed",
+                "spec": spec_name,
+                "run_id": run_id,
+                "run_dir": str(run_dir),
+                "blocker_media": review.get("blocker_media"),
+            })
+            upsert_session_proof_video_record(session_id, run_dir, manifest)
+            continue
+        manifest = publish_hook(run_dir, manifest)
+        upsert_session_proof_video_record(session_id, run_dir, manifest)
+        publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+        finalizations.append({
+            "status": "delivered",
+            "spec": spec_name,
+            "run_id": run_id,
+            "run_dir": str(run_dir),
+            "subject_commit": subject_commit,
+            "device_profile": device_profile,
+            "publication_status": publication.get("status"),
+            "snippet_html": publication.get("snippet_html"),
+        })
+    return finalizations
+
+
 def append_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     if not records:
         return
@@ -4763,7 +4912,16 @@ def record_latest_run_artifact(
             write_json(artifact, run_data)
             record_run_result(run_data)
             if deployment_verified:
-                record_proof_source_attestations(run_data)
+                proof_records = record_proof_source_attestations(run_data)
+                proof_finalizations = auto_finalize_proof_video_sources(
+                    run_data,
+                    proof_records,
+                    session_id=os.environ.get("OPENCODE_SESSION_ID", ""),
+                )
+                if proof_finalizations:
+                    run_data["proof_video_finalizations"] = proof_finalizations
+                    write_json(artifact, run_data)
+                    record_run_result(run_data)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
             return run_git_sha or expected_commit
