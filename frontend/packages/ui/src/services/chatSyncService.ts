@@ -89,10 +89,6 @@ import { getTeam, unwrapTeamChatKey } from "./teamService";
 // All payload interface definitions are now expected to be in types/chat.ts
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
-const CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY = "chat-sync-recovery";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE = "Chat sync is still recovering";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE =
-  "Please keep this tab open while we reload your chats.";
 
 export class ChatSynchronizationService extends EventTarget {
   private isSyncing = false;
@@ -123,8 +119,6 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
   private cacheStatusRetryCount = 0;
   private cacheStatusServerChatCount = 0;
-  private syncRecoveryNotificationId: string | null = null;
-  private syncRecoveryNotificationShown = false;
   private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
   private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
 
@@ -305,7 +299,6 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Clear cache status retry polling to prevent stale retries after reconnect
         this.clearCacheStatusRetry();
-        this.clearSyncRecoveryNotification();
 
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
@@ -1665,7 +1658,6 @@ export class ChatSynchronizationService extends EventTarget {
     // When cache becomes primed, clear any pending retry polling
     if (value) {
       this.clearCacheStatusRetry();
-      this.clearSyncRecoveryNotification();
     }
   }
   public get initialSyncAttempted_FOR_HANDLERS_ONLY(): boolean {
@@ -1698,7 +1690,7 @@ export class ChatSynchronizationService extends EventTarget {
 
   /**
    * Schedule a retry of the cache status request.
-   * Called by sync status handlers when primed=false.
+   * Called by the cache_status_response handler when primed=false.
    * The backend triggers cache re-warming when it detects primed=false, so we just
    * need to poll until the warming completes and primed becomes true.
    */
@@ -1718,7 +1710,10 @@ export class ChatSynchronizationService extends EventTarget {
             `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
             `instead of marking an empty local DB as complete.`,
         );
-        this.showSyncRecoveryNotification();
+        notificationStore.error(
+          "Chat sync is still recovering. Please keep this tab open while we reload your chats.",
+          10000,
+        );
         this.cacheStatusRetryCount = 0;
         this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
         return;
@@ -1728,7 +1723,6 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
           `and server reports no chats. Dispatching synthetic sync complete to unblock UI.`,
       );
-      this.clearSyncRecoveryNotification();
       this.dispatchSyncTimeoutComplete("timeout");
       return;
     }
@@ -1762,30 +1756,6 @@ export class ChatSynchronizationService extends EventTarget {
       this.cacheStatusRetryTimer = null;
     }
     this.cacheStatusRetryCount = 0;
-  }
-
-  private showSyncRecoveryNotification(): void {
-    if (this.syncRecoveryNotificationShown) return;
-    this.syncRecoveryNotificationShown = true;
-    this.syncRecoveryNotificationId = notificationStore.addNotificationWithOptions(
-      "warning",
-      {
-        title: CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE,
-        message: CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE,
-        duration: 0,
-        dismissible: true,
-        isProcessing: true,
-        dedupeKey: CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-      },
-    );
-  }
-
-  private clearSyncRecoveryNotification(): void {
-    this.syncRecoveryNotificationShown = false;
-    this.syncRecoveryNotificationId = null;
-    notificationStore.removeNotificationsByDedupeKey(
-      CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-    );
   }
 
   // --- Syncing Message IDs Tracking ---

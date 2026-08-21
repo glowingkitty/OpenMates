@@ -1582,8 +1582,6 @@ export async function sendCompletedAIResponseImpl(
 			console.error(
 				`[ChatSyncService:Senders] Chat ${aiMessage.chat_id} not found for AI response encryption`
 			);
-			const { addPendingAIResponse } = await import("./pendingAIResponses");
-			addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 			serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
 			return;
 		}
@@ -1611,8 +1609,6 @@ export async function sendCompletedAIResponseImpl(
 				"assistant response encryption"
 			))
 		) {
-			const { addPendingAIResponse } = await import("./pendingAIResponses");
-			addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 			serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
 			return;
 		}
