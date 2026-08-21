@@ -319,11 +319,34 @@ def test_tutorial_timeline_trims_only_preproof_lead() -> None:
         source_start_ms=source_start_ms,
     )
 
-    assert source_start_ms == 1266
+    assert source_start_ms == 1416
     assert [(segment["source_from_ms"], segment["source_to_ms"]) for segment in timeline if segment["kind"] == "video"] == [
-        (1266, 1416),
         (1416, 3000),
     ]
+
+
+def test_extract_best_checkpoint_frame_prefers_most_detailed_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    sizes = {100: 12, 250: 90, 400: 24}
+
+    def fake_extract(_source: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, str]:
+        output_path.write_bytes(b"x" * sizes[round(timestamp_seconds * 1000)])
+        return {"path": str(output_path), "sha256": module.sha256_file(output_path)}
+
+    monkeypatch.setattr(module, "extract_frame", fake_extract)
+    output = tmp_path / "best.png"
+    result = module.extract_best_checkpoint_frame(
+        tmp_path / "source.webm",
+        output_path=output,
+        candidate_times_ms=[100, 250, 400],
+        source_duration_ms=500,
+    )
+
+    assert output.read_bytes() == b"x" * 90
+    assert result == {"path": str(output), "sha256": module.sha256_file(output)}
 
 
 def test_tutorial_review_timing_rejects_unmapped_assertions_and_clamps_encoded_duration() -> None:

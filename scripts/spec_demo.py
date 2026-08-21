@@ -309,7 +309,40 @@ def tutorial_source_start_ms(assertion_results: list[dict[str, Any]]) -> int:
     ]
     if not passed_times:
         return 0
-    return max(0, min(passed_times) - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
+    return max(0, min(passed_times))
+
+
+def extract_best_checkpoint_frame(
+    source_video: Path,
+    *,
+    output_path: Path,
+    candidate_times_ms: Iterable[int],
+    source_duration_ms: int,
+) -> dict[str, str]:
+    """Choose the most detailed nearby source frame for a readable freeze hold."""
+    candidates = sorted({
+        max(0, min(source_duration_ms, int(candidate_time)))
+        for candidate_time in candidate_times_ms
+    })
+    if not candidates:
+        raise DemonstrationError("Checkpoint freeze requires at least one candidate frame")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    candidate_dir = output_path.parent / f".{output_path.stem}-candidates"
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    best_path: Path | None = None
+    best_size = -1
+    for candidate_time in candidates:
+        candidate_path = candidate_dir / f"{candidate_time}.png"
+        extract_frame(source_video, timestamp_seconds=candidate_time / 1000, output_path=candidate_path)
+        size = candidate_path.stat().st_size
+        if size > best_size:
+            best_path = candidate_path
+            best_size = size
+    if best_path is None:
+        raise DemonstrationError("Could not extract a checkpoint freeze frame")
+    shutil.copyfile(best_path, output_path)
+    output_path.chmod(0o600)
+    return {"path": str(output_path), "sha256": sha256_file(output_path)}
 
 
 def tutorial_checkpoint_times(
@@ -1796,16 +1829,28 @@ def produce_playwright_demonstration(
             events=spec_timeline["events"],
             assertion_results=spec_timeline.get("assertion_results", []),
         )
+        checkpoint_event_times = {
+            str(event.get("id")): int(event["at_ms"])
+            for event in spec_timeline.get("events", [])
+            if event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
+        }
         source_start_ms = tutorial_source_start_ms(spec_timeline.get("assertion_results", []))
+        source_duration_ms = round(float(source_metadata["duration_seconds"]) * 1000)
         checkpoint_frame_dir = run_dir / "checkpoint-source-frames"
         checkpoint_frame_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_frames = {}
         for checkpoint_id, checkpoint_at_ms in checkpoint_times.items():
-            frame_at_ms = max(0, checkpoint_at_ms - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
-            frame = extract_frame(
+            lead_ms = round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000)
+            frame = extract_best_checkpoint_frame(
                 render_source_video,
-                timestamp_seconds=frame_at_ms / 1000,
                 output_path=checkpoint_frame_dir / f"{checkpoint_id}.png",
+                candidate_times_ms=[
+                    checkpoint_at_ms - lead_ms,
+                    checkpoint_at_ms,
+                    checkpoint_at_ms + lead_ms,
+                    checkpoint_event_times.get(checkpoint_id, checkpoint_at_ms),
+                ],
+                source_duration_ms=source_duration_ms,
             )
             checkpoint_frames[checkpoint_id] = {
                 "path": str(frame["path"]),
@@ -1816,7 +1861,7 @@ def produce_playwright_demonstration(
             events=spec_timeline["events"],
             device_profile=str(device_profile["id"]),
             checkpoint_frames=checkpoint_frames,
-            source_duration_ms=round(float(source_metadata["duration_seconds"]) * 1000),
+            source_duration_ms=source_duration_ms,
             assertion_results=spec_timeline.get("assertion_results", []),
             source_start_ms=source_start_ms,
         )
