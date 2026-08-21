@@ -245,6 +245,15 @@ def build_tutorial_timeline(
         hold = round((word_count / words_per_second) * 1000)
         hold = max(minimum_hold, min(maximum_hold, hold))
         hold_frames = max(1, round(hold * 30 / 1000))
+        if previous_checkpoint_at >= 0:
+            segments.append(
+                {
+                    "kind": "video",
+                    "source_from_ms": previous_checkpoint_at,
+                    "source_to_ms": checkpoint_at,
+                    "duration_ms": checkpoint_at - previous_checkpoint_at,
+                }
+            )
         segments.append(
             {
                 "kind": "freeze",

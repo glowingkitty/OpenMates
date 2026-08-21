@@ -149,6 +149,11 @@ decisions:
     decision: Real CLI E2E evidence records a graphical terminal on Xvfb; reconstructed ASS terminal videos are no longer eligible proof sources.
     reason: Terminal colors, wrapping, cursor, prompts, and TUI behavior are part of the CLI product surface.
     decided_at: "2026-08-20T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: CLI proof commands are visibly typed character by character at a short fixed interval before execution.
+    reason: Human-speed command entry makes terminal proof easier to follow and avoids an unauthentic full command appearing in one frame.
+    decided_at: "2026-08-21T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -233,7 +238,8 @@ scenarios:
       - The deterministic renderer builds the tutorial.
     then:
       - Real source action intervals play at normal speed and transcript-derived holds freeze reached checkpoints.
-      - The full real viewport is shown inside a deterministic browser frame with the attested domain in its address bar.
+      - The full real viewport is shown inside a deterministic browser frame with a compact attested-domain address bar and new-tab control.
+      - The page pixels contain no proof-only domain overlay; the domain appears only in the browser address bar.
       - The output and WebVTT sidecar are reproducible from source, contract, timeline, profile, and renderer hashes.
   - id: S-7
     title: Real CLI terminal recording
@@ -243,6 +249,7 @@ scenarios:
       - The shared CLI test runner executes the journey.
     then:
       - The command runs in a real PTY displayed by a pinned graphical terminal on an isolated 1280x720 Xvfb display.
+      - The visible prompt and command are entered character by character at a fixed short interval before execution.
       - FFmpeg records the terminal pixels while transcript, input, exit status, environment classification, and checkpoints are retained as sidecar provenance.
       - Secrets are passed through environment or hidden input and never placed in displayed argv or proof metadata.
   - id: S-8
@@ -272,9 +279,9 @@ acceptance_criteria:
   - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-7, scenario: S-5, text: "A proof-enabled `.spec.ts` owns the complete transcript, devices, domain, checkpoints, and paired executable plus visual assertions, and its attached canonical timeline contains no presentation wait requirement.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-SPEC-PROOF-CONTRACT, T-WEB-PROOF-E2E] }
-  - { id: AC-8, scenario: S-6, text: "Remotion renders normal-speed real Playwright action segments and transcript-derived checkpoint freezes inside deterministic browser chrome that displays the attested domain without cropping the real viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
+  - { id: AC-8, scenario: S-6, text: "Remotion renders normal-speed real Playwright action segments and transcript-derived checkpoint freezes inside authentic deterministic browser chrome with one compact attested-domain address bar, a new-tab control, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
   - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, and renderer hashes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
-  - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, while transcript and exit provenance remain hash-bound sidecars rather than reconstructed video input.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
+  - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, visibly types the command character by character before execution, and retains transcript and exit provenance as hash-bound sidecars rather than reconstructed video input.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
   - { id: AC-12, scenario: S-8, text: "Passed and failed CLI E2E attempts retain real terminal recordings with status and attempt metadata, while proof publication accepts only passed current-commit evidence.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-13, scenario: S-9, text: "One deployed web proof and one real CLI E2E proof pass bounded review and are embedded with toggleable hash-bound WebVTT captions in the implementation chat.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [V-WEB-PROOF, V-CLI-PROOF] }
@@ -460,7 +467,8 @@ tests:
     covers: [AC-8, AC-9]
     assertions:
       - deterministic edit segments retain normal-speed actions and insert transcript-derived freezes
-      - rendered browser frame displays the attested domain and preserves the complete real viewport
+      - rendered browser frame uses one compact domain bar and new-tab control without an in-page domain overlay
+      - rendered output preserves both source-video action motion and complete checkpoint pixels
       - renderer and input hashes bind output, captions, manifest, and cache identity
     red_phase:
       required: true
@@ -486,6 +494,7 @@ tests:
     covers: [AC-10, AC-12]
     assertions:
       - real terminal capture launches an isolated exact-size display and records graphical terminal pixels
+      - visible CLI commands are typed character by character at a fixed short interval before execution
       - command, transcript, events, exit status, test classification, video, and hashes remain bound
       - secret argv and unsupported non-CLI commands are rejected
     red_phase:

@@ -1,8 +1,8 @@
 /**
  * Deterministic browser-shell composition for real Playwright recordings.
  *
- * Checkpoint frames retain their exact Playwright geometry and pixels. Browser
- * domain context is captured into each attested checkpoint before rendering.
+ * Real Playwright action intervals play between attested checkpoint holds. The
+ * browser shell supplies domain context without altering the captured page.
  */
 
 import React from 'react';
@@ -64,12 +64,11 @@ export const BrowserTutorial: React.FC<BrowserTutorialProps> = (props) => {
 					alignItems: 'center',
 					background: 'linear-gradient(180deg, #fbfbfc 0%, #eceef2 100%)',
 					borderBottom: '1px solid rgba(15, 23, 42, 0.12)',
-					display: 'grid',
-					gridTemplateColumns: '92px 1fr 92px',
+					display: 'flex',
 					height: layout.toolbarHeight,
 					padding: '0 18px',
 				}}>
-					<div style={{display: 'flex', gap: 8}}>
+					<div style={{display: 'flex', flex: 1, gap: 8}}>
 						<span style={{backgroundColor: '#ff5f57', borderRadius: '50%', height: 12, width: 12}} />
 						<span style={{backgroundColor: '#febc2e', borderRadius: '50%', height: 12, width: 12}} />
 						<span style={{backgroundColor: '#28c840', borderRadius: '50%', height: 12, width: 12}} />
@@ -85,19 +84,21 @@ export const BrowserTutorial: React.FC<BrowserTutorialProps> = (props) => {
 						fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 						fontSize: props.output.width >= 900 ? 16 : 12,
 						fontWeight: 500,
-						gap: 8,
 						height: props.output.width >= 900 ? 34 : 28,
 						justifyContent: 'center',
+						maxWidth: props.output.width >= 900 ? 640 : 260,
 						minWidth: 0,
 						overflow: 'hidden',
 						padding: '0 18px',
 						textOverflow: 'ellipsis',
 						whiteSpace: 'nowrap',
+						width: '54%',
 					}}>
-						<span style={{backgroundColor: '#22c55e', borderRadius: '50%', display: 'inline-block', height: 8, width: 8}} />
 						<span>{props.domain}</span>
 					</div>
-					<div style={{color: '#64748b', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 14, textAlign: 'right'}}>OpenMates</div>
+					<div style={{display: 'flex', flex: 1, justifyContent: 'flex-end'}}>
+						<div aria-label="New tab" style={{color: '#64748b', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 26, fontWeight: 300, lineHeight: 1}}>+</div>
+					</div>
 				</div>
 				<div style={{backgroundColor: '#fff', height: layout.contentHeight, overflow: 'hidden', position: 'relative', width: layout.contentWidth}}>
 					{props.segments.map((segment, index) => {

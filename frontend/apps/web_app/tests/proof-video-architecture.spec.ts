@@ -12,23 +12,10 @@ const {test, expect} = require('./helpers/cookie-audit');
 const {getE2EDebugUrl} = require('./signup-flow-helpers');
 const {createVideoProofRuntime, defineVideoProof} = require('./helpers/video-proof');
 
-const PROOF_DOMAIN_BADGE_ID = 'openmates-proof-domain-badge';
 const PROOF_DOMAIN = 'app.dev.openmates.org';
 
-async function captureBrowserProofFrame(page: any, domain: string): Promise<Buffer> {
-	await page.evaluate(({badgeId, value}: {badgeId: string; value: string}) => {
-		document.getElementById(badgeId)?.remove();
-		const badge = document.createElement('div');
-		badge.id = badgeId;
-		badge.textContent = `● ${value}`;
-		badge.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;padding:7px 18px;border:1px solid rgba(90,90,100,.35);border-radius:10px;background:rgba(248,248,250,.94);box-shadow:0 2px 10px rgba(22,24,31,.16);color:#34343a;font:16px Arial,sans-serif;';
-		document.body.appendChild(badge);
-	}, {badgeId: PROOF_DOMAIN_BADGE_ID, value: domain});
-	try {
-		return await page.screenshot({type: 'png'});
-	} finally {
-		await page.evaluate((badgeId: string) => document.getElementById(badgeId)?.remove(), PROOF_DOMAIN_BADGE_ID);
-	}
+async function captureBrowserProofFrame(page: any): Promise<Buffer> {
+	return page.screenshot({type: 'png'});
 }
 
 const proofContract = defineVideoProof({
@@ -86,7 +73,7 @@ test.describe('Proof video browser architecture', () => {
 		const proof = createVideoProofRuntime(proofContract, {
 			device: 'web-laptop',
 			attach: testInfo.attach.bind(testInfo),
-			captureFrame: () => captureBrowserProofFrame(page, PROOF_DOMAIN)
+			captureFrame: () => captureBrowserProofFrame(page)
 		});
 
 		await page.goto(getE2EDebugUrl('/?landing-header-motion'), {waitUntil: 'domcontentloaded'});

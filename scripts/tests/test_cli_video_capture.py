@@ -51,6 +51,8 @@ def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> N
     assert "14" in plan.terminal_argv
     assert "node frontend/packages/openmates-cli/dist/cli.js --help" in plan.terminal_argv[-1]
     assert "sleep 3" in plan.terminal_argv[-1]
+    assert "printf '%s\\n'" not in plan.terminal_argv[-1]
+    assert "time.sleep(0.03)" in plan.terminal_argv[-1]
 
 
 def test_capture_plan_rejects_non_openmates_commands_and_secret_argv(tmp_path: Path) -> None:

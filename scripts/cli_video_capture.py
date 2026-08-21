@@ -103,8 +103,14 @@ def build_capture_plan(
     events = output_dir / "events.jsonl"
     display = f":{display_number}"
     display_command = shlex.join(argv)
+    typed_prompt = shlex.quote("$ " + display_command)
+    type_command = (
+        "python3 -c 'import sys,time; "
+        "[(sys.stdout.write(char),sys.stdout.flush(),time.sleep(0.03)) for char in sys.argv[1]]' "
+        f"{typed_prompt}"
+    )
     shell_command = (
-        f"printf '%s\\n' {shlex.quote('$ ' + display_command)}; "
+        f"{type_command}; printf '\\n'; "
         f"{display_command}; status=$?; sleep {RESULT_HOLD_SECONDS}; exit $status"
     )
     script_argv = [

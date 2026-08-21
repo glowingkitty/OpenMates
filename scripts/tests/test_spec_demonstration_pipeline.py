@@ -175,16 +175,26 @@ def test_tutorial_timeline_scopes_review_intervals_to_checkpoint_frames() -> Non
         narration_id="NARR-1",
     )
 
-    assert [segment["source_image"] for segment in timeline] == ["/proof/welcome.png", "/proof/result.png"]
+    assert [segment["kind"] for segment in timeline] == ["freeze", "video", "freeze"]
+    assert timeline[1] == {
+        "kind": "video",
+        "source_from_ms": 1000,
+        "source_to_ms": 1600,
+        "duration_ms": 600,
+    }
+    assert [segment["source_image"] for segment in timeline if segment["kind"] == "freeze"] == [
+        "/proof/welcome.png",
+        "/proof/result.png",
+    ]
     assert captions[0]["start"] == 0.0
     assert captions[0]["end"] == 4.0
     assert captions[0]["claim_ids"] == ["welcome.visible"]
     assert captions[1]["start"] == 4.0
-    assert captions[1]["end"] == 8.0
+    assert captions[1]["end"] == 8.6
     assert captions[1]["claim_ids"] == ["result.visible"]
     assert evidence == {
         "welcome.visible": [[0.0, 4.0]],
-        "result.visible": [[4.0, 8.0]],
+        "result.visible": [[4.6, 8.6]],
     }
 
 
@@ -291,13 +301,16 @@ def test_browser_render_request_binds_domain_viewport_and_input_hashes(tmp_path:
         source_video=source,
         domain="app.dev.openmates.org",
         device_profile="web-laptop",
-        segments=[{
-            "kind": "freeze",
-            "source_image": str(checkpoint),
-            "source_sha256": module.sha256_file(checkpoint),
-            "duration_ms": 1200,
-            "cue_id": "ready",
-        }],
+        segments=[
+            {"kind": "video", "source_from_ms": 0, "source_to_ms": 600, "duration_ms": 600},
+            {
+                "kind": "freeze",
+                "source_image": str(checkpoint),
+                "source_sha256": module.sha256_file(checkpoint),
+                "duration_ms": 1200,
+                "cue_id": "ready",
+            },
+        ],
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
     )
@@ -308,6 +321,17 @@ def test_browser_render_request_binds_domain_viewport_and_input_hashes(tmp_path:
     assert request["renderer"] == "openmates-remotion-browser-v1"
     assert request["output"]["width"] == request["viewport"]["width"]
     assert request["output"]["height"] == request["viewport"]["height"]
+
+
+def test_browser_proof_uses_only_renderer_domain_chrome() -> None:
+    renderer = (ROOT / "tooling/proof-video-remotion/src/BrowserTutorial.tsx").read_text(encoding="utf-8")
+    proof_spec = (ROOT / "frontend/apps/web_app/tests/proof-video-architecture.spec.ts").read_text(encoding="utf-8")
+
+    assert "openmates-proof-domain-badge" not in proof_spec
+    assert "#22c55e" not in renderer
+    assert ">OpenMates</div>" not in renderer
+    assert "aria-label=\"New tab\"" in renderer
+    assert "maxWidth" in renderer
 
 
 def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: Path) -> None:
@@ -327,13 +351,16 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
         source_video=source,
         domain="app.dev.openmates.org",
         device_profile="web-laptop",
-        segments=[{
-            "kind": "freeze",
-            "source_image": str(checkpoint),
-            "source_sha256": module.sha256_file(checkpoint),
-            "duration_ms": 1200,
-            "cue_id": "ready",
-        }],
+        segments=[
+            {"kind": "video", "source_from_ms": 0, "source_to_ms": 600, "duration_ms": 600},
+            {
+                "kind": "freeze",
+                "source_image": str(checkpoint),
+                "source_sha256": module.sha256_file(checkpoint),
+                "duration_ms": 1200,
+                "cue_id": "ready",
+            },
+        ],
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
     )
@@ -346,7 +373,7 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
     assert metadata["browser_runtime"] != "unknown"
     assert metadata["render_request_sha256"] == module.sha256_file(tmp_path / "browser-tutorial.render-request.json")
     assert (metadata["width"], metadata["height"]) == (1440, 900)
-    assert metadata["duration_seconds"] == pytest.approx(1.2, abs=0.1)
+    assert metadata["duration_seconds"] == pytest.approx(1.8, abs=0.1)
 
     def sample(path: Path, x: int, y: int, *, timestamp: float | None = None) -> bytes:
         seek = ["-ss", str(timestamp)] if timestamp is not None else []
@@ -360,15 +387,28 @@ def test_remotion_renders_real_playwright_pixels_inside_browser_frame(tmp_path: 
         )
         return result.stdout
 
+    def sample_page_region(timestamp: float) -> bytes:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-ss", str(timestamp), "-i", str(tmp_path / "browser-tutorial.mp4"),
+                "-vf", "crop=120:80:660:430,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return result.stdout
+
     # The output must be a browser scene, not a full-frame replay: the toolbar
     # area differs from source pixels, while the page area still contains the
     # real Playwright checkpoint scaled into the browser DOM viewport.
-    toolbar_pixel = sample(tmp_path / "browser-tutorial.mp4", 720, 60, timestamp=0.5)
+    assert sample_page_region(0.1) != sample_page_region(0.4)
+
+    toolbar_pixel = sample(tmp_path / "browser-tutorial.mp4", 720, 60, timestamp=0.9)
     source_toolbar_coordinate = sample(checkpoint, 720, 60)
     assert any(abs(expected - rendered) > 24 for expected, rendered in zip(source_toolbar_coordinate, toolbar_pixel, strict=True))
 
     expected_page_pixel = sample(checkpoint, 1000, 450)
-    rendered_page_pixel = sample(tmp_path / "browser-tutorial.mp4", 963, 478, timestamp=0.5)
+    rendered_page_pixel = sample(tmp_path / "browser-tutorial.mp4", 963, 478, timestamp=0.9)
     assert all(abs(expected - rendered) <= 28 for expected, rendered in zip(expected_page_pixel, rendered_page_pixel, strict=True))
 
 
