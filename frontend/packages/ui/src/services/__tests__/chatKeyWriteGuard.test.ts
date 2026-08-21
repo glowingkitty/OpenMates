@@ -46,6 +46,7 @@ vi.mock("../encryption/ChatKeyManager", () => ({
 describe("chat key write guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.addCandidateKey.mockResolvedValue(undefined);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 

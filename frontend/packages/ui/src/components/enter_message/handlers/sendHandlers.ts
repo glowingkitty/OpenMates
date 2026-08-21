@@ -41,12 +41,16 @@ import {
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
-import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
+import {
+  isUnsupportedTeamIncognitoContext,
+  shouldDispatchDraftChatAsNewChat,
+} from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
 import { activeTeamId } from "../../../stores/teamStore";
-import { wrapTeamChatKey } from "../../../services/teamService";
+import { isTeamAIInvocation, wrapTeamChatKey } from "../../../services/teamService";
+import { encryptWithChatKey } from "../../../services/cryptoService";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -635,6 +639,27 @@ export async function handleSend(
     // once all embeds report finished via the embedUploadFinished window event.
     // -----------------------------------------------------------------------
 
+    const deferredTeamId = get(activeTeamId);
+    const deferredIncognitoMode = (
+      await import("../../../stores/incognitoModeStore")
+    ).incognitoMode.get();
+    const isOrdinaryDeferredTeamChat =
+      Boolean(deferredTeamId) && !isTeamAIInvocation(editor.getText());
+    if (
+      isUnsupportedTeamIncognitoContext(
+        deferredTeamId,
+        deferredIncognitoMode,
+      )
+    ) {
+      console.error(
+        "[handleSend] Team chats cannot be queued in incognito mode",
+      );
+      vibrateMessageField();
+      sendInProgress = false;
+      rootSpan.end();
+      return;
+    }
+
     // Determine / create the chatId exactly as the normal path would.
     // We must replicate just enough of the chat-id resolution logic here so
     // the message lands in the right chat.
@@ -679,15 +704,12 @@ export async function handleSend(
         const existingDeferred = await chatDB.getChat(deferredChatId);
         if (!existingDeferred) {
           const nowDeferred = Math.floor(Date.now() / 1000);
-          const isIncognito = (
-            await import("../../../stores/incognitoModeStore")
-          ).incognitoMode.get();
           const newChatForDeferred: import("../../../types/chat").Chat = {
             chat_id: deferredChatId,
-            team_id: get(activeTeamId),
+            team_id: deferredTeamId,
             encrypted_title: null,
             messages_v: 1,
-            title_v: 0,
+            title_v: isOrdinaryDeferredTeamChat ? 1 : 0,
             draft_v: 0,
             encrypted_draft_md: null,
             encrypted_draft_preview: null,
@@ -696,11 +718,12 @@ export async function handleSend(
             created_at: nowDeferred,
             updated_at: nowDeferred,
             processing_metadata: false,
-            waiting_for_metadata: !isIncognito,
-            is_incognito: isIncognito,
+            waiting_for_metadata:
+              !deferredIncognitoMode && !isOrdinaryDeferredTeamChat,
+            is_incognito: deferredIncognitoMode,
             source_demo_id: null,
           };
-          if (isIncognito) {
+          if (deferredIncognitoMode) {
             await incognitoChatService.storeChat(newChatForDeferred);
             await incognitoChatService.addMessage(
               deferredChatId,
@@ -713,6 +736,12 @@ export async function handleSend(
                 newChatForDeferred.team_id,
                 chatKey,
               );
+              if (isOrdinaryDeferredTeamChat) {
+                newChatForDeferred.encrypted_title = await encryptWithChatKey(
+                  "New team chat",
+                  chatKey,
+                );
+              }
             }
             await chatDB.addChat(newChatForDeferred);
             await chatDB.saveMessage(deferredMessage);
@@ -830,6 +859,7 @@ export async function handleSend(
       });
     }
     rootSpan.setAttribute('message.send.deferred', true);
+    sendInProgress = false;
     rootSpan.end();
     return; // Exit — the actual send will happen when embedUploadFinished fires
   }
@@ -1563,12 +1593,14 @@ export async function handleSend(
 
     if (isNewChatCreation) {
       const now = Math.floor(Date.now() / 1000);
+      const teamId = get(activeTeamId);
+      const isOrdinaryTeamChat = Boolean(teamId) && !isTeamAIInvocation(markdown);
       const newChatData: import("../../../types/chat").Chat = {
         chat_id: chatIdToUse,
-        team_id: get(activeTeamId),
+        team_id: teamId,
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
-        title_v: 0, // Will be incremented to 1 when first title is set
+        title_v: isOrdinaryTeamChat ? 1 : 0,
         draft_v: 0,
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
@@ -1577,13 +1609,13 @@ export async function handleSend(
         created_at: now,
         updated_at: now,
         processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
-        waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
+        waiting_for_metadata: !isIncognitoEnabled && !isOrdinaryTeamChat,
         is_incognito: isIncognitoEnabled,
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
 
       if (newChatData.team_id) {
-        if (isIncognitoEnabled) {
+        if (isUnsupportedTeamIncognitoContext(teamId, isIncognitoEnabled)) {
           throw new Error("Team chats cannot be created in incognito mode");
         }
         const chatKey = chatKeyManager.createKeyForNewChat(chatIdToUse);
@@ -1591,6 +1623,12 @@ export async function handleSend(
           newChatData.team_id,
           chatKey,
         );
+        if (isOrdinaryTeamChat) {
+          newChatData.encrypted_title = await encryptWithChatKey(
+            "New team chat",
+            chatKey,
+          );
+        }
       }
 
       // Duplication Flow: If this chat is from a demo, copy history messages

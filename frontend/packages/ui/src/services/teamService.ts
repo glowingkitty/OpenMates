@@ -60,6 +60,10 @@ export interface TeamInviteResult {
   raw: Record<string, unknown>;
 }
 
+export function isTeamAIInvocation(content: string): boolean {
+  return content.toLocaleLowerCase().includes("@openmates");
+}
+
 const teamKeyCache = new Map<string, Uint8Array>();
 
 function nowSeconds(): number {

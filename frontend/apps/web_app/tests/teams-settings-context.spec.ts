@@ -199,6 +199,7 @@ test.describe('Teams V1 context isolation', () => {
 			expect(sentMessage.raw).not.toContain(ordinaryMessage);
 			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toBeVisible({ timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
+			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
 
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
@@ -216,6 +217,24 @@ test.describe('Teams V1 context isolation', () => {
 			await ensureSidebarOpen(page);
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatIds[0]}"]`)).toBeVisible({ timeout: 30000 });
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`)).toHaveCount(0);
+			await ensureSidebarClosed(page);
+
+			await openProfileMenu(page);
+			const teamReselectFrameIndex = frames.length;
+			await page.getByTestId('team-context-dropdown').selectOption(teamId);
+			await waitForPhasedSyncCompletion(frames, teamReselectFrameIndex, teamId);
+			await page.getByTestId('icon-button-close').click();
+			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
+
+			await ensureSidebarOpen(page);
+			for (const personalChatId of personalChatIds) {
+				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
+			}
+			const persistedTeamChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`);
+			await expect(persistedTeamChat).toBeVisible({ timeout: 30000 });
+			await persistedTeamChat.click();
+			await ensureSidebarClosed(page);
+			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
 		} finally {
 			if (teamId) {
 				const cleanupResponse = await page.request.delete(`${apiUrl}/v1/teams/${encodeURIComponent(teamId)}`);

@@ -22,6 +22,7 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { isTeamAIInvocation } from '../services/teamService';
     import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
@@ -7103,7 +7104,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // overwrites activeChatDecryptedTitle with '' — causing the header to flash back
         // to the "Creating new chat…" shimmer even though a real title is already shown.
         // Guarding on activeChatDecryptedTitle prevents this false positive.
-        isNewChatProcessing = (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
+        const messageContent = typeof message.content === 'string' ? message.content : '';
+        const expectsTeamAI = !chatForNewCheck?.team_id || isTeamAIInvocation(messageContent);
+        if (chatForNewCheck?.team_id && !expectsTeamAI && !activeChatDecryptedTitle) {
+            activeChatDecryptedTitle = 'New team chat';
+        }
+        isNewChatProcessing = expectsTeamAI
+            && (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
             && !activeChatDecryptedTitle;
 
         // If this is a new chat, show the "Generating title..." placeholder in the chat header.
@@ -15949,12 +15956,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-history-state {
         position: absolute;
         z-index: var(--z-index-raised-1);
-        top: max(50%, calc(35vh + var(--spacing-3)), calc(240px + var(--spacing-3)));
+        top: 50%;
         left: 50%;
         display: flex;
         align-items: center;
         gap: var(--spacing-3);
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
         color: var(--color-grey-70);
         font-size: var(--font-size-sm);
     }

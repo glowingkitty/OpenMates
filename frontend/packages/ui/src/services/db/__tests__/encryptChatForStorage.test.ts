@@ -235,7 +235,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.sync.key-gated-recovery
-  it("does not replace an existing Team wrapper when it cannot be unwrapped", async () => {
+  it("does not replace an incoming Team wrapper when it cannot be unwrapped", async () => {
     const db = makeDbInstance();
     const chat = makeChat({
       team_id: "team-123",
@@ -245,7 +245,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     mockUnwrapTeamChatKey.mockRejectedValue(new Error("Team key unavailable"));
 
     await expect(encryptChatForStorage(db as any, chat)).rejects.toThrow(
-      "existing Team chat key could not be unwrapped",
+      "incoming Team chat key could not be unwrapped",
     );
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(mockCreateAndPersistKeyLocked).not.toHaveBeenCalled();

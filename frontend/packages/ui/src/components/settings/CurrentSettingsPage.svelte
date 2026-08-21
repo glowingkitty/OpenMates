@@ -25,6 +25,7 @@
         isGuestEnabled = $bindable(false),
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
+        sliderElement = null,
         isMenuVisible = false,
         paymentEnabled = true,
         isSelfHosted = false,
@@ -48,14 +49,13 @@
         isGuestEnabled?: boolean;
         isOfflineEnabled?: boolean;
         menuItemsCount?: number;
+        sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
         isSelfHosted?: boolean;
         showProfileHeader?: boolean;
         resolvedProfileImageUrl?: string | null;
     } = $props();
-
-    let sliderElement = $state<HTMLDivElement | null>(null);
     
     // State for docked profile visibility
     // Show after a delay to match the original profile container animation (400ms)
@@ -138,19 +138,14 @@
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
-    /**
-     * Simple slide-in transition for settings views.
-     * Only the incoming view is animated - the old view is immediately hidden.
-     * This avoids all visual glitches from overlapping views.
-     */
-    function slideIn(node: Element, { dir }: { dir: string }) {
+    /** Fade in the incoming view without moving content outside the settings panel. */
+    function fadeIn(_node: Element, _params: { dir: string }) {
         const duration = 200; // Fast, snappy animation
-        const x = dir === 'forward' ? 250 : -250;
-        
+
         return {
             duration,
             easing: cubicOut,
-            css: (t: number) => `transform: translateX(${(1 - t) * x}px);`
+            css: (t: number) => `opacity: ${t};`
         };
     }
 
@@ -275,7 +270,7 @@
         <div 
             class="settings-items active"
             data-testid="settings-page-content"
-            in:slideIn={{ dir: direction }}
+            in:fadeIn={{ dir: direction }}
         >
             <!-- Profile header: docked avatar + username + credits.
                  Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
@@ -437,7 +432,7 @@
             <div 
                 class="settings-submenu-content active"
                 data-testid="settings-page-content"
-                in:slideIn={{ dir: direction }}
+                in:fadeIn={{ dir: direction }}
             >
                 <Component 
                     activeSettingsView={key}
@@ -578,7 +573,6 @@
         position: relative;
         width: 100%;
         height: var(--active-content-height);
-        flex-shrink: 0;
         overflow: hidden;
         padding-top: var(--spacing-0);
     }
@@ -595,7 +589,6 @@
     .settings-items.active,
     .settings-submenu-content.active {
         pointer-events: auto;
-        z-index: var(--z-index-raised);
     }
 
 </style>

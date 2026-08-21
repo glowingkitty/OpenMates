@@ -23,3 +23,10 @@ export function shouldDispatchDraftChatAsNewChat(args: {
       (args.existingChat.messages_v ?? 0) === 0,
   );
 }
+
+export function isUnsupportedTeamIncognitoContext(
+  teamId: string | null | undefined,
+  isIncognito: boolean,
+): boolean {
+  return Boolean(teamId && isIncognito);
+}

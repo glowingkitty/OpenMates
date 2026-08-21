@@ -37,6 +37,7 @@ import type { PreparedConnectedAccountSendContext } from "./connectedAccountToke
 import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
 import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionRecovery";
 import { generateUUID } from "../message_parsing/utils";
+import { isTeamAIInvocation } from "./teamService";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
@@ -188,7 +189,7 @@ export function buildTeamMessageTransport(params: {
 		team_member_mentions: [],
 		created_at: params.message.created_at
 	};
-	if (!params.content.toLocaleLowerCase().includes("@openmates")) {
+	if (!isTeamAIInvocation(params.content)) {
 		return { message: messageEnvelope };
 	}
 	const history = params.history

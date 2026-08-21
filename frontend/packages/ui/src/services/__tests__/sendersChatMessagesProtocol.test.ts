@@ -56,8 +56,8 @@ describe("sendersChatMessages protocol fences", () => {
 	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
 	it("sends attributed history only for an explicit OpenMates invocation", () => {
 		const transport = buildTeamMessageTransport({
-			message: { ...TEAM_MESSAGE, content: "@openmates summarize" },
-			content: "@openmates summarize",
+			message: { ...TEAM_MESSAGE, content: "@OpenMates summarize" },
+			content: "@OpenMates summarize",
 			encryptedContent: "encrypted-message",
 			history: [{
 				...TEAM_MESSAGE,
@@ -71,7 +71,7 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(transport.message).not.toHaveProperty("content");
 		expect(transport.teamAIInvocation?.history).toEqual([
 			expect.objectContaining({ content: "Earlier context", sender_name: "Bob" }),
-			expect.objectContaining({ content: "@openmates summarize", sender_name: "Alice" }),
+			expect.objectContaining({ content: "@OpenMates summarize", sender_name: "Alice" }),
 		]);
 	});
 
