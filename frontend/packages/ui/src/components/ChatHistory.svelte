@@ -3200,7 +3200,10 @@
   /* Only apply padding-top and min-height when there are messages */
   /* This prevents the first message from overlaying the button */
   .chat-history-content.has-messages {
-    padding-top: 50px;
+    /* Keep the first bubble below ActiveChat's absolute top action row. This
+       matters when the sidebar narrows the chat and a long user bubble reaches
+       the details/reminder controls at the inline end. */
+    padding-top: 80px;
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }

@@ -1387,6 +1387,12 @@ export async function handleChatMessageConfirmedImpl(
   // the status field, and writes it back — no encryption, no key operations, no risk.
   try {
     await chatDB.updateMessageStatus(payload.message_id, "synced");
+    // The optimistic send path caches the user message while its status is
+    // "sending". Drop that snapshot as soon as the server confirms the message
+    // so sidebar rows re-read the synced record instead of staying on
+    // "Processing..." indefinitely (especially for ordinary Team turns, which
+    // intentionally have no later AI metadata event to invalidate the cache).
+    chatListCache.invalidateLastMessage(payload.chat_id);
 
     // Verify the message belongs to this chat (log only; updateMessageStatus already
     // succeeded so there is nothing to roll back).

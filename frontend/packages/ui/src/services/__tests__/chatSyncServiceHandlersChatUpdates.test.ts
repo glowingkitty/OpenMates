@@ -10,6 +10,7 @@ import type { ChatSynchronizationService } from "../chatSyncService";
 import {
   handleChatDraftUpdatedImpl,
   handleEncryptedChatMetadataImpl,
+  handleChatMessageConfirmedImpl,
   handleChatMessageReceivedImpl,
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
@@ -24,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     saveMessage: vi.fn(),
     getMessage: vi.fn(),
     getMessageWindowForChat: vi.fn(),
+    updateMessageStatus: vi.fn(),
     clearChatKey: vi.fn(),
   },
   userDB: {
@@ -35,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   chatListCache: {
     upsertChat: vi.fn(),
     markDirty: vi.fn(),
+    invalidateLastMessage: vi.fn(),
   },
   chatKeyManager: {
     getKeySync: vi.fn(),
@@ -113,6 +116,26 @@ function setWindowHash(hash: string): void {
 
   window.location.hash = hash;
 }
+
+describe("handleChatMessageConfirmedImpl", () => {
+  it("invalidates the optimistic sidebar message after confirmation", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.updateMessageStatus.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: "message-1", chat_id: "chat-1", status: "synced" });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", messages_v: 1 });
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+
+    await handleChatMessageConfirmedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "message-1",
+      new_messages_v: 1,
+      new_last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.chatDB.updateMessageStatus).toHaveBeenCalledWith("message-1", "synced");
+    expect(mocks.chatListCache.invalidateLastMessage).toHaveBeenCalledWith("chat-1");
+  });
+});
 
 describe("handleNewChatMessageImpl", () => {
   beforeEach(() => {
