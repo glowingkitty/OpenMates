@@ -466,34 +466,6 @@ def test_spec_timeline_contract_rejects_unpassed_assertion(tmp_path: Path) -> No
         workflow.spec_timeline_render_claims(timeline, device_profile="web-laptop")
 
 
-def test_spec_timeline_contract_accepts_cli_without_checkpoint_frames() -> None:
-    timeline = {
-        "schema_version": 1,
-        "device": "cli-terminal",
-        "contract": {
-            "id": "openmates-cli-proof",
-            "title": "OpenMates CLI proof",
-            "surface": "cli",
-            "devices": ["cli-terminal"],
-            "transcript": [
-                {"id": "examples", "text": "The OpenMates CLI examples are visible.", "checkpoint": "examples", "devices": ["cli-terminal"]}
-            ],
-            "assertions": [
-                {"id": "cli.examples.visible", "visual": "The terminal shows the real CLI example output.", "checkpoint": "examples", "devices": ["cli-terminal"]}
-            ],
-        },
-        "events": [{"kind": "checkpoint", "id": "examples", "at_ms": 100}],
-        "assertion_results": [{"id": "cli.examples.visible", "status": "passed"}],
-        "checkpoint_frames": [],
-    }
-
-    claims = workflow.spec_timeline_render_claims(timeline, device_profile="cli-terminal")
-
-    assert claims["caption_text"] == "The OpenMates CLI examples are visible."
-    assert claims["expected_proof"] == "The terminal shows the real CLI example output."
-    assert claims["acceptance_criteria"] == ["cli.examples.visible"]
-
-
 def test_device_scoped_contract_rejects_unknown_or_uncovered_devices() -> None:
     base = {
         "schema_version": 2,

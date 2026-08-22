@@ -342,8 +342,8 @@ def spec_timeline_contract(timeline: dict[str, Any], *, device_profile: str | No
     """Convert a spec-owned Playwright proof timeline into a canonical render contract."""
 
     contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
-    if contract.get("surface") not in {"web", "cli"}:
-        raise WorkflowError("spec-owned proof timeline must describe a web or cli surface")
+    if contract.get("surface") != "web":
+        raise WorkflowError("spec-owned proof timeline must describe a web surface")
     devices = contract.get("devices") if isinstance(contract.get("devices"), list) else []
     if device_profile is None:
         device_profile = str(timeline.get("device") or "")

@@ -185,8 +185,12 @@ test('Deep research delegates three angles and renders the final parent synthesi
 
 	await subChatCards.first().click();
 	const returnToParent = page.getByTestId('return-to-parent-button');
+	await expect(returnToParent).toBeVisible({ timeout: 30_000 });
+	await expect(returnToParent).toBeInViewport();
 	await expect(returnToParent).toContainText('Return to parent chat', { timeout: 30_000 });
 	await proof.assert('deep_research.child_navigation', async () => {
+		await expect(returnToParent).toBeVisible();
+		await expect(returnToParent).toBeInViewport();
 		await expect(returnToParent).toContainText('Return to parent chat');
 	});
 	await proof.checkpoint('deep-research-child-opened');

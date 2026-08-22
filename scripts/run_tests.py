@@ -63,7 +63,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 try:
@@ -120,7 +120,7 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
-PROOF_VIDEO_PROFILES = {"cli-terminal", "web-laptop", "web-phone"}
+PROOF_VIDEO_PROFILES = {"web-laptop", "web-phone"}
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 PROD_SMOKE_SUITE_FREE_HOURLY = "free-hourly"
@@ -130,11 +130,6 @@ GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
-ACCOUNT_PREFLIGHT_API_SCRIPT = "scripts/verify_test_account_login.py"
-ACCOUNT_PREFLIGHT_MODE_ENV = "OPENMATES_ACCOUNT_PREFLIGHT_MODE"
-ACCOUNT_PREFLIGHT_AUTO_MODE = "auto"
-ACCOUNT_PREFLIGHT_API_MODES = {"api", "cli", "rest"}
-ACCOUNT_PREFLIGHT_BROWSER_MODES = {"browser", "playwright"}
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
@@ -762,20 +757,13 @@ def _load_tests_control_module():
     return module
 
 
-def _record_unified_test_state(data: dict, *, source: str = "scripts_tests", workflow: str = "") -> None:
+def _record_unified_test_state(data: dict) -> None:
     """Update scripts/tests.py state files without making this runner depend on it."""
     try:
         module = _load_tests_control_module()
     except RuntimeError:
         return
-    module.record_run_result(data, source=source, workflow=workflow)
-
-
-def _test_control_source_for_flags(flags: dict) -> tuple[str, str]:
-    """Return the test-control source/workflow tuple for a runner result."""
-    if flags.get("daily"):
-        return "daily_runner", "daily"
-    return "scripts_tests", ""
+    module.record_run_result(data)
 
 
 def _generate_e2e_gift_card_code() -> str:
@@ -1577,37 +1565,6 @@ def _configured_preflight_accounts(results: list[SpecResult]) -> list[dict]:
     return payload
 
 
-def _account_preflight_mode() -> str:
-    return os.getenv(ACCOUNT_PREFLIGHT_MODE_ENV, ACCOUNT_PREFLIGHT_AUTO_MODE).strip().lower() or ACCOUNT_PREFLIGHT_AUTO_MODE
-
-
-def _expanded_test_account_bundle() -> dict[str, Any]:
-    raw = os.environ.get("OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON") or os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}"
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def _has_local_preflight_credentials(slot: int, *, allow_base_fallback: bool) -> bool:
-    expanded = _expanded_test_account_bundle()
-    expanded_account = expanded.get(str(slot)) if isinstance(expanded.get(str(slot)), dict) else {}
-    email = os.environ.get(f"OPENMATES_TEST_ACCOUNT_{slot}_EMAIL") or str(expanded_account.get("email") or "")
-    password = os.environ.get(f"OPENMATES_TEST_ACCOUNT_{slot}_PASSWORD") or str(expanded_account.get("password") or "")
-    otp_key = os.environ.get(f"OPENMATES_TEST_ACCOUNT_{slot}_OTP_KEY") or str(expanded_account.get("otpKey") or "")
-    if allow_base_fallback:
-        email = email or os.environ.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
-        password = password or os.environ.get("OPENMATES_TEST_ACCOUNT_PASSWORD", "")
-        otp_key = otp_key or os.environ.get("OPENMATES_TEST_ACCOUNT_OTP_KEY", "")
-    return bool(email and password and otp_key)
-
-
-def _has_complete_local_preflight_credentials(accounts: list[int]) -> bool:
-    allow_base_fallback = len(accounts) == 1
-    return all(_has_local_preflight_credentials(account, allow_base_fallback=allow_base_fallback) for account in accounts)
-
-
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
@@ -1999,7 +1956,6 @@ class BatchRunner:
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
-        progress_callback: Optional[Callable[[SuiteResult], None]] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -2012,23 +1968,6 @@ class BatchRunner:
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
-        self.progress_callback = progress_callback
-
-    @staticmethod
-    def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
-        tests = [BatchRunner._spec_result_to_dict(r) for r in results]
-        has_failures = any(_is_problem_status(r.status) for r in results)
-        all_skipped = bool(results) and all(r.status == "skipped" for r in results)
-        return SuiteResult(
-            status="skipped" if all_skipped else "failed" if has_failures else "passed",
-            tests=tests,
-            duration_seconds=round(duration_seconds, 1),
-        )
-
-    def _emit_progress(self, all_results: list[SpecResult], suite_start: float) -> None:
-        if self.progress_callback is None:
-            return
-        self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -2067,13 +2006,18 @@ class BatchRunner:
                         name=spec, file=spec, status="not_started",
                         error=f"Skipped: fail-fast after batch {batch_idx + 1}",
                     ))
-                self._emit_progress(all_results, suite_start)
                 break
 
-            self._emit_progress(all_results, suite_start)
-
         duration = time.time() - suite_start
-        return self._suite_from_results(all_results, duration)
+        tests = [self._spec_result_to_dict(r) for r in all_results]
+        has_failures = any(_is_problem_status(r.status) for r in all_results)
+        all_skipped = bool(all_results) and all(r.status == "skipped" for r in all_results)
+
+        return SuiteResult(
+            status="skipped" if all_skipped else "failed" if has_failures else "passed",
+            tests=tests,
+            duration_seconds=round(duration, 1),
+        )
 
     def _run_batch(
         self,
@@ -2738,72 +2682,12 @@ class BatchRunner:
 
             if proof_timeline_path is not None:
                 timeline_payload = json.loads(proof_timeline_path.read_text(encoding="utf-8"))
-                contract_payload = timeline_payload.get("contract") if isinstance(timeline_payload.get("contract"), dict) else {}
-                proof_surface = str(contract_payload.get("surface") or "")
-
-                def attachment_bytes_by_name(name: str) -> bytes:
-                    matches = [item for item in proof_group if item.get("name") == name]
-                    if len(matches) != 1:
-                        raise RuntimeError(f"Spec proof attachment is missing or ambiguous: {name}")
-                    body = matches[0].get("body")
-                    if isinstance(body, str):
-                        return base64.b64decode(body, validate=True)
-                    attachment_path = matches[0].get("path")
-                    if isinstance(attachment_path, str):
-                        attachment_basename = Path(attachment_path).name
-                        sources = [path for path in artifact_files if path.name == attachment_basename]
-                        if len(sources) == 1:
-                            return sources[0].read_bytes()
-                    raise RuntimeError(f"Spec proof attachment has no content: {name}")
-
-                if proof_surface == "cli":
-                    video_matches = [item for item in proof_group if item.get("name") == "openmates-cli-real-terminal-video"]
-                    if len(video_matches) != 1 or not isinstance(video_matches[0].get("path"), str):
-                        raise RuntimeError("CLI proof timeline requires one named terminal video attachment")
-                    video_attachment_path = str(video_matches[0]["path"])
-                    video_attachment_suffix = video_attachment_path.split("test-results/", 1)[-1]
-                    terminal_video_file = next(
-                        (
-                            record.get("file")
-                            for record in video_records
-                            if record.get("source") == video_attachment_path
-                            or str(record.get("source") or "").endswith(video_attachment_suffix)
-                        ),
-                        None,
-                    )
-                    if not terminal_video_file:
-                        raise RuntimeError("CLI proof terminal video attachment was not copied into recordings")
-                    terminal_video = (dest / terminal_video_file).resolve()
-                    terminal_dir = terminal_video.parent
-                    transcript_path = terminal_dir / "transcript.txt"
-                    transcript_path.write_bytes(attachment_bytes_by_name("openmates-cli-real-terminal-transcript"))
-                    events_bytes = None
-                    try:
-                        events_bytes = attachment_bytes_by_name("openmates-cli-real-terminal-events")
-                    except RuntimeError:
-                        events_bytes = None
-                    events_path = terminal_dir / "events.jsonl"
-                    if events_bytes is not None:
-                        events_path.write_bytes(events_bytes)
-                    manifest_payload = json.loads(attachment_bytes_by_name("openmates-cli-real-terminal-manifest").decode("utf-8"))
-                    manifest_payload["video_path"] = str(terminal_video)
-                    manifest_payload["video_sha256"] = f"sha256:{hashlib.sha256(terminal_video.read_bytes()).hexdigest()}"
-                    manifest_payload["transcript_path"] = str(transcript_path.resolve())
-                    manifest_payload["transcript_sha256"] = f"sha256:{hashlib.sha256(transcript_path.read_bytes()).hexdigest()}"
-                    if events_bytes is not None:
-                        manifest_payload["events_path"] = str(events_path.resolve())
-                        manifest_payload["events_sha256"] = f"sha256:{hashlib.sha256(events_path.read_bytes()).hexdigest()}"
-                    (terminal_dir / "manifest.json").write_text(
-                        json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n",
-                        encoding="utf-8",
-                    )
-
                 checkpoint_frames = timeline_payload.get("checkpoint_frames")
-                if proof_surface != "cli" and (not isinstance(checkpoint_frames, list) or not checkpoint_frames):
+                if not isinstance(checkpoint_frames, list) or not checkpoint_frames:
                     raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
                 frames_dest = dest / "proof-frames"
                 frames_dest.mkdir(parents=True, exist_ok=True)
-                for frame_record in checkpoint_frames if isinstance(checkpoint_frames, list) else []:
+                for frame_record in checkpoint_frames:
                     if not isinstance(frame_record, dict):
                         raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
                     checkpoint = str(frame_record.get("checkpoint") or "")
@@ -2902,19 +2786,6 @@ class ResultAggregator:
     """Merges results from all suites into the standard last-run.json format."""
 
     @staticmethod
-    def to_dict(result: RunResult) -> dict:
-        return {
-            "run_id": result.run_id,
-            "git_sha": result.git_sha,
-            "git_branch": result.git_branch,
-            "flags": result.flags,
-            "duration_seconds": result.duration_seconds,
-            "summary": result.summary,
-            "suites": result.suites,
-            "environment": result.environment,
-        }
-
-    @staticmethod
     def build_run_result(
         suites: dict[str, SuiteResult],
         run_id: str,
@@ -2980,7 +2851,17 @@ class ResultAggregator:
     def save(result: RunResult) -> None:
         """Save results to test-results/."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        data = ResultAggregator.to_dict(result)
+
+        data = {
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "flags": result.flags,
+            "duration_seconds": result.duration_seconds,
+            "summary": result.summary,
+            "suites": result.suites,
+            "environment": result.environment,
+        }
 
         # Write timestamped run file
         ts = result.run_id.replace(":", "").replace("-", "")
@@ -2989,30 +2870,13 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
-        (RESULTS_DIR / "last-run-progress.json").unlink(missing_ok=True)
         record_flake_history(data)
         try:
-            source, workflow = _test_control_source_for_flags(result.flags)
-            _record_unified_test_state(data, source=source, workflow=workflow)
+            _record_unified_test_state(data)
         except Exception as exc:
             _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
-
-    @staticmethod
-    def save_progress(result: RunResult) -> None:
-        """Persist a partial run snapshot without replacing the final last-run file."""
-        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        data = ResultAggregator.to_dict(result)
-        progress_flags = dict(data.get("flags") or {})
-        progress_flags["in_progress"] = True
-        data["flags"] = progress_flags
-        _safe_write_json(RESULTS_DIR / "last-run-progress.json", data)
-        try:
-            source, workflow = _test_control_source_for_flags(progress_flags)
-            _record_unified_test_state(data, source=source, workflow=workflow)
-        except Exception as exc:
-            _log(f"Could not update unified test progress: {exc}", "WARN")
 
     @staticmethod
     def load_failed_specs() -> list[str]:
@@ -6362,8 +6226,6 @@ class TestOrchestrator:
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
         self.current_phase = "starting"
-        self._progress_suites: dict[str, SuiteResult] = {}
-        self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
 
@@ -6407,44 +6269,6 @@ class TestOrchestrator:
         if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
             self._daily_status_thread.join(timeout=35)
 
-    def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
-        flags = {
-            "suite": self.suite,
-            "daily": self.daily,
-            "only_failed": self.only_failed,
-            "fail_fast": self.fail_fast,
-            "use_mocks": self.use_mocks,
-            "record_live_fixtures": self.record_live_fixtures,
-        }
-        if in_progress:
-            flags["in_progress"] = True
-        if progress_phase:
-            flags["progress_phase"] = progress_phase
-        return flags
-
-    def _save_progress_snapshot(
-        self,
-        suites: dict[str, SuiteResult],
-        start_time: float,
-        phase: str,
-    ) -> None:
-        if self.dry_run or not suites:
-            return
-        result = ResultAggregator.build_run_result(
-            suites=suites,
-            run_id=self.run_id,
-            git_sha=self.git_sha,
-            git_branch=self.git_branch,
-            environment=self.environment,
-            duration=time.time() - start_time,
-            flags=self._result_flags(in_progress=True, progress_phase=phase),
-        )
-        ResultAggregator.save_progress(result)
-
-    def _save_playwright_progress_snapshot(self, playwright_result: SuiteResult) -> None:
-        progress_suites = {**self._progress_suites, "playwright": playwright_result}
-        self._save_progress_snapshot(progress_suites, self._progress_start_time, "Playwright")
-
     def run(self) -> int:
         """Execute the test run and always stop the daily status heartbeat."""
         try:
@@ -6481,8 +6305,6 @@ class TestOrchestrator:
         if self.daily:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
-        self._progress_suites = suites
-        self._progress_start_time = start_time
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -6501,34 +6323,36 @@ class TestOrchestrator:
         if not self.spec and self.suite in ("all", "vitest"):
             self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "vitest")
 
         if not self.spec and self.suite in ("all", "pytest"):
             self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "pytest")
 
         if not self.spec and self.suite in ("all", "cli"):
             self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
-            self._save_progress_snapshot(suites, start_time, "CLI integration")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
-            self._save_progress_snapshot(suites, start_time, "Playwright")
 
         # Run native Apple checks only for nightly cron or explicit --suite apple.
         if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
             self.current_phase = "Apple remote"
             suites["apple_remote"] = self._run_apple_remote_nightly()
-            self._save_progress_snapshot(suites, start_time, "Apple remote")
 
         # Aggregate results
         self.current_phase = "finalizing results"
         duration = time.time() - start_time
-        flags = self._result_flags()
+        flags = {
+            "suite": self.suite,
+            "daily": self.daily,
+            "only_failed": self.only_failed,
+            "fail_fast": self.fail_fast,
+            "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
+        }
 
         result = ResultAggregator.build_run_result(
             suites=suites,
@@ -6949,19 +6773,6 @@ class TestOrchestrator:
                 reason=None if synthetic_preflight_results else "no specs to run",
             )
 
-        if getattr(self, "spec", None) == ACCOUNT_PREFLIGHT_SPEC:
-            target_accounts = [self.account] if self.account is not None else list(range(1, MAX_ACCOUNTS + 1))
-            mode = _account_preflight_mode()
-            can_run_fast = mode in ACCOUNT_PREFLIGHT_API_MODES or (
-                mode == ACCOUNT_PREFLIGHT_AUTO_MODE and _has_complete_local_preflight_credentials(target_accounts)
-            )
-            invalid_without_browser = mode not in ACCOUNT_PREFLIGHT_BROWSER_MODES and mode not in ACCOUNT_PREFLIGHT_API_MODES and mode != ACCOUNT_PREFLIGHT_AUTO_MODE
-            if can_run_fast or invalid_without_browser:
-                return self._run_account_preflight(
-                    None,
-                    accounts=target_accounts,
-                )
-
         if self.environment == "development":
             deployment_ready, deployment_reason = _wait_for_vercel_deployment(self.git_sha, self.dot_env)
             if deployment_ready:
@@ -7091,7 +6902,6 @@ class TestOrchestrator:
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
-            progress_callback=self._save_playwright_progress_snapshot,
         )
         try:
             result = runner.run_all_batches()
@@ -7245,94 +7055,13 @@ class TestOrchestrator:
 
     def _run_account_preflight(
         self,
-        client: Optional[GitHubActionsClient],
+        client: GitHubActionsClient,
         accounts: Optional[list[int]] = None,
     ) -> SuiteResult:
         """Validate each configured persistent E2E account before normal specs."""
         started = time.time()
         target_accounts = accounts or list(range(1, MAX_ACCOUNTS + 1))
-        mode = _account_preflight_mode()
-        use_browser_preflight = mode in ACCOUNT_PREFLIGHT_BROWSER_MODES or (
-            mode == ACCOUNT_PREFLIGHT_AUTO_MODE and not _has_complete_local_preflight_credentials(target_accounts)
-        )
-        if use_browser_preflight:
-            if client is None:
-                client = GitHubActionsClient(
-                    git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
-                )
-            if mode == ACCOUNT_PREFLIGHT_AUTO_MODE:
-                _log("Account preflight auto mode: local credentials incomplete; using browser/GitHub preflight", "WARN")
-            results = self._run_browser_account_preflight_results(client, target_accounts)
-        elif mode in ACCOUNT_PREFLIGHT_API_MODES or mode == ACCOUNT_PREFLIGHT_AUTO_MODE:
-            results = self._run_api_account_preflight_results(target_accounts)
-        else:
-            detail = (
-                f"{ACCOUNT_PREFLIGHT_MODE_ENV}={mode!r} is invalid; "
-                f"use one of {', '.join(sorted(ACCOUNT_PREFLIGHT_API_MODES | ACCOUNT_PREFLIGHT_BROWSER_MODES | {ACCOUNT_PREFLIGHT_AUTO_MODE}))}"
-            )
-            return SuiteResult(
-                status="failed",
-                tests=[{
-                    "name": ACCOUNT_PREFLIGHT_SPEC,
-                    "file": "scripts/run_tests.py",
-                    "status": "failed",
-                    "duration_seconds": 0,
-                    "error": detail,
-                }],
-                reason=detail,
-            )
-
-        if self._repair_missing_preflight_account_ids(results):
-            _log("Account preflight: rerunning repaired account slot(s)")
-            results = (
-                self._run_browser_account_preflight_results(client, target_accounts)
-                if mode in ACCOUNT_PREFLIGHT_BROWSER_MODES
-                else self._run_api_account_preflight_results(target_accounts)
-            )
-
-        failures = [r for r in results if r.status != "passed"]
-        if failures:
-            failed_slots = ", ".join(str(r.account) for r in failures)
-            _log(f"Account preflight failed for slot(s): {failed_slots}", "ERROR")
-        else:
-            failed_slots = ""
-            _log("Account preflight passed", "OK")
-
-        credit_guard_error = self._ensure_preflight_account_credits(results)
-        if credit_guard_error:
-            return SuiteResult(
-                status="failed",
-                tests=[BatchRunner._spec_result_to_dict(r) for r in results],
-                duration_seconds=round(time.time() - started, 1),
-                reason=credit_guard_error,
-            )
-
-        if getattr(self, "daily", False):
-            cleanup_error = self._cleanup_stale_signup_accounts(results)
-            if cleanup_error:
-                _log(f"E2E account cleanup failed: {cleanup_error}", "ERROR")
-                results.append(SpecResult(
-                    name="dev-stale-signup-cleanup",
-                    file="scripts/cleanup_dev_signup_accounts.py",
-                    status="failed",
-                    error=cleanup_error,
-                ))
-                failures.append(results[-1])
-
-        return SuiteResult(
-            status="failed" if failures else "passed",
-            tests=[BatchRunner._spec_result_to_dict(r) for r in results],
-            duration_seconds=round(time.time() - started, 1),
-            reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
-        )
-
-    def _run_browser_account_preflight_results(
-        self,
-        client: GitHubActionsClient,
-        target_accounts: list[int],
-    ) -> list[SpecResult]:
-        """Run the legacy browser-based account preflight through Playwright."""
-        _log(f"Browser account preflight: {len(target_accounts)} account slot(s)")
+        _log(f"Playwright account preflight: {len(target_accounts)} account slot(s)")
         runner = BatchRunner(
             client=client,
             specs=[ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
@@ -7365,119 +7094,48 @@ class TestOrchestrator:
                 )
             results = [results_by_account.get(account) for account in target_accounts]
             results = [result for result in results if result is not None]
-        return results
-
-    def _run_api_account_preflight_results(self, target_accounts: list[int]) -> list[SpecResult]:
-        """Run fast auth API account-health checks without browser dispatch."""
-        _log(f"API account preflight: {len(target_accounts)} account slot(s)")
-        results = self._run_api_account_preflight_once(target_accounts)
-        failed_accounts = [result.account for result in results if result.status != "passed" and result.account]
-        if failed_accounts:
-            _log(
-                "API account preflight: retrying failed slot(s): "
-                + ", ".join(str(account) for account in failed_accounts),
-                "WARN",
+        if self._repair_missing_preflight_account_ids(results):
+            _log("Playwright account preflight: rerunning repaired account slot(s)")
+            results = runner._run_batch(
+                [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+                0,
+                account_overrides=target_accounts,
             )
-            retry_results = self._run_api_account_preflight_once(failed_accounts)
-            results_by_account = {result.account: result for result in results if result.account}
-            results_by_account.update((result.account, result) for result in retry_results if result.account)
-            results = [results_by_account.get(account) for account in target_accounts]
-            results = [result for result in results if result is not None]
-        return results
+        failures = [r for r in results if r.status != "passed"]
+        if failures:
+            failed_slots = ", ".join(str(r.account) for r in failures)
+            _log(f"Account preflight failed for slot(s): {failed_slots}", "ERROR")
+        else:
+            failed_slots = ""
+            _log("Account preflight passed", "OK")
 
-    @staticmethod
-    def _run_api_account_preflight_once(target_accounts: list[int]) -> list[SpecResult]:
-        script_path = PROJECT_ROOT / ACCOUNT_PREFLIGHT_API_SCRIPT
-        if not script_path.is_file():
-            return [SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
+        credit_guard_error = self._ensure_preflight_account_credits(results)
+        if credit_guard_error:
+            return SuiteResult(
                 status="failed",
-                error=f"account preflight script is missing: {ACCOUNT_PREFLIGHT_API_SCRIPT}",
-            )]
-        started = time.time()
-        try:
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(script_path),
-                    "--json",
-                    "--slots",
-                    ",".join(str(account) for account in target_accounts),
-                ],
-                cwd=str(PROJECT_ROOT),
-                capture_output=True,
-                text=True,
-                timeout=max(90, 20 * len(target_accounts)),
+                tests=[runner._spec_result_to_dict(r) for r in results],
+                duration_seconds=round(time.time() - started, 1),
+                reason=credit_guard_error,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            return [SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="failed",
-                duration_seconds=round(time.time() - started, 3),
-                error=f"API account preflight execution failed: {exc}",
-            )]
 
-        try:
-            payload = json.loads(proc.stdout or "{}")
-        except json.JSONDecodeError:
-            detail = (proc.stderr or proc.stdout or "account preflight returned no JSON").strip()[:MAX_ERROR_SNIPPET]
-            return [SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="failed",
-                duration_seconds=round(time.time() - started, 3),
-                error=detail,
-            )]
+        if getattr(self, "daily", False):
+            cleanup_error = self._cleanup_stale_signup_accounts(results)
+            if cleanup_error:
+                _log(f"E2E account cleanup failed: {cleanup_error}", "ERROR")
+                results.append(SpecResult(
+                    name="dev-stale-signup-cleanup",
+                    file="scripts/cleanup_dev_signup_accounts.py",
+                    status="failed",
+                    error=cleanup_error,
+                ))
+                failures.append(results[-1])
 
-        raw_results = payload.get("results") if isinstance(payload, dict) else None
-        if not isinstance(raw_results, list):
-            detail = str(payload.get("error") if isinstance(payload, dict) else "account preflight returned no results")[:MAX_ERROR_SNIPPET]
-            return [SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="failed",
-                duration_seconds=round(time.time() - started, 3),
-                error=detail,
-            )]
-
-        results: list[SpecResult] = []
-        for item in raw_results:
-            if not isinstance(item, dict):
-                continue
-            debug_parts = []
-            if item.get("account_id"):
-                debug_parts.append(f"account_id={item['account_id']}")
-            if item.get("credits") is not None:
-                debug_parts.append(f"credits={item['credits']}")
-            results.append(SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status=str(item.get("status") or "failed"),
-                duration_seconds=float(item.get("duration_seconds") or 0),
-                error=str(item.get("error") or "") or None,
-                account=int(item["slot"]) if isinstance(item.get("slot"), int) else None,
-                account_email=str(item.get("email") or "") or None,
-                debug_output_summary=" ".join(debug_parts) or None,
-            ))
-        if not results:
-            detail = (proc.stderr or "account preflight returned empty results").strip()[:MAX_ERROR_SNIPPET]
-            return [SpecResult(
-                name=ACCOUNT_PREFLIGHT_SPEC,
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="failed",
-                duration_seconds=round(time.time() - started, 3),
-                error=detail,
-            )]
-        if proc.returncode != 0 and all(result.status == "passed" for result in results):
-            results.append(SpecResult(
-                name="api-account-preflight-exit",
-                file=ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="failed",
-                error=(proc.stderr or f"script exited {proc.returncode}").strip()[:MAX_ERROR_SNIPPET],
-            ))
-        return results
+        return SuiteResult(
+            status="failed" if failures else "passed",
+            tests=[runner._spec_result_to_dict(r) for r in results],
+            duration_seconds=round(time.time() - started, 1),
+            reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
+        )
 
     def _cleanup_stale_signup_accounts(self, results: list[SpecResult]) -> Optional[str]:
         """Delete only old incomplete zero-content dev signups after protecting all slots."""

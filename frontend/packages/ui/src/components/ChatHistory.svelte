@@ -2755,14 +2755,6 @@
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
-<div 
-    class="chat-history-container"
-    data-testid="chat-history-container"
-    class:empty={displayMessages.length === 0}
-    class:is-at-top={isAtTop}
-    bind:this={container}
-    onscroll={handleScroll}
->
     {#if parentChatId}
         <button
             type="button"
@@ -2783,6 +2775,14 @@
             <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
         </button>
     {/if}
+<div 
+    class="chat-history-container"
+    data-testid="chat-history-container"
+    class:empty={displayMessages.length === 0}
+    class:is-at-top={isAtTop}
+    bind:this={container}
+    onscroll={handleScroll}
+>
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
