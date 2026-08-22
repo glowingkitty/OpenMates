@@ -13421,7 +13421,7 @@ assertions:
     direct_tests:
     - &id1538
       path: backend/tests/test_cli_object_slugs.py
-      line: 243
+      line: 250
       name: test_workflow_service_persists_and_returns_encrypted_slug_metadata
       surface: rest_api
     - &id1550
@@ -13927,37 +13927,37 @@ assertions:
       surface: rest_api
     - &id1586
       path: backend/tests/test_cli_object_slugs.py
-      line: 101
+      line: 108
       name: test_create_helpers_store_ciphertext_and_hash_without_plaintext_slug
       surface: rest_api
     - &id1587
       path: backend/tests/test_cli_object_slugs.py
-      line: 122
+      line: 129
       name: test_duplicate_task_slug_lookup_hash_is_rejected_in_personal_scope
       surface: rest_api
     - &id1588
       path: backend/tests/test_cli_object_slugs.py
-      line: 141
+      line: 148
       name: test_duplicate_project_slug_lookup_hash_is_rejected_in_team_scope
       surface: rest_api
     - &id1589
       path: backend/tests/test_cli_object_slugs.py
-      line: 173
+      line: 180
       name: test_slugged_workspace_move_requires_team_scoped_slug_metadata
       surface: rest_api
     - &id1590
       path: backend/tests/test_cli_object_slugs.py
-      line: 230
+      line: 237
       name: test_plaintext_slug_fields_are_rejected_before_directus_write
       surface: rest_api
     - &id1591
       path: backend/tests/test_cli_object_slugs.py
-      line: 243
+      line: 250
       name: test_workflow_service_persists_and_returns_encrypted_slug_metadata
       surface: rest_api
     - &id1592
       path: backend/tests/test_cli_object_slugs.py
-      line: 267
+      line: 274
       name: test_chat_creation_persists_encrypted_slug_metadata_without_plaintext
       surface: rest_api
     - &id1593
@@ -14124,32 +14124,32 @@ assertions:
       surface: rest_api
     - &id1608
       path: backend/tests/test_cli_object_slugs.py
-      line: 101
+      line: 108
       name: test_create_helpers_store_ciphertext_and_hash_without_plaintext_slug
       surface: rest_api
     - &id1609
       path: backend/tests/test_cli_object_slugs.py
-      line: 122
+      line: 129
       name: test_duplicate_task_slug_lookup_hash_is_rejected_in_personal_scope
       surface: rest_api
     - &id1610
       path: backend/tests/test_cli_object_slugs.py
-      line: 141
+      line: 148
       name: test_duplicate_project_slug_lookup_hash_is_rejected_in_team_scope
       surface: rest_api
     - &id1611
       path: backend/tests/test_cli_object_slugs.py
-      line: 173
+      line: 180
       name: test_slugged_workspace_move_requires_team_scoped_slug_metadata
       surface: rest_api
     - &id1612
       path: backend/tests/test_cli_object_slugs.py
-      line: 230
+      line: 237
       name: test_plaintext_slug_fields_are_rejected_before_directus_write
       surface: rest_api
     - &id1613
       path: backend/tests/test_cli_object_slugs.py
-      line: 267
+      line: 274
       name: test_chat_creation_persists_encrypted_slug_metadata_without_plaintext
       surface: rest_api
     - &id1614
