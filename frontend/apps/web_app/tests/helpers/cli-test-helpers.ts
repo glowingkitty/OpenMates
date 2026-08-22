@@ -11,6 +11,7 @@
  *
  * Architecture context: docs/architecture/openmates-cli.md
  */
+export {};
 
 const { spawn } = require('child_process');
 const path = require('path');
@@ -21,19 +22,6 @@ let cliRecordingCreated = false;
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../../packages/openmates-cli/dist/cli.js');
-
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
-function createOpenmatesCliRecordingBin(outputDir: string): string {
-	const binDir = path.join(outputDir, 'bin');
-	fs.mkdirSync(binDir, {recursive: true, mode: 0o700});
-	const openmatesBin = path.join(binDir, 'openmates');
-	fs.writeFileSync(openmatesBin, `#!/usr/bin/env sh\nexec node ${shellQuote(CLI_DIST)} "$@"\n`, {mode: 0o700});
-	fs.chmodSync(openmatesBin, 0o700);
-	return binDir;
-}
 
 /**
  * Derive the API URL from the Playwright base URL.
@@ -60,27 +48,29 @@ async function runCli(
 	apiUrl: string,
 	args: string[],
 	timeoutMs = 30_000,
-	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; recording?: Record<string, string> }> {
+	options: { useApiKey?: boolean; record?: boolean; env?: Record<string, string | undefined> } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }> {
 	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
-	const shouldRecord = (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1') && !cliRecordingCreated;
+	const shouldRecord = options.record !== false
+		&& (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1')
+		&& !cliRecordingCreated;
 	if (shouldRecord) {
 		cliRecordingCreated = true;
+		const startedAt = performance.now();
 		const specSlug = String(options.env?.OPENMATES_E2E_SPEC || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
 			.replace(/\.spec\.ts$/, '')
 			.replace(/[^A-Za-z0-9._-]+/g, '-');
 		const outputDir = path.resolve(process.cwd(), 'test-results', 'cli-recordings', specSlug);
 		fs.rmSync(outputDir, {recursive: true, force: true});
-		const recordingBinDir = createOpenmatesCliRecordingBin(outputDir);
 		const recorderArgs = [
 			path.join(REPOSITORY_ROOT, 'scripts/cli_video_capture.py'),
 			'--output-dir', outputDir,
 			'--target-environment', apiUrl,
 			'--display-number', String(100 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1')),
 			'--timeout-seconds', String(Math.max(30, Math.ceil(timeoutMs / 1000))),
-			'--', 'openmates', ...args
+			'--', 'node', CLI_DIST, ...args
 		];
 		return new Promise((resolve) => {
 			const child = spawn('python3', recorderArgs, {
@@ -92,7 +82,6 @@ async function runCli(
 					OPENMATES_API_URL: apiUrl,
 					OPENMATES_CLI_HTTP_TIMEOUT_MS: process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS ?? String(timeoutMs),
 					NODE_PATH: path.join(cliDir, 'node_modules'),
-					PATH: `${recordingBinDir}${path.delimiter}${process.env.PATH || ''}`,
 					TERM: 'xterm-256color'
 				},
 				stdio: ['ignore', 'pipe', 'pipe']
@@ -113,6 +102,7 @@ async function runCli(
 						code: manifest.exit_status ?? code,
 						stdout,
 						stderr: err.join(''),
+						durationMs: performance.now() - startedAt,
 						recording: {
 							outputDir,
 							videoPath: String(manifest.video_path || path.join(outputDir, 'raw-terminal.mp4')),
@@ -122,13 +112,14 @@ async function runCli(
 						}
 					});
 				} catch (error: any) {
-					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`});
+					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`, durationMs: performance.now() - startedAt});
 				}
 			});
 		});
 	}
 
 	return new Promise((resolve) => {
+		const startedAt = performance.now();
 		// cli-e2e-recording: shared-recorder-fallback
 		const child = spawn('node', [CLI_DIST, ...allArgs], {
 			env: {
@@ -146,11 +137,11 @@ async function runCli(
 		child.stderr.on('data', (d: Buffer) => err.push(d.toString()));
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
-			resolve({ code: null, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code: null, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		}, timeoutMs);
 		child.on('close', (code: number | null) => {
 			clearTimeout(timeout);
-			resolve({ code, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		});
 	});
 }
@@ -162,7 +153,7 @@ async function runCliProof(
 	definition: any,
 	timeoutMs = 30_000,
 	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
-): Promise<{ result: { code: number | null; stdout: string; stderr: string; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
+): Promise<{ result: { code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
 	const { createVideoProofRuntime } = require('./video-proof.ts');
 	const specName = path.basename(testInfo.file || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e.spec.ts');
 	const proof = createVideoProofRuntime(definition, {
@@ -227,7 +218,6 @@ function expectCliSuccess(
 
 module.exports = {
 	CLI_DIST,
-	createOpenmatesCliRecordingBin,
 	deriveApiUrl,
 	runCli,
 	runCliProof,
