@@ -189,8 +189,12 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	// with an "Add Payment Method" button. If there are none, the payment form shows
 	// directly. Either path is valid — click the button when present, otherwise skip.
 	const addPaymentMethodBtn = page.getByTestId('add-payment-method');
-	const hasAddBtn = await addPaymentMethodBtn.isVisible({ timeout: 15000 }).catch(() => false);
+	const hasAddBtn = await addPaymentMethodBtn
+		.waitFor({ state: 'attached', timeout: 15000 })
+		.then(() => true)
+		.catch(() => false);
 	if (hasAddBtn) {
+		await addPaymentMethodBtn.scrollIntoViewIfNeeded();
 		await addPaymentMethodBtn.click();
 		log('Clicked Add Payment Method button.');
 	} else {
