@@ -31,6 +31,7 @@ const {
 	verifyEmbedPreviewPage,
 	dismissVisibleNotifications
 } = require('./helpers/embed-test-helpers');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
@@ -68,6 +69,73 @@ const EVENT_SEARCH_MAX_DURATION_MS = 10_000;
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const SHOULD_CAPTURE_MOBILE_RELOAD = !IS_PROOF_CAPTURE || PROOF_VIDEO_WIDTH === 390;
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
+	id: 'events-search-map-response',
+	title: 'Events search map response proof',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'request-visible',
+			text: 'OpenMates starts a new chat with a request to search Berlin tech events across two weekends.',
+			checkpoint: 'request-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'events-embed-visible',
+			text: 'The assistant runs the Events search skill and streams event result cards into the response.',
+			checkpoint: 'events-embed-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'map-view-populated',
+			text: 'After the response finishes, the grouped map view shows the event results as cards with a map.',
+			checkpoint: 'map-view-populated',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'reload-preserves-results',
+			text: 'Reloading the chat preserves the populated map-backed results.',
+			checkpoint: 'reload-preserves-results',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'request-visible',
+			checkpoint: 'request-visible',
+			visual: 'The user request for two Berlin event searches is visible and contains no raw test marker.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'events-embed-visible',
+			checkpoint: 'events-embed-visible',
+			visual: 'At least one Events search embed card appears in the assistant response.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'map-view-populated',
+			checkpoint: 'map-view-populated',
+			visual: 'The final assistant response contains a populated map view with result cards and no Loading preview text.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'reload-preserves-results',
+			checkpoint: 'reload-preserves-results',
+			visual: 'After reload, the populated map view and result cards remain visible.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'phone-layout-visible',
+			checkpoint: 'phone-layout-visible',
+			visual: 'The phone layout still shows the same populated result section.',
+			devices: ['web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -174,7 +242,7 @@ test.describe('App: Events / Skill: search', () => {
 
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
 	// contract-test: direct surface=gui.web assertions=events-search.surface-parity
-	test('Phase 4: Web chat triggers events search with embed', async ({ page }: { page: any }) => {
+	test('Phase 4: Web chat triggers events search with embed', async ({ page }: { page: any }, testInfo: any) => {
 		test.slow();
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -182,6 +250,13 @@ test.describe('App: Events / Skill: search', () => {
 		const logCheckpoint = createSignupLogger('skill-events-search');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
+		const proof = IS_PROOF_CAPTURE
+			? createVideoProofRuntime(EVENTS_SEARCH_PROOF_CONTRACT, {
+				device: PROOF_DEVICE,
+				attach: testInfo.attach.bind(testInfo),
+				captureFrame: () => page.screenshot({ type: 'png' })
+			})
+			: null;
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
@@ -189,6 +264,14 @@ test.describe('App: Events / Skill: search', () => {
 		const message = 'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.';
 		const testMockMarker = withLiveMockMarker('', 'events_search_web').trim();
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search', { testMockMarker });
+		if (proof) {
+			await proof.assert('request-visible', async () => {
+				const userMessage = page.getByTestId('message-user').last();
+				await expect(userMessage).toContainText('Use events.search to make two separate searches for tech events in Berlin');
+				await expect(userMessage).not.toContainText('TEST_LIVE_RECORD');
+			});
+			await proof.checkpoint('request-visible');
+		}
 
 		logCheckpoint('Waiting for events search embeds to appear during streaming...');
 		const streamingEmbeds = page.locator(EVENT_SEARCH_CARD_SELECTOR);
@@ -206,6 +289,12 @@ test.describe('App: Events / Skill: search', () => {
 			.filter({ has: embed });
 		await expect(streamingMessageContent).toHaveAttribute('data-streaming', 'true');
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
+		if (proof) {
+			await proof.assert('events-embed-visible', async () => {
+				await expect(embed).toBeVisible();
+			});
+			await proof.checkpoint('events-embed-visible');
+		}
 
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
@@ -223,6 +312,14 @@ test.describe('App: Events / Skill: search', () => {
 		).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
 		await expect(finalGroupedView).toBeVisible();
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		if (proof) {
+			await proof.assert('map-view-populated', async () => {
+				await expect(finalGroupedView).toBeVisible();
+				await expect(finalGroupedCards.first()).toBeVisible();
+				await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+			});
+			await proof.checkpoint('map-view-populated');
+		}
 
 		const stabilityProbe = await page.evaluate(() => {
 			const value = crypto.randomUUID();
@@ -266,6 +363,13 @@ test.describe('App: Events / Skill: search', () => {
 		});
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
+		if (proof) {
+			await proof.assert('reload-preserves-results', async () => {
+				await expect(reloadedGroupedView).toBeVisible();
+				await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+			});
+			await proof.checkpoint('reload-preserves-results');
+		}
 		if (SHOULD_CAPTURE_MOBILE_RELOAD) {
 			await page.setViewportSize({ width: 390, height: 844 });
 			await expect(reloadedGroupedView).toBeVisible();
@@ -274,11 +378,21 @@ test.describe('App: Events / Skill: search', () => {
 				element.scrollIntoView({ block: 'start' });
 			});
 			await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
+			if (proof) {
+				await proof.assert('phone-layout-visible', async () => {
+					await expect(reloadedGroupedView).toBeVisible();
+					await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+				});
+				await proof.checkpoint('phone-layout-visible');
+			}
 		}
 		if (!IS_PROOF_CAPTURE) {
 			await page.setViewportSize({ width: 1280, height: 720 });
 		}
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
+		if (proof) {
+			await proof.attach();
+		}
 
 		if (!IS_PROOF_CAPTURE) {
 			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
