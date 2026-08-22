@@ -178,7 +178,6 @@ def candidate_cte(
       and coalesce(u.signup_completed, false) = false
       and u.last_access is not null
       and u.last_access < now() - interval '{int(older_than_days)} days'
-      and u.username ~ {sql_literal(AUTO_SAFE_USERNAME_REGEX)}
 """
     return f"""
 with known(label, hashed_email) as ({known_values_sql(known_hashes)}),
@@ -186,7 +185,6 @@ user_base as (
     select
         u.id,
         u.email,
-        u.username,
         u.hashed_email,
         u.is_admin,
         u.signup_completed,
@@ -278,25 +276,6 @@ limit {int(limit)};
 """
 
 
-def candidate_is_still_eligible_sql(
-    known_hashes: Sequence[KnownAccountHash],
-    user_id: str,
-    *,
-    auto_safe: bool = True,
-    older_than_days: int = DEFAULT_AUTO_SAFE_AGE_DAYS,
-) -> str:
-    return candidate_cte(
-        known_hashes,
-        auto_safe=auto_safe,
-        older_than_days=older_than_days,
-    ) + f"""
-select id
-from candidates
-where id = {sql_literal(user_id)}
-limit 1;
-"""
-
-
 def sample_sql(
     known_hashes: Sequence[KnownAccountHash],
     limit: int = 20,
@@ -359,24 +338,6 @@ def get_candidate_ids(
     return [line.strip() for line in output.splitlines() if line.strip() and line.strip() != "id"]
 
 
-def candidate_is_still_eligible(
-    known_hashes: Sequence[KnownAccountHash],
-    user_id: str,
-    *,
-    auto_safe: bool,
-    older_than_days: int,
-) -> bool:
-    output = run_psql(
-        "\\t on\n" + candidate_is_still_eligible_sql(
-            known_hashes,
-            user_id,
-            auto_safe=auto_safe,
-            older_than_days=older_than_days,
-        )
-    )
-    return user_id in {line.strip() for line in output.splitlines()}
-
-
 def get_server_environment() -> str:
     result = _run([
         "docker",
@@ -391,36 +352,118 @@ def get_server_environment() -> str:
     return result.stdout.strip().lower()
 
 
-def delete_with_product_path(user_ids: Sequence[str]) -> None:
+def delete_with_product_path(
+    user_ids: Sequence[str],
+    *,
+    known_hashes: Sequence[KnownAccountHash],
+    auto_safe: bool,
+    older_than_days: int,
+) -> None:
     code = r'''
 import asyncio
+import datetime
+import hashlib
 import json
 import logging
+import re
 import sys
 import uuid
 
 logging.disable(logging.CRITICAL)
 
 from backend.core.api.app.tasks.user_cache_tasks import _async_delete_user_account
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
+
+
+async def auto_safe_eligible(directus, encryption, user_id, protected_hashes, username_regex, older_than_days):
+    user = await directus.get_user_fields_direct(user_id, [
+        "id", "is_admin", "signup_completed", "last_access", "hashed_email",
+        "encrypted_username", "vault_key_id",
+    ])
+    if not user or user.get("is_admin") or user.get("signup_completed"):
+        return False
+    if user.get("hashed_email") in protected_hashes:
+        return False
+
+    last_access_raw = user.get("last_access")
+    try:
+        last_access = datetime.datetime.fromisoformat(str(last_access_raw).replace("Z", "+00:00"))
+        if last_access.tzinfo is None:
+            last_access = last_access.replace(tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=older_than_days)
+    if last_access >= cutoff:
+        return False
+
+    encrypted_username = user.get("encrypted_username")
+    vault_key_id = user.get("vault_key_id")
+    if not encrypted_username or not vault_key_id:
+        return False
+    try:
+        username = await encryption.decrypt_with_user_key(encrypted_username, vault_key_id)
+    except Exception:
+        return False
+    if not username or re.fullmatch(username_regex, username) is None:
+        return False
+
+    user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    for collection in ("chats", "messages", "embeds"):
+        rows = await directus.get_items(
+            collection,
+            params={
+                "fields": "id",
+                "filter": {"hashed_user_id": {"_eq": user_hash}},
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        if rows:
+            return False
+    return True
 
 
 async def main() -> int:
-    user_ids = json.load(sys.stdin)
+    payload = json.load(sys.stdin)
+    user_ids = payload["user_ids"]
+    auto_safe = bool(payload["auto_safe"])
     failures = 0
-    for user_id in user_ids:
-        task_id = f"dev-signup-cleanup-{uuid.uuid4()}"
-        ok = await _async_delete_user_account(
-            user_id=user_id,
-            deletion_type="dev_stale_signup_cleanup",
-            reason="Remove zero-content stale dev signup account from SIGNUP_LIMIT count",
-            ip_address=None,
-            device_fingerprint=None,
-            refund_invoices=False,
-            task_id=task_id,
-        )
-        print(json.dumps({"user_prefix": user_id[:8], "success": bool(ok)}), flush=True)
-        if not ok:
-            failures += 1
+    skipped = 0
+    cache = CacheService()
+    encryption = EncryptionService()
+    directus = DirectusService(cache_service=cache, encryption_service=encryption)
+    try:
+        for user_id in user_ids:
+            if auto_safe and not await auto_safe_eligible(
+                directus,
+                encryption,
+                user_id,
+                set(payload["protected_hashes"]),
+                payload["username_regex"],
+                int(payload["older_than_days"]),
+            ):
+                skipped += 1
+                print(json.dumps({"user_prefix": user_id[:8], "success": False, "skipped": True}), flush=True)
+                continue
+            task_id = f"dev-signup-cleanup-{uuid.uuid4()}"
+            ok = await _async_delete_user_account(
+                user_id=user_id,
+                deletion_type="dev_stale_signup_cleanup",
+                reason="Remove zero-content stale dev signup account from SIGNUP_LIMIT count",
+                ip_address=None,
+                device_fingerprint=None,
+                refund_invoices=False,
+                task_id=task_id,
+            )
+            print(json.dumps({"user_prefix": user_id[:8], "success": bool(ok), "skipped": False}), flush=True)
+            if not ok:
+                failures += 1
+    finally:
+        await directus.close()
+        await cache.close()
+    print(json.dumps({"deleted_or_attempted": len(user_ids) - skipped, "skipped": skipped}), flush=True)
     return 1 if failures else 0
 
 
@@ -428,7 +471,13 @@ raise SystemExit(asyncio.run(main()))
 '''
     result = _run(
         ["docker", "exec", "-i", API_CONTAINER, "python", "-c", code],
-        input_text=json.dumps(list(user_ids)),
+        input_text=json.dumps({
+            "user_ids": list(user_ids),
+            "protected_hashes": [account.hashed_email for account in known_hashes],
+            "auto_safe": auto_safe,
+            "older_than_days": older_than_days,
+            "username_regex": AUTO_SAFE_USERNAME_REGEX,
+        }),
     )
     progress_lines = [
         line for line in result.stdout.splitlines()
@@ -560,21 +609,13 @@ def main(argv: Iterable[str] = sys.argv[1:]) -> int:
         return 0
 
     print(f"\nDeleting {len(candidate_ids)} zero-content stale dev signup account(s)...")
-    deleted = 0
-    skipped = 0
-    for user_id in candidate_ids:
-        if not candidate_is_still_eligible(
-            known_hashes,
-            user_id,
-            auto_safe=args.auto_safe,
-            older_than_days=args.older_than_days,
-        ):
-            skipped += 1
-            continue
-        delete_with_product_path([user_id])
-        deleted += 1
+    delete_with_product_path(
+        candidate_ids,
+        known_hashes=known_hashes,
+        auto_safe=args.auto_safe,
+        older_than_days=args.older_than_days,
+    )
     clear_signup_requirement_cache()
-    print(f"Deleted {deleted} account(s); skipped {skipped} account(s) after revalidation.")
     print("Cleared require_invite_code cache.")
     return 0
 

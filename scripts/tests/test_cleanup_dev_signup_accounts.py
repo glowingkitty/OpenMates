@@ -13,7 +13,6 @@ import pytest
 from scripts import cleanup_dev_signup_accounts as cleanup
 from scripts.cleanup_dev_signup_accounts import (
     KnownAccountHash,
-    candidate_is_still_eligible_sql,
     candidate_cte,
     configured_account_hashes_from_payload,
     is_auto_safe_username,
@@ -67,19 +66,6 @@ def test_auto_safe_cleanup_only_selects_old_incomplete_accounts() -> None:
 
     assert "coalesce(u.signup_completed, false) = false" in sql
     assert "u.last_access < now() - interval '7 days'" in sql
-    assert "u.username ~" in sql
-    assert "[0-5][0-9][0-5][0-9][a-z0-9]{3})$" in sql
-
-
-def test_auto_safe_cleanup_revalidates_one_candidate_before_deletion() -> None:
-    sql = candidate_is_still_eligible_sql(
-        [KnownAccountHash(label="1", hashed_email="hash")],
-        "00000000-0000-0000-0000-000000000001",
-        older_than_days=7,
-    )
-
-    assert "from candidates" in sql
-    assert "where id = '00000000-0000-0000-0000-000000000001'" in sql
 
 
 def test_auto_safe_cleanup_refuses_non_development_environment(monkeypatch) -> None:
