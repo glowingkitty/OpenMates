@@ -767,8 +767,32 @@ def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) ->
 
     with pytest.raises(module.DemonstrationError, match="0.75"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.5)
+    with pytest.raises(module.DemonstrationError, match="1.0"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=1.25)
     with pytest.raises(module.DemonstrationError, match="35 seconds"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.75, hold_last_frame_seconds=30)
+
+
+def test_spec_timeline_render_uses_checkpoint_frame_holds_without_speedup(tmp_path: Path) -> None:
+    module = load_module()
+    frame = tmp_path / "checkpoint.png"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844", "-frames:v", "1", str(frame)],
+        check=True,
+        capture_output=True,
+    )
+    output = tmp_path / "demo.mp4"
+
+    metadata = module.render_spec_timeline_video(
+        {"checkpoint_frames": [{"path": str(frame), "sha256": module.sha256_file(frame)}]},
+        output,
+        caption_text="The screen shows the first visible action. The selected result remains visible for review. The final screen confirms the expected state.",
+    )
+
+    assert metadata["rendered_from"] == "spec_timeline_checkpoint_frames"
+    assert metadata["checkpoint_frame_count"] == 1
+    assert output.is_file()
+    assert module.video_metadata(output)["duration_seconds"] <= module.MAX_PROOF_OUTPUT_SECONDS
 
 
 def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:

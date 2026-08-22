@@ -148,6 +148,7 @@ BLACK_BAR_MAX_EDGE_FRACTION = 0.25
 MIN_TUTORIAL_NARRATION_SENTENCES = 3
 MIN_TUTORIAL_NARRATION_WORDS = 24
 MIN_PROOF_PLAYBACK_RATE = 0.75
+MAX_PROOF_PLAYBACK_RATE = 1.0
 MAX_PROOF_OUTPUT_SECONDS = 35.0
 GENERIC_NARRATION_RE = re.compile(
     r"\b(?:it works|works correctly|feature works|successfully demonstrates|as you can see|proof video|demo video)\b",
@@ -636,8 +637,8 @@ def render_clean_video(
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
         raise DemonstrationError("Proof output must not replace the raw recording")
-    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
-        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
+        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     if demo_audio_path is not None and audio_path is None:
@@ -705,6 +706,76 @@ def render_clean_video(
     )
     if result.returncode != 0:
         raise DemonstrationError(f"FFmpeg clean render failed: {result.stderr.strip()[-1000:]}")
+
+
+def render_spec_timeline_video(
+    spec_timeline: dict[str, Any],
+    output_path: Path,
+    *,
+    caption_text: str,
+) -> dict[str, Any]:
+    """Render proof-owned checkpoint frames with holds instead of speeding up source video."""
+
+    checkpoint_frames = [item for item in spec_timeline.get("checkpoint_frames", []) if isinstance(item, dict)]
+    frame_paths: list[Path] = []
+    for item in checkpoint_frames:
+        frame_path = Path(str(item.get("path") or ""))
+        if not frame_path.is_file():
+            continue
+        expected_hash = str(item.get("sha256") or "")
+        if expected_hash and sha256_file(frame_path) != expected_hash:
+            raise DemonstrationError(f"Spec-owned checkpoint frame hash mismatch: {frame_path}")
+        frame_paths.append(frame_path)
+    if not frame_paths:
+        raise DemonstrationError("Spec-owned proof timeline has no persisted checkpoint frames")
+    words = max(1, len(re.findall(r"\b\w+\b", caption_text)))
+    duration = min(MAX_PROOF_OUTPUT_SECONDS, max(12.0, words / 2.5, len(frame_paths) * 3.0))
+    hold_seconds = round(duration / len(frame_paths), MEDIA_TIMESTAMP_DECIMALS)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    concat_path = output_path.with_suffix(".concat.txt")
+    lines: list[str] = []
+    for frame_path in frame_paths:
+        lines.append(f"file '{frame_path.resolve().as_posix()}'")
+        lines.append(f"duration {hold_seconds:g}")
+    lines.append(f"file '{frame_paths[-1].resolve().as_posix()}'")
+    _write_private(concat_path, "\n".join(lines) + "\n")
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(concat_path),
+            "-vf",
+            "fps=30,format=yuv420p",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    concat_path.unlink(missing_ok=True)
+    if result.returncode != 0:
+        raise DemonstrationError(f"FFmpeg spec-timeline render failed: {result.stderr.strip()[-1000:]}")
+    return {
+        "rendered_from": "spec_timeline_checkpoint_frames",
+        "checkpoint_frame_count": len(frame_paths),
+        "checkpoint_hold_seconds": hold_seconds,
+    }
 
 
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
@@ -1360,10 +1431,23 @@ def produce_playwright_demonstration(
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
+    device_profile = resolve_device_profile(device_profile_name)
+    if device_profile is None:
+        raise DemonstrationError("Playwright proof videos require --device-profile")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
+        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    if demo_audio_path is not None and narration_audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     render_source_video = source_video
     trim_metadata: dict[str, Any] = {}
     trim_start_seconds = 0.0
-    if ready_timestamp_seconds is not None:
+    has_spec_checkpoint_frames = bool(
+        spec_timeline
+        and any(isinstance(item, dict) and item.get("path") for item in spec_timeline.get("checkpoint_frames", []))
+    )
+    if ready_timestamp_seconds is not None and not has_spec_checkpoint_frames:
         run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         render_source_video = run_dir / "source-ready-trimmed.mp4"
         trim_metadata = trim_source_to_ready_marker(
@@ -1373,19 +1457,7 @@ def produce_playwright_demonstration(
         )
         trim_start_seconds = float(trim_metadata.get("trim_start_seconds") or 0.0)
     source_metadata = video_metadata(render_source_video)
-    device_profile = resolve_device_profile(device_profile_name)
-    if device_profile is None:
-        raise DemonstrationError("Playwright proof videos require --device-profile")
     assert_device_profile_dimensions(source_metadata, device_profile)
-    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
-        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
-    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
-        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
-    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
-    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
-        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
-    if demo_audio_path is not None and narration_audio_path is None:
-        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
@@ -1402,33 +1474,65 @@ def produce_playwright_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
+    if has_spec_checkpoint_frames and (narration_audio_path is not None or demo_audio_path is not None):
+        raise DemonstrationError("Spec-owned checkpoint proof rendering does not support mixed audio tracks")
+    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
+    render_metadata: dict[str, Any]
+    video_path = run_dir / "demo.mp4"
+    scene_times: list[float]
+    action_times: list[float]
+    state_change_times: list[float]
+    if has_spec_checkpoint_frames:
+        render_metadata = render_spec_timeline_video(
+            spec_timeline or {},
+            video_path,
+            caption_text=caption_text,
+        )
+        output_duration = float(video_metadata(video_path)["duration_seconds"])
+        hold_seconds = float(render_metadata.get("checkpoint_hold_seconds") or 0)
+        scene_times = []
+        action_times = []
+        state_change_times = [
+            round(index * hold_seconds, MEDIA_TIMESTAMP_DECIMALS)
+            for index in range(1, int(render_metadata["checkpoint_frame_count"]))
+        ]
+    else:
+        if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+            raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+        render_clean_video(
+            render_source_video,
+            Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+            video_path,
+            playback_rate=playback_rate,
+            hold_last_frame_seconds=hold_last_frame_seconds,
+            demo_audio_path=demo_audio_path,
+        )
+        render_metadata = {
+            "playback_rate": playback_rate,
+            "hold_last_frame_seconds": hold_last_frame_seconds,
+            **trim_metadata,
+            "demo_audio_mixed": demo_audio_path is not None,
+        }
+        scene_times = detect_scene_change_times(video_path)
+        action_times = scale_source_event_times(
+            selected.get("action_timestamps", []),
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration,
+        )
+        state_change_times = scale_source_event_times(
+            selected.get("state_change_timestamps", []),
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration,
+        )
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
         duration_seconds=output_duration,
         narration_id=narration_id,
-    )
-    video_path = run_dir / "demo.mp4"
-    render_clean_video(
-        render_source_video,
-        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
-        video_path,
-        playback_rate=playback_rate,
-        hold_last_frame_seconds=hold_last_frame_seconds,
-        demo_audio_path=demo_audio_path,
-    )
-    scene_times = detect_scene_change_times(video_path)
-    action_times = scale_source_event_times(
-        selected.get("action_timestamps", []),
-        trim_start_seconds=trim_start_seconds,
-        playback_rate=playback_rate,
-        output_duration_seconds=output_duration,
-    )
-    state_change_times = scale_source_event_times(
-        selected.get("state_change_timestamps", []),
-        trim_start_seconds=trim_start_seconds,
-        playback_rate=playback_rate,
-        output_duration_seconds=output_duration,
     )
     return prepare_review_artifacts(
         run_dir=run_dir,
@@ -1447,12 +1551,7 @@ def produce_playwright_demonstration(
         narration_audio=narration_audio,
         caption_segments=caption_segments,
         device_profile=device_profile,
-        render_metadata={
-            "playback_rate": playback_rate,
-            "hold_last_frame_seconds": hold_last_frame_seconds,
-            **trim_metadata,
-            "demo_audio_mixed": demo_audio_path is not None,
-        },
+        render_metadata=render_metadata,
         scene_times=scene_times,
         action_times=action_times,
         state_change_times=state_change_times,

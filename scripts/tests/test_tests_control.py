@@ -1194,7 +1194,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
     assert produce_kwargs["spec_timeline"]["device"] == "web-laptop"
-    assert produce_kwargs["playback_rate"] == 4.0
+    assert produce_kwargs["playback_rate"] == 1.0
     assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert calls["review"]["correction_round"] == 0
     assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]

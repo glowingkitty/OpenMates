@@ -1540,7 +1540,7 @@ def auto_finalize_proof_video_sources(
             proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
             narration_audio_path=None,
             device_profile_name=device_profile,
-            playback_rate=4.0,
+            playback_rate=1.0,
             hold_last_frame_seconds=0.0,
             ready_timestamp_seconds=ready_timestamp_seconds,
             spec_timeline=timeline,
