@@ -212,6 +212,8 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(finalAssistant).toContainText('Counterarguments');
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
+	const finalSheetPreview = finalAssistant.locator('[data-testid="embed-preview"][data-app-id="sheets"][data-skill-id="sheet"][data-status="finished"]').first();
+	await expect(finalSheetPreview.locator('table.preview-table td').first()).toBeVisible({ timeout: 30_000 });
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
 	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
@@ -237,6 +239,7 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await proof.assert('deep_research.parent_synthesis', async () => {
 		await expect(finalAssistant).toContainText('Short Answer');
 		await expect(finalAssistant).toContainText('Bottom Line');
+		await expect(finalSheetPreview.locator('table.preview-table td').first()).toBeVisible();
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	});
 	await proof.checkpoint('deep-research-parent-synthesis');

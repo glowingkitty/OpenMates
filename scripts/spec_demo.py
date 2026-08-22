@@ -1690,13 +1690,14 @@ def produce_cli_terminal_demonstration(
     timeline_hash = "sha256:" + hashlib.sha256(
         json.dumps(spec_timeline or {}, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+    contract = spec_timeline.get("contract") if isinstance(spec_timeline, dict) and isinstance(spec_timeline.get("contract"), dict) else {}
     render_metadata = render_remotion_tutorial_video(
         {
             "schemaVersion": 1,
             "renderer": "openmates-remotion-terminal-v1",
             "sourceVideo": str(render_source_video),
             "sourceSha256": trim_metadata["prepared_source_sha256"],
-            "terminalTitle": "Terminal",
+            "terminalTitle": str(contract.get("title") or "OpenMates CLI"),
             "deviceProfile": "cli-terminal",
             "viewport": {"width": 1280, "height": 720},
             "output": {"width": 1280, "height": 720, "fps": 30},

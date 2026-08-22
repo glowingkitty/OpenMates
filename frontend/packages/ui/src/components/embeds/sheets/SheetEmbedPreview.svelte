@@ -228,7 +228,10 @@
     if (data.decodedContent) {
       const c = data.decodedContent;
       // TOON content uses 'table' field; legacy/fallback uses 'code'
-      localTableContent = String(c.table || c.code || c.content || '');
+      const nextTableContent = String(c.table || c.code || c.content || '');
+      if (nextTableContent || !localTableContent) {
+        localTableContent = nextTableContent;
+      }
       if (c.title) localTitle = String(c.title);
       // TOON content uses row_count/col_count; legacy uses rows/cols
       if (typeof c.row_count === 'number') localRowCount = c.row_count;
