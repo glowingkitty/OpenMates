@@ -1500,6 +1500,12 @@ def auto_finalize_proof_video_sources(
             active_render_claims_hook = render_claims_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
+        checkpoint_times = [
+            float(event["at_ms"]) / 1000.0
+            for event in timeline.get("events", [])
+            if isinstance(event, dict) and event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
+        ]
+        ready_timestamp_seconds = min(checkpoint_times) if checkpoint_times else None
         source_video = Path(str(record.get("artifact_path") or ""))
         if not source_video.is_file():
             raise RuntimeError(f"Proof source video is missing: {source_video}")
@@ -1534,8 +1540,9 @@ def auto_finalize_proof_video_sources(
             proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
             narration_audio_path=None,
             device_profile_name=device_profile,
-            playback_rate=1.0,
+            playback_rate=4.0,
             hold_last_frame_seconds=0.0,
+            ready_timestamp_seconds=ready_timestamp_seconds,
             spec_timeline=timeline,
             browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
         )
