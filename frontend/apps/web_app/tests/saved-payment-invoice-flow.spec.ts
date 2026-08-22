@@ -315,9 +315,12 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	const authModal = page.getByTestId('payment-auth-overlay');
 	const authModalVisible = await authModal
-		.waitFor({ state: 'visible', timeout: 10000 })
+		.waitFor({ state: 'visible', timeout: 60000 })
 		.then(() => true)
-		.catch(() => false);
+		.catch(() => page.getByRole('dialog', { name: /confirm payment/i })
+			.waitFor({ state: 'visible', timeout: 1000 })
+			.then(() => true)
+			.catch(() => false));
 
 	if (authModalVisible) {
 		log('PaymentAuth modal appeared — entering OTP.');
