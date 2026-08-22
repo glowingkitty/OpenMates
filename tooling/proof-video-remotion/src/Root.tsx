@@ -30,7 +30,7 @@ const terminalDefaults: TerminalTutorialProps = {
 	renderer: 'openmates-remotion-terminal-v1',
 	sourceVideo: 'source.mp4',
 	sourceSha256: 'sha256:default',
-	terminalTitle: 'OpenMates CLI',
+	terminalTitle: 'Terminal',
 	deviceProfile: 'cli-terminal',
 	viewport: {width: 1280, height: 720},
 	output: {width: 1280, height: 720, fps: 30},

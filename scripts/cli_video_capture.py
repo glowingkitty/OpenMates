@@ -126,7 +126,7 @@ def build_capture_plan(
             "-font", "DejaVuSansMono",
             "-fontsize", TERMINAL_FONT_SIZE,
             "-border", "0",
-            "-title", "OpenMates CLI",
+            "-title", "Terminal",
             "-e", *script_argv,
         ]
     else:

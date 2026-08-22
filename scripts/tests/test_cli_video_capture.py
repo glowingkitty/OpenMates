@@ -32,7 +32,7 @@ def load_module():
 def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> None:
     module = load_module()
     plan = module.build_capture_plan(
-        argv=["node", "frontend/packages/openmates-cli/dist/cli.js", "--help"],
+        argv=["openmates", "--help"],
         output_dir=tmp_path,
         display_number=91,
         xvfb_binary="/usr/bin/Xvfb",
@@ -49,10 +49,12 @@ def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> N
     assert "1280x720" in plan.ffmpeg_argv
     assert "160x48" in plan.terminal_argv
     assert "14" in plan.terminal_argv
-    assert "node frontend/packages/openmates-cli/dist/cli.js --help" in plan.terminal_argv[-1]
+    assert "openmates --help" in plan.terminal_argv[-1]
+    assert "node frontend/packages/openmates-cli/dist/cli.js" not in plan.terminal_argv[-1]
     assert "sleep 3" in plan.terminal_argv[-1]
     assert "printf '%s\\n'" not in plan.terminal_argv[-1]
     assert "time.sleep(0.03)" in plan.terminal_argv[-1]
+    assert "Terminal" in plan.terminal_argv
 
 
 def test_capture_plan_rejects_non_openmates_commands_and_secret_argv(tmp_path: Path) -> None:

@@ -11,8 +11,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
-const {deriveApiUrl, runCliProof} = require('./cli-test-helpers.ts');
+const {CLI_DIST, createOpenmatesCliRecordingBin, deriveApiUrl, runCliProof} = require('./cli-test-helpers.ts');
 
 test('exports CLI proof helper', () => {
 	assert.equal(typeof runCliProof, 'function');
@@ -20,4 +23,19 @@ test('exports CLI proof helper', () => {
 
 test('derives dev API URL from dev app URL', () => {
 	assert.equal(deriveApiUrl('https://app.dev.openmates.org'), 'https://api.dev.openmates.org');
+});
+
+test('creates openmates recording wrapper before capture', () => {
+	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-cli-recording-'));
+	try {
+		const binDir = createOpenmatesCliRecordingBin(tmp);
+		const wrapper = path.join(binDir, 'openmates');
+		const source = fs.readFileSync(wrapper, 'utf8');
+		assert.match(source, /^#!\/usr\/bin\/env sh\n/);
+		assert.match(source, /exec node /);
+		assert.match(source, /"\$@"/);
+		assert.ok(source.includes(CLI_DIST));
+	} finally {
+		fs.rmSync(tmp, {recursive: true, force: true});
+	}
 });

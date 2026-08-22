@@ -31,7 +31,7 @@ export const TerminalTutorial: React.FC<TerminalTutorialProps> = (props) => {
 	const source = staticFile(props.sourceVideo);
 	const layout = terminalLayout(props);
 	return (
-		<AbsoluteFill style={{alignItems: 'center', background: 'linear-gradient(135deg, #dbeafe 0%, #eef2ff 44%, #f8fafc 100%)', display: 'flex', justifyContent: 'center'}}>
+		<AbsoluteFill style={{alignItems: 'center', background: 'linear-gradient(135deg, #dbeafe 0%, #f8fafc 45%, #e0e7ff 100%)', display: 'flex', justifyContent: 'center'}}>
 			<div style={{
 				backgroundColor: '#111827',
 				border: '1px solid rgba(15, 23, 42, 0.18)',
@@ -66,7 +66,7 @@ export const TerminalTutorial: React.FC<TerminalTutorialProps> = (props) => {
 						textOverflow: 'ellipsis',
 						whiteSpace: 'nowrap',
 					}}>
-						{props.terminalTitle}
+						Terminal
 					</div>
 					<div style={{width: 86}} />
 				</div>
