@@ -47,6 +47,10 @@ opt-in.
 ## Capture And Render
 
 - Use a real passing deployed Playwright result, Apple run, or real OpenMates CLI command.
+- For Playwright/spec proofs, the rendered video must include real source-video
+  segments from the attested Playwright recording. Checkpoint frames may only be
+  short freeze segments; never publish checkpoint-frame-only screenshot montages
+  or a manifest with `rendered_from: spec_timeline_checkpoint_frames`.
 - Use CLI proof only when the actual `openmates` CLI is the product surface being
   demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
   helpers, Node scripts, or shell wrappers that do not visibly execute the

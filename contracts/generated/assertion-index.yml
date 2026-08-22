@@ -9807,6 +9807,17 @@ assertions:
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
     - &id1091
+      path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      line: 43
+      name: does not leak an active focus pill into the Finance example chat
+      surface: gui.web
+    - &id1092
+      path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      line: 62
+      name: renders Deep research sub-chat summaries below activation and opens child
+        transcript
+      surface: gui.web
+    - &id1093
       path: frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
       line: 78
       name: ${viewport.name} records speech playback controls
@@ -9912,59 +9923,59 @@ assertions:
       line: 132
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
-    - &id1092
+    - &id1094
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 290
       name: does not render existing results-view blocks when no refs have map or
         calendar data
       surface: gui.web
-    - &id1093
+    - &id1095
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 317
       name: filters nonvisual refs while keeping map or calendar eligible refs visible
       surface: gui.web
-    - &id1094
+    - &id1096
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 345
       name: loads source children, sorts highlights first, and derives filters
       surface: gui.web
-    - &id1095
+    - &id1097
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 379
       name: selects entries locally in fullscreen mode without opening child fullscreens
       surface: gui.web
-    - &id1096
+    - &id1098
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 412
       name: opens a top-right filter menu and dims non-hovered entries
       surface: gui.web
-    - &id1097
+    - &id1099
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 455
       name: switches map and calendar visual tabs while keeping the result list
       surface: gui.web
-    - &id1098
+    - &id1100
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 493
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
-    - &id1099
+    - &id1101
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 525
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
-    - &id1100
+    - &id1102
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 554
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
-    - &id1101
+    - &id1103
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 617
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
-    - &id1102
+    - &id1104
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 647
       name: cancels one scheduled idle map hydration when unmounted
@@ -10014,6 +10025,8 @@ assertions:
     - *id1100
     - *id1101
     - *id1102
+    - *id1103
+    - *id1104
     surfaces:
       gui.web:
         direct_tests:
@@ -10030,6 +10043,8 @@ assertions:
         - *id1089
         - *id1090
         - *id1091
+        - *id1092
+        - *id1093
         supporting_tests:
         - *id1059
         - *id1060
@@ -10051,8 +10066,6 @@ assertions:
         - *id1076
         - *id1077
         - *id1080
-        - *id1092
-        - *id1093
         - *id1094
         - *id1095
         - *id1096
@@ -10062,12 +10075,14 @@ assertions:
         - *id1100
         - *id1101
         - *id1102
+        - *id1103
+        - *id1104
     current_direct_proof: false
   public-example-chats.history.explicit-forgotten-reveal:
     contract: feature.public-example-chats@1
     fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
     direct_tests:
-    - &id1103
+    - &id1105
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 487
       name: privacy-first local AI example hides compressed history behind forgotten
@@ -10075,308 +10090,317 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1103
+    - *id1105
     surfaces:
       gui.web:
         direct_tests:
-        - *id1103
+        - *id1105
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.seo.crawlable:
     contract: feature.public-example-chats@1
     fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
     direct_tests:
-    - &id1104
+    - &id1106
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 885
       name: example chat SSR pages are accessible
       surface: gui.web
-    - &id1105
+    - &id1107
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 900
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
-    - &id1106
+    - &id1108
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 994
       name: production sitemap includes every example chat with lastmod
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1104
-    - *id1105
     - *id1106
+    - *id1107
+    - *id1108
     surfaces:
       gui.web:
         direct_tests:
-        - *id1104
-        - *id1105
         - *id1106
+        - *id1107
+        - *id1108
         supporting_tests: []
     current_direct_proof: false
   public-example-chats.surface.semantic-parity:
     contract: feature.public-example-chats@1
     fingerprint: 2754d8e41bd329d24cc4d8b6a3bfdac5e4477d1903d06265e98e2dae88cf1eba
     direct_tests:
-    - &id1126
+    - &id1128
       path: frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
       line: 52
       name: renders messages, maps embeds, map view, fullscreens, and reloads
       surface: gui.web
-    - &id1127
+    - &id1129
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
       line: 45
       name: renders source-backed refs responsively without app-skill or embed API
         calls
       surface: gui.web
-    - &id1129
+    - &id1131
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 107
       name: guest example chat with static usage exposes usage tab and rows
       surface: gui.web
-    - &id1130
+    - &id1132
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 142
       name: static example chats expose code, video, and document files in settings
       surface: gui.web
-    - &id1131
+    - &id1133
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 161
       name: example chat cost label deep links to usage details
       surface: gui.web
-    - &id1132
+    - &id1134
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
       line: 185
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
-    - &id1133
+    - &id1135
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 178
       name: example chats appear in for-everyone intro chat
       surface: gui.web
-    - &id1134
+    - &id1136
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 239
       name: guest show-all examples uses expanded resume cards and global search covers
         every example
       surface: gui.web
-    - &id1135
+    - &id1137
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 321
       name: deep research example renders static sub-chat cards without a forced focus
         mention
       surface: gui.web
-    - &id1136
+    - &id1138
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 352
       name: guest example chat exposes share and chat settings with a static public
         link
       surface: gui.web
-    - &id1137
+    - &id1139
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 487
       name: privacy-first local AI example hides compressed history behind forgotten
         messages
       surface: gui.web
-    - &id1138
+    - &id1140
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 571
       name: nutrition example renders Edamam recipe search embed card
       surface: gui.web
-    - &id1139
+    - &id1141
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 631
       name: generated audio examples use natural prompts and recording-style playback
       surface: gui.web
-    - &id1140
+    - &id1142
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 739
       name: Deutschlandticket travel example keeps preview metadata readable and shows
         map route lines
       surface: gui.web
-    - &id1141
+    - &id1143
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       line: 844
       name: sidebar example chats show newest first and append older results after
         show more
       surface: gui.web
-    - &id1142
+    - &id1144
+      path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      line: 43
+      name: does not leak an active focus pill into the Finance example chat
+      surface: gui.web
+    - &id1145
+      path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      line: 62
+      name: renders Deep research sub-chat summaries below activation and opens child
+        transcript
+      surface: gui.web
+    - &id1146
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
       line: 124
       name: lists public static video files from example embeds
       surface: gui.web
-    - &id1143
+    - &id1147
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
       line: 160
       name: resolves file rows for every bundled example chat with static file embeds
       surface: gui.web
-    - &id1155
+    - &id1159
       path: frontend/packages/ui/src/services/__tests__/embedStoreFullscreenTarget.test.ts
       line: 18
       name: keeps shared Maps Search place children as direct fullscreen targets
       surface: gui.web
     supporting_tests:
-    - &id1107
+    - &id1109
       path: backend/tests/test_async_skill_continuation.py
       line: 172
       name: test_async_embed_instruction_omits_results_view_for_non_visual_skill
       surface: gui.web
-    - &id1108
+    - &id1110
       path: backend/tests/test_async_skill_continuation.py
       line: 190
       name: test_async_embed_instruction_includes_results_view_for_visual_skill
       surface: gui.web
-    - &id1109
+    - &id1111
       path: backend/tests/test_embeds_map_view_contract.py
       line: 26
       name: test_instruction_limits_fields_and_forbids_paid_enrichment
       surface: gui.web
-    - &id1110
+    - &id1112
       path: backend/tests/test_embeds_map_view_contract.py
       line: 45
       name: test_map_view_fence_language_is_reserved_for_client_renderer
       surface: gui.web
-    - &id1111
+    - &id1113
       path: backend/tests/test_embeds_map_view_contract.py
       line: 57
       name: test_map_view_hint_defaults_to_capable_skills_unless_suppressed
       surface: gui.web
-    - &id1112
+    - &id1114
       path: backend/tests/test_embeds_map_view_contract.py
       line: 101
       name: test_results_view_instruction_is_gated_to_visual_capable_skills_or_history
       surface: gui.web
-    - &id1113
+    - &id1115
       path: backend/tests/test_embeds_map_view_contract.py
       line: 125
       name: test_history_marker_detector_rejects_news_and_web_search_results
       surface: gui.web
-    - &id1114
+    - &id1116
       path: backend/tests/test_embeds_map_view_contract.py
       line: 138
       name: test_content_detector_finds_map_capable_app_skill_json_fence
       surface: gui.web
-    - &id1115
+    - &id1117
       path: backend/tests/test_embeds_map_view_contract.py
       line: 151
       name: test_content_detector_rejects_non_map_capable_app_skill_json_fence
       surface: gui.web
-    - &id1116
+    - &id1118
       path: backend/tests/test_embeds_map_view_contract.py
       line: 161
       name: test_append_missing_map_view_uses_existing_inline_refs_only
       surface: gui.web
-    - &id1117
+    - &id1119
       path: backend/tests/test_embeds_map_view_contract.py
       line: 178
       name: test_append_missing_map_view_prefers_source_refs_and_highlights_inline_children
       surface: gui.web
-    - &id1118
+    - &id1120
       path: backend/tests/test_embeds_map_view_contract.py
       line: 197
       name: test_append_missing_map_view_uses_known_source_refs
       surface: gui.web
-    - &id1119
+    - &id1121
       path: backend/tests/test_embeds_map_view_contract.py
       line: 209
       name: test_append_missing_map_view_is_noop_when_block_exists
       surface: gui.web
-    - &id1120
+    - &id1122
       path: backend/tests/test_embeds_map_view_contract.py
       line: 225
       name: test_append_missing_results_view_is_noop_when_new_block_exists
       surface: gui.web
-    - &id1121
+    - &id1123
       path: backend/tests/test_embeds_map_view_contract.py
       line: 241
       name: test_normalizer_drops_extra_fields_and_deduplicates_refs
       surface: gui.web
-    - &id1122
+    - &id1124
       path: backend/tests/test_embeds_map_view_contract.py
       line: 263
       name: test_normalizer_accepts_source_and_highlight_fields_only
       surface: gui.web
-    - &id1123
+    - &id1125
       path: backend/tests/test_embeds_map_view_contract.py
       line: 278
       name: test_normalizer_promotes_map_capable_parent_embed_refs_to_sources
       surface: gui.web
-    - &id1124
+    - &id1126
       path: backend/tests/test_embeds_map_view_contract.py
       line: 298
       name: test_normalizer_promotes_known_source_refs_without_json_fence
       surface: gui.web
-    - &id1125
+    - &id1127
       path: backend/tests/test_embeds_map_view_contract.py
       line: 317
       name: test_normalizer_removes_json_like_map_blocks
       surface: gui.web
-    - &id1128
+    - &id1130
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
       line: 132
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
-    - &id1144
+    - &id1148
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 290
       name: does not render existing results-view blocks when no refs have map or
         calendar data
       surface: gui.web
-    - &id1145
+    - &id1149
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 317
       name: filters nonvisual refs while keeping map or calendar eligible refs visible
       surface: gui.web
-    - &id1146
+    - &id1150
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 345
       name: loads source children, sorts highlights first, and derives filters
       surface: gui.web
-    - &id1147
+    - &id1151
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 379
       name: selects entries locally in fullscreen mode without opening child fullscreens
       surface: gui.web
-    - &id1148
+    - &id1152
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 412
       name: opens a top-right filter menu and dims non-hovered entries
       surface: gui.web
-    - &id1149
+    - &id1153
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 455
       name: switches map and calendar visual tabs while keeping the result list
       surface: gui.web
-    - &id1150
+    - &id1154
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 493
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
-    - &id1151
+    - &id1155
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 525
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
-    - &id1152
+    - &id1156
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 554
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
-    - &id1153
+    - &id1157
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 617
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
-    - &id1154
+    - &id1158
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
       line: 647
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     tests:
-    - *id1107
-    - *id1108
     - *id1109
     - *id1110
     - *id1111
@@ -10424,13 +10448,15 @@ assertions:
     - *id1153
     - *id1154
     - *id1155
+    - *id1156
+    - *id1157
+    - *id1158
+    - *id1159
     surfaces:
       gui.web:
         direct_tests:
-        - *id1126
-        - *id1127
+        - *id1128
         - *id1129
-        - *id1130
         - *id1131
         - *id1132
         - *id1133
@@ -10444,10 +10470,12 @@ assertions:
         - *id1141
         - *id1142
         - *id1143
-        - *id1155
+        - *id1144
+        - *id1145
+        - *id1146
+        - *id1147
+        - *id1159
         supporting_tests:
-        - *id1107
-        - *id1108
         - *id1109
         - *id1110
         - *id1111
@@ -10465,11 +10493,9 @@ assertions:
         - *id1123
         - *id1124
         - *id1125
-        - *id1128
-        - *id1144
-        - *id1145
-        - *id1146
-        - *id1147
+        - *id1126
+        - *id1127
+        - *id1130
         - *id1148
         - *id1149
         - *id1150
@@ -10477,6 +10503,10 @@ assertions:
         - *id1152
         - *id1153
         - *id1154
+        - *id1155
+        - *id1156
+        - *id1157
+        - *id1158
     current_direct_proof: false
   settings-ui.shell.lifecycle-and-routing:
     contract: feature.settings-ui@1
@@ -10498,7 +10528,7 @@ assertions:
     contract: feature.settings-ui@1
     fingerprint: 8d72166d9a343a463e96a6841d70992cd9bbcc16f713d3363f6b3c61ac38333e
     direct_tests:
-    - &id1156
+    - &id1160
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       line: 297
       name: settings catalog and visible settings/sub-settings menus have no missing
@@ -10506,11 +10536,11 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1156
+    - *id1160
     surfaces:
       gui.web:
         direct_tests:
-        - *id1156
+        - *id1160
         supporting_tests: []
     current_direct_proof: false
   settings-ui.composition.canonical-and-accessible:
@@ -10525,7 +10555,7 @@ assertions:
     contract: feature.settings-ui@1
     fingerprint: 51c96da1b30e2b4aa01f435b9a53cf4d93b3c410ac22ab6892649a41a5951f59
     direct_tests:
-    - &id1157
+    - &id1161
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       line: 297
       name: settings catalog and visible settings/sub-settings menus have no missing
@@ -10533,18 +10563,18 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1157
+    - *id1161
     surfaces:
       gui.web:
         direct_tests:
-        - *id1157
+        - *id1161
         supporting_tests: []
     current_direct_proof: false
   settings-ui.footer.structure-and-spacing:
     contract: feature.settings-ui@1
     fingerprint: 2a2e3c3c9206773c01b258dd23608f424688752b491e8c72b2aa1a0c685ae641
     direct_tests:
-    - &id1158
+    - &id1162
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       line: 297
       name: settings catalog and visible settings/sub-settings menus have no missing
@@ -10552,18 +10582,18 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1158
+    - *id1162
     surfaces:
       gui.web:
         direct_tests:
-        - *id1158
+        - *id1162
         supporting_tests: []
     current_direct_proof: false
   settings-ui.footer.events-and-version-policy:
     contract: feature.settings-ui@1
     fingerprint: 18511215dc5aac0d48fed301235c1358205c6e68e7869510a470c9d94c00d6b4
     direct_tests:
-    - &id1159
+    - &id1163
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       line: 297
       name: settings catalog and visible settings/sub-settings menus have no missing
@@ -10571,11 +10601,11 @@ assertions:
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1159
+    - *id1163
     surfaces:
       gui.web:
         direct_tests:
-        - *id1159
+        - *id1163
         supporting_tests: []
     current_direct_proof: false
   settings-ui.footer.contextual-legal-navigation:
@@ -10598,117 +10628,113 @@ assertions:
     contract: feature.tasks@2
     fingerprint: e6fc398c991570fc06386096638457f60510e20d135ff612ebdc37b503db32e8
     direct_tests:
-    - &id1160
+    - &id1164
       path: backend/tests/test_task_main_processor_tools.py
       line: 333
       name: test_client_persisted_task_update_sequences_later_completion_in_same_turn
       surface: rest_api
-    - &id1161
+    - &id1165
       path: backend/tests/test_task_main_processor_tools.py
       line: 443
       name: test_task_move_job_includes_source_task_chat_for_client_lookup
       surface: rest_api
-    - &id1162
+    - &id1166
       path: backend/tests/test_task_main_processor_tools.py
       line: 488
       name: test_repeated_client_persisted_task_calls_are_same_turn_noops
       surface: rest_api
-    - &id1164
+    - &id1168
       path: backend/tests/test_user_task_admission.py
       line: 212
       name: test_team_admission_finds_staged_context_without_personal_owner_hash
       surface: rest_api
-    - &id1165
+    - &id1169
       path: backend/tests/test_user_task_admission.py
       line: 234
       name: test_waiting_task_execution_context_is_vault_encrypted_and_dispatched_once_admitted
       surface: rest_api
-    - &id1166
+    - &id1170
       path: backend/tests/test_user_task_admission.py
       line: 273
       name: test_scheduler_admission_blocks_claim_without_execution_context_and_releases_slot
       surface: rest_api
-    - &id1167
+    - &id1171
       path: backend/tests/test_user_task_admission.py
       line: 308
       name: test_execution_context_decrypt_failure_blocks_claim_and_releases_slot
       surface: rest_api
-    - &id1168
+    - &id1172
       path: backend/tests/test_user_tasks_api.py
       line: 80
       name: test_create_task_hashes_owner_and_projects_without_plaintext_content
       surface: rest_api
-    - &id1169
+    - &id1173
       path: backend/tests/test_user_tasks_api.py
       line: 103
       name: test_create_task_persists_label_hashes_and_priority_metadata
       surface: rest_api
-    - &id1170
+    - &id1174
       path: backend/tests/test_user_tasks_api.py
       line: 118
       name: test_list_tasks_filters_labels_with_and_semantics_and_priority
       surface: rest_api
-    - &id1171
+    - &id1175
       path: backend/tests/test_user_tasks_api.py
       line: 134
       name: test_task_label_hashes_must_be_valid_blind_indexes
       surface: rest_api
-    - &id1172
+    - &id1176
       path: backend/tests/test_user_tasks_api.py
       line: 184
       name: test_update_task_if_version_honors_committed_payload_version
       surface: rest_api
-    - &id1173
+    - &id1177
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id1174
+    - &id1178
       path: backend/tests/test_user_tasks_api.py
       line: 648
       name: test_ai_task_create_with_transient_context_claims_and_dispatches
       surface: rest_api
-    - &id1175
+    - &id1179
       path: backend/tests/test_user_tasks_api.py
       line: 707
       name: test_start_ai_dispatches_transient_plaintext_without_persisting
       surface: rest_api
-    - &id1176
+    - &id1180
       path: backend/tests/test_user_tasks_api.py
       line: 868
       name: test_start_ai_stages_execution_context_before_becoming_admission_eligible
       surface: rest_api
-    - &id1177
+    - &id1181
       path: frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
       line: 32
       name: creates chat-linked tasks and syncs settings, preview, and central board
       surface: gui.web
-    - &id1178
+    - &id1182
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 128
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id1179
+    - &id1183
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id1180
+    - &id1184
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests:
-    - &id1163
+    - &id1167
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 156
       name: test_task_queue_continuation_event_is_turn_scoped_and_safe
       surface: rest_api
     tests:
-    - *id1160
-    - *id1161
-    - *id1162
-    - *id1163
     - *id1164
     - *id1165
     - *id1166
@@ -10726,16 +10752,16 @@ assertions:
     - *id1178
     - *id1179
     - *id1180
+    - *id1181
+    - *id1182
+    - *id1183
+    - *id1184
     surfaces:
       rest_api:
         direct_tests:
-        - *id1160
-        - *id1161
-        - *id1162
         - *id1164
         - *id1165
         - *id1166
-        - *id1167
         - *id1168
         - *id1169
         - *id1170
@@ -10745,345 +10771,345 @@ assertions:
         - *id1174
         - *id1175
         - *id1176
+        - *id1177
+        - *id1178
+        - *id1179
+        - *id1180
         supporting_tests:
-        - *id1163
+        - *id1167
       gui.web:
         direct_tests:
-        - *id1177
+        - *id1181
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id1178
+        - *id1182
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1179
+        - *id1183
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1180
+        - *id1184
         supporting_tests: []
     current_direct_proof: false
   tasks.lifecycle.visible:
     contract: feature.tasks@2
     fingerprint: 3a1262b916d9b0b2fab31c487ab1166d23012ff6310dd90745880cd6856dfb7d
     direct_tests:
-    - &id1184
+    - &id1188
       path: backend/tests/test_task_main_processor_tools.py
       line: 126
       name: test_team_task_context_and_completion_stay_in_team_scope
       surface: rest_api
-    - &id1188
+    - &id1192
       path: backend/tests/test_task_main_processor_tools.py
       line: 333
       name: test_client_persisted_task_update_sequences_later_completion_in_same_turn
       surface: rest_api
-    - &id1189
+    - &id1193
       path: backend/tests/test_task_main_processor_tools.py
       line: 393
       name: test_repeated_task_create_calls_get_monotonic_positions_in_same_turn
       surface: rest_api
-    - &id1190
+    - &id1194
       path: backend/tests/test_task_main_processor_tools.py
       line: 443
       name: test_task_move_job_includes_source_task_chat_for_client_lookup
       surface: rest_api
-    - &id1191
+    - &id1195
       path: backend/tests/test_task_main_processor_tools.py
       line: 488
       name: test_repeated_client_persisted_task_calls_are_same_turn_noops
       surface: rest_api
-    - &id1192
+    - &id1196
       path: backend/tests/test_task_main_processor_tools.py
       line: 582
       name: test_repeated_direct_task_complete_returns_event_noop
       surface: rest_api
-    - &id1193
+    - &id1197
       path: backend/tests/test_task_main_processor_tools.py
       line: 652
       name: test_direct_task_complete_marks_next_task_active_in_turn_context
       surface: rest_api
-    - &id1194
+    - &id1198
       path: backend/tests/test_task_main_processor_tools.py
       line: 697
       name: test_direct_task_complete_uses_store_already_applied_state_after_conflict
       surface: rest_api
-    - &id1196
+    - &id1200
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 29
       name: test_post_turn_guard_starts_next_task_before_plan_continuation
       surface: rest_api
-    - &id1205
+    - &id1209
       path: backend/tests/test_user_task_admission.py
       line: 291
       name: test_scheduler_dispatch_failure_blocks_claim_and_releases_slot
       surface: rest_api
-    - &id1206
+    - &id1210
       path: backend/tests/test_user_task_runtime_tools.py
       line: 24
       name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
       surface: rest_api
-    - &id1207
+    - &id1211
       path: backend/tests/test_user_task_runtime_tools.py
       line: 51
       name: test_block_pauses_queue_with_safe_reason
       surface: rest_api
-    - &id1208
+    - &id1212
       path: backend/tests/test_user_task_runtime_tools.py
       line: 85
       name: test_complete_starts_next_eligible_ai_task
       surface: rest_api
-    - &id1209
+    - &id1213
       path: backend/tests/test_user_task_runtime_tools.py
       line: 106
       name: test_complete_uses_ordered_chat_queue_for_next_ai_task
       surface: rest_api
-    - &id1210
+    - &id1214
       path: backend/tests/test_user_task_runtime_tools.py
       line: 132
       name: test_complete_pauses_on_blocking_human_task_before_later_ai_task
       surface: rest_api
-    - &id1211
+    - &id1215
       path: backend/tests/test_user_task_runtime_tools.py
       line: 163
       name: test_complete_waits_for_user_ordered_human_task_before_later_ai_task
       surface: rest_api
-    - &id1212
+    - &id1216
       path: backend/tests/test_user_task_runtime_tools.py
       line: 219
       name: test_team_completion_updates_team_row_and_refills_team_pool
       surface: rest_api
-    - &id1213
+    - &id1217
       path: backend/tests/test_user_tasks_api.py
       line: 162
       name: test_update_task_uses_storage_level_conditional_patch
       surface: rest_api
-    - &id1214
+    - &id1218
       path: backend/tests/test_user_tasks_api.py
       line: 184
       name: test_update_task_if_version_honors_committed_payload_version
       surface: rest_api
-    - &id1215
+    - &id1219
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id1216
+    - &id1220
       path: backend/tests/test_user_tasks_api.py
       line: 347
       name: test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappers
       surface: rest_api
-    - &id1217
+    - &id1221
       path: backend/tests/test_user_tasks_api.py
       line: 376
       name: test_replace_task_key_wrappers_rejects_stale_version
       surface: rest_api
-    - &id1218
+    - &id1222
       path: backend/tests/test_user_tasks_api.py
       line: 425
       name: test_delete_task_rejects_stale_version_and_uses_lock
       surface: rest_api
-    - &id1219
+    - &id1223
       path: backend/tests/test_user_tasks_api.py
       line: 439
       name: test_delete_task_deletes_when_expected_version_matches
       surface: rest_api
-    - &id1220
+    - &id1224
       path: backend/tests/test_user_tasks_api.py
       line: 453
       name: test_update_task_fails_closed_when_lock_backend_is_unavailable
       surface: rest_api
-    - &id1221
+    - &id1225
       path: backend/tests/test_user_tasks_api.py
       line: 486
       name: test_update_rejects_stale_client_version
       surface: rest_api
-    - &id1222
+    - &id1226
       path: backend/tests/test_user_tasks_api.py
       line: 537
       name: test_update_task_accepts_empty_conditional_update_response_when_version_committed
       surface: rest_api
-    - &id1223
+    - &id1227
       path: backend/tests/test_user_tasks_api.py
       line: 632
       name: test_ai_task_without_execution_context_waits_without_consuming_capacity
       surface: rest_api
-    - &id1224
+    - &id1228
       path: backend/tests/test_user_tasks_api.py
       line: 648
       name: test_ai_task_create_with_transient_context_claims_and_dispatches
       surface: rest_api
-    - &id1225
+    - &id1229
       path: backend/tests/test_user_tasks_api.py
       line: 675
       name: test_second_ai_task_without_due_date_waits_for_active_chat_task
       surface: rest_api
-    - &id1226
+    - &id1230
       path: backend/tests/test_user_tasks_api.py
       line: 707
       name: test_start_ai_dispatches_transient_plaintext_without_persisting
       surface: rest_api
-    - &id1227
+    - &id1231
       path: backend/tests/test_user_tasks_api.py
       line: 762
       name: test_start_ai_waits_when_another_task_is_active_in_same_chat
       surface: rest_api
-    - &id1228
+    - &id1232
       path: backend/tests/test_user_tasks_api.py
       line: 792
       name: test_team_start_ai_scopes_update_admission_and_dispatch_payload
       surface: rest_api
-    - &id1229
+    - &id1233
       path: backend/tests/test_user_tasks_api.py
       line: 851
       name: test_team_task_updates_share_one_team_scoped_write_lock
       surface: rest_api
-    - &id1230
+    - &id1234
       path: backend/tests/test_user_tasks_api.py
       line: 902
       name: test_start_ai_staging_failure_moves_task_to_visible_blocked_state
       surface: rest_api
-    - &id1231
+    - &id1235
       path: backend/tests/test_user_tasks_scheduler.py
       line: 102
       name: test_process_due_ai_tasks_skips_rows_without_version
       surface: rest_api
-    - &id1232
+    - &id1236
       path: frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
       line: 32
       name: creates chat-linked tasks and syncs settings, preview, and central board
       surface: gui.web
-    - &id1233
+    - &id1237
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 128
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id1234
+    - &id1238
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id1235
+    - &id1239
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests:
-    - &id1181
+    - &id1185
       path: backend/tests/test_task_main_processor_tools.py
       line: 49
       name: test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks
       surface: rest_api
-    - &id1182
+    - &id1186
       path: backend/tests/test_task_main_processor_tools.py
       line: 67
       name: test_attached_tasks_enable_update_reorder_block_complete_and_move_tools
       surface: rest_api
-    - &id1183
+    - &id1187
       path: backend/tests/test_task_main_processor_tools.py
       line: 100
       name: test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached
       surface: rest_api
-    - &id1185
+    - &id1189
       path: backend/tests/test_task_main_processor_tools.py
       line: 165
       name: test_blocked_attached_tasks_enable_unblock_tool
       surface: rest_api
-    - &id1186
+    - &id1190
       path: backend/tests/test_task_main_processor_tools.py
       line: 226
       name: test_reorder_tool_is_not_advertised_until_atomic_persistence_exists
       surface: rest_api
-    - &id1187
+    - &id1191
       path: backend/tests/test_task_main_processor_tools.py
       line: 237
       name: test_task_tool_expected_version_is_required_before_mutation
       surface: rest_api
-    - &id1195
+    - &id1199
       path: backend/tests/test_task_main_processor_tools.py
       line: 742
       name: test_task_tool_accepts_model_formatted_task_id_and_version
       surface: rest_api
-    - &id1197
+    - &id1201
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 58
       name: test_post_turn_guard_retries_active_task_without_mutating_metadata
       surface: rest_api
-    - &id1198
+    - &id1202
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 86
       name: test_post_turn_guard_blocks_plan_on_human_gate_without_retry
       surface: rest_api
-    - &id1199
+    - &id1203
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 156
       name: test_task_queue_continuation_event_is_turn_scoped_and_safe
       surface: rest_api
-    - &id1200
+    - &id1204
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 179
       name: test_task_queue_continuation_system_content_detects_synthetic_user_history
       surface: rest_api
-    - &id1201
+    - &id1205
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 187
       name: test_task_activity_system_content_detects_client_persisted_task_events
       surface: rest_api
-    - &id1202
+    - &id1206
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 198
       name: test_llm_history_maps_persisted_task_queue_system_notice_to_user
       surface: rest_api
-    - &id1203
+    - &id1207
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 209
       name: test_task_queue_post_turn_prompt_prefers_short_id
       surface: rest_api
-    - &id1204
+    - &id1208
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 218
       name: test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state
       surface: rest_api
-    - &id1236
+    - &id1240
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 31
       name: test_created_chat_and_task_are_registered_immediately
       surface: cli
-    - &id1237
+    - &id1241
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 49
       name: test_cleanup_deletes_tasks_before_chats
       surface: cli
-    - &id1238
+    - &id1242
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 68
       name: test_cleanup_failure_is_not_silent
       surface: cli
-    - &id1239
+    - &id1243
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 78
       name: test_cleanup_continues_after_delete_raises
       surface: cli
-    - &id1240
+    - &id1244
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 99
       name: test_cleanup_does_not_replace_primary_smoke_failure
       surface: cli
-    - &id1241
+    - &id1245
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 117
       name: test_sdk_smoke_has_npm_and_pip_finally_cleanup
       surface: cli
-    - &id1242
+    - &id1246
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 128
       name: test_auto_continuation_accepts_fast_terminal_completion
       surface: cli
     tests:
-    - *id1181
-    - *id1182
-    - *id1183
-    - *id1184
     - *id1185
     - *id1186
     - *id1187
@@ -11142,22 +11168,22 @@ assertions:
     - *id1240
     - *id1241
     - *id1242
+    - *id1243
+    - *id1244
+    - *id1245
+    - *id1246
     surfaces:
       rest_api:
         direct_tests:
-        - *id1184
         - *id1188
-        - *id1189
-        - *id1190
-        - *id1191
         - *id1192
         - *id1193
         - *id1194
+        - *id1195
         - *id1196
-        - *id1205
-        - *id1206
-        - *id1207
-        - *id1208
+        - *id1197
+        - *id1198
+        - *id1200
         - *id1209
         - *id1210
         - *id1211
@@ -11181,111 +11207,111 @@ assertions:
         - *id1229
         - *id1230
         - *id1231
+        - *id1232
+        - *id1233
+        - *id1234
+        - *id1235
         supporting_tests:
-        - *id1181
-        - *id1182
-        - *id1183
         - *id1185
         - *id1186
         - *id1187
-        - *id1195
-        - *id1197
-        - *id1198
+        - *id1189
+        - *id1190
+        - *id1191
         - *id1199
-        - *id1200
         - *id1201
         - *id1202
         - *id1203
         - *id1204
+        - *id1205
+        - *id1206
+        - *id1207
+        - *id1208
       gui.web:
         direct_tests:
-        - *id1232
+        - *id1236
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id1233
+        - *id1237
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1234
-        supporting_tests:
-        - *id1236
-        - *id1237
         - *id1238
-        - *id1239
+        supporting_tests:
         - *id1240
         - *id1241
         - *id1242
+        - *id1243
+        - *id1244
+        - *id1245
+        - *id1246
       sdks.pip:
         direct_tests:
-        - *id1235
+        - *id1239
         supporting_tests: []
     current_direct_proof: false
   tasks.project-links.encrypted:
     contract: feature.tasks@2
     fingerprint: 57c1abc2d98e76ee877c83e89fc2ac0144c5650e7c0462019c2563e1665c0fc2
     direct_tests:
-    - &id1243
+    - &id1247
       path: backend/tests/test_user_tasks_api.py
       line: 80
       name: test_create_task_hashes_owner_and_projects_without_plaintext_content
       surface: rest_api
-    - &id1244
+    - &id1248
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id1245
+    - &id1249
       path: backend/tests/test_user_tasks_api.py
       line: 295
       name: test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails
       surface: rest_api
-    - &id1246
+    - &id1250
       path: backend/tests/test_user_tasks_api.py
       line: 323
       name: test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field
       surface: rest_api
-    - &id1247
+    - &id1251
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id1248
+    - &id1252
       path: backend/tests/test_user_tasks_api.py
       line: 501
       name: test_update_task_replaces_wrappers_with_project_hash_update
       surface: rest_api
-    - &id1249
+    - &id1253
       path: backend/tests/test_user_tasks_api.py
       line: 587
       name: test_update_task_rejects_project_relink_without_replacement_wrappers
       surface: rest_api
-    - &id1250
+    - &id1254
       path: backend/tests/test_user_tasks_api.py
       line: 607
       name: test_update_task_rejects_project_relink_with_empty_replacement_wrappers
       surface: rest_api
-    - &id1251
+    - &id1255
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 128
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id1252
+    - &id1256
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id1253
+    - &id1257
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id1243
-    - *id1244
-    - *id1245
-    - *id1246
     - *id1247
     - *id1248
     - *id1249
@@ -11293,96 +11319,96 @@ assertions:
     - *id1251
     - *id1252
     - *id1253
+    - *id1254
+    - *id1255
+    - *id1256
+    - *id1257
     surfaces:
       rest_api:
         direct_tests:
-        - *id1243
-        - *id1244
-        - *id1245
-        - *id1246
         - *id1247
         - *id1248
         - *id1249
         - *id1250
+        - *id1251
+        - *id1252
+        - *id1253
+        - *id1254
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id1251
+        - *id1255
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1252
+        - *id1256
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1253
+        - *id1257
         supporting_tests: []
     current_direct_proof: false
   tasks.key-wrappers.context-scoped:
     contract: feature.tasks@2
     fingerprint: 45d7dace1ef42880916d6f6c529bcbbeb58ba7f1eff178f2f2e85fe369a168bf
     direct_tests:
-    - &id1254
+    - &id1258
       path: backend/tests/test_user_tasks_api.py
       line: 206
       name: test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
       surface: rest_api
-    - &id1255
+    - &id1259
       path: backend/tests/test_user_tasks_api.py
       line: 261
       name: test_create_task_persists_key_wrappers_separately
       surface: rest_api
-    - &id1256
+    - &id1260
       path: backend/tests/test_user_tasks_api.py
       line: 295
       name: test_create_task_rolls_back_row_and_wrappers_when_wrapper_write_fails
       surface: rest_api
-    - &id1257
+    - &id1261
       path: backend/tests/test_user_tasks_api.py
       line: 323
       name: test_create_task_rejects_raw_project_id_in_key_wrapper_hash_field
       surface: rest_api
-    - &id1258
+    - &id1262
       path: backend/tests/test_user_tasks_api.py
       line: 347
       name: test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappers
       surface: rest_api
-    - &id1259
+    - &id1263
       path: backend/tests/test_user_tasks_api.py
       line: 376
       name: test_replace_task_key_wrappers_rejects_stale_version
       surface: rest_api
-    - &id1260
+    - &id1264
       path: backend/tests/test_user_tasks_api.py
       line: 399
       name: test_replace_task_key_wrappers_restores_old_wrappers_when_version_advance_fails
       surface: rest_api
-    - &id1261
+    - &id1265
       path: backend/tests/test_user_tasks_api.py
       line: 501
       name: test_update_task_replaces_wrappers_with_project_hash_update
       surface: rest_api
-    - &id1262
+    - &id1266
       path: backend/tests/test_user_tasks_api.py
       line: 555
       name: test_update_task_fails_visibly_when_old_wrapper_delete_fails
       surface: rest_api
-    - &id1263
+    - &id1267
       path: backend/tests/test_user_tasks_api.py
       line: 587
       name: test_update_task_rejects_project_relink_without_replacement_wrappers
       surface: rest_api
-    - &id1264
+    - &id1268
       path: backend/tests/test_user_tasks_api.py
       line: 607
       name: test_update_task_rejects_project_relink_with_empty_replacement_wrappers
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id1254
-    - *id1255
-    - *id1256
-    - *id1257
     - *id1258
     - *id1259
     - *id1260
@@ -11390,13 +11416,13 @@ assertions:
     - *id1262
     - *id1263
     - *id1264
+    - *id1265
+    - *id1266
+    - *id1267
+    - *id1268
     surfaces:
       rest_api:
         direct_tests:
-        - *id1254
-        - *id1255
-        - *id1256
-        - *id1257
         - *id1258
         - *id1259
         - *id1260
@@ -11404,83 +11430,83 @@ assertions:
         - *id1262
         - *id1263
         - *id1264
+        - *id1265
+        - *id1266
+        - *id1267
+        - *id1268
         supporting_tests: []
     current_direct_proof: false
   tasks.workflow-projections.read-only:
     contract: feature.tasks@2
     fingerprint: 8294dc751574a7ef32a7480e4dad0d111cddc6c2e9f14e3dd6cd5145db4ece92
     direct_tests:
-    - &id1265
+    - &id1269
       path: backend/tests/test_user_task_admission.py
       line: 181
       name: test_admission_reads_only_user_task_rows_not_workflow_projections
       surface: rest_api
-    - &id1266
+    - &id1270
       path: backend/tests/test_workflow_task_projections.py
       line: 67
       name: test_active_schedule_projects_exactly_one_future_todo_task
       surface: rest_api
-    - &id1267
+    - &id1271
       path: backend/tests/test_workflow_task_projections.py
       line: 91
       name: test_deleting_future_schedule_projection_marks_run_skipped_and_advances_trigger
       surface: rest_api
-    - &id1268
+    - &id1272
       path: backend/tests/test_workflow_task_projections.py
       line: 114
       name: test_active_scheduled_run_suppresses_duplicate_future_projection_for_same_occurrence
       surface: rest_api
-    - &id1269
+    - &id1273
       path: backend/tests/test_workflow_task_projections.py
       line: 138
       name: test_running_scheduled_workflow_projects_current_run_and_next_todo
       surface: rest_api
-    - &id1270
+    - &id1274
       path: backend/tests/test_workflow_task_projections.py
       line: 172
       name: test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_tasks
       surface: rest_api
-    - &id1271
+    - &id1275
       path: backend/tests/test_workflow_task_projections.py
       line: 197
       name: test_task_projections_limit_workflow_to_current_last_and_next_entries
       surface: rest_api
-    - &id1272
+    - &id1276
       path: backend/tests/test_workflow_task_projections.py
       line: 226
       name: test_failed_recent_past_run_projects_as_last_run_blocked
       surface: rest_api
-    - &id1273
+    - &id1277
       path: backend/tests/test_workflow_task_projections.py
       line: 245
       name: test_tasks_route_merges_workflow_run_projection_without_user_task_persistence
       surface: rest_api
-    - &id1274
+    - &id1278
       path: backend/tests/test_workflow_task_projections.py
       line: 281
       name: test_tasks_delete_route_skips_future_workflow_projection_without_user_task_delete
       surface: rest_api
-    - &id1275
+    - &id1279
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 128
       name: renders workflow task projections without decrypting task ciphertext
       surface: cli
-    - &id1276
+    - &id1280
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 163
       name: gives workflow projection deletion guidance
       surface: cli
-    - &id1277
+    - &id1281
       path: packages/openmates-python/tests/test_tasks.py
       line: 139
       name: test_pip_sdk_keeps_workflow_projection_metadata
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id1265
-    - *id1266
-    - *id1267
-    - *id1268
     - *id1269
     - *id1270
     - *id1271
@@ -11490,215 +11516,215 @@ assertions:
     - *id1275
     - *id1276
     - *id1277
+    - *id1278
+    - *id1279
+    - *id1280
+    - *id1281
     surfaces:
       rest_api:
         direct_tests:
-        - *id1265
-        - *id1266
-        - *id1267
-        - *id1268
         - *id1269
         - *id1270
         - *id1271
         - *id1272
         - *id1273
         - *id1274
+        - *id1275
+        - *id1276
+        - *id1277
+        - *id1278
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1275
-        - *id1276
+        - *id1279
+        - *id1280
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1277
+        - *id1281
         supporting_tests: []
     current_direct_proof: false
   tasks.surface.semantic-parity:
     contract: feature.tasks@2
     fingerprint: 428bfaa952f7e745cea3a3ca9f701a01c2050f7996968ad8bf2ed4dd5d7e9933
     direct_tests:
-    - &id1293
+    - &id1297
       path: backend/tests/test_user_tasks_api.py
       line: 118
       name: test_list_tasks_filters_labels_with_and_semantics_and_priority
       surface: rest_api
-    - &id1295
+    - &id1299
       path: backend/tests/test_user_tasks_api.py
       line: 150
       name: test_task_short_id_lookup_rejects_ambiguous_collisions
       surface: rest_api
-    - &id1296
+    - &id1300
       path: backend/tests/test_user_tasks_api.py
       line: 469
       name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
-    - &id1297
+    - &id1301
       path: backend/tests/test_user_tasks_api.py
       line: 693
       name: test_product_task_helpers_do_not_use_celery_tasks_collection
       surface: rest_api
-    - &id1299
+    - &id1303
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 128
       name: manages decrypted tasks through API-key master-key recovery
       surface: sdks.npm
-    - &id1300
+    - &id1304
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 81
       name: lists, creates, updates, and starts encrypted user tasks
       surface: cli
-    - &id1301
+    - &id1305
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 117
       name: rejects ambiguous short task IDs
       surface: cli
-    - &id1302
+    - &id1306
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 128
       name: renders workflow task projections without decrypting task ciphertext
       surface: cli
-    - &id1303
+    - &id1307
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 163
       name: gives workflow projection deletion guidance
       surface: cli
-    - &id1305
+    - &id1309
       path: packages/openmates-python/tests/test_tasks.py
       line: 14
       name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
       surface: sdks.pip
-    - &id1306
+    - &id1310
       path: packages/openmates-python/tests/test_tasks.py
       line: 139
       name: test_pip_sdk_keeps_workflow_projection_metadata
       surface: sdks.pip
     supporting_tests:
-    - &id1278
+    - &id1282
       path: backend/tests/test_task_main_processor_tools.py
       line: 49
       name: test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks
       surface: rest_api
-    - &id1279
+    - &id1283
       path: backend/tests/test_task_main_processor_tools.py
       line: 67
       name: test_attached_tasks_enable_update_reorder_block_complete_and_move_tools
       surface: rest_api
-    - &id1280
+    - &id1284
       path: backend/tests/test_task_main_processor_tools.py
       line: 100
       name: test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached
       surface: rest_api
-    - &id1281
+    - &id1285
       path: backend/tests/test_task_main_processor_tools.py
       line: 165
       name: test_blocked_attached_tasks_enable_unblock_tool
       surface: rest_api
-    - &id1282
+    - &id1286
       path: backend/tests/test_task_main_processor_tools.py
       line: 190
       name: test_task_runtime_tools_merge_with_existing_main_processor_tools_without_duplicates
       surface: rest_api
-    - &id1283
+    - &id1287
       path: backend/tests/test_task_main_processor_tools.py
       line: 226
       name: test_reorder_tool_is_not_advertised_until_atomic_persistence_exists
       surface: rest_api
-    - &id1284
+    - &id1288
       path: backend/tests/test_task_main_processor_tools.py
       line: 243
       name: test_task_tool_allow_list_preserves_provider_emitted_name
       surface: rest_api
-    - &id1285
+    - &id1289
       path: backend/tests/test_task_main_processor_tools.py
       line: 253
       name: test_tasks_app_skill_names_are_not_legacy_task_runtime_tools
       surface: rest_api
-    - &id1286
+    - &id1290
       path: backend/tests/test_task_main_processor_tools.py
       line: 261
       name: test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools
       surface: rest_api
-    - &id1287
+    - &id1291
       path: backend/tests/test_task_main_processor_tools.py
       line: 281
       name: test_tasks_app_skill_mentions_resolve_from_backend_wire_syntax
       surface: rest_api
-    - &id1288
+    - &id1292
       path: backend/tests/test_task_main_processor_tools.py
       line: 288
       name: test_tasks_app_skill_mentions_resolve_from_user_overrides
       surface: rest_api
-    - &id1289
+    - &id1293
       path: backend/tests/test_task_main_processor_tools.py
       line: 295
       name: test_explicit_tasks_app_skill_expands_assigned_app_allowlist
       surface: rest_api
-    - &id1290
+    - &id1294
       path: backend/tests/test_task_main_processor_tools.py
       line: 309
       name: test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases
       surface: rest_api
-    - &id1291
+    - &id1295
       path: backend/tests/test_task_main_processor_tools.py
       line: 742
       name: test_task_tool_accepts_model_formatted_task_id_and_version
       surface: rest_api
-    - &id1292
+    - &id1296
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 209
       name: test_task_queue_post_turn_prompt_prefers_short_id
       surface: rest_api
-    - &id1294
+    - &id1298
       path: backend/tests/test_user_tasks_api.py
       line: 142
       name: test_task_short_id_matches_cli_derivation
       surface: cli
-    - &id1298
+    - &id1302
       path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       line: 52
       name: exposes task app-skill child embeds and pending client search state
       surface: sdks.npm
-    - &id1304
+    - &id1308
       path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 177
       name: formats task child embeds for CLI output
       surface: cli
-    - &id1307
+    - &id1311
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 31
       name: test_created_chat_and_task_are_registered_immediately
       surface: cli
-    - &id1308
+    - &id1312
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 49
       name: test_cleanup_deletes_tasks_before_chats
       surface: cli
-    - &id1309
+    - &id1313
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 68
       name: test_cleanup_failure_is_not_silent
       surface: cli
-    - &id1310
+    - &id1314
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 78
       name: test_cleanup_continues_after_delete_raises
       surface: cli
-    - &id1311
+    - &id1315
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 99
       name: test_cleanup_does_not_replace_primary_smoke_failure
       surface: cli
-    - &id1312
+    - &id1316
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 117
       name: test_sdk_smoke_has_npm_and_pip_finally_cleanup
       surface: cli
     tests:
-    - *id1278
-    - *id1279
-    - *id1280
-    - *id1281
     - *id1282
     - *id1283
     - *id1284
@@ -11730,18 +11756,18 @@ assertions:
     - *id1310
     - *id1311
     - *id1312
+    - *id1313
+    - *id1314
+    - *id1315
+    - *id1316
     surfaces:
       rest_api:
         direct_tests:
-        - *id1293
-        - *id1295
-        - *id1296
         - *id1297
+        - *id1299
+        - *id1300
+        - *id1301
         supporting_tests:
-        - *id1278
-        - *id1279
-        - *id1280
-        - *id1281
         - *id1282
         - *id1283
         - *id1284
@@ -11753,237 +11779,237 @@ assertions:
         - *id1290
         - *id1291
         - *id1292
+        - *id1293
+        - *id1294
+        - *id1295
+        - *id1296
       cli:
         direct_tests:
-        - *id1300
-        - *id1301
-        - *id1302
-        - *id1303
-        supporting_tests:
-        - *id1294
         - *id1304
-        - *id1307
-        - *id1308
-        - *id1309
-        - *id1310
-        - *id1311
-        - *id1312
-      sdks.npm:
-        direct_tests:
-        - *id1299
-        supporting_tests:
-        - *id1298
-      sdks.pip:
-        direct_tests:
         - *id1305
         - *id1306
+        - *id1307
+        supporting_tests:
+        - *id1298
+        - *id1308
+        - *id1311
+        - *id1312
+        - *id1313
+        - *id1314
+        - *id1315
+        - *id1316
+      sdks.npm:
+        direct_tests:
+        - *id1303
+        supporting_tests:
+        - *id1302
+      sdks.pip:
+        direct_tests:
+        - *id1309
+        - *id1310
         supporting_tests: []
     current_direct_proof: false
   tasks.execution.capacity-scoped:
     contract: feature.tasks@2
     fingerprint: 7d3ff83a06028e80d8115bec0e045cba9b4b213faae91db613e36b084004f9dc
     direct_tests:
-    - &id1313
+    - &id1317
       path: backend/tests/test_task_main_processor_tools.py
       line: 126
       name: test_team_task_context_and_completion_stay_in_team_scope
       surface: rest_api
-    - &id1314
+    - &id1318
       path: backend/tests/test_task_main_processor_tools.py
       line: 652
       name: test_direct_task_complete_marks_next_task_active_in_turn_context
       surface: rest_api
-    - &id1315
+    - &id1319
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 29
       name: test_post_turn_guard_starts_next_task_before_plan_continuation
       surface: rest_api
-    - &id1316
+    - &id1320
       path: backend/tests/test_user_task_admission.py
       line: 48
       name: test_official_cloud_policy_uses_fixed_personal_and_team_limits
       surface: rest_api
-    - &id1317
+    - &id1321
       path: backend/tests/test_user_task_admission.py
       line: 64
       name: test_self_host_policy_accepts_explicit_capacity_and_rejects_invalid_values
       surface: rest_api
-    - &id1318
+    - &id1322
       path: backend/tests/test_user_task_admission.py
       line: 84
       name: test_personal_pool_starts_two_urgent_overflow_tasks_but_not_sixth_normal
       surface: rest_api
-    - &id1319
+    - &id1323
       path: backend/tests/test_user_task_admission.py
       line: 103
       name: test_team_pool_has_hard_maximum_ten_and_is_independent_from_personal_pool
       surface: rest_api
-    - &id1320
+    - &id1324
       path: backend/tests/test_user_task_admission.py
       line: 181
       name: test_admission_reads_only_user_task_rows_not_workflow_projections
       surface: rest_api
-    - &id1321
+    - &id1325
       path: backend/tests/test_user_task_admission.py
       line: 194
       name: test_admission_queries_are_bounded_and_paginated_without_truncation
       surface: rest_api
-    - &id1322
+    - &id1326
       path: backend/tests/test_user_task_admission.py
       line: 212
       name: test_team_admission_finds_staged_context_without_personal_owner_hash
       surface: rest_api
-    - &id1323
+    - &id1327
       path: backend/tests/test_user_task_admission.py
       line: 234
       name: test_waiting_task_execution_context_is_vault_encrypted_and_dispatched_once_admitted
       surface: rest_api
-    - &id1324
+    - &id1328
       path: backend/tests/test_user_task_admission.py
       line: 273
       name: test_scheduler_admission_blocks_claim_without_execution_context_and_releases_slot
       surface: rest_api
-    - &id1325
+    - &id1329
       path: backend/tests/test_user_task_admission.py
       line: 291
       name: test_scheduler_dispatch_failure_blocks_claim_and_releases_slot
       surface: rest_api
-    - &id1326
+    - &id1330
       path: backend/tests/test_user_task_admission.py
       line: 308
       name: test_execution_context_decrypt_failure_blocks_claim_and_releases_slot
       surface: rest_api
-    - &id1327
+    - &id1331
       path: backend/tests/test_user_task_admission.py
       line: 324
       name: test_failed_dispatch_immediately_refills_released_capacity
       surface: rest_api
-    - &id1328
+    - &id1332
       path: backend/tests/test_user_task_admission.py
       line: 352
       name: test_admission_releases_scope_lock_before_dispatch_callback
       surface: rest_api
-    - &id1329
+    - &id1333
       path: backend/tests/test_user_task_runtime_tools.py
       line: 24
       name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
       surface: rest_api
-    - &id1330
+    - &id1334
       path: backend/tests/test_user_task_runtime_tools.py
       line: 51
       name: test_block_pauses_queue_with_safe_reason
       surface: rest_api
-    - &id1331
+    - &id1335
       path: backend/tests/test_user_task_runtime_tools.py
       line: 85
       name: test_complete_starts_next_eligible_ai_task
       surface: rest_api
-    - &id1332
+    - &id1336
       path: backend/tests/test_user_task_runtime_tools.py
       line: 186
       name: test_complete_refills_scope_capacity_even_when_source_chat_is_blocked
       surface: rest_api
-    - &id1333
+    - &id1337
       path: backend/tests/test_user_task_runtime_tools.py
       line: 219
       name: test_team_completion_updates_team_row_and_refills_team_pool
       surface: rest_api
-    - &id1334
+    - &id1338
       path: backend/tests/test_user_tasks_api.py
       line: 632
       name: test_ai_task_without_execution_context_waits_without_consuming_capacity
       surface: rest_api
-    - &id1335
+    - &id1339
       path: backend/tests/test_user_tasks_api.py
       line: 648
       name: test_ai_task_create_with_transient_context_claims_and_dispatches
       surface: rest_api
-    - &id1336
+    - &id1340
       path: backend/tests/test_user_tasks_api.py
       line: 675
       name: test_second_ai_task_without_due_date_waits_for_active_chat_task
       surface: rest_api
-    - &id1337
+    - &id1341
       path: backend/tests/test_user_tasks_api.py
       line: 762
       name: test_start_ai_waits_when_another_task_is_active_in_same_chat
       surface: rest_api
-    - &id1338
+    - &id1342
       path: backend/tests/test_user_tasks_api.py
       line: 792
       name: test_team_start_ai_scopes_update_admission_and_dispatch_payload
       surface: rest_api
-    - &id1339
+    - &id1343
       path: backend/tests/test_user_tasks_api.py
       line: 851
       name: test_team_task_updates_share_one_team_scoped_write_lock
       surface: rest_api
-    - &id1340
+    - &id1344
       path: backend/tests/test_user_tasks_api.py
       line: 868
       name: test_start_ai_stages_execution_context_before_becoming_admission_eligible
       surface: rest_api
-    - &id1341
+    - &id1345
       path: backend/tests/test_user_tasks_api.py
       line: 902
       name: test_start_ai_staging_failure_moves_task_to_visible_blocked_state
       surface: rest_api
-    - &id1342
+    - &id1346
       path: backend/tests/test_user_tasks_scheduler.py
       line: 48
       name: test_process_due_ai_tasks_starts_due_rows
       surface: rest_api
-    - &id1343
+    - &id1347
       path: backend/tests/test_user_tasks_scheduler.py
       line: 71
       name: test_due_ai_query_uses_durable_filters
       surface: rest_api
-    - &id1344
+    - &id1348
       path: backend/tests/test_user_tasks_scheduler.py
       line: 85
       name: test_stale_queued_query_only_selects_expired_dispatch_leases
       surface: rest_api
-    - &id1345
+    - &id1349
       path: backend/tests/test_user_tasks_scheduler.py
       line: 102
       name: test_process_due_ai_tasks_skips_rows_without_version
       surface: rest_api
-    - &id1346
+    - &id1350
       path: backend/tests/test_user_tasks_scheduler.py
       line: 117
       name: test_scheduler_reconciles_waiting_todo_scope_without_due_task
       surface: rest_api
-    - &id1347
+    - &id1351
       path: backend/tests/test_user_tasks_scheduler.py
       line: 131
       name: test_scheduler_fails_stale_queued_task_before_refill
       surface: rest_api
-    - &id1348
+    - &id1352
       path: backend/tests/test_user_tasks_scheduler.py
       line: 183
       name: test_delayed_worker_claim_requires_task_to_still_be_queued
       surface: rest_api
-    - &id1349
+    - &id1353
       path: backend/tests/test_user_tasks_scheduler.py
       line: 208
       name: test_stale_sweep_treats_worker_claim_lock_as_healthy_contention
       surface: rest_api
-    - &id1350
+    - &id1354
       path: backend/tests/test_user_tasks_scheduler.py
       line: 233
       name: test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence
       surface: rest_api
-    - &id1351
+    - &id1355
       path: backend/tests/test_user_tasks_scheduler.py
       line: 244
       name: test_reconciliation_uses_dedicated_user_tasks_queue
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id1313
-    - *id1314
-    - *id1315
-    - *id1316
     - *id1317
     - *id1318
     - *id1319
@@ -12019,13 +12045,13 @@ assertions:
     - *id1349
     - *id1350
     - *id1351
+    - *id1352
+    - *id1353
+    - *id1354
+    - *id1355
     surfaces:
       rest_api:
         direct_tests:
-        - *id1313
-        - *id1314
-        - *id1315
-        - *id1316
         - *id1317
         - *id1318
         - *id1319
@@ -12061,163 +12087,163 @@ assertions:
         - *id1349
         - *id1350
         - *id1351
+        - *id1352
+        - *id1353
+        - *id1354
+        - *id1355
         supporting_tests: []
     current_direct_proof: false
   tasks.execution.order-preserved:
     contract: feature.tasks@2
     fingerprint: 0682e46e405bebef9cb3f915bd07e905e7b9c954a931ccdd1f617022c1e18103
     direct_tests:
-    - &id1352
+    - &id1356
       path: backend/tests/test_task_main_processor_tools.py
       line: 393
       name: test_repeated_task_create_calls_get_monotonic_positions_in_same_turn
       surface: rest_api
-    - &id1353
+    - &id1357
       path: backend/tests/test_task_main_processor_tools.py
       line: 582
       name: test_repeated_direct_task_complete_returns_event_noop
       surface: rest_api
-    - &id1354
+    - &id1358
       path: backend/tests/test_task_main_processor_tools.py
       line: 652
       name: test_direct_task_complete_marks_next_task_active_in_turn_context
       surface: rest_api
-    - &id1355
+    - &id1359
       path: backend/tests/test_task_main_processor_tools.py
       line: 697
       name: test_direct_task_complete_uses_store_already_applied_state_after_conflict
       surface: rest_api
-    - &id1356
+    - &id1360
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 29
       name: test_post_turn_guard_starts_next_task_before_plan_continuation
       surface: rest_api
-    - &id1362
+    - &id1366
       path: backend/tests/test_user_task_admission.py
       line: 119
       name: test_urgent_chat_task_cannot_skip_user_ordered_predecessor
       surface: rest_api
-    - &id1363
+    - &id1367
       path: backend/tests/test_user_task_admission.py
       line: 134
       name: test_user_reorder_changes_next_chat_task_without_preemption
       surface: rest_api
-    - &id1364
+    - &id1368
       path: backend/tests/test_user_task_admission.py
       line: 149
       name: test_plan_current_task_is_only_eligible_plan_lane_head
       surface: rest_api
-    - &id1365
+    - &id1369
       path: backend/tests/test_user_task_admission.py
       line: 165
       name: test_active_task_prevents_second_task_in_same_chat
       surface: rest_api
-    - &id1366
+    - &id1370
       path: backend/tests/test_user_task_runtime_tools.py
       line: 24
       name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
       surface: rest_api
-    - &id1367
+    - &id1371
       path: backend/tests/test_user_task_runtime_tools.py
       line: 106
       name: test_complete_uses_ordered_chat_queue_for_next_ai_task
       surface: rest_api
-    - &id1368
+    - &id1372
       path: backend/tests/test_user_task_runtime_tools.py
       line: 132
       name: test_complete_pauses_on_blocking_human_task_before_later_ai_task
       surface: rest_api
-    - &id1369
+    - &id1373
       path: backend/tests/test_user_task_runtime_tools.py
       line: 186
       name: test_complete_refills_scope_capacity_even_when_source_chat_is_blocked
       surface: rest_api
-    - &id1370
+    - &id1374
       path: backend/tests/test_user_tasks_api.py
       line: 632
       name: test_ai_task_without_execution_context_waits_without_consuming_capacity
       surface: rest_api
-    - &id1371
+    - &id1375
       path: backend/tests/test_user_tasks_api.py
       line: 675
       name: test_second_ai_task_without_due_date_waits_for_active_chat_task
       surface: rest_api
-    - &id1372
+    - &id1376
       path: backend/tests/test_user_tasks_api.py
       line: 762
       name: test_start_ai_waits_when_another_task_is_active_in_same_chat
       surface: rest_api
-    - &id1373
+    - &id1377
       path: backend/tests/test_user_tasks_scheduler.py
       line: 48
       name: test_process_due_ai_tasks_starts_due_rows
       surface: rest_api
-    - &id1374
+    - &id1378
       path: backend/tests/test_user_tasks_scheduler.py
       line: 71
       name: test_due_ai_query_uses_durable_filters
       surface: rest_api
-    - &id1375
+    - &id1379
       path: backend/tests/test_user_tasks_scheduler.py
       line: 117
       name: test_scheduler_reconciles_waiting_todo_scope_without_due_task
       surface: rest_api
-    - &id1376
+    - &id1380
       path: backend/tests/test_user_tasks_scheduler.py
       line: 131
       name: test_scheduler_fails_stale_queued_task_before_refill
       surface: rest_api
-    - &id1377
+    - &id1381
       path: backend/tests/test_user_tasks_scheduler.py
       line: 183
       name: test_delayed_worker_claim_requires_task_to_still_be_queued
       surface: rest_api
-    - &id1378
+    - &id1382
       path: backend/tests/test_user_tasks_scheduler.py
       line: 208
       name: test_stale_sweep_treats_worker_claim_lock_as_healthy_contention
       surface: rest_api
-    - &id1379
+    - &id1383
       path: backend/tests/test_user_tasks_scheduler.py
       line: 233
       name: test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence
       surface: rest_api
     supporting_tests:
-    - &id1357
+    - &id1361
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 58
       name: test_post_turn_guard_retries_active_task_without_mutating_metadata
       surface: rest_api
-    - &id1358
+    - &id1362
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 86
       name: test_post_turn_guard_blocks_plan_on_human_gate_without_retry
       surface: rest_api
-    - &id1359
+    - &id1363
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 122
       name: test_task_context_blocks_plan_creation_for_open_chat_tasks
       surface: rest_api
-    - &id1360
+    - &id1364
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 141
       name: test_task_context_allows_plan_creation_when_tasks_are_closed
       surface: rest_api
-    - &id1361
+    - &id1365
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 218
       name: test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state
       surface: rest_api
-    - &id1380
+    - &id1384
       path: scripts/tests/test_task_live_smoke_cleanup.py
       line: 128
       name: test_auto_continuation_accepts_fast_terminal_completion
       surface: cli
     tests:
-    - *id1352
-    - *id1353
-    - *id1354
-    - *id1355
     - *id1356
     - *id1357
     - *id1358
@@ -12243,18 +12269,18 @@ assertions:
     - *id1378
     - *id1379
     - *id1380
+    - *id1381
+    - *id1382
+    - *id1383
+    - *id1384
     surfaces:
       rest_api:
         direct_tests:
-        - *id1352
-        - *id1353
-        - *id1354
-        - *id1355
         - *id1356
-        - *id1362
-        - *id1363
-        - *id1364
-        - *id1365
+        - *id1357
+        - *id1358
+        - *id1359
+        - *id1360
         - *id1366
         - *id1367
         - *id1368
@@ -12269,136 +12295,136 @@ assertions:
         - *id1377
         - *id1378
         - *id1379
+        - *id1380
+        - *id1381
+        - *id1382
+        - *id1383
         supporting_tests:
-        - *id1357
-        - *id1358
-        - *id1359
-        - *id1360
         - *id1361
+        - *id1362
+        - *id1363
+        - *id1364
+        - *id1365
       cli:
         direct_tests: []
         supporting_tests:
-        - *id1380
+        - *id1384
     current_direct_proof: false
   teams.lifecycle.encrypted-profiled:
     contract: feature.teams@1
     fingerprint: 4660700afe2dbe96055a78540871e724a181fe1d8b13f4db209de5bc50f82b8d
     direct_tests:
-    - &id1381
+    - &id1385
       path: backend/tests/test_teams_lifecycle.py
       line: 68
       name: test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
       surface: rest_api
-    - &id1382
+    - &id1386
       path: backend/tests/test_teams_lifecycle.py
       line: 97
       name: test_invite_accept_creates_member_and_team_key_wrapper_epoch_one
       surface: rest_api
-    - &id1383
+    - &id1387
       path: backend/tests/test_teams_lifecycle.py
       line: 138
       name: test_remove_member_revokes_membership_and_key_without_epoch_rotation
       surface: rest_api
-    - &id1384
+    - &id1388
       path: backend/tests/test_teams_lifecycle.py
       line: 161
       name: test_remove_member_stays_fail_closed_if_wrapper_revocation_fails
       surface: rest_api
-    - &id1385
+    - &id1389
       path: backend/tests/test_teams_lifecycle.py
       line: 192
       name: test_deleted_team_rejects_existing_member_role_checks
       surface: rest_api
-    - &id1386
+    - &id1390
       path: backend/tests/test_teams_profile_images.py
       line: 89
       name: test_create_team_persists_generated_profile_metadata_for_list_and_get
       surface: rest_api
-    - &id1387
+    - &id1391
       path: backend/tests/test_teams_profile_images.py
       line: 108
       name: test_create_team_requires_encrypted_profile_metadata
       surface: rest_api
-    - &id1388
+    - &id1392
       path: backend/tests/test_teams_profile_images.py
       line: 147
       name: test_process_uploaded_team_profile_image_replaces_old_private_blob_metadata
       surface: rest_api
-    - &id1389
+    - &id1393
       path: backend/tests/test_teams_routes.py
       line: 374
       name: test_team_delete_offlines_sources_before_durable_team_deletion
       surface: rest_api
-    - &id1390
+    - &id1394
       path: backend/tests/test_teams_routes.py
       line: 385
       name: test_member_removal_stays_fail_closed_if_cache_revocation_fails
       surface: rest_api
-    - &id1391
+    - &id1395
       path: backend/tests/test_teams_routes.py
       line: 499
       name: test_teams_routes_reject_cleartext_encrypted_fields
       surface: rest_api
-    - &id1392
+    - &id1396
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
       line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
-    - &id1393
+    - &id1397
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 147
       name: creates and updates generated team profile-image metadata client-side
         encrypted
       surface: sdks.npm
-    - &id1394
+    - &id1398
       path: frontend/packages/openmates-cli/tests/team-profile-images.test.ts
       line: 93
       name: encrypts generated profile metadata and downloads images through the team
         proxy
       surface: cli
-    - &id1395
+    - &id1399
       path: frontend/packages/ui/src/services/__tests__/teamService.test.ts
       line: 37
       name: keeps the submitted encrypted fields when create returns a sparse team
         row
       surface: gui.web
-    - &id1396
+    - &id1400
       path: packages/openmates-python/tests/test_teams.py
       line: 126
       name: test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata
       surface: sdks.pip
-    - &id1398
+    - &id1402
       path: scripts/tests/test_teams_privacy_audit.py
       line: 45
       name: test_team_schema_keeps_user_visible_or_billing_metadata_encrypted
       surface: rest_api
-    - &id1399
+    - &id1403
       path: scripts/tests/test_teams_privacy_audit.py
       line: 62
       name: test_team_schema_requires_encrypted_profile_image_metadata
       surface: rest_api
-    - &id1400
+    - &id1404
       path: scripts/tests/test_teams_privacy_audit.py
       line: 76
       name: test_team_schema_does_not_store_plain_generated_avatar_details
       surface: rest_api
-    - &id1401
+    - &id1405
       path: scripts/tests/test_teams_privacy_audit.py
       line: 92
       name: test_team_schema_does_not_store_raw_member_or_invite_identity_fields
       surface: rest_api
     supporting_tests:
-    - &id1397
+    - &id1401
       path: scripts/tests/test_teams_privacy_audit.py
       line: 33
       name: test_team_schema_uses_hashes_for_join_identifiers
       surface: rest_api
     tests:
-    - *id1381
-    - *id1382
-    - *id1383
-    - *id1384
     - *id1385
     - *id1386
     - *id1387
@@ -12416,13 +12442,13 @@ assertions:
     - *id1399
     - *id1400
     - *id1401
+    - *id1402
+    - *id1403
+    - *id1404
+    - *id1405
     surfaces:
       rest_api:
         direct_tests:
-        - *id1381
-        - *id1382
-        - *id1383
-        - *id1384
         - *id1385
         - *id1386
         - *id1387
@@ -12430,205 +12456,205 @@ assertions:
         - *id1389
         - *id1390
         - *id1391
-        - *id1398
-        - *id1399
-        - *id1400
-        - *id1401
+        - *id1392
+        - *id1393
+        - *id1394
+        - *id1395
+        - *id1402
+        - *id1403
+        - *id1404
+        - *id1405
         supporting_tests:
-        - *id1397
+        - *id1401
       gui.web:
         direct_tests:
-        - *id1392
-        - *id1395
+        - *id1396
+        - *id1399
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id1393
+        - *id1397
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1394
+        - *id1398
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1396
+        - *id1400
         supporting_tests: []
     current_direct_proof: false
   teams.profile-image.safe-parity:
     contract: feature.teams@1
     fingerprint: 86a27be0efc23618a06c6881d275879c73fcd327d59ce02f75ba4e161c0f8eb6
     direct_tests:
-    - &id1402
+    - &id1406
       path: backend/tests/test_teams_profile_images.py
       line: 89
       name: test_create_team_persists_generated_profile_metadata_for_list_and_get
       surface: rest_api
-    - &id1403
+    - &id1407
       path: backend/tests/test_teams_profile_images.py
       line: 120
       name: test_owner_admin_can_update_profile_metadata_but_viewer_cannot
       surface: rest_api
-    - &id1404
+    - &id1408
       path: backend/tests/test_teams_profile_images.py
       line: 147
       name: test_process_uploaded_team_profile_image_replaces_old_private_blob_metadata
       surface: rest_api
-    - &id1405
+    - &id1409
       path: backend/tests/test_teams_profile_images.py
       line: 232
       name: test_upload_team_profile_image_uses_private_profile_pipeline
       surface: rest_api
-    - &id1406
+    - &id1410
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 147
       name: creates and updates generated team profile-image metadata client-side
         encrypted
       surface: sdks.npm
-    - &id1407
+    - &id1411
       path: frontend/packages/openmates-cli/tests/team-profile-images.test.ts
       line: 93
       name: encrypts generated profile metadata and downloads images through the team
         proxy
       surface: cli
-    - &id1408
+    - &id1412
       path: packages/openmates-python/tests/test_teams.py
       line: 126
       name: test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata
       surface: sdks.pip
-    - &id1409
+    - &id1413
       path: scripts/tests/test_teams_privacy_audit.py
       line: 62
       name: test_team_schema_requires_encrypted_profile_image_metadata
       surface: rest_api
-    - &id1410
+    - &id1414
       path: scripts/tests/test_teams_privacy_audit.py
       line: 76
       name: test_team_schema_does_not_store_plain_generated_avatar_details
       surface: rest_api
     supporting_tests: []
     tests:
-    - *id1402
-    - *id1403
-    - *id1404
-    - *id1405
     - *id1406
     - *id1407
     - *id1408
     - *id1409
     - *id1410
+    - *id1411
+    - *id1412
+    - *id1413
+    - *id1414
     surfaces:
       rest_api:
         direct_tests:
-        - *id1402
-        - *id1403
-        - *id1404
-        - *id1405
+        - *id1406
+        - *id1407
+        - *id1408
         - *id1409
-        - *id1410
+        - *id1413
+        - *id1414
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id1406
+        - *id1410
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1407
+        - *id1411
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1408
+        - *id1412
         supporting_tests: []
     current_direct_proof: false
   teams.membership.role-gated:
     contract: feature.teams@1
     fingerprint: 347d8b31f1c311c86fa3af7ae1d0921c034096d95b6b79f6cd05b5e05d181cbe
     direct_tests:
-    - &id1412
+    - &id1416
       path: backend/tests/test_teams_lifecycle.py
       line: 68
       name: test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
       surface: rest_api
-    - &id1413
+    - &id1417
       path: backend/tests/test_teams_lifecycle.py
       line: 97
       name: test_invite_accept_creates_member_and_team_key_wrapper_epoch_one
       surface: rest_api
-    - &id1414
+    - &id1418
       path: backend/tests/test_teams_lifecycle.py
       line: 124
       name: test_require_team_role_fails_closed_for_viewer_write_action
       surface: rest_api
-    - &id1415
+    - &id1419
       path: backend/tests/test_teams_lifecycle.py
       line: 138
       name: test_remove_member_revokes_membership_and_key_without_epoch_rotation
       surface: rest_api
-    - &id1416
+    - &id1420
       path: backend/tests/test_teams_lifecycle.py
       line: 161
       name: test_remove_member_stays_fail_closed_if_wrapper_revocation_fails
       surface: rest_api
-    - &id1417
+    - &id1421
       path: backend/tests/test_teams_lifecycle.py
       line: 192
       name: test_deleted_team_rejects_existing_member_role_checks
       surface: rest_api
-    - &id1418
+    - &id1422
       path: backend/tests/test_teams_profile_images.py
       line: 120
       name: test_owner_admin_can_update_profile_metadata_but_viewer_cannot
       surface: rest_api
-    - &id1419
+    - &id1423
       path: backend/tests/test_teams_profile_images.py
       line: 232
       name: test_upload_team_profile_image_uses_private_profile_pipeline
       surface: rest_api
-    - &id1421
+    - &id1425
       path: backend/tests/test_teams_routes.py
       line: 374
       name: test_team_delete_offlines_sources_before_durable_team_deletion
       surface: rest_api
-    - &id1422
+    - &id1426
       path: backend/tests/test_teams_routes.py
       line: 385
       name: test_member_removal_stays_fail_closed_if_cache_revocation_fails
       surface: rest_api
-    - &id1423
+    - &id1427
       path: backend/tests/test_teams_routes.py
       line: 397
       name: test_team_permission_error_maps_to_403
       surface: rest_api
-    - &id1424
+    - &id1428
       path: backend/tests/test_teams_routes.py
       line: 458
       name: test_team_bank_transfer_create_requires_owner_or_admin
       surface: rest_api
-    - &id1426
+    - &id1430
       path: scripts/tests/test_teams_privacy_audit.py
       line: 92
       name: test_team_schema_does_not_store_raw_member_or_invite_identity_fields
       surface: rest_api
     supporting_tests:
-    - &id1411
+    - &id1415
       path: backend/tests/test_native_chats_api.py
       line: 107
       name: test_list_team_chats_fetches_team_key_wrappers_after_role_check
       surface: rest_api
-    - &id1420
+    - &id1424
       path: backend/tests/test_teams_routes.py
       line: 341
       name: test_teams_routes_expose_invite_and_member_contract
       surface: rest_api
-    - &id1425
+    - &id1429
       path: scripts/tests/test_teams_privacy_audit.py
       line: 33
       name: test_team_schema_uses_hashes_for_join_identifiers
       surface: rest_api
     tests:
-    - *id1411
-    - *id1412
-    - *id1413
-    - *id1414
     - *id1415
     - *id1416
     - *id1417
@@ -12641,54 +12667,6 @@ assertions:
     - *id1424
     - *id1425
     - *id1426
-    surfaces:
-      rest_api:
-        direct_tests:
-        - *id1412
-        - *id1413
-        - *id1414
-        - *id1415
-        - *id1416
-        - *id1417
-        - *id1418
-        - *id1419
-        - *id1421
-        - *id1422
-        - *id1423
-        - *id1424
-        - *id1426
-        supporting_tests:
-        - *id1411
-        - *id1420
-        - *id1425
-    current_direct_proof: false
-  teams.invites.fragment-key-web-flow:
-    contract: feature.teams@1
-    fingerprint: 42ff02732a01828324cf7a68efe525c5c3a1192eb8ee7c0c5db3da5c01f58580
-    direct_tests:
-    - &id1427
-      path: backend/tests/test_teams_lifecycle.py
-      line: 97
-      name: test_invite_accept_creates_member_and_team_key_wrapper_epoch_one
-      surface: rest_api
-    - &id1429
-      path: frontend/apps/web_app/tests/teams-flow.spec.ts
-      line: 36
-      name: creates a settings-only encrypted team and switches context from the profile
-        menu
-      surface: gui.web
-    - &id1430
-      path: scripts/tests/test_teams_privacy_audit.py
-      line: 92
-      name: test_team_schema_does_not_store_raw_member_or_invite_identity_fields
-      surface: rest_api
-    supporting_tests:
-    - &id1428
-      path: backend/tests/test_teams_routes.py
-      line: 341
-      name: test_teams_routes_expose_invite_and_member_contract
-      surface: rest_api
-    tests:
     - *id1427
     - *id1428
     - *id1429
@@ -12696,121 +12674,169 @@ assertions:
     surfaces:
       rest_api:
         direct_tests:
+        - *id1416
+        - *id1417
+        - *id1418
+        - *id1419
+        - *id1420
+        - *id1421
+        - *id1422
+        - *id1423
+        - *id1425
+        - *id1426
         - *id1427
+        - *id1428
         - *id1430
         supporting_tests:
-        - *id1428
+        - *id1415
+        - *id1424
+        - *id1429
+    current_direct_proof: false
+  teams.invites.fragment-key-web-flow:
+    contract: feature.teams@1
+    fingerprint: 42ff02732a01828324cf7a68efe525c5c3a1192eb8ee7c0c5db3da5c01f58580
+    direct_tests:
+    - &id1431
+      path: backend/tests/test_teams_lifecycle.py
+      line: 97
+      name: test_invite_accept_creates_member_and_team_key_wrapper_epoch_one
+      surface: rest_api
+    - &id1433
+      path: frontend/apps/web_app/tests/teams-flow.spec.ts
+      line: 36
+      name: creates a settings-only encrypted team and switches context from the profile
+        menu
+      surface: gui.web
+    - &id1434
+      path: scripts/tests/test_teams_privacy_audit.py
+      line: 92
+      name: test_team_schema_does_not_store_raw_member_or_invite_identity_fields
+      surface: rest_api
+    supporting_tests:
+    - &id1432
+      path: backend/tests/test_teams_routes.py
+      line: 341
+      name: test_teams_routes_expose_invite_and_member_contract
+      surface: rest_api
+    tests:
+    - *id1431
+    - *id1432
+    - *id1433
+    - *id1434
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id1431
+        - *id1434
+        supporting_tests:
+        - *id1432
       gui.web:
         direct_tests:
-        - *id1429
+        - *id1433
         supporting_tests: []
     current_direct_proof: false
   teams.context.full-switch-local:
     contract: feature.teams@1
     fingerprint: b88cf430063e73cf39294d40f223768895d14d8ccf680bef6ff58e8960068b4d
     direct_tests:
-    - &id1431
+    - &id1435
       path: backend/tests/test_chat_turn_preflight.py
       line: 129
       name: test_team_preflight_persists_canonical_team_scope
       surface: rest_api
-    - &id1433
+    - &id1437
       path: backend/tests/test_team_chat_pagination.py
       line: 82
       name: test_load_more_chats_uses_exact_team_scope_and_echoes_context
       surface: rest_api
-    - &id1434
+    - &id1438
       path: backend/tests/test_team_chat_pagination.py
       line: 105
       name: test_metadata_chat_sync_uses_exact_team_scope_and_echoes_context
       surface: rest_api
-    - &id1441
+    - &id1445
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
       line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
-    - &id1442
+    - &id1446
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
       line: 129
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
-    - &id1443
+    - &id1447
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       line: 171
       name: does not inject a Team key after the active context epoch changes
       surface: gui.web
-    - &id1444
+    - &id1448
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 79
       name: puts Team scope on the durable preflight boundary
       surface: gui.web
-    - &id1445
+    - &id1449
       path: frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
       line: 28
       name: scopes older-chat pagination to the active Team epoch
       surface: gui.web
-    - &id1446
+    - &id1450
       path: frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
       line: 40
       name: scopes metadata-only chat sync to the active Team epoch
       surface: gui.web
-    - &id1447
+    - &id1451
       path: frontend/packages/ui/src/stores/__tests__/teamStore.test.ts
       line: 38
       name: publishes one atomic snapshot for each logical context switch
       surface: gui.web
     supporting_tests:
-    - &id1432
+    - &id1436
       path: backend/tests/test_phased_sync_handler.py
       line: 53
       name: test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync
       surface: gui.web
-    - &id1435
+    - &id1439
       path: backend/tests/test_teams_chat_ai.py
       line: 88
       name: test_team_ai_context_ignores_client_supplied_team_hash
       surface: rest_api
-    - &id1436
+    - &id1440
       path: backend/tests/test_teams_chat_ai.py
       line: 227
       name: test_sdk_team_chat_uses_split_ciphertext_and_inference_envelopes
       surface: rest_api
-    - &id1437
+    - &id1441
       path: backend/tests/test_teams_chat_ai.py
       line: 237
       name: test_team_message_persistence_carries_canonical_team_scope
       surface: rest_api
-    - &id1438
+    - &id1442
       path: backend/tests/test_websocket_metadata_dispatch.py
       line: 228
       name: test_phased_sync_context_switch_cancels_queue_and_runs_replacement
       surface: gui.web
-    - &id1439
+    - &id1443
       path: backend/tests/test_websocket_metadata_dispatch.py
       line: 311
       name: test_phased_sync_rejects_malformed_context_epoch
       surface: gui.web
-    - &id1440
+    - &id1444
       path: backend/tests/test_websocket_metadata_dispatch.py
       line: 323
       name: test_stale_phased_sync_epoch_does_not_cancel_newer_context
       surface: gui.web
-    - &id1448
+    - &id1452
       path: frontend/packages/ui/src/stores/__tests__/teamStore.test.ts
       line: 60
       name: hydrates the selected Team without creating a false context epoch
       surface: gui.web
-    - &id1449
+    - &id1453
       path: scripts/tests/test_teams_settings_only_guard.py
       line: 49
       name: test_profile_team_loading_is_feature_gated_and_logout_safe
       surface: gui.web
     tests:
-    - *id1431
-    - *id1432
-    - *id1433
-    - *id1434
     - *id1435
     - *id1436
     - *id1437
@@ -12826,290 +12852,290 @@ assertions:
     - *id1447
     - *id1448
     - *id1449
+    - *id1450
+    - *id1451
+    - *id1452
+    - *id1453
     surfaces:
       rest_api:
         direct_tests:
-        - *id1431
-        - *id1433
-        - *id1434
-        supporting_tests:
         - *id1435
-        - *id1436
         - *id1437
+        - *id1438
+        supporting_tests:
+        - *id1439
+        - *id1440
+        - *id1441
       gui.web:
         direct_tests:
-        - *id1441
-        - *id1442
-        - *id1443
-        - *id1444
         - *id1445
         - *id1446
         - *id1447
-        supporting_tests:
-        - *id1432
-        - *id1438
-        - *id1439
-        - *id1440
         - *id1448
         - *id1449
+        - *id1450
+        - *id1451
+        supporting_tests:
+        - *id1436
+        - *id1442
+        - *id1443
+        - *id1444
+        - *id1452
+        - *id1453
     current_direct_proof: false
   teams.connected-accounts.team-owned-isolation:
     contract: feature.teams@1
     fingerprint: 77cb086e795ba11a0519134dd0290b2e3cc4fe25a0c6804996123b83299b75fc
     direct_tests: []
     supporting_tests:
-    - &id1450
+    - &id1454
       path: backend/tests/test_teams_connected_accounts.py
       line: 133
       name: test_connected_account_list_switches_context_and_redacts_member_secrets
       surface: rest_api
-    - &id1451
+    - &id1455
       path: backend/tests/test_teams_connected_accounts.py
       line: 146
       name: test_team_connected_account_create_requires_owner_or_admin
       surface: rest_api
-    - &id1452
+    - &id1456
       path: backend/tests/test_teams_connected_accounts.py
       line: 164
       name: test_team_turn_token_ref_cannot_be_exchanged_as_personal_context
       surface: rest_api
     tests:
-    - *id1450
-    - *id1451
-    - *id1452
+    - *id1454
+    - *id1455
+    - *id1456
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id1450
-        - *id1451
-        - *id1452
+        - *id1454
+        - *id1455
+        - *id1456
     current_direct_proof: false
   teams.collaboration.realtime-team-sync:
     contract: feature.teams@1
     fingerprint: 2e2068a4cf8580c286f915a43f8fbc9ac7e6114157e3839e6dabbfb6717503b2
     direct_tests:
-    - &id1453
+    - &id1457
       path: backend/tests/test_team_chat_pagination.py
       line: 82
       name: test_load_more_chats_uses_exact_team_scope_and_echoes_context
       surface: rest_api
-    - &id1454
+    - &id1458
       path: backend/tests/test_team_chat_pagination.py
       line: 105
       name: test_metadata_chat_sync_uses_exact_team_scope_and_echoes_context
       surface: rest_api
-    - &id1460
+    - &id1464
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       line: 171
       name: does not inject a Team key after the active context epoch changes
       surface: gui.web
     supporting_tests:
-    - &id1455
+    - &id1459
       path: backend/tests/test_teams_chat_ai.py
       line: 195
       name: test_websocket_handler_enters_team_transport_before_plaintext_pipeline
       surface: rest_api
-    - &id1456
+    - &id1460
       path: backend/tests/test_teams_realtime_sync.py
       line: 42
       name: test_active_members_receive_encrypted_human_message_event
       surface: rest_api
-    - &id1457
+    - &id1461
       path: backend/tests/test_teams_realtime_sync.py
       line: 67
       name: test_processing_and_final_events_reach_every_active_member
       surface: rest_api
-    - &id1458
+    - &id1462
       path: backend/tests/test_teams_realtime_sync.py
       line: 87
       name: test_connected_recipients_are_intersected_with_active_membership_hashes
       surface: rest_api
-    - &id1459
+    - &id1463
       path: backend/tests/test_teams_realtime_sync.py
       line: 117
       name: test_team_event_uses_cross_process_user_channel_when_cache_is_available
       surface: rest_api
     tests:
-    - *id1453
-    - *id1454
-    - *id1455
-    - *id1456
     - *id1457
     - *id1458
     - *id1459
     - *id1460
+    - *id1461
+    - *id1462
+    - *id1463
+    - *id1464
     surfaces:
       rest_api:
         direct_tests:
-        - *id1453
-        - *id1454
-        supporting_tests:
-        - *id1455
-        - *id1456
         - *id1457
         - *id1458
+        supporting_tests:
         - *id1459
+        - *id1460
+        - *id1461
+        - *id1462
+        - *id1463
       gui.web:
         direct_tests:
-        - *id1460
+        - *id1464
         supporting_tests: []
     current_direct_proof: false
   teams.chat.encrypted-until-invoked:
     contract: feature.teams@1
     fingerprint: ae6191b92e677cf3d15386508ff0e2de704c7103e7f8e05d9e922da4cf74ec4b
     direct_tests:
-    - &id1461
+    - &id1465
       path: backend/tests/test_chat_turn_preflight.py
       line: 129
       name: test_team_preflight_persists_canonical_team_scope
       surface: rest_api
-    - &id1473
+    - &id1477
       path: frontend/apps/web_app/tests/teams-settings-context.spec.ts
       line: 129
       name: isolates Team chats and sends ordinary Team turns as scoped ciphertext
       surface: gui.web
-    - &id1474
+    - &id1478
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 221
       name: sends ordinary Team chat turns as ciphertext without an inference envelope
       surface: sdks.npm
-    - &id1475
+    - &id1479
       path: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       line: 60
       name: rejects incognito sends while a Team context is active
       surface: gui.web
-    - &id1477
+    - &id1481
       path: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       line: 73
       name: does not show AI processing for an ordinary authenticated Team message
       surface: gui.web
-    - &id1478
+    - &id1482
       path: frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
       line: 101
       name: validates Team chat wrappers with the Team key
       surface: gui.web
-    - &id1479
+    - &id1483
       path: frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
       line: 128
       name: refuses a Team chat wrapper that unwraps to a different key
       surface: gui.web
-    - &id1480
+    - &id1484
       path: frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
       line: 155
       name: fails closed when a Team chat wrapper cannot be unwrapped
       surface: gui.web
-    - &id1481
+    - &id1485
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 39
       name: keeps ordinary Team turns ciphertext-only
       surface: gui.web
-    - &id1482
+    - &id1486
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 57
       name: sends attributed history only for an explicit OpenMates invocation
       surface: gui.web
-    - &id1483
+    - &id1487
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 79
       name: puts Team scope on the durable preflight boundary
       surface: gui.web
-    - &id1484
+    - &id1488
       path: frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
       line: 199
       name: preserves a Team-wrapped key when saving a Team chat
       surface: gui.web
-    - &id1485
+    - &id1489
       path: frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
       line: 221
       name: Team-wraps the key for a genuinely new Team chat
       surface: gui.web
-    - &id1486
+    - &id1490
       path: frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
       line: 238
       name: does not replace an incoming Team wrapper when it cannot be unwrapped
       surface: gui.web
-    - &id1487
+    - &id1491
       path: frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
       line: 255
       name: uses Team unwrapping when reading a Team chat
       surface: gui.web
-    - &id1488
+    - &id1492
       path: frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
       line: 278
       name: does not erase a cached Team key when Team unwrapping is unavailable
       surface: gui.web
-    - &id1489
+    - &id1493
       path: packages/openmates-python/tests/test_teams.py
       line: 222
       name: test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference
       surface: sdks.pip
     supporting_tests:
-    - &id1462
+    - &id1466
       path: backend/tests/test_team_member_mentions.py
       line: 28
       name: test_member_mention_notifies_only_active_member_without_plaintext_or_ai_dispatch
       surface: rest_api
-    - &id1463
+    - &id1467
       path: backend/tests/test_teams_chat_ai.py
       line: 55
       name: test_team_chat_requires_openmates_mention_to_trigger_ai
       surface: rest_api
-    - &id1464
+    - &id1468
       path: backend/tests/test_teams_chat_ai.py
       line: 134
       name: test_ordinary_team_message_accepts_ciphertext_without_plaintext_or_ai_history
       surface: rest_api
-    - &id1465
+    - &id1469
       path: backend/tests/test_teams_chat_ai.py
       line: 152
       name: test_openmates_requires_and_replaces_with_full_attributed_history
       surface: rest_api
-    - &id1466
+    - &id1470
       path: backend/tests/test_teams_chat_ai.py
       line: 178
       name: test_team_transport_rejects_plaintext_without_explicit_ai_invocation
       surface: rest_api
-    - &id1467
+    - &id1471
       path: backend/tests/test_teams_chat_ai.py
       line: 195
       name: test_websocket_handler_enters_team_transport_before_plaintext_pipeline
       surface: rest_api
-    - &id1468
+    - &id1472
       path: backend/tests/test_teams_chat_ai.py
       line: 209
       name: test_ordinary_team_transport_confirms_origin_before_early_return
       surface: cli
-    - &id1469
+    - &id1473
       path: backend/tests/test_teams_chat_ai.py
       line: 227
       name: test_sdk_team_chat_uses_split_ciphertext_and_inference_envelopes
       surface: rest_api
-    - &id1470
+    - &id1474
       path: backend/tests/test_teams_chat_ai.py
       line: 237
       name: test_team_message_persistence_carries_canonical_team_scope
       surface: rest_api
-    - &id1471
+    - &id1475
       path: backend/tests/test_teams_realtime_sync.py
       line: 42
       name: test_active_members_receive_encrypted_human_message_event
       surface: rest_api
-    - &id1472
+    - &id1476
       path: backend/tests/test_teams_realtime_sync.py
       line: 97
       name: test_realtime_rejects_plaintext_message_fields
       surface: rest_api
-    - &id1476
+    - &id1480
       path: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       line: 65
       name: allows Team and incognito sends when they are used separately
       surface: gui.web
     tests:
-    - *id1461
-    - *id1462
-    - *id1463
-    - *id1464
     - *id1465
     - *id1466
     - *id1467
@@ -13135,33 +13161,33 @@ assertions:
     - *id1487
     - *id1488
     - *id1489
+    - *id1490
+    - *id1491
+    - *id1492
+    - *id1493
     surfaces:
       rest_api:
         direct_tests:
-        - *id1461
-        supporting_tests:
-        - *id1462
-        - *id1463
-        - *id1464
         - *id1465
+        supporting_tests:
         - *id1466
         - *id1467
+        - *id1468
         - *id1469
         - *id1470
         - *id1471
-        - *id1472
+        - *id1473
+        - *id1474
+        - *id1475
+        - *id1476
       cli:
         direct_tests: []
         supporting_tests:
-        - *id1468
+        - *id1472
       gui.web:
         direct_tests:
-        - *id1473
-        - *id1475
         - *id1477
-        - *id1478
         - *id1479
-        - *id1480
         - *id1481
         - *id1482
         - *id1483
@@ -13170,15 +13196,19 @@ assertions:
         - *id1486
         - *id1487
         - *id1488
+        - *id1489
+        - *id1490
+        - *id1491
+        - *id1492
         supporting_tests:
-        - *id1476
+        - *id1480
       sdks.npm:
         direct_tests:
-        - *id1474
+        - *id1478
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1489
+        - *id1493
         supporting_tests: []
     current_direct_proof: false
   teams.chat.member-mentions-notify:
@@ -13186,134 +13216,130 @@ assertions:
     fingerprint: 73654c6884e13f09c2b03e5b358957bdcbfce08a5fc03470fd52bc8ec998f8f7
     direct_tests: []
     supporting_tests:
-    - &id1490
+    - &id1494
       path: backend/tests/test_team_member_mentions.py
       line: 28
       name: test_member_mention_notifies_only_active_member_without_plaintext_or_ai_dispatch
       surface: rest_api
-    - &id1491
+    - &id1495
       path: backend/tests/test_team_member_mentions.py
       line: 56
       name: test_websocket_handler_dispatches_authorized_team_mentions
       surface: rest_api
-    - &id1492
+    - &id1496
       path: backend/tests/test_team_member_mentions.py
       line: 67
       name: test_member_mention_email_template_and_task_exclude_message_content
       surface: rest_api
     tests:
-    - *id1490
-    - *id1491
-    - *id1492
+    - *id1494
+    - *id1495
+    - *id1496
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id1490
-        - *id1491
-        - *id1492
+        - *id1494
+        - *id1495
+        - *id1496
     current_direct_proof: false
   teams.chat.sender-identity-layout:
     contract: feature.teams@1
     fingerprint: 143b1696e2ef333ad1d732c220912debeb2b65f867a53d2f9d66beb88301fc63
     direct_tests:
-    - &id1495
+    - &id1499
       path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       line: 57
       name: sends attributed history only for an explicit OpenMates invocation
       surface: gui.web
     supporting_tests:
-    - &id1493
+    - &id1497
       path: backend/tests/test_teams_chat_ai.py
       line: 62
       name: test_ai_history_message_preserves_team_sender_name
       surface: rest_api
-    - &id1494
+    - &id1498
       path: backend/tests/test_teams_chat_ai.py
       line: 69
       name: test_sender_attribution_formats_team_history_for_llm_content
       surface: rest_api
     tests:
-    - *id1493
-    - *id1494
-    - *id1495
+    - *id1497
+    - *id1498
+    - *id1499
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id1493
-        - *id1494
+        - *id1497
+        - *id1498
       gui.web:
         direct_tests:
-        - *id1495
+        - *id1499
         supporting_tests: []
     current_direct_proof: false
   teams.chat-billing.team-credit-boundary:
     contract: feature.teams@1
     fingerprint: 4ce36edc6d3dd6f1b225a856d54df35eb10c9062fbb9b7a7940f8fd898ee09bf
     direct_tests:
-    - &id1496
+    - &id1500
       path: backend/tests/test_approve_bank_transfer_script.py
       line: 319
       name: test_approve_team_bank_transfer_grants_team_credits_and_completes_order
       surface: rest_api
-    - &id1500
+    - &id1504
       path: backend/tests/test_teams_lifecycle.py
       line: 68
       name: test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
       surface: rest_api
-    - &id1501
+    - &id1505
       path: backend/tests/test_teams_routes.py
       line: 407
       name: test_teams_routes_expose_billing_contract
       surface: rest_api
-    - &id1503
+    - &id1507
       path: backend/tests/test_teams_routes.py
       line: 458
       name: test_team_bank_transfer_create_requires_owner_or_admin
       surface: rest_api
-    - &id1504
+    - &id1508
       path: backend/tests/test_teams_routes.py
       line: 480
       name: test_team_bank_transfer_status_is_scoped_to_team_id
       surface: rest_api
-    - &id1505
+    - &id1509
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
       line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
-    - &id1506
+    - &id1510
       path: scripts/tests/test_teams_privacy_audit.py
       line: 45
       name: test_team_schema_keeps_user_visible_or_billing_metadata_encrypted
       surface: rest_api
     supporting_tests:
-    - &id1497
+    - &id1501
       path: backend/tests/test_teams_chat_ai.py
       line: 75
       name: test_team_ai_context_defaults_chat_object_hash
       surface: rest_api
-    - &id1498
+    - &id1502
       path: backend/tests/test_teams_chat_ai.py
       line: 98
       name: test_core_and_app_ask_skill_requests_carry_team_billing_context
       surface: rest_api
-    - &id1499
+    - &id1503
       path: backend/tests/test_teams_chat_ai.py
       line: 121
       name: test_team_ai_credit_charge_source_uses_team_endpoint_not_personal_billing
       surface: rest_api
-    - &id1502
+    - &id1506
       path: backend/tests/test_teams_routes.py
       line: 438
       name: test_team_bank_transfer_routes_fail_closed_without_cloud_billing
       surface: rest_api
     tests:
-    - *id1496
-    - *id1497
-    - *id1498
-    - *id1499
     - *id1500
     - *id1501
     - *id1502
@@ -13321,163 +13347,163 @@ assertions:
     - *id1504
     - *id1505
     - *id1506
+    - *id1507
+    - *id1508
+    - *id1509
+    - *id1510
     surfaces:
       rest_api:
         direct_tests:
-        - *id1496
         - *id1500
-        - *id1501
-        - *id1503
         - *id1504
-        - *id1506
+        - *id1505
+        - *id1507
+        - *id1508
+        - *id1510
         supporting_tests:
-        - *id1497
-        - *id1498
-        - *id1499
+        - *id1501
         - *id1502
+        - *id1503
+        - *id1506
       gui.web:
         direct_tests:
-        - *id1505
+        - *id1509
         supporting_tests: []
     current_direct_proof: false
   teams.workspace.surface-parity:
     contract: feature.teams@1
     fingerprint: 1800548e8c51c0177a5063a03e7177eed8ff2a7bffeb4692955e70b132edfcd3
     direct_tests:
-    - &id1514
+    - &id1518
       path: backend/tests/test_teams_routes.py
       line: 407
       name: test_teams_routes_expose_billing_contract
       surface: rest_api
-    - &id1516
+    - &id1520
       path: frontend/apps/web_app/tests/teams-flow.spec.ts
       line: 36
       name: creates a settings-only encrypted team and switches context from the profile
         menu
       surface: gui.web
-    - &id1517
+    - &id1521
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 74
       name: maps Teams V1 methods to the shared REST contract
       surface: sdks.npm
-    - &id1518
+    - &id1522
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 147
       name: creates and updates generated team profile-image metadata client-side
         encrypted
       surface: sdks.npm
-    - &id1519
+    - &id1523
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 221
       name: sends ordinary Team chat turns as ciphertext without an inference envelope
       surface: sdks.npm
-    - &id1520
+    - &id1524
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 267
       name: keeps team connected accounts disabled in the SDK
       surface: sdks.npm
-    - &id1521
+    - &id1525
       path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts
       line: 276
       name: does not expose direct team credit grants or destructive team methods
       surface: sdks.npm
-    - &id1522
+    - &id1526
       path: frontend/packages/openmates-cli/tests/team-profile-images.test.ts
       line: 93
       name: encrypts generated profile metadata and downloads images through the team
         proxy
       surface: cli
-    - &id1523
+    - &id1527
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 45
       name: does not expose Teams as a top-level workspace
       surface: gui.web
-    - &id1524
+    - &id1528
       path: packages/openmates-python/tests/test_teams.py
       line: 22
       name: test_pip_sdk_teams_methods_use_shared_teams_api
       surface: sdks.pip
-    - &id1525
+    - &id1529
       path: packages/openmates-python/tests/test_teams.py
       line: 126
       name: test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata
       surface: sdks.pip
-    - &id1526
+    - &id1530
       path: packages/openmates-python/tests/test_teams.py
       line: 222
       name: test_pip_sdk_sends_ordinary_team_chat_as_ciphertext_without_inference
       surface: sdks.pip
-    - &id1527
+    - &id1531
       path: packages/openmates-python/tests/test_teams.py
       line: 282
       name: test_pip_sdk_team_connected_accounts_are_disabled
       surface: sdks.pip
-    - &id1528
+    - &id1532
       path: packages/openmates-python/tests/test_teams.py
       line: 289
       name: test_pip_sdk_teams_do_not_expose_direct_credit_grants_or_destructive_methods
       surface: sdks.pip
-    - &id1529
+    - &id1533
       path: scripts/tests/test_teams_settings_only_guard.py
       line: 19
       name: test_teams_has_no_top_level_workspace_route_or_export
       surface: gui.web
-    - &id1530
+    - &id1534
       path: scripts/tests/test_teams_settings_only_guard.py
       line: 30
       name: test_teams_workspace_navigation_tab_is_absent
       surface: gui.web
-    - &id1531
+    - &id1535
       path: scripts/tests/test_teams_settings_only_guard.py
       line: 39
       name: test_teams_settings_route_is_registered
       surface: gui.web
     supporting_tests:
-    - &id1507
+    - &id1511
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
       line: 787
       name: prepare_preflight creates team chat wrapper for new team chats
       surface: rest_api
-    - &id1508
+    - &id1512
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
       line: 817
       name: prepare_preflight rolls back team chat when team wrapper insert fails
       surface: rest_api
-    - &id1509
+    - &id1513
       path: backend/tests/test_native_chats_api.py
       line: 107
       name: test_list_team_chats_fetches_team_key_wrappers_after_role_check
       surface: rest_api
-    - &id1510
+    - &id1514
       path: backend/tests/test_phased_sync_handler.py
       line: 53
       name: test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync
       surface: gui.web
-    - &id1511
+    - &id1515
       path: backend/tests/test_teams_routes.py
       line: 304
       name: test_teams_routes_block_when_feature_disabled
       surface: rest_api
-    - &id1512
+    - &id1516
       path: backend/tests/test_teams_routes.py
       line: 314
       name: test_teams_routes_expose_lifecycle_contract
       surface: rest_api
-    - &id1513
+    - &id1517
       path: backend/tests/test_teams_routes.py
       line: 341
       name: test_teams_routes_expose_invite_and_member_contract
       surface: rest_api
-    - &id1515
+    - &id1519
       path: backend/tests/test_unified_key_wrappers.py
       line: 160
       name: test_batch_wrapper_fetch_uses_team_scope_when_provided
       surface: rest_api
     tests:
-    - *id1507
-    - *id1508
-    - *id1509
-    - *id1510
     - *id1511
     - *id1512
     - *id1513
@@ -13499,184 +13525,184 @@ assertions:
     - *id1529
     - *id1530
     - *id1531
+    - *id1532
+    - *id1533
+    - *id1534
+    - *id1535
     surfaces:
       rest_api:
         direct_tests:
-        - *id1514
+        - *id1518
         supporting_tests:
-        - *id1507
-        - *id1508
-        - *id1509
         - *id1511
         - *id1512
         - *id1513
         - *id1515
+        - *id1516
+        - *id1517
+        - *id1519
       gui.web:
         direct_tests:
-        - *id1516
-        - *id1523
-        - *id1529
-        - *id1530
-        - *id1531
+        - *id1520
+        - *id1527
+        - *id1533
+        - *id1534
+        - *id1535
         supporting_tests:
-        - *id1510
+        - *id1514
       sdks.npm:
         direct_tests:
-        - *id1517
-        - *id1518
-        - *id1519
-        - *id1520
         - *id1521
+        - *id1522
+        - *id1523
+        - *id1524
+        - *id1525
         supporting_tests: []
       cli:
         direct_tests:
-        - *id1522
+        - *id1526
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1524
-        - *id1525
-        - *id1526
-        - *id1527
         - *id1528
+        - *id1529
+        - *id1530
+        - *id1531
+        - *id1532
         supporting_tests: []
     current_direct_proof: false
   workflows.execution.lifecycle-visible:
     contract: feature.workflows@1
     fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
     direct_tests:
-    - &id1554
+    - &id1558
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 181
       name: runs workflows and reads run history
       surface: cli
-    - &id1555
+    - &id1559
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 212
       name: validates, creates, updates YAML, step-tests, and responds to waiting
         runs
       surface: cli
     supporting_tests:
-    - &id1532
+    - &id1536
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 93
       name: two concurrent due claims create one run and lease recovery reuses it
       surface: rest_api
-    - &id1533
+    - &id1537
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 134
       name: due trigger listing returns enabled due schedule trigger ids only
       surface: rest_api
-    - &id1534
+    - &id1538
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 148
       name: due trigger listing and claim wait while an earlier scheduled run is active
       surface: rest_api
-    - &id1535
+    - &id1539
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 170
       name: advancing with zero completes a claimed one-time trigger without requeueing
         it
       surface: rest_api
-    - &id1536
+    - &id1540
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 206
       name: manual acceptance creates one queued run pinned to the locked current
         immutable version
       surface: rest_api
-    - &id1537
+    - &id1541
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 242
       name: manual acceptance rejects a missing immutable version without creating
         a run
       surface: rest_api
-    - &id1538
+    - &id1542
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 259
       name: only one worker can start an accepted manual run
       surface: rest_api
-    - &id1539
+    - &id1543
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 282
       name: owner cancellation is durable and rejects terminal or cross-owner runs
       surface: rest_api
-    - &id1540
+    - &id1544
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 307
       name: cancelling a queued scheduled run releases its lease and advances the
         occurrence without execution
       surface: rest_api
-    - &id1541
+    - &id1545
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 337
       name: missing scheduled run releases the stale claim so the occurrence can be
         reclaimed
       surface: rest_api
-    - &id1542
+    - &id1546
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 358
       name: event acceptance stores one payload-free receipt and one run
       surface: rest_api
-    - &id1543
+    - &id1547
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 377
       name: event acceptance rejects cross-owner and unknown operation requests
       surface: rest_api
-    - &id1544
+    - &id1548
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 54
       name: test_scheduler_fences_claim_and_advances_recurrence_before_side_effects
       surface: rest_api
-    - &id1545
+    - &id1549
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 100
       name: test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_claim
       surface: rest_api
-    - &id1546
+    - &id1550
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 116
       name: test_scheduler_runs_a_reclaimed_queued_occurrence
       surface: rest_api
-    - &id1547
+    - &id1551
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 149
       name: test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes
       surface: rest_api
-    - &id1548
+    - &id1552
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 184
       name: test_scheduler_completes_one_time_occurrence_without_future_requeue
       surface: rest_api
-    - &id1549
+    - &id1553
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 221
       name: test_scheduler_executes_the_claimed_run_id_without_creating_another_run
       surface: rest_api
-    - &id1550
+    - &id1554
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 77
       name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
       surface: rest_api
-    - &id1551
+    - &id1555
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 126
       name: test_one_time_schedule_trigger_initially_indexes_the_due_timestamp
       surface: rest_api
-    - &id1552
+    - &id1556
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 142
       name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
       surface: rest_api
-    - &id1553
+    - &id1557
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 219
       name: test_directus_trigger_repository_upserts_by_public_trigger_id
       surface: rest_api
     tests:
-    - *id1532
-    - *id1533
-    - *id1534
-    - *id1535
     - *id1536
     - *id1537
     - *id1538
@@ -13697,14 +13723,14 @@ assertions:
     - *id1553
     - *id1554
     - *id1555
+    - *id1556
+    - *id1557
+    - *id1558
+    - *id1559
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id1532
-        - *id1533
-        - *id1534
-        - *id1535
         - *id1536
         - *id1537
         - *id1538
@@ -13723,75 +13749,79 @@ assertions:
         - *id1551
         - *id1552
         - *id1553
-      cli:
-        direct_tests:
         - *id1554
         - *id1555
+        - *id1556
+        - *id1557
+      cli:
+        direct_tests:
+        - *id1558
+        - *id1559
         supporting_tests: []
     current_direct_proof: false
   workflows.content.encrypted-retained:
     contract: feature.workflows@1
     fingerprint: 99cd4a5703e0e6e6645e017decec9547f4a195ba8c65eb4bbaf18466c19aa1df
     direct_tests:
-    - &id1561
+    - &id1565
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 258
       name: manages client-encrypted workflow template projection and sharing contracts
       surface: cli
-    - &id1562
+    - &id1566
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 318
       name: retrieves, revokes, restores, and completes workflow template sharing
         bindings
       surface: cli
     supporting_tests:
-    - &id1556
+    - &id1560
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 192
       name: due claim fails closed when the scheduler-only raw owner reference is
         missing
       surface: rest_api
-    - &id1557
+    - &id1561
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 358
       name: event acceptance stores one payload-free receipt and one run
       surface: rest_api
-    - &id1558
+    - &id1562
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 77
       name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
       surface: rest_api
-    - &id1559
+    - &id1563
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 142
       name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
       surface: rest_api
-    - &id1560
+    - &id1564
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 168
       name: test_deleting_a_workflow_removes_its_trigger_and_trigger_config_blob
       surface: rest_api
     tests:
-    - *id1556
-    - *id1557
-    - *id1558
-    - *id1559
     - *id1560
     - *id1561
     - *id1562
+    - *id1563
+    - *id1564
+    - *id1565
+    - *id1566
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id1556
-        - *id1557
-        - *id1558
-        - *id1559
         - *id1560
-      cli:
-        direct_tests:
         - *id1561
         - *id1562
+        - *id1563
+        - *id1564
+      cli:
+        direct_tests:
+        - *id1565
+        - *id1566
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.pending-private:
@@ -13806,18 +13836,18 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
     direct_tests:
-    - &id1563
+    - &id1567
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
       line: 128
       name: claims only pending workflow chat deliveries
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1563
+    - *id1567
     surfaces:
       gui.web:
         direct_tests:
-        - *id1563
+        - *id1567
         supporting_tests: []
     current_direct_proof: false
   workflows.chat-delivery.client-encrypted:
@@ -13832,235 +13862,231 @@ assertions:
     contract: feature.workflows@1
     fingerprint: 771fdad5361a08f36636996970e9eb67b48281573595902ace90327581fd160c
     direct_tests:
-    - &id1577
+    - &id1581
       path: backend/tests/test_cli_object_slugs.py
       line: 250
       name: test_workflow_service_persists_and_returns_encrypted_slug_metadata
       surface: rest_api
-    - &id1589
+    - &id1593
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 87
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id1591
+    - &id1595
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 364
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
-    - &id1592
+    - &id1596
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 410
       name: manages durable workflow input sessions
       surface: sdks.npm
-    - &id1594
+    - &id1598
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 124
       name: creates, lists, and updates workflows through typed endpoints
       surface: cli
-    - &id1595
+    - &id1599
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 181
       name: runs workflows and reads run history
       surface: cli
-    - &id1596
+    - &id1600
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 212
       name: validates, creates, updates YAML, step-tests, and responds to waiting
         runs
       surface: cli
-    - &id1597
+    - &id1601
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 258
       name: manages client-encrypted workflow template projection and sharing contracts
       surface: cli
-    - &id1598
+    - &id1602
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 318
       name: retrieves, revokes, restores, and completes workflow template sharing
         bindings
       surface: cli
-    - &id1599
+    - &id1603
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 355
       name: manages durable workflow input sessions
       surface: cli
-    - &id1601
+    - &id1605
       path: packages/openmates-python/tests/test_sdk.py
       line: 846
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id1602
+    - &id1606
       path: packages/openmates-python/tests/test_workflows.py
       line: 50
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
-    - &id1604
+    - &id1608
       path: packages/openmates-python/tests/test_workflows.py
       line: 248
       name: test_pip_sdk_workflow_template_sharing_transport_uses_shared_api
       surface: sdks.pip
     supporting_tests:
-    - &id1564
+    - &id1568
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 93
       name: two concurrent due claims create one run and lease recovery reuses it
       surface: rest_api
-    - &id1565
+    - &id1569
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 134
       name: due trigger listing returns enabled due schedule trigger ids only
       surface: rest_api
-    - &id1566
+    - &id1570
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 148
       name: due trigger listing and claim wait while an earlier scheduled run is active
       surface: rest_api
-    - &id1567
+    - &id1571
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 170
       name: advancing with zero completes a claimed one-time trigger without requeueing
         it
       surface: rest_api
-    - &id1568
+    - &id1572
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 192
       name: due claim fails closed when the scheduler-only raw owner reference is
         missing
       surface: rest_api
-    - &id1569
+    - &id1573
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 206
       name: manual acceptance creates one queued run pinned to the locked current
         immutable version
       surface: rest_api
-    - &id1570
+    - &id1574
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 242
       name: manual acceptance rejects a missing immutable version without creating
         a run
       surface: rest_api
-    - &id1571
+    - &id1575
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 259
       name: only one worker can start an accepted manual run
       surface: rest_api
-    - &id1572
+    - &id1576
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 282
       name: owner cancellation is durable and rejects terminal or cross-owner runs
       surface: rest_api
-    - &id1573
+    - &id1577
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 307
       name: cancelling a queued scheduled run releases its lease and advances the
         occurrence without execution
       surface: rest_api
-    - &id1574
+    - &id1578
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 337
       name: missing scheduled run releases the stale claim so the occurrence can be
         reclaimed
       surface: rest_api
-    - &id1575
+    - &id1579
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 358
       name: event acceptance stores one payload-free receipt and one run
       surface: rest_api
-    - &id1576
+    - &id1580
       path: backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
       line: 377
       name: event acceptance rejects cross-owner and unknown operation requests
       surface: rest_api
-    - &id1578
+    - &id1582
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 54
       name: test_scheduler_fences_claim_and_advances_recurrence_before_side_effects
       surface: rest_api
-    - &id1579
+    - &id1583
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 100
       name: test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_claim
       surface: rest_api
-    - &id1580
+    - &id1584
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 116
       name: test_scheduler_runs_a_reclaimed_queued_occurrence
       surface: rest_api
-    - &id1581
+    - &id1585
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 149
       name: test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes
       surface: rest_api
-    - &id1582
+    - &id1586
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 184
       name: test_scheduler_completes_one_time_occurrence_without_future_requeue
       surface: rest_api
-    - &id1583
+    - &id1587
       path: backend/tests/test_workflow_scheduler_contract.py
       line: 221
       name: test_scheduler_executes_the_claimed_run_id_without_creating_another_run
       surface: rest_api
-    - &id1584
+    - &id1588
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 77
       name: test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes
       surface: rest_api
-    - &id1585
+    - &id1589
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 126
       name: test_one_time_schedule_trigger_initially_indexes_the_due_timestamp
       surface: rest_api
-    - &id1586
+    - &id1590
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 142
       name: test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref
       surface: rest_api
-    - &id1587
+    - &id1591
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 168
       name: test_deleting_a_workflow_removes_its_trigger_and_trigger_config_blob
       surface: rest_api
-    - &id1588
+    - &id1592
       path: backend/tests/test_workflow_trigger_persistence.py
       line: 219
       name: test_directus_trigger_repository_upserts_by_public_trigger_id
       surface: rest_api
-    - &id1590
+    - &id1594
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 268
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
-    - &id1593
+    - &id1597
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 102
       name: formats workflow child embeds for CLI output
       surface: cli
-    - &id1600
+    - &id1604
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 402
       name: requires a CLI session before workflow calls
       surface: cli
-    - &id1603
+    - &id1607
       path: packages/openmates-python/tests/test_workflows.py
       line: 241
       name: test_pip_sdk_workflows_require_api_key
       surface: sdks.pip
-    - &id1605
+    - &id1609
       path: packages/openmates-python/tests/test_workflows.py
       line: 307
       name: test_pip_sdk_workflow_delete_requires_confirmation
       surface: sdks.pip
-    - &id1606
+    - &id1610
       path: packages/openmates-python/tests/test_workflows.py
       line: 314
       name: test_pip_sdk_workflow_template_import_rejects_malformed_response
       surface: sdks.pip
     tests:
-    - *id1564
-    - *id1565
-    - *id1566
-    - *id1567
     - *id1568
     - *id1569
     - *id1570
@@ -14100,15 +14126,15 @@ assertions:
     - *id1604
     - *id1605
     - *id1606
+    - *id1607
+    - *id1608
+    - *id1609
+    - *id1610
     surfaces:
       rest_api:
         direct_tests:
-        - *id1577
+        - *id1581
         supporting_tests:
-        - *id1564
-        - *id1565
-        - *id1566
-        - *id1567
         - *id1568
         - *id1569
         - *id1570
@@ -14118,10 +14144,10 @@ assertions:
         - *id1574
         - *id1575
         - *id1576
+        - *id1577
         - *id1578
         - *id1579
         - *id1580
-        - *id1581
         - *id1582
         - *id1583
         - *id1584
@@ -14129,321 +14155,264 @@ assertions:
         - *id1586
         - *id1587
         - *id1588
-      sdks.npm:
-        direct_tests:
         - *id1589
+        - *id1590
         - *id1591
         - *id1592
-        supporting_tests:
-        - *id1590
-      cli:
+      sdks.npm:
         direct_tests:
-        - *id1594
+        - *id1593
         - *id1595
         - *id1596
-        - *id1597
+        supporting_tests:
+        - *id1594
+      cli:
+        direct_tests:
         - *id1598
         - *id1599
-        supporting_tests:
-        - *id1593
         - *id1600
-      sdks.pip:
-        direct_tests:
         - *id1601
         - *id1602
-        - *id1604
-        supporting_tests:
         - *id1603
+        supporting_tests:
+        - *id1597
+        - *id1604
+      sdks.pip:
+        direct_tests:
         - *id1605
         - *id1606
+        - *id1608
+        supporting_tests:
+        - *id1607
+        - *id1609
+        - *id1610
     current_direct_proof: false
   workspace-shell.nav.released-surfaces-visible:
     contract: feature.workspace-shell@2
     fingerprint: 103fa17fdc62bbf706e20a853105a20f1866cdd26911bc6d1d3aa9fbed5ec45c
     direct_tests:
-    - &id1607
+    - &id1611
       path: frontend/apps/web_app/tests/feature-availability.spec.ts
       line: 22
       name: server-enabled platform workspaces follow web release gates
       surface: gui.web
-    - &id1609
+    - &id1613
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
-    - &id1608
+    - &id1612
       path: frontend/apps/web_app/tests/projects-flow.spec.ts
       line: 25
       name: creates and deletes a project
       surface: gui.web
-    - &id1610
+    - &id1614
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 12
       name: keeps chats enabled by default
       surface: gui.web
-    - &id1611
+    - &id1615
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 17
       name: hides unknown optional workspaces even when backend omits disabled IDs
       surface: gui.web
-    - &id1612
+    - &id1616
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 22
       name: shows released optional workspaces when backend omits disabled IDs
       surface: gui.web
-    - &id1613
+    - &id1617
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 30
       name: hides every optional header workspace disabled by the release backend
       surface: gui.web
-    - &id1614
+    - &id1618
       path: frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
       line: 50
       name: keeps disabled chats hidden if backend explicitly disables them
       surface: gui.web
     tests:
-    - *id1607
-    - *id1608
-    - *id1609
-    - *id1610
     - *id1611
     - *id1612
     - *id1613
     - *id1614
+    - *id1615
+    - *id1616
+    - *id1617
+    - *id1618
     surfaces:
       gui.web:
         direct_tests:
-        - *id1607
-        - *id1609
-        supporting_tests:
-        - *id1608
-        - *id1610
         - *id1611
-        - *id1612
         - *id1613
+        supporting_tests:
+        - *id1612
         - *id1614
+        - *id1615
+        - *id1616
+        - *id1617
+        - *id1618
     current_direct_proof: false
   workspace-shell.start.shared-affordances:
     contract: feature.workspace-shell@2
     fingerprint: 8a0b866811329d3ec7166fe6b070bbb0d8058087754c8e65df4a91c017fa315b
     direct_tests:
-    - &id1616
+    - &id1620
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 364
       name: renders route-specific shared workspace shells
       surface: gui.web
-    - &id1617
+    - &id1621
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
     supporting_tests:
-    - &id1615
+    - &id1619
       path: frontend/apps/web_app/tests/projects-flow.spec.ts
       line: 25
       name: creates and deletes a project
       surface: gui.web
     tests:
-    - *id1615
-    - *id1616
-    - *id1617
+    - *id1619
+    - *id1620
+    - *id1621
     surfaces:
       gui.web:
         direct_tests:
-        - *id1616
-        - *id1617
+        - *id1620
+        - *id1621
         supporting_tests:
-        - *id1615
+        - *id1619
     current_direct_proof: false
   workspace-shell.start.chat-visual-parity:
     contract: feature.workspace-shell@2
     fingerprint: 8f485229db354e7e4f7d2b76852f178556ab09d564fa540f6272a1b31b8fb477
     direct_tests:
-    - &id1618
+    - &id1622
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 400
       name: keeps top-level workspace tabs and composers aligned with the chat shell
       surface: gui.web
-    - &id1619
+    - &id1623
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1618
-    - *id1619
+    - *id1622
+    - *id1623
     surfaces:
       gui.web:
         direct_tests:
-        - *id1618
-        - *id1619
+        - *id1622
+        - *id1623
         supporting_tests: []
     current_direct_proof: false
   workspace-shell.kanban.figma-controls:
     contract: feature.workspace-shell@2
     fingerprint: 4d7da5304ddda2c61e92f40f8f8d6099d46c40c68e440de020f66e3a08e4a725
     direct_tests:
-    - &id1620
+    - &id1624
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1620
+    - *id1624
     surfaces:
       gui.web:
         direct_tests:
-        - *id1620
+        - *id1624
         supporting_tests: []
     current_direct_proof: false
   workspace-shell.kanban.scroll-containment:
     contract: feature.workspace-shell@2
     fingerprint: f95ed3f29dcb259118a530ad56646f2560f7b429ae017d98355b5a7e6dbfd187
     direct_tests:
-    - &id1621
+    - &id1625
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 364
       name: renders route-specific shared workspace shells
       surface: gui.web
-    - &id1622
+    - &id1626
       path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       line: 449
       name: keeps boards horizontally scrollable on mobile
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id1621
-    - *id1622
+    - *id1625
+    - *id1626
     surfaces:
       gui.web:
         direct_tests:
-        - *id1621
-        - *id1622
+        - *id1625
+        - *id1626
         supporting_tests: []
     current_direct_proof: false
   cli.slugs.encrypted-stable:
     contract: surface.cli@1
     fingerprint: 0e53a72dc329c50012b8f1acba8e2a8b0bce3859376678efaa0ce1220e2a5be7
     direct_tests:
-    - &id1623
+    - &id1627
       path: backend/tests/test_cli_object_slugs.py
       line: 42
       name: test_slugged_object_schemas_define_encrypted_slug_metadata
       surface: rest_api
-    - &id1624
+    - &id1628
       path: backend/tests/test_cli_object_slugs.py
       line: 50
       name: test_encrypted_slug_migration_is_wired_into_compose_setup
       surface: rest_api
-    - &id1625
+    - &id1629
       path: backend/tests/test_cli_object_slugs.py
       line: 108
       name: test_create_helpers_store_ciphertext_and_hash_without_plaintext_slug
       surface: rest_api
-    - &id1626
+    - &id1630
       path: backend/tests/test_cli_object_slugs.py
       line: 129
       name: test_duplicate_task_slug_lookup_hash_is_rejected_in_personal_scope
       surface: rest_api
-    - &id1627
+    - &id1631
       path: backend/tests/test_cli_object_slugs.py
       line: 148
       name: test_duplicate_project_slug_lookup_hash_is_rejected_in_team_scope
       surface: rest_api
-    - &id1628
+    - &id1632
       path: backend/tests/test_cli_object_slugs.py
       line: 180
       name: test_slugged_workspace_move_requires_team_scoped_slug_metadata
       surface: rest_api
-    - &id1629
+    - &id1633
       path: backend/tests/test_cli_object_slugs.py
       line: 237
       name: test_plaintext_slug_fields_are_rejected_before_directus_write
       surface: rest_api
-    - &id1630
+    - &id1634
       path: backend/tests/test_cli_object_slugs.py
       line: 250
       name: test_workflow_service_persists_and_returns_encrypted_slug_metadata
       surface: rest_api
-    - &id1631
+    - &id1635
       path: backend/tests/test_cli_object_slugs.py
       line: 274
       name: test_chat_creation_persists_encrypted_slug_metadata_without_plaintext
       surface: rest_api
-    - &id1632
+    - &id1636
       path: backend/tests/test_teams_move_authorization.py
       line: 116
       name: test_move_workspace_record_updates_supported_collection
       surface: rest_api
-    - &id1633
+    - &id1637
       path: backend/tests/test_teams_move_authorization.py
       line: 138
       name: test_workflow_move_updates_record_json_owner_context
       surface: rest_api
-    - &id1634
-      path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
-      line: 262
-      name: moves supported workspace resources to a team with confirmation metadata
-      surface: cli
-    - &id1635
-      path: frontend/packages/openmates-cli/tests/workflows.test.ts
-      line: 124
-      name: creates, lists, and updates workflows through typed endpoints
-      surface: cli
-    supporting_tests: []
-    tests:
-    - *id1623
-    - *id1624
-    - *id1625
-    - *id1626
-    - *id1627
-    - *id1628
-    - *id1629
-    - *id1630
-    - *id1631
-    - *id1632
-    - *id1633
-    - *id1634
-    - *id1635
-    surfaces:
-      rest_api:
-        direct_tests:
-        - *id1623
-        - *id1624
-        - *id1625
-        - *id1626
-        - *id1627
-        - *id1628
-        - *id1629
-        - *id1630
-        - *id1631
-        - *id1632
-        - *id1633
-        supporting_tests: []
-      cli:
-        direct_tests:
-        - *id1634
-        - *id1635
-        supporting_tests: []
-    current_direct_proof: false
-  cli.slugs.local-resolution-id-transport:
-    contract: surface.cli@1
-    fingerprint: bbe9f50f040a4424bf42653c8d5d97e6e0d9630cad7fe4e6ff149e32c502f224
-    direct_tests:
-    - &id1636
-      path: frontend/packages/openmates-cli/tests/sdk.test.ts
-      line: 877
-      name: searches decrypted chat metadata locally without a server plaintext search
-        endpoint
-      surface: sdks.npm
-    - &id1637
-      path: frontend/packages/openmates-cli/tests/sdk.test.ts
-      line: 925
-      name: resolves encrypted saved chat slugs locally before loading a chat
-      surface: sdks.npm
     - &id1638
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 262
@@ -14454,33 +14423,33 @@ assertions:
       line: 124
       name: creates, lists, and updates workflows through typed endpoints
       surface: cli
-    - &id1640
-      path: frontend/packages/openmates-cli/tests/workflows.test.ts
-      line: 355
-      name: manages durable workflow input sessions
-      surface: cli
-    - &id1641
-      path: packages/openmates-python/tests/test_plans.py
-      line: 253
-      name: test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list
-      surface: sdks.pip
-    - &id1642
-      path: packages/openmates-python/tests/test_sdk.py
-      line: 1483
-      name: test_searches_decrypted_chat_metadata_locally
-      surface: sdks.pip
     supporting_tests: []
     tests:
+    - *id1627
+    - *id1628
+    - *id1629
+    - *id1630
+    - *id1631
+    - *id1632
+    - *id1633
+    - *id1634
+    - *id1635
     - *id1636
     - *id1637
     - *id1638
     - *id1639
-    - *id1640
-    - *id1641
-    - *id1642
     surfaces:
-      sdks.npm:
+      rest_api:
         direct_tests:
+        - *id1627
+        - *id1628
+        - *id1629
+        - *id1630
+        - *id1631
+        - *id1632
+        - *id1633
+        - *id1634
+        - *id1635
         - *id1636
         - *id1637
         supporting_tests: []
@@ -14488,12 +14457,73 @@ assertions:
         direct_tests:
         - *id1638
         - *id1639
+        supporting_tests: []
+    current_direct_proof: false
+  cli.slugs.local-resolution-id-transport:
+    contract: surface.cli@1
+    fingerprint: bbe9f50f040a4424bf42653c8d5d97e6e0d9630cad7fe4e6ff149e32c502f224
+    direct_tests:
+    - &id1640
+      path: frontend/packages/openmates-cli/tests/sdk.test.ts
+      line: 877
+      name: searches decrypted chat metadata locally without a server plaintext search
+        endpoint
+      surface: sdks.npm
+    - &id1641
+      path: frontend/packages/openmates-cli/tests/sdk.test.ts
+      line: 925
+      name: resolves encrypted saved chat slugs locally before loading a chat
+      surface: sdks.npm
+    - &id1642
+      path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+      line: 262
+      name: moves supported workspace resources to a team with confirmation metadata
+      surface: cli
+    - &id1643
+      path: frontend/packages/openmates-cli/tests/workflows.test.ts
+      line: 124
+      name: creates, lists, and updates workflows through typed endpoints
+      surface: cli
+    - &id1644
+      path: frontend/packages/openmates-cli/tests/workflows.test.ts
+      line: 355
+      name: manages durable workflow input sessions
+      surface: cli
+    - &id1645
+      path: packages/openmates-python/tests/test_plans.py
+      line: 253
+      name: test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list
+      surface: sdks.pip
+    - &id1646
+      path: packages/openmates-python/tests/test_sdk.py
+      line: 1483
+      name: test_searches_decrypted_chat_metadata_locally
+      surface: sdks.pip
+    supporting_tests: []
+    tests:
+    - *id1640
+    - *id1641
+    - *id1642
+    - *id1643
+    - *id1644
+    - *id1645
+    - *id1646
+    surfaces:
+      sdks.npm:
+        direct_tests:
         - *id1640
+        - *id1641
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id1642
+        - *id1643
+        - *id1644
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id1641
-        - *id1642
+        - *id1645
+        - *id1646
         supporting_tests: []
     current_direct_proof: false
   cli.output.actionable-readable:
@@ -14501,181 +14531,177 @@ assertions:
     fingerprint: f83a1886aeb904c239067956264679438c2e4d234cf260ecb07686d80fbc1192
     direct_tests: []
     supporting_tests:
-    - &id1643
+    - &id1647
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 102
       name: formats workflow child embeds for CLI output
       surface: cli
     tests:
-    - *id1643
+    - *id1647
     surfaces:
       cli:
         direct_tests: []
         supporting_tests:
-        - *id1643
+        - *id1647
     current_direct_proof: false
   cli.surface.semantic-parity:
     contract: surface.cli@1
     fingerprint: 5a9531c70c46d311f83ec2658e9f7caa0c9fe140af5dcb5f6366679ff6be747b
     direct_tests:
-    - &id1644
+    - &id1648
       path: backend/tests/test_cli_object_slugs.py
       line: 42
       name: test_slugged_object_schemas_define_encrypted_slug_metadata
       surface: rest_api
-    - &id1645
+    - &id1649
       path: backend/tests/test_cli_object_slugs.py
       line: 50
       name: test_encrypted_slug_migration_is_wired_into_compose_setup
       surface: rest_api
-    - &id1646
+    - &id1650
       path: backend/tests/test_cli_object_slugs.py
       line: 108
       name: test_create_helpers_store_ciphertext_and_hash_without_plaintext_slug
       surface: rest_api
-    - &id1647
+    - &id1651
       path: backend/tests/test_cli_object_slugs.py
       line: 129
       name: test_duplicate_task_slug_lookup_hash_is_rejected_in_personal_scope
       surface: rest_api
-    - &id1648
+    - &id1652
       path: backend/tests/test_cli_object_slugs.py
       line: 148
       name: test_duplicate_project_slug_lookup_hash_is_rejected_in_team_scope
       surface: rest_api
-    - &id1649
+    - &id1653
       path: backend/tests/test_cli_object_slugs.py
       line: 180
       name: test_slugged_workspace_move_requires_team_scoped_slug_metadata
       surface: rest_api
-    - &id1650
+    - &id1654
       path: backend/tests/test_cli_object_slugs.py
       line: 237
       name: test_plaintext_slug_fields_are_rejected_before_directus_write
       surface: rest_api
-    - &id1651
+    - &id1655
       path: backend/tests/test_cli_object_slugs.py
       line: 274
       name: test_chat_creation_persists_encrypted_slug_metadata_without_plaintext
       surface: rest_api
-    - &id1652
+    - &id1656
       path: backend/tests/test_teams_move_authorization.py
       line: 32
       name: test_workspace_context_filters_separate_personal_and_team_records
       surface: rest_api
-    - &id1653
+    - &id1657
       path: backend/tests/test_teams_move_authorization.py
       line: 42
       name: test_member_can_move_owned_personal_record_into_team
       surface: rest_api
-    - &id1654
+    - &id1658
       path: backend/tests/test_teams_move_authorization.py
       line: 59
       name: test_viewer_cannot_move_personal_record_into_team
       surface: rest_api
-    - &id1655
+    - &id1659
       path: backend/tests/test_teams_move_authorization.py
       line: 75
       name: test_non_owner_cannot_move_someone_else_personal_record
       surface: rest_api
-    - &id1656
+    - &id1660
       path: backend/tests/test_teams_move_authorization.py
       line: 91
       name: test_cannot_move_already_team_scoped_record_again
       surface: rest_api
-    - &id1657
+    - &id1661
       path: backend/tests/test_teams_move_authorization.py
       line: 116
       name: test_move_workspace_record_updates_supported_collection
       surface: rest_api
-    - &id1658
+    - &id1662
       path: backend/tests/test_teams_move_authorization.py
       line: 138
       name: test_workflow_move_updates_record_json_owner_context
       surface: rest_api
-    - &id1659
+    - &id1663
       path: backend/tests/test_teams_move_authorization.py
       line: 167
       name: test_move_workspace_record_requires_confirmation
       surface: rest_api
-    - &id1660
+    - &id1664
       path: backend/tests/test_teams_move_authorization.py
       line: 183
       name: test_generic_workspace_move_rejects_projects_without_wrapper_contract
       surface: rest_api
-    - &id1662
+    - &id1666
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 126
       name: adds team context to team-aware resource list routes
       surface: cli
-    - &id1663
+    - &id1667
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 146
       name: calls team lifecycle, membership, and billing endpoints
       surface: cli
-    - &id1664
+    - &id1668
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 215
       name: encrypts invite team keys and uploads recipient wrappers on accept
       surface: cli
-    - &id1665
+    - &id1669
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 262
       name: moves supported workspace resources to a team with confirmation metadata
       surface: cli
-    - &id1667
+    - &id1671
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 124
       name: creates, lists, and updates workflows through typed endpoints
       surface: cli
-    - &id1668
+    - &id1672
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 181
       name: runs workflows and reads run history
       surface: cli
-    - &id1669
+    - &id1673
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 212
       name: validates, creates, updates YAML, step-tests, and responds to waiting
         runs
       surface: cli
-    - &id1670
+    - &id1674
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 258
       name: manages client-encrypted workflow template projection and sharing contracts
       surface: cli
-    - &id1671
+    - &id1675
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 318
       name: retrieves, revokes, restores, and completes workflow template sharing
         bindings
       surface: cli
-    - &id1672
+    - &id1676
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 355
       name: manages durable workflow input sessions
       surface: cli
     supporting_tests:
-    - &id1661
+    - &id1665
       path: frontend/packages/openmates-cli/tests/teams-permissions.test.ts
       line: 117
       name: resolves active, override, and personal team context
       surface: cli
-    - &id1666
+    - &id1670
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 102
       name: formats workflow child embeds for CLI output
       surface: cli
-    - &id1673
+    - &id1677
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 402
       name: requires a CLI session before workflow calls
       surface: cli
     tests:
-    - *id1644
-    - *id1645
-    - *id1646
-    - *id1647
     - *id1648
     - *id1649
     - *id1650
@@ -14702,13 +14728,13 @@ assertions:
     - *id1671
     - *id1672
     - *id1673
+    - *id1674
+    - *id1675
+    - *id1676
+    - *id1677
     surfaces:
       rest_api:
         direct_tests:
-        - *id1644
-        - *id1645
-        - *id1646
-        - *id1647
         - *id1648
         - *id1649
         - *id1650
@@ -14722,23 +14748,27 @@ assertions:
         - *id1658
         - *id1659
         - *id1660
-        supporting_tests: []
-      cli:
-        direct_tests:
+        - *id1661
         - *id1662
         - *id1663
         - *id1664
-        - *id1665
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id1666
         - *id1667
         - *id1668
         - *id1669
-        - *id1670
         - *id1671
         - *id1672
-        supporting_tests:
-        - *id1661
-        - *id1666
         - *id1673
+        - *id1674
+        - *id1675
+        - *id1676
+        supporting_tests:
+        - *id1665
+        - *id1670
+        - *id1677
     current_direct_proof: false
   sdk.auth.approved-api-key-device:
     contract: surface.sdk@1
@@ -14752,79 +14782,75 @@ assertions:
     contract: surface.sdk@1
     fingerprint: e8486e9df2466d1bd6552df59310ef7ddb017dfda4ebf863e37befec741b0a46
     direct_tests:
-    - &id1674
+    - &id1678
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 54
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id1675
+    - &id1679
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 135
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id1676
+    - &id1680
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 87
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id1677
+    - &id1681
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 833
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id1678
+    - &id1682
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 877
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id1679
+    - &id1683
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 925
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id1680
+    - &id1684
       path: packages/openmates-python/tests/test_plans.py
       line: 253
       name: test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list
       surface: sdks.pip
-    - &id1681
+    - &id1685
       path: packages/openmates-python/tests/test_projects.py
       line: 23
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id1682
+    - &id1686
       path: packages/openmates-python/tests/test_projects.py
       line: 128
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id1683
+    - &id1687
       path: packages/openmates-python/tests/test_sdk.py
       line: 846
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id1684
+    - &id1688
       path: packages/openmates-python/tests/test_sdk.py
       line: 1431
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id1685
+    - &id1689
       path: packages/openmates-python/tests/test_sdk.py
       line: 1483
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id1686
+    - &id1690
       path: packages/openmates-python/tests/test_workflows.py
       line: 50
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id1674
-    - *id1675
-    - *id1676
-    - *id1677
     - *id1678
     - *id1679
     - *id1680
@@ -14834,134 +14860,134 @@ assertions:
     - *id1684
     - *id1685
     - *id1686
+    - *id1687
+    - *id1688
+    - *id1689
+    - *id1690
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id1674
-        - *id1675
-        - *id1676
-        - *id1677
         - *id1678
         - *id1679
-        supporting_tests: []
-      sdks.pip:
-        direct_tests:
         - *id1680
         - *id1681
         - *id1682
         - *id1683
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
         - *id1684
         - *id1685
         - *id1686
+        - *id1687
+        - *id1688
+        - *id1689
+        - *id1690
         supporting_tests: []
     current_direct_proof: false
   sdk.surface.semantic-parity:
     contract: surface.sdk@1
     fingerprint: 6bd2703be3ba93d5b6dff1350c9a1d9df034e0e80b8ff3f5e52b71e8e0fee3c5
     direct_tests:
-    - &id1687
+    - &id1691
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 54
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id1688
+    - &id1692
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 135
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id1689
+    - &id1693
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 87
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id1691
+    - &id1695
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 364
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
-    - &id1692
+    - &id1696
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 410
       name: manages durable workflow input sessions
       surface: sdks.npm
-    - &id1693
+    - &id1697
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 833
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id1694
+    - &id1698
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 877
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id1695
+    - &id1699
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 925
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id1696
+    - &id1700
       path: packages/openmates-python/tests/test_projects.py
       line: 23
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id1697
+    - &id1701
       path: packages/openmates-python/tests/test_projects.py
       line: 128
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id1698
+    - &id1702
       path: packages/openmates-python/tests/test_sdk.py
       line: 846
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id1699
+    - &id1703
       path: packages/openmates-python/tests/test_sdk.py
       line: 1431
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id1700
+    - &id1704
       path: packages/openmates-python/tests/test_sdk.py
       line: 1483
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id1701
+    - &id1705
       path: packages/openmates-python/tests/test_workflows.py
       line: 50
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
-    - &id1703
+    - &id1707
       path: packages/openmates-python/tests/test_workflows.py
       line: 248
       name: test_pip_sdk_workflow_template_sharing_transport_uses_shared_api
       surface: sdks.pip
     supporting_tests:
-    - &id1690
+    - &id1694
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 268
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
-    - &id1702
+    - &id1706
       path: packages/openmates-python/tests/test_workflows.py
       line: 241
       name: test_pip_sdk_workflows_require_api_key
       surface: sdks.pip
-    - &id1704
+    - &id1708
       path: packages/openmates-python/tests/test_workflows.py
       line: 307
       name: test_pip_sdk_workflow_delete_requires_confirmation
       surface: sdks.pip
-    - &id1705
+    - &id1709
       path: packages/openmates-python/tests/test_workflows.py
       line: 314
       name: test_pip_sdk_workflow_template_import_rejects_malformed_response
       surface: sdks.pip
     tests:
-    - *id1687
-    - *id1688
-    - *id1689
-    - *id1690
     - *id1691
     - *id1692
     - *id1693
@@ -14977,30 +15003,34 @@ assertions:
     - *id1703
     - *id1704
     - *id1705
+    - *id1706
+    - *id1707
+    - *id1708
+    - *id1709
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id1687
-        - *id1688
-        - *id1689
         - *id1691
         - *id1692
         - *id1693
-        - *id1694
         - *id1695
-        supporting_tests:
-        - *id1690
-      sdks.pip:
-        direct_tests:
         - *id1696
         - *id1697
         - *id1698
         - *id1699
+        supporting_tests:
+        - *id1694
+      sdks.pip:
+        direct_tests:
         - *id1700
         - *id1701
-        - *id1703
-        supporting_tests:
         - *id1702
+        - *id1703
         - *id1704
         - *id1705
+        - *id1707
+        supporting_tests:
+        - *id1706
+        - *id1708
+        - *id1709
     current_direct_proof: false

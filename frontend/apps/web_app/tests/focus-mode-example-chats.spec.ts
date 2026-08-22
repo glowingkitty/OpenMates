@@ -39,6 +39,7 @@ async function navigateToFinanceExample(page: any): Promise<void> {
 }
 
 test.describe('focus-mode example chat state', () => {
+  // contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity,public-example-chats.transcript.safe-rendering
   test('does not leak an active focus pill into the Finance example chat', async ({ page }: { page: any }) => {
     test.setTimeout(60_000);
 
@@ -57,6 +58,7 @@ test.describe('focus-mode example chat state', () => {
     await expect(page.locator('body')).not.toContainText('Focus active');
   });
 
+  // contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   test('renders Deep research sub-chat summaries below activation and opens child transcript', async ({
     page,
   }: {
@@ -83,7 +85,7 @@ test.describe('focus-mode example chat state', () => {
 
     const firstCard = carousel.getByTestId('sub-chat-card').filter({ hasText: 'Research US egg supply recover' }).first();
     await expect(firstCard).toContainText('Reviews avian-flu flock losses');
-    await expect(firstCard.getByTestId('sub-chat-status-done')).toContainText('Done');
+    await expect(firstCard.getByTestId('sub-chat-status-completed')).toContainText('Completed');
     await expect(carousel.getByTestId('sub-chat-card').filter({ hasText: 'Compares counterarguments around feed' }).first()).toBeVisible();
     await expect(carousel.getByTestId('sub-chat-card').filter({ hasText: 'Examines producer concentration' }).first()).toBeVisible();
 

@@ -168,6 +168,8 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		await expect(card).toHaveAttribute('data-category', /^(?!general_knowledge$).+/);
 		await expect(card).toHaveAttribute('data-icon', /^(?!help-circle$).+/);
 		await expect(card.getByTestId('sub-chat-open-cta')).toContainText('Click to open sub chat');
+		await expect(card).not.toContainText('Active');
+		await expect(card).not.toContainText('Done');
 		await expect(card).not.toContainText('"type":"app_skill_use"');
 		await expect(card).not.toContainText('The AI service encountered an error');
 	}
@@ -209,6 +211,7 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
 	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
+	await expect(page.getByTestId('sub-chat-status-completed')).toHaveCount(3);
 	expect(await page.evaluate(() =>
 		(window as Window & { __subChatRawProtocolObserved?: boolean }).__subChatRawProtocolObserved
 	)).toBe(false);
