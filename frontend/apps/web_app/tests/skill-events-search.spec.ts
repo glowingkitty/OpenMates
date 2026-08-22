@@ -269,7 +269,7 @@ test.describe('App: Events / Skill: search', () => {
 		if (proof) {
 			await proof.assert('request-visible', async () => {
 				const userMessage = page.getByTestId('message-user').last();
-				await expect(userMessage).toContainText('Use events.search to make two separate searches for tech events in Berlin');
+				await expect(userMessage).toContainText('I am planning two Berlin weekends');
 				await expect(userMessage).not.toContainText('TEST_LIVE_RECORD');
 			});
 			await proof.checkpoint('request-visible');
