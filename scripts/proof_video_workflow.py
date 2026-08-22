@@ -628,6 +628,21 @@ def _roll_over_review_budget(
     return True
 
 
+def prune_abandoned_review_reservations(budget: dict[str, Any]) -> dict[str, Any]:
+    result = json.loads(json.dumps(budget)) if budget else {}
+    reservations = [item for item in result.get("reservations", []) if isinstance(item, dict)]
+    completed_reservations = [item for item in reservations if item.get("receipt_path") or item.get("status")]
+    if len(completed_reservations) == len(reservations):
+        return result
+    result["reservations"] = completed_reservations
+    result["ai_review_calls"] = min(int(result.get("ai_review_calls", 0)), len(completed_reservations))
+    result["submitted_frames"] = min(
+        int(result.get("submitted_frames", 0)),
+        len(completed_reservations) * MAX_REVIEW_FRAMES_PER_DEVICE,
+    )
+    return result
+
+
 def reserve_persisted_review_budget(
     path: Path,
     *,
@@ -645,7 +660,7 @@ def reserve_persisted_review_budget(
     lock_path = path.with_suffix(".lock")
     with lock_path.open("a+", encoding="utf-8") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        existing = _load_json(path)
+        existing = prune_abandoned_review_reservations(_load_json(path))
         if existing and existing.get("proof_identity") != proof_identity:
             raise WorkflowError("stored review budget does not match this proof identity")
         budget = reserve_review_budget(

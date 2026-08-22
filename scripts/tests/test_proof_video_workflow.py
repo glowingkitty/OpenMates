@@ -1045,6 +1045,38 @@ def test_review_budget_retries_incomplete_unchanged_device_reservation() -> None
     assert retry["ai_review_calls"] == 2
 
 
+def test_review_budget_prunes_abandoned_persisted_reservations_before_frame_cap() -> None:
+    budget = {
+        "ai_review_calls": 4,
+        "submitted_frames": 48,
+        "reservations": [
+            {"device": "web-laptop", "source_artifact_hash": "sha256:failed-a", "status": "product_defect"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:failed-b", "receipt_path": "review-receipt.json"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:abandoned-a"},
+            {"device": "web-laptop", "source_artifact_hash": "sha256:abandoned-b", "correction_round": 1},
+        ],
+    }
+
+    pruned = workflow.prune_abandoned_review_reservations(budget)
+    retry = workflow.reserve_review_budget(
+        pruned,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=2,
+        correction_kind="capture",
+        frame_index_hash="sha256:fixed-frames",
+        source_artifact_hash="sha256:fixed-video",
+    )
+
+    assert retry["ai_review_calls"] == 3
+    assert retry["submitted_frames"] == 36
+    assert len(retry["reservations"]) == 3
+    assert all(
+        item.get("status") or item.get("receipt_path") or item.get("source_artifact_hash") == "sha256:fixed-video"
+        for item in retry["reservations"]
+    )
+
+
 def test_uncertain_review_requires_user_input_immediately() -> None:
     result = workflow.review_next_action(
         {

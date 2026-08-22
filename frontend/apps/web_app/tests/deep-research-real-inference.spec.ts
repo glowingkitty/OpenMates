@@ -209,13 +209,6 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
 	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
-	await proof.assert('deep_research.parent_synthesis', async () => {
-		await expect(finalAssistant).toContainText('Short Answer');
-		await expect(finalAssistant).toContainText('Bottom Line');
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
-	});
-	await proof.checkpoint('deep-research-parent-synthesis');
-	await proof.attach();
 	expect(await page.evaluate(() =>
 		(window as Window & { __subChatRawProtocolObserved?: boolean }).__subChatRawProtocolObserved
 	)).toBe(false);
@@ -234,6 +227,13 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		// Keep each asserted proof state visible in the recorded Playwright artifact.
 		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 	}
+	await proof.assert('deep_research.parent_synthesis', async () => {
+		await expect(finalAssistant).toContainText('Short Answer');
+		await expect(finalAssistant).toContainText('Bottom Line');
+		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
+	});
+	await proof.checkpoint('deep-research-parent-synthesis');
+	await proof.attach();
 
 	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
 	log('Deep research completed with three children and a final parent synthesis.');

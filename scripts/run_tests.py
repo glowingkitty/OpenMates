@@ -63,7 +63,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 try:
@@ -757,20 +757,13 @@ def _load_tests_control_module():
     return module
 
 
-def _record_unified_test_state(data: dict, *, source: str = "scripts_tests", workflow: str = "") -> None:
+def _record_unified_test_state(data: dict) -> None:
     """Update scripts/tests.py state files without making this runner depend on it."""
     try:
         module = _load_tests_control_module()
     except RuntimeError:
         return
-    module.record_run_result(data, source=source, workflow=workflow)
-
-
-def _test_control_source_for_flags(flags: dict) -> tuple[str, str]:
-    """Return the test-control source/workflow tuple for a runner result."""
-    if flags.get("daily"):
-        return "daily_runner", "daily"
-    return "scripts_tests", ""
+    module.record_run_result(data)
 
 
 def _generate_e2e_gift_card_code() -> str:
@@ -1963,7 +1956,6 @@ class BatchRunner:
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
-        progress_callback: Optional[Callable[[SuiteResult], None]] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1976,23 +1968,6 @@ class BatchRunner:
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
-        self.progress_callback = progress_callback
-
-    @staticmethod
-    def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
-        tests = [BatchRunner._spec_result_to_dict(r) for r in results]
-        has_failures = any(_is_problem_status(r.status) for r in results)
-        all_skipped = bool(results) and all(r.status == "skipped" for r in results)
-        return SuiteResult(
-            status="skipped" if all_skipped else "failed" if has_failures else "passed",
-            tests=tests,
-            duration_seconds=round(duration_seconds, 1),
-        )
-
-    def _emit_progress(self, all_results: list[SpecResult], suite_start: float) -> None:
-        if self.progress_callback is None:
-            return
-        self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -2031,13 +2006,18 @@ class BatchRunner:
                         name=spec, file=spec, status="not_started",
                         error=f"Skipped: fail-fast after batch {batch_idx + 1}",
                     ))
-                self._emit_progress(all_results, suite_start)
                 break
 
-            self._emit_progress(all_results, suite_start)
-
         duration = time.time() - suite_start
-        return self._suite_from_results(all_results, duration)
+        tests = [self._spec_result_to_dict(r) for r in all_results]
+        has_failures = any(_is_problem_status(r.status) for r in all_results)
+        all_skipped = bool(all_results) and all(r.status == "skipped" for r in all_results)
+
+        return SuiteResult(
+            status="skipped" if all_skipped else "failed" if has_failures else "passed",
+            tests=tests,
+            duration_seconds=round(duration, 1),
+        )
 
     def _run_batch(
         self,
@@ -2806,19 +2786,6 @@ class ResultAggregator:
     """Merges results from all suites into the standard last-run.json format."""
 
     @staticmethod
-    def to_dict(result: RunResult) -> dict:
-        return {
-            "run_id": result.run_id,
-            "git_sha": result.git_sha,
-            "git_branch": result.git_branch,
-            "flags": result.flags,
-            "duration_seconds": result.duration_seconds,
-            "summary": result.summary,
-            "suites": result.suites,
-            "environment": result.environment,
-        }
-
-    @staticmethod
     def build_run_result(
         suites: dict[str, SuiteResult],
         run_id: str,
@@ -2884,7 +2851,17 @@ class ResultAggregator:
     def save(result: RunResult) -> None:
         """Save results to test-results/."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        data = ResultAggregator.to_dict(result)
+
+        data = {
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "flags": result.flags,
+            "duration_seconds": result.duration_seconds,
+            "summary": result.summary,
+            "suites": result.suites,
+            "environment": result.environment,
+        }
 
         # Write timestamped run file
         ts = result.run_id.replace(":", "").replace("-", "")
@@ -2893,30 +2870,13 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
-        (RESULTS_DIR / "last-run-progress.json").unlink(missing_ok=True)
         record_flake_history(data)
         try:
-            source, workflow = _test_control_source_for_flags(result.flags)
-            _record_unified_test_state(data, source=source, workflow=workflow)
+            _record_unified_test_state(data)
         except Exception as exc:
             _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
-
-    @staticmethod
-    def save_progress(result: RunResult) -> None:
-        """Persist a partial run snapshot without replacing the final last-run file."""
-        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        data = ResultAggregator.to_dict(result)
-        progress_flags = dict(data.get("flags") or {})
-        progress_flags["in_progress"] = True
-        data["flags"] = progress_flags
-        _safe_write_json(RESULTS_DIR / "last-run-progress.json", data)
-        try:
-            source, workflow = _test_control_source_for_flags(progress_flags)
-            _record_unified_test_state(data, source=source, workflow=workflow)
-        except Exception as exc:
-            _log(f"Could not update unified test progress: {exc}", "WARN")
 
     @staticmethod
     def load_failed_specs() -> list[str]:
@@ -6266,8 +6226,6 @@ class TestOrchestrator:
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
         self.current_phase = "starting"
-        self._progress_suites: dict[str, SuiteResult] = {}
-        self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
 
@@ -6311,44 +6269,6 @@ class TestOrchestrator:
         if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
             self._daily_status_thread.join(timeout=35)
 
-    def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
-        flags = {
-            "suite": self.suite,
-            "daily": self.daily,
-            "only_failed": self.only_failed,
-            "fail_fast": self.fail_fast,
-            "use_mocks": self.use_mocks,
-            "record_live_fixtures": self.record_live_fixtures,
-        }
-        if in_progress:
-            flags["in_progress"] = True
-        if progress_phase:
-            flags["progress_phase"] = progress_phase
-        return flags
-
-    def _save_progress_snapshot(
-        self,
-        suites: dict[str, SuiteResult],
-        start_time: float,
-        phase: str,
-    ) -> None:
-        if self.dry_run or not suites:
-            return
-        result = ResultAggregator.build_run_result(
-            suites=suites,
-            run_id=self.run_id,
-            git_sha=self.git_sha,
-            git_branch=self.git_branch,
-            environment=self.environment,
-            duration=time.time() - start_time,
-            flags=self._result_flags(in_progress=True, progress_phase=phase),
-        )
-        ResultAggregator.save_progress(result)
-
-    def _save_playwright_progress_snapshot(self, playwright_result: SuiteResult) -> None:
-        progress_suites = {**self._progress_suites, "playwright": playwright_result}
-        self._save_progress_snapshot(progress_suites, self._progress_start_time, "Playwright")
-
     def run(self) -> int:
         """Execute the test run and always stop the daily status heartbeat."""
         try:
@@ -6385,8 +6305,6 @@ class TestOrchestrator:
         if self.daily:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
-        self._progress_suites = suites
-        self._progress_start_time = start_time
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -6405,34 +6323,36 @@ class TestOrchestrator:
         if not self.spec and self.suite in ("all", "vitest"):
             self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "vitest")
 
         if not self.spec and self.suite in ("all", "pytest"):
             self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "pytest")
 
         if not self.spec and self.suite in ("all", "cli"):
             self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
-            self._save_progress_snapshot(suites, start_time, "CLI integration")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
-            self._save_progress_snapshot(suites, start_time, "Playwright")
 
         # Run native Apple checks only for nightly cron or explicit --suite apple.
         if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
             self.current_phase = "Apple remote"
             suites["apple_remote"] = self._run_apple_remote_nightly()
-            self._save_progress_snapshot(suites, start_time, "Apple remote")
 
         # Aggregate results
         self.current_phase = "finalizing results"
         duration = time.time() - start_time
-        flags = self._result_flags()
+        flags = {
+            "suite": self.suite,
+            "daily": self.daily,
+            "only_failed": self.only_failed,
+            "fail_fast": self.fail_fast,
+            "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
+        }
 
         result = ResultAggregator.build_run_result(
             suites=suites,
@@ -6982,7 +6902,6 @@ class TestOrchestrator:
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
-            progress_callback=self._save_playwright_progress_snapshot,
         )
         try:
             result = runner.run_all_batches()
