@@ -58,6 +58,18 @@ def test_explicit_not_required_classification_passes(tmp_path: Path, monkeypatch
     assert audit.audit_path(path) == []
 
 
+def test_account_health_not_required_classification_passes(tmp_path: Path, monkeypatch) -> None:
+    audit = load_audit_module()
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    path = write_spec(
+        tmp_path,
+        "frontend/apps/web_app/tests/test-account-preflight.spec.ts",
+        "// proof-video: not_required reason=account_health\ntest('account preflight', async () => {});\n",
+    )
+
+    assert audit.audit_path(path) == []
+
+
 def test_invalid_classification_reason_is_reported(tmp_path: Path, monkeypatch) -> None:
     audit = load_audit_module()
     monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)

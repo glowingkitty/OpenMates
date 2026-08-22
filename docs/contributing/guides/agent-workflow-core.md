@@ -126,6 +126,12 @@ with passing deployed Playwright, Apple, or real OpenMates CLI evidence and
 device-scoped, hash-bound WebVTT captions that are toggleable in the player and never reduce or obscure the clean frame; narration audio is optional. Web/spec/example chat proof uses
 separate phone and laptop videos, Apple proof uses separate iPhone portrait and
 iPad landscape videos, and CLI proof uses one terminal video only for the actual `openmates` CLI product surface being demonstrated or fixed. Do not ask for CLI proof videos for generic smoke scripts, pytest helpers, Node scripts, or shell wrappers that do not visibly execute the OpenMates CLI.
+Tooling-only and account-health E2E work is exempt from proof-video evidence:
+`test-account-preflight.spec.ts`, stale signup cleanup, credential repair,
+dispatch/orchestration fixes, and other non-product preflights should use focused
+unit/tooling tests plus `scripts/verify_test_account_login.py` or the deployed
+`scripts/tests.py` result as completion evidence. Mark touched Playwright specs
+with `// proof-video: not_required reason=account_health` when this applies.
 Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
 iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
 `1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device

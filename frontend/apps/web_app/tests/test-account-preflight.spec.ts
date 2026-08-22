@@ -9,6 +9,7 @@
  * Architecture: docs/architecture/e2e-testing.md
  */
 // contract-test-file: tooling
+// proof-video: not_required reason=account_health
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');

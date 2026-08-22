@@ -22,6 +22,7 @@ PROOF_DEFINITION_FIELDS = ("devices:", "transcript:", "assertions:", "tutorial:"
 CLASSIFICATION_RE = re.compile(r"proof-video:\s*not_required\s+reason=([A-Za-z0-9_.-]+)")
 VALID_CLASSIFICATION_REASONS = {
     "api_setup",
+    "account_health",
     "cleanup_only",
     "cli_helper",
     "non_visual_setup",

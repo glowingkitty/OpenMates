@@ -1659,6 +1659,7 @@ def test_account_preflight_retries_failed_slots_in_small_batches(monkeypatch):
     orchestrator.environment = "development"
     orchestrator.daily = False
     orchestrator.use_mocks = True
+    monkeypatch.setenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, "browser")
     monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
     monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
     monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
@@ -1667,6 +1668,83 @@ def test_account_preflight_retries_failed_slots_in_small_batches(monkeypatch):
 
     assert result.status == "passed"
     assert calls == [[1, 2, 3, 4, 5], [2, 3, 4], [5]]
+
+
+def test_account_preflight_defaults_to_api_mode(monkeypatch):
+    run_tests = load_run_tests_module()
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.environment = "development"
+    orchestrator.daily = False
+    calls: list[list[int]] = []
+
+    def fake_api_preflight(accounts):
+        calls.append(accounts)
+        return [
+            run_tests.SpecResult(
+                name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                file=run_tests.ACCOUNT_PREFLIGHT_API_SCRIPT,
+                status="passed",
+                account=account,
+                account_email=f"acct-{account}@example.test",
+            )
+            for account in accounts
+        ]
+
+    monkeypatch.delenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, raising=False)
+    for account in (1, 2):
+        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_EMAIL", f"acct-{account}@example.test")
+        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_PASSWORD", "pw")
+        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_OTP_KEY", "JBSWY3DPEHPK3PXP")
+    monkeypatch.setattr(orchestrator, "_run_api_account_preflight_results", fake_api_preflight)
+    monkeypatch.setattr(
+        orchestrator,
+        "_run_browser_account_preflight_results",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("browser preflight should not run by default")),
+    )
+    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
+    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
+
+    result = orchestrator._run_account_preflight(object(), accounts=[1, 2])
+
+    assert result.status == "passed"
+    assert calls == [[1, 2]]
+
+
+def test_api_account_preflight_parses_script_results(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    script = tmp_path / run_tests.ACCOUNT_PREFLIGHT_API_SCRIPT
+    script.parent.mkdir(parents=True)
+    script.write_text("print('placeholder')\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    captured: dict[str, object] = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured.update(kwargs)
+        return SimpleNamespace(
+            returncode=1,
+            stderr="",
+            stdout=json.dumps({
+                "status": "failed",
+                "results": [
+                    {"slot": 1, "email": "acct-1@example.test", "status": "passed", "duration_seconds": 0.5, "account_id": "ABC1234", "credits": 50000},
+                    {"slot": 2, "email": "acct-2@example.test", "status": "failed", "duration_seconds": 0.6, "error": "login failed"},
+                ],
+            }),
+        )
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    results = run_tests.TestOrchestrator._run_api_account_preflight_once([1, 2])
+
+    assert captured["cmd"][:3] == [sys.executable, str(script), "--json"]
+    assert captured["cmd"][3:] == ["--slots", "1,2"]
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+    assert [result.status for result in results] == ["passed", "failed"]
+    assert results[0].account_email == "acct-1@example.test"
+    assert results[0].debug_output_summary == "account_id=ABC1234 credits=50000"
+    assert results[1].error == "login failed"
 
 
 def test_daily_auto_cleanup_requires_all_configured_account_emails(monkeypatch):
@@ -1751,6 +1829,7 @@ def test_daily_cleanup_failure_fails_account_preflight(monkeypatch):
     orchestrator.environment = "development"
     orchestrator.daily = True
     orchestrator.use_mocks = True
+    monkeypatch.setenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, "browser")
     monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
     monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
     monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
