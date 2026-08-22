@@ -6,10 +6,17 @@ guardrails can run without Docker, Directus, or live user data. They verify the
 SQL preserves configured test accounts, admins, and content-bearing users before
 any apply-mode deletion can happen.
 """
+# contract-test-file: tooling
 
+import pytest
+
+from scripts import cleanup_dev_signup_accounts as cleanup
 from scripts.cleanup_dev_signup_accounts import (
     KnownAccountHash,
+    candidate_is_still_eligible_sql,
     candidate_cte,
+    configured_account_hashes_from_payload,
+    is_auto_safe_username,
     known_values_sql,
     parse_args,
 )
@@ -39,3 +46,94 @@ def test_apply_requires_explicit_confirmation() -> None:
 
     assert args.apply is True
     assert args.confirm_delete_zero_content_users is True
+
+
+def test_protected_account_payload_hashes_emails_without_retaining_plaintext() -> None:
+    accounts = configured_account_hashes_from_payload([
+        {"slot": 16, "email": "reserved@example.test"},
+        {"slot": 21, "email": "expanded@example.test"},
+    ])
+
+    assert [account.label for account in accounts] == ["16", "21"]
+    assert all("@" not in account.hashed_email for account in accounts)
+
+
+def test_auto_safe_cleanup_only_selects_old_incomplete_accounts() -> None:
+    sql = candidate_cte(
+        [KnownAccountHash(label="1", hashed_email="hash")],
+        auto_safe=True,
+        older_than_days=7,
+    )
+
+    assert "coalesce(u.signup_completed, false) = false" in sql
+    assert "u.last_access < now() - interval '7 days'" in sql
+    assert "u.username ~" in sql
+    assert "[0-5][0-9][0-5][0-9][a-z0-9]{3})$" in sql
+
+
+def test_auto_safe_cleanup_revalidates_one_candidate_before_deletion() -> None:
+    sql = candidate_is_still_eligible_sql(
+        [KnownAccountHash(label="1", hashed_email="hash")],
+        "00000000-0000-0000-0000-000000000001",
+        older_than_days=7,
+    )
+
+    assert "from candidates" in sql
+    assert "where id = '00000000-0000-0000-0000-000000000001'" in sql
+
+
+def test_auto_safe_cleanup_refuses_non_development_environment(monkeypatch) -> None:
+    monkeypatch.setattr(cleanup, "get_server_environment", lambda: "production")
+
+    with pytest.raises(SystemExit, match="outside SERVER_ENVIRONMENT=development"):
+        cleanup.main([
+            "--apply",
+            "--auto-safe",
+            "--automated-daily-cleanup",
+            "--protected-accounts-json",
+            "[]",
+        ])
+
+
+def test_auto_safe_cleanup_requires_exact_distinct_slots(monkeypatch) -> None:
+    monkeypatch.setattr(cleanup, "get_server_environment", lambda: "development")
+    duplicate_accounts = [
+        {"slot": slot, "email": f"acct-{min(slot, 26)}@example.test"}
+        for slot in range(1, 28)
+    ]
+
+    with pytest.raises(SystemExit, match="exactly slots 1-27 with distinct emails"):
+        cleanup.main([
+            "--apply",
+            "--auto-safe",
+            "--automated-daily-cleanup",
+            "--protected-accounts-json",
+            __import__("json").dumps(duplicate_accounts),
+        ])
+
+
+@pytest.mark.parametrize("username", [
+    "testacct1abc123",
+    "testacct27abc123",
+    "cliprov14abc123",
+    "cliprov20abc123",
+    "ref_abc123def456",
+    "aug22110559abc",
+])
+def test_auto_safe_username_accepts_exact_generated_formats(username: str) -> None:
+    assert is_auto_safe_username(username) is True
+
+
+@pytest.mark.parametrize("username", [
+    "testacct0abc123",
+    "testacct28abc123",
+    "cliprov13abc123",
+    "cliprov21abc123",
+    "ref_short",
+    "aug32110559abc",
+    "aug22240559abc",
+    "Aug22110559abc",
+    "mayor",
+])
+def test_auto_safe_username_rejects_near_matches(username: str) -> None:
+    assert is_auto_safe_username(username) is False

@@ -137,6 +137,7 @@ E2E_GIFT_CARD_SEED_RETRIES = 5
 E2E_GIFT_CARD_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
+PREFLIGHT_RETRY_BATCH_SIZE = 3
 BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "api",
     "app-ai-worker",
@@ -2091,6 +2092,7 @@ class BatchRunner:
                 dispatch_errors.append(SpecResult(
                     name=spec, file=spec, status="dispatch_error",
                     error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
+                    account=account,
                 ))
             else:
                 dispatched.append((spec, account, run_id))
@@ -6892,10 +6894,17 @@ class TestOrchestrator:
                     duration_seconds=preflight.duration_seconds,
                     reason=(preflight_reason or "No available normal Playwright account slots"),
                 )
+            if preflight.status == "failed" and all(
+                result.status == "passed" for result in preflight_results if result.account is not None
+            ):
+                return preflight
             if preflight_reason:
                 _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
-        elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
-            return self._run_account_preflight(client, accounts=[self.account])
+        elif self.spec == ACCOUNT_PREFLIGHT_SPEC:
+            return self._run_account_preflight(
+                client,
+                accounts=[self.account] if self.account is not None else None,
+            )
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
             reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
             if self.account is not None and reserved_account is not None and self.account != reserved_account:
@@ -7146,6 +7155,26 @@ class TestOrchestrator:
             0,
             account_overrides=target_accounts,
         )
+        failed_accounts = [result.account for result in results if result.status != "passed" and result.account]
+        if failed_accounts:
+            _log(
+                "Playwright account preflight: retrying failed slot(s) with reduced concurrency: "
+                + ", ".join(str(account) for account in failed_accounts),
+                "WARN",
+            )
+            results_by_account = {result.account: result for result in results if result.account}
+            for start in range(0, len(failed_accounts), PREFLIGHT_RETRY_BATCH_SIZE):
+                retry_accounts = failed_accounts[start:start + PREFLIGHT_RETRY_BATCH_SIZE]
+                retry_results = runner._run_batch(
+                    [ACCOUNT_PREFLIGHT_SPEC] * len(retry_accounts),
+                    0,
+                    account_overrides=retry_accounts,
+                )
+                results_by_account.update(
+                    (result.account, result) for result in retry_results if result.account
+                )
+            results = [results_by_account.get(account) for account in target_accounts]
+            results = [result for result in results if result is not None]
         if self._repair_missing_preflight_account_ids(results):
             _log("Playwright account preflight: rerunning repaired account slot(s)")
             results = runner._run_batch(
@@ -7170,12 +7199,72 @@ class TestOrchestrator:
                 reason=credit_guard_error,
             )
 
+        if getattr(self, "daily", False):
+            cleanup_error = self._cleanup_stale_signup_accounts(results)
+            if cleanup_error:
+                _log(f"E2E account cleanup failed: {cleanup_error}", "ERROR")
+                results.append(SpecResult(
+                    name="dev-stale-signup-cleanup",
+                    file="scripts/cleanup_dev_signup_accounts.py",
+                    status="failed",
+                    error=cleanup_error,
+                ))
+                failures.append(results[-1])
+
         return SuiteResult(
             status="failed" if failures else "passed",
             tests=[runner._spec_result_to_dict(r) for r in results],
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    def _cleanup_stale_signup_accounts(self, results: list[SpecResult]) -> Optional[str]:
+        """Delete only old incomplete zero-content dev signups after protecting all slots."""
+        if self.environment != "development":
+            return None
+
+        accounts_by_slot = {
+            result.account: result.account_email
+            for result in results
+            if result.account is not None and result.account_email
+        }
+        missing_slots = [slot for slot in range(1, MAX_ACCOUNTS + 1) if slot not in accounts_by_slot]
+        if missing_slots:
+            return "configured account email missing for slot(s): " + ", ".join(str(slot) for slot in missing_slots)
+
+        script_path = PROJECT_ROOT / "scripts" / "cleanup_dev_signup_accounts.py"
+        payload = [
+            {"slot": slot, "email": accounts_by_slot[slot]}
+            for slot in range(1, MAX_ACCOUNTS + 1)
+        ]
+        try:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--apply",
+                    "--auto-safe",
+                    "--automated-daily-cleanup",
+                    "--protected-accounts-json",
+                    "-",
+                    "--require-protected-count",
+                    str(MAX_ACCOUNTS),
+                ],
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return f"cleanup execution failed: {exc}"
+
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E account cleanup: {line}")
+        if proc.returncode != 0:
+            return (proc.stderr or output or "unknown cleanup error").strip()[:MAX_ERROR_SNIPPET]
+        return None
 
     def _repair_missing_preflight_account_ids(self, results: list[SpecResult]) -> bool:
         """Repair configured E2E accounts that fail preflight due to missing account_id."""
