@@ -778,6 +778,37 @@ def render_spec_timeline_video(
     }
 
 
+def render_remotion_tutorial_video(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
+    """Render a hash-bound proof tutorial through the local Remotion renderer."""
+
+    renderer = str(request.get("renderer") or "")
+    if renderer not in {"openmates-remotion-browser-v1", "openmates-remotion-terminal-v1"}:
+        raise DemonstrationError("Unsupported Remotion proof renderer")
+    remotion_script = REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"
+    if not remotion_script.is_file():
+        raise DemonstrationError(f"Remotion proof renderer is missing: {remotion_script}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path = output_path.with_suffix(".render-request.json")
+    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
+    result = subprocess.run(
+        ["node", str(remotion_script), str(request_path), str(output_path)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"Remotion proof render failed: {(result.stderr or result.stdout).strip()[-1000:]}")
+    metadata = video_metadata(output_path)
+    return {
+        "renderer": renderer,
+        "render_request_path": str(request_path),
+        "render_request_sha256": sha256_file(request_path),
+        "duration_seconds": metadata["duration_seconds"],
+    }
+
+
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
     """Return typed-placeholder text without exposing matched values."""
     result = subprocess.run(
@@ -1399,6 +1430,149 @@ def produce_cli_demonstration(
         narration_audio=narration_audio,
         caption_segments=caption_segments,
         state_change_times=[float(state["start"]) for state in timeline["states"][1:]],
+    )
+
+
+def produce_cli_terminal_demonstration(
+    *,
+    run_dir: Path,
+    source_video: Path,
+    source: dict[str, Any],
+    spec_id: str,
+    subject_commit: str,
+    narration_id: str,
+    caption_text: str,
+    expected_proof: str,
+    acceptance_criteria: list[str],
+    narration_audio_path: Path | None,
+    proof_assertions: list[dict[str, str]] | None = None,
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
+    narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
+    narration_audio_model: str = DEFAULT_NARRATION_MODEL,
+    narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
+    narration_audio_reused_from: str = "",
+    device_profile_name: str | None = "cli-terminal",
+    spec_timeline: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Render a real graphical OpenMates CLI recording inside terminal chrome."""
+
+    selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
+    verify_playwright_render_input(selected, source_video)
+    device_profile = resolve_device_profile(device_profile_name or "cli-terminal")
+    if device_profile is None or device_profile["id"] != "cli-terminal":
+        raise DemonstrationError("CLI terminal proof videos require --device-profile cli-terminal")
+
+    manifest_path = Path(str(source.get("terminal_manifest_path") or source_video.parent / "manifest.json"))
+    if not manifest_path.is_file():
+        raise DemonstrationError(f"CLI terminal capture manifest is missing: {manifest_path}")
+    capture_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if capture_manifest.get("capture_kind") != "real_terminal_screen" or capture_manifest.get("reconstructed") is not False:
+        raise DemonstrationError("CLI proof source must be a real terminal screen recording")
+    if capture_manifest.get("video_sha256") != selected["artifact_hash"]:
+        raise DemonstrationError("CLI terminal manifest does not match the selected source video")
+    if capture_manifest.get("exit_status") != 0:
+        raise DemonstrationError("CLI terminal proof source did not exit successfully")
+
+    source_metadata = video_metadata(source_video)
+    assert_device_profile_dimensions(source_metadata, device_profile)
+    if float(source_metadata["duration_seconds"]) > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("CLI terminal proof source must not exceed 35 seconds")
+
+    run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_dir.chmod(0o700)
+    _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
+    captions_path = run_dir / "captions.vtt"
+    video_path = run_dir / "demo.mp4"
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
+    )
+    if narration_audio_path is not None:
+        raise DemonstrationError("Spec-owned CLI terminal proof rendering does not support mixed audio tracks")
+
+    timeline_hash = "sha256:" + hashlib.sha256(
+        json.dumps(spec_timeline or {}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    contract = spec_timeline.get("contract") if isinstance(spec_timeline, dict) and isinstance(spec_timeline.get("contract"), dict) else {}
+    render_metadata = render_remotion_tutorial_video(
+        {
+            "schemaVersion": 1,
+            "renderer": "openmates-remotion-terminal-v1",
+            "sourceVideo": str(source_video),
+            "sourceSha256": selected["artifact_hash"],
+            "terminalTitle": str(contract.get("title") or "OpenMates CLI"),
+            "deviceProfile": "cli-terminal",
+            "viewport": {"width": 1280, "height": 720},
+            "output": {"width": 1280, "height": 720, "fps": 30},
+            "durationSeconds": float(source_metadata["duration_seconds"]),
+            "contractHash": proof_contract_hash or "sha256:unapproved-cli-contract",
+            "timelineHash": timeline_hash,
+        },
+        video_path,
+    )
+    output_duration = float(video_metadata(video_path)["duration_seconds"])
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+    caption_segments = write_tutorial_captions(
+        captions_path,
+        text=caption_text,
+        duration_seconds=output_duration,
+        narration_id=narration_id,
+    )
+
+    def timeline_seconds(kind: str, field: str) -> list[float]:
+        values: list[float] = []
+        for event in (spec_timeline or {}).get("events", []):
+            if not isinstance(event, dict) or event.get("kind") != kind:
+                continue
+            value = event.get(field)
+            if isinstance(value, (int, float)):
+                values.append(round(float(value) / 1000.0, MEDIA_TIMESTAMP_DECIMALS))
+        return values
+
+    return prepare_review_artifacts(
+        run_dir=run_dir,
+        video_path=video_path,
+        spec_id=spec_id,
+        subject_commit=subject_commit,
+        narration_id=narration_id,
+        caption_text=caption_text,
+        captions_path=captions_path,
+        expected_proof=expected_proof,
+        acceptance_criteria=acceptance_criteria,
+        proof_assertions=proof_assertions,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
+        source={
+            "kind": "cli_terminal",
+            **selected,
+            "terminal_manifest_path": str(manifest_path),
+            "terminal_manifest_sha256": sha256_file(manifest_path),
+            "terminal_transcript_path": str(capture_manifest.get("transcript_path") or ""),
+            "terminal_transcript_sha256": str(capture_manifest.get("transcript_sha256") or ""),
+        },
+        narration_audio=narration_audio,
+        caption_segments=caption_segments,
+        device_profile=device_profile,
+        render_metadata={
+            **render_metadata,
+            "rendered_from": "real_terminal_screen_remotion",
+            "playback_rate": 1.0,
+            "hold_last_frame_seconds": 0.0,
+            "terminal_source_sha256": selected["artifact_hash"],
+        },
+        scene_times=detect_scene_change_times(video_path),
+        action_times=timeline_seconds("action", "start_ms"),
+        state_change_times=timeline_seconds("checkpoint", "at_ms"),
     )
 
 

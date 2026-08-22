@@ -2682,12 +2682,58 @@ class BatchRunner:
 
             if proof_timeline_path is not None:
                 timeline_payload = json.loads(proof_timeline_path.read_text(encoding="utf-8"))
+                contract_payload = timeline_payload.get("contract") if isinstance(timeline_payload.get("contract"), dict) else {}
+                proof_surface = str(contract_payload.get("surface") or "")
+
+                def attachment_bytes_by_name(name: str) -> bytes:
+                    matches = [item for item in proof_group if item.get("name") == name]
+                    if len(matches) != 1:
+                        raise RuntimeError(f"Spec proof attachment is missing or ambiguous: {name}")
+                    body = matches[0].get("body")
+                    if isinstance(body, str):
+                        return base64.b64decode(body, validate=True)
+                    attachment_path = matches[0].get("path")
+                    if isinstance(attachment_path, str):
+                        attachment_basename = Path(attachment_path).name
+                        sources = [path for path in artifact_files if path.name == attachment_basename]
+                        if len(sources) == 1:
+                            return sources[0].read_bytes()
+                    raise RuntimeError(f"Spec proof attachment has no content: {name}")
+
+                if proof_surface == "cli":
+                    if len(copied_videos) != 1:
+                        raise RuntimeError("CLI proof timeline requires exactly one terminal video attachment")
+                    terminal_video = (dest / copied_videos[0]).resolve()
+                    terminal_dir = terminal_video.parent
+                    transcript_path = terminal_dir / "transcript.txt"
+                    transcript_path.write_bytes(attachment_bytes_by_name("openmates-cli-real-terminal-transcript"))
+                    events_bytes = None
+                    try:
+                        events_bytes = attachment_bytes_by_name("openmates-cli-real-terminal-events")
+                    except RuntimeError:
+                        events_bytes = None
+                    events_path = terminal_dir / "events.jsonl"
+                    if events_bytes is not None:
+                        events_path.write_bytes(events_bytes)
+                    manifest_payload = json.loads(attachment_bytes_by_name("openmates-cli-real-terminal-manifest").decode("utf-8"))
+                    manifest_payload["video_path"] = str(terminal_video)
+                    manifest_payload["video_sha256"] = f"sha256:{hashlib.sha256(terminal_video.read_bytes()).hexdigest()}"
+                    manifest_payload["transcript_path"] = str(transcript_path.resolve())
+                    manifest_payload["transcript_sha256"] = f"sha256:{hashlib.sha256(transcript_path.read_bytes()).hexdigest()}"
+                    if events_bytes is not None:
+                        manifest_payload["events_path"] = str(events_path.resolve())
+                        manifest_payload["events_sha256"] = f"sha256:{hashlib.sha256(events_path.read_bytes()).hexdigest()}"
+                    (terminal_dir / "manifest.json").write_text(
+                        json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+
                 checkpoint_frames = timeline_payload.get("checkpoint_frames")
-                if not isinstance(checkpoint_frames, list) or not checkpoint_frames:
+                if proof_surface != "cli" and (not isinstance(checkpoint_frames, list) or not checkpoint_frames):
                     raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
                 frames_dest = dest / "proof-frames"
                 frames_dest.mkdir(parents=True, exist_ok=True)
-                for frame_record in checkpoint_frames:
+                for frame_record in checkpoint_frames if isinstance(checkpoint_frames, list) else []:
                     if not isinstance(frame_record, dict):
                         raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
                     checkpoint = str(frame_record.get("checkpoint") or "")

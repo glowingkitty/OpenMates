@@ -1451,7 +1451,7 @@ def auto_finalize_proof_video_sources(
     publish_hook: Any | None = None,
     render_claims_hook: Any | None = None,
 ) -> list[dict[str, Any]]:
-    """Render, review, and publish spec-owned web proof videos after a passed spec run."""
+    """Render, review, and publish spec-owned web or CLI proof videos after a passed spec run."""
 
     if not proof_record_paths:
         return []
@@ -1469,19 +1469,26 @@ def auto_finalize_proof_video_sources(
             raise RuntimeError(f"Proof timeline attachment is missing: {timeline_value}")
         timeline = read_json(timeline_path, {})
         contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
-        if contract.get("surface") != "web":
+        surface = str(contract.get("surface") or "")
+        if surface not in {"web", "cli"}:
             finalizations.append({
                 "status": "skipped",
-                "reason": "proof timeline is not a web Playwright recording",
+                "reason": "proof timeline is not a supported web or cli recording",
                 "spec": record.get("spec"),
                 "run_id": record.get("run_id"),
             })
             continue
         if produce_hook is None:
-            try:
-                from scripts.spec_demo import produce_playwright_demonstration as active_produce_hook
-            except ModuleNotFoundError:
-                from spec_demo import produce_playwright_demonstration as active_produce_hook
+            if surface == "cli":
+                try:
+                    from scripts.spec_demo import produce_cli_terminal_demonstration as active_produce_hook
+                except ModuleNotFoundError:
+                    from spec_demo import produce_cli_terminal_demonstration as active_produce_hook
+            else:
+                try:
+                    from scripts.spec_demo import produce_playwright_demonstration as active_produce_hook
+                except ModuleNotFoundError:
+                    from spec_demo import produce_playwright_demonstration as active_produce_hook
         else:
             active_produce_hook = produce_hook
         if review_hook is None:
@@ -1498,7 +1505,7 @@ def auto_finalize_proof_video_sources(
                 from proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
         else:
             active_render_claims_hook = render_claims_hook
-        device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
+        device_profile = str(timeline.get("device") or record.get("proof_video_profile") or ("cli-terminal" if surface == "cli" else "web-laptop"))
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
         checkpoint_times = [
             float(event["at_ms"]) / 1000.0
@@ -1525,27 +1532,36 @@ def auto_finalize_proof_video_sources(
             "artifact_sha256": str(record.get("artifact_sha256") or ""),
             "test_account_provenance": str(record.get("test_account_provenance") or "GitHub Actions E2E account slot"),
         }
-        manifest = active_produce_hook(
-            run_dir=run_dir,
-            source_video=source_video,
-            source=source,
-            spec_id=str(contract.get("id") or Path(spec_name).stem),
-            subject_commit=subject_commit,
-            narration_id=f"auto-{Path(spec_name).stem}",
-            caption_text=claims["caption_text"],
-            expected_proof=claims["expected_proof"],
-            acceptance_criteria=claims["acceptance_criteria"],
-            proof_assertions=claims["assertions"],
-            proof_contract_hash=claims["contract_hash"],
-            proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
-            narration_audio_path=None,
-            device_profile_name=device_profile,
-            playback_rate=1.0,
-            hold_last_frame_seconds=0.0,
-            ready_timestamp_seconds=ready_timestamp_seconds,
-            spec_timeline=timeline,
-            browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
-        )
+        common_produce_kwargs = {
+            "run_dir": run_dir,
+            "source_video": source_video,
+            "source": source,
+            "spec_id": str(contract.get("id") or Path(spec_name).stem),
+            "subject_commit": subject_commit,
+            "narration_id": f"auto-{Path(spec_name).stem}",
+            "caption_text": claims["caption_text"],
+            "expected_proof": claims["expected_proof"],
+            "acceptance_criteria": claims["acceptance_criteria"],
+            "proof_assertions": claims["assertions"],
+            "proof_contract_hash": claims["contract_hash"],
+            "proof_group_id": "sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
+            "narration_audio_path": None,
+            "device_profile_name": device_profile,
+            "spec_timeline": timeline,
+        }
+        if surface == "cli":
+            terminal_manifest = source_video.parent / "manifest.json"
+            if terminal_manifest.is_file():
+                source["terminal_manifest_path"] = str(terminal_manifest)
+            manifest = active_produce_hook(**common_produce_kwargs)
+        else:
+            manifest = active_produce_hook(
+                **common_produce_kwargs,
+                playback_rate=1.0,
+                hold_last_frame_seconds=0.0,
+                ready_timestamp_seconds=ready_timestamp_seconds,
+                browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
+            )
         review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")
         manifest = review.get("manifest") if isinstance(review.get("manifest"), dict) else manifest
         if review.get("status") != "passed":

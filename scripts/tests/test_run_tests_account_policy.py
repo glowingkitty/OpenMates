@@ -93,6 +93,87 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
 
 
+def test_recording_artifacts_accept_cli_proof_timeline_without_frames(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    artifact.mkdir(parents=True)
+    video = artifact / "raw-terminal.mp4"
+    video.write_bytes(b"terminal-video")
+    transcript = b"Example chats for travel/search_connections"
+    events = b'{"kind":"start"}\n'
+    manifest = json.dumps({
+        "schema_version": 1,
+        "capture_kind": "real_terminal_screen",
+        "reconstructed": False,
+        "exit_status": 0,
+        "video_path": str(video),
+        "video_sha256": f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}",
+        "transcript_path": str(artifact / "transcript.txt"),
+        "transcript_sha256": f"sha256:{hashlib.sha256(transcript).hexdigest()}",
+        "events_path": str(artifact / "events.jsonl"),
+        "events_sha256": f"sha256:{hashlib.sha256(events).hexdigest()}",
+    }).encode("utf-8")
+    timeline = json.dumps({
+        "schema_version": 1,
+        "device": "cli-terminal",
+        "contract": {
+            "id": "openmates-cli-proof",
+            "title": "OpenMates CLI proof",
+            "surface": "cli",
+            "devices": ["cli-terminal"],
+            "transcript": [{"id": "examples", "text": "The CLI examples are visible.", "checkpoint": "examples", "devices": ["cli-terminal"]}],
+            "assertions": [{"id": "cli.examples.visible", "visual": "The terminal shows the real CLI output.", "checkpoint": "examples", "devices": ["cli-terminal"]}],
+        },
+        "events": [{"kind": "checkpoint", "id": "examples", "at_ms": 100}],
+        "assertion_results": [{"id": "cli.examples.visible", "status": "passed"}],
+        "checkpoint_frames": [],
+    }).encode("utf-8")
+    report = {
+        "suites": [{
+            "specs": [{
+                "tests": [{
+                    "results": [{
+                        "attachments": [
+                            {
+                                "name": "openmates-cli-real-terminal-manifest",
+                                "contentType": "application/json",
+                                "body": base64.b64encode(manifest).decode("ascii"),
+                            },
+                            {
+                                "name": "openmates-cli-real-terminal-transcript",
+                                "contentType": "text/plain",
+                                "body": base64.b64encode(transcript).decode("ascii"),
+                            },
+                            {
+                                "name": "openmates-cli-real-terminal-events",
+                                "contentType": "application/jsonl",
+                                "body": base64.b64encode(events).decode("ascii"),
+                            },
+                            {
+                                "name": "openmates-proof-timeline",
+                                "contentType": "application/vnd.openmates.proof-timeline+json",
+                                "body": base64.b64encode(timeline).decode("ascii"),
+                            },
+                        ]
+                    }]
+                }]
+            }]
+        }]
+    }
+    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", tmp_path / "recordings")
+
+    persisted = run_tests.BatchRunner._persist_recording_artifacts("proof-video-cli.spec.ts", artifact)
+
+    expected = tmp_path / "recordings" / "proof-video-cli" / "proof-timeline.json"
+    assert persisted == str(expected)
+    assert json.loads(expected.read_text(encoding="utf-8"))["contract"]["surface"] == "cli"
+    normalized_manifest = json.loads((expected.parent / "videos" / "manifest.json").read_text(encoding="utf-8"))
+    assert normalized_manifest["video_path"].endswith("/videos/artifact.mp4")
+    assert normalized_manifest["transcript_path"].endswith("/videos/transcript.txt")
+    assert normalized_manifest["events_path"].endswith("/videos/events.jsonl")
+
+
 def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"

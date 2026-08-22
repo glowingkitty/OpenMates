@@ -21,3 +21,17 @@ export interface BrowserTutorialProps extends Record<string, unknown> {
 	contractHash: string;
 	timelineHash: string;
 }
+
+export interface TerminalTutorialProps extends Record<string, unknown> {
+	schemaVersion: number;
+	renderer: string;
+	sourceVideo: string;
+	sourceSha256: string;
+	terminalTitle: string;
+	deviceProfile: 'cli-terminal';
+	viewport: {width: number; height: number};
+	output: {width: number; height: number; fps: number};
+	durationSeconds: number;
+	contractHash: string;
+	timelineHash: string;
+}
