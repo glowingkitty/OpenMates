@@ -363,6 +363,7 @@ async def test_flix_provider_queries_next_date_for_overnight_window(
 async def test_serpapi_provider_filters_by_departure_before_result_cap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from backend.apps.travel.providers import serpapi_provider
     from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 
     def flight_group(hour: int) -> dict[str, Any]:
@@ -379,6 +380,7 @@ async def test_serpapi_provider_filters_by_departure_before_result_cap(
         }
 
     provider = SerpApiProvider()
+    monkeypatch.setattr(serpapi_provider, "_airport_db", types.SimpleNamespace(get_airport_by_iata=lambda _iata: []))
 
     async def fake_serpapi_get(params: dict[str, Any]) -> dict[str, Any]:
         return {"best_flights": [flight_group(8), flight_group(16)]}
@@ -408,6 +410,7 @@ async def test_serpapi_provider_filters_by_departure_before_result_cap(
 async def test_serpapi_provider_queries_next_date_for_overnight_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from backend.apps.travel.providers import serpapi_provider
     from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 
     searched_dates: list[str] = []
@@ -426,6 +429,7 @@ async def test_serpapi_provider_queries_next_date_for_overnight_window(
         }
 
     provider = SerpApiProvider()
+    monkeypatch.setattr(serpapi_provider, "_airport_db", types.SimpleNamespace(get_airport_by_iata=lambda _iata: []))
 
     async def fake_serpapi_get(params: dict[str, Any]) -> dict[str, Any]:
         searched_dates.append(str(params["outbound_date"]))

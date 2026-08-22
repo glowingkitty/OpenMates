@@ -3,5 +3,6 @@
 // Compatibility re-export for the historical module path.
 // The public example ID, route, and MP3 asset were replaced by
 // audio-generate-openmates-success-chime.
+// category: "design"
 
 export { audioGenerateOpenmatesSuccessChimeChat as audioGenerateProductSuccessChimeChat } from "./audio-generate-openmates-success-chime";

@@ -871,9 +871,6 @@ _EMBED_REF_TOKEN_PATTERN = (
 _EMBED_REF_SUFFIX_ONLY_PATTERN = re.compile(r'^-[a-zA-Z0-9]{2,4}$')
 _EMBED_REF_UNICODE_DASH_PATTERN = re.compile(r'[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]')
 _BARE_EMBED_REF_PATTERN = re.compile(rf'\[({_EMBED_REF_TOKEN_PATTERN})\](?!\()')
-_UNBRACKETED_DOMAIN_EMBED_REF_PATTERN = re.compile(
-    rf'(?<![\w.\-/\[:])({_EMBED_REF_TOKEN_PATTERN})(?![\w.\-/\]\)])'
-)
 
 # Legacy grouped citations emitted by some models. Known refs are expanded into
 # separate canonical inline links during finalization.
@@ -1664,18 +1661,8 @@ async def _fix_bad_embed_display_text(
     ]
     grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
     grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
-    unbracketed_domain_matches = [
-        m for m in _UNBRACKETED_DOMAIN_EMBED_REF_PATTERN.finditer(aggregated_response)
-        if "." in _normalize_embed_ref_token(m.group(1))
-    ]
 
-    if (
-        not all_matches
-        and not bare_matches
-        and not grouped_cite_matches
-        and not grouped_bare_matches
-        and not unbracketed_domain_matches
-    ):
+    if not all_matches and not bare_matches and not grouped_cite_matches and not grouped_bare_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -1837,81 +1824,6 @@ async def _fix_bad_embed_display_text(
             f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
         )
 
-    # --- Bare embed ref fix ---
-    # Handle [embed_ref_slug] brackets where the LLM omitted the (embed:...) parenthetical.
-    # Only convert if the bracketed content is a known embed_ref from this response.
-    # Process in reverse order to preserve match positions after in-place replacements.
-    if bare_matches and embed_ref_to_title:
-        # Re-scan on the (possibly already modified) text so positions are accurate.
-        current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
-        current_bare_matches = [
-            m for m in current_bare_matches
-            if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
-        ]
-
-        bare_fixed = 0
-        bare_removed = 0
-        for match in reversed(current_bare_matches):
-            embed_ref = _resolve_embed_ref_token(
-                match.group(1),
-                embed_ref_to_title,
-                embed_ref_suffix_index,
-            )
-            full_match = match.group(0)
-            if not embed_ref:
-                modified = modified[:match.start()] + "" + modified[match.end():]
-                bare_removed += 1
-                continue
-            display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(
-                embed_ref
-            )
-            new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
-            modified = modified[:match.start()] + new_link + modified[match.end():]
-            bare_fixed += 1
-            logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed bare ref: {full_match} → {new_link}"
-            )
-
-        if bare_fixed > 0:
-            logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
-            )
-        if bare_removed > 0:
-            logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
-            )
-
-    # Repair raw known domain refs that leaked without Markdown brackets, e.g.
-    # `Source: techcrunch.com-70I`. Unknown tokens are left as text so ordinary
-    # prose is not deleted or rewritten accidentally.
-    if unbracketed_domain_matches and embed_ref_to_title:
-        current_unbracketed_matches = [
-            m for m in _UNBRACKETED_DOMAIN_EMBED_REF_PATTERN.finditer(modified)
-            if "." in _normalize_embed_ref_token(m.group(1))
-            and not _is_markdown_literal_position(modified, m.start(1))
-        ]
-        unbracketed_fixed = 0
-        for match in reversed(current_unbracketed_matches):
-            embed_ref = _resolve_embed_ref_token(
-                match.group(1),
-                embed_ref_to_title,
-                embed_ref_suffix_index,
-            )
-            if not embed_ref:
-                continue
-            display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
-            new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
-            modified = modified[:match.start(1)] + new_link + modified[match.end(1):]
-            unbracketed_fixed += 1
-            logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed unbracketed ref: {match.group(1)} → {new_link}"
-            )
-
-        if unbracketed_fixed > 0:
-            logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {unbracketed_fixed} unbracketed embed ref(s)"
-            )
-
     # Expand legacy grouped citations when refs resolve to child embeds from
     # this response. Unresolved tokens are removed so pseudo-links do not leak
     # into the persisted assistant response.
@@ -1949,6 +1861,48 @@ async def _fix_bad_embed_display_text(
         if grouped_fixed > 0:
             logger.info(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Expanded {grouped_fixed} grouped citation(s)"
+            )
+
+    # --- Bare embed ref fix ---
+    # Handle [embed_ref_slug] brackets where the LLM omitted the (embed:...) parenthetical.
+    # Only convert if the bracketed content is a known embed_ref from this response.
+    # Process after grouped citations so [cite: ref, ref] is expanded atomically.
+    if bare_matches and embed_ref_to_title:
+        # Re-scan on the (possibly already modified) text so positions are accurate.
+        current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
+        current_bare_matches = [
+            m for m in current_bare_matches
+            if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
+        ]
+
+        bare_fixed = 0
+        bare_removed = 0
+        for match in reversed(current_bare_matches):
+            embed_ref = _resolve_embed_ref_token(
+                match.group(1),
+                embed_ref_to_title,
+                embed_ref_suffix_index,
+            )
+            full_match = match.group(0)
+            if not embed_ref:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                bare_removed += 1
+                continue
+            display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
+            new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
+            modified = modified[:match.start()] + new_link + modified[match.end():]
+            bare_fixed += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed bare ref: {full_match} → {new_link}"
+            )
+
+        if bare_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
+            )
+        if bare_removed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
             )
 
     return modified

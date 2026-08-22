@@ -6,7 +6,10 @@ server-authoritative monotonic versions. Client-encrypted domains must persist
 only ciphertext; Workflow metadata remains inside its Automation Vault boundary.
 """
 
+# contract-test-file: infrastructure
+
 import asyncio
+import importlib.machinery
 import sys
 import types
 from types import SimpleNamespace
@@ -18,6 +21,8 @@ import pytest
 if "redis.asyncio" not in sys.modules:
     redis_module = types.ModuleType("redis")
     redis_asyncio_module = types.ModuleType("redis.asyncio")
+    redis_module.__spec__ = importlib.machinery.ModuleSpec("redis", loader=None)
+    redis_asyncio_module.__spec__ = importlib.machinery.ModuleSpec("redis.asyncio", loader=None)
 
     class FakeRedis:
         pass
@@ -27,6 +32,28 @@ if "redis.asyncio" not in sys.modules:
     redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
     sys.modules["redis"] = redis_module
     sys.modules["redis.asyncio"] = redis_asyncio_module
+
+if "boto3" not in sys.modules:
+    boto3_module = types.ModuleType("boto3")
+    boto3_module.__spec__ = importlib.machinery.ModuleSpec("boto3", loader=None)
+    boto3_module.client = lambda *_args, **_kwargs: None
+    sys.modules["boto3"] = boto3_module
+
+if "botocore" not in sys.modules:
+    botocore_module = types.ModuleType("botocore")
+    botocore_config_module = types.ModuleType("botocore.config")
+    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
+    botocore_module.__spec__ = importlib.machinery.ModuleSpec("botocore", loader=None)
+    botocore_config_module.__spec__ = importlib.machinery.ModuleSpec("botocore.config", loader=None)
+    botocore_exceptions_module.__spec__ = importlib.machinery.ModuleSpec("botocore.exceptions", loader=None)
+    botocore_config_module.Config = lambda *_args, **_kwargs: None
+    botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ReadTimeoutError = Exception
+    botocore_exceptions_module.ConnectTimeoutError = Exception
+    botocore_exceptions_module.EndpointConnectionError = Exception
+    sys.modules["botocore"] = botocore_module
+    sys.modules["botocore.config"] = botocore_config_module
+    sys.modules["botocore.exceptions"] = botocore_exceptions_module
 
 from backend.core.api.app.routes.handlers.websocket_handlers import (
     encrypted_chat_metadata_handler,
@@ -70,7 +97,7 @@ class OwnerScopedMetadataMethods:
             return None
         return dict(self.record)
 
-    async def get_task(self, task_id: str, user_id: str) -> dict[str, object] | None:
+    async def get_task(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, object] | None:
         return await self._get(task_id, user_id)
 
     async def get_plan(self, plan_id: str, user_id: str) -> dict[str, object] | None:
@@ -92,6 +119,7 @@ class OwnerScopedMetadataMethods:
         user_id: str,
         patch: dict[str, object],
         expected_version: int,
+        **_kwargs: object,
     ) -> dict[str, object] | None:
         existing = await self.get_task(task_id, user_id)
         if not existing or int(existing.get("version") or 0) != expected_version:
@@ -125,11 +153,12 @@ class ChatMetadataManager:
 
 class ChatMetadataDirectus:
     def __init__(self, *, is_owner: bool, metadata_v: int = 4, title_v: int = 7) -> None:
+        owner_hash = "4f031bbae19672579c80b55bc57d3a3d8a0644b35f4c4b5324680ece9bb50439"
         self.chat = SimpleNamespace(
             check_chat_ownership=AsyncMock(return_value=is_owner),
             get_chat_metadata=AsyncMock(
                 return_value={
-                    "hashed_user_id": "different-owner-hash",
+                    "hashed_user_id": owner_hash if is_owner else "different-owner-hash",
                     "messages_v": 12,
                     "title_v": title_v,
                     "metadata_v": metadata_v,
@@ -430,7 +459,7 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     mutation: dict[str, str],
     expected_title_v: int,
 ) -> None:
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
     async def persist_metadata(
         chat_id: str,
@@ -438,9 +467,10 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
         task_id: str,
         hashed_user_id: str | None = None,
         user_id: str | None = None,
+        hashed_team_id: str | None = None,
     ) -> bool:
         persistence_calls.append(
-            (chat_id, metadata, task_id, hashed_user_id, user_id)
+            (chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id)
         )
         return True
 
@@ -456,11 +486,12 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     )
 
     assert len(persistence_calls) == 1
-    chat_id, persisted, task_id, hashed_user_id, user_id = persistence_calls[0]
+    chat_id, persisted, task_id, hashed_user_id, user_id, hashed_team_id = persistence_calls[0]
     assert chat_id == "chat-1"
     assert task_id == "websocket-direct"
     assert hashed_user_id == "owner-hash"
     assert user_id == "owner-1"
+    assert hashed_team_id is None
     assert persisted["metadata_v"] == 5
     assert persisted["title_v"] == expected_title_v
     assert persisted["messages_v"] == 12
@@ -488,10 +519,10 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
 
 def test_post_processing_summary_updates_sync_cache_before_version_broadcast(monkeypatch) -> None:
     events: list[tuple] = []
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
-    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
-        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None, hashed_team_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id))
         events.append(("persist", chat_id))
         return True
 
@@ -524,11 +555,12 @@ def test_post_processing_summary_updates_sync_cache_before_version_broadcast(mon
         ("personal", "post_processing_metadata_stored"),
         ("broadcast", "encrypted_chat_metadata"),
     ]
-    chat_id, persisted, task_id, hashed_user_id, user_id = persistence_calls[0]
+    chat_id, persisted, task_id, hashed_user_id, user_id, hashed_team_id = persistence_calls[0]
     assert chat_id == "chat-1"
     assert task_id == "websocket-direct"
     assert hashed_user_id == "owner-hash"
     assert user_id == "owner-1"
+    assert hashed_team_id is None
     assert persisted["metadata_v"] == 5
 
 
@@ -611,10 +643,10 @@ def test_post_processing_keeps_new_chat_suggestions_on_persistence_queue(monkeyp
 
 def test_post_processing_drops_stale_summary_without_blocking_other_metadata(monkeypatch) -> None:
     events: list[tuple] = []
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
-    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
-        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None, hashed_team_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id))
         return True
 
     monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
@@ -651,10 +683,10 @@ def test_post_processing_drops_stale_summary_without_blocking_other_metadata(mon
 
 def test_generated_post_processing_without_baseline_preserves_existing_summary(monkeypatch) -> None:
     events: list[tuple] = []
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
-    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
-        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None, hashed_team_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id))
         return True
 
     monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
@@ -698,10 +730,10 @@ def test_generated_post_processing_without_baseline_preserves_existing_summary(m
 
 def test_post_processing_accepts_manual_summary_with_stale_local_baseline(monkeypatch) -> None:
     events: list[tuple] = []
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
-    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
-        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None, hashed_team_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id))
         return True
 
     monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)
@@ -745,10 +777,10 @@ def test_post_processing_accepts_manual_summary_with_stale_local_baseline(monkey
 
 def test_manual_summary_can_carry_current_title_without_bumping_title_version(monkeypatch) -> None:
     events: list[tuple] = []
-    persistence_calls: list[tuple[str, dict, str, str | None, str | None]] = []
+    persistence_calls: list[tuple[str, dict, str, str | None, str | None, str | None]] = []
 
-    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None):
-        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id))
+    async def persist_metadata(chat_id, metadata, task_id, hashed_user_id=None, user_id=None, hashed_team_id=None):
+        persistence_calls.append((chat_id, metadata, task_id, hashed_user_id, user_id, hashed_team_id))
         return True
 
     monkeypatch.setattr(post_processing_metadata_handler, "_async_persist_encrypted_chat_metadata", persist_metadata)

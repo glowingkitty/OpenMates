@@ -5,24 +5,36 @@
 # Directus remains client-encrypted storage and is never decrypted with Vault.
 # Older chats can retry with code decrypted on the authenticated client.
 
+# contract-test-file: infrastructure
+
 # ruff: noqa: E402
 
 from __future__ import annotations
 
 import hashlib
 import base64
+import importlib.machinery
 import importlib.util
 import json
 import re
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
-if importlib.util.find_spec("toon_format") is None:
+def _find_spec_or_none(name: str):
+    try:
+        return importlib.util.find_spec(name)
+    except ValueError:
+        return None
+
+
+if _find_spec_or_none("toon_format") is None:
     toon_format_stub = types.ModuleType("toon_format")
+    toon_format_stub.__spec__ = importlib.machinery.ModuleSpec("toon_format", loader=None)
 
     def _stub_encode(value: dict) -> str:
         return "\n".join(f"{key}: {item}" for key, item in value.items())
@@ -39,9 +51,9 @@ if importlib.util.find_spec("toon_format") is None:
     toon_format_stub.decode = _stub_decode
     sys.modules.setdefault("toon_format", toon_format_stub)
 
-if importlib.util.find_spec("celery") is None:
+if _find_spec_or_none("celery") is None:
     tasks_stub = types.ModuleType("backend.core.api.app.tasks")
-    tasks_stub.__path__ = []
+    tasks_stub.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
     celery_config_stub = types.ModuleType("backend.core.api.app.tasks.celery_config")
 
     class _CeleryAppStub:
@@ -59,9 +71,11 @@ if importlib.util.find_spec("celery") is None:
     sys.modules.setdefault("backend.core.api.app.tasks", tasks_stub)
     sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_stub)
 
-if importlib.util.find_spec("redis") is None:
+if _find_spec_or_none("redis") is None:
     redis_stub = types.ModuleType("redis")
     redis_asyncio_stub = types.ModuleType("redis.asyncio")
+    redis_stub.__spec__ = importlib.machinery.ModuleSpec("redis", loader=None)
+    redis_asyncio_stub.__spec__ = importlib.machinery.ModuleSpec("redis.asyncio", loader=None)
 
     class _RedisStub:
         def __init__(self, *_args, **_kwargs):
@@ -77,7 +91,7 @@ if importlib.util.find_spec("redis") is None:
     sys.modules.setdefault("redis", redis_stub)
     sys.modules.setdefault("redis.asyncio", redis_asyncio_stub)
 
-if importlib.util.find_spec("aiohttp") is None:
+if _find_spec_or_none("aiohttp") is None:
     aiohttp_stub = types.ModuleType("aiohttp")
     aiohttp_stub.ClientSession = object
     sys.modules.setdefault("aiohttp", aiohttp_stub)
@@ -316,7 +330,7 @@ async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload()
     cached = json.loads((await client.get(code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID))).decode())
     decrypted = await FakeEncryption().decrypt_with_user_key(cached["encrypted_content"], "vault-key")
 
-    assert "type: code_run_output" in decrypted
+    assert '"type": "code_run_output"' in decrypted
     assert "hello from code" in decrypted
     assert manager.broadcasts[0]["type"] == "code_run_output_synced"
 
@@ -392,8 +406,8 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
         "vault-key",
     )
 
-    assert "type: code" in resolved
-    assert "type: code_run_output" in resolved
+    assert '"type": "code"' in resolved
+    assert '"type": "code_run_output"' in resolved
     assert "ok" in resolved
 
 
@@ -408,8 +422,8 @@ async def test_resolve_code_embed_references_accepts_json_embed_fence() -> None:
         "vault-key",
     )
 
-    assert "type: code" in resolved
-    assert "embed_ref: main.py" in resolved
+    assert '"type": "code"' in resolved
+    assert '"embed_ref": "main.py' in resolved
     assert list(file_path_index.values()) == [TARGET_EMBED_ID]
     assert next(iter(file_path_index)) in resolved
 
