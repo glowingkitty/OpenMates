@@ -181,7 +181,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ needs.prepare.outputs.ref_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:sha-${{ github.sha }}
           build-args: |
-            OPENMATES_IMAGE_TAG=${{ needs.prepare.outputs.image_tag }}
+            OPENMATES_IMAGE_TAG=${{ env.PUBLISH_IMAGES == 'true' && needs.prepare.outputs.image_tag || 'dev' }}
 
   build-image:
     if: ${{ inputs.notification_test != true }}
