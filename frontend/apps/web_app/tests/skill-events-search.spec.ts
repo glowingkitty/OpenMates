@@ -97,7 +97,7 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'reload-preserves-results',
-			text: 'Reloading the chat preserves the populated map-backed results.',
+			text: 'Reloading the chat briefly shows loading state before the populated map-backed results return.',
 			checkpoint: 'reload-preserves-results',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -124,7 +124,7 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'reload-preserves-results',
 			checkpoint: 'reload-preserves-results',
-			visual: 'After reload, the populated map view and result cards remain visible.',
+			visual: 'The reload transition shows loading state, then the populated map view and result cards remain visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
