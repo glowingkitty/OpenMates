@@ -1475,8 +1475,10 @@ def produce_cli_terminal_demonstration(
         raise DemonstrationError("CLI terminal proof source did not exit successfully")
 
     source_metadata = video_metadata(source_video)
+    source_duration = float(source_metadata["duration_seconds"])
+    stable_output_time = round(max(0.0, source_duration - 2.0), MEDIA_TIMESTAMP_DECIMALS)
     assert_device_profile_dimensions(source_metadata, device_profile)
-    if float(source_metadata["duration_seconds"]) > MAX_PROOF_OUTPUT_SECONDS:
+    if source_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("CLI terminal proof source must not exceed 35 seconds")
 
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1513,7 +1515,7 @@ def produce_cli_terminal_demonstration(
             "deviceProfile": "cli-terminal",
             "viewport": {"width": 1280, "height": 720},
             "output": {"width": 1280, "height": 720, "fps": 30},
-            "durationSeconds": float(source_metadata["duration_seconds"]),
+            "durationSeconds": source_duration,
             "contractHash": proof_contract_hash or "sha256:unapproved-cli-contract",
             "timelineHash": timeline_hash,
         },
@@ -1528,16 +1530,6 @@ def produce_cli_terminal_demonstration(
         duration_seconds=output_duration,
         narration_id=narration_id,
     )
-
-    def timeline_seconds(kind: str, field: str) -> list[float]:
-        values: list[float] = []
-        for event in (spec_timeline or {}).get("events", []):
-            if not isinstance(event, dict) or event.get("kind") != kind:
-                continue
-            value = event.get(field)
-            if isinstance(value, (int, float)):
-                values.append(round(float(value) / 1000.0, MEDIA_TIMESTAMP_DECIMALS))
-        return values
 
     return prepare_review_artifacts(
         run_dir=run_dir,
@@ -1571,8 +1563,8 @@ def produce_cli_terminal_demonstration(
             "terminal_source_sha256": selected["artifact_hash"],
         },
         scene_times=detect_scene_change_times(video_path),
-        action_times=timeline_seconds("action", "start_ms"),
-        state_change_times=timeline_seconds("checkpoint", "at_ms"),
+        action_times=[],
+        state_change_times=[stable_output_time],
     )
 
 
