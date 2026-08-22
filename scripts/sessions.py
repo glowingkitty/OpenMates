@@ -227,6 +227,17 @@ PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
+PROOF_VIDEO_NOT_REQUIRED_RE = re.compile(r"proof-video:\s*not_required\s+reason=([A-Za-z0-9_.-]+)")
+PROOF_VIDEO_NOT_REQUIRED_REASONS = {
+    "api_setup",
+    "account_health",
+    "cleanup_only",
+    "cli_helper",
+    "non_visual_setup",
+    "performance_probe",
+    "storage_audit",
+    "visual_smoke_not_needed",
+}
 PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
 PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
 PROOF_VIDEO_DEVICE_PROFILES = {
@@ -9701,6 +9712,15 @@ def _proof_video_runtime_files(files: list[str]) -> list[str]:
     ]
 
 
+def _playwright_spec_requires_proof_video(file: str) -> bool:
+    try:
+        text = (PROJECT_ROOT / file).read_text(encoding="utf-8")
+    except OSError:
+        return True
+    match = PROOF_VIDEO_NOT_REQUIRED_RE.search(text)
+    return not (match and match.group(1) in PROOF_VIDEO_NOT_REQUIRED_REASONS)
+
+
 def _requires_proof_video(session: dict, files: list[str]) -> bool:
     if not files:
         return False
@@ -9709,8 +9729,9 @@ def _requires_proof_video(session: dict, files: list[str]) -> bool:
     mode = str(session.get("mode") or "").strip().lower()
     if mode == "feature" and _proof_video_runtime_files(files):
         return True
-    if mode == "testing" and any(PROOF_VIDEO_E2E_PATH_RE.search(f) for f in files):
-        return True
+    if mode == "testing":
+        e2e_files = [f for f in files if PROOF_VIDEO_E2E_PATH_RE.search(f)]
+        return any(_playwright_spec_requires_proof_video(f) for f in e2e_files)
     return False
 
 

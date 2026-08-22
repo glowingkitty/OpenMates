@@ -653,6 +653,38 @@ def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
     assert pending[0]["subject_commit"] == "abc1234"
 
 
+def test_proof_video_deploy_skips_pending_for_not_required_account_health_spec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    spec_path = tmp_path / "frontend/apps/web_app/tests/test-account-preflight.spec.ts"
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_text(
+        "// proof-video: not_required reason=account_health\ntest('account preflight', async () => {});\n",
+        encoding="utf-8",
+    )
+    saved: dict[str, object] = {}
+
+    def mutate(callback: object) -> None:
+        data = {"sessions": {"abcd": {"mode": "testing"}}}
+        callback(data)
+        saved.update(data)
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
+    monkeypatch.setattr(sessions, "_mutate_sessions", mutate)
+
+    sessions._record_proof_video_deploy_pending(
+        "abcd",
+        {"mode": "testing"},
+        ["frontend/apps/web_app/tests/test-account-preflight.spec.ts"],
+    )
+
+    assert saved == {}
+    assert "DEPLOYED BUT PROOF VIDEO REQUIRED" not in capsys.readouterr().err
+
+
 def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
