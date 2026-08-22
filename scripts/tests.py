@@ -223,7 +223,7 @@ class InMemoryTestControlStore:
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": "completed",
+            "status": run_control_status(run_data),
             "git_sha": run_data.get("git_sha"),
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
@@ -703,7 +703,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": "completed",
+            "status": run_control_status(run_data),
             "git_sha": run_data.get("git_sha"),
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
@@ -844,7 +844,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": "completed" if run_data else "snapshot",
+            "status": run_control_status(run_data),
             "git_sha": (run_data or {}).get("git_sha") or state.get("latest_git_sha"),
             "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
             "environment": (run_data or {}).get("environment") or state.get("environment"),
@@ -2019,6 +2019,24 @@ def normalize_pytest_json_report(
 
 def is_problem(status: str) -> bool:
     return status in PROBLEM_STATUSES
+
+
+def run_control_status(run_data: dict[str, Any] | None) -> str:
+    """Return the persisted test_runs status for a completed or partial result."""
+    if not run_data:
+        return "snapshot"
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    if flags.get("in_progress"):
+        return "running"
+    return "completed"
+
+
+def run_control_source(run_data: dict[str, Any]) -> tuple[str, str]:
+    """Return source/workflow metadata for run artifacts imported by tests.py."""
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    if flags.get("daily"):
+        return "daily_runner", "daily"
+    return "scripts_tests", ""
 
 
 def _empty_status_summary() -> dict[str, int]:
@@ -4917,7 +4935,8 @@ def record_latest_run_artifact(
                     run_git_sha = str(run_data["git_sha"])
                 run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
             write_json(artifact, run_data)
-            record_run_result(run_data)
+            source, workflow = run_control_source(run_data)
+            record_run_result(run_data, source=source, workflow=workflow)
             if deployment_verified:
                 proof_records = record_proof_source_attestations(run_data)
                 proof_finalizations = auto_finalize_proof_video_sources(
@@ -4928,7 +4947,7 @@ def record_latest_run_artifact(
                 if proof_finalizations:
                     run_data["proof_video_finalizations"] = proof_finalizations
                     write_json(artifact, run_data)
-                    record_run_result(run_data)
+                    record_run_result(run_data, source=source, workflow=workflow)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
             return run_git_sha or expected_commit

@@ -222,6 +222,56 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
     }]
 
 
+def test_bulk_import_records_in_progress_run_as_running(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    rows = store._bulk_run_rows(
+        {
+            "run_id": "daily-1",
+            "flags": {"daily": True, "in_progress": True},
+            "summary": {"total": 2, "passed": 1, "failed": 1},
+        },
+        {"updated_at": "2026-07-17T10:00:00Z", "summary": {"total": 2}},
+        [],
+        "daily_runner",
+        "",
+        "daily",
+        "daily-1",
+    )
+
+    assert rows[0]["run_key"] == "daily-1"
+    assert rows[0]["source"] == "daily_runner"
+    assert rows[0]["workflow"] == "daily"
+    assert rows[0]["status"] == "running"
+
+
+def test_bulk_import_records_final_run_as_completed(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    rows = store._bulk_run_rows(
+        {"run_id": "daily-1", "flags": {"daily": True}, "summary": {"total": 2, "passed": 2}},
+        {"updated_at": "2026-07-17T10:00:00Z", "summary": {"total": 2}},
+        [],
+        "daily_runner",
+        "",
+        "daily",
+        "daily-1",
+    )
+
+    assert rows[0]["status"] == "completed"
+
+
+def test_run_control_source_preserves_daily_artifact_metadata():
+    tests_control = load_tests_control()
+
+    assert tests_control.run_control_source({"flags": {"daily": True}}) == ("daily_runner", "daily")
+    assert tests_control.run_control_source({"flags": {"daily": False}}) == ("scripts_tests", "")
+
+
 def test_result_item_timestamp_fits_directus_integer(monkeypatch):
     tests_control = load_tests_control()
     monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
