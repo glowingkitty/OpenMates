@@ -3195,15 +3195,17 @@
     width: 100%;
     max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
+    box-sizing: border-box;
   }
 
   /* Only apply padding-top and min-height when there are messages */
   /* This prevents the first message from overlaying the button */
   .chat-history-content.has-messages {
-    /* Keep the first bubble below ActiveChat's absolute top action row. This
-       matters when the sidebar narrows the chat and a long user bubble reaches
-       the details/reminder controls at the inline end. */
-    padding-top: 80px;
+    padding-top: 50px;
+    /* ActiveChat's action buttons float over both inline edges. Reserve those
+       lanes in the scrollable message column so auto-scroll cannot move a
+       bubble underneath them after the sidebar narrows the canvas. */
+    padding-inline: 90px;
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }
@@ -3216,6 +3218,12 @@
      the banner already occupies the top space. */
   .chat-history-content.has-messages.has-header {
     padding-top: var(--spacing-6);
+  }
+
+  @media (max-width: 730px) {
+    .chat-history-content.has-messages {
+      padding-inline: 55px;
+    }
   }
 
 
