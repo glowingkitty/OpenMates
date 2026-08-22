@@ -228,7 +228,7 @@ RELEASE_GATE_BASE_SPECS = (
     "dev-smoke/dev-smoke-reachability.spec.ts",
 )
 RELEASE_GATE_EXCLUDED_PREFIXES = ("prod-smoke/",)
-RELEASE_GATE_ACCOUNT_SLOTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 1, 4)
+RELEASE_GATE_ACCOUNT_SLOTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
 RELEASE_GATE_MAX_ACCOUNT_WAVES = 2
 
 

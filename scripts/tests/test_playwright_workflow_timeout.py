@@ -5,6 +5,8 @@ artifacts. This check keeps that outer guard longer than every explicit spec
 timeout, allowing Playwright to report its own failures cleanly.
 """
 
+# contract-test-file: tooling
+
 from pathlib import Path
 import re
 
@@ -46,6 +48,13 @@ def test_signup_invite_secret_is_scoped_to_invite_required_specs() -> None:
     assert 'echo "OPENMATES_TEST_ACCOUNT_API_KEY=${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" >> "$GITHUB_ENV"' in workflow
     assert 'echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"' in workflow
     assert "/v1/auth/e2e/restore_signup_invite_code" not in workflow
+
+
+def test_spec_owned_deep_research_proof_uses_exact_laptop_video_size() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "inputs.spec == 'deep-research-real-inference.spec.ts') && '1440'" in workflow
+    assert "inputs.spec == 'deep-research-real-inference.spec.ts') && '900'" in workflow
 
 
 def test_cli_account_login_failure_exits_with_original_status() -> None:
