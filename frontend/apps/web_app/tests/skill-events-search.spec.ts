@@ -66,6 +66,8 @@ const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
 const EVENT_SEARCH_MAX_DURATION_MS = 10_000;
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const SHOULD_CAPTURE_MOBILE_RELOAD = !IS_PROOF_CAPTURE || PROOF_VIDEO_WIDTH === 390;
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -264,14 +266,18 @@ test.describe('App: Events / Skill: search', () => {
 		});
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
-		await page.setViewportSize({ width: 390, height: 844 });
-		await expect(reloadedGroupedView).toBeVisible();
-		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
-		await reloadedGroupedView.evaluate((element: HTMLElement) => {
-			element.scrollIntoView({ block: 'start' });
-		});
-		await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
-		await page.setViewportSize({ width: 1280, height: 720 });
+		if (SHOULD_CAPTURE_MOBILE_RELOAD) {
+			await page.setViewportSize({ width: 390, height: 844 });
+			await expect(reloadedGroupedView).toBeVisible();
+			await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+			await reloadedGroupedView.evaluate((element: HTMLElement) => {
+				element.scrollIntoView({ block: 'start' });
+			});
+			await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
+		}
+		if (!IS_PROOF_CAPTURE) {
+			await page.setViewportSize({ width: 1280, height: 720 });
+		}
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
 
 		if (!IS_PROOF_CAPTURE) {
