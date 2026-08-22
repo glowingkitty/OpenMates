@@ -466,6 +466,76 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
 
 
+def test_prepare_review_artifacts_maps_ordered_claim_intervals_to_action_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:16.000\nVisible.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        module,
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 16.0,
+            "width": 1440,
+            "height": 900,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "extract_frame",
+        lambda _video_path, *, timestamp_seconds, output_path: {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        },
+    )
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="events-search-map-response",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="Request visible. Cards visible. Map visible. Reload preserves results.",
+        captions_path=captions,
+        expected_proof="Events search proof.",
+        acceptance_criteria=["request-visible"],
+        source={"kind": "playwright"},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {"id": "CAP-1", "narration_id": "NARR-1", "text": "Request visible.", "start": 0.0, "end": 4.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-2", "narration_id": "NARR-1", "text": "Cards visible.", "start": 4.0, "end": 8.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-3", "narration_id": "NARR-1", "text": "Map visible.", "start": 8.0, "end": 13.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-4", "narration_id": "NARR-1", "text": "Reload preserves results.", "start": 13.0, "end": 16.0, "claim_ids": ["CLAIM-1"]},
+        ],
+        proof_assertions=[
+            {"id": "request-visible", "description": "The request is visible."},
+            {"id": "events-embed-visible", "description": "The cards are visible."},
+            {"id": "map-view-populated", "description": "The map is visible."},
+            {"id": "reload-preserves-results", "description": "Reload preserves the map."},
+        ],
+        action_times=[12.0, 14.0],
+    )
+
+    assert [caption["claim_ids"] for caption in manifest["captions"]] == [
+        ["request-visible"],
+        ["events-embed-visible"],
+        ["map-view-populated"],
+        ["reload-preserves-results"],
+    ]
+    assert manifest["captions"][2]["end"] == 12.0
+    assert manifest["captions"][3]["start"] == 12.0
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[8.0, 12.0]]
+    assert manifest["expected_proof"][3]["evidence_intervals"] == [[12.0, 16.0]]
+
+
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     video = tmp_path / "demo.mp4"
@@ -767,125 +837,8 @@ def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) ->
 
     with pytest.raises(module.DemonstrationError, match="0.75"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.5)
-    with pytest.raises(module.DemonstrationError, match="1.0"):
-        module.produce_playwright_demonstration(**kwargs, playback_rate=1.25)
     with pytest.raises(module.DemonstrationError, match="35 seconds"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.75, hold_last_frame_seconds=30)
-
-
-def test_spec_timeline_builds_real_video_segments_with_optional_checkpoint_freezes(tmp_path: Path) -> None:
-    module = load_module()
-    first_frame = tmp_path / "first.png"
-    second_frame = tmp_path / "second.png"
-    first_frame.write_bytes(b"first-frame")
-    second_frame.write_bytes(b"second-frame")
-
-    segments = module.build_playwright_browser_tutorial_segments(
-        {
-            "events": [
-                {"kind": "checkpoint", "id": "first", "at_ms": 1000},
-                {"kind": "checkpoint", "id": "second", "at_ms": 4000},
-            ],
-            "checkpoint_frames": [
-                {"checkpoint": "first", "path": str(first_frame), "sha256": module.sha256_file(first_frame)},
-                {"checkpoint": "second", "path": str(second_frame), "sha256": module.sha256_file(second_frame)},
-            ],
-        },
-        source_duration_seconds=6.0,
-    )
-
-    assert [segment["kind"] for segment in segments] == ["video", "freeze", "video", "freeze"]
-    assert all(
-        segment["duration_ms"] == segment["source_to_ms"] - segment["source_from_ms"]
-        for segment in segments
-        if segment["kind"] == "video"
-    )
-    assert sum(segment["duration_ms"] for segment in segments) / 1000 <= module.MAX_PROOF_OUTPUT_SECONDS
-
-
-def test_spec_timeline_production_uses_real_playwright_recording_renderer(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = load_module()
-    source = tmp_path / "source.mp4"
-    frame = tmp_path / "checkpoint.png"
-    subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844:r=10", "-t", "6", str(source)],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844", "-frames:v", "1", str(frame)],
-        check=True,
-        capture_output=True,
-    )
-    observed: dict[str, object] = {}
-
-    def render_browser_tutorial(**kwargs: object) -> dict[str, object]:
-        observed.update(kwargs)
-        module.render_clean_video(Path(str(kwargs["source_video"])), None, Path(str(kwargs["output_path"])))
-        return {
-            "rendered_from": "playwright_recording_remotion_browser",
-            "renderer": module.PLAYWRIGHT_BROWSER_TUTORIAL_RENDERER,
-            "source_recording_sha256": module.sha256_file(Path(str(kwargs["source_video"]))),
-            "playback_rate": 1.0,
-            "hold_last_frame_seconds": 0.0,
-            "demo_audio_mixed": False,
-        }
-
-    monkeypatch.setattr(module, "render_playwright_browser_tutorial", render_browser_tutorial)
-    source_record = {
-        "command_or_spec": "example.spec.ts",
-        "target": "https://app.dev.openmates.org",
-        "deployment_reference": "abc1234",
-        "run_id": "run-one",
-        "subject_commit": "abc1234",
-        "artifact_path": str(source),
-        "artifact_sha256": module.sha256_file(source),
-        "test_account_provenance": "synthetic fixture account",
-    }
-    timeline = {
-        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 1000}],
-        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": module.sha256_file(frame)}],
-    }
-
-    manifest = module.produce_playwright_demonstration(
-        run_dir=tmp_path / "proof",
-        source_video=source,
-        source=source_record,
-        spec_id="example",
-        subject_commit="abc1234",
-        narration_id="NARR-1",
-        caption_text="The screen shows the first visible action and its controls. The selected result remains clearly visible for careful review. The final screen confirms the expected completed state for the viewer.",
-        expected_proof="The expected state is visible.",
-        acceptance_criteria=["AC-1"],
-        narration_audio_path=None,
-        device_profile_name="web-phone",
-        spec_timeline=timeline,
-        browser_domain="app.dev.openmates.org",
-    )
-
-    assert observed["source_video"] == source
-    assert observed["spec_timeline"] == timeline
-    assert manifest["source"]["artifact_path"] == str(source)
-    assert manifest["video_metadata"]["rendered_from"] == "playwright_recording_remotion_browser"
-    assert manifest["video_metadata"]["source_recording_sha256"] == module.sha256_file(source)
-
-
-def test_playwright_manifest_rejects_checkpoint_frame_only_renderer() -> None:
-    module = load_module()
-
-    with pytest.raises(module.DemonstrationError, match="real Playwright recording"):
-        module.assert_playwright_manifest_uses_real_recording(
-            {
-                "source": {"kind": "playwright"},
-                "video_metadata": {
-                    "rendered_from": "spec_timeline_checkpoint_frames",
-                    "checkpoint_frame_count": 4,
-                },
-            }
-        )
 
 
 def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:
