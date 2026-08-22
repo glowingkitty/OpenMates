@@ -40,6 +40,7 @@ def load_tests_control(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "LEASES_FILE", results_dir / "failed-test-leases.json")
     monkeypatch.setattr(module, "TRIAGE_FILE", results_dir / "test-failure-triage.json")
     monkeypatch.setattr(module, "TEST_FILE_INDEX_FILE", results_dir / "test-file-index.json")
+    monkeypatch.setattr(module, "RESPONSE_MEDIA_LATEST_FILE", results_dir / "response-media-latest.json")
     monkeypatch.setattr(module, "RUNS_DIR", results_dir / "runs")
     monkeypatch.setattr(module, "LEASE_LOCK_FILE", tmp_path / "leases.lock")
     monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
@@ -410,6 +411,7 @@ def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
     assert options.forwarded_args == ["--spec", "audio-recording.spec.ts", "--proof-video-profile", "web-laptop"]
     assert options.proof_video_profile == "web-laptop"
     assert options.expected_commit == "abc123"
+    assert tests_control.playwright_response_media_run_type(options) == "spec-ts-web-laptop"
 
 
 def test_playwright_proof_video_size_also_sets_viewport() -> None:
@@ -970,6 +972,59 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     assert attestation["artifact_path"] == str(video.resolve())
 
 
+def test_record_latest_run_artifact_publishes_latest_playwright_video_response_media(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"verified-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+        }]}},
+    }), encoding="utf-8")
+    uploads = []
+
+    def fake_uploader(**kwargs):
+        uploads.append(kwargs)
+        return {
+            "key": "opencode-responses/latest/spec-ts-web-laptop/video.webm",
+            "snippets": {"html": "<video></video>", "markdown": "[video](https://example.invalid/video.webm)"},
+        }
+
+    recorded = tests_control.record_latest_run_artifact(
+        expected_commit=commit,
+        response_media_run_type="spec-ts-web-laptop",
+        response_media_uploader=fake_uploader,
+    )
+
+    assert recorded == commit[:9]
+    assert uploads == [{
+        "path": video.resolve(),
+        "run_type": "spec-ts-web-laptop",
+        "alt": "Playwright example.spec.ts latest run video",
+    }]
+    run_data = json.loads(artifact.read_text(encoding="utf-8"))
+    assert run_data["response_media_video"]["response_media_html"] == "<video></video>"
+    latest = json.loads(tests_control.RESPONSE_MEDIA_LATEST_FILE.read_text(encoding="utf-8"))
+    assert latest["playwright_spec"]["response_media_key"] == "opencode-responses/latest/spec-ts-web-laptop/video.webm"
+
+
 def test_record_latest_run_artifact_rejects_stale_downloaded_recording(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     artifact = tests_control.RESULTS_DIR / "last-run.json"
@@ -1134,10 +1189,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
             "transcript": [{"id": "welcome", "text": "Welcome is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
             "assertions": [{"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]}],
         },
-        "events": [
-            {"kind": "checkpoint", "id": "ready", "at_ms": 100},
-            {"kind": "checkpoint", "id": "done", "at_ms": 12100},
-        ],
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 100}],
         "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
         "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
     }), encoding="utf-8")
@@ -1190,12 +1242,11 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
         "snippet_html": "<video></video>",
     }]
     produce_kwargs = calls["produce"]
-    assert produce_kwargs["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["source"]["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["source"]["state_change_timestamps"] == [0.1]
+    assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
-    assert produce_kwargs["spec_timeline"]["device"] == "web-laptop"
-    assert produce_kwargs["playback_rate"] == 1.0
-    assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert calls["review"]["correction_round"] == 0
     assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]
 
@@ -1241,6 +1292,54 @@ def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, 
     assert {attestation["artifact_path"] for attestation in attestations} == {str(first_video.resolve()), str(second_video.resolve())}
     assert all(attestation["source_run_id"] == "12345" for attestation in attestations)
     assert all(attestation["run_id"].startswith("12345:") for attestation in attestations)
+
+
+def test_proof_timeline_attestation_prefers_attached_proof_video(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    first_video = recording_dir / "videos" / "first.webm"
+    second_video = recording_dir / "videos" / "second.webm"
+    first_video.parent.mkdir(parents=True)
+    first_video.write_bytes(b"first-video")
+    second_video.write_bytes(b"second-video")
+    (recording_dir / "artifact-meta.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "proof_timeline_file": "proof-timeline.json",
+        "proof_video_file": "videos/second.webm",
+    }), encoding="utf-8")
+    for name, video in (("first", first_video), ("second", second_video)):
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--{name}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text("{}", encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+            "proof_timeline_path": str(timeline),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
+    assert len(attestations) == 1
+    assert attestations[0]["artifact_path"] == str(second_video.resolve())
 
 
 def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):

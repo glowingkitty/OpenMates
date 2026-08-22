@@ -48,6 +48,12 @@ paste the returned Markdown or HTML snippet. The script stores plaintext media i
 a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL.
 Use only intentionally shareable screenshots, diagrams, or demo clips; do not use
 it for secrets, private user data, logs, raw production evidence, or durable docs.
+For the raw video from every `*.spec.ts` run and every real OpenMates CLI E2E
+run, use the helper's `--latest-run-type` path through `scripts/tests.py run` or
+`scripts/cli_video_capture.py`, then paste the emitted `<video>` HTML in the
+assistant response. These latest-run uploads overwrite stable S3 keys under
+`opencode-responses/latest/` so only the latest video for each run type remains
+stored in response media.
 External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
 When a screenshot or short clip materially helps the user understand a visual UI
 state, bug fix, visual-smoke result, proof-video, or implementation defect,
@@ -126,12 +132,6 @@ with passing deployed Playwright, Apple, or real OpenMates CLI evidence and
 device-scoped, hash-bound WebVTT captions that are toggleable in the player and never reduce or obscure the clean frame; narration audio is optional. Web/spec/example chat proof uses
 separate phone and laptop videos, Apple proof uses separate iPhone portrait and
 iPad landscape videos, and CLI proof uses one terminal video only for the actual `openmates` CLI product surface being demonstrated or fixed. Do not ask for CLI proof videos for generic smoke scripts, pytest helpers, Node scripts, or shell wrappers that do not visibly execute the OpenMates CLI.
-Tooling-only and account-health E2E work is exempt from proof-video evidence:
-`test-account-preflight.spec.ts`, stale signup cleanup, credential repair,
-dispatch/orchestration fixes, and other non-product preflights should use focused
-unit/tooling tests plus `scripts/verify_test_account_login.py` or the deployed
-`scripts/tests.py` result as completion evidence. Mark touched Playwright specs
-with `// proof-video: not_required reason=account_health` when this applies.
 Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
 iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
 `1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device

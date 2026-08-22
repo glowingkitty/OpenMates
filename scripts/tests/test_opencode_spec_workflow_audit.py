@@ -237,6 +237,9 @@ def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms()
     assert "narration audio is optional" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
     assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
     assert "proof-video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+    assert "--latest-run-type" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+    assert "every `*.spec.ts` run" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "OpenMates CLI E2E" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
 
 
 def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms():

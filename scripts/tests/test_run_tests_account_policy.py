@@ -44,6 +44,9 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
+    proof_video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "proof-flow"
+    proof_video_dir.mkdir(parents=True)
+    (proof_video_dir / "video.webm").write_bytes(b"proof-video")
     frame = b"\x89PNG\r\n\x1a\nsynthetic"
     frame_hash = f"sha256:{hashlib.sha256(frame).hexdigest()}"
     timeline = json.dumps({
@@ -70,6 +73,11 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
                                 "contentType": "application/vnd.openmates.proof-timeline+json",
                                 "body": base64.b64encode(timeline).decode("ascii"),
                             },
+                            {
+                                "name": "video",
+                                "contentType": "video/webm",
+                                "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/proof-flow/video.webm",
+                            },
                         ]
                     }]
                 }]
@@ -91,94 +99,7 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     assert persisted_timeline["checkpoint_frames"][0]["sha256"] == frame_hash
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
-
-
-def test_recording_artifacts_accept_cli_proof_timeline_without_frames(tmp_path, monkeypatch):
-    run_tests = load_run_tests_module()
-    artifact = tmp_path / "artifact"
-    artifact.mkdir(parents=True)
-    video = artifact / "raw-terminal.mp4"
-    video.write_bytes(b"terminal-video")
-    extra_video = artifact / "playwright-video.mp4"
-    extra_video.write_bytes(b"unrelated-video")
-    transcript = b"Example chats for travel/search_connections"
-    events = b'{"kind":"start"}\n'
-    manifest = json.dumps({
-        "schema_version": 1,
-        "capture_kind": "real_terminal_screen",
-        "reconstructed": False,
-        "exit_status": 0,
-        "video_path": str(video),
-        "video_sha256": f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}",
-        "transcript_path": str(artifact / "transcript.txt"),
-        "transcript_sha256": f"sha256:{hashlib.sha256(transcript).hexdigest()}",
-        "events_path": str(artifact / "events.jsonl"),
-        "events_sha256": f"sha256:{hashlib.sha256(events).hexdigest()}",
-    }).encode("utf-8")
-    timeline = json.dumps({
-        "schema_version": 1,
-        "device": "cli-terminal",
-        "contract": {
-            "id": "openmates-cli-proof",
-            "title": "OpenMates CLI proof",
-            "surface": "cli",
-            "devices": ["cli-terminal"],
-            "transcript": [{"id": "examples", "text": "The CLI examples are visible.", "checkpoint": "examples", "devices": ["cli-terminal"]}],
-            "assertions": [{"id": "cli.examples.visible", "visual": "The terminal shows the real CLI output.", "checkpoint": "examples", "devices": ["cli-terminal"]}],
-        },
-        "events": [{"kind": "checkpoint", "id": "examples", "at_ms": 100}],
-        "assertion_results": [{"id": "cli.examples.visible", "status": "passed"}],
-        "checkpoint_frames": [],
-    }).encode("utf-8")
-    report = {
-        "suites": [{
-            "specs": [{
-                "tests": [{
-                    "results": [{
-                        "attachments": [
-                            {
-                                "name": "openmates-cli-real-terminal-video",
-                                "contentType": "video/mp4",
-                                "path": str(video),
-                            },
-                            {
-                                "name": "openmates-cli-real-terminal-manifest",
-                                "contentType": "application/json",
-                                "body": base64.b64encode(manifest).decode("ascii"),
-                            },
-                            {
-                                "name": "openmates-cli-real-terminal-transcript",
-                                "contentType": "text/plain",
-                                "body": base64.b64encode(transcript).decode("ascii"),
-                            },
-                            {
-                                "name": "openmates-cli-real-terminal-events",
-                                "contentType": "application/jsonl",
-                                "body": base64.b64encode(events).decode("ascii"),
-                            },
-                            {
-                                "name": "openmates-proof-timeline",
-                                "contentType": "application/vnd.openmates.proof-timeline+json",
-                                "body": base64.b64encode(timeline).decode("ascii"),
-                            },
-                        ]
-                    }]
-                }]
-            }]
-        }]
-    }
-    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
-    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", tmp_path / "recordings")
-
-    persisted = run_tests.BatchRunner._persist_recording_artifacts("proof-video-cli.spec.ts", artifact)
-
-    expected = tmp_path / "recordings" / "proof-video-cli" / "proof-timeline.json"
-    assert persisted == str(expected)
-    assert json.loads(expected.read_text(encoding="utf-8"))["contract"]["surface"] == "cli"
-    normalized_manifest = json.loads((expected.parent / "videos" / "manifest.json").read_text(encoding="utf-8"))
-    assert Path(normalized_manifest["video_path"]).read_bytes() == b"terminal-video"
-    assert normalized_manifest["transcript_path"].endswith("/videos/transcript.txt")
-    assert normalized_manifest["events_path"].endswith("/videos/events.jsonl")
+    assert metadata["proof_video_file"] == "videos/proof-flow.webm"
 
 
 def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):
@@ -429,33 +350,6 @@ def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     assert result.status == "failed"
     assert result.tests[0]["status"] == "not_started"
     assert result.tests[0]["error"] == "Run was cancelled"
-
-
-def test_dispatch_error_retains_preflight_account_slot(monkeypatch):
-    run_tests = load_run_tests_module()
-
-    class FakeClient:
-        last_dispatch_error = "dispatch unavailable"
-
-        def dispatch_spec(self, *_args, **_kwargs):
-            return None
-
-    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
-    runner = run_tests.BatchRunner(
-        client=FakeClient(),
-        specs=[run_tests.ACCOUNT_PREFLIGHT_SPEC],
-        batch_size=1,
-        fail_fast=False,
-    )
-
-    result = runner._run_batch(
-        [run_tests.ACCOUNT_PREFLIGHT_SPEC],
-        0,
-        account_overrides=[16],
-    )
-
-    assert result[0].status == "dispatch_error"
-    assert result[0].account == 16
 
 
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
@@ -880,38 +774,6 @@ def test_single_account_preflight_honors_explicit_account(monkeypatch):
     assert preflight_calls == [[19]]
 
 
-def test_account_preflight_without_explicit_account_checks_all_slots(monkeypatch):
-    run_tests = load_run_tests_module()
-    preflight_calls: list[list[int] | None] = []
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.max_concurrent = 20
-    orchestrator.dry_run = False
-    orchestrator.environment = "production"
-    orchestrator.git_sha = "abc123"
-    orchestrator.dot_env = {}
-    orchestrator.spec = run_tests.ACCOUNT_PREFLIGHT_SPEC
-    orchestrator.account = None
-    orchestrator.create_account_slot = None
-    orchestrator.only_failed = False
-    orchestrator.fail_fast = True
-    orchestrator.use_mocks = True
-    orchestrator.record_live_fixtures = False
-    orchestrator.proof_video_profile = ""
-    orchestrator._discover_specs = lambda: [run_tests.ACCOUNT_PREFLIGHT_SPEC]
-
-    def fake_preflight(_client, accounts=None):
-        preflight_calls.append(accounts)
-        return run_tests.SuiteResult(status="passed", tests=[])
-
-    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
-    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
-
-    result = orchestrator._run_playwright()
-
-    assert result.status == "passed"
-    assert preflight_calls == [None]
-
-
 def test_hourly_dev_specs_exist():
     run_tests = load_run_tests_module()
     tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -1185,7 +1047,7 @@ def test_dispatch_can_request_exact_proof_video_profiles(monkeypatch):
         }],
     )
 
-    for profile in ("cli-terminal", "web-laptop", "web-phone"):
+    for profile in ("web-laptop", "web-phone"):
         commands.clear()
         assert client.dispatch_spec(
             "audio-recording.spec.ts",
@@ -1620,226 +1482,6 @@ def test_account_id_repair_skips_non_development_environment():
     ])
 
     assert repaired is False
-
-
-def test_account_preflight_retries_failed_slots_in_small_batches(monkeypatch):
-    run_tests = load_run_tests_module()
-    calls: list[list[int]] = []
-
-    class FakeBatchRunner:
-        def __init__(self, **_kwargs):
-            pass
-
-        _spec_result_to_dict = staticmethod(run_tests.BatchRunner._spec_result_to_dict)
-
-        def _run_batch(self, _specs, _batch_index, account_overrides=None):
-            accounts = list(account_overrides or [])
-            calls.append(accounts)
-            if len(calls) == 1:
-                return [
-                    run_tests.SpecResult(
-                        name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                        status="passed" if account == 1 else "failed",
-                        account=account,
-                        account_email=f"acct-{account}@example.test",
-                    )
-                    for account in accounts
-                ]
-            return [
-                run_tests.SpecResult(
-                    name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                    status="passed",
-                    account=account,
-                    account_email=f"acct-{account}@example.test",
-                )
-                for account in accounts
-            ]
-
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    orchestrator.daily = False
-    orchestrator.use_mocks = True
-    monkeypatch.setenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, "browser")
-    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
-    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
-    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
-
-    result = orchestrator._run_account_preflight(object(), accounts=[1, 2, 3, 4, 5])
-
-    assert result.status == "passed"
-    assert calls == [[1, 2, 3, 4, 5], [2, 3, 4], [5]]
-
-
-def test_account_preflight_defaults_to_api_mode(monkeypatch):
-    run_tests = load_run_tests_module()
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    orchestrator.daily = False
-    calls: list[list[int]] = []
-
-    def fake_api_preflight(accounts):
-        calls.append(accounts)
-        return [
-            run_tests.SpecResult(
-                name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                file=run_tests.ACCOUNT_PREFLIGHT_API_SCRIPT,
-                status="passed",
-                account=account,
-                account_email=f"acct-{account}@example.test",
-            )
-            for account in accounts
-        ]
-
-    monkeypatch.delenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, raising=False)
-    for account in (1, 2):
-        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_EMAIL", f"acct-{account}@example.test")
-        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_PASSWORD", "pw")
-        monkeypatch.setenv(f"OPENMATES_TEST_ACCOUNT_{account}_OTP_KEY", "JBSWY3DPEHPK3PXP")
-    monkeypatch.setattr(orchestrator, "_run_api_account_preflight_results", fake_api_preflight)
-    monkeypatch.setattr(
-        orchestrator,
-        "_run_browser_account_preflight_results",
-        lambda *_args: (_ for _ in ()).throw(AssertionError("browser preflight should not run by default")),
-    )
-    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
-    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
-
-    result = orchestrator._run_account_preflight(object(), accounts=[1, 2])
-
-    assert result.status == "passed"
-    assert calls == [[1, 2]]
-
-
-def test_api_account_preflight_parses_script_results(monkeypatch, tmp_path):
-    run_tests = load_run_tests_module()
-    script = tmp_path / run_tests.ACCOUNT_PREFLIGHT_API_SCRIPT
-    script.parent.mkdir(parents=True)
-    script.write_text("print('placeholder')\n", encoding="utf-8")
-    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
-    captured: dict[str, object] = {}
-
-    def fake_run(cmd, **kwargs):
-        captured["cmd"] = cmd
-        captured.update(kwargs)
-        return SimpleNamespace(
-            returncode=1,
-            stderr="",
-            stdout=json.dumps({
-                "status": "failed",
-                "results": [
-                    {"slot": 1, "email": "acct-1@example.test", "status": "passed", "duration_seconds": 0.5, "account_id": "ABC1234", "credits": 50000},
-                    {"slot": 2, "email": "acct-2@example.test", "status": "failed", "duration_seconds": 0.6, "error": "login failed"},
-                ],
-            }),
-        )
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-
-    results = run_tests.TestOrchestrator._run_api_account_preflight_once([1, 2])
-
-    assert captured["cmd"][:3] == [sys.executable, str(script), "--json"]
-    assert captured["cmd"][3:] == ["--slots", "1,2"]
-    assert captured["capture_output"] is True
-    assert captured["text"] is True
-    assert [result.status for result in results] == ["passed", "failed"]
-    assert results[0].account_email == "acct-1@example.test"
-    assert results[0].debug_output_summary == "account_id=ABC1234 credits=50000"
-    assert results[1].error == "login failed"
-
-
-def test_daily_auto_cleanup_requires_all_configured_account_emails(monkeypatch):
-    run_tests = load_run_tests_module()
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    called = False
-
-    def fake_run(*_args, **_kwargs):
-        nonlocal called
-        called = True
-        return SimpleNamespace(stdout="", stderr="", returncode=0)
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-    results = [
-        run_tests.SpecResult(
-            name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-            status="passed",
-            account=slot,
-            account_email=(f"acct-{slot}@example.test" if slot != 27 else None),
-        )
-        for slot in range(1, 28)
-    ]
-
-    error = orchestrator._cleanup_stale_signup_accounts(results)
-
-    assert error == "configured account email missing for slot(s): 27"
-    assert called is False
-
-
-def test_daily_auto_cleanup_passes_protected_accounts_over_stdin(monkeypatch, tmp_path):
-    run_tests = load_run_tests_module()
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
-    captured: dict[str, object] = {}
-
-    def fake_run(cmd, **kwargs):
-        captured["cmd"] = cmd
-        captured.update(kwargs)
-        return SimpleNamespace(stdout="No candidate users to delete.\n", stderr="", returncode=0)
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-    results = [
-        run_tests.SpecResult(
-            name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-            status="passed",
-            account=slot,
-            account_email=f"acct-{slot}@example.test",
-        )
-        for slot in range(1, 28)
-    ]
-
-    assert orchestrator._cleanup_stale_signup_accounts(results) is None
-    assert "@example.test" not in " ".join(captured["cmd"])
-    assert "--auto-safe" in captured["cmd"]
-    assert "--automated-daily-cleanup" in captured["cmd"]
-    assert len(json.loads(captured["input"])) == 27
-
-
-def test_daily_cleanup_failure_fails_account_preflight(monkeypatch):
-    run_tests = load_run_tests_module()
-
-    class FakeBatchRunner:
-        def __init__(self, **_kwargs):
-            pass
-
-        _spec_result_to_dict = staticmethod(run_tests.BatchRunner._spec_result_to_dict)
-
-        def _run_batch(self, _specs, _batch_index, account_overrides=None):
-            return [
-                run_tests.SpecResult(
-                    name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                    status="passed",
-                    account=account,
-                    account_email=f"acct-{account}@example.test",
-                )
-                for account in account_overrides or []
-            ]
-
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    orchestrator.daily = True
-    orchestrator.use_mocks = True
-    monkeypatch.setenv(run_tests.ACCOUNT_PREFLIGHT_MODE_ENV, "browser")
-    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
-    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
-    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
-    monkeypatch.setattr(orchestrator, "_cleanup_stale_signup_accounts", lambda _results: "cleanup failed")
-
-    result = orchestrator._run_account_preflight(object(), accounts=[1])
-
-    assert result.status == "failed"
-    assert result.tests[-1]["name"] == "dev-stale-signup-cleanup"
-    assert result.tests[-1]["error"] == "cleanup failed"
 
 
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):

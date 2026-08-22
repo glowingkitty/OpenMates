@@ -34,6 +34,8 @@ MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
 CONTAINER_TMP_DIR = "/tmp/opencode-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
+LATEST_KEY_PREFIX = "opencode-responses/latest"
+LATEST_RUN_TYPE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 WEBVTT_TIMESTAMP_RE = re.compile(
     r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$"
 )
@@ -235,6 +237,13 @@ def object_key(path: Path, content: bytes, now: dt.datetime | None = None) -> st
     )
 
 
+def latest_run_object_key(path: Path, content_type: str, run_type: str) -> str:
+    if not LATEST_RUN_TYPE_RE.fullmatch(run_type):
+        raise ValueError("--latest-run-type must be 1-80 chars of letters, numbers, dots, underscores, or hyphens")
+    stem = "video" if content_type.startswith("video/") else "image"
+    return f"{LATEST_KEY_PREFIX}/{run_type}/{stem}{path.suffix.lower()}"
+
+
 def container_path_for(source: Path, key: str) -> str:
     return f"{CONTAINER_TMP_DIR}/{Path(key).name}"
 
@@ -388,7 +397,8 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
     content_type = guess_content_type(source)
     kind = media_kind(content_type)
     expires_in = ensure_expires(args.expires_in)
-    key = object_key(source, content)
+    latest_run_type = args.latest_run_type.strip()
+    key = latest_run_object_key(source, content_type, latest_run_type) if latest_run_type else object_key(source, content)
     sha256 = hashlib.sha256(content).hexdigest()
     container_path = container_path_for(source, key)
     request = {
@@ -423,7 +433,11 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         captions_content_type = guess_content_type(captions_source)
         if captions_content_type != "text/vtt":
             raise ValueError("--captions requires a WebVTT .vtt file")
-        captions_key = object_key(captions_source, captions_content)
+        captions_key = (
+            f"{LATEST_KEY_PREFIX}/{latest_run_type}/captions.vtt"
+            if latest_run_type
+            else object_key(captions_source, captions_content)
+        )
         captions_request = {
             **request,
             "container_path": container_path_for(captions_source, captions_key),
@@ -490,6 +504,7 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         "sha256": f"sha256:{sha256}",
         "snippets": snippets,
         "url": upload["url"],
+        **({"latest_run_type": latest_run_type} if latest_run_type else {}),
         **({"captions": captions_result} if captions_result else {}),
     }
 
@@ -511,6 +526,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--captions", help="Optional WebVTT caption sidecar for video media")
     parser.add_argument("--captions-language", default="und", help="BCP-47 caption language tag")
     parser.add_argument("--captions-label", default="Captions", help="Caption track label shown by the video player")
+    parser.add_argument(
+        "--latest-run-type",
+        default="",
+        help="Overwrite opencode-responses/latest/<type>/ media for the latest test or CLI run",
+    )
     parser.add_argument(
         "--output",
         choices=("text", "json", "url", "markdown", "html"),

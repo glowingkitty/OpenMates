@@ -90,6 +90,40 @@ def test_dry_run_video_with_captions_outputs_toggleable_track(tmp_path: Path, ca
     assert " default>" in html
 
 
+def test_latest_run_type_uses_stable_replacement_keys(tmp_path: Path, capsys) -> None:
+    video = tmp_path / "first-recording.webm"
+    captions = tmp_path / "first-captions.vtt"
+    video.write_bytes(b"fake webm bytes")
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nVisible.\n", encoding="utf-8")
+
+    code = media.main([
+        str(video),
+        "--captions",
+        str(captions),
+        "--latest-run-type",
+        "spec-ts-web-laptop",
+        "--dry-run",
+        "--output",
+        "json",
+    ])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["latest_run_type"] == "spec-ts-web-laptop"
+    assert data["key"] == "opencode-responses/latest/spec-ts-web-laptop/video.webm"
+    assert data["captions"]["key"] == "opencode-responses/latest/spec-ts-web-laptop/captions.vtt"
+
+
+def test_latest_run_type_rejects_unsafe_scope(tmp_path: Path, capsys) -> None:
+    video = tmp_path / "demo.webm"
+    video.write_bytes(b"fake webm bytes")
+
+    code = media.main([str(video), "--latest-run-type", "../unsafe", "--dry-run"])
+
+    assert code == 1
+    assert "--latest-run-type" in capsys.readouterr().err
+
+
 def test_rejects_malformed_or_overlapping_webvtt(tmp_path: Path, capsys) -> None:
     video = tmp_path / "demo.mp4"
     captions = tmp_path / "captions.vtt"

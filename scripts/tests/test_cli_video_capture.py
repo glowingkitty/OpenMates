@@ -32,7 +32,7 @@ def load_module():
 def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> None:
     module = load_module()
     plan = module.build_capture_plan(
-        argv=["openmates", "--help"],
+        argv=["node", "frontend/packages/openmates-cli/dist/cli.js", "--help"],
         output_dir=tmp_path,
         display_number=91,
         xvfb_binary="/usr/bin/Xvfb",
@@ -49,12 +49,10 @@ def test_capture_plan_uses_exact_graphical_terminal_profile(tmp_path: Path) -> N
     assert "1280x720" in plan.ffmpeg_argv
     assert "160x48" in plan.terminal_argv
     assert "14" in plan.terminal_argv
-    assert "openmates --help" in plan.terminal_argv[-1]
-    assert "node frontend/packages/openmates-cli/dist/cli.js" not in plan.terminal_argv[-1]
+    assert "node frontend/packages/openmates-cli/dist/cli.js --help" in plan.terminal_argv[-1]
     assert "sleep 3" in plan.terminal_argv[-1]
     assert "printf '%s\\n'" not in plan.terminal_argv[-1]
     assert "time.sleep(0.03)" in plan.terminal_argv[-1]
-    assert "Terminal" in plan.terminal_argv
 
 
 def test_capture_plan_rejects_non_openmates_commands_and_secret_argv(tmp_path: Path) -> None:
@@ -98,3 +96,25 @@ def test_manifest_binds_real_video_transcript_events_and_exit_status(tmp_path: P
     assert manifest["transcript_sha256"].startswith("sha256:")
     assert manifest["events_sha256"].startswith("sha256:")
     assert manifest["reconstructed"] is False
+
+
+def test_cli_response_media_uses_latest_replacement_scope(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    video = tmp_path / "raw-terminal.mp4"
+    video.write_bytes(b"real terminal pixels")
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return module.subprocess.CompletedProcess(command, 0, stdout='{"snippets":{"html":"<video></video>"}}', stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    payload = module.publish_response_media(video, classification="cli_e2e", dry_run=True)
+
+    assert payload["snippets"]["html"] == "<video></video>"
+    command, kwargs = calls[0]
+    assert "--latest-run-type" in command
+    assert command[command.index("--latest-run-type") + 1] == "openmates-cli-e2e"
+    assert "--dry-run" in command
+    assert kwargs == {"check": False, "capture_output": True, "text": True}

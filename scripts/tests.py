@@ -56,6 +56,8 @@ RUNS_DIR = RESULTS_DIR / "runs"
 LEASE_LOCK_FILE = Path("/tmp/openmates-failed-test-leases.lock")
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 RUN_TESTS_SCRIPT = PROJECT_ROOT / "scripts" / "run_tests.py"
+RESPONSE_MEDIA_SCRIPT = PROJECT_ROOT / "scripts" / "opencode_response_media.py"
+RESPONSE_MEDIA_LATEST_FILE = RESULTS_DIR / "response-media-latest.json"
 TEST_STORE = None
 DEV_HEALTH_URLS = (
     "https://api.dev.openmates.org/health",
@@ -1331,7 +1333,30 @@ def _normalized_spec_path(value: str) -> str:
     return value.replace("\\", "/").removeprefix("frontend/apps/web_app/tests/").lstrip("./")
 
 
-def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str) -> list[Path]:
+def _safe_slug(value: str, fallback: str = "latest") -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._")
+    return slug or fallback
+
+
+def _proof_video_file_for_spec(spec_path: str) -> str:
+    recordings_root = RESULTS_DIR / "recordings" / "latest"
+    for meta_path in recordings_root.glob("*/artifact-meta.json"):
+        metadata = read_json(meta_path, {})
+        if _normalized_spec_path(str(metadata.get("spec") or "")) != _normalized_spec_path(spec_path):
+            continue
+        proof_video_file = str(metadata.get("proof_video_file") or "")
+        if proof_video_file:
+            return proof_video_file
+    return ""
+
+
+def _downloaded_recording_paths(
+    spec_path: str,
+    run_ids: set[str],
+    git_sha: str,
+    *,
+    preferred_video_file: str = "",
+) -> list[Path]:
     recordings_root = RESULTS_DIR / "recordings"
     matches: list[Path] = []
     for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
@@ -1345,10 +1370,123 @@ def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str)
         if not run_ids.intersection({str(manifest.get("run_id") or ""), github_run_id}):
             continue
         video_key = str((manifest.get("assets") or {}).get("video_key") or "")
+        if preferred_video_file and not video_key.endswith(preferred_video_file):
+            continue
         video_path = (recordings_root / video_key).resolve()
         if video_key and video_path.is_relative_to(recordings_root.resolve()) and video_path.is_file():
             matches.append(video_path)
     return sorted(matches, key=lambda path: path.as_posix())
+
+
+def playwright_response_media_run_type(options: ControlRunOptions) -> str:
+    if not run_targets_playwright(options.forwarded_args):
+        return ""
+    profile = _safe_slug(options.proof_video_profile.replace("_", "-"), "") if options.proof_video_profile else ""
+    return f"spec-ts-{profile}" if profile else "spec-ts"
+
+
+def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[str, Path] | None:
+    git_sha = str(run_data.get("git_sha") or "")
+    for suite, test in iter_tests(run_data):
+        if suite != "playwright":
+            continue
+        spec_path = str(test.get("file") or test_label(suite, test))
+        if not spec_path.endswith(".spec.ts"):
+            continue
+        run_id = str(test.get("run_id") or run_data.get("run_id") or "")
+        artifact_paths = [str(path) for path in test.get("artifact_paths") or []]
+        if test.get("artifact_path"):
+            artifact_paths.append(str(test["artifact_path"]))
+        if not artifact_paths:
+            candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
+            preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
+            artifact_paths = [
+                str(path)
+                for path in _downloaded_recording_paths(
+                    spec_path,
+                    candidate_run_ids,
+                    git_sha,
+                    preferred_video_file=preferred_video_file,
+                )
+            ]
+        for artifact_path_text in artifact_paths:
+            artifact_path = Path(artifact_path_text).resolve()
+            if artifact_path.is_file() and artifact_path.suffix.lower() in {".webm", ".mp4", ".mov"}:
+                return Path(spec_path).name, artifact_path
+    return None
+
+
+def upload_response_media_video(
+    *,
+    path: Path,
+    run_type: str,
+    alt: str,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(RESPONSE_MEDIA_SCRIPT),
+        str(path),
+        "--alt",
+        alt,
+        "--latest-run-type",
+        run_type,
+        "--output",
+        "json",
+    ]
+    if dry_run:
+        command.append("--dry-run")
+    result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "OpenCode response-media upload failed")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("OpenCode response-media upload returned invalid JSON") from exc
+    snippets = payload.get("snippets") if isinstance(payload, dict) else None
+    if not isinstance(snippets, dict) or not snippets.get("html"):
+        raise RuntimeError("OpenCode response-media upload returned no embeddable HTML snippet")
+    return payload
+
+
+def publish_latest_playwright_response_media(
+    run_data: dict[str, Any],
+    *,
+    run_type: str,
+    uploader: Any | None = None,
+) -> dict[str, Any]:
+    if not run_type:
+        return {"status": "skipped", "reason": "run does not target Playwright specs"}
+    candidate = latest_playwright_response_media_video(run_data)
+    if candidate is None:
+        return {"status": "missing", "run_type": run_type, "reason": "no downloaded Playwright video artifact was found"}
+    spec_name, video_path = candidate
+    active_uploader = uploader or upload_response_media_video
+    upload = active_uploader(
+        path=video_path,
+        run_type=run_type,
+        alt=f"Playwright {spec_name} latest run video",
+    )
+    snippets = upload.get("snippets") if isinstance(upload.get("snippets"), dict) else {}
+    record = {
+        "status": "delivered",
+        "kind": "playwright_spec_video",
+        "run_type": run_type,
+        "spec": spec_name,
+        "run_id": str(run_data.get("run_id") or ""),
+        "git_sha": str(run_data.get("git_sha") or ""),
+        "artifact_path": str(video_path),
+        "artifact_sha256": _file_sha256(video_path),
+        "response_media_key": upload.get("key"),
+        "response_media_html": snippets.get("html"),
+        "response_media_markdown": snippets.get("markdown"),
+    }
+    latest = read_json(RESPONSE_MEDIA_LATEST_FILE, {})
+    latest["playwright_spec"] = record
+    write_json(RESPONSE_MEDIA_LATEST_FILE, latest)
+    print("OpenCode response-media video for latest Playwright spec run:")
+    print(str(record["response_media_html"] or record["response_media_markdown"] or upload.get("url") or ""))
+    return record
 
 
 def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
@@ -1370,7 +1508,16 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         run_id = str(test.get("run_id") or run_data.get("run_id") or "")
         if not artifact_paths:
             candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
-            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_path, candidate_run_ids, git_sha)]
+            preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
+            artifact_paths = [
+                str(path)
+                for path in _downloaded_recording_paths(
+                    spec_path,
+                    candidate_run_ids,
+                    git_sha,
+                    preferred_video_file=preferred_video_file,
+                )
+            ]
         unique_artifact_paths = []
         seen_artifact_paths = set()
         for artifact_path_text in artifact_paths:
@@ -1500,12 +1647,6 @@ def auto_finalize_proof_video_sources(
             active_render_claims_hook = render_claims_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
-        checkpoint_times = [
-            float(event["at_ms"]) / 1000.0
-            for event in timeline.get("events", [])
-            if isinstance(event, dict) and event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
-        ]
-        ready_timestamp_seconds = min(checkpoint_times) if checkpoint_times else None
         source_video = Path(str(record.get("artifact_path") or ""))
         if not source_video.is_file():
             raise RuntimeError(f"Proof source video is missing: {source_video}")
@@ -1513,6 +1654,13 @@ def auto_finalize_proof_video_sources(
         run_id = str(record.get("run_id") or record.get("source_run_id") or run_data.get("run_id") or "")
         subject_commit = str(record.get("git_sha") or run_data.get("git_sha") or "")
         run_dir = proof_video_run_directory(session_id=session_id or "auto", spec_name=spec_name, run_id=run_id)
+        timeline_events = [item for item in timeline.get("events") or [] if isinstance(item, dict)]
+        assertion_events = [item for item in timeline.get("assertion_results") or [] if isinstance(item, dict)]
+        checkpoint_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "checkpoint"]
+        action_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "action"]
+        assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
+        ready_times = [value for value in [*checkpoint_times, *action_times, *assertion_times] if value >= 0]
+        ready_timestamp_seconds = min(ready_times) if ready_times else None
         source = {
             "source": str(record.get("source") or "scripts_tests"),
             "status": "passed",
@@ -1524,6 +1672,9 @@ def auto_finalize_proof_video_sources(
             "artifact_path": str(source_video),
             "artifact_sha256": str(record.get("artifact_sha256") or ""),
             "test_account_provenance": str(record.get("test_account_provenance") or "GitHub Actions E2E account slot"),
+            "browser_domain": str(claims.get("domain") or contract.get("domain") or ""),
+            "action_timestamps": action_times,
+            "state_change_timestamps": checkpoint_times,
         }
         manifest = active_produce_hook(
             run_dir=run_dir,
@@ -1543,8 +1694,6 @@ def auto_finalize_proof_video_sources(
             playback_rate=1.0,
             hold_last_frame_seconds=0.0,
             ready_timestamp_seconds=ready_timestamp_seconds,
-            spec_timeline=timeline,
-            browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
         )
         review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")
         manifest = review.get("manifest") if isinstance(review.get("manifest"), dict) else manifest
@@ -4886,6 +5035,8 @@ def record_latest_run_artifact(
     campaign_key: str = "",
     debug_group_key: str = "",
     deployment_verified: bool = False,
+    response_media_run_type: str = "",
+    response_media_uploader: Any | None = None,
 ) -> str:
     artifacts = run_recording_artifacts(since_mtime=since_mtime)
     if not artifacts:
@@ -4918,6 +5069,15 @@ def record_latest_run_artifact(
                 run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
             write_json(artifact, run_data)
             record_run_result(run_data)
+            if response_media_run_type:
+                response_media_record = publish_latest_playwright_response_media(
+                    run_data,
+                    run_type=response_media_run_type,
+                    uploader=response_media_uploader,
+                )
+                run_data["response_media_video"] = response_media_record
+                write_json(artifact, run_data)
+                record_run_result(run_data)
             if deployment_verified:
                 proof_records = record_proof_source_attestations(run_data)
                 proof_finalizations = auto_finalize_proof_video_sources(
@@ -5078,6 +5238,7 @@ def command_run(runner_args: list[str]) -> int:
             campaign_key=options.campaign_key,
             debug_group_key=options.debug_group_key,
             deployment_verified=deployment_verified,
+            response_media_run_type=playwright_response_media_run_type(options),
         )
         if not recorded_commit:
             return 2 if options.expected_commit else result.returncode

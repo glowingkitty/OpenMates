@@ -137,12 +137,12 @@ OPENCODE_PROOF_REVIEWER_TERMS = {
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",

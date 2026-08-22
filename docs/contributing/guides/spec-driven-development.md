@@ -132,6 +132,11 @@ For full specs:
     after review and embed the returned Markdown/HTML snippet in the final
     OpenCode response. Do not send proof media to Discord unless the user
     explicitly asks for a separate Discord mirror.
+17. For raw run evidence, every `*.spec.ts` run and every real OpenMates CLI E2E
+    run must surface its latest-run video in the assistant response. Use the
+    `--latest-run-type` response-media path emitted by `scripts/tests.py run` or
+    `scripts/cli_video_capture.py`, and paste the returned `<video>` HTML; these
+    stable S3 keys overwrite prior run media instead of accumulating objects.
 
 An active implementation spec is non-interruptible. Continue from its current
 handoff until verification completes; task size, context pressure, test failure,

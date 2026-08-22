@@ -260,10 +260,12 @@ test.describe('App: Events / Skill: search', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
+		await dismissVisibleNotifications(page);
 
 		const message = 'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.';
 		const testMockMarker = withLiveMockMarker('', 'events_search_web').trim();
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search', { testMockMarker });
+		await dismissVisibleNotifications(page);
 		if (proof) {
 			await proof.assert('request-visible', async () => {
 				const userMessage = page.getByTestId('message-user').last();
@@ -313,6 +315,9 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(finalGroupedView).toBeVisible();
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		if (proof) {
+			await finalGroupedView.evaluate((element: HTMLElement) => {
+				element.scrollIntoView({ block: 'center' });
+			});
 			await proof.assert('map-view-populated', async () => {
 				await expect(finalGroupedView).toBeVisible();
 				await expect(finalGroupedCards.first()).toBeVisible();
@@ -321,38 +326,40 @@ test.describe('App: Events / Skill: search', () => {
 			await proof.checkpoint('map-view-populated');
 		}
 
-		const stabilityProbe = await page.evaluate(() => {
-			const value = crypto.randomUUID();
-			(window as any).__reportIssueStabilityProbe = value;
-			return value;
-		});
-		await dismissVisibleNotifications(page);
-		const directReportIssue = page.getByRole('button', { name: /^Report Issue$/i }).first();
-		if (await directReportIssue.isVisible().catch(() => false)) {
-			await directReportIssue.click();
-		} else {
-			await page.locator('#settings-menu-toggle').click();
-			const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-			await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
-			await settingsMenu
-				.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
-				.first()
-				.click();
-		}
-		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
+		if (!IS_PROOF_CAPTURE) {
+			const stabilityProbe = await page.evaluate(() => {
+				const value = crypto.randomUUID();
+				(window as any).__reportIssueStabilityProbe = value;
+				return value;
+			});
+			await dismissVisibleNotifications(page);
+			const directReportIssue = page.getByRole('button', { name: /^Report Issue$/i }).first();
+			if (await directReportIssue.isVisible().catch(() => false)) {
+				await directReportIssue.click();
+			} else {
+				await page.locator('#settings-menu-toggle').click();
+				const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+				await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+				await settingsMenu
+					.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+					.first()
+					.click();
+			}
+			await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
 
-		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
-		await expect(finalGroupedView).toBeVisible();
-		await expect(
-			page.getByTestId('message-content').filter({ has: finalGroupedView })
-		).toHaveAttribute('data-streaming', 'false');
-		expect(await finalGroupedCards.count()).toBe(finalGroupedCardCount);
-		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
-		logCheckpoint('Report Issue opened without reloading the page or changing final grouped embeds.');
+			expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
+			await expect(finalGroupedView).toBeVisible();
+			await expect(
+				page.getByTestId('message-content').filter({ has: finalGroupedView })
+			).toHaveAttribute('data-streaming', 'false');
+			expect(await finalGroupedCards.count()).toBe(finalGroupedCardCount);
+			await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+			logCheckpoint('Report Issue opened without reloading the page or changing final grouped embeds.');
 
-		const closeSettings = page.getByTestId('icon-button-close');
-		if (await closeSettings.isVisible().catch(() => false)) {
-			await closeSettings.click();
+			const closeSettings = page.getByTestId('icon-button-close');
+			if (await closeSettings.isVisible().catch(() => false)) {
+				await closeSettings.click();
+			}
 		}
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
@@ -364,6 +371,9 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
 		if (proof) {
+			await reloadedGroupedView.evaluate((element: HTMLElement) => {
+				element.scrollIntoView({ block: 'center' });
+			});
 			await proof.assert('reload-preserves-results', async () => {
 				await expect(reloadedGroupedView).toBeVisible();
 				await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
