@@ -1661,8 +1661,18 @@ async def _fix_bad_embed_display_text(
     ]
     grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
     grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
+    standalone_ref_matches = list(re.finditer(
+        rf"(?<![A-Za-z0-9._~:/-]){_EMBED_REF_TOKEN_PATTERN}(?![A-Za-z0-9._~:/-])",
+        aggregated_response,
+    ))
 
-    if not all_matches and not bare_matches and not grouped_cite_matches and not grouped_bare_matches:
+    if (
+        not all_matches
+        and not bare_matches
+        and not grouped_cite_matches
+        and not grouped_bare_matches
+        and not standalone_ref_matches
+    ):
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
