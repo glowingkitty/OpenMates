@@ -51,10 +51,17 @@ def test_encrypted_slug_migration_is_wired_into_compose_setup() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     compose_text = (repo_root / "backend/core/docker-compose.yml").read_text(encoding="utf-8")
     selfhost_text = (repo_root / "backend/core/docker-compose.selfhost.yml").read_text(encoding="utf-8")
+    selfhost_dockerfile_text = (
+        repo_root / "backend/core/directus/Dockerfile.setup.selfhost"
+    ).read_text(encoding="utf-8")
 
     assert "ENCRYPTED_SLUG_MIGRATION_PATH" in compose_text
     assert "migrate_encrypted_slug_indexes.sql:/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql:ro" in compose_text
     assert "ENCRYPTED_SLUG_MIGRATION_PATH" in selfhost_text
+    assert (
+        "migrate_encrypted_slug_indexes.sql /usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
+        in selfhost_dockerfile_text
+    )
 
 
 # contract-test: direct surface=rest_api assertions=cli.slugs.encrypted-stable,cli.surface.semantic-parity
