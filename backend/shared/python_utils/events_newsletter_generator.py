@@ -12,13 +12,12 @@ import hashlib
 import html
 import json
 import os
-import re
 from base64 import b64encode
 from io import BytesIO
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from zoneinfo import ZoneInfo
 
 from PIL import Image
@@ -121,6 +120,7 @@ def build_events_campaign_payload(
             "generated_at": run_at.isoformat(),
             "window_days": NEWSLETTER_WINDOW_DAYS,
             "event_ids": [event["id"] for event in selected_events],
+            "email_event_links": {event["id"]: _event_app_fragment(event) for event in selected_events},
             "email_copy": {language: _labels(language) for language in SUPPORTED_LANGUAGES},
         },
     }
@@ -247,7 +247,7 @@ def _event_card_html(
     date_line = html.escape(_format_event_time(event, language))
     location = html.escape(_format_event_location(event, language))
     location_prefix = html.escape(labels["where_venue"] if event.get("venue") else labels["where_online"])
-    event_page_url = html.escape(_event_page_url(event, base_url), quote=True)
+    event_app_url = html.escape(_event_app_url(event, base_url), quote=True)
     register_url = html.escape(resolve_event_destination(event, is_openmates_url_live=is_openmates_url_live), quote=True)
     image_src = html.escape(_event_card_data_uri(event, language, repo_root), quote=True)
     image_alt = html.escape(str(event["assets"]["card"][language]["alt"]), quote=True)
@@ -255,11 +255,11 @@ def _event_card_html(
     register_label = html.escape(labels["register"])
 
     return f'''<section style="margin:0 0 34px 0;padding:0;background-color:#ffffff;color:#000000;">
-  <p style="margin:0 0 16px 0;text-align:center;"><a href="{event_page_url}" style="display:inline-block;text-decoration:none;"><img src="{image_src}" alt="{image_alt}" width="672" style="max-width:100%;height:auto;display:block;border:0;border-radius:24px;" /></a></p>
+  <p style="margin:0 0 16px 0;text-align:center;"><a href="{event_app_url}" style="display:inline-block;text-decoration:none;"><img src="{image_src}" alt="{image_alt}" width="672" style="max-width:100%;height:auto;display:block;border:0;border-radius:24px;" /></a></p>
   <h3 style="font-size:{EMAIL_EVENT_TITLE_FONT_SIZE}px;line-height:1.3;margin:0 0 8px 0;color:#000000;font-weight:800;">{title}</h3>
   <p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 18px 0;color:#000000;font-weight:700;">{summary}</p>
   <p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 14px 0;color:#000000;font-weight:800;">{date_line}<br />{location_prefix} {location}</p>
-  <p style="font-size:15px;line-height:1.4;margin:0 0 6px 0;color:#000000;font-weight:700;"><a href="{event_page_url}" style="color:#4867CD;text-decoration:none;">{details_label}</a> &nbsp;|&nbsp; <a href="{register_url}" style="color:#4867CD;text-decoration:none;">{register_label}</a></p>
+  <p style="font-size:15px;line-height:1.4;margin:0 0 6px 0;color:#000000;font-weight:700;"><a href="{event_app_url}" style="color:#4867CD;text-decoration:none;">{details_label}</a> &nbsp;|&nbsp; <a href="{register_url}" style="color:#4867CD;text-decoration:none;">{register_label}</a></p>
 </section>'''
 
 
@@ -314,9 +314,13 @@ def _event_datetime(event: dict[str, Any], field: str) -> datetime:
     return value
 
 
-def _event_page_url(event: dict[str, Any], base_url: str) -> str:
-    slug = re.sub(r"[^a-zA-Z0-9_-]", "", str(event["slug"]))
-    return f"{base_url.rstrip('/')}/events/{slug}"
+def _event_app_url(event: dict[str, Any], base_url: str) -> str:
+    return f"{base_url.rstrip('/')}/{_event_app_fragment(event)}"
+
+
+def _event_app_fragment(event: dict[str, Any]) -> str:
+    event_id = quote(str(event["id"]), safe="-_")
+    return f"#embed-id={event_id}"
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:

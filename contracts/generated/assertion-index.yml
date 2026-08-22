@@ -8585,7 +8585,7 @@ assertions:
       surface: cli
     - &id958
       path: backend/tests/test_events_newsletter_generator.py
-      line: 125
+      line: 128
       name: test_events_campaign_service_reuses_unchanged_cadence_campaign
       surface: rest_api
     - &id959
@@ -8634,12 +8634,12 @@ assertions:
     direct_tests:
     - &id961
       path: backend/tests/test_events_newsletter_generator.py
-      line: 102
+      line: 105
       name: test_event_destination_prefers_live_openmates_page_then_luma
       surface: cli
     - &id962
       path: backend/tests/test_events_newsletter_generator.py
-      line: 116
+      line: 119
       name: test_event_destination_fails_without_usable_url
       surface: cli
     - &id963
@@ -8691,12 +8691,12 @@ assertions:
       surface: cli
     - &id968
       path: backend/tests/test_events_newsletter_render.py
-      line: 60
+      line: 61
       name: test_events_newsletter_context_uses_existing_newsletter_template
       surface: cli
     - &id969
       path: backend/tests/test_events_newsletter_render.py
-      line: 111
+      line: 112
       name: test_brand_name_processor_leaves_html_title_plain
       surface: cli
     - &id970

@@ -52,7 +52,8 @@ def test_events_newsletter_html_contains_all_registry_events_without_local_paths
         content = event["localized_content"]["en"]
         assert content["title"] in html
         assert content["summary"] in html
-        assert f"{BASE_URL}/events/{event['slug']}" in html
+        assert f"{BASE_URL}/#embed-id={event['id']}" in html
+        assert f"{BASE_URL}/events/{event['slug']}" not in html
         assert event["luma_url"] in html
 
 
