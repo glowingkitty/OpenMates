@@ -2000,7 +2000,7 @@ assertions:
       surface: rest_api
     - &id198
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 111
+      line: 114
       name: 'Phase 2: CLI apps events search returns results'
       surface: cli
     supporting_tests: []
@@ -2050,7 +2050,7 @@ assertions:
     supporting_tests:
     - &id203
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 76
+      line: 79
       name: 'Phase 0: Apps metadata and UI expose event providers with loaded icons'
       surface: gui.web
     tests:
@@ -2088,7 +2088,7 @@ assertions:
       surface: rest_api
     - &id206
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 111
+      line: 114
       name: 'Phase 2: CLI apps events search returns results'
       surface: cli
     supporting_tests: []
@@ -2170,7 +2170,7 @@ assertions:
     direct_tests:
     - &id212
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 111
+      line: 114
       name: 'Phase 2: CLI apps events search returns results'
       surface: cli
     supporting_tests: []
@@ -2208,28 +2208,28 @@ assertions:
       surface: gui.web
     - &id219
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 111
+      line: 114
       name: 'Phase 2: CLI apps events search returns results'
       surface: cli
     - &id221
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 171
+      line: 174
       name: 'Phase 4: Web chat triggers events search with embed'
       surface: gui.web
     supporting_tests:
     - &id217
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 76
+      line: 79
       name: 'Phase 0: Apps metadata and UI expose event providers with loaded icons'
       surface: gui.web
     - &id218
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 104
+      line: 107
       name: 'Phase 1: embed preview renders at /dev/preview/embeds/events'
       surface: gui.web
     - &id220
       path: frontend/apps/web_app/tests/skill-events-search.spec.ts
-      line: 150
+      line: 153
       name: 'Phase 3: CLI chats new triggers events search'
       surface: cli
     tests:

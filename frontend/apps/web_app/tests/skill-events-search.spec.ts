@@ -27,7 +27,10 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
-const { verifyEmbedPreviewPage } = require('./helpers/embed-test-helpers');
+const {
+	verifyEmbedPreviewPage,
+	dismissVisibleNotifications
+} = require('./helpers/embed-test-helpers');
 const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
@@ -225,6 +228,7 @@ test.describe('App: Events / Skill: search', () => {
 			(window as any).__reportIssueStabilityProbe = value;
 			return value;
 		});
+		await dismissVisibleNotifications(page);
 		const directReportIssue = page.getByRole('button', { name: /^Report Issue$/i }).first();
 		if (await directReportIssue.isVisible().catch(() => false)) {
 			await directReportIssue.click();
