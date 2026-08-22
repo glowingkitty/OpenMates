@@ -188,7 +188,7 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	// If there are saved payment methods, the component shows the saved methods list
 	// with an "Add Payment Method" button. If there are none, the payment form shows
 	// directly. Either path is valid — click the button when present, otherwise skip.
-	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
+	const addPaymentMethodBtn = page.getByTestId('add-payment-method');
 	const hasAddBtn = await addPaymentMethodBtn.isVisible({ timeout: 15000 }).catch(() => false);
 	if (hasAddBtn) {
 		await addPaymentMethodBtn.click();

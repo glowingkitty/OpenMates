@@ -465,6 +465,7 @@ Supports both saved payment methods and new payment form
 
         <button
             class="add-payment-method-btn"
+            data-testid="add-payment-method"
             onclick={handleAddPaymentMethod}
         >
             {$text('settings.billing.add_payment_method')}
