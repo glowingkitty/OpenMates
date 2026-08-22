@@ -21,7 +21,7 @@ const cliExamplesProof = {
 	transcript: [
 		{
 			id: 'examples-visible',
-			text: 'The real OpenMates CLI prints the travel search_connections example chats in a graphical terminal recording.',
+			text: 'The OpenMates CLI command runs inside a real graphical terminal. The travel search_connections example list appears in the terminal output. The recording keeps the terminal pixels readable without reconstructing the CLI text.',
 			checkpoint: 'examples-visible',
 			devices: ['cli-terminal']
 		}
