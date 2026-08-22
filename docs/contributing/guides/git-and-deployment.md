@@ -313,8 +313,8 @@ Releases are always created as **drafts** targeting `main` and marked as **pre-r
 
 OpenMates separates the **user-facing product line** from exact artifact versions:
 
-- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.16`.
-- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.16.0-alpha.1`, `0.16.0a1`, or `v0.16.0-alpha.1` while in alpha.
+- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.17`.
+- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.17.0-alpha.1`, `0.17.0a1`, or `v0.17.0-alpha.1` while in alpha.
 - `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, and `cli.stableBase` / `python.stableBase` store the fixed artifact base for that line.
 
 Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
@@ -325,12 +325,12 @@ Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phas
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app currently shows **v0.16** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.16.0-alpha.N` for npm/GHCR and `0.16.0aN` for PyPI. The next minor product line is `v0.16`.
+**Current phase:** Alpha — the app currently shows **v0.17** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.17.0-alpha.N` for npm/GHCR and `0.17.0aN` for PyPI. The next minor product line is `v0.17`.
 
 **How to bump the version:**
 
-- **Alpha artifact** (`v0.16.0-alpha.0` → `v0.16.0-alpha.1`): additional dev publishes inside the same product line
-- **Minor product line** (`v0.16` → `v0.16`): new features added or significant changes
+- **Alpha artifact** (`v0.17.0-alpha.0` → `v0.17.0-alpha.1`): additional dev publishes inside the same product line
+- **Minor product line** (`v0.17` → `v0.17`): new features added or significant changes
 - **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**
@@ -346,10 +346,10 @@ git tag --sort=-v:refname | head -5
 Inspect the commits going into the PR and decide:
 
 - Mostly `fix:` commits → stay in the current product line; dev package/image workflows publish the next alpha artifact automatically
-- Any `feat:` commits → consider a new minor product line (e.g. `v0.16` → `v0.16`)
+- Any `feat:` commits → consider a new minor product line (e.g. `v0.17` → `v0.17`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.16`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.16.0`. Dev publishes prereleases on that fixed train (`0.16.0-alpha.0`, then `0.16.0-alpha.1` for npm/GHCR; `0.16.0a0`, then `0.16.0a1` for PyPI). Main publishes the configured stable base (`0.16.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.17`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.17.0`. Dev publishes prereleases on that fixed train (`0.17.0-alpha.0`, then `0.17.0-alpha.1` for npm/GHCR; `0.17.0a0`, then `0.17.0a1` for PyPI). Main publishes the configured stable base (`0.17.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 

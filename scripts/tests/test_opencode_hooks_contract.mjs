@@ -121,6 +121,21 @@ test("blocking hook messages always explain reason and next action", async () =>
   }
 });
 
+test("GitHub MCP tools are rejected in favor of gh CLI", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
+  await assert.rejects(
+    () => hooks["tool.execute.before"](
+      { tool: "github_get_me", sessionID: "test-session" },
+      { args: {} },
+    ),
+    /OpenMates GitHub MCP guard.*gh CLI/s,
+  );
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.githubMcpGuardDecisionForTest("bash").decision,
+    "allow",
+  );
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);
@@ -272,8 +287,11 @@ test("Docker mutation decision rejects direct Compose even with a Docker lock", 
   assert.match(decision.message, /openmates server restart --rebuild/);
 });
 
-test("bash guard allows programmatic source reads", async () => {
-  await assert.doesNotReject(() => runBeforeShell("python3 -c 'from pathlib import Path; print(Path(\"backend/core/example.py\").exists())'"));
+test("bash guard blocks nested interpreter source reads", async () => {
+  await assert.rejects(
+    () => runBeforeShell("python3 -c 'from pathlib import Path; print(Path(\"backend/core/example.py\").exists())'"),
+    /nested interpreter evaluation is blocked/,
+  );
 });
 
 test("bash guard blocks direct repo source redirection", async () => {
@@ -308,8 +326,11 @@ test("bash guard blocks local Playwright and Vitest commands", async () => {
   );
 });
 
-test("bash guard allows forbidden command examples inside quoted data", async () => {
-  await assert.doesNotReject(() => runBeforeShell("python3 -c 'print(\"git commit and npx playwright test are examples\")'"));
+test("bash guard blocks forbidden command examples inside nested interpreter data", async () => {
+  await assert.rejects(
+    () => runBeforeShell("python3 -c 'print(\"git commit and npx playwright test are examples\")'"),
+    /nested interpreter evaluation is blocked/,
+  );
 });
 
 test("bash guard still blocks actual raw git commands", async () => {

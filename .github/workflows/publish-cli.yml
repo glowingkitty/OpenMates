@@ -1,7 +1,7 @@
 # Publish openmates CLI to npm.
 # - dev branch → publishes the next prerelease on the configured alpha train
-#   to npm `alpha`, e.g. 0.16.0-alpha.4
-# - main branch → publishes the configured stable base to npm `latest`, e.g. 0.16.0
+#   to npm `alpha`, e.g. 0.X.0-alpha.4
+# - main branch → publishes the configured stable base to npm `latest`, e.g. 0.X.0
 # - pull requests → validate build/tests only, never publish
 #
 # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.

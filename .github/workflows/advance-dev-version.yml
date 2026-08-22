@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: advance-dev-version
@@ -53,15 +54,29 @@ jobs:
         working-directory: dev
         run: python3 scripts/bump_alpha_version_line.py --minor "${{ steps.version.outputs.minor }}"
 
-      - name: Commit dev version bump
+      - name: Create dev version bump pull request
         working-directory: dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if git diff --quiet; then
             echo "dev is already on v0.${{ steps.version.outputs.minor }}; no commit needed."
             exit 0
           fi
+          title="chore: advance dev to v0.${{ steps.version.outputs.minor }}"
+          existing_pr=$(gh pr list --base dev --state open --json number,title --jq ".[] | select(.title == \"$title\") | .number" | sed -n '1p')
+          if [ -n "$existing_pr" ]; then
+            echo "Version bump PR #$existing_pr already exists."
+            exit 0
+          fi
+          branch="automation/advance-dev-v0.${{ steps.version.outputs.minor }}-${{ github.run_id }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "chore: advance dev to v0.${{ steps.version.outputs.minor }}"
-          git push origin HEAD:dev
+          git commit -m "$title"
+          git push origin HEAD:"$branch"
+          gh pr create \
+            --base dev \
+            --head "$branch" \
+            --title "$title" \
+            --body "Automated product-line bump after a merged PR to main.\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

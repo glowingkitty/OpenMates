@@ -1,6 +1,6 @@
 # Publish the OpenMates Python SDK to PyPI.
-# - dev branch → next alpha on the configured alpha train, e.g. 0.16.0a4
-# - main branch → configured stable base, e.g. 0.16.0
+# - dev branch → next alpha on the configured alpha train, e.g. 0.X.0a4
+# - main branch → configured stable base, e.g. 0.X.0
 # - pull requests → validate build/tests only, never publish
 #
 # Uses PyPI Trusted Publishing (OIDC) — no PYPI_API_TOKEN secret needed.

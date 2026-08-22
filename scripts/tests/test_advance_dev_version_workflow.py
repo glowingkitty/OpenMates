@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Tests for deterministic dev version advancement after main PR merges.
 
 The GitHub workflow must keep dev on the next alpha train after a release PR is
@@ -23,7 +24,7 @@ def test_advance_dev_version_workflow_runs_after_merged_main_pr() -> None:
     pull_request = workflow[True]["pull_request"]
     assert pull_request["branches"] == ["main"]
     assert pull_request["types"] == ["closed"]
-    assert workflow["permissions"] == {"contents": "write"}
+    assert workflow["permissions"] == {"contents": "write", "pull-requests": "write"}
     assert workflow["jobs"]["advance"]["if"] == "github.event.pull_request.merged == true"
 
 
@@ -33,5 +34,9 @@ def test_advance_dev_version_workflow_uses_canonical_bump_script() -> None:
     assert "shared/config/product_version.json" in text
     assert "minor + 1" in text
     assert "scripts/bump_alpha_version_line.py --minor" in text
-    assert "git push origin HEAD:dev" in text
+    assert "git push origin HEAD:\"$branch\"" in text
+    assert "gh pr create" in text
+    assert "existing_pr=$(gh pr list --base dev --state open" in text
+    assert "github.run_id" in text
+    assert "--base dev" in text
     assert "git diff --quiet" in text

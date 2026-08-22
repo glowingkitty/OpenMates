@@ -52,6 +52,7 @@ const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
+const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LIFECYCLE_MARKER = "[OpenMates server lifecycle guard]";
@@ -77,6 +78,7 @@ function hashHookSource() {
 }
 
 const HOOK_RUNTIME_HASH = hashHookSource();
+const GITHUB_MCP_TOOL_PATTERN = /^(?:github|mcp__github)(?:[_\-.]|$)/i;
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
@@ -382,6 +384,18 @@ function repeatedRoutingFailureMessageForTest(message, count, diagnostic = hookR
     ? "restart the OpenCode runtime once so it loads the current hook, then retry once."
     : "run python3 scripts/sessions.py status --json and return the routing diagnostics to the parent.";
   return `${message} Circuit breaker: Do not retry the same tool call. ${hashes}. Next: ${next}`;
+}
+
+function githubMcpGuardDecisionForTest(tool) {
+  if (!GITHUB_MCP_TOOL_PATTERN.test(tool || "")) return { decision: "allow", message: "" };
+  return {
+    decision: "block",
+    message: actionable(
+      GITHUB_MCP_GUARD_MARKER,
+      `GitHub MCP tool '${tool}' is not the canonical OpenMates GitHub access path and can use stale credentials.`,
+      "use the authenticated local gh CLI from a sessions.py worktree, for example `gh pr list`, `gh run view`, or `gh api`.",
+    ),
+  };
 }
 
 function eventSessionID(event) {
@@ -2182,6 +2196,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     },
     "tool.execute.before": async (input, output) => {
       const tool = input.tool || "";
+      const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
+      if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
 
       if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
@@ -2335,6 +2351,7 @@ OpenMatesHooks.test = Object.freeze({
   editedFilesForBindingForTest,
   editedFilesForTest,
   hookRuntimeDiagnosticForTest,
+  githubMcpGuardDecisionForTest,
   initialPresenceForTest,
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,

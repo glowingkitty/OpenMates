@@ -51,9 +51,6 @@ TEXT_VERSION_PATHS = [
     "docs/contributing/guides/git-and-deployment.md",
     "docs/contributing/guides/publish-python-sdk.md",
     "README.md",
-    ".github/workflows/publish-cli.yml",
-    ".github/workflows/publish-python-sdk.yml",
-    ".github/workflows/publish-selfhost-images.yml",
     "scripts/prepare_cli_publish_version.mjs",
     "scripts/prepare_python_publish_version.py",
     ".claude/skills/create-release/SKILL.md",
@@ -69,9 +66,6 @@ AUDIT_INCLUDE_PATHS = set(
     + [
         "shared/config/product_version.json",
         "packages/openmates-python/pyproject.toml",
-        ".github/workflows/publish-cli.yml",
-        ".github/workflows/publish-python-sdk.yml",
-        ".github/workflows/publish-selfhost-images.yml",
         "scripts/prepare_cli_publish_version.mjs",
         "scripts/prepare_python_publish_version.py",
     ]
