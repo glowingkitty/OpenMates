@@ -41,6 +41,7 @@ test.describe('Embeds map view preview', () => {
 		});
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('renders source-backed refs responsively without app-skill or embed API calls', async ({ page }) => {
 		test.setTimeout(90_000);
 
@@ -57,9 +58,10 @@ test.describe('Embeds map view preview', () => {
 		await expect(page.getByTestId('breadcrumb-name')).toHaveText('EmbedsMapView');
 
 		const mapView = page.getByTestId('embeds-map-view');
+		const mapPane = mapView.getByTestId('embeds-map-view-map');
 		await expect(mapView).toBeVisible({ timeout: 30_000 });
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin AI events and routes');
-		await expect(mapView).toHaveAttribute('data-map-hydration-count', '1', { timeout: 15_000 });
+		await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true', { timeout: 15_000 });
 
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(5, { timeout: 15_000 });
@@ -85,7 +87,7 @@ test.describe('Embeds map view preview', () => {
 		await expect(cards).toHaveCount(5);
 		await mapView.getByTestId('embeds-results-view-tab-map').click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
-		await expect(mapView).toHaveAttribute('data-map-hydration-count', '1');
+		await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true');
 
 		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
 		await expect(filterButton).toBeVisible();
@@ -126,6 +128,7 @@ test.describe('Embeds map view preview', () => {
 		expect(forbiddenApiCalls).toEqual([]);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('uses manual light theme for OpenStreetMap tiles when OS is dark', async ({ page }) => {
 		test.setTimeout(90_000);
 
