@@ -25,9 +25,13 @@ MAP_VIEW_CAPABLE_SKILLS = {
     ("fitness", "search_classes"),
     ("fitness", "search_locations"),
     ("health", "search_appointments"),
+    ("home", "search"),
     ("maps", "search"),
     ("travel", "search_connections"),
     ("travel", "search_stays"),
+}
+MAP_VIEW_CAPABLE_PRESELECTED_SKILL_IDS = {
+    f"{app_id}-{skill_id}" for app_id, skill_id in MAP_VIEW_CAPABLE_SKILLS
 }
 _MAP_VIEW_REQUEST_RE = re.compile(r"\b(map|map/list|mapped|route|routes|locations?|nearby)\b", re.IGNORECASE)
 _INLINE_EMBED_REF_RE = re.compile(r"\]\(embed:([^\s)]+)\)")
@@ -121,6 +125,36 @@ def should_include_embeds_map_view_hint(app_id: str, skill_id: str, user_texts: 
     if (app_id, skill_id) not in MAP_VIEW_CAPABLE_SKILLS:
         return False
     return not is_map_view_suppressed_request(user_texts)
+
+
+def content_has_map_view_capable_skill_marker(content: str) -> bool:
+    """Return whether prior content appears to contain visual-capable embed results."""
+
+    if not isinstance(content, str) or not content:
+        return False
+    if content_has_map_capable_app_skill_use(content):
+        return True
+    compact = "".join(content.split())
+    for app_id, skill_id in MAP_VIEW_CAPABLE_SKILLS:
+        if f"app_id: {app_id}" in content and f"skill_id: {skill_id}" in content:
+            return True
+        if f'"app_id":"{app_id}"' in compact and f'"skill_id":"{skill_id}"' in compact:
+            return True
+    return False
+
+
+def should_include_embeds_results_view_instruction(
+    preselected_skill_ids: Iterable[str] | None,
+    user_texts: Iterable[str],
+    history_texts: Iterable[str],
+) -> bool:
+    """Return whether the model should see map/calendar results-view syntax."""
+
+    if is_map_view_suppressed_request(user_texts):
+        return False
+    if set(preselected_skill_ids or []) & MAP_VIEW_CAPABLE_PRESELECTED_SKILL_IDS:
+        return True
+    return any(content_has_map_view_capable_skill_marker(text) for text in history_texts)
 
 
 def is_map_view_request(user_texts: Iterable[str]) -> bool:

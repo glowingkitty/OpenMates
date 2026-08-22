@@ -46,6 +46,7 @@ from backend.apps.ai.utils.llm_utils import (
 )
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
+    should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
@@ -2806,12 +2807,14 @@ async def handle_main_processing(
     # Uses the same lightweight substring checks as the preprocessor's skill-forcing logic.
     _has_any_embeds_in_history = False
     _has_quotable_embeds_in_history = False
+    _embed_history_texts: List[str] = []
     for _msg in request_data.message_history:
         _msg_content = _msg.content if hasattr(_msg, "content") else (
             _msg.get("content") if isinstance(_msg, dict) else None
         )
         if not isinstance(_msg_content, str):
             continue
+        _embed_history_texts.append(_msg_content)
         # Any TOON block with an embed_ref field indicates embed results from a previous turn
         if not _has_any_embeds_in_history and "embed_ref:" in _msg_content:
             _has_any_embeds_in_history = True
@@ -2824,9 +2827,6 @@ async def handle_main_processing(
             ("app_id: web" in _msg_content and "skill_id: read" in _msg_content)
         ):
             _has_quotable_embeds_in_history = True
-        if _has_any_embeds_in_history and _has_quotable_embeds_in_history:
-            break
-
     # Determine whether the current turn is about to produce embeds.
     # If a composite skill is preselected, the LLM will receive embed_ref slugs in tool results.
     _current_turn_produces_embeds = bool(
@@ -2842,13 +2842,29 @@ async def handle_main_processing(
     _include_embed_referencing = _has_any_embeds_in_history or _current_turn_produces_embeds
     if _include_embed_referencing:
         prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
-        prompt_parts.append(EMBEDS_MAP_VIEW_INSTRUCTION)
         logger.debug(
             f"{log_prefix} [EMBED_PROMPT] Injected embed referencing instruction "
             f"(history_embeds={_has_any_embeds_in_history}, current_turn_produces={_current_turn_produces_embeds})"
         )
     else:
         logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped embed referencing instruction — no embeds in history or preselected skills")
+
+    _include_results_view_instruction = should_include_embeds_results_view_instruction(
+        preselected_skills,
+        _iter_user_request_texts(request_data),
+        _embed_history_texts,
+    )
+    if _include_results_view_instruction:
+        prompt_parts.append(EMBEDS_MAP_VIEW_INSTRUCTION)
+        logger.debug(
+            f"{log_prefix} [EMBED_PROMPT] Injected embeds results-view instruction "
+            "for visual-capable current or historical embeds"
+        )
+    else:
+        logger.debug(
+            f"{log_prefix} [EMBED_PROMPT] Skipped embeds results-view instruction — "
+            "no visual-capable embeds in history or preselected skills"
+        )
 
     # Inject source quote instruction only when quotable search results exist or are expected.
     # Quotable embed types: web search results, news search results (contain title/description/snippets).
