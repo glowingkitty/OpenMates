@@ -382,7 +382,8 @@ def _save_to_cache(
             "chunks": [_serialize_stream_chunk(chunk) for chunk in all_chunks],
         }
 
-    cache.save(
+    _save_cache_entry(
+        cache,
         group_id=group_id,
         category=category,
         fingerprint=fingerprint,
@@ -400,7 +401,8 @@ def _save_non_stream_to_cache(
     kwargs: dict,
 ) -> None:
     request_summary = _build_llm_request_summary(kwargs, _model_from_kwargs(kwargs))
-    cache.save(
+    _save_cache_entry(
+        cache,
         group_id=group_id,
         category=category,
         fingerprint=fingerprint,
@@ -410,6 +412,33 @@ def _save_non_stream_to_cache(
             "value": _serialize_stream_chunk(response),
         },
     )
+
+
+def _save_cache_entry(
+    cache: ApiResponseCache,
+    *,
+    group_id: str,
+    category: str,
+    fingerprint: str,
+    request_summary: dict[str, Any],
+    response_data: dict[str, Any],
+) -> None:
+    try:
+        cache.save(
+            group_id=group_id,
+            category=category,
+            fingerprint=fingerprint,
+            request_summary=request_summary,
+            response_data=response_data,
+        )
+    except OSError as exc:
+        logger.warning(
+            "[LiveMock] Failed to save cache entry %s/%s (group=%s): %s",
+            category,
+            fingerprint,
+            group_id,
+            exc,
+        )
 
 
 def _deserialize_non_stream_response(response_data: Any) -> Any:

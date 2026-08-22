@@ -92,6 +92,17 @@ class FakeNonStreamCache(FakeCache):
         self.saved_response = kwargs["response_data"]
 
 
+class FakeFailingSaveCache(FakeCache):
+    def load(self, group_id, category, fingerprint):
+        assert group_id == "fork-conversation"
+        assert category in {"llm/test-model", "llm_non_stream/test-model"}
+        assert fingerprint == "cached-fingerprint"
+        return None
+
+    def save(self, **_kwargs):
+        raise PermissionError("cache path is read-only")
+
+
 async def _replay(cache, messages):
     async def provider_fn(**_kwargs):
         raise AssertionError("mock replay should not call the real provider")
@@ -232,6 +243,33 @@ def test_record_non_stream_provider_saves_response_for_replay():
         "type": "non_stream",
         "value": {"kind": "json", "value": {"success": True, "category": "web/read"}},
     }
+
+
+def test_record_non_stream_provider_returns_response_when_cache_save_fails(caplog):
+    provider_calls = 0
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return {"success": True, "category": "events/search"}
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, FakeFailingSaveCache())
+            return await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Classify this request"}],
+                stream=False,
+            )
+        finally:
+            deactivate_mock_mode()
+
+    response = asyncio.run(exercise_wrapper())
+
+    assert provider_calls == 1
+    assert response == {"success": True, "category": "events/search"}
+    assert "Failed to save cache entry llm_non_stream/test-model/cached-fingerprint" in caplog.text
 
 
 def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
@@ -494,6 +532,37 @@ def test_record_stream_provider_awaits_real_provider_before_iterating_and_saving
     assert asyncio.run(exercise_wrapper()) == ["rec", "orded"]
     assert provider_calls == 1
     assert cache.saved_response == {"type": "stream", "body": "recorded", "chunk_count": 2}
+
+
+def test_record_stream_provider_returns_chunks_when_cache_save_fails(caplog):
+    provider_calls = 0
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+
+        async def _stream():
+            yield "rec"
+            yield "orded"
+
+        return _stream()
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, FakeFailingSaveCache())
+            chunk_stream = await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Reply with alpha"}],
+                stream=True,
+            )
+            return [chunk async for chunk in chunk_stream]
+        finally:
+            deactivate_mock_mode()
+
+    assert asyncio.run(exercise_wrapper()) == ["rec", "orded"]
+    assert provider_calls == 1
+    assert "Failed to save cache entry llm/test-model/cached-fingerprint" in caplog.text
 
 
 def test_record_stream_provider_saves_mixed_chunks_for_replay():
