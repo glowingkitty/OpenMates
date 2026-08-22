@@ -233,6 +233,86 @@ def test_start_current_disambiguates_proof_source_run_id(
     assert result["context"]["source_run_id"] == "31889726729"
 
 
+def test_start_current_auto_approves_spec_owned_timeline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deployed_commit = "a" * 40
+    sessions_file = tmp_path / "control" / ".claude" / "sessions.json"
+    proof_sources = tmp_path / "worktree" / "test-results" / "proof-video-sources"
+    timeline_path = tmp_path / "worktree" / "test-results" / "recordings" / "latest" / "example" / "proof-timeline.json"
+    proof_sources.mkdir(parents=True)
+    timeline_path.parent.mkdir(parents=True)
+    sessions_file.parent.mkdir(parents=True)
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "opencode_session_id": "ses_current",
+                        "worktree": {"merged_commit": deployed_commit},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    timeline_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "device": "web-laptop",
+                "contract": {
+                    "id": "example-proof",
+                    "title": "Example proof",
+                    "surface": "web",
+                    "devices": ["web-laptop"],
+                    "domain": "app.dev.openmates.org",
+                    "transcript": [{"id": "ready", "text": "The example proof is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+                    "assertions": [{"id": "example.visible", "visual": "The example proof screen is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+                },
+                "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 10}],
+                "assertion_results": [{"id": "example.visible", "status": "passed"}],
+                "checkpoint_frames": [{"checkpoint": "ready", "sha256": "sha256:" + "0" * 64}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (proof_sources / "run-current.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run-current",
+                "git_sha": deployed_commit,
+                "deployment_reference": deployed_commit,
+                "status": "passed",
+                "spec": "example.spec.ts",
+                "source": "scripts_tests",
+                "deployment_verified": True,
+                "proof_timeline_path": str(timeline_path),
+                "proof_timeline_sha256": workflow._file_sha256(timeline_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
+    monkeypatch.setattr(workflow, "APPROVALS_DIR", tmp_path / "worktree" / "test-results" / "proof-video-approvals")
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path / "worktree")
+    monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: [])
+    monkeypatch.setattr(workflow, "_current_git_sha", lambda: "b" * 40)
+
+    result = workflow.start_current("example.spec.ts")
+
+    assert result["status"] == "contract_approved"
+    assert result["approval_source"] == "spec_timeline"
+    assert result["device_profile"] == "web-laptop"
+    approval_record = json.loads((workflow.APPROVALS_DIR / "abcd" / "example.spec.json").read_text(encoding="utf-8"))
+    assert approval_record["approval_source"] == "spec_timeline"
+    assert approval_record["proof_timeline_sha256"] == workflow._file_sha256(timeline_path)
+
+
 def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
     commit = "a" * 40
     runs = [
@@ -331,6 +411,59 @@ def test_device_scoped_contract_selects_only_applicable_claims() -> None:
     assert laptop["acceptance_criteria"] == ["shared", "laptop-header"]
     assert "laptop board" in laptop["caption_text"]
     assert "phone board" not in laptop["caption_text"]
+
+
+def test_spec_timeline_render_claims_use_passed_spec_owned_contract(tmp_path: Path) -> None:
+    frame = tmp_path / "ready.png"
+    frame.write_bytes(b"frame")
+    timeline = {
+        "schema_version": 1,
+        "device": "web-laptop",
+        "contract": {
+            "id": "deep-research-proof",
+            "title": "Deep research proof",
+            "surface": "web",
+            "devices": ["web-laptop"],
+            "domain": "app.dev.openmates.org",
+            "transcript": [
+                {"id": "ready", "text": "Deep research shows delegated child chats.", "checkpoint": "ready", "devices": ["web-laptop"]}
+            ],
+            "assertions": [
+                {"id": "children.visible", "visual": "Three child-chat cards are visible.", "checkpoint": "ready", "devices": ["web-laptop"]}
+            ],
+        },
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 100}],
+        "assertion_results": [{"id": "children.visible", "status": "passed"}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": workflow._file_sha256(frame)}],
+    }
+
+    claims = workflow.spec_timeline_render_claims(timeline, device_profile="web-laptop")
+
+    assert claims["caption_text"] == "Deep research shows delegated child chats."
+    assert claims["expected_proof"] == "Three child-chat cards are visible."
+    assert claims["acceptance_criteria"] == ["children.visible"]
+    assert claims["domain"] == "app.dev.openmates.org"
+
+
+def test_spec_timeline_contract_rejects_unpassed_assertion(tmp_path: Path) -> None:
+    frame = tmp_path / "ready.png"
+    frame.write_bytes(b"frame")
+    timeline = {
+        "schema_version": 1,
+        "device": "web-laptop",
+        "contract": {
+            "title": "Deep research proof",
+            "surface": "web",
+            "devices": ["web-laptop"],
+            "transcript": [{"text": "Deep research is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+            "assertions": [{"id": "visible", "visual": "Deep research is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+        },
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": workflow._file_sha256(frame)}],
+        "assertion_results": [{"id": "visible", "status": "failed"}],
+    }
+
+    with pytest.raises(workflow.WorkflowError, match="did not pass"):
+        workflow.spec_timeline_render_claims(timeline, device_profile="web-laptop")
 
 
 def test_device_scoped_contract_rejects_unknown_or_uncovered_devices() -> None:

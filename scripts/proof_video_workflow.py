@@ -217,13 +217,16 @@ def canonical_contract(contract: dict[str, Any]) -> dict[str, Any]:
             raise WorkflowError(f"proof device {device} requires at least one assertion")
         if not any(device in item["devices"] for item in canonical_transcript):
             raise WorkflowError(f"proof device {device} requires at least one transcript item")
-    return {
+    result = {
         "schema_version": 2,
         "title": title.strip(),
         "transcript": canonical_transcript,
         "assertions": canonical_assertions,
         "devices": canonical_devices,
     }
+    if isinstance(contract.get("domain"), str) and contract["domain"].strip():
+        result["domain"] = contract["domain"].strip()
+    return result
 
 
 def contract_hash(contract: dict[str, Any]) -> str:
@@ -257,6 +260,10 @@ def approval_record_path(session_id: str, spec_name: str) -> Path:
     return APPROVALS_DIR / session_id / f"{Path(spec_name).stem}.json"
 
 
+def spec_owned_contract_path(session_id: str, spec_name: str) -> Path:
+    return APPROVALS_DIR / session_id / f"{Path(spec_name).stem}.spec-owned-contract.json"
+
+
 def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
     contract = _load_json(contract_path)
     actual_hash = contract_hash(contract)
@@ -270,6 +277,28 @@ def record_contract_approval(*, session_id: str, spec_name: str, contract_path: 
     }
     path = approval_record_path(session_id, spec_name)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+    return record
+
+
+def record_spec_owned_contract_approval(*, session_id: str, spec_name: str, timeline_path: Path) -> dict[str, Any]:
+    timeline = _load_json(timeline_path)
+    timeline_hash = _file_sha256(timeline_path)
+    contract = write_contract(
+        spec_owned_contract_path(session_id, spec_name),
+        spec_timeline_contract(timeline, device_profile=str(timeline.get("device") or "")),
+    )
+    record = record_contract_approval(session_id=session_id, spec_name=spec_name, contract_path=spec_owned_contract_path(session_id, spec_name))
+    record.update(
+        {
+            "approval_source": "spec_timeline",
+            "proof_timeline_path": str(timeline_path.resolve()),
+            "proof_timeline_sha256": timeline_hash,
+            "device_profile": (contract.get("devices") or [""])[0],
+        }
+    )
+    path = approval_record_path(session_id, spec_name)
     path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     path.chmod(0o600)
     return record
@@ -305,7 +334,80 @@ def approved_render_claims(contract: dict[str, Any], *, device_profile: str | No
         "acceptance_criteria": [assertion["id"] for assertion in assertions],
         "assertions": assertions,
         "contract_hash": contract_hash(canonical),
+        **({"domain": canonical["domain"]} if canonical.get("domain") else {}),
     }
+
+
+def spec_timeline_contract(timeline: dict[str, Any], *, device_profile: str | None = None) -> dict[str, Any]:
+    """Convert a spec-owned Playwright proof timeline into a canonical render contract."""
+
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if contract.get("surface") != "web":
+        raise WorkflowError("spec-owned proof timeline must describe a web surface")
+    devices = contract.get("devices") if isinstance(contract.get("devices"), list) else []
+    if device_profile is None:
+        device_profile = str(timeline.get("device") or "")
+    if device_profile not in devices:
+        raise WorkflowError("spec-owned proof timeline device must be declared by the contract")
+
+    reached_checkpoints = {
+        str(item.get("checkpoint") or item.get("id") or "")
+        for item in timeline.get("checkpoint_frames", [])
+        if isinstance(item, dict)
+    }
+    reached_checkpoints.update(
+        str(item.get("id") or "")
+        for item in timeline.get("events", [])
+        if isinstance(item, dict) and item.get("kind") == "checkpoint"
+    )
+    passed_assertions = {
+        str(item.get("id") or "")
+        for item in timeline.get("assertion_results", [])
+        if isinstance(item, dict) and item.get("status") == "passed"
+    }
+
+    transcript: list[dict[str, Any]] = []
+    for cue in contract.get("transcript", []):
+        if not isinstance(cue, dict) or device_profile not in (cue.get("devices") or []):
+            continue
+        checkpoint = str(cue.get("checkpoint") or "")
+        if checkpoint not in reached_checkpoints:
+            raise WorkflowError(f"spec-owned proof transcript checkpoint was not reached: {checkpoint}")
+        transcript.append({"text": str(cue.get("text") or ""), "devices": [device_profile]})
+
+    assertions: list[dict[str, Any]] = []
+    for assertion in contract.get("assertions", []):
+        if not isinstance(assertion, dict) or device_profile not in (assertion.get("devices") or []):
+            continue
+        assertion_id = str(assertion.get("id") or "")
+        checkpoint = str(assertion.get("checkpoint") or "")
+        if checkpoint not in reached_checkpoints:
+            raise WorkflowError(f"spec-owned proof assertion checkpoint was not reached: {checkpoint}")
+        if assertion_id not in passed_assertions:
+            raise WorkflowError(f"spec-owned proof assertion did not pass: {assertion_id}")
+        assertions.append({"id": assertion_id, "description": str(assertion.get("visual") or ""), "devices": [device_profile]})
+
+    domain = str(contract.get("domain") or "")
+    canonical_input = {
+        "schema_version": 2,
+        "title": str(contract.get("title") or ""),
+        "transcript": transcript,
+        "assertions": assertions,
+        "devices": [device_profile],
+    }
+    if domain:
+        canonical_input["domain"] = domain
+    return canonical_contract(canonical_input)
+
+
+def spec_timeline_render_claims(timeline: dict[str, Any], *, device_profile: str | None = None) -> dict[str, Any]:
+    """Return caption and assertion claims from a validated spec-owned timeline."""
+
+    canonical = spec_timeline_contract(timeline, device_profile=device_profile)
+    claims = approved_render_claims(canonical, device_profile=canonical["devices"][0])
+    if canonical.get("domain"):
+        claims["domain"] = canonical["domain"]
+    return claims
 
 
 def marker_trim_start(*, ready_timestamp_seconds: float, lead_seconds: float = MARKER_TRIM_LEAD_SECONDS) -> float:
@@ -1066,6 +1168,38 @@ def _local_test_runs() -> list[dict[str, Any]]:
     return [data for path in sorted(PROOF_SOURCE_DIR.glob("*.json"), reverse=True) if (data := _load_json(path))]
 
 
+def _context_run_records(context: ProofContext, runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        run
+        for run in runs
+        if run.get("status") == "passed"
+        and run.get("spec") == context.spec_name
+        and run.get("source") == "scripts_tests"
+        and run.get("deployment_verified") is True
+        and str(run.get("git_sha") or "") == context.subject_commit
+        and context.source_run_id in {str(run.get("run_id") or ""), str(run.get("source_run_id") or "")}
+    ]
+
+
+def _spec_owned_timeline_path(context: ProofContext, runs: list[dict[str, Any]]) -> Path | None:
+    timeline_paths: list[Path] = []
+    for run in _context_run_records(context, runs):
+        value = str(run.get("proof_timeline_path") or "")
+        if not value:
+            continue
+        timeline_path = Path(value).resolve()
+        if not timeline_path.is_file():
+            raise WorkflowError(f"spec-owned proof timeline is missing: {value}")
+        expected_hash = str(run.get("proof_timeline_sha256") or "")
+        if expected_hash and _file_sha256(timeline_path) != expected_hash:
+            raise WorkflowError("spec-owned proof timeline hash changed")
+        if timeline_path not in timeline_paths:
+            timeline_paths.append(timeline_path)
+    if len(timeline_paths) > 1:
+        raise WorkflowError("multiple spec-owned proof timelines match this run; provide a narrower run ID")
+    return timeline_paths[0] if timeline_paths else None
+
+
 def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, source_video: Path | None = None) -> dict[str, Any]:
     matches = [
         run
@@ -1129,6 +1263,26 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
         test_runs=runs,
     )
     run_dir = RESULTS_DIR / "proof-videos" / context.session_id / Path(spec_name).stem
+    timeline_path = _spec_owned_timeline_path(context, runs)
+    if timeline_path is not None:
+        approval = record_spec_owned_contract_approval(
+            session_id=context.session_id,
+            spec_name=context.spec_name,
+            timeline_path=timeline_path,
+        )
+        return {
+            "status": "contract_approved",
+            "approval_source": "spec_timeline",
+            "context": asdict(context),
+            "run_dir": str(run_dir.relative_to(REPO_ROOT)),
+            "resource_limits": resource_limits(),
+            "contract_path": approval["contract_path"],
+            "contract_hash": approval["contract_hash"],
+            "proof_timeline_path": approval["proof_timeline_path"],
+            "proof_timeline_sha256": approval["proof_timeline_sha256"],
+            "device_profile": approval["device_profile"],
+            "next_action": "Spec-owned proof contract is already approved by the passing timeline; produce, review, and publish without a separate chat approval.",
+        }
     return {
         "status": "awaiting_contract",
         "context": asdict(context),

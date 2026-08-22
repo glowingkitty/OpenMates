@@ -20,23 +20,29 @@ action instead of searching artifacts manually.
 
 ## Approval Boundary
 
-For new user-visible claims, draft and show the user the complete proof contract
-before capture:
+If `start --current --spec ...` returns `status: contract_approved` with
+`approval_source: spec_timeline`, the deployed spec already emitted its checked-in
+proof contract and passed every declared assertion. Do not ask for a second chat
+approval; continue directly to render/review/publish.
+
+Only for legacy proofs without a spec-owned timeline, draft and show the user the
+complete proof contract before capture:
 
 - Three to five short tutorial-style caption sentences.
 - One to five assertions describing what must be visibly or terminally true.
 - Required device profiles.
 - Every caption sentence and assertion lists the exact device profiles where it applies.
 
-Save the canonical contract only after explicit approval, then persist the approval
-record before rendering:
+For legacy proofs, save the canonical contract only after explicit approval, then
+persist the approval record before rendering:
 
 ```bash
 python3 scripts/proof_video_workflow.py approve --session <short-session> --spec <name>.spec.ts --contract <contract.json>
 ```
 
-An unchanged already-approved contract may be reused. The transcript is canonical;
-audio is off by default and `--audio-path` is an explicit opt-in.
+An unchanged already-approved contract may be reused. The spec-owned or approved
+transcript is canonical; audio is off by default and `--audio-path` is an explicit
+opt-in.
 
 ## Capture And Render
 

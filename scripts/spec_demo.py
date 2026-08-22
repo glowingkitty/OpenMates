@@ -1355,6 +1355,8 @@ def produce_playwright_demonstration(
     hold_last_frame_seconds: float = 0.0,
     ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
+    spec_timeline: dict[str, Any] | None = None,
+    browser_domain: str = "",
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
@@ -1441,7 +1443,7 @@ def produce_playwright_demonstration(
         proof_assertions=proof_assertions,
         proof_contract_hash=proof_contract_hash,
         proof_group_id=proof_group_id,
-        source={"kind": "playwright", **selected},
+        source={"kind": "playwright", **selected, **({"browser_domain": browser_domain} if browser_domain else {})},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
         device_profile=device_profile,
