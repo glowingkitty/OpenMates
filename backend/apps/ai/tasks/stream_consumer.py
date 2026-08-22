@@ -1905,6 +1905,29 @@ async def _fix_bad_embed_display_text(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
             )
 
+    # Handle raw known embed refs where the model omitted both markdown brackets
+    # and the (embed:...) parenthetical, e.g. `Source: example.com-abc`.
+    if embed_ref_to_title:
+        standalone_fixed = 0
+        for embed_ref in sorted(embed_ref_to_title, key=len, reverse=True):
+            pattern = re.compile(
+                rf"(?<![A-Za-z0-9._~:/-])({re.escape(embed_ref)})(?![A-Za-z0-9._~:/-])"
+            )
+            for match in reversed(list(pattern.finditer(modified))):
+                if _is_markdown_literal_position(modified, match.start()):
+                    continue
+                if modified[max(0, match.start() - len("embed:")):match.start()] == "embed:":
+                    continue
+                display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
+                new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
+                modified = modified[:match.start()] + new_link + modified[match.end():]
+                standalone_fixed += 1
+
+        if standalone_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {standalone_fixed} standalone embed ref(s)"
+            )
+
     return modified
 
 

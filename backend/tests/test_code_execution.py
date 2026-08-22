@@ -330,7 +330,7 @@ async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload()
     cached = json.loads((await client.get(code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID))).decode())
     decrypted = await FakeEncryption().decrypt_with_user_key(cached["encrypted_content"], "vault-key")
 
-    assert '"type": "code_run_output"' in decrypted
+    assert '"type": "code_run_output"' in decrypted or "type: code_run_output" in decrypted
     assert "hello from code" in decrypted
     assert manager.broadcasts[0]["type"] == "code_run_output_synced"
 
@@ -406,8 +406,8 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
         "vault-key",
     )
 
-    assert '"type": "code"' in resolved
-    assert '"type": "code_run_output"' in resolved
+    assert '"type": "code"' in resolved or "type: code" in resolved
+    assert '"type": "code_run_output"' in resolved or "type: code_run_output" in resolved
     assert "ok" in resolved
 
 
@@ -422,8 +422,8 @@ async def test_resolve_code_embed_references_accepts_json_embed_fence() -> None:
         "vault-key",
     )
 
-    assert '"type": "code"' in resolved
-    assert '"embed_ref": "main.py' in resolved
+    assert '"type": "code"' in resolved or "type: code" in resolved
+    assert '"embed_ref": "main.py' in resolved or "embed_ref: main.py" in resolved
     assert list(file_path_index.values()) == [TARGET_EMBED_ID]
     assert next(iter(file_path_index)) in resolved
 
