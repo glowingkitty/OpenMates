@@ -242,19 +242,24 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(visibleTeamChat).toBeVisible({ timeout: 30000 });
 			await expect(visibleTeamChat).toContainText('New team chat', { timeout: 15000 });
 			await expect(visibleTeamChat).not.toContainText('Processing...', { timeout: 30000 });
-			const detailsButton = page.getByTestId('chat-details-button');
-			await expect(detailsButton).toBeVisible({ timeout: 15000 });
-			const [messageBox, detailsBox] = await Promise.all([
-				ordinaryTeamMessage.boundingBox(),
-				detailsButton.boundingBox()
-			]);
-			expect(messageBox).not.toBeNull();
-			expect(detailsBox).not.toBeNull();
-			const overlapsDetails = messageBox!.x < detailsBox!.x + detailsBox!.width
-				&& messageBox!.x + messageBox!.width > detailsBox!.x
-				&& messageBox!.y < detailsBox!.y + detailsBox!.height
-				&& messageBox!.y + messageBox!.height > detailsBox!.y;
-			expect(overlapsDetails).toBe(false);
+			// Desktop history narrows the still-visible chat, so assert its floating
+			// controls cannot overlap the message. Phone history is a full-screen
+			// overlay; the covered chat geometry is intentionally out of view there.
+			if ((page.viewportSize()?.width ?? 0) > 730) {
+				const detailsButton = page.getByTestId('chat-details-button');
+				await expect(detailsButton).toBeVisible({ timeout: 15000 });
+				const [messageBox, detailsBox] = await Promise.all([
+					ordinaryTeamMessage.boundingBox(),
+					detailsButton.boundingBox()
+				]);
+				expect(messageBox).not.toBeNull();
+				expect(detailsBox).not.toBeNull();
+				const overlapsDetails = messageBox!.x < detailsBox!.x + detailsBox!.width
+					&& messageBox!.x + messageBox!.width > detailsBox!.x
+					&& messageBox!.y < detailsBox!.y + detailsBox!.height
+					&& messageBox!.y + messageBox!.height > detailsBox!.y;
+				expect(overlapsDetails).toBe(false);
+			}
 			for (const personalChatId of personalChatIds) {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
 			}
