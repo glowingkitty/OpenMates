@@ -1,5 +1,17 @@
 schema_version: 1
 contracts:
+  architecture.app-skill-execution:
+    version: 1
+    status: approved
+    path: architecture/app-skill-execution
+    fingerprint: 00e13febad12f64c6e5f6fbef1ac992d0a199e547e7799116cd964fdad9b1465
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   architecture.drafts:
     version: 1
     status: approved
@@ -41,6 +53,18 @@ contracts:
     status: approved
     path: features/app-skills/audio-speak
     fingerprint: 6928e06478ea7825934d912179dd361b9b7fe7cf6c7e7051c31f5e293cfd8999
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  feature.app-skill.events-search:
+    version: 1
+    status: approved
+    path: features/app-skills/events-search
+    fingerprint: a28b53ce8892cfe0dc1bb6189aa396c7e5e9a4bfaf5a459cc1e04847f0f70688
     required_surfaces:
     - rest_api
     - cli
@@ -275,6 +299,66 @@ contracts:
     - sdks.npm
     - sdks.pip
 assertions:
+  app-skills.execution.registered-validated:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 16d50a42f3cb665105ea7733c8852df49a5ad556bdcd957e8023f4941fcab7d8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.output.ascii-always:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 69198a81b5b98442980e3fa5d8825da32ce0880a5af04ed2c15ba5d3d596cd6b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.output.external-semantic:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: security
+    fingerprint: c05823af2363b3cc94a31ecc0fcae55041ffafb7a310bf4f3b544e942f774682
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.output.batch-equivalent:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 115e073de45d56b1fbc3b974a9306d4184f728727275f8b87f70da3a6a613da4
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.surface.semantic-parity:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: parity
+    fingerprint: b032c6e075f207875c7f92c3946b86690e0476612772943afbc033f3e4bfe103
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   drafts.access.first-party-encrypted:
     contract: architecture.drafts@1
     contract_id: architecture.drafts
@@ -779,6 +863,90 @@ assertions:
     contract_id: feature.app-skill.audio-speak
     type: parity
     fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.request.validated:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: validation
+    fingerprint: 372e41db3b87c77bfc9ffe216f51c5d9ce8f2ffc68bf9eecb01be4a1d4e8692f
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.providers.explicit:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: 59821063fe24045f6f9e6f23a93ee7afec28349e7a3a92f8370ec15a4f7302be
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.results.actionable:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: invariant
+    fingerprint: 502db877659f93490bba7d906e3cff312b027ea6e7a575e8c6c0b30c52c293da
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.conference.supported:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: ca214904e26865539761b3c885b43ab969bb635affb47a99aa26b7482d8459e7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.output.sanitized:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: security
+    fingerprint: 85f17752691ce15def0bffdaa4b0af0b9c8272dee3cc054a4fbf23cd47552997
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.performance.bounded:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: aa3a2416881c5b22b39625f214f9c59e09fad823efb5c68d3495ab97610d264d
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.surface-parity:
+    contract: feature.app-skill.events-search@1
+    contract_id: feature.app-skill.events-search
+    type: parity
+    fingerprint: ed48f9074147e00600b000a9c285abd5f516751f15c94f0a63cb748aa0f950d5
     required_surfaces:
     - rest_api
     - cli

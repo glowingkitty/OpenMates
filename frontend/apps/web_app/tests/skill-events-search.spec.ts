@@ -61,6 +61,7 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 const EVENT_SEARCH_CARD_SELECTOR = '[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]';
 const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
+const EVENT_SEARCH_MAX_DURATION_MS = 10_000;
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -71,7 +72,7 @@ test.describe('App: Events / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	// contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible
+	// contract-test: supporting surface=gui.web assertions=events-search.providers.explicit,events-search.surface-parity
 	test('Phase 0: Apps metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 
@@ -99,14 +100,14 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────
-	// contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
+	// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/events', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'events', log);
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
-	// contract-test: direct surface=cli assertions=cli.output.actionable-readable,cli.surface.semantic-parity
+	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.results.actionable,events-search.performance.bounded,events-search.surface-parity
 	test('Phase 2: CLI apps events search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -122,10 +123,12 @@ test.describe('App: Events / Skill: search', () => {
 				}),
 				'--json'
 			],
-			90_000
+			EVENT_SEARCH_MAX_DURATION_MS,
+			{ record: false }
 		);
 
 		expectCliSuccess(result);
+		expect(result.durationMs, `events/search took ${Math.round(result.durationMs)}ms`).toBeLessThanOrEqual(EVENT_SEARCH_MAX_DURATION_MS);
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
@@ -143,7 +146,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
-	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+	// contract-test: supporting surface=cli assertions=events-search.surface-parity
 	test('Phase 3: CLI chats new triggers events search', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -164,7 +167,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
-	// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
+	// contract-test: direct surface=gui.web assertions=events-search.surface-parity
 	test('Phase 4: Web chat triggers events search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);

@@ -11,6 +11,7 @@
  *
  * Architecture context: docs/architecture/openmates-cli.md
  */
+export {};
 
 const { spawn } = require('child_process');
 const path = require('path');
@@ -47,14 +48,17 @@ async function runCli(
 	apiUrl: string,
 	args: string[],
 	timeoutMs = 30_000,
-	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; recording?: Record<string, string> }> {
+	options: { useApiKey?: boolean; record?: boolean; env?: Record<string, string | undefined> } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }> {
 	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
-	const shouldRecord = (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1') && !cliRecordingCreated;
+	const shouldRecord = options.record !== false
+		&& (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1')
+		&& !cliRecordingCreated;
 	if (shouldRecord) {
 		cliRecordingCreated = true;
+		const startedAt = performance.now();
 		const specSlug = String(options.env?.OPENMATES_E2E_SPEC || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
 			.replace(/\.spec\.ts$/, '')
 			.replace(/[^A-Za-z0-9._-]+/g, '-');
@@ -98,6 +102,7 @@ async function runCli(
 						code: manifest.exit_status ?? code,
 						stdout,
 						stderr: err.join(''),
+						durationMs: performance.now() - startedAt,
 						recording: {
 							outputDir,
 							videoPath: String(manifest.video_path || path.join(outputDir, 'raw-terminal.mp4')),
@@ -107,13 +112,14 @@ async function runCli(
 						}
 					});
 				} catch (error: any) {
-					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`});
+					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`, durationMs: performance.now() - startedAt});
 				}
 			});
 		});
 	}
 
 	return new Promise((resolve) => {
+		const startedAt = performance.now();
 		// cli-e2e-recording: shared-recorder-fallback
 		const child = spawn('node', [CLI_DIST, ...allArgs], {
 			env: {
@@ -131,11 +137,11 @@ async function runCli(
 		child.stderr.on('data', (d: Buffer) => err.push(d.toString()));
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
-			resolve({ code: null, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code: null, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		}, timeoutMs);
 		child.on('close', (code: number | null) => {
 			clearTimeout(timeout);
-			resolve({ code, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		});
 	});
 }
@@ -147,7 +153,7 @@ async function runCliProof(
 	definition: any,
 	timeoutMs = 30_000,
 	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
-): Promise<{ result: { code: number | null; stdout: string; stderr: string; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
+): Promise<{ result: { code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
 	const { createVideoProofRuntime } = require('./video-proof.ts');
 	const specName = path.basename(testInfo.file || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e.spec.ts');
 	const proof = createVideoProofRuntime(definition, {
