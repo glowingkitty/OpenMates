@@ -299,6 +299,12 @@ test.describe('App: Events / Skill: search', () => {
 		}
 
 		const finalGroupedView = page.getByTestId('embeds-map-view').last();
+		const expectHydratedMap = async (view: any) => {
+			const map = view.getByTestId('embeds-map-view-map');
+			await expect(map).toBeVisible({ timeout: 30_000 });
+			await expect(map).toHaveAttribute('data-map-hydrated', 'true', { timeout: 30_000 });
+			await expect(map.getByText('Map loading when visible...', { exact: true })).toHaveCount(0);
+		};
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
 		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
 		await expect(finalGroupedCards.first()).toBeVisible({ timeout: 60_000 });
@@ -318,9 +324,11 @@ test.describe('App: Events / Skill: search', () => {
 			await finalGroupedView.evaluate((element: HTMLElement) => {
 				element.scrollIntoView({ block: 'center' });
 			});
+			await expectHydratedMap(finalGroupedView);
 			await proof.assert('map-view-populated', async () => {
 				await expect(finalGroupedView).toBeVisible();
 				await expect(finalGroupedCards.first()).toBeVisible();
+				await expectHydratedMap(finalGroupedView);
 				await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 			});
 			await proof.checkpoint('map-view-populated');
@@ -380,9 +388,11 @@ test.describe('App: Events / Skill: search', () => {
 			await reloadedGroupedView.evaluate((element: HTMLElement) => {
 				element.scrollIntoView({ block: 'center' });
 			});
+			await expectHydratedMap(reloadedGroupedView);
 			await proof.assert('reload-preserves-results', async () => {
 				await expect(reloadedGroupedView).toBeVisible();
 				await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+				await expectHydratedMap(reloadedGroupedView);
 			});
 			await proof.checkpoint('reload-preserves-results');
 		}
