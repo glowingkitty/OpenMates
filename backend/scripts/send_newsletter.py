@@ -273,7 +273,9 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
             return value
 
     # body_i18n_key = "demo_chats.<kind>_<snake_slug>.message"
-    body_key = manifest["body_i18n_key"]
+    body_key = manifest.get("body_i18n_key")
+    if not isinstance(body_key, str):
+        return None
     m = re.match(r"^demo_chats\.([a-z0-9_]+)\.message$", body_key)
     if not m:
         raise ValueError(f"Unexpected body_i18n_key format: {body_key}")
@@ -663,7 +665,7 @@ def prompt_confirmation(
     manifest: Dict[str, Any],
     simulate: bool = False,
     non_interactive_approved: bool = False,
-) -> bool:
+) -> Optional[bool]:
     if simulate:
         print(f"\n[SIMULATE] Auto-confirming broadcast to {eligible_count} subscribers.")
         return True
@@ -836,11 +838,11 @@ async def send_one(
 ) -> bool:
     from backend.core.api.app.services.email_delivery_guard import send_email_once
 
-    body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
+    lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
+    body_md = load_body_text(manifest, lang) or load_body_text(manifest, "en")
     if body_md is None:
         logger.error("No body text found for en — cannot send.")
         return False
-    lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
     subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
     context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode, is_registered)
     # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
@@ -863,6 +865,7 @@ async def send_one(
     )
     if status == "already_reserved":
         logger.info("Newsletter %s already reserved for subscriber %s", manifest["slug"], subscriber_id)
+        return None
     return sent
 
 
@@ -1222,7 +1225,7 @@ async def run(args: argparse.Namespace) -> int:
                 is_registered=is_registered,
             )
 
-        status = "sent" if success else "failed"
+        status = "sent" if success else "skipped_already_sent" if success is None else "failed"
         append_audit(
             audit_path,
             {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "lang": lang, "status": status},
@@ -1230,6 +1233,8 @@ async def run(args: argparse.Namespace) -> int:
 
         if success:
             stats["sent"] += 1
+        elif success is None:
+            stats["skipped_already_sent"] += 1
         else:
             stats["failed"] += 1
             failed_ids.append(sub_id)

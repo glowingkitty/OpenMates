@@ -160,3 +160,67 @@ async def test_events_broadcast_simulation_reuses_subscriber_flow_without_sendin
     assert "Total eligible: 1" in output
     assert "Skipping 1 who opted out of 'openmates_events'" in output
     assert "[SIMULATE" in output
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.eligible-idempotent-delivery,newsletter.campaign.accessible-event-layout
+async def test_events_send_one_falls_back_to_english_for_unsupported_subscriber_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_send_email_once(**kwargs: object) -> tuple[bool, str]:
+        captured.update(kwargs)
+        return True, "sent"
+
+    fake_delivery_guard = ModuleType("backend.core.api.app.services.email_delivery_guard")
+    fake_delivery_guard.send_email_once = fake_send_email_once
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.email_delivery_guard", fake_delivery_guard)
+
+    manifest = send_newsletter.load_broadcast_manifest(_events_args(send=True, simulate=False))
+
+    ok = await send_newsletter.send_one(
+        directus=object(),  # type: ignore[arg-type]
+        email_template_service=object(),  # type: ignore[arg-type]
+        manifest=manifest,
+        subscriber_id="subscriber-fr",
+        recipient_email="subscriber@example.test",
+        recipient_lang="fr",
+        darkmode=False,
+        base_url="https://openmates.org",
+        unsubscribe_url="https://openmates.org/#settings/newsletter/unsubscribe/token",
+        is_registered=False,
+    )
+
+    assert ok is True
+    assert captured["lang"] == "en"
+    assert captured["subject"] == "Upcoming OpenMates events"
+    assert "Upcoming events" in captured["context"]["newsletter_content"]  # type: ignore[index]
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.eligible-idempotent-delivery
+async def test_events_send_one_reports_already_reserved_as_resume_skip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_send_email_once(**_kwargs: object) -> tuple[bool, str]:
+        return False, "already_reserved"
+
+    fake_delivery_guard = ModuleType("backend.core.api.app.services.email_delivery_guard")
+    fake_delivery_guard.send_email_once = fake_send_email_once
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.email_delivery_guard", fake_delivery_guard)
+
+    manifest = send_newsletter.load_broadcast_manifest(_events_args(send=True, simulate=False))
+
+    result = await send_newsletter.send_one(
+        directus=object(),  # type: ignore[arg-type]
+        email_template_service=object(),  # type: ignore[arg-type]
+        manifest=manifest,
+        subscriber_id="subscriber-existing",
+        recipient_email="subscriber@example.test",
+        recipient_lang="en",
+        darkmode=False,
+        base_url="https://openmates.org",
+        unsubscribe_url="https://openmates.org/#settings/newsletter/unsubscribe/token",
+        is_registered=False,
+    )
+
+    assert result is None
