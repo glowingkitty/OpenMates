@@ -1597,6 +1597,7 @@ def auto_finalize_proof_video_sources(
     review_hook: Any | None = None,
     publish_hook: Any | None = None,
     render_claims_hook: Any | None = None,
+    source_duration_hook: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Render, review, and publish spec-owned web proof videos after a passed spec run."""
 
@@ -1640,11 +1641,26 @@ def auto_finalize_proof_video_sources(
             active_review_hook = review_hook
         if render_claims_hook is None:
             try:
-                from scripts.proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+                from scripts.proof_video_workflow import (
+                    calculate_pacing,
+                    marker_trim_start,
+                    spec_timeline_render_claims as active_render_claims_hook,
+                )
             except ModuleNotFoundError:
-                from proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+                from proof_video_workflow import calculate_pacing, marker_trim_start, spec_timeline_render_claims as active_render_claims_hook
         else:
             active_render_claims_hook = render_claims_hook
+            try:
+                from scripts.proof_video_workflow import calculate_pacing, marker_trim_start
+            except ModuleNotFoundError:
+                from proof_video_workflow import calculate_pacing, marker_trim_start
+        if source_duration_hook is None:
+            try:
+                from scripts.spec_demo import media_duration_seconds as active_source_duration_hook
+            except ModuleNotFoundError:
+                from spec_demo import media_duration_seconds as active_source_duration_hook
+        else:
+            active_source_duration_hook = source_duration_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
         source_video = Path(str(record.get("artifact_path") or ""))
@@ -1672,6 +1688,11 @@ def auto_finalize_proof_video_sources(
         assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
         ready_times = [value for value in [*checkpoint_times, *action_times, *assertion_times] if value >= 0]
         ready_timestamp_seconds = min(ready_times) if ready_times else None
+        source_duration_seconds = float(active_source_duration_hook(source_video))
+        if ready_timestamp_seconds is not None:
+            source_duration_seconds = max(0.001, source_duration_seconds - marker_trim_start(ready_timestamp_seconds=ready_timestamp_seconds))
+        transcript_words = len(re.findall(r"\S+", str(claims.get("caption_text") or "")))
+        pacing = calculate_pacing(source_duration_seconds=source_duration_seconds, transcript_words=transcript_words)
         source = {
             "source": str(record.get("source") or "scripts_tests"),
             "status": "passed",
@@ -1703,8 +1724,8 @@ def auto_finalize_proof_video_sources(
             proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
             narration_audio_path=None,
             device_profile_name=device_profile,
-            playback_rate=1.0,
-            hold_last_frame_seconds=0.0,
+            playback_rate=pacing.playback_rate,
+            hold_last_frame_seconds=pacing.final_hold_seconds,
             ready_timestamp_seconds=ready_timestamp_seconds,
         )
         review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")

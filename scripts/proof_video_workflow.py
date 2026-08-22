@@ -64,6 +64,7 @@ MAX_CUMULATIVE_SUBMITTED_FRAMES = 48
 MAX_AUTOMATIC_CORRECTION_ROUNDS = 2
 MAX_PRODUCT_CODE_CORRECTION_ROUNDS = 1
 MIN_PLAYBACK_RATE = 0.75
+MAX_PLAYBACK_RATE = 4.0
 READING_WORDS_PER_SECOND = 2.5
 MARKER_TRIM_LEAD_SECONDS = 0.15
 SUPPORTED_DEVICE_PROFILES = {
@@ -369,6 +370,9 @@ def calculate_pacing(*, source_duration_seconds: float, transcript_words: int) -
     if reading_seconds > MAX_OUTPUT_SECONDS:
         raise WorkflowError("transcript cannot fit the 35 second output limit; shorten the tutorial transcript")
     playback_rate = max(MIN_PLAYBACK_RATE, min(1.0, source_duration_seconds / reading_seconds))
+    playback_rate = max(playback_rate, source_duration_seconds / MAX_OUTPUT_SECONDS)
+    if playback_rate > MAX_PLAYBACK_RATE:
+        raise WorkflowError("source recording cannot fit the 35 second output limit")
     slowed_duration = source_duration_seconds / playback_rate
     hold = max(0.0, reading_seconds - slowed_duration)
     output = slowed_duration + hold

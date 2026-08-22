@@ -1232,6 +1232,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
         produce_hook=produce,
         review_hook=review,
         publish_hook=publish,
+        source_duration_hook=lambda _path: 40.0,
     )
 
     assert finalizations == [{
@@ -1250,6 +1251,8 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     assert produce_kwargs["source"]["state_change_timestamps_by_id"] == {"ready": 0.1}
     assert produce_kwargs["source"]["action_timestamps"] == [2.5, 4.1]
     assert produce_kwargs["ready_timestamp_seconds"] == 0.1
+    assert produce_kwargs["playback_rate"] > 1.0
+    assert produce_kwargs["hold_last_frame_seconds"] == 0.0
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
     assert calls["review"]["correction_round"] == 0
