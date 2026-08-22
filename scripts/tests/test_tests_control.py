@@ -1189,7 +1189,10 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
             "transcript": [{"id": "welcome", "text": "Welcome is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
             "assertions": [{"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]}],
         },
-        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 100}],
+        "events": [
+            {"kind": "checkpoint", "id": "ready", "at_ms": 100},
+            {"kind": "action", "id": "reload-page", "start_ms": 2500, "end_ms": 4100},
+        ],
         "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
         "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
     }), encoding="utf-8")
@@ -1244,6 +1247,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     produce_kwargs = calls["produce"]
     assert produce_kwargs["source"]["browser_domain"] == "app.dev.openmates.org"
     assert produce_kwargs["source"]["state_change_timestamps"] == [0.1]
+    assert produce_kwargs["source"]["action_timestamps"] == [2.5, 4.1]
     assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."

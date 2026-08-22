@@ -1657,7 +1657,13 @@ def auto_finalize_proof_video_sources(
         timeline_events = [item for item in timeline.get("events") or [] if isinstance(item, dict)]
         assertion_events = [item for item in timeline.get("assertion_results") or [] if isinstance(item, dict)]
         checkpoint_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "checkpoint"]
-        action_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "action"]
+        action_times: list[float] = []
+        for item in timeline_events:
+            if item.get("kind") != "action":
+                continue
+            for key in ("start_ms", "end_ms", "at_ms"):
+                if item.get(key) is not None:
+                    action_times.append(float(item.get(key) or 0) / 1000)
         assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
         ready_times = [value for value in [*checkpoint_times, *action_times, *assertion_times] if value >= 0]
         ready_timestamp_seconds = min(ready_times) if ready_times else None
