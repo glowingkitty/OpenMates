@@ -379,6 +379,9 @@
 
   .events-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }

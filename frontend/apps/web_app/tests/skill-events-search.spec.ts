@@ -97,7 +97,7 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'reload-preserves-results',
-			text: 'Reloading the chat briefly shows loading state before the populated map-backed results return.',
+			text: 'Reloading the chat returns to the populated map-backed event results.',
 			checkpoint: 'reload-preserves-results',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -124,7 +124,7 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'reload-preserves-results',
 			checkpoint: 'reload-preserves-results',
-			visual: 'The reload transition shows loading state, then the populated map view and result cards remain visible.',
+			visual: 'After reload, the populated map view and result cards remain visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -372,14 +372,6 @@ test.describe('App: Events / Skill: search', () => {
 
 		const reloadAndAwaitResults = async () => {
 			await page.reload({ waitUntil: 'domcontentloaded' });
-			if (proof) {
-				await page
-					.getByText(/Loading referenced embeds|Map loading when visible/i)
-					.first()
-					.waitFor({ state: 'visible', timeout: 5_000 })
-					.catch(() => undefined);
-				await proof.checkpoint('reload-loading-state');
-			}
 			const view = page.getByTestId('embeds-map-view').last();
 			await expect(view).toBeVisible({ timeout: 60_000 });
 			await expect(view.getByTestId('embeds-map-view-card').first()).toBeVisible({
