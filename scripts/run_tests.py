@@ -7235,10 +7235,12 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        "deep-research-real-inference.spec.ts",
         PROVISION_AUTH_ACCOUNTS_SPEC,
         "default-model-settings-proof.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "selfhost-smoke.spec.ts",
+        "sub-chats-real-inference.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
 

@@ -29,8 +29,10 @@ OVERVIEW_PATH = TESTS_DIR / "Test runs.md"
 FAILING_STATUSES = {"failed", "timeout", "timedOut", "dispatch_error", "result_unknown"}
 EXCLUDED_SPECS = {
     "create-test-account.spec.ts",
+    "deep-research-real-inference.spec.ts",
     "default-model-settings-proof.spec.ts",
     "proof-audio-speech-example.spec.ts",
+    "sub-chats-real-inference.spec.ts",
 }
 
 

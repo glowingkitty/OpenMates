@@ -30,8 +30,10 @@ import sys
 
 EXCLUDED_SPECS = {
     "create-test-account.spec.ts",
+    "deep-research-real-inference.spec.ts",
     "default-model-settings-proof.spec.ts",
     "proof-audio-speech-example.spec.ts",
+    "sub-chats-real-inference.spec.ts",
 }
 
 
