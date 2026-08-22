@@ -151,13 +151,22 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             "body": response_body,
         }
 
-        self._cache.save(
-            group_id=group_id,
-            category=self._category,
-            fingerprint=fingerprint,
-            request_summary=request_summary,
-            response_data=response_data,
-        )
+        try:
+            self._cache.save(
+                group_id=group_id,
+                category=self._category,
+                fingerprint=fingerprint,
+                request_summary=request_summary,
+                response_data=response_data,
+            )
+        except OSError as exc:
+            logger.warning(
+                "[LiveMock] Failed to save HTTP cache entry %s/%s (group=%s): %s",
+                self._category,
+                fingerprint,
+                group_id,
+                exc,
+            )
 
         return response
 

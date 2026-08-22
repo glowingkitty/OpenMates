@@ -28,6 +28,11 @@ class _StaticAsyncTransport(httpx.AsyncBaseTransport):
         return response
 
 
+class _FailingSaveCache(ApiResponseCache):
+    def save(self, **_kwargs):
+        raise PermissionError("cache path is read-only")
+
+
 @pytest.mark.asyncio
 async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
@@ -145,6 +150,35 @@ async def test_record_mode_omits_set_cookie_response_header(tmp_path) -> None:
     assert cached is not None
     assert cached["response"]["headers"].get("content-type") == "application/json"
     assert "set-cookie" not in cached["response"]["headers"]
+
+
+@pytest.mark.asyncio
+async def test_record_mode_returns_live_response_when_cache_save_fails(caplog) -> None:
+    group_id = "write_failure"
+    category = "events"
+    url = "https://events.example.test/search?q=ai"
+    real_transport = _StaticAsyncTransport(
+        {
+            url: httpx.Response(
+                200,
+                headers={"content-type": "application/json"},
+                content=b'{"events":[{"id":"1"}]}',
+            )
+        }
+    )
+
+    activate_mock_mode("record", group_id)
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(real_transport, _FailingSaveCache(), category)
+        ) as client:
+            response = await client.get(url)
+    finally:
+        deactivate_mock_mode()
+
+    assert response.status_code == 200
+    assert response.json()["events"] == [{"id": "1"}]
+    assert "Failed to save HTTP cache entry events/" in caplog.text
 
 
 @pytest.mark.asyncio
