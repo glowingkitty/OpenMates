@@ -81,10 +81,10 @@ import {
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
+  buildBrevoRequestOptions,
   buildOperationalDeliveryReceipt,
   evaluateOperationalReportFreshness,
   planOperationalMonitoring,
-  probeRuntimeEmailService,
   signRuntimeWebhookPayload,
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
@@ -1145,22 +1145,17 @@ describe("post-update runtime health", () => {
 });
 
 describe("operational monitoring digest", () => {
-  it("enables email only after a bounded provider availability probe", async () => {
-    const originalFetch = globalThis.fetch;
-    try {
-      let requestedUrl = "";
-      globalThis.fetch = (async (input: string | URL | Request) => {
-        requestedUrl = String(input);
-        return new Response(null, { status: 200 });
-      }) as typeof fetch;
-      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), true);
-      assert.equal(requestedUrl, "https://api.brevo.com/v3/account");
-
-      globalThis.fetch = (async () => { throw new Error("network_unavailable"); }) as typeof fetch;
-      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), false);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+  it("pins Brevo email probes to bounded IPv4 requests", () => {
+    const options = buildBrevoRequestOptions("/v3/account", "GET", "test-key");
+    assert.equal(options.protocol, "https:");
+    assert.equal(options.hostname, "api.brevo.com");
+    assert.equal(options.servername, "api.brevo.com");
+    assert.equal(options.port, 443);
+    assert.equal(options.path, "/v3/account");
+    assert.equal(options.method, "GET");
+    assert.equal(options.family, 4);
+    assert.equal(options.timeout, 10_000);
+    assert.equal((options.headers as Record<string, string>)["api-key"], "test-key");
   });
 
   // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.self-host.no-billing,operational-monitoring.environments.isolated-labeled

@@ -10,7 +10,7 @@ import dnsModule, { promises as dns } from "node:dns";
 import { createHmac, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { isIP } from "node:net";
-import { request as httpsRequest } from "node:https";
+import { request as httpsRequest, type RequestOptions } from "node:https";
 import { request as httpRequest } from "node:http";
 import path from "node:path";
 import type { ServerRole } from "./serverPlanning.js";
@@ -22,6 +22,8 @@ const OPERATIONAL_REPORT_STALE_AFTER_MS = 26 * 60 * 60 * 1000;
 const ALLOWED_WEBHOOK_PORTS = new Set([443]);
 const IMMEDIATE_FAILURE_CLASSES = new Set(["credential", "configuration", "config", "critical_availability"]);
 const WEBHOOK_EGRESS_POLICY = { followRedirects: false, denyAddressClasses: ["private", "linkLocal"] } as const;
+const BREVO_API_HOST = "api.brevo.com";
+const BREVO_REQUEST_TIMEOUT_MS = 10_000;
 
 export type RuntimeIncidentState = {
   consecutiveFailures: number;
@@ -230,16 +232,60 @@ export async function probeRuntimeEmailService(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
 ): Promise<boolean> {
   try {
-    const response = await fetch("https://api.brevo.com/v3/account", {
-      method: "GET",
-      redirect: "error",
-      headers: { "api-key": config.apiKey },
-      signal: AbortSignal.timeout(10_000),
-    });
-    return response.ok;
+    await requestBrevo("/v3/account", "GET", config.apiKey);
+    return true;
   } catch {
     return false;
   }
+}
+
+export function buildBrevoRequestOptions(
+  pathName: string,
+  method: "GET" | "POST",
+  apiKey: string,
+  body?: string,
+): RequestOptions {
+  return {
+    protocol: "https:",
+    hostname: BREVO_API_HOST,
+    servername: BREVO_API_HOST,
+    port: 443,
+    path: pathName,
+    method,
+    family: 4,
+    lookup: (hostname, options, callback) => dnsModule.lookup(hostname, { ...options, family: 4 }, callback),
+    headers: {
+      "api-key": apiKey,
+      ...(body ? { "content-type": "application/json", "Content-Length": Buffer.byteLength(body) } : {}),
+    },
+    timeout: BREVO_REQUEST_TIMEOUT_MS,
+  };
+}
+
+async function requestBrevo(
+  pathName: string,
+  method: "GET" | "POST",
+  apiKey: string,
+  payload?: Record<string, unknown>,
+): Promise<void> {
+  const body = payload ? JSON.stringify(payload) : undefined;
+  await new Promise<void>((resolve, reject) => {
+    const request = httpsRequest(buildBrevoRequestOptions(pathName, method, apiKey, body), (response) => {
+      let responseBytes = 0;
+      response.on("data", (chunk: Buffer) => {
+        responseBytes += chunk.length;
+        if (responseBytes > 64 * 1024) request.destroy(new Error("brevo_response_too_large"));
+      });
+      response.on("end", () => {
+        const status = response.statusCode ?? 0;
+        if (status >= 200 && status < 300) resolve();
+        else reject(new Error(`brevo_delivery_failed:${status}`));
+      });
+    });
+    request.on("timeout", () => request.destroy(new Error("brevo_delivery_timeout")));
+    request.on("error", reject);
+    request.end(body);
+  });
 }
 
 export async function readOperationalReportState(installDir: string, role: ServerRole): Promise<OperationalReportState> {
@@ -468,19 +514,12 @@ export async function sendRuntimeEmail(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
   payload: RuntimeNotificationPayload,
 ): Promise<void> {
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    redirect: "error",
-    headers: { "api-key": config.apiKey, "content-type": "application/json" },
-    body: JSON.stringify({
-      sender: { email: config.from },
-      to: [{ email: config.to }],
-      subject: `[OpenMates ${payload.role}] ${payload.kind}`,
-      textContent: `${payload.sanitizedReason}\nChecks: ${payload.checkIds.join(", ")}\nTime: ${payload.occurredAt}`,
-    }),
-    signal: AbortSignal.timeout(10_000),
+  await requestBrevo("/v3/smtp/email", "POST", config.apiKey, {
+    sender: { email: config.from },
+    to: [{ email: config.to }],
+    subject: `[OpenMates ${payload.role}] ${payload.kind}`,
+    textContent: `${payload.sanitizedReason}\nChecks: ${payload.checkIds.join(", ")}\nTime: ${payload.occurredAt}`,
   });
-  if (!response.ok) throw new Error(`email_delivery_failed:${response.status}`);
 }
 
 async function deliverWithRetries(channel: RuntimeNotificationDelivery["channel"], send: () => Promise<void>): Promise<RuntimeNotificationDelivery> {

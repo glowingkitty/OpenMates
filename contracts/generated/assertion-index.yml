@@ -562,12 +562,12 @@ assertions:
     direct_tests:
     - &id059
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1167
+      line: 1162
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     - &id060
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1207
+      line: 1202
       name: renders idempotent digest and stale-watchdog systemd plans
       surface: cli
     supporting_tests: []
@@ -597,7 +597,7 @@ assertions:
       surface: cli
     - &id063
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1167
+      line: 1162
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     supporting_tests: []
@@ -637,7 +637,7 @@ assertions:
     direct_tests:
     - &id065
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1233
+      line: 1228
       name: detects stale reports once and recovers after a fresh accepted report
       surface: cli
     supporting_tests: []
@@ -688,17 +688,17 @@ assertions:
       surface: cli
     - &id070
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1207
+      line: 1202
       name: renders idempotent digest and stale-watchdog systemd plans
       surface: cli
     - &id071
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1233
+      line: 1228
       name: detects stale reports once and recovers after a fresh accepted report
       surface: cli
     - &id072
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1255
+      line: 1250
       name: keeps per-channel accepted and failed receipts without destinations
       surface: cli
     supporting_tests: []
@@ -800,12 +800,12 @@ assertions:
       surface: cli
     - &id084
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1167
+      line: 1162
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     - &id085
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1255
+      line: 1250
       name: keeps per-channel accepted and failed receipts without destinations
       surface: cli
     supporting_tests: []
