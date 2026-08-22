@@ -984,6 +984,65 @@ def trim_source_to_ready_marker(
     }
 
 
+def trim_cli_terminal_source_to_output(
+    source_path: Path,
+    output_path: Path,
+    *,
+    trim_start_seconds: float,
+    output_duration_seconds: float,
+) -> dict[str, Any]:
+    """Trim terminal setup frames and hold readable output for proof review."""
+    if not source_path.is_file():
+        raise DemonstrationError(f"CLI terminal source does not exist: {source_path}")
+    source_duration = media_duration_seconds(source_path)
+    if trim_start_seconds < 0 or trim_start_seconds >= source_duration:
+        raise DemonstrationError("CLI terminal output trim point is outside the source video")
+    visible_duration = max(0.1, source_duration - trim_start_seconds)
+    hold_duration = max(0.0, output_duration_seconds - visible_duration)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    filter_graph = (
+        f"trim=start={trim_start_seconds}:duration={visible_duration},"
+        "setpts=PTS-STARTPTS,"
+        f"tpad=stop_mode=clone:stop_duration={hold_duration}"
+    )
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(source_path),
+            "-vf",
+            filter_graph,
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-pix_fmt",
+            "yuv420p",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"FFmpeg CLI terminal trim failed: {result.stderr.strip()[-1000:]}")
+    return {
+        "source_duration_seconds": source_duration,
+        "trim_start_seconds": round(trim_start_seconds, MEDIA_TIMESTAMP_DECIMALS),
+        "visible_duration_seconds": round(visible_duration, MEDIA_TIMESTAMP_DECIMALS),
+        "hold_last_frame_seconds": round(hold_duration, MEDIA_TIMESTAMP_DECIMALS),
+        "prepared_duration_seconds": video_metadata(output_path)["duration_seconds"],
+        "prepared_source_path": str(output_path),
+        "prepared_source_sha256": sha256_file(output_path),
+    }
+
+
 def _narration_audio_mime_type(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix == ".mp3":
@@ -1483,6 +1542,13 @@ def produce_cli_terminal_demonstration(
 
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
+    render_source_video = run_dir / "terminal-output-source.mp4"
+    trim_metadata = trim_cli_terminal_source_to_output(
+        source_video,
+        render_source_video,
+        trim_start_seconds=stable_output_time,
+        output_duration_seconds=source_duration,
+    )
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
     captions_path = run_dir / "captions.vtt"
     video_path = run_dir / "demo.mp4"
@@ -1509,13 +1575,13 @@ def produce_cli_terminal_demonstration(
         {
             "schemaVersion": 1,
             "renderer": "openmates-remotion-terminal-v1",
-            "sourceVideo": str(source_video),
-            "sourceSha256": selected["artifact_hash"],
+            "sourceVideo": str(render_source_video),
+            "sourceSha256": trim_metadata["prepared_source_sha256"],
             "terminalTitle": str(contract.get("title") or "OpenMates CLI"),
             "deviceProfile": "cli-terminal",
             "viewport": {"width": 1280, "height": 720},
             "output": {"width": 1280, "height": 720, "fps": 30},
-            "durationSeconds": source_duration,
+            "durationSeconds": float(trim_metadata["prepared_duration_seconds"]),
             "contractHash": proof_contract_hash or "sha256:unapproved-cli-contract",
             "timelineHash": timeline_hash,
         },
@@ -1559,12 +1625,13 @@ def produce_cli_terminal_demonstration(
             **render_metadata,
             "rendered_from": "real_terminal_screen_remotion",
             "playback_rate": 1.0,
-            "hold_last_frame_seconds": 0.0,
+            "hold_last_frame_seconds": trim_metadata["hold_last_frame_seconds"],
             "terminal_source_sha256": selected["artifact_hash"],
+            "terminal_trim": trim_metadata,
         },
         scene_times=detect_scene_change_times(video_path),
         action_times=[],
-        state_change_times=[stable_output_time],
+        state_change_times=[0.5],
     )
 
 
