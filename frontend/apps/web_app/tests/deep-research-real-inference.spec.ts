@@ -157,6 +157,7 @@ test('Deep research delegates three angles and renders the final parent synthesi
 
 	const carousel = page.getByTestId('sub-chats-carousel');
 	await expect(carousel).toBeVisible({ timeout: 240_000 });
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false', { timeout: 240_000 });
 	const subChatCards = page.getByTestId('sub-chat-card');
 	await expect(subChatCards).toHaveCount(3, { timeout: 240_000 });
 	for (let index = 0; index < 3; index += 1) {
@@ -178,7 +179,6 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		}
 	});
 	await proof.checkpoint('deep-research-children-visible');
-	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false');
 	await screenshot(page, 'deep-research-initial-child-cards');
 
 	await subChatCards.first().click();
