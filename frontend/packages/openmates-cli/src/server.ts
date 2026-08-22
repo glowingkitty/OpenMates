@@ -3915,7 +3915,7 @@ Examples:
   openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
-  openmates server update --image-tag v0.17.0
+  openmates server update --image-tag v0.16.0
   openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());

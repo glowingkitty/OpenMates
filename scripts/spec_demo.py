@@ -997,23 +997,38 @@ def trim_cli_terminal_source_to_output(
     source_duration = media_duration_seconds(source_path)
     if trim_start_seconds < 0 or trim_start_seconds >= source_duration:
         raise DemonstrationError("CLI terminal output trim point is outside the source video")
-    visible_duration = max(0.1, source_duration - trim_start_seconds)
-    hold_duration = max(0.0, output_duration_seconds - visible_duration)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    filter_graph = (
-        f"trim=start={trim_start_seconds}:duration={visible_duration},"
-        "setpts=PTS-STARTPTS,"
-        f"tpad=stop_mode=clone:stop_duration={hold_duration}"
-    )
+    frame_path = output_path.with_suffix(".png")
     result = subprocess.run(
         [
             "ffmpeg",
             "-y",
+            "-ss",
+            str(trim_start_seconds),
             "-i",
             str(source_path),
-            "-vf",
-            filter_graph,
-            "-an",
+            "-frames:v",
+            "1",
+            str(frame_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not frame_path.is_file():
+        raise DemonstrationError(f"FFmpeg CLI terminal frame extraction failed: {result.stderr.strip()[-1000:]}")
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loop",
+            "1",
+            "-i",
+            str(frame_path),
+            "-t",
+            str(output_duration_seconds),
+            "-r",
+            "30",
             "-c:v",
             "libx264",
             "-preset",
@@ -1035,8 +1050,9 @@ def trim_cli_terminal_source_to_output(
     return {
         "source_duration_seconds": source_duration,
         "trim_start_seconds": round(trim_start_seconds, MEDIA_TIMESTAMP_DECIMALS),
-        "visible_duration_seconds": round(visible_duration, MEDIA_TIMESTAMP_DECIMALS),
-        "hold_last_frame_seconds": round(hold_duration, MEDIA_TIMESTAMP_DECIMALS),
+        "hold_last_frame_seconds": round(output_duration_seconds, MEDIA_TIMESTAMP_DECIMALS),
+        "prepared_frame_path": str(frame_path),
+        "prepared_frame_sha256": sha256_file(frame_path),
         "prepared_duration_seconds": video_metadata(output_path)["duration_seconds"],
         "prepared_source_path": str(output_path),
         "prepared_source_sha256": sha256_file(output_path),
@@ -1535,7 +1551,7 @@ def produce_cli_terminal_demonstration(
 
     source_metadata = video_metadata(source_video)
     source_duration = float(source_metadata["duration_seconds"])
-    stable_output_time = round(max(0.0, source_duration - 2.0), MEDIA_TIMESTAMP_DECIMALS)
+    stable_output_time = round(max(0.0, source_duration - 2.5), MEDIA_TIMESTAMP_DECIMALS)
     assert_device_profile_dimensions(source_metadata, device_profile)
     if source_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("CLI terminal proof source must not exceed 35 seconds")
