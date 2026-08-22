@@ -145,15 +145,13 @@
   }
 
   const highlightSet = $derived(new Set(highlightRefs));
-  const visualEntries = $derived(entries.filter(entryHasVisualData));
-  const shouldRenderResultsView = $derived(isLoading || visualEntries.length > 0);
   const categories = $derived.by(() => {
-    const values = Array.from(new Set(visualEntries.filter((entry) => entry.status === 'ready').map((entry) => entry.category)));
+    const values = Array.from(new Set(entries.filter((entry) => entry.status === 'ready').map((entry) => entry.category)));
     return ['all', ...values];
   });
   const categoryFilteredEntries = $derived.by(() => {
-    if (activeCategory === 'all') return visualEntries;
-    return visualEntries.filter((entry) => entry.category === activeCategory);
+    if (activeCategory === 'all') return entries;
+    return entries.filter((entry) => entry.category === activeCategory || entry.status !== 'ready');
   });
   const rangeFilterControls = $derived(deriveRangeControls(categoryFilteredEntries));
   const optionFilterControls = $derived(deriveOptionControls(categoryFilteredEntries));
@@ -619,17 +617,6 @@
     return tabs;
   }
 
-  function entryHasMapData(entry: MapViewEntry): boolean {
-    return entry.status === 'ready' && (
-      (entry.lat != null && entry.lon != null)
-      || Boolean(entry.route && entry.route.length > 1)
-    );
-  }
-
-  function entryHasVisualData(entry: MapViewEntry): boolean {
-    return entryHasMapData(entry) || calendarEntryFromMapEntry(entry) != null;
-  }
-
   function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarEntry | null {
     if (entry.status !== 'ready') return null;
     const dateOrdinal = numberFacet(entry, 'dateOrdinal');
@@ -682,6 +669,24 @@
       month: 'short',
       day: 'numeric',
     }).format(new Date(value * 86400000));
+  }
+
+  function formatProviderLabel(value: string): string {
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function formatSubtitleDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    }).format(date);
   }
 
   function dateFromOrdinal(value: number): string {
@@ -902,10 +907,12 @@
   function getSubtitle(content: Record<string, unknown> | null, category: string): string {
     const venue = getNestedRecord(content, 'venue');
     const location = getNestedRecord(content, 'location');
+    const dateValue = firstString(content?.date_start, content?.departure, content?.start_time);
+    const providerValue = firstString(content?.provider, content?.booking_provider);
     const parts = [
-      firstString(content?.date_start, content?.departure, content?.start_time),
+      dateValue ? formatSubtitleDate(dateValue) : '',
       firstString(content?.formattedAddress, content?.formatted_address, content?.address, venue?.address, location?.address),
-      firstString(content?.price, content?.formatted_price, content?.provider, content?.booking_provider),
+      firstString(content?.price, content?.formatted_price, providerValue ? formatProviderLabel(providerValue) : ''),
     ].filter(Boolean);
     return parts.length > 0 ? parts.slice(0, 2).join(' | ') : category;
   }
@@ -1084,7 +1091,6 @@
   });
 </script>
 
-{#if shouldRenderResultsView}
 <section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
@@ -1353,7 +1359,6 @@
     </div>
   </div>
 </section>
-{/if}
 
 <style>
   .embeds-map-view {
@@ -1798,6 +1803,10 @@
   }
 
   @container (max-width: 720px) {
+    .embeds-map-view {
+      margin-top: 42px;
+    }
+
     .map-view-toolbar {
       align-items: stretch;
       flex-wrap: wrap;
@@ -1889,6 +1898,11 @@
     .map-view-card {
       min-width: 240px;
       scroll-snap-align: start;
+    }
+
+    .map-view-card strong {
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
     }
 
     .map-view-map {
