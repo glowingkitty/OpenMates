@@ -1178,7 +1178,7 @@ def test_dispatch_can_request_exact_proof_video_profiles(monkeypatch):
         }],
     )
 
-    for profile in ("web-laptop", "web-phone"):
+    for profile in ("cli-terminal", "web-laptop", "web-phone"):
         commands.clear()
         assert client.dispatch_spec(
             "audio-recording.spec.ts",
