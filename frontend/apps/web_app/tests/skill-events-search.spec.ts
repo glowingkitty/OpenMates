@@ -207,6 +207,9 @@ test.describe('App: Events / Skill: search', () => {
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
+		await expect(finalGroupedView.getByText('Waiting for source results')).toHaveCount(0);
+		await expect(finalGroupedView.getByText('Referenced embeds do not expose coordinates yet.')).toHaveCount(0);
 		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
 		await expect(
 			page.getByTestId('message-content').filter({ has: finalGroupedView })
@@ -219,13 +222,18 @@ test.describe('App: Events / Skill: search', () => {
 			(window as any).__reportIssueStabilityProbe = value;
 			return value;
 		});
-		await page.locator('#settings-menu-toggle').click();
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
-		await settingsMenu
-			.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
-			.first()
-			.click();
+		const directReportIssue = page.getByRole('button', { name: /^Report Issue$/i }).first();
+		if (await directReportIssue.isVisible().catch(() => false)) {
+			await directReportIssue.click();
+		} else {
+			await page.locator('#settings-menu-toggle').click();
+			const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+			await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+			await settingsMenu
+				.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+				.first()
+				.click();
+		}
 		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
 
 		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
