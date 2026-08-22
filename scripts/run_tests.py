@@ -2701,9 +2701,23 @@ class BatchRunner:
                     raise RuntimeError(f"Spec proof attachment has no content: {name}")
 
                 if proof_surface == "cli":
-                    if len(copied_videos) != 1:
-                        raise RuntimeError("CLI proof timeline requires exactly one terminal video attachment")
-                    terminal_video = (dest / copied_videos[0]).resolve()
+                    video_matches = [item for item in proof_group if item.get("name") == "openmates-cli-real-terminal-video"]
+                    if len(video_matches) != 1 or not isinstance(video_matches[0].get("path"), str):
+                        raise RuntimeError("CLI proof timeline requires one named terminal video attachment")
+                    video_attachment_path = str(video_matches[0]["path"])
+                    video_attachment_suffix = video_attachment_path.split("test-results/", 1)[-1]
+                    terminal_video_file = next(
+                        (
+                            record.get("file")
+                            for record in video_records
+                            if record.get("source") == video_attachment_path
+                            or str(record.get("source") or "").endswith(video_attachment_suffix)
+                        ),
+                        None,
+                    )
+                    if not terminal_video_file:
+                        raise RuntimeError("CLI proof terminal video attachment was not copied into recordings")
+                    terminal_video = (dest / terminal_video_file).resolve()
                     terminal_dir = terminal_video.parent
                     transcript_path = terminal_dir / "transcript.txt"
                     transcript_path.write_bytes(attachment_bytes_by_name("openmates-cli-real-terminal-transcript"))

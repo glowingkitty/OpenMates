@@ -99,6 +99,8 @@ def test_recording_artifacts_accept_cli_proof_timeline_without_frames(tmp_path, 
     artifact.mkdir(parents=True)
     video = artifact / "raw-terminal.mp4"
     video.write_bytes(b"terminal-video")
+    extra_video = artifact / "playwright-video.mp4"
+    extra_video.write_bytes(b"unrelated-video")
     transcript = b"Example chats for travel/search_connections"
     events = b'{"kind":"start"}\n'
     manifest = json.dumps({
@@ -135,6 +137,11 @@ def test_recording_artifacts_accept_cli_proof_timeline_without_frames(tmp_path, 
                     "results": [{
                         "attachments": [
                             {
+                                "name": "openmates-cli-real-terminal-video",
+                                "contentType": "video/mp4",
+                                "path": str(video),
+                            },
+                            {
                                 "name": "openmates-cli-real-terminal-manifest",
                                 "contentType": "application/json",
                                 "body": base64.b64encode(manifest).decode("ascii"),
@@ -169,7 +176,7 @@ def test_recording_artifacts_accept_cli_proof_timeline_without_frames(tmp_path, 
     assert persisted == str(expected)
     assert json.loads(expected.read_text(encoding="utf-8"))["contract"]["surface"] == "cli"
     normalized_manifest = json.loads((expected.parent / "videos" / "manifest.json").read_text(encoding="utf-8"))
-    assert normalized_manifest["video_path"].endswith("/videos/artifact.mp4")
+    assert Path(normalized_manifest["video_path"]).read_bytes() == b"terminal-video"
     assert normalized_manifest["transcript_path"].endswith("/videos/transcript.txt")
     assert normalized_manifest["events_path"].endswith("/videos/events.jsonl")
 
