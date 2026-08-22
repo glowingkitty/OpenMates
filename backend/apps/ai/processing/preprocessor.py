@@ -342,6 +342,7 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{app_variant}-{skill_variant}"] = valid_skill
                 skill_resolver_map[f"{app_variant}_{skill_variant}"] = valid_skill
                 skill_resolver_map[f"{app_variant}.{skill_variant}"] = valid_skill
+                skill_resolver_map[f"{app_variant}/{skill_variant}"] = valid_skill
 
         # Handle duplicated segment pattern: app-skill-skill -> app-skill.
         # Example: web-search-search -> web-search.
@@ -352,6 +353,61 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
 
     return skill_resolver_map
+
+
+EXPLICIT_SKILL_DIRECTIVE_PATTERN = re.compile(
+    r"\b(?:use|using|call|run|execute|invoke|trigger|with|via)\s+(?:the\s+)?(?:app\s+skill\s+)?$",
+    re.IGNORECASE,
+)
+
+
+def _latest_user_text_from_history(message_history: List[Any]) -> str:
+    """Return the latest string user message from mixed dict/model history."""
+    for msg in reversed(message_history or []):
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            content = msg.get("content")
+        else:
+            role = getattr(msg, "role", None)
+            content = getattr(msg, "content", None)
+
+        if role == USER_ROLE and isinstance(content, str):
+            return content
+    return ""
+
+
+def _resolve_explicit_skill_mentions_from_latest_user_text(
+    message_history: List[Any],
+    available_skill_ids: List[str],
+) -> List[str]:
+    """Resolve visible direct skill requests like "use events.search".
+
+    This is intentionally narrower than @skill overrides: it only adds known
+    skills to the candidate set when the latest user-authored text contains a
+    directive immediately before a valid visible skill identifier.
+    """
+    latest_user_text = _latest_user_text_from_history(message_history)
+    if not latest_user_text or not available_skill_ids:
+        return []
+
+    resolver_map = _build_skill_resolver_map(available_skill_ids)
+    resolved_mentions: List[str] = []
+
+    for alias, skill_id in sorted(resolver_map.items(), key=lambda item: len(item[0]), reverse=True):
+        if len(alias) < 3:
+            continue
+        alias_pattern = re.compile(
+            rf"(?<![\w-]){re.escape(alias)}(?![\w-])",
+            re.IGNORECASE,
+        )
+        for match in alias_pattern.finditer(latest_user_text):
+            before = latest_user_text[max(0, match.start() - 48):match.start()]
+            if not EXPLICIT_SKILL_DIRECTIVE_PATTERN.search(before):
+                continue
+            if skill_id not in resolved_mentions:
+                resolved_mentions.append(skill_id)
+
+    return resolved_mentions
 
 
 def _build_topic_areas_list() -> List[str]:
@@ -3075,6 +3131,23 @@ async def handle_preprocessing(
             # Architecture requires only preselected skills to be forwarded, so empty list means no skills
             validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
             logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+
+        explicit_skill_mentions = _resolve_explicit_skill_mentions_from_latest_user_text(
+            request_data.message_history,
+            available_skill_ids,
+        )
+        if explicit_skill_mentions:
+            forced_mentions = [
+                skill_id
+                for skill_id in explicit_skill_mentions
+                if skill_id not in validated_relevant_skills
+            ]
+            if forced_mentions:
+                validated_relevant_skills = forced_mentions + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced {forced_mentions} into preselected skills: "
+                    "latest user message explicitly requested known app skill identifier(s)."
+                )
 
     # --- User override: explicit @focus mentions ---
     # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.

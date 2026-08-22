@@ -90,6 +90,11 @@ def install_code_route_import_stubs() -> None:
         aiohttp_stub.ClientSession = object
         sys.modules.setdefault("aiohttp", aiohttp_stub)
 
+    if _module_missing("dotenv"):
+        dotenv_stub = types.ModuleType("dotenv")
+        dotenv_stub.load_dotenv = lambda *_args, **_kwargs: None
+        sys.modules.setdefault("dotenv", dotenv_stub)
+
     if _module_missing("slowapi"):
         slowapi_stub = types.ModuleType("slowapi")
         slowapi_util_stub = types.ModuleType("slowapi.util")
