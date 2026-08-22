@@ -118,3 +118,40 @@ def test_cli_response_media_uses_latest_replacement_scope(tmp_path: Path, monkey
     assert command[command.index("--latest-run-type") + 1] == "openmates-cli-e2e"
     assert "--dry-run" in command
     assert kwargs == {"check": False, "capture_output": True, "text": True}
+
+
+def test_main_does_not_fail_cli_capture_when_response_media_upload_fails(tmp_path: Path, monkeypatch, capsys) -> None:
+    module = load_module()
+    video = tmp_path / "raw-terminal.mp4"
+    video.write_bytes(b"real terminal pixels")
+
+    def fake_capture_cli_video(**_kwargs):
+        return {
+            "exit_status": 0,
+            "video_path": str(video),
+        }
+
+    def fake_publish_response_media(*_args, **_kwargs):
+        raise module.CliCaptureError("opencode_response_media: Error response from daemon: No such container: api")
+
+    monkeypatch.setattr(module, "capture_cli_video", fake_capture_cli_video)
+    monkeypatch.setattr(module, "publish_response_media", fake_publish_response_media)
+
+    monkeypatch.setattr(module.sys, "argv", [
+        "cli_video_capture.py",
+        "--output-dir",
+        str(tmp_path),
+        "--target-environment",
+        "https://api.dev.openmates.org",
+        "--",
+        "node",
+        "frontend/packages/openmates-cli/dist/cli.js",
+        "--help",
+    ])
+
+    status = module.main()
+
+    assert status == 0
+    payload = module.json.loads(capsys.readouterr().out)
+    assert payload["status"] == "passed"
+    assert payload["manifest"]["response_media_error"].startswith("opencode_response_media:")

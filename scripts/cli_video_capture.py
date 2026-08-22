@@ -335,11 +335,14 @@ def main() -> int:
             timeout_seconds=args.timeout_seconds,
         )
         if not args.no_response_media:
-            result["response_media"] = publish_response_media(
-                Path(result["video_path"]),
-                classification=args.classification,
-                dry_run=args.response_media_dry_run,
-            )
+            try:
+                result["response_media"] = publish_response_media(
+                    Path(result["video_path"]),
+                    classification=args.classification,
+                    dry_run=args.response_media_dry_run,
+                )
+            except CliCaptureError as exc:
+                result["response_media_error"] = str(exc)
     except CliCaptureError as exc:
         print(json.dumps({"status": "failed", "reason": str(exc)}))
         return 2
