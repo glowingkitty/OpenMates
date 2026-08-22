@@ -1,0 +1,200 @@
+schema_version: 1
+id: openmates-events
+campaign:
+  category: openmates_events
+  timezone: Europe/Berlin
+  assets:
+    header:
+      en:
+        path: shared/events/assets/newsletter/events-newsletter-header_en.png
+        mobile_path: shared/events/assets/newsletter/events-newsletter-header-mobile_en.png
+        alt: Red OpenMates events newsletter header
+      de:
+        path: shared/events/assets/newsletter/events-newsletter-header_de.png
+        mobile_path: shared/events/assets/newsletter/events-newsletter-header-mobile_de.png
+        alt: Roter OpenMates Events Newsletter Header
+events:
+  - id: openmates-community-hour-2026-08-25
+    slug: openmates-community-hour-2026-08-25
+    status: published
+    event_type: online_community_hour
+    starts_at: "2026-08-25T19:00:00+02:00"
+    ends_at: "2026-08-25T20:00:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: OpenMates Monthly Community Hour
+        summary: Join the monthly OpenMates video call to learn, ask questions, report issues, and directly shape development.
+        description: Tired of big-tech AI chatbots and agents, or already using OpenMates for everyday tasks and learning? Join the monthly community video call with questions, discovered issues, and wishes that can improve OpenMates for everyone.
+      de:
+        title: OpenMates Monatlicher Community Call
+        summary: Komm zum monatlichen OpenMates Video Call, stelle Fragen, melde Probleme und gestalte die Entwicklung direkt mit.
+        description: Du suchst eine Alternative zu Big-Tech KI Chatbots und Agenten oder nutzt OpenMates bereits im Alltag? Komm zum monatlichen Community Video Call mit Fragen, gefundenen Problemen und Wünschen, die OpenMates für alle verbessern können.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/qfwdd70e
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates Monthly Community Hour event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates monatlicher Community Call Eventkarte}
+  - id: ai-everyday-tasks-webinar-2026-08-27
+    slug: ai-everyday-tasks-webinar-2026-08-27
+    status: published
+    event_type: webinar
+    starts_at: "2026-08-27T19:00:00+02:00"
+    ends_at: "2026-08-27T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: AI for everyday tasks - Find events, doctors, trains and more
+        summary: Learn how AI agents can reduce frustrating research for events, appointments, apartments, and travel from hours to minutes.
+        description: This presentation and Q&A introduces OpenMates agents for time-consuming everyday searches, requires no coding or AI expertise, and includes practical tips plus personal recommendations during the Q&A.
+      de:
+        title: KI für Alltagsaufgaben - Events, Ärzte, Züge und mehr finden
+        summary: Lerne, wie KI Agenten frustrierende Recherchen für Events, Termine, Wohnungen und Reisen von Stunden auf Minuten verkürzen können.
+        description: Diese Präsentation mit Q&A stellt OpenMates Agenten für zeitaufwendige Alltagssuchen vor, erfordert keine Programmier- oder KI-Erfahrung und bietet praktische Tipps sowie persönliche Empfehlungen im Q&A.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/0t0r74sh
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png, alt: AI for everyday tasks webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png, alt: KI für Alltagsaufgaben Webinar Eventkarte}
+  - id: openmates-berlin-meetup-2026-08-29
+    slug: openmates-berlin-meetup-2026-08-29
+    status: published
+    event_type: in_person_meetup
+    starts_at: "2026-08-29T15:00:00+02:00"
+    ends_at: "2026-08-29T17:00:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: OpenMates Monthly Meetup Berlin
+        summary: Meet OpenMates users and contributors in Berlin, learn how to use it better, and directly influence development.
+        description: Join a relaxed monthly meetup for people seeking a European alternative to big-tech AI or already using OpenMates. Bring questions, issues, and feature wishes while meeting other people over a drink.
+      de:
+        title: OpenMates Monatliches Meetup Berlin
+        summary: Triff OpenMates Nutzer und Beitragende in Berlin, lerne bessere Nutzung und beeinflusse die Entwicklung direkt.
+        description: Komm zu einem entspannten monatlichen Meetup für Menschen, die eine europäische Alternative zu Big-Tech KI suchen oder OpenMates bereits nutzen. Bring Fragen, Probleme und Feature-Wünsche mit und triff andere bei einem Getränk.
+    venue: xHain Glitch, Grünberger Str. 20, 10243 Berlin
+    luma_url: https://luma.com/4rwaol33
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png, alt: OpenMates Monthly Meetup Berlin event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png, alt: OpenMates monatliches Meetup Berlin Eventkarte}
+  - id: everyday-workflows-webinar-2026-09-01
+    slug: everyday-workflows-webinar-2026-09-01
+    status: published
+    event_type: webinar
+    starts_at: "2026-09-01T19:00:00+02:00"
+    ends_at: "2026-09-01T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: Intro to automating everyday workflows - No coding experience needed
+        summary: Learn to automate recurring searches for events, apartments, appointments, news, and other personal or work tasks.
+        description: This presentation and Q&A shows how to set up OpenMates workflows within minutes without coding or automation experience, with practical tips and recommendations for improving personal workflows.
+      de:
+        title: Einstieg in automatisierte Alltags-Workflows - Keine Programmiererfahrung nötig
+        summary: Lerne wiederkehrende Suchen nach Events, Wohnungen, Terminen, Nachrichten und anderen persönlichen oder beruflichen Aufgaben zu automatisieren.
+        description: Diese Präsentation mit Q&A zeigt, wie OpenMates Workflows in wenigen Minuten ohne Programmier- oder Automatisierungserfahrung eingerichtet werden, inklusive praktischer Tipps zur Verbesserung persönlicher Workflows.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/fql7sc2a
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png, alt: Everyday workflow automation webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png, alt: Alltags-Workflow Automatisierung Webinar Eventkarte}
+  - id: openmates-teams-webinar-2026-09-03
+    slug: openmates-teams-webinar-2026-09-03
+    status: published
+    event_type: webinar
+    starts_at: "2026-09-03T19:00:00+02:00"
+    ends_at: "2026-09-03T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: OpenMates for teams - Collaborate on projects, AI chats and workflows
+        summary: Learn how freelancers and small teams can collaborate on projects, chats, workflows, and tasks with privacy-focused encryption.
+        description: This presentation and Q&A introduces the OpenMates teams feature, separation of work and personal data, shared usage credits, and practical recommendations for setting up a small team's workspace.
+      de:
+        title: OpenMates für Teams - Gemeinsam an Projekten, KI Chats und Workflows arbeiten
+        summary: Lerne, wie Freelancer und kleine Teams mit datenschutzorientierter Verschlüsselung an Projekten, Chats, Workflows und Aufgaben zusammenarbeiten können.
+        description: Diese Präsentation mit Q&A stellt OpenMates Teams vor, die Trennung von Arbeits- und persönlichen Daten, gemeinsame Nutzungsguthaben und praktische Empfehlungen für einen kleinen Team-Workspace.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/brp682ie
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates for teams webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates für Teams Webinar Eventkarte}
+  - id: spec-driven-development-webinar-2026-09-08
+    slug: spec-driven-development-webinar-2026-09-08
+    status: published
+    event_type: webinar
+    starts_at: "2026-09-08T19:00:00+02:00"
+    ends_at: "2026-09-08T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: Beyond vibe coding - Introduction to spec-driven development
+        summary: Learn how plans, tasks, projects, and enforced rules can make agentic coding more reliable and secure.
+        description: This presentation and Q&A introduces OpenMates Projects, Plans, and Tasks for structured agentic coding beyond vibe coding, including enforced planning and recommendations for improving development workflows.
+      de:
+        title: Beyond Vibe Coding - Einstieg in spec-driven development
+        summary: Lerne, wie Pläne, Aufgaben, Projekte und erzwungene Regeln agentisches Coding verlässlicher und sicherer machen.
+        description: Diese Präsentation mit Q&A stellt OpenMates Projects, Plans und Tasks für strukturiertes agentisches Coding jenseits von Vibe Coding vor, inklusive erzwungener Planung und Empfehlungen zur Verbesserung von Entwicklungsabläufen.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/vj8dq9qs
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development Webinar Eventkarte}
+  - id: cli-sdk-webinar-2026-09-10
+    slug: cli-sdk-webinar-2026-09-10
+    status: published
+    event_type: webinar
+    starts_at: "2026-09-10T19:00:00+02:00"
+    ends_at: "2026-09-10T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: OpenMates CLI and SDK for developers - All chats and features included
+        summary: Learn to use OpenMates chats, app skills, projects, tasks, workflows, memories, teams, and settings through the CLI and SDKs.
+        description: This presentation and Q&A introduces the official OpenMates CLI plus npm and pip SDKs, cross-device access, broad feature parity, and practical recommendations for integrating OpenMates into software workflows.
+      de:
+        title: OpenMates CLI und SDK für Entwickler - Alle Chats und Features inklusive
+        summary: Lerne OpenMates Chats, App Skills, Projekte, Aufgaben, Workflows, Erinnerungen, Teams und Einstellungen per CLI und SDKs zu nutzen.
+        description: Diese Präsentation mit Q&A stellt die offizielle OpenMates CLI sowie npm und pip SDKs, Cross-Device-Zugriff, breite Feature-Parität und praktische Empfehlungen zur Integration von OpenMates in Software-Workflows vor.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/8kquidf1
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png, alt: OpenMates CLI and SDK webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png, alt: OpenMates CLI und SDK Webinar Eventkarte}
+  - id: self-hosting-webinar-2026-09-15
+    slug: self-hosting-webinar-2026-09-15
+    status: published
+    event_type: webinar
+    starts_at: "2026-09-15T19:00:00+02:00"
+    ends_at: "2026-09-15T19:50:00+02:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: Intro to self-hosting your AI agents - Options, tips and tricks
+        summary: Learn how to run the OpenMates Self-Hosting Edition with external inference APIs or local models for greater control and sovereignty.
+        description: This presentation and Q&A introduces OpenMates self-hosting, external API and local-model options, infrastructure and provider requirements, and recommendations for a practical self-hosted setup.
+      de:
+        title: Einstieg ins Self-Hosting deiner KI Agenten - Optionen, Tipps und Tricks
+        summary: Lerne, wie du die OpenMates Self-Hosting Edition mit externen Inferenz-APIs oder lokalen Modellen für mehr Kontrolle und Souveränität betreibst.
+        description: Diese Präsentation mit Q&A stellt OpenMates Self-Hosting, externe API- und lokale Modelloptionen, Infrastruktur- und Provider-Anforderungen sowie Empfehlungen für ein praktisches Self-Hosted Setup vor.
+    online_url: https://meet.openmates.org
+    luma_url: https://luma.com/8gr6arot
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_self_hosting_your_ai_agents.png, alt: Self-hosting AI agents webinar event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_self_hosting_your_ai_agents.png, alt: Self-Hosting KI Agenten Webinar Eventkarte}

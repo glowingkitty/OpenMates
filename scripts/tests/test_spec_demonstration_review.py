@@ -6,6 +6,8 @@ Privacy: fixtures contain synthetic frame paths and no media or user data.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_review.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -19,6 +21,37 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "spec_demo.py"
 VIDEO_HASH = "sha256:" + "a" * 64
 FRAME_HASH = "sha256:" + "b" * 64
+AUDIO_HASH = "sha256:" + "c" * 64
+
+
+def narration_audio() -> dict[str, object]:
+    return {
+        "status": "passed",
+        "provider": "elevenlabs",
+        "model": "eleven_flash_v2_5",
+        "voice": "warm_neutral",
+        "path": "narration-audio.mp3",
+        "sha256": AUDIO_HASH,
+        "mime_type": "audio/mpeg",
+        "duration_seconds": 3.0,
+        "reused_from": "",
+    }
+
+
+def runner_provenance(request: dict[str, object]) -> dict[str, object]:
+    metadata = request["video_metadata"]
+    assert isinstance(metadata, dict)
+    return {
+        "reviewer_session_id": "ses_reviewer",
+        "device": metadata.get("device_profile", "unspecified-device"),
+        "proof_contract_hash": request["proof_contract_hash"],
+        "proof_group_id": request["proof_group_id"],
+        "source_artifact_hash": metadata["sha256"],
+        "subject_commit": request["subject_commit"],
+        "correction_round": 0,
+        "correction_kind": "none",
+        "workflow": {"requires_user_input": False},
+    }
 
 
 def load_module():
@@ -43,15 +76,16 @@ def test_review_frame_times_combine_periodic_and_event_boundaries() -> None:
     )
 
     assert {0.0, 3.0, 6.0, 9.0, 10.0}.issubset(times)
-    assert {1.2, 2.0, 4.5, 5.0, 8.0}.issubset(times)
+    assert {1.2, 5.0, 7.75}.issubset(times)
+    assert len(times) <= module.MAX_REVIEW_FRAMES_PER_DEVICE
 
 
-def test_periodic_interval_can_only_be_shorter_than_three_seconds() -> None:
+def test_periodic_interval_can_only_be_shorter_than_five_seconds() -> None:
     module = load_module()
 
     assert module.build_review_frame_times(duration_seconds=4, interval_seconds=1)[-1] == 4.0
-    with pytest.raises(module.DemonstrationError, match="three seconds"):
-        module.build_review_frame_times(duration_seconds=4, interval_seconds=4)
+    with pytest.raises(module.DemonstrationError, match="five seconds"):
+        module.build_review_frame_times(duration_seconds=6, interval_seconds=6)
 
 
 def test_review_request_contains_frames_and_captions_but_no_video() -> None:
@@ -63,6 +97,7 @@ def test_review_request_contains_frames_and_captions_but_no_video() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "The result is visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[1.0, 2.0]]}],
         frames=[{"timestamp": 1.0, "path": "frames/frame-001.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 3.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
 
     assert request["frames"][0]["path"].endswith(".png")
@@ -91,6 +126,7 @@ def test_review_request_rejects_unknown_payload_fields() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     request["recording_attachment"] = "demo.mp4"
 
@@ -114,6 +150,7 @@ def test_review_request_rejects_ambiguous_frame_timestamps() -> None:
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     request["frames"][0]["timestamp"] = "invalid"
 
@@ -142,6 +179,7 @@ def test_review_request_rejects_malformed_allowlisted_values(section: str, field
         expected_proof=[{"claim_id": "CLAIM-1", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
         frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": FRAME_HASH}],
         video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
     )
     target = request[section][0] if isinstance(request[section], list) else request[section]
     target[field] = value
@@ -186,7 +224,7 @@ def test_failed_claims_map_to_one_responsible_stage(
                 "claim_id": "CLAIM-1",
                 "verdict": "contradicted",
                 "defect_class": defect_class,
-                "observation": "Synthetic mismatch.",
+                "observation": "Synthetic mismatch is visible in frame 0001.",
             }
         ],
         prior_attempts=0,
@@ -210,22 +248,17 @@ def test_supported_claims_pass_without_return_stage() -> None:
     assert result["invalidate_implementation_evidence"] is False
 
 
-def test_record_review_requires_exactly_one_verdict_for_every_expected_claim(tmp_path: Path) -> None:
+def test_supported_claims_require_frame_grounded_observation() -> None:
     module = load_module()
-    manifest = {
-        "expected_proof": [{"claim_id": "CLAIM-1"}, {"claim_id": "CLAIM-2"}],
-        "review": {"status": "pending", "attempts": [], "additional_frame_requests": []},
-    }
-    (tmp_path / "manifest.json").write_text(__import__("json").dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(module.DemonstrationError, match="exactly one verdict"):
-        module.record_review(
-            tmp_path,
-            [{"claim_id": "CLAIM-BOGUS", "verdict": "supported", "observation": "Not relevant."}],
+    with pytest.raises(module.DemonstrationError, match="reviewed frames"):
+        module.evaluate_review_claims(
+            [{"claim_id": "CLAIM-1", "verdict": "supported", "observation": "Looks good."}],
+            prior_attempts=0,
         )
 
 
-def test_fourth_unresolved_review_requires_user_input() -> None:
+def test_uncertain_review_requires_user_input_immediately() -> None:
     module = load_module()
     result = module.evaluate_review_claims(
         [
@@ -233,11 +266,129 @@ def test_fourth_unresolved_review_requires_user_input() -> None:
                 "claim_id": "CLAIM-1",
                 "verdict": "ambiguous",
                 "defect_class": "recording",
-                "observation": "The relevant state is not readable.",
+                "observation": "The relevant state is not readable in frame 0003.",
             }
         ],
-        prior_attempts=3,
+        prior_attempts=0,
     )
 
-    assert result["attempt_number"] == 4
+    assert result["attempt_number"] == 1
     assert result["requires_user_input"] is True
+
+
+def test_third_failed_review_requires_user_input() -> None:
+    module = load_module()
+    result = module.evaluate_review_claims(
+        [
+            {
+                "claim_id": "CLAIM-1",
+                "verdict": "contradicted",
+                "defect_class": "composition",
+                "observation": "The defect remains visible in frame 0003.",
+            }
+        ],
+        prior_attempts=2,
+    )
+
+    assert result["attempt_number"] == 3
+    assert result["requires_user_input"] is True
+
+
+def test_review_receipt_rejects_uncited_frames_and_blocking_incidental_pass(tmp_path: Path) -> None:
+    module = load_module()
+    frame_path = tmp_path / "frames" / "frame.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    request = module.build_review_request(
+        spec_id="example",
+        subject_commit="abc1234",
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": module.sha256_file(frame_path)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
+    )
+    (tmp_path / "review-request.json").write_text(__import__("json").dumps(request), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        __import__("json").dumps({"expected_proof": request["expected_proof"], "review": {"status": "pending", "attempts": []}}),
+        encoding="utf-8",
+    )
+    receipt = {
+        **runner_provenance(request),
+        "status": "passed",
+        "confidence": 0.98,
+        "frame_index_hash": request["frame_index_hash"],
+        "reviewed_frames": ["frames/frame.png"],
+        "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/missing.png"], "observation": "Visible."}],
+        "incidental_findings": [],
+        "return_stage": "complete",
+        "next_action": "Publish.",
+    }
+
+    missing_integrity_scan = dict(receipt)
+    missing_integrity_scan.pop("incidental_findings")
+    with pytest.raises(module.DemonstrationError, match="incidental_findings"):
+        module.record_review_receipt(tmp_path, missing_integrity_scan)
+
+    with pytest.raises(module.DemonstrationError, match="unknown frame"):
+        module.record_review_receipt(tmp_path, receipt)
+
+    receipt["assertions"][0]["frames"] = ["frames/frame.png"]
+    receipt["incidental_findings"] = [
+        {
+            "id": "UI-1",
+            "category": "clipping",
+            "severity": "blocking",
+            "confidence": 0.98,
+            "frames": ["frames/frame.png"],
+            "observation": "The header is clipped.",
+        }
+    ]
+    with pytest.raises(module.DemonstrationError, match="blocking incidental"):
+        module.record_review_receipt(tmp_path, receipt)
+
+
+def test_review_receipt_requires_every_frame_and_exact_assertion_schema(tmp_path: Path) -> None:
+    module = load_module()
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    first = frames_dir / "first.png"
+    second = frames_dir / "second.png"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    request = module.build_review_request(
+        spec_id="example",
+        subject_commit="abc1234",
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[
+            {"timestamp_seconds": 0.0, "path": "frames/first.png", "sha256": module.sha256_file(first)},
+            {"timestamp_seconds": 1.0, "path": "frames/second.png", "sha256": module.sha256_file(second)},
+        ],
+        video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
+    )
+    (tmp_path / "review-request.json").write_text(__import__("json").dumps(request), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        __import__("json").dumps({"expected_proof": request["expected_proof"], "review": {"status": "pending", "attempts": []}}),
+        encoding="utf-8",
+    )
+    receipt = {
+        **runner_provenance(request),
+        "status": "passed",
+        "confidence": 0.99,
+        "frame_index_hash": request["frame_index_hash"],
+        "reviewed_frames": ["frames/first.png"],
+        "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/first.png"], "observation": "Visible."}],
+        "incidental_findings": [],
+        "return_stage": "complete",
+        "next_action": "Publish.",
+    }
+
+    with pytest.raises(module.DemonstrationError, match="every canonical frame"):
+        module.record_review_receipt(tmp_path, receipt)
+
+    receipt["reviewed_frames"] = ["frames/first.png", "frames/second.png"]
+    receipt["assertions"][0]["unexpected"] = True
+    with pytest.raises(module.DemonstrationError, match="canonical schema"):
+        module.record_review_receipt(tmp_path, receipt)

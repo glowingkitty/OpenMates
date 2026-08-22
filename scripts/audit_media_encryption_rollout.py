@@ -42,6 +42,13 @@ PACKAGING_CONTRACTS = {
     ),
 }
 
+MEDIA_WRITER_COMPOSE_SERVICES = (
+    "app-images-worker",
+    "app-music-worker",
+    "app-videos-worker",
+)
+COMPOSE_ROLLOUT_MOUNT = "../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro"
+
 
 def load_manifest(path: Path) -> Mapping[str, Any]:
     manifest = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -57,6 +64,15 @@ def validate_rollout_packaging(root: Path = ROOT) -> None:
         for required_text in required_texts:
             if required_text not in content:
                 raise ValueError(f"media rollout packaging is missing from {relative_path}")
+    compose = yaml.safe_load((root / "backend/core/docker-compose.yml").read_text(encoding="utf-8"))
+    services = compose.get("services") if isinstance(compose, Mapping) else None
+    if not isinstance(services, Mapping):
+        raise ValueError("backend/core/docker-compose.yml services are invalid")
+    for service_name in MEDIA_WRITER_COMPOSE_SERVICES:
+        service = services.get(service_name)
+        volumes = service.get("volumes") if isinstance(service, Mapping) else None
+        if not isinstance(volumes, list) or COMPOSE_ROLLOUT_MOUNT not in volumes:
+            raise ValueError(f"media rollout packaging is missing from backend/core/docker-compose.yml service {service_name}")
 
 
 def main() -> int:

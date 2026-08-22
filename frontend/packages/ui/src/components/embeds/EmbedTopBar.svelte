@@ -298,6 +298,8 @@
 
   .top-bar-left,
   .top-bar-right {
+    position: relative;
+    z-index: 1;
     display: flex;
     gap: var(--spacing-4);
     align-items: center;
@@ -306,6 +308,8 @@
 
   /* Pill wrapper — matches .new-chat-button-wrapper in ActiveChat.svelte */
   .button-wrapper {
+    position: relative;
+    z-index: 1;
     background-color: var(--color-grey-10);
     border-radius: 40px;
     padding: var(--spacing-4);
@@ -315,6 +319,11 @@
     justify-content: center;
     transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
     cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .top-button {
+    pointer-events: auto;
   }
 
   .button-wrapper:hover {

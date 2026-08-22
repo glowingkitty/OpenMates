@@ -1,0 +1,77 @@
+{
+  "api_url": "https://api.dev.openmates.org",
+  "auth": {
+    "access_types": [
+      "cli",
+      "npm",
+      "pip"
+    ],
+    "temporary_api_key_created": true,
+    "temporary_api_key_revoked": true
+  },
+  "checks": [
+    {
+      "byte_length": 30137,
+      "client": "rest",
+      "credits_charged": 8,
+      "duration_seconds": 1.881,
+      "generation_type": "speech",
+      "has_download_url": true,
+      "inline_audio_base64_present": false,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_multilingual_v2",
+      "provider": "ElevenLabs",
+      "sha256": "54104b2ba7d5fdaec675486c1d9d624a5b844122c565253c9c0fb4fbbaf61586",
+      "signed_download_url_persisted": false,
+      "skill": "audio.speak",
+      "status": "finished"
+    },
+    {
+      "client": "cli",
+      "reason": "blocked: installed CLI package 0.15.0-alpha.107 does not include current generated audio app-skill metadata, and local package build/install is blocked by repo hooks",
+      "skill": "audio.generate",
+      "status": "blocked"
+    },
+    {
+      "byte_length": 38078,
+      "client": "npm",
+      "credits_charged": 10,
+      "duration_seconds": 2.377,
+      "generation_type": "speech",
+      "has_download_url": true,
+      "inline_audio_base64_present": false,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_multilingual_v2",
+      "provider": "ElevenLabs",
+      "sha256": "2144027d44040c17ca8b09c4778250f67e7b444ac1d24d83e73b80d20b397add",
+      "signed_download_url_persisted": false,
+      "skill": "audio.speak",
+      "status": "finished"
+    },
+    {
+      "byte_length": 13836,
+      "client": "pip",
+      "credits_charged": 16,
+      "duration_seconds": 0.8,
+      "generation_type": "sound_effect",
+      "has_download_url": true,
+      "inline_audio_base64_present": false,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_text_to_sound_v2",
+      "provider": "ElevenLabs",
+      "sha256": "4eb1cfc69ef5cc154eb635b2b18a7dabba0f2b823a5457e0fe7f8a102298f445",
+      "signed_download_url_persisted": false,
+      "skill": "audio.generate",
+      "status": "finished"
+    }
+  ],
+  "endpoint_access_model": "developer_api_key_rest",
+  "generated_at": "2026-08-11T20:55:34+00:00",
+  "privacy": {
+    "api_key_persisted": false,
+    "inline_audio_base64_persisted": false,
+    "prompts_persisted": false,
+    "signed_download_url_persisted": false
+  },
+  "run_id": "audio-sdk-cli-20260811-205505"
+}

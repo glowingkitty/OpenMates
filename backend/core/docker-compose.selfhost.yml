@@ -1,7 +1,7 @@
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
-  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.15.0}
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.16.0}
 
 x-openmates-worker-base: &openmates-worker-base
   <<: *openmates-api-image
@@ -97,7 +97,7 @@ services:
 
   cms:
     container_name: cms
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.16.0}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -131,7 +131,8 @@ services:
       test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
       timeout: 8s
-      start_period: 60s
+      # cms-setup creates the indexes validated by this health script; cold CI runners can take several minutes.
+      start_period: 10m
       retries: 12
     depends_on:
       cms-database:
@@ -160,7 +161,7 @@ services:
 
   cms-setup:
     container_name: cms-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.16.0}
     env_file: ../../.env
     environment:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
@@ -173,6 +174,7 @@ services:
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
+      ENCRYPTED_SLUG_MIGRATION_PATH: "/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
       SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     networks:
       - openmates
@@ -212,12 +214,38 @@ services:
     mem_limit: "${CORE_WORKER_MEMORY_LIMIT:-3g}"
     environment:
       <<: *openmates-worker-env
-      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,push"
       CELERY_AUTOSCALE_MAX: "${CORE_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9109"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  user-tasks-worker:
+    <<: *openmates-worker-base
+    container_name: user-tasks-worker
+    mem_limit: "${USER_TASKS_WORKER_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "user_tasks"
+      CELERY_AUTOSCALE_MAX: "${USER_TASKS_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9112"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_tasks --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  reminder-worker:
+    <<: *openmates-worker-base
+    container_name: reminder-worker
+    mem_limit: "${REMINDER_WORKER_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "reminder"
+      CELERY_AUTOSCALE_MAX: "${REMINDER_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9111"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=reminder --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   workflow-worker:
     <<: *openmates-worker-base
@@ -301,7 +329,7 @@ services:
 
   app-docs-worker:
     <<: *openmates-worker-base
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.16.0}
     container_name: app-docs-worker
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
@@ -378,7 +406,7 @@ services:
 
   vault-setup:
     container_name: vault-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.16.0}
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -431,15 +459,85 @@ services:
     networks:
       - openmates
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sed "s|\$${SERVER_ENVIRONMENT}|$${SERVER_ENVIRONMENT:-self_host}|g" /etc/prometheus/prometheus.yml > /tmp/prometheus.runtime.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.runtime.yml --storage.tsdb.path=/prometheus
+    networks:
+      - openmates
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - openmates
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.textfile.directory=/textfile"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/.+)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+      - ${GIT_WORK_DIR:-../..}/.openmates/runtime-health/metrics:/textfile:ro
+    networks:
+      - openmates
+
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        urgent_webhook="$${DISCORD_WEBHOOK_URGENT_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL:-}}}"
+        sed "s|\$${INTERNAL_API_SHARED_TOKEN}|$${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if [ -n "$$urgent_webhook" ]; then
+          sed -i "s|\$${DISCORD_WEBHOOK_URGENT_SCOPED}|$$urgent_webhook|g" /tmp/alertmanager.runtime.yml
+        else
+          sed -i '/URGENT_DISCORD_ROUTE_START/,/URGENT_DISCORD_ROUTE_END/d; /URGENT_DISCORD_RECEIVER_START/,/URGENT_DISCORD_RECEIVER_END/d' /tmp/alertmanager.runtime.yml
+        fi
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
+    networks:
+      - openmates
+
   admin-sidecar:
     container_name: core-admin-sidecar
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.16.0}
     restart: unless-stopped
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
       COMPOSE_PROJECT: "openmates"
       COMPOSE_FILE: "backend/core/docker-compose.selfhost.yml"
-      SERVICES_ALLOWED: "api,task-worker,task-scheduler,cache,admin-sidecar"
+      SERVICES_ALLOWED: "api,task-worker,reminder-worker,task-scheduler,cache,admin-sidecar"
       SERVICE_UPDATE_ALL: "true"
       SERVICE_UPDATE_TARGET: "api"
       SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
@@ -469,7 +567,7 @@ services:
 
   webapp:
     container_name: webapp
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.15.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.16.0}
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -499,6 +597,8 @@ volumes:
     name: openmates-cache-data
   openobserve-data:
     name: openmates-openobserve-data
+  prometheus-data:
+    name: openmates-prometheus-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:

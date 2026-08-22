@@ -39,6 +39,12 @@ class UserPlanService:
     async def list_plans(self, user_id: str, **filters: Any) -> list[dict[str, Any]]:
         return await self.plan_methods.list_plans(user_id, **filters)
 
+    async def get_plan(self, plan_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any]:
+        plan = await self.plan_methods.get_plan(plan_id, user_id, team_id=team_id)
+        if not plan:
+            raise UserPlanNotFoundError("Plan not found")
+        return plan
+
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = dict(payload)
         payload.setdefault("status", "draft")

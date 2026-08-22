@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Privacy and filesystem-boundary contracts for OpenCode presence.
 
 Only structured identifiers, states, timestamps, capabilities, and safe relative
@@ -25,6 +26,25 @@ def test_unknown_and_sensitive_fields_are_stripped(tmp_path):
     for forbidden in ("secret", "title", "todos", "message", "reasoning", "tool_input", "tool_output", "patch", "env"):
         assert forbidden not in raw
     assert json.loads(raw)["sessions"]["ses-a"]["pending_permission_ids"] == ["perm-1"]
+
+
+def test_runtime_hook_hash_is_retained_as_a_bounded_identifier(tmp_path):
+    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path)
+    runtime_hash = "a" * 64
+    result = store.update({
+        "session_id": "ses-a", "source_id": "source-a", "generation": 1, "sequence": 1,
+        "execution": "busy", "attention": "none", "turn": "streaming",
+        "hook_runtime_hash": runtime_hash, "updated_at": "2026-08-05T00:00:00Z",
+    })
+
+    assert result["record"]["hook_runtime_hash"] == runtime_hash
+
+    rejected = store.update({
+        "session_id": "ses-b", "source_id": "source-b", "generation": 1, "sequence": 1,
+        "execution": "busy", "attention": "none", "turn": "streaming",
+        "hook_runtime_hash": "not-a-hash", "updated_at": "2026-08-05T00:00:00Z",
+    })
+    assert "hook_runtime_hash" not in rejected["record"]
 
 
 def test_paths_are_relative_and_traversal_safe(tmp_path):

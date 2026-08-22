@@ -8,40 +8,65 @@
  * 3. Fetch encrypted share manifest and message windows from API
  * 4. Decrypt messages, embeds, and compression checkpoint summaries
  *
- * Usage: node scripts/extract-shared-chat.mjs <share-url>
+ * Accepts full `/share/chat/...#key=...` links and zero-knowledge `/s/{token}#...`
+ * short links. Short-link secrets remain local and are never sent to the server.
+ *
+ * Usage: node scripts/extract-shared-chat.mjs <share-url-or-short-url> [--api-base <url>]
  */
 
 const { subtle } = globalThis.crypto;
+import { fileURLToPath } from 'node:url';
 
-const SHARE_URL = process.argv[2];
-if (!SHARE_URL) {
-  console.error('Usage: node scripts/extract-shared-chat.mjs <share-url>');
-  process.exit(1);
+export function apiBaseFor(url) {
+  const host = url.host;
+  return host.startsWith('app.dev.')
+    ? `https://api.dev.${host.replace('app.dev.', '')}`
+    : host.startsWith('app.')
+      ? `https://api.${host.replace('app.', '')}`
+      : `${url.protocol}//${host}`;
 }
 
-// Parse URL
-const url = new URL(SHARE_URL);
-const pathParts = url.pathname.split('/');
-const chatId = pathParts[pathParts.length - 1];
-const fragment = url.hash.slice(1); // Remove #
-const params = new URLSearchParams(fragment);
-const encryptedBlob = params.get('key');
+export async function resolveShareUrl(inputUrl, fetchImpl = fetch, apiBaseOverride = '') {
+  const shortUrl = new URL(inputUrl);
+  const tokenMatch = shortUrl.pathname.match(/^\/s\/([A-Za-z0-9]{6,12})\/?$/);
+  if (!tokenMatch) return inputUrl;
 
-if (!chatId || !encryptedBlob) {
-  console.error('Could not parse chat ID or key from URL');
-  process.exit(1);
+  const token = tokenMatch[1];
+  const shortKey = shortUrl.hash.slice(1);
+  if (!/^[A-Za-z0-9]{4,22}$/.test(shortKey)) {
+    throw new Error('Short share URL is missing a valid fragment key');
+  }
+
+  const apiBase = apiBaseOverride || process.env.OPENMATES_API_BASE || apiBaseFor(shortUrl);
+  const response = await fetchImpl(`${apiBase.replace(/\/$/, '')}/v1/share/short-url/${encodeURIComponent(token)}`);
+  if (!response.ok) throw new Error(`Short URL resolution failed: ${response.status}`);
+  const payload = await response.json();
+  if (typeof payload.encrypted_url !== 'string') {
+    throw new Error('Short URL response did not contain encrypted_url');
+  }
+
+  const keyMaterial = await subtle.importKey(
+    'raw',
+    new TextEncoder().encode(shortKey),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  const key = await subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: new TextEncoder().encode(`omts-v1-${token}`),
+      iterations: 200_000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt'],
+  );
+  const decrypted = await decryptAESGCM(base64UrlDecode(payload.encrypted_url), key);
+  return new TextDecoder().decode(decrypted);
 }
-
-// The frontend app proxies to the API - derive API URL from app URL
-const host = url.host;
-const API_BASE = host.startsWith('app.dev.')
-  ? `https://api.dev.${host.replace('app.dev.', '')}`
-  : host.startsWith('app.')
-    ? `https://api.${host.replace('app.', '')}`
-    : `${url.protocol}//${host}`;
-
-console.log(`Chat ID: ${chatId}`);
-console.log(`API Base: ${API_BASE}`);
 
 const SHARED_MESSAGE_PAGE_LIMIT = 100;
 
@@ -362,7 +387,31 @@ async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, option
 
 // --- Main flow ---
 
-async function main() {
+async function main(inputUrl) {
+  if (!inputUrl) {
+    console.error('Usage: node scripts/extract-shared-chat.mjs <share-url-or-short-url> [--api-base <url>]');
+    process.exit(1);
+  }
+
+  const apiBaseFlagIndex = process.argv.indexOf('--api-base');
+  const apiBaseOverride = apiBaseFlagIndex >= 0 ? process.argv[apiBaseFlagIndex + 1] : '';
+  if (apiBaseFlagIndex >= 0 && !apiBaseOverride) {
+    throw new Error('--api-base requires a URL');
+  }
+  const shareUrl = await resolveShareUrl(inputUrl, fetch, apiBaseOverride);
+  const url = new URL(shareUrl);
+  const pathParts = url.pathname.split('/');
+  const chatId = pathParts[pathParts.length - 1];
+  const params = new URLSearchParams(url.hash.slice(1));
+  const encryptedBlob = params.get('key');
+  if (!chatId || !encryptedBlob) {
+    throw new Error('Could not parse chat ID or key from URL');
+  }
+  const apiBase = apiBaseFor(url);
+
+  console.log(`Chat ID: ${chatId}`);
+  console.log(`API Base: ${apiBase}`);
+
   // Step 1: Derive key from chat ID
   console.log('\n1. Deriving key from chat ID...');
   const chatIdKey = await deriveKeyFromId(chatId, 'openmates-share-v1');
@@ -394,7 +443,7 @@ async function main() {
 
   // Step 3: Fetch and decrypt root chat data
   console.log('\n3. Fetching encrypted chat data...');
-  const data = await fetchSharedPayload(API_BASE, chatId);
+  const data = await fetchSharedPayload(apiBase, chatId);
   const output = await decryptSharedChatPayload(chatId, data, chatKeyBytes, { label: 'Root chat' });
 
   console.log(`   Title: ${output.title}`);
@@ -410,7 +459,7 @@ async function main() {
     const subChatId = subChat.id || subChat.chat_id;
     if (!subChatId) continue;
     try {
-      const subChatPayload = await fetchSharedPayload(API_BASE, subChatId);
+      const subChatPayload = await fetchSharedPayload(apiBase, subChatId);
       const decryptedSubChat = await decryptSharedChatPayload(subChatId, subChatPayload, chatKeyBytes, {
         label: 'Sub-chat',
       });
@@ -430,7 +479,9 @@ async function main() {
   console.log(JSON.stringify(output, null, 2));
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main(process.argv[2]).catch(err => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}

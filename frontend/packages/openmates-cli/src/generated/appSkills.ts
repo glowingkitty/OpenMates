@@ -211,11 +211,11 @@ export const APP_SKILL_METADATA = [
               "model": {
                 "type": "string",
                 "enum": [
-                  "eleven_flash_v2_5",
-                  "eleven_multilingual_v2"
+                  "eleven_multilingual_v2",
+                  "eleven_flash_v2_5"
                 ],
-                "default": "eleven_flash_v2_5",
-                "description": "ElevenLabs TTS model. Flash v2.5 is the low-cost default; Multilingual v2 is the premium high-quality option."
+                "default": "eleven_multilingual_v2",
+                "description": "ElevenLabs TTS model. Multilingual v2 is the higher-quality default; Flash v2.5 is the lower-cost explicit option."
               }
             },
             "required": [

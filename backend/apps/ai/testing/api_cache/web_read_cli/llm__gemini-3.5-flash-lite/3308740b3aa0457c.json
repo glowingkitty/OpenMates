@@ -1,0 +1,70 @@
+{
+  "fingerprint": "3308740b3aa0457c",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_cli",
+  "recorded_at": "2026-08-15T14:55:34.758092+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "0e4e0191daab395b",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "url: \"https://example.com\"\ntitle: Example Domain\nmarkdown: \"# Example Domain\\n\\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\\n\\n[Learn more](ht..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "> [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:example.com-1)\n\nThe webpage at [Example Domain](embed:example.com-1) is a placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (the Internet Assigned Numbers Authority). It serves as a reserved domain that authors and developers can freely use in documentation, tutorials, and examples without having to coordinate or seek permission. \n\nYou can read more about it directly on the [IANA website](https://iana.org/domains/example).\n\n***\n\n**Would you like to explore next?**\n1. Learn how placeholder domains like `example.com`, `example.net`, and `example.org` are managed by [ICANN](wiki:ICANN).\n2. Look into how domain registration and documentation standards work.",
+    "chunk_count": 9,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": ">"
+      },
+      {
+        "kind": "text",
+        "value": " [This domain is for use in documentation examples without needing permission. Avoid use in operations.](embed:example.com-1)\n\nThe webpage at [Example Domain](embed:example.com-1)"
+      },
+      {
+        "kind": "text",
+        "value": " is a placeholder managed by [IANA](wiki:Internet_Assigned_Numbers_Authority) (the Internet Assigned Numbers"
+      },
+      {
+        "kind": "text",
+        "value": " Authority). It serves as a reserved domain that authors and developers can freely use in documentation, tutorials, and examples without having to coordinate"
+      },
+      {
+        "kind": "text",
+        "value": " or seek permission. \n\nYou can read more about it directly on the [IANA website](https://iana.org"
+      },
+      {
+        "kind": "text",
+        "value": "/domains/example).\n\n***\n\n**Would you like to explore next?**\n1. Learn how placeholder domains like `example.com"
+      },
+      {
+        "kind": "text",
+        "value": "`, `example.net`, and `example.org` are managed by [ICANN](wiki:ICANN).\n2. Look"
+      },
+      {
+        "kind": "text",
+        "value": " into how domain registration and documentation standards work."
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14607,
+          "candidates_token_count": 167,
+          "total_token_count": 14774,
+          "user_input_tokens": 201,
+          "system_prompt_tokens": 13423
+        }
+      }
+    ]
+  }
+}

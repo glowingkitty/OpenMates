@@ -1,0 +1,3808 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-14'
+generated_at: '2026-08-15T00:20:06+00:00'
+range:
+  since: '2026-08-14T00:00:00+00:00'
+  until: '2026-08-15T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 77
+  section_counts:
+    features: 5
+    bug_fixes: 46
+    improvements: 0
+    docs: 7
+    tests: 13
+    infrastructure: 0
+    internal: 6
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 32
+  dev_only_items: 77
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: stack global notifications'
+    section: features
+    commits:
+    - bae1ec8d5
+    authored_at: '2026-08-14T22:24:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add operational monitoring digests'
+    section: features
+    commits:
+    - c6929ae77
+    authored_at: '2026-08-14T21:27:45+00:00'
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/core/api/templates/email/operational_monitoring_digest.mjml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/alertmanager/alertmanager.yml
+    - backend/core/monitoring/prometheus/alert_rule_tests.yml
+    - backend/core/monitoring/prometheus/alert_rules.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/scripts/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - backend/tests/test_operational_monitoring_tasks.py
+    - backend/tests/test_verify_operational_monitoring.py
+    - contracts/architecture/operational-monitoring/contract.yml
+    - contracts/architecture/operational-monitoring/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_operational_monitoring_contract.py
+    - scripts/verify_operational_monitoring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Teams web workspace'
+    section: features
+    commits:
+    - 0cf129b65
+    authored_at: '2026-08-14T16:28:27+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: enforce bounded proof-video review'
+    section: features
+    commits:
+    - 4fb32f9b6
+    authored_at: '2026-08-14T16:22:47+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_sync_agent_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add OpenCode response media uploads'
+    section: features
+    commits:
+    - 6c36b2248
+    authored_at: '2026-08-14T06:47:25+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/s3/cors.py
+    - backend/tests/test_cors.py
+    - backend/tests/test_opencode_response_media_bucket.py
+    - deployment/dev_server/Caddyfile
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/security.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/opencode_response_media.py
+    - scripts/tests/test_opencode_response_media.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: harden travel flight departure windows'
+    section: bug_fixes
+    commits:
+    - 39fd57342
+    authored_at: '2026-08-14T23:13:37+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align digest activity timestamps'
+    section: bug_fixes
+    commits:
+    - 3763a29e7
+    authored_at: '2026-08-14T23:06:15+00:00'
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize search skill embeds'
+    section: bug_fixes
+    commits:
+    - 6808bc733
+    authored_at: '2026-08-14T22:33:53+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/search-skill-embed-reliability/spec.yml
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: count usage entries with integer timestamps'
+    section: bug_fixes
+    commits:
+    - 5a8ad151e
+    authored_at: '2026-08-14T22:28:09+00:00'
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align mobile workspace composer baseline'
+    section: bug_fixes
+    commits:
+    - 31d1415b0
+    authored_at: '2026-08-14T22:27:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent live verifier startup deadlock'
+    section: bug_fixes
+    commits:
+    - d0d84a1f0
+    authored_at: '2026-08-14T21:38:17+00:00'
+    changed_paths:
+    - scripts/verify_opencode_presence_live.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor travel departure windows'
+    section: bug_fixes
+    commits:
+    - 94d574fb6
+    authored_at: '2026-08-14T20:52:15+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - contracts/features/app-skills/travel-search/contract.yml
+    - contracts/features/app-skills/travel-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep new Teams create result visible'
+    section: bug_fixes
+    commits:
+    - '795526266'
+    authored_at: '2026-08-14T19:48:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Teams create key by response id'
+    section: bug_fixes
+    commits:
+    - b6a5f1ac6
+    authored_at: '2026-08-14T19:29:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Teams create payload for immediate render'
+    section: bug_fixes
+    commits:
+    - feef1b4d2
+    authored_at: '2026-08-14T18:55:07+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear Teams proof video blockers'
+    section: bug_fixes
+    commits:
+    - 81000a9f6
+    authored_at: '2026-08-14T18:33:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align mobile workspace composer inset'
+    section: bug_fixes
+    commits:
+    - 32a669352
+    authored_at: '2026-08-14T18:23:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize landing product story timing'
+    section: bug_fixes
+    commits:
+    - a837399d7
+    authored_at: '2026-08-14T18:18:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent false child ownership blocks'
+    section: bug_fixes
+    commits:
+    - 5d5a1dfb7
+    authored_at: '2026-08-14T18:06:12+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/verify_opencode_presence_live.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix Vercel gate campaign completion
+    section: bug_fixes
+    commits:
+    - 94825c252
+    authored_at: '2026-08-14T17:38:29+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align mobile workspace inspiration height'
+    section: bug_fixes
+    commits:
+    - ac76b5b21
+    authored_at: '2026-08-14T16:58:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve proof reviewer OpenCode binary'
+    section: bug_fixes
+    commits:
+    - 7f4f78d36
+    authored_at: '2026-08-14T16:35:31+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match mobile workspace height'
+    section: bug_fixes
+    commits:
+    - 68d86bf58
+    authored_at: '2026-08-14T16:20:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix encrypted PII sidecar persistence
+    section: bug_fixes
+    commits:
+    - 9a40e9da6
+    authored_at: '2026-08-14T16:19:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_persistence_tasks.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align mobile workspace insets'
+    section: bug_fixes
+    commits:
+    - d74c40b3b
+    authored_at: '2026-08-14T16:00:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: match workspace composer height'
+    section: bug_fixes
+    commits:
+    - 418a4d2b0
+    authored_at: '2026-08-14T15:45:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align workspace shells with Chats'
+    section: bug_fixes
+    commits:
+    - 6fbc646d2
+    authored_at: '2026-08-14T15:20:55+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceReportIssueButton.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix uploaded image preview fallback
+    section: bug_fixes
+    commits:
+    - 0d035078e
+    authored_at: '2026-08-14T14:57:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:image'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recheck small synced chat windows'
+    section: bug_fixes
+    commits:
+    - 871ab13ea
+    authored_at: '2026-08-14T14:26:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover partial synced chat windows'
+    section: bug_fixes
+    commits:
+    - ad2fafcc3
+    authored_at: '2026-08-14T14:01:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover synced chat content after key arrival'
+    section: bug_fixes
+    commits:
+    - 863798f95
+    authored_at: '2026-08-14T13:40:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix grouped generated video previews
+    section: bug_fixes
+    commits:
+    - 9bbc42500
+    authored_at: '2026-08-14T12:34:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sanitize shopping live mock cache'
+    section: bug_fixes
+    commits:
+    - ef353269f
+    authored_at: '2026-08-14T12:26:16+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/7e6eacb180b0ce7b.json
+    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/d8b7e9e3201a5e9c.json
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix live mock HTTP cache refresh
+    section: bug_fixes
+    commits:
+    - 35695bcce
+    authored_at: '2026-08-14T11:20:00+00:00'
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep payment order provider in sync'
+    section: bug_fixes
+    commits:
+    - 1d2ef16de
+    authored_at: '2026-08-14T11:06:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: protect encrypted slug workflow outputs'
+    section: bug_fixes
+    commits:
+    - d9a70a9d0
+    authored_at: '2026-08-14T11:01:10+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/verify_cli_encrypted_slugs_live_smoke.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: mount EU Stripe payment element after render'
+    section: bug_fixes
+    commits:
+    - 997ad8aef
+    authored_at: '2026-08-14T10:45:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix core chat test regressions
+    section: bug_fixes
+    commits:
+    - beb83b8d1
+    authored_at: '2026-08-14T10:41:18+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/new-chat-pinned-sort.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: scope team chat wrappers'
+    section: bug_fixes
+    commits:
+    - f2e7a4539
+    authored_at: '2026-08-14T10:02:47+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_unified_key_wrappers.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix app skill dispatch context
+    section: bug_fixes
+    commits:
+    - 3b79e2d6f
+    authored_at: '2026-08-14T09:53:35+00:00'
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/tests/test_base_app_dispatch_context.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix signup and billing Playwright specs
+    section: bug_fixes
+    commits:
+    - 6b65f61e7
+    authored_at: '2026-08-14T09:24:29+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate hard expiry timer health'
+    section: bug_fixes
+    commits:
+    - '156577894'
+    authored_at: '2026-08-14T09:07:59+00:00'
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce bounded local disk retention'
+    section: bug_fixes
+    commits:
+    - 45e40a3b1
+    authored_at: '2026-08-14T09:04:45+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/cleanup-opencode-sessions.sh
+    - scripts/contracts.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce bounded local disk retention'
+    section: bug_fixes
+    commits:
+    - a59eb2587
+    authored_at: '2026-08-14T08:44:42+00:00'
+    changed_paths:
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep proof captions clear of workspace boards'
+    section: bug_fixes
+    commits:
+    - 9fe629fae
+    authored_at: '2026-08-14T01:52:41+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: move proof captions above workspace content'
+    section: bug_fixes
+    commits:
+    - b37708f50
+    authored_at: '2026-08-14T01:36:34+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize guest new chat transition'
+    section: bug_fixes
+    commits:
+    - 416bf6517
+    authored_at: '2026-08-14T01:07:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reduce proof caption footprint'
+    section: bug_fixes
+    commits:
+    - bef0b255b
+    authored_at: '2026-08-14T00:45:00+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent guest chat hash restoration'
+    section: bug_fixes
+    commits:
+    - ca022df3f
+    authored_at: '2026-08-14T00:44:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish landing story verification'
+    section: bug_fixes
+    commits:
+    - 667c4bc40
+    authored_at: '2026-08-14T00:25:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: lift mobile proof captions above composer'
+    section: bug_fixes
+    commits:
+    - 16ec91d70
+    authored_at: '2026-08-14T00:07:46+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record child ownership proof'
+    section: docs
+    commits:
+    - 1b555d54d
+    authored_at: '2026-08-14T22:07:16+00:00'
+    changed_paths:
+    - docs/specs/agent-presence-coordination/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Teams web green evidence'
+    section: docs
+    commits:
+    - 01fc68127
+    authored_at: '2026-08-14T16:51:28+00:00'
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: bind proof launcher verification'
+    section: docs
+    commits:
+    - '294735515'
+    authored_at: '2026-08-14T16:38:40+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: correct proof review verification command'
+    section: docs
+    commits:
+    - f9e4c8ad2
+    authored_at: '2026-08-14T16:28:54+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: bind proof review evidence commit'
+    section: docs
+    commits:
+    - 98c560c31
+    authored_at: '2026-08-14T16:25:29+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Record Teams profile-image proof evidence
+    section: docs
+    commits:
+    - 5b3a6ad11
+    authored_at: '2026-08-14T15:11:51+00:00'
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: verify CLI encrypted slug evidence'
+    section: docs
+    commits:
+    - 5eea3aa06
+    authored_at: '2026-08-14T12:00:09+00:00'
+    changed_paths:
+    - docs/specs/cli-encrypted-slugs/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: record shared asset proof surface'
+    section: tests
+    commits:
+    - 9ce2790f8
+    authored_at: '2026-08-14T19:20:25+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept shared asset chat show json output'
+    section: tests
+    commits:
+    - cda4edbca
+    authored_at: '2026-08-14T18:47:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: prevent shared asset chat show sync stalls'
+    section: tests
+    commits:
+    - 312d06a05
+    authored_at: '2026-08-14T18:30:32+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize shared embed asset id discovery'
+    section: tests
+    commits:
+    - ab6408bb6
+    authored_at: '2026-08-14T17:53:16+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: support phone proof video capture'
+    section: tests
+    commits:
+    - ceb555500
+    authored_at: '2026-08-14T17:44:24+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize landing intro collapse assertion'
+    section: tests
+    commits:
+    - 257987e39
+    authored_at: '2026-08-14T17:34:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep shared asset slug marker in prefix'
+    section: tests
+    commits:
+    - a08817083
+    authored_at: '2026-08-14T16:34:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make shared chat asset prompt unique'
+    section: tests
+    commits:
+    - 1dd709362
+    authored_at: '2026-08-14T15:15:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enforce workspace visual parity'
+    section: tests
+    commits:
+    - 9bd201531
+    authored_at: '2026-08-14T14:44:16+00:00'
+    changed_paths:
+    - contracts/features/workspace-shell/contract.yml
+    - contracts/features/workspace-shell/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record Teams CLI proof video'
+    section: tests
+    commits:
+    - cf82e7b0c
+    authored_at: '2026-08-14T12:28:30+00:00'
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize draft resume navigation spec
+    section: tests
+    commits:
+    - 91ac11782
+    authored_at: '2026-08-14T11:26:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Clean live mock transport metadata
+    section: tests
+    commits:
+    - 665f3d745
+    authored_at: '2026-08-14T11:21:57+00:00'
+    changed_paths:
+    - backend/tests/test_caching_http_transport.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align landing story motion assertions'
+    section: tests
+    commits:
+    - 2266aef9b
+    authored_at: '2026-08-14T00:04:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: Add Teams web parity Playwright spec
+    section: internal
+    commits:
+    - c73f069e3
+    authored_at: '2026-08-14T15:38:41+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Harden upload SSH helper
+    section: internal
+    commits:
+    - d2c9d0525
+    authored_at: '2026-08-14T15:07:42+00:00'
+    changed_paths:
+    - scripts/upload-ssh.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Publish spec demos as OpenCode media
+    section: internal
+    commits:
+    - dc4c1668b
+    authored_at: '2026-08-14T13:09:21+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Route proof media to OpenCode responses
+    section: internal
+    commits:
+    - 404cf6e46
+    authored_at: '2026-08-14T13:02:44+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/cleanup-proof-videos.sh
+    - scripts/sessions.py
+    - scripts/spec_evidence.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_opencode_documented_plan_terms.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize unauthenticated chat navigation spec
+    section: internal
+    commits:
+    - 83a85dce2
+    authored_at: '2026-08-14T12:14:26+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize chat header navigation spec
+    section: internal
+    commits:
+    - 0ebd9c6f8
+    authored_at: '2026-08-14T10:58:05+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: harden travel flight departure windows'
+    commits:
+    - 39fd57342
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+  - title: 'fix: align digest activity timestamps'
+    commits:
+    - 3763a29e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize search skill embeds'
+    commits:
+    - 6808bc733
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: count usage entries with integer timestamps'
+    commits:
+    - 5a8ad151e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align mobile workspace composer baseline'
+    commits:
+    - 31d1415b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: stack global notifications'
+    commits:
+    - bae1ec8d5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record child ownership proof'
+    commits:
+    - 1b555d54d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent live verifier startup deadlock'
+    commits:
+    - d0d84a1f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add operational monitoring digests'
+    commits:
+    - c6929ae77
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: honor travel departure windows'
+    commits:
+    - 94d574fb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: keep new Teams create result visible'
+    commits:
+    - '795526266'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Teams create key by response id'
+    commits:
+    - b6a5f1ac6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record shared asset proof surface'
+    commits:
+    - 9ce2790f8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep Teams create payload for immediate render'
+    commits:
+    - feef1b4d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accept shared asset chat show json output'
+    commits:
+    - cda4edbca
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clear Teams proof video blockers'
+    commits:
+    - 81000a9f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: prevent shared asset chat show sync stalls'
+    commits:
+    - 312d06a05
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align mobile workspace composer inset'
+    commits:
+    - 32a669352
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize landing product story timing'
+    commits:
+    - a837399d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prevent false child ownership blocks'
+    commits:
+    - 5d5a1dfb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize shared embed asset id discovery'
+    commits:
+    - ab6408bb6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: support phone proof video capture'
+    commits:
+    - ceb555500
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix Vercel gate campaign completion
+    commits:
+    - 94825c252
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize landing intro collapse assertion'
+    commits:
+    - 257987e39
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align mobile workspace inspiration height'
+    commits:
+    - ac76b5b21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Teams web green evidence'
+    commits:
+    - 01fc68127
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: bind proof launcher verification'
+    commits:
+    - '294735515'
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resolve proof reviewer OpenCode binary'
+    commits:
+    - 7f4f78d36
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep shared asset slug marker in prefix'
+    commits:
+    - a08817083
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: correct proof review verification command'
+    commits:
+    - f9e4c8ad2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add Teams web workspace'
+    commits:
+    - 0cf129b65
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: bind proof review evidence commit'
+    commits:
+    - 98c560c31
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: enforce bounded proof-video review'
+    commits:
+    - 4fb32f9b6
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: match mobile workspace height'
+    commits:
+    - 68d86bf58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Fix encrypted PII sidecar persistence
+    commits:
+    - 9a40e9da6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align mobile workspace insets'
+    commits:
+    - d74c40b3b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: match workspace composer height'
+    commits:
+    - 418a4d2b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Add Teams web parity Playwright spec
+    commits:
+    - c73f069e3
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align workspace shells with Chats'
+    commits:
+    - 6fbc646d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: make shared chat asset prompt unique'
+    commits:
+    - 1dd709362
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Record Teams profile-image proof evidence
+    commits:
+    - 5b3a6ad11
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Harden upload SSH helper
+    commits:
+    - d2c9d0525
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix uploaded image preview fallback
+    commits:
+    - 0d035078e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'test: enforce workspace visual parity'
+    commits:
+    - 9bd201531
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recheck small synced chat windows'
+    commits:
+    - 871ab13ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover partial synced chat windows'
+    commits:
+    - ad2fafcc3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover synced chat content after key arrival'
+    commits:
+    - 863798f95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Publish spec demos as OpenCode media
+    commits:
+    - dc4c1668b
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Route proof media to OpenCode responses
+    commits:
+    - 404cf6e46
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix grouped generated video previews
+    commits:
+    - 9bbc42500
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: record Teams CLI proof video'
+    commits:
+    - cf82e7b0c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sanitize shopping live mock cache'
+    commits:
+    - ef353269f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Stabilize unauthenticated chat navigation spec
+    commits:
+    - 83a85dce2
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: verify CLI encrypted slug evidence'
+    commits:
+    - 5eea3aa06
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Stabilize draft resume navigation spec
+    commits:
+    - 91ac11782
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Clean live mock transport metadata
+    commits:
+    - 665f3d745
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix live mock HTTP cache refresh
+    commits:
+    - 35695bcce
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep payment order provider in sync'
+    commits:
+    - 1d2ef16de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: protect encrypted slug workflow outputs'
+    commits:
+    - d9a70a9d0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Stabilize chat header navigation spec
+    commits:
+    - 0ebd9c6f8
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: mount EU Stripe payment element after render'
+    commits:
+    - 997ad8aef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix core chat test regressions
+    commits:
+    - beb83b8d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: scope team chat wrappers'
+    commits:
+    - f2e7a4539
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix app skill dispatch context
+    commits:
+    - 3b79e2d6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix signup and billing Playwright specs
+    commits:
+    - 6b65f61e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate hard expiry timer health'
+    commits:
+    - '156577894'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce bounded local disk retention'
+    commits:
+    - 45e40a3b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce bounded local disk retention'
+    commits:
+    - a59eb2587
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add OpenCode response media uploads'
+    commits:
+    - 6c36b2248
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep proof captions clear of workspace boards'
+    commits:
+    - 9fe629fae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: move proof captions above workspace content'
+    commits:
+    - b37708f50
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: finalize guest new chat transition'
+    commits:
+    - 416bf6517
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reduce proof caption footprint'
+    commits:
+    - bef0b255b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent guest chat hash restoration'
+    commits:
+    - ca022df3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: finish landing story verification'
+    commits:
+    - 667c4bc40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: lift mobile proof captions above composer'
+    commits:
+    - 16ec91d70
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align landing story motion assertions'
+    commits:
+    - 2266aef9b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: Fix encrypted PII sidecar persistence
+    commits:
+    - 9a40e9da6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: harden travel flight departure windows'
+    commits:
+    - 39fd57342
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize search skill embeds'
+    commits:
+    - 6808bc733
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: align mobile workspace composer baseline'
+    commits:
+    - 31d1415b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: stack global notifications'
+    commits:
+    - bae1ec8d5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add operational monitoring digests'
+    commits:
+    - c6929ae77
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: honor travel departure windows'
+    commits:
+    - 94d574fb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep new Teams create result visible'
+    commits:
+    - '795526266'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clear Teams proof video blockers'
+    commits:
+    - 81000a9f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align mobile workspace composer inset'
+    commits:
+    - 32a669352
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize landing product story timing'
+    commits:
+    - a837399d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align mobile workspace inspiration height'
+    commits:
+    - ac76b5b21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Teams web workspace'
+    commits:
+    - 0cf129b65
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: match mobile workspace height'
+    commits:
+    - 68d86bf58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: Fix encrypted PII sidecar persistence
+    commits:
+    - 9a40e9da6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align mobile workspace insets'
+    commits:
+    - d74c40b3b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: match workspace composer height'
+    commits:
+    - 418a4d2b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align workspace shells with Chats'
+    commits:
+    - 6fbc646d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: Fix uploaded image preview fallback
+    commits:
+    - 0d035078e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix: recheck small synced chat windows'
+    commits:
+    - 871ab13ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover partial synced chat windows'
+    commits:
+    - ad2fafcc3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix grouped generated video previews
+    commits:
+    - 9bbc42500
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sanitize shopping live mock cache'
+    commits:
+    - ef353269f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep payment order provider in sync'
+    commits:
+    - 1d2ef16de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: protect encrypted slug workflow outputs'
+    commits:
+    - d9a70a9d0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: mount EU Stripe payment element after render'
+    commits:
+    - 997ad8aef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix core chat test regressions
+    commits:
+    - beb83b8d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: scope team chat wrappers'
+    commits:
+    - f2e7a4539
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix app skill dispatch context
+    commits:
+    - 3b79e2d6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix signup and billing Playwright specs
+    commits:
+    - 6b65f61e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finalize guest new chat transition'
+    commits:
+    - 416bf6517
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent guest chat hash restoration'
+    commits:
+    - ca022df3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finish landing story verification'
+    commits:
+    - 667c4bc40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 39fd573424750eb46817138627861092c47bd47f
+    short_sha: 39fd57342
+    authored_at: '2026-08-14T23:13:37+00:00'
+    subject: 'fix: harden travel flight departure windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids:
+    - app:travel
+  - sha: 3763a29e7e06a98bff00df2112867dffc7634238
+    short_sha: 3763a29e7
+    authored_at: '2026-08-14T23:06:15+00:00'
+    subject: 'fix: align digest activity timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    related_feature_ids: []
+  - sha: 6808bc733927e7a73b55a9d1f37f669b9be32309
+    short_sha: 6808bc733
+    authored_at: '2026-08-14T22:33:53+00:00'
+    subject: 'fix: stabilize search skill embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/search-skill-embed-reliability/spec.yml
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 5a8ad151e704b59c69b7120ea8cca9a2042c526d
+    short_sha: 5a8ad151e
+    authored_at: '2026-08-14T22:28:09+00:00'
+    subject: 'fix: count usage entries with integer timestamps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    related_feature_ids: []
+  - sha: 31d1415b020bd6554631aa5b6573e29050f93c95
+    short_sha: 31d1415b0
+    authored_at: '2026-08-14T22:27:47+00:00'
+    subject: 'fix: align mobile workspace composer baseline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: bae1ec8d502453d007b92901a951b07822c69381
+    short_sha: bae1ec8d5
+    authored_at: '2026-08-14T22:24:42+00:00'
+    subject: 'feat: stack global notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: 1b555d54d8fa07b57cc1ab6c2e977f3a8fa400a2
+    short_sha: 1b555d54d
+    authored_at: '2026-08-14T22:07:16+00:00'
+    subject: 'docs: record child ownership proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/agent-presence-coordination/spec.yml
+    related_feature_ids: []
+  - sha: d0d84a1f0d87809278717f7612a91dda9454c789
+    short_sha: d0d84a1f0
+    authored_at: '2026-08-14T21:38:17+00:00'
+    subject: 'fix: prevent live verifier startup deadlock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/verify_opencode_presence_live.py
+    related_feature_ids: []
+  - sha: c6929ae7735b5cb25776feceddf5bf6f1d9f8950
+    short_sha: c6929ae77
+    authored_at: '2026-08-14T21:27:45+00:00'
+    subject: 'feat: add operational monitoring digests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/core/api/templates/email/operational_monitoring_digest.mjml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/alertmanager/alertmanager.yml
+    - backend/core/monitoring/prometheus/alert_rule_tests.yml
+    - backend/core/monitoring/prometheus/alert_rules.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/scripts/operational_monitoring.py
+    - backend/tests/test_operational_monitoring_digest.py
+    - backend/tests/test_operational_monitoring_tasks.py
+    - backend/tests/test_verify_operational_monitoring.py
+    - contracts/architecture/operational-monitoring/contract.yml
+    - contracts/architecture/operational-monitoring/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_operational_monitoring_contract.py
+    - scripts/verify_operational_monitoring.py
+    related_feature_ids: []
+  - sha: 94d574fb619131ad1c1310876f2cbee4d9c41498
+    short_sha: 94d574fb6
+    authored_at: '2026-08-14T20:52:15+00:00'
+    subject: 'fix: honor travel departure windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - contracts/features/app-skills/travel-search/contract.yml
+    - contracts/features/app-skills/travel-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids:
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: 795526266c44d67aca9a25d6aa48e8d408c026f3
+    short_sha: '795526266'
+    authored_at: '2026-08-14T19:48:50+00:00'
+    subject: 'fix: keep new Teams create result visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    related_feature_ids: []
+  - sha: b6a5f1ac6a512d11fa0617dfdbe7255fa6e855d4
+    short_sha: b6a5f1ac6
+    authored_at: '2026-08-14T19:29:23+00:00'
+    subject: 'fix: preserve Teams create key by response id'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    related_feature_ids: []
+  - sha: 9ce2790f81197415ef13ca0ee07c174b69a7b6a7
+    short_sha: 9ce2790f8
+    authored_at: '2026-08-14T19:20:25+00:00'
+    subject: 'test: record shared asset proof surface'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: feef1b4d2ef0e9ab7e960ae5150fd18d7c95dc23
+    short_sha: feef1b4d2
+    authored_at: '2026-08-14T18:55:07+00:00'
+    subject: 'fix: keep Teams create payload for immediate render'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    related_feature_ids: []
+  - sha: cda4edbcaecbd1c21caf2465c22642ac957ed5f8
+    short_sha: cda4edbca
+    authored_at: '2026-08-14T18:47:04+00:00'
+    subject: 'test: accept shared asset chat show json output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 81000a9f65ec84aa3701bdce30ddfef34b0567e6
+    short_sha: 81000a9f6
+    authored_at: '2026-08-14T18:33:32+00:00'
+    subject: 'fix: clear Teams proof video blockers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 312d06a053874ab7a3b466085ca322b6408f4af9
+    short_sha: 312d06a05
+    authored_at: '2026-08-14T18:30:32+00:00'
+    subject: 'test: prevent shared asset chat show sync stalls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 32a6693523deb1c12946f33653d2bc7169de6219
+    short_sha: 32a669352
+    authored_at: '2026-08-14T18:23:57+00:00'
+    subject: 'fix: align mobile workspace composer inset'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: a837399d7395cc9081c7fe6b33fc02573ca0906a
+    short_sha: a837399d7
+    authored_at: '2026-08-14T18:18:50+00:00'
+    subject: 'fix: stabilize landing product story timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/components/landing/landingProductStoryTimelines.ts
+    related_feature_ids: []
+  - sha: 5d5a1dfb7250a9421ce29bf5ab6807ea228afe69
+    short_sha: 5d5a1dfb7
+    authored_at: '2026-08-14T18:06:12+00:00'
+    subject: 'fix: prevent false child ownership blocks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_presence_events.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    - scripts/verify_opencode_presence_live.py
+    related_feature_ids: []
+  - sha: ab6408bb6e96240b071fcf06b43fedf145aec692
+    short_sha: ab6408bb6
+    authored_at: '2026-08-14T17:53:16+00:00'
+    subject: 'test: stabilize shared embed asset id discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: ceb5555003bc2f23d8228860ce06722b0d3222d3
+    short_sha: ceb555500
+    authored_at: '2026-08-14T17:44:24+00:00'
+    subject: 'test: support phone proof video capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 94825c252b23d6a0891875a058573264e4c41c11
+    short_sha: 94825c252
+    authored_at: '2026-08-14T17:38:29+00:00'
+    subject: Fix Vercel gate campaign completion
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 257987e390d6ea77b515f9936d33b7757045b5ff
+    short_sha: 257987e39
+    authored_at: '2026-08-14T17:34:17+00:00'
+    subject: 'test: stabilize landing intro collapse assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: ac76b5b214e0503f8a59df3a2aa471c964c46b88
+    short_sha: ac76b5b21
+    authored_at: '2026-08-14T16:58:23+00:00'
+    subject: 'fix: align mobile workspace inspiration height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: 01fc68127f4b753c3b46987f81f80a1bfa3242e0
+    short_sha: 01fc68127
+    authored_at: '2026-08-14T16:51:28+00:00'
+    subject: 'docs: record Teams web green evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    related_feature_ids: []
+  - sha: 294735515c3ec398815786e00877e4ff83123e96
+    short_sha: '294735515'
+    authored_at: '2026-08-14T16:38:40+00:00'
+    subject: 'docs: bind proof launcher verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 7f4f78d36f8f372418b035d8f6e0f17df070948e
+    short_sha: 7f4f78d36
+    authored_at: '2026-08-14T16:35:31+00:00'
+    subject: 'fix: resolve proof reviewer OpenCode binary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: a08817083635139a3359790dd2a176da19b3e64a
+    short_sha: a08817083
+    authored_at: '2026-08-14T16:34:25+00:00'
+    subject: 'test: keep shared asset slug marker in prefix'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: f9e4c8ad24bcc127b40a395196208d269ddf3cde
+    short_sha: f9e4c8ad2
+    authored_at: '2026-08-14T16:28:54+00:00'
+    subject: 'docs: correct proof review verification command'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 0cf129b65a23cd6f8c880264ebe31735a0b8b32a
+    short_sha: 0cf129b65
+    authored_at: '2026-08-14T16:28:27+00:00'
+    subject: 'feat: add Teams web workspace'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/src/routes/teams/+page.svelte
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/teams/TeamsWorkspacePage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    related_feature_ids: []
+  - sha: 98c560c31e9cd611c36a7b7a240fa80fa8286649
+    short_sha: 98c560c31
+    authored_at: '2026-08-14T16:25:29+00:00'
+    subject: 'docs: bind proof review evidence commit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 4fb32f9b675bff9ad615819b6177480470cfa373
+    short_sha: 4fb32f9b6
+    authored_at: '2026-08-14T16:22:47+00:00'
+    subject: 'feat: enforce bounded proof-video review'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/agents/proof-video-reviewer.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_spec_demonstration_review.py
+    - scripts/tests/test_sync_agent_parity.py
+    related_feature_ids: []
+  - sha: 68d86bf58d2f03efc543a85dd7136985af596ccd
+    short_sha: 68d86bf58
+    authored_at: '2026-08-14T16:20:12+00:00'
+    subject: 'fix: match mobile workspace height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: 9a40e9da6c9163694af03f6979378ce457a629a7
+    short_sha: 9a40e9da6
+    authored_at: '2026-08-14T16:19:03+00:00'
+    subject: Fix encrypted PII sidecar persistence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_persistence_tasks.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    related_feature_ids: []
+  - sha: d74c40b3bcdbae98d5b702e5e1dacf9b4bcf7b29
+    short_sha: d74c40b3b
+    authored_at: '2026-08-14T16:00:45+00:00'
+    subject: 'fix: align mobile workspace insets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: 418a4d2b0bb1cc7c036e187aa7437815426259c7
+    short_sha: 418a4d2b0
+    authored_at: '2026-08-14T15:45:40+00:00'
+    subject: 'fix: match workspace composer height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    related_feature_ids: []
+  - sha: c73f069e38d84cb8480a99799180fef25b909e29
+    short_sha: c73f069e3
+    authored_at: '2026-08-14T15:38:41+00:00'
+    subject: Add Teams web parity Playwright spec
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6fbc646d2c2050ca161e9a910b21b864c3e11281
+    short_sha: 6fbc646d2
+    authored_at: '2026-08-14T15:20:55+00:00'
+    subject: 'fix: align workspace shells with Chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceReportIssueButton.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 1dd709362627af5790cc270dfc6eacaf3dca924c
+    short_sha: 1dd709362
+    authored_at: '2026-08-14T15:15:40+00:00'
+    subject: 'test: make shared chat asset prompt unique'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 5b3a6ad11d4f45cd67540808f19b6767d515f15f
+    short_sha: 5b3a6ad11
+    authored_at: '2026-08-14T15:11:51+00:00'
+    subject: Record Teams profile-image proof evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    related_feature_ids: []
+  - sha: d2c9d05259a23c88084e1679f19104770d322b11
+    short_sha: d2c9d0525
+    authored_at: '2026-08-14T15:07:42+00:00'
+    subject: Harden upload SSH helper
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/upload-ssh.sh
+    related_feature_ids: []
+  - sha: 0d035078ec3b1cb909d020fa17504dec673cc6a7
+    short_sha: 0d035078e
+    authored_at: '2026-08-14T14:57:20+00:00'
+    subject: Fix uploaded image preview fallback
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    related_feature_ids:
+    - embed:images:image
+  - sha: 9bd201531838317826aab42f604adbae66ee74cc
+    short_sha: 9bd201531
+    authored_at: '2026-08-14T14:44:16+00:00'
+    subject: 'test: enforce workspace visual parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/workspace-shell/contract.yml
+    - contracts/features/workspace-shell/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    related_feature_ids: []
+  - sha: 871ab13eac9427b02835c55f37bbaf4799769ce5
+    short_sha: 871ab13ea
+    authored_at: '2026-08-14T14:26:29+00:00'
+    subject: 'fix: recheck small synced chat windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: ad2fafcc31d31d771f5beef3118228cff8d346de
+    short_sha: ad2fafcc3
+    authored_at: '2026-08-14T14:01:03+00:00'
+    subject: 'fix: recover partial synced chat windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 863798f95ddb299ed60b7bb28864b2a7522fba83
+    short_sha: 863798f95
+    authored_at: '2026-08-14T13:40:04+00:00'
+    subject: 'fix: recover synced chat content after key arrival'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: dc4c1668b5e190cf74bf64659882d81cae1be233
+    short_sha: dc4c1668b
+    authored_at: '2026-08-14T13:09:21+00:00'
+    subject: Publish spec demos as OpenCode media
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    related_feature_ids: []
+  - sha: 404cf6e460391c57e2c3ea87ebec311adff83bba
+    short_sha: 404cf6e46
+    authored_at: '2026-08-14T13:02:44+00:00'
+    subject: Route proof media to OpenCode responses
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/cleanup-proof-videos.sh
+    - scripts/sessions.py
+    - scripts/spec_evidence.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_opencode_documented_plan_terms.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: 9bbc4250084b51f539c3b0a091d3d597e6536a0d
+    short_sha: 9bbc42500
+    authored_at: '2026-08-14T12:34:51+00:00'
+    subject: Fix grouped generated video previews
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: cf82e7b0c7f9e8cc2a06bbfb42206bcd48326aca
+    short_sha: cf82e7b0c
+    authored_at: '2026-08-14T12:28:30+00:00'
+    subject: 'test: record Teams CLI proof video'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/teams-v1/spec.yml
+    - scripts/spec_demo.py
+    - scripts/teams_cli_proof.mjs
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: ef353269f55c0861bf54bec1e5b56be8e6c105ff
+    short_sha: ef353269f
+    authored_at: '2026-08-14T12:26:16+00:00'
+    subject: 'fix: sanitize shopping live mock cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/7e6eacb180b0ce7b.json
+    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/d8b7e9e3201a5e9c.json
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    related_feature_ids:
+    - app:ai
+  - sha: 83a85dce2f4205b676963677e619a49199a999eb
+    short_sha: 83a85dce2
+    authored_at: '2026-08-14T12:14:26+00:00'
+    subject: Stabilize unauthenticated chat navigation spec
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 5eea3aa060a5d3ecdd0a57aeb63d09b3a62863f4
+    short_sha: 5eea3aa06
+    authored_at: '2026-08-14T12:00:09+00:00'
+    subject: 'docs: verify CLI encrypted slug evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-encrypted-slugs/spec.yml
+    related_feature_ids: []
+  - sha: 91ac117820e4e342e0a12fbe4c0ad2c0497579e1
+    short_sha: 91ac11782
+    authored_at: '2026-08-14T11:26:21+00:00'
+    subject: Stabilize draft resume navigation spec
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 665f3d745d0849d18dad5ec8e2026f42bef3b12d
+    short_sha: 665f3d745
+    authored_at: '2026-08-14T11:21:57+00:00'
+    subject: Clean live mock transport metadata
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_caching_http_transport.py
+    related_feature_ids: []
+  - sha: 35695bccedced1c75d05e5a47967b6ab5534da3b
+    short_sha: 35695bcce
+    authored_at: '2026-08-14T11:20:00+00:00'
+    subject: Fix live mock HTTP cache refresh
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    related_feature_ids: []
+  - sha: 1d2ef16de8a876d3af5376d7cc2fc706e87d0db8
+    short_sha: 1d2ef16de
+    authored_at: '2026-08-14T11:06:53+00:00'
+    subject: 'fix: keep payment order provider in sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960
+    short_sha: d9a70a9d0
+    authored_at: '2026-08-14T11:01:10+00:00'
+    subject: 'fix: protect encrypted slug workflow outputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/verify_cli_encrypted_slugs_live_smoke.mjs
+    related_feature_ids: []
+  - sha: 0ebd9c6f8f6ce0f02be70d99596c4aafdf20fd1f
+    short_sha: 0ebd9c6f8
+    authored_at: '2026-08-14T10:58:05+00:00'
+    subject: Stabilize chat header navigation spec
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 997ad8aef80d7c55212e88fd9925884b370e1431
+    short_sha: 997ad8aef
+    authored_at: '2026-08-14T10:45:09+00:00'
+    subject: 'fix: mount EU Stripe payment element after render'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: beb83b8d1a7faa67cfd1a3aca9870f2cd5a8d8ef
+    short_sha: beb83b8d1
+    authored_at: '2026-08-14T10:41:18+00:00'
+    subject: Fix core chat test regressions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/new-chat-pinned-sort.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: f2e7a4539e0180808a315ba75e14ce23a95666ef
+    short_sha: f2e7a4539
+    authored_at: '2026-08-14T10:02:47+00:00'
+    subject: 'fix: scope team chat wrappers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_unified_key_wrappers.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 3b79e2d6fd6e6185714311552b4d245cce30f0c2
+    short_sha: 3b79e2d6f
+    authored_at: '2026-08-14T09:53:35+00:00'
+    subject: Fix app skill dispatch context
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/tests/test_base_app_dispatch_context.py
+    related_feature_ids: []
+  - sha: 6b65f61e7a8d87e69accc5d51737fd4b4831a24b
+    short_sha: 6b65f61e7
+    authored_at: '2026-08-14T09:24:29+00:00'
+    subject: Fix signup and billing Playwright specs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 156577894da2e63e61d477320f4e3f7bb3e45d2d
+    short_sha: '156577894'
+    authored_at: '2026-08-14T09:07:59+00:00'
+    subject: 'fix: isolate hard expiry timer health'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: 45e40a3b14ff16ce4978bf12754487379cbcf71c
+    short_sha: 45e40a3b1
+    authored_at: '2026-08-14T09:04:45+00:00'
+    subject: 'fix: enforce bounded local disk retention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/cleanup-opencode-sessions.sh
+    - scripts/contracts.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: a59eb25877fde33eaef32017a6dc3a79b4b6477a
+    short_sha: a59eb2587
+    authored_at: '2026-08-14T08:44:42+00:00'
+    subject: 'fix: enforce bounded local disk retention'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    related_feature_ids: []
+  - sha: 6c36b22486ad8cc641dc129f36dd509308386f84
+    short_sha: 6c36b2248
+    authored_at: '2026-08-14T06:47:25+00:00'
+    subject: 'feat: add OpenCode response media uploads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/services/s3/cors.py
+    - backend/tests/test_cors.py
+    - backend/tests/test_opencode_response_media_bucket.py
+    - deployment/dev_server/Caddyfile
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/security.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/opencode_response_media.py
+    - scripts/tests/test_opencode_response_media.py
+    related_feature_ids: []
+  - sha: 9fe629fae089e04168edce11b143ef9b967f1b6f
+    short_sha: 9fe629fae
+    authored_at: '2026-08-14T01:52:41+00:00'
+    subject: 'fix: keep proof captions clear of workspace boards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: b37708f50c1a85e28ba52c62e98d9bd689c1a44e
+    short_sha: b37708f50
+    authored_at: '2026-08-14T01:36:34+00:00'
+    subject: 'fix: move proof captions above workspace content'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 416bf65176105fdc0132bccc2d37d20b1f082f38
+    short_sha: 416bf6517
+    authored_at: '2026-08-14T01:07:49+00:00'
+    subject: 'fix: finalize guest new chat transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bef0b255b298a3684e1c8304f84226d29ef8c426
+    short_sha: bef0b255b
+    authored_at: '2026-08-14T00:45:00+00:00'
+    subject: 'fix: reduce proof caption footprint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: ca022df3f96b4aad1fad42418230188ae032d6f9
+    short_sha: ca022df3f
+    authored_at: '2026-08-14T00:44:40+00:00'
+    subject: 'fix: prevent guest chat hash restoration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 667c4bc40aba8f037fec5d6622fee19dfd46871c
+    short_sha: 667c4bc40
+    authored_at: '2026-08-14T00:25:38+00:00'
+    subject: 'fix: finish landing story verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    related_feature_ids: []
+  - sha: 16ec91d70f6ab295850b67587bd5dd6798566bc8
+    short_sha: 16ec91d70
+    authored_at: '2026-08-14T00:07:46+00:00'
+    subject: 'fix: lift mobile proof captions above composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 2266aef9b02549eedfa6c7b9392b7c139b138c22
+    short_sha: 2266aef9b
+    authored_at: '2026-08-14T00:04:54+00:00'
+    subject: 'test: align landing story motion assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on internal infrastructure for the Teams workspace, mobile UI refinements, and operational monitoring.
+    Significant development was also directed toward the OpenCode agent workflow and proof-video systems.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The Teams web workspace was added with refinements to the creation flow and chat wrapper scoping.
+    evidence:
+      commits:
+      - 0cf129b65
+      - '795526266'
+      - b6a5f1ac6
+      - feef1b4d2
+      - 81000a9f6
+      - f2e7a4539
+    release_status: dev_only
+  - text: Workspace shells for Plans, Projects, and Tasks received alignment updates for mobile composer insets and heights.
+    evidence:
+      commits:
+      - 31d1415b0
+      - 32a669352
+      - ac76b5b21
+      - 68d86bf58
+      - d74c40b3b
+      - 418a4d2b0
+      - 6fbc646d2
+    release_status: dev_only
+  - text: Operational monitoring digests were introduced to track system health and usage entries.
+    evidence:
+      commits:
+      - c6929ae77
+      - 3763a29e7
+      - 5a8ad151e
+    release_status: dev_only
+  - text: Travel and AI skills were improved with hardened flight departure windows and stabilized search skill embeds.
+    evidence:
+      commits:
+      - 39fd57342
+      - 94d574fb6
+      - 6808bc733
+      - ef353269f
+    release_status: dev_only
+  - text: Landing page product stories and guest chat transitions were stabilized to improve the onboarding experience.
+    evidence:
+      commits:
+      - a837399d7
+      - 416bf6517
+      - ca022df3f
+      - 667c4bc40
+    release_status: dev_only
+  - text: Payment processing updates included better synchronization for order providers and refined Stripe EU element mounting.
+    evidence:
+      commits:
+      - 1d2ef16de
+      - 997ad8aef
+    release_status: dev_only
+  - text: The CLI and SDK now include protection for encrypted slug workflow outputs.
+    evidence:
+      commits:
+      - d9a70a9d0
+    release_status: dev_only
+  internal_progress:
+  - text: The OpenCode agent workflow now enforces bounded proof-video reviews and routes media uploads to dedicated response
+      buckets.
+    evidence:
+      commits:
+      - 4fb32f9b6
+      - 6c36b2248
+      - 404cf6e46
+      - dc4c1668b
+    release_status: dev_only
+  - text: Infrastructure hardening included the implementation of bounded local disk retention and improvements to SSH helpers.
+    evidence:
+      commits:
+      - 45e40a3b1
+      - a59eb2587
+      - '156577894'
+      - d2c9d0525
+    release_status: dev_only
+  - text: Automated testing coverage was expanded for billing flows, chat navigation, and workspace visual parity.
+    evidence:
+      commits:
+      - c73f069e3
+      - 6b65f61e7
+      - 83a85dce2
+      - 0ebd9c6f8
+      - 9bd201531
+      - beb83b8d1
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Teams web workspace
+      evidence:
+        commits:
+        - 0cf129b65
+      reason: The Teams feature is currently disabled in the application configuration.
+    - text: Operational monitoring digests
+      evidence:
+        commits:
+        - c6929ae77
+      reason: Internal operational monitoring is not a user-facing product feature.
+    - text: Workspace UI refinements and global notifications
+      evidence:
+        commits:
+        - 6fbc646d2
+        - bae1ec8d5
+      reason: Workspace and workflow features are currently disabled.
+    rationale: All user-facing updates are currently restricted to development environments or associated with features that
+      are disabled in the production configuration.
+  social_video_recommendations: []
+  quality_notes:
+  - Extensive work was performed to ensure mobile UI consistency across different workspace shells.
+  - Billing and onboarding flows received significant stabilization through updated Playwright specifications.
+  validation_warnings: []

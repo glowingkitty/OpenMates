@@ -3,11 +3,10 @@
 
   Crawlable public event page for /events/{slug}. Search engines and link
   preview bots receive semantic event content, canonical tags, OG tags, and
-  schema.org/Event JSON-LD. Human browsers forward into the SPA fullscreen
-  event embed via the slug-based #embed-id value.
+  schema.org/Event JSON-LD. The page keeps its canonical URL stable for
+  Google; users can open the interactive SPA event view from the CTA.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -15,10 +14,12 @@
 	const descriptionParagraphs = $derived(data.event.description.split('\n\n').filter(Boolean));
 	const eventStart = $derived(new Date(data.event.date_start));
 	const eventEnd = $derived(new Date(data.event.date_end));
+	const eventTimeZone = $derived(data.event.timezone || undefined);
 	const dateLine = $derived(
 		Number.isNaN(eventStart.getTime())
 			? ''
 			: eventStart.toLocaleDateString(undefined, {
+				timeZone: eventTimeZone,
 				weekday: 'long',
 				year: 'numeric',
 				month: 'long',
@@ -26,17 +27,11 @@
 			})
 	);
 	const timeLine = $derived(
-		Number.isNaN(eventStart.getTime())
+		Number.isNaN(eventStart.getTime()) || Number.isNaN(eventEnd.getTime())
 			? ''
-			: `${eventStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} to ${eventEnd.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+			: `${eventStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: eventTimeZone })} to ${eventEnd.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: eventTimeZone })}`
 	);
 
-	onMount(() => {
-		if (data.spaUrl) {
-			const { pathname, search, hash } = new URL(data.spaUrl);
-			window.location.replace(pathname + search + hash);
-		}
-	});
 </script>
 
 <svelte:head>
@@ -50,14 +45,14 @@
 	<meta property="og:url" content={data.canonicalUrl} />
 	<meta property="og:title" content="{data.event.title} — OpenMates Events" />
 	<meta property="og:description" content={data.event.summary} />
-	<meta property="og:image" content={data.event.image_url} />
+	<meta property="og:image" content={data.imageUrl} />
 	<meta property="og:site_name" content="OpenMates" />
 
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:url" content={data.canonicalUrl} />
 	<meta name="twitter:title" content="{data.event.title} — OpenMates Events" />
 	<meta name="twitter:description" content={data.event.summary} />
-	<meta name="twitter:image" content={data.event.image_url} />
+	<meta name="twitter:image" content={data.imageUrl} />
 
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}
@@ -75,8 +70,8 @@
 		<section class="details" aria-label="Event details">
 			<div>
 				<strong>Date & Time</strong>
-				<span>{dateLine}</span>
-				<span>{timeLine}</span>
+				<time datetime={data.event.date_start}>{dateLine}</time>
+				<time datetime={data.event.date_start}>{timeLine}</time>
 			</div>
 			<div>
 				<strong>Location</strong>
@@ -174,6 +169,11 @@
 		border: 1px solid #e8e8e8;
 		border-radius: 16px;
 		background: #fafafa;
+	}
+
+	.details strong,
+	.details time {
+		font-style: normal;
 	}
 
 	.details strong {

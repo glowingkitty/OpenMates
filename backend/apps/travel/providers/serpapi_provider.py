@@ -18,7 +18,7 @@ API docs: https://serpapi.com/google-flights-api
 
 import logging
 import re
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import httpx
 
@@ -410,6 +410,61 @@ def _format_duration_minutes(total_minutes: int) -> str:
         return f"{mins}m"
 
 
+def _parse_requested_time(value: Optional[str], field_name: str) -> Optional[int]:
+    if not value:
+        return None
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})", value.strip())
+    if not match:
+        raise ValueError(f"{field_name} must use HH:MM local time")
+    minutes = int(match.group(1)) * 60 + int(match.group(2))
+    if minutes > 23 * 60 + 59:
+        raise ValueError(f"{field_name} must be a valid local time")
+    return minutes
+
+
+def _search_dates_for_window(date_value: str, minimum_time: Optional[str], maximum_time: Optional[str]) -> List[str]:
+    minimum_minutes = _parse_requested_time(minimum_time, "departure_time")
+    maximum_minutes = _parse_requested_time(maximum_time, "max_departure_time")
+    if minimum_minutes is None or maximum_minutes is None or minimum_minutes <= maximum_minutes:
+        return [date_value]
+    try:
+        next_date = datetime.strptime(date_value, "%Y-%m-%d") + timedelta(days=1)
+    except ValueError as exc:
+        raise ValueError("date must use YYYY-MM-DD format for an overnight window") from exc
+    return [date_value, next_date.strftime("%Y-%m-%d")]
+
+
+def _departure_matches_window(
+    connection: ConnectionResult,
+    minimum_time: Optional[str],
+    maximum_time: Optional[str],
+    *,
+    next_overnight_date: bool = False,
+) -> bool:
+    """Filter date-wide Google Flights results before applying the result cap."""
+    minimum_minutes = _parse_requested_time(minimum_time, "departure_time")
+    maximum_minutes = _parse_requested_time(maximum_time, "max_departure_time")
+    if minimum_minutes is None and maximum_minutes is None:
+        return True
+    departure = connection.legs[0].departure if connection.legs else ""
+    departure_match = re.search(r"(?:T|\s)(\d{2}):(\d{2})", departure)
+    if not departure_match:
+        return False
+    departure_minutes = int(departure_match.group(1)) * 60 + int(departure_match.group(2))
+    overnight = (
+        minimum_minutes is not None
+        and maximum_minutes is not None
+        and minimum_minutes > maximum_minutes
+    )
+    if overnight:
+        return departure_minutes <= maximum_minutes if next_overnight_date else departure_minutes >= minimum_minutes
+    if minimum_minutes is not None and departure_minutes < minimum_minutes:
+        return False
+    if maximum_minutes is not None and departure_minutes > maximum_minutes:
+        return False
+    return True
+
+
 def _post_to_get_url(base_url: str, post_data: str) -> str:
     """
     Convert a SerpAPI POST-based booking URL to a clickable GET URL.
@@ -627,18 +682,22 @@ class SerpApiProvider(BaseTransportProvider):
         elif exclude_airlines:
             params["exclude_airlines"] = ",".join(exclude_airlines)
 
-        data = await self._serpapi_get(params)
-        if not data:
-            return []
-
-        if data.get("error"):
-            logger.error(f"SerpAPI error: {data['error']}")
-            return []
+        response_payloads = []
+        for search_date in _search_dates_for_window(
+            resolved_leg["date"],
+            original_leg.get("departure_time"),
+            original_leg.get("max_departure_time"),
+        ):
+            params["outbound_date"] = search_date
+            data = await self._serpapi_get(params)
+            if not data:
+                raise RuntimeError("SerpAPI search failed: empty response")
+            if data.get("error"):
+                raise RuntimeError(f"SerpAPI search failed: {data['error']}")
+            response_payloads.append(data)
 
         # Parse all flight groups (best + other)
-        flight_groups = (
-            data.get("best_flights", []) + data.get("other_flights", [])
-        )
+        flight_group_sets = [payload.get("best_flights", []) + payload.get("other_flights", []) for payload in response_payloads]
 
         # Build booking_context — the original search params needed for
         # on-demand booking_token lookup (same params minus deep_search/stops).
@@ -656,12 +715,22 @@ class SerpApiProvider(BaseTransportProvider):
         # Convert to ConnectionResult objects, passing booking_token from
         # each flight group for on-demand booking URL lookup
         results = []
-        for fg in flight_groups[:max_results]:
-            connection = self._parse_flight_group(
-                fg, [original_leg], currency, booking_context=booking_ctx,
-            )
-            if connection:
-                results.append(connection)
+        for search_index, flight_groups in enumerate(flight_group_sets):
+            for fg in flight_groups:
+                connection = self._parse_flight_group(
+                    fg, [original_leg], currency, booking_context=booking_ctx,
+                )
+                if connection and _departure_matches_window(
+                    connection,
+                    original_leg.get("departure_time"),
+                    original_leg.get("max_departure_time"),
+                    next_overnight_date=search_index > 0,
+                ):
+                    results.append(connection)
+                    if len(results) >= max_results:
+                        break
+            if len(results) >= max_results:
+                break
 
         logger.info(f"SerpAPI one-way returned {len(results)} flight(s)")
         return results
@@ -733,11 +802,10 @@ class SerpApiProvider(BaseTransportProvider):
 
         data = await self._serpapi_get(params)
         if not data:
-            return []
+            raise RuntimeError("SerpAPI search failed: empty response")
 
         if data.get("error"):
-            logger.error(f"SerpAPI error: {data['error']}")
-            return []
+            raise RuntimeError(f"SerpAPI search failed: {data['error']}")
 
         # Parse outbound flight groups
         flight_groups = (
@@ -758,12 +826,15 @@ class SerpApiProvider(BaseTransportProvider):
         }
 
         results = []
-        for fg in flight_groups[:max_results]:
+        minimum_time = original_legs[0].get("departure_time") if original_legs else None
+        for fg in flight_groups:
             connection = self._parse_flight_group(
                 fg, original_legs, currency, booking_context=booking_ctx,
             )
-            if connection:
+            if connection and _departure_matches_window(connection, minimum_time, original_legs[0].get("max_departure_time") if original_legs else None):
                 results.append(connection)
+                if len(results) >= max_results:
+                    break
 
         logger.info(f"SerpAPI round-trip returned {len(results)} flight(s)")
         return results
@@ -839,11 +910,10 @@ class SerpApiProvider(BaseTransportProvider):
 
         data = await self._serpapi_get(params)
         if not data:
-            return []
+            raise RuntimeError("SerpAPI search failed: empty response")
 
         if data.get("error"):
-            logger.error(f"SerpAPI error: {data['error']}")
-            return []
+            raise RuntimeError(f"SerpAPI search failed: {data['error']}")
 
         flight_groups = (
             data.get("best_flights", []) + data.get("other_flights", [])
@@ -863,12 +933,15 @@ class SerpApiProvider(BaseTransportProvider):
         }
 
         results = []
-        for fg in flight_groups[:max_results]:
+        minimum_time = original_legs[0].get("departure_time") if original_legs else None
+        for fg in flight_groups:
             connection = self._parse_flight_group(
                 fg, original_legs, currency, booking_context=booking_ctx,
             )
-            if connection:
+            if connection and _departure_matches_window(connection, minimum_time, original_legs[0].get("max_departure_time") if original_legs else None):
                 results.append(connection)
+                if len(results) >= max_results:
+                    break
 
         logger.info(f"SerpAPI multi-city returned {len(results)} flight(s)")
         return results

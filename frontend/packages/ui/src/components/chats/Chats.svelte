@@ -29,6 +29,7 @@
 	import { anonymousChatStorage } from '../../services/anonymousChatStorage';
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
+	import { activeTeamId } from '../../stores/teamStore';
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 	// NOTE: Demo chats are now decrypted server-side, so decryptShareKeyBlob is no longer needed here
@@ -519,10 +520,17 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	let allChats = $derived((() => {
 		void visiblePublicChats;
+		const contextTeamId = $activeTeamId;
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
 		const processedRealChats = allChatsFromDB
-			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id) && !chat.parent_id && !chat.is_sub_chat);
+			.filter(chat =>
+				(chat.team_id ?? null) === contextTeamId &&
+				!isLegalChat(chat.chat_id) &&
+				!isPublicChat(chat.chat_id) &&
+				!chat.parent_id &&
+				!chat.is_sub_chat
+			);
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
 		// CRITICAL: We don't filter out public chats from visiblePublicChats even if they are in the DB,
@@ -602,7 +610,11 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
 		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
 		// olderChatsFromServer are appended last — these are in-memory-only older chats loaded on demand
-		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._anonymousChats, ..._incognitoChats, ...olderChatsFromServer];
+		const contextOlderChats = olderChatsFromServer.filter(
+			(chat) => (chat.team_id ?? null) === contextTeamId
+		);
+		const contextPublicChats = contextTeamId ? [] : filteredPublicChats;
+		const combinedChats = [...processedRealChats, ...contextPublicChats, ...sessionStorageChats, ...sharedChats, ..._anonymousChats, ..._incognitoChats, ...contextOlderChats];
 		const seenIds = new Set<string>();
 		const deduplicatedChats: ChatType[] = [];
 		for (const chat of combinedChats) {

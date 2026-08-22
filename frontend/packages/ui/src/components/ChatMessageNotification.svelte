@@ -211,7 +211,7 @@
      * Pause auto-dismiss when user hovers over notification
      */
     function handleMouseEnter(): void {
-        // Cancel the store-level timer on hover
+        userInteracted = true;
         notificationStore.cancelAutoDismiss(notification.id);
     }
     
@@ -376,7 +376,6 @@
     class:expanded={isExpanded}
     data-testid="chat-notification"
     data-chat-id={notification.chatId ?? ''}
-    transition:slide={{ axis: 'y', duration: 300 }}
     role="button"
     tabindex="0"
     aria-live="polite"
@@ -497,6 +496,17 @@
             {$text('notifications.click_to_respond')}
         </button>
     {/if}
+    {#if notification.duration && notification.duration > 0 && !userInteracted}
+        <div
+            class="notification-progress"
+            data-testid="notification-progress"
+            data-duration-ms={notification.duration}
+            style={`--notification-duration: ${notification.duration}ms`}
+            aria-hidden="true"
+        >
+            <div class="notification-progress-fill"></div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -507,6 +517,8 @@
         /* Figma design: 430px or 100% viewport width, with 5px margin on smaller screens */
         width: 430px;
         max-width: calc(100vw - 10px);
+        box-sizing: border-box;
+        overflow: hidden;
         
         /* Base styling */
         padding: var(--spacing-6) var(--spacing-8);
@@ -517,18 +529,40 @@
         /* Enable pointer events (parent container has pointer-events: none) */
         pointer-events: auto;
         
-        /* Animation for slide-in */
-        animation: slideInFromTop 0.3s ease-out;
     }
-    
-    @keyframes slideInFromTop {
-        from {
-            transform: translateY(-100%);
-            opacity: 0;
+
+    .notification-progress {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 4px;
+        pointer-events: none;
+    }
+
+    .notification-progress-fill {
+        width: 100%;
+        height: 100%;
+        background: var(--color-grey-50);
+        transform: scaleX(0);
+        transform-origin: left center;
+        animation: notificationProgressFill var(--notification-duration) linear forwards;
+    }
+
+    @keyframes notificationProgressFill {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+    }
+
+    @media (max-width: 450px) {
+        .notification {
+            width: calc(100vw - 20px);
+            max-width: calc(100vw - 20px);
         }
-        to {
-            transform: translateY(0);
-            opacity: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .notification-progress-fill {
+            animation-timing-function: steps(20, end);
         }
     }
     

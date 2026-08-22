@@ -4,11 +4,11 @@
  * stages, progress, and automatic advancement finish at the same moment.
  */
 
-export const PRODUCT_STORY_HEADING_DELAY_MS = 1500;
+export const PRODUCT_STORY_HEADING_DELAY_MS = 2100;
 export const PRODUCT_STORY_HEADING_FADE_OUT_MS = 420;
-export const PRODUCT_STORY_HEADING_FADE_IN_MS = 420;
+export const PRODUCT_STORY_HEADING_HIDDEN_SETTLE_MS = 120;
 export const PRODUCT_STORY_HEADING_SWAP_MS = PRODUCT_STORY_HEADING_FADE_OUT_MS
-  + PRODUCT_STORY_HEADING_FADE_IN_MS;
+  + PRODUCT_STORY_HEADING_HIDDEN_SETTLE_MS;
 
 export const PRIVACY_STORY_STAGES = [
   { id: 'saved-data-copy', durationMs: 1600 },
@@ -23,13 +23,17 @@ export const PRIVACY_STORY_STAGES = [
 ] as const;
 
 export const MATES_FOCUS_STORY_STAGES = [
-  { id: 'mates', durationMs: 6000 },
-  { id: 'focus', durationMs: 6000 },
+  { id: 'mates-copy', durationMs: 1800 },
+  { id: 'mates', durationMs: 4200 },
+  { id: 'focus-copy', durationMs: 1800 },
+  { id: 'focus', durationMs: 4200 },
 ] as const;
 
 export const PEOPLE_EXPERIENCE_STORY_STAGES = [
-  { id: 'providers', durationMs: 6000 },
-  { id: 'access', durationMs: 6000 },
+  { id: 'providers-copy', durationMs: 1800 },
+  { id: 'providers', durationMs: 4200 },
+  { id: 'access-copy', durationMs: 1800 },
+  { id: 'access', durationMs: 4200 },
 ] as const;
 
 export type PrivacyStoryStage = (typeof PRIVACY_STORY_STAGES)[number]['id'];

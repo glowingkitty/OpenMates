@@ -708,6 +708,30 @@ function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "cha
     ];
   }
 
+  if (surface === "teams") {
+    return [
+      {
+        inspiration_id: "hardcoded-team-context",
+        phrase: "Keep the team context explicit: shared credits, shared memories, and no personal connected accounts.",
+        title: "Team Context Check",
+        category: "productivity",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "Teams work best when the context boundary is obvious. Confirm who belongs to the team, keep shared memories in the team context, and leave personal provider accounts in personal mode until team-owned credentials ship.",
+        follow_up_suggestions: ["Create a team brief", "Invite the first member", "Review team privacy boundaries"],
+        feature: {
+          feature_id: "team-context",
+          icon: "team",
+          title: "Team privacy tip",
+          description: "Keep shared and personal context separate.",
+          settings_path: null,
+        },
+      },
+    ];
+  }
+
   return [
     {
       inspiration_id: "hardcoded-workflow-trigger",

@@ -13,6 +13,8 @@ import base64
 import httpx
 import hashlib
 import os
+import json
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from typing import Dict, Any, Optional, List
@@ -46,6 +48,7 @@ from backend.core.api.app.utils.api_key_auth import (
     DeviceNotApprovedError,
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.utils.request_context import get_request_id
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -72,6 +75,34 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
+MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
+
+
+def _build_app_skill_billing_idempotency_key(
+    *,
+    app_id: str,
+    skill_id: str,
+    user_id_hash: str,
+    credits: int,
+    usage_details: Optional[Dict[str, Any]],
+) -> str:
+    request_id = get_request_id()
+    if not request_id or request_id == "no-request-id":
+        request_id = uuid.uuid4().hex
+    usage_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "user_id_hash": user_id_hash,
+                "credits": credits,
+                "usage_details": usage_details or {},
+            },
+            sort_keys=True,
+            default=str,
+        ).encode()
+    ).hexdigest()[:16]
+    key = f"{APP_SKILL_BILLING_IDEMPOTENCY_PREFIX}:{request_id}:{app_id}:{skill_id}:{usage_fingerprint}"
+    return key[:MAX_BILLING_IDEMPOTENCY_KEY_LENGTH]
 
 
 def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
@@ -955,7 +986,8 @@ async def calculate_skill_credits(
     app_metadata: AppYAML,
     skill_id: str,
     input_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]] = None
+    result_data: Optional[Dict[str, Any]] = None,
+    app_id: Optional[str] = None,
 ) -> int:
     """
     Calculate credits to charge for a skill execution based on pricing configuration.
@@ -974,14 +1006,15 @@ async def calculate_skill_credits(
     Returns:
         Number of credits to charge
     """
+    resolved_app_id = app_id or getattr(app_metadata, "id", "")
     declared_result_credits = get_variable_result_credits(
-        getattr(app_metadata, "id", ""),
+        resolved_app_id,
         skill_id,
         result_data,
     )
     if declared_result_credits is not None:
         logger.info(
-            f"Using result-declared variable credits for skill '{app_metadata.id}.{skill_id}': {declared_result_credits}"
+            f"Using result-declared variable credits for skill '{resolved_app_id}.{skill_id}': {declared_result_credits}"
         )
         return declared_result_credits
 
@@ -993,7 +1026,7 @@ async def calculate_skill_credits(
             break
     
     if not skill_def:
-        logger.warning(f"Skill '{skill_id}' not found in app '{app_metadata.id}' metadata. Cannot calculate credits.")
+        logger.warning(f"Skill '{skill_id}' not found in app '{resolved_app_id}' metadata. Cannot calculate credits.")
         return 0
     
     # Get pricing config - check skill-level first, then provider-level
@@ -1001,7 +1034,7 @@ async def calculate_skill_credits(
     if skill_def.pricing:
         # Skill has explicit pricing in app.yml - use it
         pricing_config = skill_def.pricing.model_dump(exclude_none=True)
-        logger.debug(f"Using skill-level pricing from app.yml for '{app_metadata.id}.{skill_id}'")
+        logger.debug(f"Using skill-level pricing from app.yml for '{resolved_app_id}.{skill_id}'")
     elif skill_def.full_model_reference:
         # Skill has a full model reference - try to get model-specific pricing
         try:
@@ -1035,7 +1068,7 @@ async def calculate_skill_credits(
         provider_id = provider_name.lower()
         
         # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
-        if provider_name == "Google" and app_metadata.id == "maps":
+        if provider_name == "Google" and resolved_app_id == "maps":
             provider_id = "google_maps"
         elif provider_name == "Brave" or provider_name == "Brave Search":
             provider_id = "brave"
@@ -1107,7 +1140,7 @@ async def calculate_skill_credits(
         credits_charged = MINIMUM_CREDITS_CHARGED
         logger.info(f"No pricing config for skill '{app_metadata.id}.{skill_id}', using minimum charge: {credits_charged}")
     
-    logger.info(f"Calculated {credits_charged} credits for skill '{app_metadata.id}.{skill_id}' (units_processed={units_processed})")
+    logger.info(f"Calculated {credits_charged} credits for skill '{resolved_app_id}.{skill_id}' (units_processed={units_processed})")
     return credits_charged
 
 
@@ -1116,6 +1149,17 @@ def get_variable_result_credits(
     skill_id: str,
     result_data: Optional[Dict[str, Any]],
 ) -> Optional[int]:
+    charge_items = get_variable_result_charge_items(app_id, skill_id, result_data)
+    if charge_items is None:
+        return None
+    return sum(credits for _, credits in charge_items)
+
+
+def get_variable_result_charge_items(
+    app_id: str,
+    skill_id: str,
+    result_data: Optional[Dict[str, Any]],
+) -> Optional[List[tuple[int, int]]]:
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
     data = _as_dict(result_data)
@@ -1123,27 +1167,29 @@ def get_variable_result_credits(
     if not isinstance(results, list):
         return None
 
-    total = 0
+    charge_items: List[tuple[int, int]] = []
     found = False
-    for item in results:
+    for index, item in enumerate(results):
         item_data = _as_dict(item)
-        direct_credits = item_data.get("credits_charged")
+        direct_credits = _coerce_nonnegative_credits(item_data.get("credits_charged"))
         if item_data.get("status") == "finished" and direct_credits is not None:
-            total += int(direct_credits or 0)
             found = True
+            if direct_credits > 0:
+                charge_items.append((index, direct_credits))
             continue
         if item_data.get("status") == "processing" and item_data.get("task_id"):
             found = True
             continue
-        usage = item_data.get("usage")
-        if not isinstance(usage, dict):
+        usage = _as_dict(item_data.get("usage"))
+        if not usage:
             continue
-        credits = usage.get("credits_charged")
+        credits = _coerce_nonnegative_credits(usage.get("credits_charged"))
         if credits is None:
             continue
-        total += int(credits)
         found = True
-    return total if found else None
+        if credits > 0:
+            charge_items.append((index, credits))
+    return charge_items if found else None
 
 
 def get_variable_preflight_reserved_credits(
@@ -1174,7 +1220,50 @@ def get_variable_preflight_reserved_credits(
             passes = max(MIN_CORRECTION_PASSES, min(MAX_CORRECTION_PASSES, passes))
             reserved += DEFAULT_RESERVED_CREDITS_PER_REQUEST * max(1, passes + 1)
         return reserved
+    if app_id == "audio" and skill_id == "generate":
+        from backend.apps.audio.pricing import DEFAULT_SOUND_EFFECT_DURATION_SECONDS, calculate_sound_effect_credits
+
+        requests = input_data.get("requests")
+        items = requests if isinstance(requests, list) else [input_data]
+        reserved = 0
+        for item in items:
+            item_data = _as_dict(item)
+            duration_seconds = item_data.get("duration_seconds")
+            if not isinstance(duration_seconds, (int, float)) or isinstance(duration_seconds, bool) or duration_seconds <= 0:
+                duration_seconds = DEFAULT_SOUND_EFFECT_DURATION_SECONDS
+            reserved += calculate_sound_effect_credits(duration_seconds=float(duration_seconds))
+        return reserved
+    if app_id == "audio" and skill_id == "speak":
+        from backend.apps.audio.pricing import (
+            DEFAULT_SPEECH_MODEL,
+            SPEECH_MODEL_CREDITS_PER_SECOND,
+            calculate_speech_credits,
+            estimate_speech_duration_seconds,
+        )
+
+        requests = input_data.get("requests")
+        items = requests if isinstance(requests, list) else [input_data]
+        reserved = 0
+        for item in items:
+            item_data = _as_dict(item)
+            raw_text = item_data.get("text") if isinstance(item_data.get("text"), str) else ""
+            text = raw_text.strip()
+            model = item_data.get("model") if isinstance(item_data.get("model"), str) else DEFAULT_SPEECH_MODEL
+            if model not in SPEECH_MODEL_CREDITS_PER_SECOND:
+                model = DEFAULT_SPEECH_MODEL
+            reserved += calculate_speech_credits(model=model, duration_seconds=estimate_speech_duration_seconds(text))
+        return reserved
     return 0
+
+
+def _coerce_nonnegative_credits(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        credits = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(0, credits)
 
 
 def get_variable_result_usage_details(
@@ -1189,7 +1278,17 @@ def get_variable_result_usage_details(
     results = data.get("results")
     if not isinstance(results, list) or request_index >= len(results):
         return {}
-    usage = _as_dict(_as_dict(results[request_index]).get("usage"))
+    result = _as_dict(results[request_index])
+    if app_id == "audio":
+        details: Dict[str, Any] = {}
+        model = result.get("model")
+        if isinstance(model, str) and model.strip():
+            details["model_used"] = model if "/" in model else f"elevenlabs/{model}"
+        duration_seconds = result.get("duration_seconds")
+        if isinstance(duration_seconds, (int, float)) and not isinstance(duration_seconds, bool):
+            details["duration_second"] = float(duration_seconds)
+        return details
+    usage = _as_dict(result.get("usage"))
     if not usage:
         return {}
     details = {f"image_to_html_{key}": value for key, value in usage.items()}
@@ -1313,6 +1412,13 @@ async def charge_credits_via_internal_api(
         "credits": credits,
         "skill_id": skill_id,
         "app_id": app_id,
+        "idempotency_key": _build_app_skill_billing_idempotency_key(
+            app_id=app_id,
+            skill_id=skill_id,
+            user_id_hash=user_id_hash,
+            credits=credits,
+            usage_details=usage_details,
+        ),
         "usage_details": usage_details or {},
         "api_key_hash": api_key_hash,  # API key hash for tracking
         "device_hash": device_hash,  # Device hash for tracking
@@ -2897,13 +3003,15 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
-                                    result_data=result
+                                    result_data=result,
+                                    app_id=captured_app_id,
                                 )
-                                await require_api_key_budget_for_charge(
-                                    directus_service,
-                                    user_info=user_info,
-                                    requested_credits=credits_charged,
-                                )
+                                if credits_charged > 0:
+                                    await require_api_key_budget_for_charge(
+                                        directus_service,
+                                        user_info=user_info,
+                                        requested_credits=credits_charged,
+                                    )
                                 
                                 # Calculate units_processed for usage tracking
                                 units_processed = None
@@ -2922,12 +3030,22 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Resolve provider info for usage tracking
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     
-                                    # Calculate per-request credits (distribute evenly, remainder on last)
-                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
-                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
-                                    
-                                    for i in range(units_processed):
-                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                    result_charge_items = get_variable_result_charge_items(
+                                        captured_app_id,
+                                        captured_skill.id,
+                                        result,
+                                    )
+                                    if result_charge_items is None:
+                                        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+                                        credits_remainder = credits_charged - (per_request_credits * units_processed)
+                                        charge_items = [
+                                            (i, per_request_credits + (credits_remainder if i == units_processed - 1 else 0))
+                                            for i in range(units_processed)
+                                        ]
+                                    else:
+                                        charge_items = result_charge_items
+
+                                    for i, request_credits in charge_items:
                                         if request_credits <= 0:
                                             continue
                                         
@@ -3112,7 +3230,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_dict,
-                                    result_data=result
+                                    result_data=result,
+                                    app_id=captured_app_id,
                                 )
                                 await require_api_key_budget_for_charge(
                                     directus_service,
@@ -3187,6 +3306,18 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         """Execute a skill from a specific app. Fallback handler when models can't be imported."""
                         try:
                             logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
+
+                            preflight_reserved_credits = get_variable_preflight_reserved_credits(
+                                captured_app_id,
+                                captured_skill.id,
+                                request_body,
+                            )
+                            if preflight_reserved_credits > 0:
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=preflight_reserved_credits,
+                                )
                             
                             result = await call_app_skill(
                                 app_id=captured_app_id,
@@ -3212,13 +3343,15 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_body,  # Contains 'requests' array
-                                    result_data=result
+                                    result_data=result,
+                                    app_id=captured_app_id,
                                 )
-                                await require_api_key_budget_for_charge(
-                                    directus_service,
-                                    user_info=user_info,
-                                    requested_credits=credits_charged,
-                                )
+                                if credits_charged > 0:
+                                    await require_api_key_budget_for_charge(
+                                        directus_service,
+                                        user_info=user_info,
+                                        requested_credits=credits_charged,
+                                    )
                                 
                                 # Calculate units_processed for usage tracking
                                 units_processed = None
@@ -3230,24 +3363,37 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
-                                    usage_details = {
-                                        "api_key_name": user_info.get('api_key_encrypted_name'),
-                                        "external_request": True,
-                                        "units_processed": units_processed,  # Number of requests processed
-                                        "model_used": provider_info["model_used"],
-                                        "server_provider": provider_info["server_provider"],
-                                        "server_region": provider_info["server_region"],
-                                    }
-                                    await charge_credits_via_internal_api(
-                                        user_id=user_info['user_id'],
-                                        user_id_hash=user_id_hash,
-                                        credits=credits_charged,
-                                        app_id=captured_app_id,
-                                        skill_id=captured_skill.id,
-                                        usage_details=usage_details,
-                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    result_charge_items = get_variable_result_charge_items(
+                                        captured_app_id,
+                                        captured_skill.id,
+                                        result,
                                     )
+                                    charge_items = result_charge_items or [(0, credits_charged)]
+                                    for request_index, request_credits in charge_items:
+                                        usage_details = {
+                                            "api_key_name": user_info.get('api_key_encrypted_name'),
+                                            "external_request": True,
+                                            "units_processed": 1 if result_charge_items else units_processed,
+                                            "model_used": provider_info["model_used"],
+                                            "server_provider": provider_info["server_provider"],
+                                            "server_region": provider_info["server_region"],
+                                        }
+                                        usage_details.update(get_variable_result_usage_details(
+                                            captured_app_id,
+                                            captured_skill.id,
+                                            result,
+                                            request_index,
+                                        ))
+                                        await charge_credits_via_internal_api(
+                                            user_id=user_info['user_id'],
+                                            user_id_hash=user_id_hash,
+                                            credits=request_credits,
+                                            app_id=captured_app_id,
+                                            skill_id=captured_skill.id,
+                                            usage_details=usage_details,
+                                            api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                            device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                        )
                             
                             return SkillResponse(
                                 success=True,
@@ -3305,7 +3451,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_data.input_data,  # Contains 'requests' array
-                                    result_data=result
+                                    result_data=result,
+                                    app_id=captured_app_id,
                                 )
                                 await require_api_key_budget_for_charge(
                                     directus_service,

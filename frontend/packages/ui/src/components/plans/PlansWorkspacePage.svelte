@@ -38,6 +38,7 @@
   let actionId = $state<string | null>(null);
   let promptValue = $state('');
   let searchTerm = $state('');
+  let showPlanFilters = $state(false);
   let pendingArchive = $state<ArchiveConfirmation | null>(null);
   let lastArchiveUndo = $state<ArchiveConfirmation | null>(null);
 
@@ -45,8 +46,6 @@
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
   let greetingName = $derived(formatGreetingName($userProfile.username));
   let visiblePlans = $derived(filterPlans(plans, searchTerm));
-  let activePlanCount = $derived(plans.filter((plan) => !['archived', 'completed'].includes(plan.status)).length);
-  let donePlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
   let filterChips = $derived(resolveFilterChips(plans));
 
   function formatGreetingName(username: string): string {
@@ -307,66 +306,36 @@
   </section>
 {:else}
   <section class="plans-workspace-page" data-testid="plans-page">
-    <div class="plans-shell-frame">
-      <WorkspaceHomeShell
+    <WorkspaceHomeShell
         surface="plans"
         testId="plans-workspace-home"
         centerTestId="plan-greeting"
+        contentSlotVisible
+        contentSlotTestId="plans-board-scroll-content"
         heading={`Hey ${greetingName}!`}
         subtitle="What is your next plan?"
         showReportIssue
         onStartInspiration={handleStartInspiration}
       >
-        <svelte:fragment slot="composer">
-          <WorkspacePromptComposer
-            surface="plans"
-            bind:value={promptValue}
-            placeholder="Click to add or update plans"
-            submitLabel="Send"
-            submittingLabel="Saving..."
-            disabled={!plansEnabled || isSaving}
-            submitting={isSaving}
-            testId="plan-workspace-composer"
-            inputTestId="plan-workspace-input"
-            submitTestId="plan-workspace-submit"
-            micTestId="plan-workspace-mic"
-            onSubmit={handlePromptSubmit}
-            onMicClick={() => { notificationStore.error('Voice plan input is not available yet'); }}
-          />
-          {#if pendingArchive}
-            <div class="workspace-confirmation" data-testid="plan-archive-confirmation">
-              <span>Archive "{pendingArchive.plan.title}"? It will be hidden from the default board.</span>
-              <button type="button" onclick={() => void confirmArchive()} data-testid="plan-archive-confirm">Archive</button>
-              <button type="button" onclick={() => { pendingArchive = null; }} data-testid="plan-archive-cancel">Cancel</button>
-            </div>
-          {/if}
-          {#if lastArchiveUndo}
-            <div class="workspace-confirmation undo" data-testid="plan-archive-undo">
-              <span>Archived "{lastArchiveUndo.plan.title}".</span>
-              <button type="button" onclick={() => void undoArchive()} data-testid="plan-archive-undo-button">Undo</button>
-            </div>
-          {/if}
-        </svelte:fragment>
-      </WorkspaceHomeShell>
-    </div>
-
     <section class="plans-board-panel" data-testid="plans-board-workspace" aria-label="Plans workspace board">
       <div class="plans-toolbar">
-        <div class="plans-summary">
-          <p class="eyebrow">Plans</p>
-          <h1>Plan board</h1>
-          <p>{plans.length} total, {activePlanCount} active, {donePlanCount} done</p>
-        </div>
         <div class="plans-actions">
-          <label class="plans-search-field" for="plans-search">
-            <span class="search-icon" aria-hidden="true"></span>
-            <input id="plans-search" bind:value={searchTerm} placeholder="Search" data-testid="plan-search-input" />
-          </label>
-          <div class="plans-filter-chips" aria-label="Plan filters">
-            {#each filterChips as chip}
-              <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
-            {/each}
-          </div>
+          {#if showPlanFilters}
+            <div class="plans-filter-chips" data-testid="plan-filter-tags" aria-label="Plan filters">
+              {#each filterChips as chip}
+                <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+              {/each}
+            </div>
+          {/if}
+          <button
+            type="button"
+            class="plan-filter-button"
+            class:active={showPlanFilters}
+            data-testid="plan-filter-button"
+            aria-label="Toggle plan filters"
+            aria-expanded={showPlanFilters}
+            onclick={() => { showPlanFilters = !showPlanFilters; }}
+          ><span aria-hidden="true"></span></button>
         </div>
       </div>
 
@@ -391,6 +360,37 @@
         {/if}
       {/if}
     </section>
+    <svelte:fragment slot="composer">
+      <WorkspacePromptComposer
+        surface="plans"
+        bind:value={promptValue}
+        placeholder="Click to add or update plans"
+        submitLabel="Send"
+        submittingLabel="Saving..."
+        disabled={!plansEnabled || isSaving}
+        submitting={isSaving}
+        testId="plan-workspace-composer"
+        inputTestId="plan-workspace-input"
+        submitTestId="plan-workspace-submit"
+        micTestId="plan-workspace-mic"
+        onSubmit={handlePromptSubmit}
+        onMicClick={() => { notificationStore.error('Voice plan input is not available yet'); }}
+      />
+      {#if pendingArchive}
+        <div class="workspace-confirmation" data-testid="plan-archive-confirmation">
+          <span>Archive "{pendingArchive.plan.title}"? It will be hidden from the default board.</span>
+          <button type="button" onclick={() => void confirmArchive()} data-testid="plan-archive-confirm">Archive</button>
+          <button type="button" onclick={() => { pendingArchive = null; }} data-testid="plan-archive-cancel">Cancel</button>
+        </div>
+      {/if}
+      {#if lastArchiveUndo}
+        <div class="workspace-confirmation undo" data-testid="plan-archive-undo">
+          <span>Archived "{lastArchiveUndo.plan.title}".</span>
+          <button type="button" onclick={() => void undoArchive()} data-testid="plan-archive-undo-button">Undo</button>
+        </div>
+      {/if}
+    </svelte:fragment>
+    </WorkspaceHomeShell>
   </section>
 {/if}
 
@@ -403,31 +403,16 @@
     min-height: 0;
     flex-direction: column;
     gap: 18px;
-    overflow: auto;
+    overflow: hidden;
+    border-radius: 17px;
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
   }
 
-  .plans-shell-frame {
-    min-height: clamp(330px, 42vh, 470px);
-    flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
-    border-radius: 17px;
-    background: var(--color-grey-0);
-  }
-
-  .plans-shell-frame :global(.daily-inspiration-banner) {
-    --daily-inspiration-regular-height: clamp(112px, 14vh, 135px);
+  .plans-workspace-page :global(.workspace-home-shell) {
+    flex: 1;
     min-height: 0;
-  }
-
-  .plans-shell-frame :global(.workspace-center-content.center-content) {
-    top: calc(50% + 8vh);
-  }
-
-  .plans-shell-frame :global(.workspace-composer-slot) {
-    bottom: 10px;
-    z-index: var(--z-index-dropdown);
   }
 
   .plans-board-panel {
@@ -435,38 +420,19 @@
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    gap: 14px;
-    padding: 0 2px 14px;
+    gap: var(--spacing-8);
+    padding: 0;
+  }
+
+  .plans-board-panel :global(.plan-column) {
+    min-height: 410px;
   }
 
   .plans-toolbar {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+    align-items: flex-start;
+    justify-content: flex-end;
     gap: 16px;
-  }
-
-  .plans-summary h1,
-  .plans-summary p {
-    margin: 0;
-  }
-
-  .plans-summary h1 {
-    font-size: clamp(1.5rem, 3vw, 2.2rem);
-  }
-
-  .plans-summary p:not(.eyebrow) {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-  }
-
-  .eyebrow {
-    margin: 0 0 4px;
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xxs);
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
   }
 
   .plans-actions,
@@ -478,35 +444,6 @@
     gap: 8px;
   }
 
-  .plans-search-field {
-    display: flex;
-    min-width: min(260px, 100%);
-    align-items: center;
-    gap: 8px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-full);
-    padding: 8px 12px;
-    background: var(--color-grey-10);
-  }
-
-  .plans-search-field input {
-    min-width: 0;
-    flex: 1;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-font-primary);
-    font: inherit;
-  }
-
-  .search-icon {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    background: var(--color-font-secondary);
-    -webkit-mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
-    mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
-  }
 
   .plans-filter-chips button,
   .workspace-confirmation button,
@@ -525,6 +462,33 @@
   .workspace-confirmation button:first-of-type {
     background: var(--color-button-primary);
     color: var(--color-font-button);
+  }
+
+  .plan-filter-button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: 0;
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  .plan-filter-button span {
+    width: 20px;
+    height: 20px;
+    background: var(--color-font-primary);
+    -webkit-mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+  }
+
+  .plan-filter-button.active {
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-grey-10));
   }
 
   .workspace-confirmation {
@@ -558,18 +522,16 @@
   }
 
   @media (max-width: 760px) {
-    .plans-shell-frame {
-      min-height: 360px;
-    }
-
     .plans-toolbar {
-      align-items: stretch;
-      flex-direction: column;
+      align-items: flex-end;
     }
 
-    .plans-actions,
     .plans-filter-chips {
-      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .plans-board-panel :global(.plan-column) {
+      min-height: 360px;
     }
   }
 </style>

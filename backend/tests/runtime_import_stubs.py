@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 import importlib.util
+import importlib.machinery
 import re
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 
@@ -40,8 +42,9 @@ def install_code_route_import_stubs() -> None:
 
     if _module_missing("celery"):
         tasks_stub = types.ModuleType("backend.core.api.app.tasks")
-        tasks_stub.__path__ = []
+        tasks_stub.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
         celery_config_stub = types.ModuleType("backend.core.api.app.tasks.celery_config")
+        celery_result_stub = types.ModuleType("celery.result")
 
         class _CeleryAppStub:
             def send_task(self, *_args, **_kwargs):
@@ -50,17 +53,24 @@ def install_code_route_import_stubs() -> None:
             def task(self, *_args, **_kwargs):
                 return lambda func: func
 
+        class _AsyncResultStub:
+            pass
+
         async def _missing_worker_cache_service():
             raise AssertionError("worker cache service is not used by these unit tests")
 
         celery_config_stub.app = _CeleryAppStub()
         celery_config_stub.get_worker_cache_service = _missing_worker_cache_service
+        celery_result_stub.AsyncResult = _AsyncResultStub
         sys.modules.setdefault("backend.core.api.app.tasks", tasks_stub)
         sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_stub)
+        sys.modules.setdefault("celery.result", celery_result_stub)
 
     if _module_missing("redis"):
         redis_stub = types.ModuleType("redis")
         redis_asyncio_stub = types.ModuleType("redis.asyncio")
+        redis_stub.__spec__ = importlib.machinery.ModuleSpec("redis", loader=None)
+        redis_asyncio_stub.__spec__ = importlib.machinery.ModuleSpec("redis.asyncio", loader=None)
 
         class _RedisStub:
             def __init__(self, *_args, **_kwargs):

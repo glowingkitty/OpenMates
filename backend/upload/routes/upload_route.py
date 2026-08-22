@@ -78,7 +78,7 @@ from datetime import datetime, timezone
 from typing import Optional, Any, Dict
 
 import httpx
-from fastapi import APIRouter, Cookie, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Cookie, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.media_encryption import (
@@ -86,6 +86,7 @@ from backend.shared.python_utils.media_encryption import (
     encrypt_media_variants,
     load_media_write_version,
 )
+from backend.upload.billing_payloads import build_pdf_billing_payload
 from backend.upload.s3_keys import upload_s3_prefix
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,121 @@ class ProfileImageUploadResponse(BaseModel):
     url: Optional[str] = Field(None, description="Public S3 URL of the uploaded profile image (only on status='ok')")
     reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
     detail: Optional[str] = Field(None, description="Human-readable rejection reason")
+
+
+class TeamProfileImageUploadResponse(BaseModel):
+    """Response returned after a successful team profile image upload."""
+
+    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure, 'account_deleted' if account was deleted")
+    url: Optional[str] = Field(None, description="Authenticated team profile-image proxy URL")
+    reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
+    detail: Optional[str] = Field(None, description="Human-readable rejection reason")
+
+
+def _profile_image_s3_key(owner_prefix: str) -> str:
+    return f"{owner_prefix}/{int(time.time())}-{uuid.uuid4().hex[:8]}.enc"
+
+
+async def _read_validate_and_scan_profile_image(
+    *,
+    request: Request,
+    file: UploadFile,
+    user_id: str,
+    core_api_url: str,
+    internal_token: str,
+    log_prefix: str,
+    rejection_upload_type: str,
+    rejection_response_class: type[TeamProfileImageUploadResponse] | type[ProfileImageUploadResponse],
+) -> tuple[bytes, str, str, TeamProfileImageUploadResponse | ProfileImageUploadResponse | None]:
+    file_bytes = await file.read()
+    filename = file.filename or "profile.jpg"
+    content_type = file.content_type or "image/jpeg"
+    logger.info(
+        f"{log_prefix} [1/5] File received: {filename!r} "
+        f"({len(file_bytes) / 1024:.1f} KB, declared type: {content_type})"
+    )
+    if len(file_bytes) > PROFILE_IMAGE_MAX_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Profile image too large. Maximum allowed size is {PROFILE_IMAGE_MAX_SIZE_BYTES // 1024} KB",
+        )
+    try:
+        import magic  # type: ignore[import]
+
+        detected_mime = magic.from_buffer(file_bytes, mime=True)
+    except ImportError:
+        logger.warning("[ProfileUpload] python-magic not available, using Content-Type header only")
+        detected_mime = content_type
+    except Exception as exc:
+        logger.warning(f"[ProfileUpload] MIME detection failed: {exc}, using Content-Type header")
+        detected_mime = content_type
+    if detected_mime not in PROFILE_IMAGE_ALLOWED_MIMES and content_type not in PROFILE_IMAGE_ALLOWED_MIMES:
+        raise HTTPException(status_code=415, detail="Unsupported file type. Profile images must be JPEG or PNG.")
+    if detected_mime in PROFILE_IMAGE_ALLOWED_MIMES:
+        content_type = detected_mime
+
+    malware_service = request.app.state.malware_scanner
+    try:
+        scan_result = await malware_service.scan(file_bytes)
+    except RuntimeError as exc:
+        logger.error(f"{log_prefix} [2/5] ClamAV scan FAILED: {exc}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Malware scanning service unavailable")
+    if not scan_result.is_clean:
+        raise HTTPException(status_code=422, detail=f"File rejected: threat detected ({scan_result.threat_name})")
+
+    sightengine = request.app.state.sightengine
+    if sightengine.is_enabled:
+        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename, content_type=content_type)
+        if not safety_result.is_safe:
+            rejection_report = await _report_content_safety_rejection_via_api(
+                core_api_url=core_api_url,
+                internal_token=internal_token,
+                user_id=user_id,
+                filename=filename,
+                rejection_reason=safety_result.reason or "content_safety_violation",
+                upload_type=rejection_upload_type,
+            )
+            rejection_result = rejection_report.get("result", "tracked")
+            if rejection_result == "account_deleted":
+                return file_bytes, filename, content_type, rejection_response_class(
+                    status="account_deleted",
+                    detail="Account deleted due to repeated policy violations",
+                )
+            return file_bytes, filename, content_type, rejection_response_class(
+                status="rejected",
+                reject_count=rejection_report.get("reject_count", 0),
+                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+            )
+    return file_bytes, filename, content_type, None
+
+
+async def _authorize_team_profile_image_upload(
+    *,
+    core_api_url: str,
+    internal_token: str,
+    user_id: str,
+    team_id: str,
+    log_prefix: str,
+) -> None:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/team-profile-image/authorize",
+                json={"user_id": user_id, "team_id": team_id},
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+    except httpx.TimeoutException:
+        logger.error(f"{log_prefix} Core API team authorization timed out")
+        raise HTTPException(status_code=503, detail="Team profile image authorization timeout")
+    except Exception as exc:
+        logger.error(f"{log_prefix} Core API team authorization failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Team profile image authorization failed")
+    if resp.status_code == 200:
+        return
+    if resp.status_code == 403:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
+    logger.error(f"{log_prefix} Core API team authorization returned HTTP {resp.status_code}: {resp.text[:200]}")
+    raise HTTPException(status_code=503, detail="Team profile image authorization unavailable")
 
 
 # ---------------------------------------------------------------------------
@@ -1180,19 +1296,16 @@ async def _handle_pdf_dedup(
         async with httpx.AsyncClient(timeout=15) as _client:
             charge_resp = await _client.post(
                 f"{core_api_url}/internal/billing/charge",
-                json={
-                    "user_id": user_id,
-                    "user_id_hash": user_id_hash,
-                    "credits": credits_to_charge,
-                    "skill_id": "process",
-                    "app_id": "pdf",
-                    "usage_details": {
-                        "page_count": page_count,
-                        "credits_per_page": PDF_CREDITS_PER_PAGE,
-                        "filename": filename,
-                        "deduplicated": True,
-                    },
-                },
+                json=build_pdf_billing_payload(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    embed_id=embed_id,
+                    credits_to_charge=credits_to_charge,
+                    page_count=page_count,
+                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    filename=filename,
+                    deduplicated=True,
+                ),
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if charge_resp.status_code == 402:
@@ -1404,6 +1517,7 @@ async def _handle_pdf_upload(
     import hashlib as _hashlib
     credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+    embed_id = str(uuid.uuid4())
 
     logger.info(
         f"{log_prefix} [PDF-2/7] Charging {credits_to_charge} credits "
@@ -1413,18 +1527,15 @@ async def _handle_pdf_upload(
         async with httpx.AsyncClient(timeout=15) as client:
             charge_resp = await client.post(
                 f"{core_api_url}/internal/billing/charge",
-                json={
-                    "user_id": user_id,
-                    "user_id_hash": user_id_hash,
-                    "credits": credits_to_charge,
-                    "skill_id": "process",
-                    "app_id": "pdf",
-                    "usage_details": {
-                        "page_count": page_count,
-                        "credits_per_page": PDF_CREDITS_PER_PAGE,
-                        "filename": filename,
-                    },
-                },
+                json=build_pdf_billing_payload(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    embed_id=embed_id,
+                    credits_to_charge=credits_to_charge,
+                    page_count=page_count,
+                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    filename=filename,
+                ),
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if charge_resp.status_code == 402:
@@ -1482,7 +1593,6 @@ async def _handle_pdf_upload(
         raise HTTPException(status_code=503, detail="Encryption service unavailable")
 
     # --- PDF 5. Upload to S3 ---
-    embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     s3_prefix = upload_s3_prefix(user_id, content_hash, embed_id)
     s3_service = request.app.state.s3
@@ -2057,3 +2167,90 @@ async def upload_profile_image(
             exc_info=True,
         )
         raise HTTPException(status_code=503, detail="Profile image processing failed")
+
+
+@router.post("/team-profile-image", response_model=TeamProfileImageUploadResponse)
+async def upload_team_profile_image(
+    request: Request,
+    team_id: str = Form(...),
+    encrypted_profile_image_metadata: str = Form(...),
+    file: UploadFile = File(...),
+    user: Dict[str, Any] = Depends(get_authenticated_user),
+) -> TeamProfileImageUploadResponse:
+    """Upload or replace a team profile image through the private profile-image pipeline."""
+    user_id: str = user["user_id"]
+    log_prefix = f"[TeamProfileUpload] [team:{team_id[:8]}...] [user:{user_id[:8]}...]"
+    upload_start = time.monotonic()
+    core_api_url, internal_token = _get_core_api_credentials(request)
+    target_env = request.headers.get("X-Target-Env", "prod").lower()
+    await _authorize_team_profile_image_upload(
+        core_api_url=core_api_url,
+        internal_token=internal_token,
+        user_id=user_id,
+        team_id=team_id,
+        log_prefix=log_prefix,
+    )
+    file_bytes, filename, _content_type, rejected = await _read_validate_and_scan_profile_image(
+        request=request,
+        file=file,
+        user_id=user_id,
+        core_api_url=core_api_url,
+        internal_token=internal_token,
+        log_prefix=log_prefix,
+        rejection_upload_type="profile_image",
+        rejection_response_class=TeamProfileImageUploadResponse,
+    )
+    if rejected:
+        return rejected
+
+    encryption_service = request.app.state.file_encryption
+    encrypted_bytes, aes_key_b64, nonce_b64 = encryption_service.encrypt_bytes(file_bytes)
+    profile_s3_key = _profile_image_s3_key(f"teams/{team_id}")
+    s3_service = request.app.state.s3
+    try:
+        await s3_service.upload_profile_image_private(
+            s3_key=profile_s3_key,
+            content=encrypted_bytes,
+            target_env=target_env,
+        )
+    except RuntimeError as exc:
+        logger.error(f"{log_prefix} S3 private upload FAILED: {exc}", exc_info=True)
+        raise HTTPException(status_code=503, detail="File storage service unavailable")
+
+    proxy_url = f"/v1/teams/{team_id}/profile-image"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{core_api_url}/internal/team-profile-image/process",
+                json={
+                    "user_id": user_id,
+                    "team_id": team_id,
+                    "encrypted_profile_image_metadata": encrypted_profile_image_metadata,
+                    "s3_key": profile_s3_key,
+                    "aes_key_b64": aes_key_b64,
+                    "nonce_b64": nonce_b64,
+                    "target_env": target_env,
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if resp.status_code == 200:
+            total_elapsed = (time.monotonic() - upload_start) * 1000
+            logger.info(
+                f"{log_prefix} Team profile image upload complete: {filename!r}, "
+                f"s3_key={profile_s3_key}, total={total_elapsed:.0f} ms"
+            )
+            return TeamProfileImageUploadResponse(status="ok", url=resp.json().get("url") or proxy_url)
+        if resp.status_code == 403:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
+        logger.error(
+            f"{log_prefix} Core API team process endpoint returned HTTP {resp.status_code}: {resp.text[:200]}"
+        )
+        raise HTTPException(status_code=503, detail="Team profile image processing service unavailable")
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        logger.error(f"{log_prefix} Core API team process endpoint timed out")
+        raise HTTPException(status_code=503, detail="Team profile image processing service timeout")
+    except Exception as exc:
+        logger.error(f"{log_prefix} Core API team process endpoint request failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Team profile image processing failed")

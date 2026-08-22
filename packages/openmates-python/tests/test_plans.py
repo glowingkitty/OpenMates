@@ -6,8 +6,10 @@ Security: monkeypatches requests; no API keys or plan payloads leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_plans.py
 """
 
+# contract-test-file: tooling
+
 from openmates import OpenMates
-from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
+from openmates.sdk import _create_api_key_material, _encrypted_object_slug_metadata, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
 
 
 PLAN = {
@@ -24,6 +26,7 @@ def assert_no_plaintext_marker(value, marker):
     assert marker not in str(value)
 
 
+# contract-test: direct surface=sdks.pip assertions=plans.content.client-encrypted,plans.lifecycle.visible,plans.key-wrappers.contextual,plans.execution.gates-evidence,plans.surface.semantic-parity
 def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     requests_seen = []
     master_key = bytes([8]) * 32
@@ -57,6 +60,10 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         if url.endswith("/v1/sdk/chats/chat-1"):
             return FakeResponse({"chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}})
+        if url.endswith("/v1/sdk/chats?limit=0&offset=0"):
+            return FakeResponse({"chats": [{"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}]})
+        if url.endswith("/v1/user-plans/plan-1"):
+            return FakeResponse({"plan": plan})
         if url.endswith("/runs/run-1"):
             return FakeResponse({"run": {"run_id": "run-1"}, "artifacts": []})
         if url.endswith("/learnings"):
@@ -167,10 +174,12 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     urls = [request["url"].replace("https://api.openmates.org", "") for request in requests_seen]
     assert "/v1/sdk/session" in urls
     assert "/v1/user-plans" in urls
-    assert any(url.startswith("/v1/user-plans?active_only=False") for url in urls)
+    assert any(url.startswith("/v1/user-plans?status=draft") for url in urls)
+    assert "/v1/user-plans/plan-1" in urls
     assert "/v1/user-plans/plan-1/activate" in urls
 
 
+# contract-test: direct surface=sdks.pip assertions=plans.project-links.encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity
 def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
     master_key = bytes([3]) * 32
     plan_key = bytes([4]) * 32
@@ -200,8 +209,12 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/user-plans/plan-1"):
+            return FakeResponse({"plan": plan})
         if url.endswith("/v1/user-plans?active_only=False"):
             return FakeResponse({"plans": [plan]})
+        if url.endswith("/v1/projects/project-1"):
+            return FakeResponse({"project": {"project_id": "project-1", "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}})
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{"project_id": "project-1", "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}]})
         raise AssertionError(f"Unexpected GET {url}")
@@ -234,3 +247,53 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
     assert removed["linked_project_ids"] == []
     assert seen_patch["linked_project_ids"] == []
     assert [wrapper["key_type"] for wrapper in seen_patch["key_wrappers"]] == ["master"]
+
+
+# contract-test: direct surface=sdks.pip assertions=plans.surface.semantic-parity,cli.slugs.local-resolution-id-transport,sdk.encryption.local-only
+def test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list(monkeypatch):
+    master_key = bytes([21]) * 32
+    plan_key = bytes([22]) * 32
+    api_key, material = _create_api_key_material("pip plan slug lookup", master_key)
+    slug_metadata = _encrypted_object_slug_metadata("Pip Slug Plan", encryption_key=plan_key, lookup_key=master_key)
+    plan = {
+        "plan_id": "plan-1",
+        "version": 1,
+        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "encrypted_slug": slug_metadata["encrypted_slug"],
+        "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
+        "encrypted_title": _encrypt_aes_gcm_text("Pip Slug Plan", plan_key),
+        "encrypted_linked_project_ids": _encrypt_aes_gcm_text("[]", plan_key),
+        "linked_project_ids": [],
+        "status": "draft",
+        "created_at": 100,
+        "updated_at": 100,
+    }
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/user-plans?active_only=False"):
+            return FakeResponse({"plans": [plan]})
+        raise AssertionError(f"Unexpected GET {url}")
+
+    def fake_post(url, *, json, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        raise AssertionError(f"Unexpected POST {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=api_key, device_id="test-device")
+    shown = client.plans.show("pip-slug-plan")
+    assert shown["plan_id"] == "plan-1"
+    assert shown["slug"] == "pip-slug-plan"

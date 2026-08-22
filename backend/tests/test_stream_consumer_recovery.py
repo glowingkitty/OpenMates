@@ -429,7 +429,7 @@ def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:
             user_vault_key_id="vault-key",
             task_id="88888888-8888-4888-8888-888888888888",
             log_prefix="test",
-            model_name="Gemini 3.6 Flash",
+            model_name="Gemini 3.7 Flash",
         )
     )
 
@@ -503,7 +503,7 @@ def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypat
     assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}
 
 
-def test_sub_chat_parent_continuation_preserves_recovery_identity_without_reusing_assistant_id(monkeypatch) -> None:
+def test_sub_chat_parent_continuation_does_not_inherit_recovery_identity(monkeypatch) -> None:
     original_request = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
         message_id="33333333-3333-4333-8333-333333333333",
@@ -546,7 +546,7 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity_without_reusin
     request_payload = captured["kwargs"]["request_data_dict"]
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
-    assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
+    assert request_payload["recovery_inference_task_id"] is None
     assert request_payload["continuation_message_id"] is None
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id
@@ -556,6 +556,48 @@ def test_sub_chat_parent_continuation_preserves_recovery_identity_without_reusin
     assert request_payload["is_sub_chat"] is True
     assert request_payload["budget_limit"] == original_request.budget_limit
     assert request_payload["budget_spent"] == original_request.budget_spent
+
+
+def test_persist_sealed_recovery_job_skips_continuation_without_recovery_identity(monkeypatch) -> None:
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
+        is_sub_chat_continuation=True,
+        recovery_preflight_id="55555555-5555-4555-8555-555555555555",
+        recovery_turn_id="66666666-6666-4666-8666-666666666666",
+        recovery_public_key="public-key",
+        chat_key_version=1,
+    )
+
+    def fail_build_sealed_recovery_job_data(*_args, **_kwargs):
+        raise AssertionError("continuations without recovery identity must not build sealed jobs")
+
+    class FailChatRecoveryService:
+        def __init__(self, _directus_service) -> None:
+            raise AssertionError("continuations without recovery identity must not create recovery service")
+
+    monkeypatch.setattr(
+        stream_consumer,
+        "build_sealed_recovery_job_data",
+        fail_build_sealed_recovery_job_data,
+    )
+    monkeypatch.setattr(stream_consumer, "ChatRecoveryService", FailChatRecoveryService)
+
+    result = asyncio.run(
+        stream_consumer._persist_sealed_recovery_job(
+            directus_service=object(),
+            request_data=request_data,
+            task_id="77777777-7777-4777-8777-777777777777",
+            content="parent continuation response",
+            category="general_knowledge",
+            model_name="fallback-model",
+        )
+    )
+
+    assert result is None
 
 
 def test_awaiting_nested_sub_chat_does_not_report_provisional_completion() -> None:

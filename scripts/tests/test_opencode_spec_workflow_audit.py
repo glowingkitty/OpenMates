@@ -7,6 +7,8 @@ Security: no credentials, network calls, or product data are involved.
 Tests: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -22,7 +24,7 @@ COORDINATION_PLUGIN_FIXTURE = " ".join(
         'runBridge("PreToolUse"',
         "edit-lease",
         'OPENMATES_ROOT_GUARD || "strict"',
-        "Docker Compose mutations require",
+        "Direct Docker Compose lifecycle mutations bypass",
     ]
 )
 
@@ -177,7 +179,7 @@ def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_pa
 
     assert any("edit-lease" in failure for failure in failures)
     assert any("OPENMATES_ROOT_GUARD" in failure for failure in failures)
-    assert any("Docker Compose mutations require" in failure for failure in failures)
+    assert any("Direct Docker Compose lifecycle mutations bypass" in failure for failure in failures)
 
 
 def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
@@ -186,28 +188,55 @@ def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
     assert {
         "narration outline",
         "frame-only review",
-        "Discord publication",
+        "proof-video",
+        "narration audio is optional",
+        "OpenCode response-media",
     }.issubset(audit.PLAN_PROMPT_TERMS)
 
 
 def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
     audit = load_audit_module()
     expected = {
+        ".claude/skills/create-demo-video/SKILL.md": {
+            "proof_video_workflow.py start --current",
+            "audio is off by default",
+            "WebVTT",
+            "Never burn captions",
+            "opencode_response_media.py",
+            "actual `openmates` CLI",
+            "periodically every five seconds",
+            "forty-eight cumulative submitted frames",
+            "proof_video_workflow.py review",
+        },
         ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
         ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
-        ".claude/skills/tasks-from-spec/SKILL.md": {"demonstration review", "Discord publication"},
-        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"frame-only review", "OpenCode response-media", "optional narration audio"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "response-media snippets", "intentional audio status", "OpenCode response-media"},
     }
 
     for path, terms in expected.items():
         assert terms.issubset(audit.SKILL_TERMS[path])
 
 
+def test_opencode_spec_workflow_audit_requires_bounded_proof_reviewer(tmp_path):
+    audit = load_audit_module()
+    reviewer = tmp_path / ".claude" / "agents" / "proof-video-reviewer.md"
+    reviewer.parent.mkdir(parents=True)
+    reviewer.write_text("incomplete", encoding="utf-8")
+
+    failures = audit.audit_proof_video_reviewer(tmp_path)
+
+    assert any("full video" in failure for failure in failures)
+    assert any("product_defect" in failure for failure in failures)
+
+
 def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms():
     audit = load_audit_module()
 
     assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "narration audio is optional" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
     assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+    assert "proof-video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
 
 
 def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms():

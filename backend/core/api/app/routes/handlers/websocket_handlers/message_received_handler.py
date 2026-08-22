@@ -10,6 +10,7 @@ import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
 import time # Import time for performance timing
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
@@ -26,14 +27,33 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, should_trigger_team_ai
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, parse_team_message_transport, should_trigger_team_ai
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
+from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
 logger = logging.getLogger(__name__)
+
+TEST_MOCK_MARKER_PREFIX = "<<<TEST_MOCK:"
+TEST_MOCK_MARKER_SUFFIX = ">>>"
+
+
+def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
+    """Return a dev-only marker that routes E2E proof requests to fixture replay."""
+    if os.getenv("SERVER_ENVIRONMENT", "production") == "production":
+        return None
+    if not isinstance(value, str):
+        return None
+    marker = value.strip()
+    if not marker.startswith(TEST_MOCK_MARKER_PREFIX) or not marker.endswith(TEST_MOCK_MARKER_SUFFIX):
+        return None
+    if "\n" in marker or "\r" in marker or len(marker) > 160:
+        return None
+    return marker
 
 AI_USER_PREFERENCE_FIELDS = [
     "timezone",
@@ -186,6 +206,30 @@ async def _send_origin_chat_message_confirmed(
     await manager.send_personal_message(message, user_id, device_fingerprint_hash)
 
 
+async def _store_client_encrypted_embeds(
+    directus_service: DirectusService,
+    encrypted_embeds: list[dict[str, Any]],
+    hashed_user_id: str,
+    message_id: str,
+) -> None:
+    if not encrypted_embeds:
+        return
+    logger.info("Storing %s client-encrypted embeds for message %s", len(encrypted_embeds), message_id)
+    for encrypted_embed in encrypted_embeds:
+        try:
+            embed_id = encrypted_embed.get("embed_id")
+            if not embed_id:
+                logger.warning("Encrypted embed missing embed_id, skipping")
+                continue
+            encrypted_embed.setdefault("hashed_user_id", hashed_user_id)
+            await directus_service.embed.create_embed(encrypted_embed)
+            for key_entry in encrypted_embed.get("embed_keys", []):
+                key_entry.setdefault("hashed_user_id", hashed_user_id)
+                await directus_service.embed.create_embed_key(key_entry)
+        except Exception as exc:
+            logger.error("Error storing client-encrypted embed", exc_info=exc)
+
+
 def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
     forbidden = sorted(key for key in item if key in CONNECTED_ACCOUNT_FORBIDDEN_FIELDS)
     if forbidden:
@@ -239,6 +283,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         encrypted_chat_key_from_client = payload.get("encrypted_chat_key")
         # Check if this is an incognito chat
         is_incognito = payload.get("is_incognito", False)
+        test_mock_marker = _sanitize_test_mock_marker(payload.get("test_mock_marker"))
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
@@ -264,11 +309,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         team_ai_context = extract_team_ai_context(payload, message_payload_from_client)
         team_id = team_ai_context.get("team_id")
         is_team_chat = bool(team_id)
-        raw_team_message_content = message_payload_from_client.get("content")
-        team_should_trigger_ai = should_trigger_team_ai(
-            raw_team_message_content if isinstance(raw_team_message_content, str) else "",
-            is_team_chat=is_team_chat,
-        )
+        team_transport = None
+        team_should_trigger_ai = False
         if is_team_chat:
             try:
                 await directus_service.team.require_team_role(str(team_id), user_id, TEAM_CHAT_WRITE_ROLES)
@@ -288,6 +330,36 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     device_fingerprint_hash,
                 )
                 return
+            try:
+                team_transport = parse_team_message_transport(payload, message_payload_from_client)
+            except ValueError as exc:
+                logger.warning("Rejected invalid Team message transport for team %s: %s", team_id, exc)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "invalid_team_message_transport",
+                            "message": str(exc),
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id"),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            team_should_trigger_ai = team_transport.should_trigger_ai
+            if team_should_trigger_ai:
+                message_payload_from_client = dict(message_payload_from_client)
+                message_payload_from_client["content"] = team_transport.inference_history[-1].content
+                payload = dict(payload)
+                payload["message_history"] = [item.model_dump(mode="json") for item in team_transport.inference_history]
+        else:
+            raw_message_content = message_payload_from_client.get("content")
+            team_should_trigger_ai = should_trigger_team_ai(
+                raw_message_content if isinstance(raw_message_content, str) else "",
+                is_team_chat=False,
+            )
 
         recovery_enqueue_result: dict[str, Any] | None = None
         protocol_epoch = 0
@@ -325,7 +397,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             active_recovery_task_id = await cache_service.get_active_ai_task(chat_id)
-            if active_recovery_task_id:
+            if active_recovery_task_id and (not is_team_chat or team_should_trigger_ai):
                 await manager.send_personal_message(
                     {
                         "type": "error",
@@ -383,6 +455,25 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # For now, shared chats are read-only for non-owners (group chat support will be added later)
             try:
                 chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
+                if (
+                    chat_metadata_from_db
+                    and is_team_chat
+                    and chat_metadata_from_db.get("hashed_team_id") != team_ai_context.get("team_id_hash")
+                ):
+                    logger.warning("User %s attempted cross-Team chat write for chat %s", user_id, chat_id)
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": "team_chat_scope_mismatch",
+                                "message": "This chat does not belong to the selected team.",
+                                "chat_id": chat_id,
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
                 if chat_metadata_from_db and not is_team_chat:
                     # Check if user owns this chat
                     is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
@@ -427,6 +518,60 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
         else:
             logger.info(f"Processing incognito chat message {message_payload_from_client.get('message_id')} for chat {chat_id} - skipping Directus operations")
+
+        if is_team_chat:
+            active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
+            await broadcast_team_event(
+                manager=manager,
+                active_member_user_ids=(),
+                event_name="team_chat_message_created",
+                payload={
+                    "team_id": team_id,
+                    "chat_id": chat_id,
+                    "message_id": message_payload_from_client.get("message_id"),
+                    "role": message_payload_from_client.get("role"),
+                    "encrypted_content": team_transport.encrypted_content,
+                    "encrypted_sender_name": message_payload_from_client.get("encrypted_sender_name"),
+                    "created_at": message_payload_from_client.get("created_at"),
+                    "encrypted_chat_key": encrypted_chat_key_from_client,
+                },
+                cache_service=cache_service,
+                active_member_hashes=active_member_hashes,
+            )
+            mentioned_active_user_ids = {
+                mentioned_user_id
+                for mentioned_user_id in team_transport.mentioned_user_ids
+                if hash_id(mentioned_user_id) in active_member_hashes
+            }
+            await notify_team_member_mentions(
+                notification_sink=TeamMemberMentionNotificationSink(cache_service),
+                team_id=str(team_id),
+                chat_id=chat_id,
+                message_id=str(message_payload_from_client.get("message_id")),
+                sender_user_id=user_id,
+                mentioned_user_ids=team_transport.mentioned_user_ids,
+                active_member_user_ids=mentioned_active_user_ids,
+            )
+        if is_team_chat and not team_transport.should_trigger_ai:
+            await _store_client_encrypted_embeds(
+                directus_service,
+                payload.get("encrypted_embeds", []),
+                hashlib.sha256(user_id.encode()).hexdigest(),
+                str(message_payload_from_client.get("message_id")),
+            )
+            await _send_origin_chat_message_confirmed(
+                websocket,
+                manager,
+                user_id,
+                device_fingerprint_hash,
+                {
+                    "chat_id": chat_id,
+                    "message_id": message_payload_from_client.get("message_id"),
+                    "temp_id": message_payload_from_client.get("temp_id"),
+                },
+            )
+            logger.info("Team chat message %s relayed as ciphertext without AI processing", message_payload_from_client.get("message_id"))
+            return
 
         message_id = message_payload_from_client.get("message_id")
         role = message_payload_from_client.get("role") 
@@ -883,7 +1028,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # NO PERMANENT STORAGE happens here - storage is handled by separate encrypted_chat_metadata handler
         
         # Validate that client is NOT sending encrypted content (wrong handler)
-        if message_payload_from_client.get("encrypted_content"):
+        if message_payload_from_client.get("encrypted_content") and not is_team_chat:
             logger.error("Client sent encrypted content to chat_message_added handler. This should go to encrypted_chat_metadata handler instead.")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Encrypted content should be sent to encrypted_chat_metadata endpoint"}},
@@ -1041,52 +1186,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # The encrypted_embeds array contains pre-encrypted embeds ready for direct Directus storage.
         encrypted_embeds_from_client = payload.get("encrypted_embeds", [])
         if encrypted_embeds_from_client and not is_incognito:
-            logger.info(f"Storing {len(encrypted_embeds_from_client)} client-encrypted embeds directly to Directus for message {message_id}")
-            
-            for encrypted_embed in encrypted_embeds_from_client:
-                try:
-                    embed_id = encrypted_embed.get("embed_id")
-                    if not embed_id:
-                        logger.warning("Encrypted embed missing embed_id, skipping")
-                        continue
-                    
-                    # ARCHITECTURE: Fill in hashed_user_id if client didn't provide it
-                    # This happens for new chats where the client doesn't have user_id yet.
-                    # The server knows the user from the authenticated session, so we can fill it in.
-                    if not encrypted_embed.get("hashed_user_id"):
-                        encrypted_embed["hashed_user_id"] = hashed_user_id
-                        logger.debug(f"Filled in hashed_user_id for embed {embed_id}")
-                    
-                    # Store client-encrypted embed directly in Directus
-                    # This is the zero-knowledge architecture: server cannot decrypt this data
-                    await directus_service.embed.create_embed(encrypted_embed)
-                    logger.debug(f"Stored client-encrypted embed {embed_id} in Directus")
-                    
-                    # Also store embed keys if provided
-                    # CRITICAL: embed_keys must be stored for the embed to be decryptable later
-                    embed_keys = encrypted_embed.get("embed_keys", [])
-                    if embed_keys:
-                        logger.info(f"[EMBED_KEYS] 🔑 Received {len(embed_keys)} embed_key(s) for embed {embed_id}")
-                        for key_entry in embed_keys:
-                            # Fill in hashed_user_id for embed keys too if missing
-                            if not key_entry.get("hashed_user_id"):
-                                key_entry["hashed_user_id"] = hashed_user_id
-                            
-                            hashed_embed_id_preview = key_entry.get("hashed_embed_id", "")[:16]
-                            key_type = key_entry.get("key_type")
-                            
-                            result = await directus_service.embed.create_embed_key(key_entry)
-                            if result:
-                                logger.info(f"[EMBED_KEYS] ✅ Stored embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
-                            else:
-                                logger.error(f"[EMBED_KEYS] ❌ Failed to store embed_key for {embed_id}: hashed_embed_id={hashed_embed_id_preview}..., key_type={key_type}")
-                        logger.info(f"[EMBED_KEYS] Completed storing {len(embed_keys)} embed key(s) for embed {embed_id}")
-                    else:
-                        logger.warning(f"[EMBED_KEYS] ⚠️ No embed_keys provided for embed {embed_id} - embed will not be decryptable!")
-                    
-                except Exception as e_store:
-                    logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
-                    # Non-critical error - continue with other embeds
+            await _store_client_encrypted_embeds(
+                directus_service,
+                encrypted_embeds_from_client,
+                hashed_user_id,
+                str(message_id),
+            )
 
         connected_account_directory = _sanitize_connected_account_directory(
             payload.get("connected_account_directory")
@@ -1193,7 +1298,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # CRITICAL: For incognito chats, DO NOT broadcast to other devices
         # Incognito chats are device-specific and should not be synced
-        if not is_incognito:
+        if not is_incognito and not is_team_chat:
             # Fetch encrypted_chat_key for device sync if not provided by client
             # This is critical for zero-knowledge architecture across multiple devices
             encrypted_chat_key_for_broadcast = encrypted_chat_key_from_client
@@ -1238,12 +1343,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
         else:
             logger.debug(f"Skipping broadcast for incognito chat {chat_id} - incognito chats are not synced to other devices")
-
-        if is_team_chat and not team_should_trigger_ai:
-            logger.info("Team chat message %s completed storage path without AI dispatch", message_id)
-            handler_total_time = time.time() - handler_start_time
-            logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for team chat storage-only message")
-            return
 
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
@@ -1738,6 +1837,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
             # Ensure the current message is the last one if it was added or already present
             message_history_for_ai = sorted(message_history_for_ai, key=lambda m: m.created_at)
+            if test_mock_marker:
+                for history_message in reversed(message_history_for_ai):
+                    if history_message.created_at == client_timestamp_unix and history_message.role == role:
+                        history_message.content = f"{history_message.content} {test_mock_marker}"
+                        logger.info("Applied dev E2E test mock marker for message %s", message_id)
+                        break
 
 
             logger.debug(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
@@ -2065,6 +2170,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash
                 )
+                if is_team_chat:
+                    active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
+                    await broadcast_team_event(
+                        manager=manager,
+                        active_member_user_ids=(),
+                        event_name="team_ai_processing",
+                        payload={
+                            "team_id": team_id,
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "ai_task_id": ai_task_id,
+                            "status": "processing_started",
+                        },
+                        cache_service=cache_service,
+                        active_member_hashes=active_member_hashes,
+                    )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:
                 raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")

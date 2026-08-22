@@ -1,0 +1,25 @@
+{
+  "fingerprint": "d8b7e9e3201a5e9c",
+  "category": "rewe",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T11:40:47.632939+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://shop.rewe.de/api/products?search=bio+joghurt&serviceTypes=DELIVERY&sorting=RELEVANCE_DESC&objectsPerPage=10&page=1"
+  },
+  "response": {
+    "status_code": 301,
+    "headers": {
+      "date": "Fri, 14 Aug 2026 11:40:47 GMT",
+      "content-length": "0",
+      "connection": "keep-alive",
+      "location": "https://www.rewe.de/shop/api/products?search=bio+joghurt&serviceTypes=DELIVERY&sorting=RELEVANCE_DESC&objectsPerPage=10&page=1",
+      "strict-transport-security": "max-age=15552000",
+      "vary": "accept-encoding",
+      "server": "cloudflare",
+      "cf-ray": "a2afafcd9a14ca98-HEL",
+      "alt-svc": "h3=\":443\"; ma=86400"
+    },
+    "body": ""
+  }
+}

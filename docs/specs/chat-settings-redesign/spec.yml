@@ -134,7 +134,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d313020a1
+  subject_commit: 8e30afb59
 
 approvals:
   product_contract:
@@ -269,18 +269,35 @@ attempts:
       scrape reached the route but did not load matching component CSS rules for
       the hash-route panel, and Firecrawl interact timed out; user visual
       confirmation remains required.
+  - id: ATTEMPT-10
+    task_id: TASK-11
+    approach: >
+      Deploy follow-up chat share settings refinements, rerun the deployed chat
+      settings/share regression specs, and run reviewed Playwright visual smoke
+      on the public example chat settings route.
+    outcome: succeeded
+    recorded_at: "2026-08-11T16:56:43Z"
+    evidence: playwright_runs_31513861312_31513949153_and_visual_smoke_2026-08-11T16-56-20
+    notes: >
+      Deployed commit 8e30afb59 contains the chat Share tab refinements and
+      header/back-navigation fixes. share-chat-flow.spec.ts passed on GitHub
+      Actions run 31513949153; chat-settings-flow.spec.ts passed on run
+      31513861312; Playwright visual smoke captured and reviewed laptop and
+      mobile screenshots with no defects. application-preview-share.spec.ts
+      remained skipped by its missing OPENMATES_TEST_ACCOUNT_2_* environment
+      guard and does not provide green evidence for this attempt.
 
 handoff:
   current_task_id: TASK-11
   next_action: Ask the user to visually confirm the deployed example chat Settings / Chats route or report any remaining Figma mismatch.
-  command: manual review of https://app.dev.openmates.org/#chat-id=example-berlin-morning-bike-forecast&settings=chats/example-berlin-morning-bike-forecast
+  command: manual review of https://app.dev.openmates.org/#chat-id=example-ai-workshops-meetups-berlin&settings=chats/example-ai-workshops-meetups-berlin
   expected_outcome: User confirms the header rounding, stable tab switches, and canonical settings rows match the Figma intent, or identifies the remaining mismatch to fix.
   blocker:
     kind: user_visual_confirmation
     task_id: TASK-11
     requires_user_input: true
     reason: >
-      Automated Playwright, settings UI row-surface review, and Firecrawl visual
+      Automated Playwright, settings UI row-surface review, and Playwright visual
       smoke evidence is green, but this user-visible settings UI spec requires
       final user visual confirmation before completion.
     question: >
@@ -289,9 +306,9 @@ handoff:
       rows?
     next_action: >
       If the user confirms, record V-USER-VISUAL as satisfied. If the user
-      reports a mismatch, fix it and rerun the affected Playwright and Firecrawl
+      reports a mismatch, fix it and rerun the affected Playwright and visual-smoke
       checks.
-  last_verified_commit: d313020a1
+  last_verified_commit: 8e30afb59
 
 scenarios:
   - id: S-1
@@ -479,6 +496,8 @@ acceptance_criteria:
     verification_ids: [T-E2E-BILLING-USAGE-PARITY, V-SETTINGS-UI-REVIEW]
 
 contracts:
+  permanent:
+    - contracts/features/chat-share-settings/contract.yml
   ui:
     - name: ChatSettingsRoute
       requirements:
@@ -743,16 +762,16 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: failed
-        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit 04d243307a9305300d0b777ee39b9f500a086544
-        run_id: "29999627519"
-        orchestrator_run_id: "2026-07-23T10:29:33Z"
-        subject_commit: 04d243307
-        timestamp: "2026-07-23T10:36:26Z"
+        status: passed
+        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit 8e30afb5914b9fdfae28d51c3f0f3291df69c1c3
+        run_id: "31513949153"
+        orchestrator_run_id: "2026-08-11T16:35:35Z"
+        subject_commit: 8e30afb59
+        timestamp: "2026-08-11T16:45:35Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_AG5QERAsU1kBKghDzDJ1hRhp4HmX READY for 04d243307"
+        deployment_reference: "Vercel dpl_DAoy6PeA9yKwiYNUNnVpjnypasin READY for 8e30afb59"
         flaky: false
-        notes: First attempt timed out clicking a visible/enabled chat-share-button. Retry opened the Share route but share generation did not complete within 60 seconds; artifacts saved under test-results/screenshots/current/share-chat-flow/.
+        notes: Passed on deployed commit with account slot 5 fallback; artifacts saved under test-results/screenshots/current/share-chat-flow/ and test-results/recordings/latest/share-chat-flow/.
 
   - id: T-E2E-EMBED-SHARE
     type: playwright
@@ -915,21 +934,22 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-8, AC-9, AC-10]
-    status: blocked
+    status: passed
     evidence:
-      status: blocked
-      actor: OpenCode
-      command: python3 scripts/sessions.py visual-smoke --session e260 --commit b91c447bb --url "https://app.dev.openmates.org/#chat-id=example-berlin-morning-bike-forecast&settings=chats/example-berlin-morning-bike-forecast" --viewport laptop --viewport mobile --result blocked --run-id "firecrawl-scrape:019fbcc2-78fb-720a-83ba-a5bc217aa84f; firecrawl-interact:timeout"
-      run_id: "firecrawl-scrape:019fbcc2-78fb-720a-83ba-a5bc217aa84f; firecrawl-interact:timeout"
-      subject_commit: b91c447bb
+      status: passed
+      command: python3 scripts/playwright_visual_smoke.py --url "https://app.dev.openmates.org/#chat-id=example-ai-workshops-meetups-berlin&settings=chats/example-ai-workshops-meetups-berlin" --session 2987 --viewport laptop --viewport mobile --assert-visible "[data-testid='settings-menu'][data-active-view='chats/example-ai-workshops-meetups-berlin']"
+      run_id: test-results/visual-smoke/2026-08-11T16-56-20-009074+00-00/summary.json
+      subject_commit: 8e30afb59
       target: app.dev.openmates.org
       reviewed_urls:
-        - https://app.dev.openmates.org/#chat-id=example-berlin-morning-bike-forecast&settings=chats/example-berlin-morning-bike-forecast
+        - https://app.dev.openmates.org/#chat-id=example-ai-workshops-meetups-berlin&settings=chats/example-ai-workshops-meetups-berlin
       viewports: [laptop, mobile]
-      reason: Firecrawl interact timed out, and Firecrawl scrape reached the hash-route Settings / Chats DOM but did not expose matching component CSS rules for reliable visual color validation.
-      next_action: Use the deployed Playwright screenshot from run 30695241486 for rendered-browser evidence and ask the user for final visual confirmation.
-      summary: Firecrawl scrape confirmed the deployed route content, share rows, and absence of duplicate right-side row action icons, but could not reliably validate header foreground color. Playwright screenshot chat-settings-flow-08-share-tab-opened.png from run 30695241486 shows white header title and credits on the blue gradient.
-      timestamp: "2026-08-01T10:05:00Z"
+      reason: Playwright rendered-browser smoke covered both laptop and mobile settings panels after the deployed green specs passed.
+      summary: >
+        Reviewed laptop and mobile screenshots from the Playwright visual-smoke
+        artifact. Defects: none. Accepted differences: unauthenticated login
+        card remains visible behind the settings panel on laptop.
+      timestamp: "2026-08-11T16:56:43Z"
 
 implementation_plan:
   spec_path: docs/specs/chat-settings-redesign/spec.yml

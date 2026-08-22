@@ -4,6 +4,18 @@ from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)
 
+
+def canonical_session_user_id(session_data: object) -> Optional[str]:
+    """Return only the identity stored in the authenticated session link."""
+    if isinstance(session_data, dict):
+        user_id = session_data.get("user_id")
+    elif isinstance(session_data, str):
+        user_id = session_data
+    else:
+        return None
+    return user_id if isinstance(user_id, str) and user_id else None
+
+
 class UserCacheMixin:
     """Mixin for user-specific caching methods"""
 
@@ -75,18 +87,20 @@ class UserCacheMixin:
 
             user_id_data = await self.get(session_cache_key)
 
-            user_id = None
-            if isinstance(user_id_data, dict):
-                user_id = user_id_data.get("user_id")
-            elif isinstance(user_id_data, str):
-                 user_id = user_id_data
+            user_id = canonical_session_user_id(user_id_data)
 
             if not user_id:
                 logger.debug(f"Cache MISS for user_id associated with token hash {token_hash[:8]}...")
                 return None
 
             logger.debug(f"Cache HIT for user_id '{user_id}' associated with token hash {token_hash[:8]}...")
-            return await self.get_user_by_id(user_id)
+            user_data = await self.get_user_by_id(user_id)
+            if not isinstance(user_data, dict):
+                return user_data
+            if user_data.get("user_id") != user_id or user_data.get("id") != user_id:
+                logger.error("Cached profile identity did not match its canonical session link; rejecting cached profile")
+                return None
+            return user_data
         except Exception as e:
             logger.error(f"Error getting user from cache by token hash {token_hash[:8]}...: {str(e)}")
             return None
@@ -124,13 +138,10 @@ class UserCacheMixin:
                 logger.error("Cannot cache user data: no user_id provided or found in user_data.")
                 return False
 
-            # CRITICAL: Ensure user_id is always present in user_data for WebSocket authentication
-            # WebSocket auth checks for user_id in the cached data, so it must be present
-            if "user_id" not in user_data:
-                user_data["user_id"] = user_id
-            # Also ensure "id" is present for compatibility
-            if "id" not in user_data:
-                user_data["id"] = user_id
+            # The cache key and session link are the canonical auth identity. Never
+            # persist conflicting profile fields that WebSocket auth could later trust.
+            user_data["user_id"] = user_id
+            user_data["id"] = user_id
 
             logger.debug(f"Attempting cache SET for user ID: {user_id}")
             user_ttl = ttl if ttl is not None else self.USER_TTL

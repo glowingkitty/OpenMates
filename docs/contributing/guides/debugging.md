@@ -149,7 +149,7 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 --prod --query-js
 
 **`--query-json` vs `--sql`:** the `--sql` flag was removed because its prod fallback silently routed to the canned `/errors/logs` top-errors endpoint (ignoring the filter entirely). `--query-json` accepts a strict Pydantic schema (`LogQueryRequest`) and composes whitelisted SQL server-side against OpenObserve. Allowed streams: `default`, `client_console`. Allowed ops: `eq, neq, like, not_like, in, gt, gte, lt, lte`. Two modes: `select` (raw rows) and `count_by` (GROUP BY + COUNT). Hard caps: `limit <= 1000`, `since_minutes <= 10080`, 15 filters max. Every call is audit-logged to the `[ADMIN_LOG_QUERY]` channel. See the module-level docstring in `backend/core/api/app/routes/admin_debug.py` for the full security model.
 
-Admin Debug API keys are target-specific because dev and production use separate Directus databases. Store them on the dev server as `SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY` and `SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY`, then run `docker compose --env-file .env -f backend/core/docker-compose.yml up -d --force-recreate vault-setup` to import them. Verify access with `docker exec api python /app/backend/scripts/debug.py health --log-access`.
+Admin Debug API keys are target-specific because dev and production use separate Directus databases. Store them on the dev server as `SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY` and `SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY`, then run `openmates server start --services vault-setup` to import them. Verify access with `docker exec api python /app/backend/scripts/debug.py health --log-access`.
 
 Fallback (`docker compose logs`) commands:
 
@@ -181,11 +181,10 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-
 ## Full Stack Rebuild
 
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
-docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor openobserve promtail && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+openmates server restart --rebuild
 ```
+
+The registered dev runtime rebuilds the current working tree and its persisted backend-only service set. Add `--reset-cache` only when cache deletion is explicitly required; ordinary rebuilds preserve it.
 
 **Available Docker Containers:**
 

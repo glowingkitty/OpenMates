@@ -24,6 +24,26 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
+	'audio-generate-confirmation-tick',
+	'audio-speak-welcome-message'
+];
+
+const GENERATED_AUDIO_EXAMPLE_CASES = [
+	{
+		chatId: 'example-audio-generate-openmates-success-chime',
+		slug: 'audio-generate-openmates-success-chime',
+		skillId: 'generate',
+		promptSnippet: 'Create a short, friendly success chime for an OpenMates workflow finishing'
+	},
+	{
+		chatId: 'example-audio-speak-openmates-welcome-message',
+		slug: 'audio-speak-openmates-welcome-message',
+		skillId: 'speak',
+		promptSnippet: 'Say this as a warm, natural welcome message'
+	}
+] as const;
+
 const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
 	'Presigned URL request failed',
 	'Network error fetching S3',
@@ -31,6 +51,10 @@ const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
 	'[Interactive Question - Invalid JSON]',
 	'vault_wrapped_aes_key',
 	'vault:v1:',
+	'audio_base64',
+	'aes_key',
+	'aes_nonce',
+	's3_base_url',
 	'dev-openmates-chatfiles',
 	'chatfiles/',
 	's3_key:',
@@ -56,6 +80,28 @@ function extractJsonLd(html: string): Record<string, any> {
 	const match = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/i);
 	expect(match, 'JSON-LD script should exist').not.toBeNull();
 	return JSON.parse(match[1]);
+}
+
+async function expectAudioCanPlay(audioLocator: any, label: string): Promise<void> {
+	await expect(async () => {
+		const state = await audioLocator.evaluate(async (audio: HTMLAudioElement) => {
+			audio.muted = true;
+			await audio.play();
+			await new Promise((resolve) => setTimeout(resolve, 800));
+			const result = {
+				currentTime: audio.currentTime,
+				duration: audio.duration,
+				readyState: audio.readyState
+			};
+			audio.pause();
+			return result;
+		});
+
+		expect(state.readyState, `${label} should load audio metadata`).toBeGreaterThanOrEqual(1);
+		expect(Number.isFinite(state.duration), `${label} should have finite duration`).toBe(true);
+		expect(state.duration, `${label} should have non-zero duration`).toBeGreaterThan(0);
+		expect(state.currentTime, `${label} should advance during playback`).toBeGreaterThan(0);
+	}).toPass({ timeout: 30000 });
 }
 
 async function expectGuestSlideZeroIntro(page: any) {
@@ -128,6 +174,7 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 
@@ -188,6 +235,7 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
 		page
 	}: {
@@ -269,6 +317,7 @@ test.describe('Example chats loading for new users', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
 		page
 	}: {
@@ -299,6 +348,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-share-settings.generated-link-controls,chat-share-settings.shell-navigation
 	test('guest example chat exposes share and chat settings with a static public link', async ({
 		page
 	}: {
@@ -353,15 +403,25 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
 
 		const expectedShareUrl = await page.evaluate((chatId: string) => `${window.location.origin}/#chat-id=${chatId}`, exampleChatId);
-		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveText(expectedShareUrl, {
+		await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-short-link-copy')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveCount(0);
+		await settingsMenu.getByTestId('chat-settings-share-show-url').click();
+		const publicUrl = settingsMenu.getByTestId('chat-settings-share-url');
+		await expect(publicUrl).toHaveText(expectedShareUrl, {
 			timeout: 10000
 		});
+		await expect(publicUrl).toHaveCSS('user-select', 'text');
 		await expect(settingsMenu.getByTestId('chat-settings-share-password')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('chat-settings-share-community')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toHaveCount(0);
 		await expect(settingsMenu.getByTestId('share-generate-link')).toHaveCount(0);
+		await settingsMenu.getByTestId('banner-back-button').click();
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main', { timeout: 10000 });
+		await expect(settingsMenu).not.toContainText(/\[T:settings\.chats\]/i);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering
 	test('memory example cards update the reloadable chat hash on wide viewports', async ({
 		page
 	}: {
@@ -391,6 +451,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 	test('reported memory examples render current text content without interactive-question errors', async ({
 		page
 	}: {
@@ -422,6 +483,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('privacy-first local AI example hides compressed history behind forgotten messages', async ({
 		page
 	}: {
@@ -477,14 +539,15 @@ test.describe('Example chats loading for new users', () => {
 		await expect(firstPrompt).toHaveCount(0);
 
 		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
-		await page.getByTestId('show-forgotten-messages').click();
+		const forgottenMessagesToggle = page.getByTestId('show-forgotten-messages');
+		await forgottenMessagesToggle.click();
 
 		await expect.poll(async () => page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count(), {
 			message: 'Show forgotten messages should reveal the compressed static example history',
 			timeout: 10000
 		}).toBeGreaterThan(visibleMessageCount);
 		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('hide-forgotten-messages-at-boundary')).toBeVisible({ timeout: 10000 });
+		await expect(forgottenMessagesToggle).toContainText('Hide old forgotten messages', { timeout: 10000 });
 
 		await firstPrompt.getByTestId('remember-forgotten-message').click();
 		const messageEditor = page.getByTestId('message-editor');
@@ -504,6 +567,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(compressionSummary).toHaveCount(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('nutrition example renders Edamam recipe search embed card', async ({
 		page
 	}: {
@@ -563,6 +627,115 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).toContainText('8.7g');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	test('generated audio examples use natural prompts and recording-style playback', async ({
+		page,
+		request
+	}: {
+		page: any;
+		request: any;
+	}) => {
+		test.setTimeout(120000);
+
+		const listingResponse = await request.get('/example');
+		expect(listingResponse.status(), 'Example listing page should return 200').toBe(200);
+		const listingHtml = await listingResponse.text();
+		for (const slug of REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS) {
+			expect(listingHtml, `removed generated-audio example /example/${slug} should not remain listed`).not.toContain(
+				`/example/${slug}`
+			);
+		}
+		for (const exampleCase of GENERATED_AUDIO_EXAMPLE_CASES) {
+			expect(listingHtml, `replacement generated-audio example /example/${exampleCase.slug} should be listed`).toContain(
+				`/example/${exampleCase.slug}`
+			);
+		}
+
+		for (const exampleCase of GENERATED_AUDIO_EXAMPLE_CASES) {
+			await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
+				waitUntil: 'domcontentloaded'
+			});
+
+			await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+			const userMessages = await page.getByTestId('user-message-content').allInnerTexts();
+			const userText = userMessages.join('\n');
+			expect(userText, `${exampleCase.chatId} should show a natural user prompt`).toContain(
+				exampleCase.promptSnippet
+			);
+			expect(userText, `${exampleCase.chatId} should not expose forced skill mentions`).not.toMatch(
+				/@skill:audio/i
+			);
+
+			const preview = page
+				.locator(
+					`[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="${exampleCase.skillId}"][data-status="finished"]`
+				)
+				.first();
+			await expect(preview, `${exampleCase.chatId} should render a finished generated-audio preview`).toBeVisible({
+				timeout: 15000
+			});
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview`)).toBeVisible({ timeout: 15000 });
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt-label`)).toBeVisible({ timeout: 15000 });
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt`)).toContainText(
+				exampleCase.promptSnippet,
+				{ timeout: 15000 }
+			);
+			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview-play-button`)).toBeVisible({ timeout: 15000 });
+			await expect(
+				preview.getByTestId('embed-status-value'),
+				`${exampleCase.chatId} should not show a second subtitle line under the generated-audio title`
+			).toHaveCount(0);
+
+			const previewAudio = preview.getByTestId(`audio-${exampleCase.skillId}-audio`);
+			await expect(previewAudio).toBeAttached({ timeout: 15000 });
+			await expectAudioCanPlay(previewAudio, `${exampleCase.chatId} preview audio`);
+
+			const fullscreenOverlay = await openFullscreen(page, preview);
+			await expect(fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen`)).toBeVisible({ timeout: 15000 });
+			await expect(fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen-play-button`)).toBeVisible({ timeout: 15000 });
+			const fullscreenAudio = fullscreenOverlay.getByTestId(`audio-${exampleCase.skillId}-fullscreen-audio`);
+			await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
+			await expectAudioCanPlay(fullscreenAudio, `${exampleCase.chatId} fullscreen audio`);
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=audio-speak.output.playable-audio,public-example-chats.transcript.safe-rendering
+	test('generated audio speech example renders mobile playback controls', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[1];
+		expect(exampleCase.skillId, 'audio.speak example case should exist').toBe('speak');
+
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+
+		const preview = page
+			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="speak"][data-status="finished"]')
+			.first();
+		await expect(preview, 'mobile audio.speak example should render a finished generated-audio preview').toBeVisible({
+			timeout: 15000
+		});
+		await preview.scrollIntoViewIfNeeded();
+		await expect(preview.getByTestId('audio-speak-preview-play-button')).toBeVisible({ timeout: 15000 });
+		const previewAudio = preview.getByTestId('audio-speak-audio');
+		await expect(previewAudio).toBeAttached({ timeout: 15000 });
+		await expectAudioCanPlay(previewAudio, 'mobile audio.speak preview audio');
+
+		const fullscreenOverlay = await openFullscreen(page, preview);
+		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
+		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-speak-fullscreen-audio');
+		await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
+		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.speak fullscreen audio');
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
 		page
 	}: {
@@ -667,6 +840,7 @@ test.describe('Example chats loading for new users', () => {
 		expect(transportTypes).not.toContain('long_distance_train');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('sidebar example chats show newest first and append older results after show more', async ({
 		page
 	}: {
@@ -707,6 +881,7 @@ test.describe('Example chats loading for new users', () => {
 		).toBe(expandedIds.length);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable
 	test('example chat SSR pages are accessible', async ({ request }: { request: any }) => {
 		test.setTimeout(30000);
 
@@ -721,6 +896,7 @@ test.describe('Example chats loading for new users', () => {
 		expect(html).toContain('<h1>');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable,public-example-chats.transcript.safe-rendering
 	test('every example chat SSR page has complete crawlable SEO HTML', async ({
 		request
 	}: {
@@ -814,6 +990,7 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.seo.crawlable
 	test('production sitemap includes every example chat with lastmod', async ({
 		request
 	}: {

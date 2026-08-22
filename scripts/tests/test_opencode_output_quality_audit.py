@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for OpenCode output-quality and context-efficiency audits.
 
 Purpose: keep OpenCode's default repo context concise while preserving the
@@ -13,7 +14,9 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import sqlite3
 import sys
+import time
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,12 +25,14 @@ RETROSPECTIVE_GUIDANCE = """
 ## Agent Workflow Retrospective
 
 For every non-trivial task-closing summary, cover the agentic process, not about the request's product results.
-Report only observed preventable process problems.
-Include research, delegated agents, and sub-chats.
+Report only observed preventable process problems and inefficiencies.
+Include research, delegated agents, sub-chats, unnecessary retries, avoidable context growth,
+wasted subagent runs, agent cycles, inference tokens, and focused audits/tests.
 Do not repeat implementation results or test outcomes. Ordinary task difficulty is not a workflow issue.
 Check existing hooks, skills, agents, agent instructions,
 and deterministic audits/tests before recommending the smallest concrete workflow improvement.
 Do not recommend new prompt prose when a deterministic guard is more reliable.
+Ground efficiency claims in observable actions only; do not estimate token counts or durations.
 State when no change is warranted. Use None observed. Do not invent problems, expose hidden reasoning,
 guess durations, or include raw private logs or private chat content.
 Simple requests, clarification-only turns, and progress updates are excluded.
@@ -36,6 +41,13 @@ CLARIFYING_QUESTION_GUIDANCE = """
 Whenever asking a clarifying question, provide `Recommendation:` with the
 evidence-based preferred answer and `Examples:` with task-specific options. If
 uncertain, choose the safest reversible default.
+""".strip()
+SCAN_FIRST_GUIDANCE = """
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions. Use icons semantically and sparingly. Do not paste large YAML,
+JSON, contracts, or logs into blocker summaries unless the user asks.
 """.strip()
 
 
@@ -127,11 +139,12 @@ embed, or spec changes are needed, perform a scoped `dev` deploy with
 `python3 scripts/tests.py run --spec <name>.spec.ts --gate-deploy --expected-commit <sha>`
 against `https://app.dev.openmates.org`.
 {CLARIFYING_QUESTION_GUIDANCE}
+{SCAN_FIRST_GUIDANCE}
         """.strip(),
     )
     write_runtime_instructions(
         tmp_path,
-        f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}",
+        f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{SCAN_FIRST_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}",
     )
     write_clarifying_guidance_files(tmp_path)
     config = {
@@ -142,6 +155,27 @@ against `https://app.dev.openmates.org`.
     issues = audit.audit_instruction_surface(tmp_path, config)
 
     assert issues == []
+
+
+def test_rejects_required_discord_proof_delivery_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    skill = tmp_path / ".claude" / "skills" / "create-demo-video" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(
+        "After review, proof-video publish` path when Discord is configured. "
+        "configured Discord delivery",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text(
+        "Use opencode_response_media.py in the final OpenCode response. "
+        "Do not send proof media to Discord unless the user explicitly asks. "
+        "Use actual `openmates` CLI only, not generic smoke scripts.",
+        encoding="utf-8",
+    )
+
+    issues = audit._audit_proof_media_guidance(tmp_path)
+
+    assert any("still requires Discord" in issue.message for issue in issues)
 
 
 def test_requires_recommendations_and_examples_for_clarifying_questions(tmp_path: Path) -> None:
@@ -169,6 +203,20 @@ def test_rejects_generic_or_optional_clarifying_question_guidance() -> None:
 
     assert issues
     assert "evidence-based" in issues[0].message
+
+
+def test_requires_scan_first_final_answer_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(tmp_path, CLARIFYING_QUESTION_GUIDANCE)
+    write_runtime_instructions(tmp_path, f"{CLARIFYING_QUESTION_GUIDANCE}\n\n{RETROSPECTIVE_GUIDANCE}")
+    write_clarifying_guidance_files(tmp_path)
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": []})
+
+    assert any(
+        issue.path == "AGENTS.md" and "scan-first final-answer guidance" in issue.message
+        for issue in issues
+    )
 
 
 def test_rejects_duplicated_guidance_and_missing_final_answer_evidence(tmp_path: Path) -> None:
@@ -362,16 +410,147 @@ def test_tool_turn_telemetry_counts_only_conservative_batching_candidates() -> N
         ]
     )
 
+    assert report["assistant_tool_turns"] == 4
+    assert report["tool_calls"] == 4
+    assert report["singleton_tool_turns"] == 4
+    assert report["singleton_tool_turn_rate"] == 1.0
+    assert report["conservative_batchable_turns"] == 1
+    assert report["standalone_todo_turns"] == 1
+    assert report["todo_next_turn_context"] == {"tokens_input": 40, "tokens_cache_read": 400}
+    assert report["tool_error_counts"] == {}
+    assert report["per_session"]["assistant_tool_turns"]["max"] == 4
+
+
+def test_tool_turn_telemetry_attributes_agents_without_session_ids() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_tool_turns([
+        {
+            "session_id": "private-session-one",
+            "agent": "build",
+            "time_created": 1_000,
+            "tools": [{"name": "read", "args": {"filePath": "/repo/a.py"}}],
+        },
+        {
+            "session_id": "private-session-one",
+            "agent": "build",
+            "time_created": 2_000,
+            "tools": [{"name": "read", "args": {"filePath": "/repo/b.py"}}],
+        },
+        {
+            "session_id": "private-session-two",
+            "agent": "explore",
+            "time_created": 3_000,
+            "tools": [{"name": "todowrite", "args": {"todos": []}}],
+        },
+    ])
+
+    assert report["by_agent"]["build"]["conservative_batchable_turns"] == 1
+    assert report["by_agent"]["explore"]["standalone_todo_turns"] == 0
+    assert report["per_session"]["assistant_tool_turns"]["count"] == 2
+    assert "private-session" not in json.dumps(report)
+
+
+def test_child_completion_telemetry_is_aggregate_only() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_child_completions([
+        {"agent": "explore", "terminal": True, "usable_output": False, "session_id": "private-one"},
+        {"agent": "explore", "terminal": True, "usable_output": True, "session_id": "private-two"},
+        {"agent": "general", "terminal": False, "usable_output": False, "session_id": "private-three"},
+    ])
+
     assert report == {
-        "assistant_tool_turns": 4,
-        "tool_calls": 4,
-        "singleton_tool_turns": 4,
-        "singleton_tool_turn_rate": 1.0,
-        "conservative_batchable_turns": 1,
-        "standalone_todo_turns": 1,
-        "todo_next_turn_context": {"tokens_input": 40, "tokens_cache_read": 400},
-        "tool_error_counts": {},
+        "completed": 2,
+        "empty": 1,
+        "empty_rate": 0.5,
+        "by_agent": {"explore": {"completed": 2, "empty": 1}},
     }
+    assert "private-" not in json.dumps(report)
+
+
+def test_top_level_empty_unknown_completion_telemetry_is_aggregate_only() -> None:
+    audit = load_audit_module()
+    report = audit.summarize_top_level_completions([
+        {"agent": "build", "terminal": True, "finish": "unknown", "usable_output": False, "session_id": "private-one"},
+        {"agent": "build", "terminal": True, "finish": "stop", "usable_output": True, "session_id": "private-two"},
+        {"agent": "plan", "terminal": False, "finish": "unknown", "usable_output": False, "session_id": "private-three"},
+    ])
+
+    assert report == {
+        "completed": 2,
+        "empty_unknown": 1,
+        "by_agent": {"build": {"completed": 2, "empty_unknown": 1}},
+    }
+    assert "private-" not in json.dumps(report)
+
+
+def test_top_level_completion_collector_excludes_child_sessions(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    database = tmp_path / "opencode.db"
+    connection = sqlite3.connect(database)
+    connection.executescript(
+        """
+        CREATE TABLE session (id TEXT PRIMARY KEY, parent_id TEXT, directory TEXT);
+        CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, data TEXT);
+        CREATE TABLE part (message_id TEXT, time_created INTEGER, data TEXT);
+        """
+    )
+    now_ms = int(time.time() * 1000)
+    project = str(audit._opencode_project_directory())
+    connection.executemany(
+        "INSERT INTO session VALUES (?, ?, ?)",
+        [
+            ("top-level", None, project),
+            ("child", "top-level", project),
+        ],
+    )
+    empty_message = json.dumps({
+        "role": "assistant",
+        "agent": "build",
+        "finish": "unknown",
+        "time": {"completed": now_ms},
+    })
+    connection.executemany(
+        "INSERT INTO message VALUES (?, ?, ?, ?)",
+        [
+            ("top-message", "top-level", now_ms, empty_message),
+            ("child-message", "child", now_ms, empty_message),
+        ],
+    )
+    connection.commit()
+    connection.close()
+
+    records = audit.collect_top_level_completion_records(days=1, db_path=database)
+
+    assert records == [{
+        "agent": "build",
+        "terminal": True,
+        "finish": "unknown",
+        "usable_output": False,
+    }]
+
+
+def test_telemetry_audit_flags_top_level_empty_unknown_completions() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "conservative_batchable_turns": 0,
+            "standalone_todo_turns": 0,
+            "tool_error_counts": {},
+            "top_level_completion": {"empty_unknown": 1},
+        },
+        days=1,
+    )
+
+    assert any("empty top-level" in issue.message for issue in issues)
+
+
+def test_openai_provider_header_timeout_is_longer_than_runtime_default() -> None:
+    audit = load_audit_module()
+    config = audit._load_config()
+
+    timeout = config["provider"]["openai"]["options"]["headerTimeout"]
+    assert timeout >= 300_000
 
 
 def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
@@ -402,10 +581,123 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
                     }
                 ],
             },
+            {
+                "session_id": "one",
+                "time_created": 3_000,
+                "tools": [
+                    {
+                        "name": "bash",
+                        "args": {},
+                        "status": "error",
+                        "error": "[OpenMates child ownership guard] Reason: child role read_only may read the parent worktree but may not mutate it",
+                    }
+                ],
+            },
+            {
+                "session_id": "one",
+                "time_created": 4_000,
+                "tools": [
+                    {
+                        "name": "read",
+                        "args": {},
+                        "status": "error",
+                        "error": "File not found: generated/report.json",
+                    }
+                ],
+            },
+            {
+                "session_id": "one",
+                "time_created": 5_000,
+                "tools": [
+                    {
+                        "name": "webfetch",
+                        "args": {},
+                        "status": "error",
+                        "error": "BadResource: remote page unavailable",
+                    }
+                ],
+            },
         ]
     )
 
-    assert report["tool_error_counts"] == {"child_role": 1, "grep_output_too_large": 1}
+    assert report["tool_error_counts"] == {
+        "child_mutation_block": 1,
+        "child_role_unknown": 1,
+        "grep_output_too_large": 1,
+        "missing_runtime_artifact": 1,
+        "other": 1,
+    }
+
+
+def test_unavailable_local_firecrawl_parse_is_denied() -> None:
+    audit = load_audit_module()
+    config = audit._load_config()
+
+    assert config["permission"]["firecrawl_firecrawl_parse"] == "deny"
+
+
+def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "conservative_batchable_turns": 81,
+            "standalone_todo_turns": 82,
+            "tool_error_counts": {
+                "child_role_unknown": 10,
+                "child_mutation_block": audit.MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY + 1,
+                "grep_output_too_large": audit.MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY + 1,
+                "missing_runtime_artifact": audit.MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY + 1,
+                "missing_session": 6,
+                "root_path_routing": 5,
+                "other": 999,
+            },
+            "child_completion": {"empty": 2},
+        },
+        days=1,
+    )
+
+    messages = [issue.message for issue in issues]
+    assert any("conservative batchable" in message for message in messages)
+    assert any("standalone todo" in message for message in messages)
+    assert any("routing errors" in message for message in messages)
+    assert any("oversized grep" in message for message in messages)
+    assert any("missing runtime artifact" in message for message in messages)
+    assert any("child mutation blocks" in message for message in messages)
+    assert not any("other" in message for message in messages)
+
+
+def test_telemetry_audit_ignores_raw_singleton_rate() -> None:
+    audit = load_audit_module()
+
+    issues = audit.audit_tool_turn_telemetry(
+        {
+            "singleton_tool_turn_rate": 1.0,
+            "singleton_tool_turns": 10_000,
+            "conservative_batchable_turns": 0,
+            "standalone_todo_turns": 0,
+            "tool_error_counts": {},
+        },
+        days=1,
+    )
+
+    assert issues == []
+
+
+def test_telemetry_audit_scales_non_routing_error_budgets_by_days() -> None:
+    audit = load_audit_module()
+    days = 3
+    categories = (
+        ("child_mutation_block", audit.MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY, "child mutation blocks"),
+        ("grep_output_too_large", audit.MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY, "oversized grep"),
+        ("missing_runtime_artifact", audit.MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY, "missing runtime artifact"),
+    )
+
+    for category, daily_budget, message_fragment in categories:
+        budget = daily_budget * days
+        assert audit.audit_tool_turn_telemetry({"tool_error_counts": {category: budget}}, days=days) == []
+        issues = audit.audit_tool_turn_telemetry({"tool_error_counts": {category: budget + 1}}, days=days)
+        assert any(message_fragment in issue.message for issue in issues)
 
 
 def test_tool_turn_telemetry_keeps_dependent_same_file_reads_sequential() -> None:

@@ -15,7 +15,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { deriveApiUrl, CLI_DIST } = require('./cli-test-helpers');
+const { deriveApiUrl, CLI_DIST, runCli } = require('./cli-test-helpers');
 const { loginToTestAccount } = require('./chat-test-helpers');
 
 type CliResult = { code: number | null; stdout: string; stderr: string };
@@ -60,6 +60,7 @@ function workflowCliEnv(apiUrl: string, homeDir: string): Record<string, string 
 }
 
 function spawnCliLogin(apiUrl: string, homeDir: string) {
+	// cli-e2e-recording: interactive-pair-login
 	const child = spawn('node', [CLI_DIST, 'login'], {
 		env: workflowCliEnv(apiUrl, homeDir),
 		stdio: ['pipe', 'pipe', 'pipe']
@@ -82,6 +83,23 @@ function spawnCliLogin(apiUrl: string, homeDir: string) {
 					clearTimeout(timeout);
 					clearInterval(interval);
 					resolve(match[1]);
+				}, 250);
+			});
+		},
+		waitForPinPrompt(): Promise<void> {
+			return new Promise((resolve, reject) => {
+				const startedAt = Date.now();
+				const interval = setInterval(() => {
+					const output = stdout.join('') + stderr.join('');
+					if (output.includes('Enter 6-char pairing PIN:')) {
+						clearInterval(interval);
+						resolve();
+						return;
+					}
+					if (Date.now() - startedAt >= 15_000) {
+						clearInterval(interval);
+						reject(new Error(`CLI did not prompt for pairing PIN. stdout:\n${stdout.join('')}\nstderr:\n${stderr.join('')}`));
+					}
 				}, 250);
 			});
 		},
@@ -127,6 +145,7 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 	await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
 	const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
 	expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+	await cli.waitForPinPrompt();
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
 	expect(output).toContain('Login successful');
@@ -134,24 +153,7 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 }
 
 async function runWorkflowCli(apiUrl: string, homeDir: string, args: string[], timeoutMs = 60_000): Promise<CliResult> {
-	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
-			env: workflowCliEnv(apiUrl, homeDir),
-			stdio: ['pipe', 'pipe', 'pipe']
-		});
-		const stdout: string[] = [];
-		const stderr: string[] = [];
-		child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk.toString()));
-		child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk.toString()));
-		const timeout = setTimeout(() => {
-			child.kill('SIGTERM');
-			resolve({ code: null, stdout: stdout.join(''), stderr: stderr.join('') });
-		}, timeoutMs);
-		child.on('close', (code: number | null) => {
-			clearTimeout(timeout);
-			resolve({ code, stdout: stdout.join(''), stderr: stderr.join('') });
-		});
-	});
+	return runCli(apiUrl, args, timeoutMs, {useApiKey: false, env: workflowCliEnv(apiUrl, homeDir)});
 }
 
 function expectCliSuccess(result: CliResult, label: string): void {

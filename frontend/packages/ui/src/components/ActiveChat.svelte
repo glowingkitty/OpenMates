@@ -22,6 +22,7 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { isTeamAIInvocation } from '../services/teamService';
     import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
@@ -137,6 +138,7 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
@@ -3378,6 +3380,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return item.kind === 'chat' ? item.imageBubbles : null;
     }
 
+    function isChatInActiveTeamContext(chat: Chat, teamId: string | null): boolean {
+        return teamId ? chat.team_id === teamId : !chat.team_id;
+    }
+
+    function clearResumeChatCard(): void {
+        resumeChatData = null;
+        resumeChatTitle = null;
+        resumeChatCategory = null;
+        resumeChatIcon = null;
+        resumeChatSummary = null;
+        resumeChatImageBubbles = null;
+        resumeChatIsCreditsError = false;
+        resumeChatUserMessagePreview = null;
+    }
+
+    function clearWelcomeContinueItems(): void {
+        clearResumeChatCard();
+        recentChats = [];
+        priorityContinueItems = [];
+        recentChatTiltStates = [];
+        recentChatsScrolledByUser = false;
+    }
+
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
     let priorityContinueChatIds = $derived.by(() => new Set(
@@ -3473,13 +3498,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function loadRecentChats(): Promise<void> {
         if (!$authStore.isAuthenticated) return;
+        const contextTeamId = $activeTeamId;
         try {
             await chatDB.init();
             // Always read from IndexedDB — chatListCache is designed for sidebar
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
             let chats: Chat[] = await chatDB.getAllChats();
-            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id) && !c.parent_id && !c.is_sub_chat);
+            const filteredChats = chats.filter((c) =>
+                !isPublicChat(c.chat_id) &&
+                !c.parent_id &&
+                !c.is_sub_chat &&
+                isChatInActiveTeamContext(c, contextTeamId)
+            );
             const sorted = sortChats(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
@@ -3525,6 +3556,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function loadPriorityContinueItems(): Promise<void> {
         if (!$authStore.isAuthenticated || !showWelcome) return;
+        const contextTeamId = $activeTeamId;
 
         try {
             const nowMs = Date.now();
@@ -3540,11 +3572,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const chat = await chatDB.getChat(chatId);
                 if (!chat) continue;
                 if (chat.parent_id || chat.is_sub_chat) continue;
+                if (!isChatInActiveTeamContext(chat, contextTeamId)) continue;
                 const meta = await buildRecentChatMeta(chat);
                 chatItems.push({ ...meta, kind: 'chat', priority });
             }
 
-            const embedItems = getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
+            const embedItems = contextTeamId
+                ? []
+                : getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
             priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
@@ -3678,6 +3713,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
+        const contextTeamId = $activeTeamId;
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
@@ -3688,6 +3724,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
+        void contextTeamId;
         if (!isWelcome) {
             nonAuthRecentChatsRequestId++;
             recentChatTiltStates = [];
@@ -3704,6 +3741,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             nonAuthRecentChats = [];
             guestAllExamplesVisible = false;
             recentChatsScrolledByUser = false;
+            recentChatTiltStates = [];
+            recentChats = [];
+            priorityContinueItems = [];
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
@@ -3834,6 +3874,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
             if (chat.parent_id || chat.is_sub_chat) return false;
+            if (!isChatInActiveTeamContext(chat, $activeTeamId)) return false;
 
             // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
@@ -3966,6 +4007,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const lastOpened = $userProfile.last_opened;
+        const contextTeamId = $activeTeamId;
         // Read activeChatStore to make this effect reactive to it
         const currentActiveChat = $activeChatStore;
         const isOgExample = isOgExampleSharedChatCuttlefish();
@@ -3987,15 +4029,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
         //  not a demo/legal chat which are client-side static content)
         if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
-            resumeChatData = null;
-            resumeChatTitle = null;
-            resumeChatCategory = null;
-            resumeChatIcon = null;
-            resumeChatSummary = null;
-            resumeChatImageBubbles = null;
-            resumeChatIsCreditsError = false;
-            resumeChatUserMessagePreview = null;
+            clearResumeChatCard();
             return;
+        }
+
+        if (resumeChatData && !isChatInActiveTeamContext(resumeChatData, contextTeamId)) {
+            clearResumeChatCard();
         }
 
         // DEFENSE-IN-DEPTH: If a chat is already active in the store, don't populate
@@ -4043,6 +4082,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
         const lastOpened = $userProfile.last_opened;
+        const contextTeamId = $activeTeamId;
 
         // Sync from phasedSyncState when on the welcome screen, authenticated,
         // no chat is currently active, and phasedSyncState has resume data.
@@ -4060,6 +4100,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // immediately (sync) while loadResumeChatFromDB runs async.
             if (lastOpened && syncState.resumeChatData.chat_id !== lastOpened) {
                 console.debug(`[ActiveChat] Skipping sync bridge — stale resumeChatData (${syncState.resumeChatData.chat_id}) doesn't match last_opened (${lastOpened})`);
+                return;
+            }
+            if (!isChatInActiveTeamContext(syncState.resumeChatData, contextTeamId)) {
+                console.debug(`[ActiveChat] Skipping sync bridge — resumeChatData is outside active Team context`);
+                if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                    clearResumeChatCard();
+                }
                 return;
             }
             resumeChatData = syncState.resumeChatData;
@@ -5252,12 +5299,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
     );
 
-    // Keep desktop welcome controls interactive after composer auto-focus.
-    // Constrained layouts still hide them to make room for the keyboard.
+    // New-chat welcome surfaces must get out of the way whenever the composer
+    // is active. On active chats, keep the old constrained-layout-only behavior.
     let hideWelcomeForKeyboard = $derived(
         messageInputFocused &&
-        !keepGuestInterestOverlayVisible &&
-        (isTouchEnvironment || isEffectivelyNarrow)
+        (
+            showWelcome ||
+            (!keepGuestInterestOverlayVisible && (isTouchEnvironment || isEffectivelyNarrow))
+        )
     );
 
     // Effective chat width: The actual width of the chat area
@@ -5297,6 +5346,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
+        initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
+     );
+     let currentMessageIdsAreUnique = $derived(
+        new Set(currentMessages.map((message) => message.message_id)).size === currentMessages.length,
+     );
+     let currentMessagesBelongToCurrentChat = $derived(
+        !currentChat?.chat_id || currentMessages.every((message) => message.chat_id === currentChat?.chat_id),
+     );
+     let currentMessagesAreChronological = $derived.by(() => currentMessages.every((message, index) => {
+        if (index === 0) return true;
+        const previous = currentMessages[index - 1];
+        return previous.created_at < message.created_at ||
+            (previous.created_at === message.created_at && previous.message_id.localeCompare(message.message_id) <= 0);
+     }));
      let isActiveDraftOnlyChat = $derived(
         isDraftOnlyChatSurface(
             currentChat,
@@ -7086,7 +7150,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // overwrites activeChatDecryptedTitle with '' — causing the header to flash back
         // to the "Creating new chat…" shimmer even though a real title is already shown.
         // Guarding on activeChatDecryptedTitle prevents this false positive.
-        isNewChatProcessing = (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
+        const messageContent = typeof message.content === 'string' ? message.content : '';
+        const expectsTeamAI = !chatForNewCheck?.team_id || isTeamAIInvocation(messageContent);
+        if (chatForNewCheck?.team_id && !expectsTeamAI && !activeChatDecryptedTitle) {
+            activeChatDecryptedTitle = 'New team chat';
+        }
+        isNewChatProcessing = expectsTeamAI
+            && (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
             && !activeChatDecryptedTitle;
 
         // If this is a new chat, show the "Generating title..." placeholder in the chat header.
@@ -7270,11 +7340,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function handleMessagesChange(event: CustomEvent) {
         const { hasMessages } = event.detail;
-        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
-            showWelcome = false;
-            return;
-        }
-        if (currentChat?.is_anonymous || (currentChat?.chat_id && isAnonymousChatId(currentChat.chat_id))) {
+        if (currentChat?.chat_id) {
             showWelcome = false;
             return;
         }
@@ -7331,6 +7397,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (activeElement instanceof HTMLElement) {
             activeElement.blur();
         }
+        // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
+        currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
         // The resume card $effect guards on $activeChatStore — if it's still set
         // when showWelcome triggers the effect, the guard returns early and the
@@ -7341,7 +7409,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
         }
         // Reset current chat metadata and messages
-        currentChat = null;
         currentMessages = [];
         currentCompressionCheckpoints = [];
         currentMessageWindowHasMoreBefore = false;
@@ -7434,10 +7501,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             composed: true
         });
         window.dispatchEvent(globalDeselectEvent);
+        activeChatStore.clearActiveChat();
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
 
-        // activeChatStore was already cleared at the top of handleNewChatClick()
-        // (before showWelcome = true) to ensure the resume card effect sees it.
+        // Clear again after synchronous deselection listeners so none can restore the old chat ID.
     }
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
@@ -8694,7 +8761,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug('[ActiveChat] handleChatUpdated: Calling chatHistoryRef.updateMessages with new currentMessages.');
                 chatHistoryRef.updateMessages(currentMessages);
             }
-            showWelcome = currentMessages.length === 0;
+            showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
         } else if (detail.messagesUpdated && currentChat?.chat_id) {
             // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
             // messages were provided in the event.  Reload from IndexedDB so the display
@@ -8761,7 +8828,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
-                    showWelcome = currentMessages.length === 0;
+                    showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
                 } else {
                     console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
                 }
@@ -8785,7 +8852,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
-            showWelcome = currentMessages.length === 0;
+            showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
         }
     }
 
@@ -8975,6 +9042,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             anchorFound: payload.anchor_found ?? localWindow.anchorFound,
         };
     }
+
+    const backgroundMessageWindowRepairs = new Map<
+        string,
+        Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null>
+    >();
 
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
@@ -9169,8 +9241,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                  isNewChatCreditsError,
                  hasStreamingMessages,
                  headerAlreadyLoadedForSameChat,
-             });
-         }
+              });
+          }
+
+          if (!isSameActiveChat) {
+              currentChat = chat;
+              currentMessages = [];
+              chatLoadState = 'loading';
+              showWelcome = false;
+          }
 
          // Ensure the chatNavigationStore has up-to-date prev/next state even when
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
@@ -9416,7 +9495,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                   const hasPlaintextCategory = !!chatForHeader.category;
                   if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
                       try {
-                          const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                          const { decryptWithChatKey } = await import('../services/cryptoService');
                           // Safe key retrieval — critical for secondary devices that receive chats
                           // via phased sync (where the in-memory cache may be cold).
                           //
@@ -9431,14 +9510,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           //   3. Only generate a new key if there is genuinely no stored key
                           //      (brand-new chat created on this device before server confirmed).
                            let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatForHeader.chat_id) ?? chatDB.getChatKey(chatForHeader.chat_id);
-                          if (!chatKey && chatForHeader.encrypted_chat_key) {
-                              try {
-                                  const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
-                                  if (k) {
-                                      chatKey = k;
-                                      chatDB.setChatKey(chatForHeader.chat_id, k);
-                                      console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
-                                  }
+                           if (!chatKey && chatForHeader.encrypted_chat_key) {
+                               try {
+                                   chatKey = await chatKeyManager.receiveKeyFromServer(
+                                       chatForHeader.chat_id,
+                                       chatForHeader.encrypted_chat_key,
+                                   );
+                                   if (chatKey) {
+                                       console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
+                                   }
                               } catch (keyErr) {
                                   console.error(`[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key: chat_id=${chatForHeader.chat_id} field=encrypted_chat_key`, keyErr);
                               }
@@ -9479,7 +9559,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                   activeChatDecryptedCategory = c;
                                   activeChatDecryptedIcon = ic;
                                   activeChatDecryptedSummary = s;
-                                  console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                                  console.debug('[ActiveChat] loadChat: Restored encrypted chat header for', chatForHeader.chat_id);
                               }
                           }
                       } catch (err) {
@@ -9539,6 +9619,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         thinkingPlaceholderMessageIds = new Set();
         
         let newMessages: ChatMessageModel[] = [];
+        let messageLoadFailed = false;
+        let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
         if (currentChat?.chat_id) {
             // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
             if (isPublicChat(currentChat.chat_id)) {
@@ -9650,7 +9732,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ? latestCheckpoint.compressed_up_to_timestamp
                             : undefined,
                     });
-                    if (windowResult.messages.length === 0 || (options?.messageId && !windowResult.anchorFound)) {
+                    const expectedLatestMessages = !options?.messageId
+                        ? Math.min(
+                            Math.max(
+                                Number(currentChat.messages_v ?? 0),
+                                Number(chat.messages_v ?? 0),
+                            ),
+                            MESSAGE_WINDOW_LIMIT,
+                        )
+                        : 0;
+                    const latestWindowIsShort = !options?.messageId &&
+                        expectedLatestMessages > windowResult.messages.length;
+                    const latestWindowMayBePartial = !options?.messageId &&
+                        windowResult.messages.length > 0 &&
+                        !windowResult.hasMoreBefore &&
+                        windowResult.messages.length < MESSAGE_WINDOW_LIMIT;
+                    const localWindowCannotRenderTarget = windowResult.messages.length === 0 ||
+                        (options?.messageId && !windowResult.anchorFound);
+                    if (localWindowCannotRenderTarget) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
                                 direction: options?.messageId ? 'around' : 'latest',
@@ -9660,8 +9759,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     : undefined,
                             });
                         } catch (windowError) {
+                            messageLoadFailed = true;
                             console.warn(`[ActiveChat] Bounded server message window failed for ${currentChat.chat_id}:`, windowError);
                         }
+                    } else if (latestWindowIsShort || latestWindowMayBePartial) {
+                        const repairChatId = currentChat.chat_id;
+                        const existingRepair = backgroundMessageWindowRepairs.get(repairChatId);
+                        const repairRequest = existingRepair ?? fetchAuthenticatedMessageWindow(repairChatId, {
+                                direction: options?.messageId ? 'around' : 'latest',
+                                anchorMessageId: options?.messageId ?? undefined,
+                                compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                                    ? latestCheckpoint.compressed_up_to_timestamp
+                                    : undefined,
+                            }).catch((windowError) => {
+                            console.warn(`[ActiveChat] Background bounded server message window failed for ${repairChatId}:`, windowError);
+                            return null;
+                        });
+                        if (!existingRepair) {
+                            backgroundMessageWindowRepairs.set(repairChatId, repairRequest);
+                            void repairRequest.then(() => {
+                                if (backgroundMessageWindowRepairs.get(repairChatId) === repairRequest) {
+                                    backgroundMessageWindowRepairs.delete(repairChatId);
+                                }
+                            });
+                        }
+                        backgroundMessageWindowRepair = repairRequest;
                     }
                     newMessages = windowResult.messages;
                     currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
@@ -9703,6 +9825,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 const hydratedWindow = await chatDB.getMessageWindowForChat(onDemandChatId, { direction: 'latest' });
                                 if (hydratedWindow.messages.length > 0) {
                                     newMessages = hydratedWindow.messages;
+                                    messageLoadFailed = false;
                                     currentMessageWindowHasMoreBefore = hydratedWindow.hasMoreBefore;
                                     const hydratedChat = await chatDB.getChat(onDemandChatId).catch(() => null);
                                     if (currentChat?.chat_id === onDemandChatId) {
@@ -9722,10 +9845,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             }
                         }
                     } catch (err) {
+                        messageLoadFailed = true;
                         console.error(`[ActiveChat] Failed to request messages from server for ${onDemandChatId}:`, err);
                     }
                 }
             }
+        }
+
+        if (backgroundMessageWindowRepair && currentChat?.chat_id) {
+            const repairChatId = currentChat.chat_id;
+            void backgroundMessageWindowRepair.then((repairedWindow) => {
+                if (thisLoadGeneration !== loadChatGeneration || currentChat?.chat_id !== repairChatId) {
+                    return;
+                }
+                if (!repairedWindow) {
+                    chatLoadState = 'ready';
+                    return;
+                }
+
+                const repairedById = new Map(
+                    repairedWindow.messages.map((message) => [message.message_id, message]),
+                );
+                for (const currentMessage of currentMessages) {
+                    if (currentMessage.chat_id !== repairChatId) continue;
+                    const repairedMessage = repairedById.get(currentMessage.message_id);
+                    if (
+                        !repairedMessage ||
+                        ['streaming', 'sending', 'processing', 'waiting_for_user', 'failed'].includes(currentMessage.status)
+                    ) {
+                        repairedById.set(currentMessage.message_id, currentMessage);
+                    }
+                }
+
+                const mergedMessages = Array.from(repairedById.values()).sort((left, right) =>
+                    left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
+                );
+                currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
+                currentMessages = pruneCurrentDecryptedMessageWindow(mergedMessages);
+                chatLoadState = 'ready';
+                chatHistoryRef?.updateMessages(currentMessages);
+            });
         }
         
         if (
@@ -9914,20 +10073,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
             ? pruneCurrentDecryptedMessageWindow(newMessages)
             : newMessages;
+        chatLoadState = currentMessages.length === 0 && messageLoadFailed
+            ? 'error'
+            : backgroundMessageWindowRepair
+                ? 'repairing'
+                : 'ready';
 
-        // Hide welcome screen when we have messages to display
-        // This ensures public chats (demo + legal, like welcome chat) show their content immediately
-        // CRITICAL: For public chats, always hide welcome screen if chat is loaded
-        // (even if messages are empty, we still want to show the chat interface)
-        if (currentChat?.chat_id && (isPublicChat(currentChat.chat_id) || currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id))) {
-            // Public and anonymous chats should always show the chat surface, never the guest welcome screen.
+        if (currentChat?.chat_id) {
+            // Every selected chat owns the active surface, including empty or still-hydrating chats.
             showWelcome = false;
-            console.debug(`[ActiveChat] Public/anonymous chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
         } else {
-            // Draft-only chats have no messages yet, but they still need the active
-            // chat surface so the persisted encrypted draft restores into the editor.
-            const hasPersistedDraft = !!(currentChat?.encrypted_draft_md || currentChat?.encrypted_draft_preview);
-            showWelcome = currentMessages.length === 0 && !hasPersistedDraft;
+            showWelcome = currentMessages.length === 0;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
 
@@ -11876,6 +12032,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
         chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
+        const teamContextChangedHandler = (() => {
+            // A chat from the previous Personal/Team workspace must never remain
+            // visible behind the context-switch confirmation. Reset synchronously
+            // to the new-chat surface before loading the new context's lists.
+            if (currentChat || activeChatStore.get()) {
+                void handleNewChatClick();
+            }
+            if (_carouselRefreshTimer) {
+                clearTimeout(_carouselRefreshTimer);
+                _carouselRefreshTimer = null;
+            }
+            if (_priorityRefreshTimer) {
+                clearTimeout(_priorityRefreshTimer);
+                _priorityRefreshTimer = null;
+            }
+            clearWelcomeContinueItems();
+            if (showWelcome && $authStore.isAuthenticated) {
+                loadRecentChatsDebounced();
+                loadPriorityContinueItemsDebounced();
+            }
+        }) as EventListenerCallback;
+        window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
+
         // ─── Chat Compression event handlers ─────────────────────────────────────────
         // When the AI worker detects a long chat history, it triggers compression before
         // preprocessing. These events update the processing phase to show a shimmer indicator.
@@ -12353,6 +12532,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
             window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
+            window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
             if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
             if (_priorityRefreshTimer) clearTimeout(_priorityRefreshTimer);
@@ -12436,8 +12616,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class="active-chat-container"
     data-testid="active-chat-container"
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
+    data-current-chat-id={currentChat?.chat_id ?? ''}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
+    data-current-message-chat-consistent={currentMessagesBelongToCurrentChat ? 'true' : 'false'}
+    data-current-message-ids-unique={currentMessageIdsAreUnique ? 'true' : 'false'}
+    data-current-message-order-valid={currentMessagesAreChronological ? 'true' : 'false'}
+    data-chat-load-state={chatLoadState}
     data-processing={showProcessingRainbow ? 'true' : 'false'}
     class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
@@ -12501,7 +12686,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" data-testid="chat-side" bind:this={chatSideEl}>
+                <div class="chat-side" class:welcome-chat-side={showWelcome} data-testid="chat-side" bind:this={chatSideEl}>
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
@@ -12555,7 +12740,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
-                            <div class="new-chat-button-wrapper">
+                            <div class="new-chat-button-wrapper" data-testid="report-issue-button-shell">
                                 <button
                                     data-testid="report-issue-button"
                                     class="clickable-icon icon_bug top-button"
@@ -12774,7 +12959,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
-                                    transition:fade={fadeParams}
                                 >
                                     <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
                                     {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
@@ -13314,6 +13498,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             on:accepted={clearPendingTaskProposals}
                             on:dismissed={clearPendingTaskProposals}
                         />
+                    {/if}
+
+                    {#if !showWelcome && currentChat?.chat_id && currentMessages.length === 0 && chatLoadState === 'loading'}
+                        <div class="active-chat-history-state" data-testid="active-chat-history-loading" role="status">
+                            <span class="active-chat-history-state-dot" aria-hidden="true"></span>
+                            <span>{$text('chat.loading')}</span>
+                        </div>
+                    {:else if !showWelcome && currentChat?.chat_id && currentMessages.length === 0 && chatLoadState === 'error'}
+                        <button
+                            type="button"
+                            class="active-chat-history-state active-chat-history-retry"
+                            data-testid="active-chat-history-retry"
+                            onclick={() => void loadChat(currentChat!)}
+                        >
+                            {$text('common.try_again')}
+                        </button>
                     {/if}
 
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
@@ -14329,7 +14529,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: var(--z-index-dropdown);
+        z-index: var(--z-index-popover);
     }
     
     /* Side panel mode: Flex child taking remaining space - styled as separate card */
@@ -14553,8 +14753,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 	}
 
 	.guest-workspace-icon[data-surface='plans'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-		mask-image: url('@openmates/ui/static/icons/planning.svg');
+		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+		mask-image: url('@openmates/ui/static/icons/task.svg');
 	}
 
 	.guest-workspace-icon[data-surface='workflows'] {
@@ -14563,8 +14763,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 	}
 
 	.guest-workspace-icon[data-surface='tasks'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-		mask-image: url('@openmates/ui/static/icons/task.svg');
+		-webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+		mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
 	}
 
     .guest-interest-tags-overlay {
@@ -15812,6 +16012,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
+    }
+
+    .chat-side.welcome-chat-side {
+        pointer-events: none;
+    }
+
+    .chat-side.welcome-chat-side .daily-inspiration-area:not(.welcome-hiding) {
+        pointer-events: auto;
+    }
+
+    .active-chat-history-state {
+        position: absolute;
+        z-index: var(--z-index-raised-1);
+        top: 50%;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-3);
+        transform: translate(-50%, -50%);
+        color: var(--color-grey-70);
+        font-size: var(--font-size-sm);
+    }
+
+    .active-chat-history-state-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: chat-history-loading-pulse 1.2s ease-in-out infinite;
+    }
+
+    .active-chat-history-retry {
+        min-width: unset;
+        height: auto;
+        padding: var(--spacing-3) var(--spacing-5);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--border-radius-full);
+        background: var(--color-grey-10);
+        cursor: pointer;
+    }
+
+    @keyframes chat-history-loading-pulse {
+        0%, 100% { opacity: 0.35; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1); }
     }
 
     /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.

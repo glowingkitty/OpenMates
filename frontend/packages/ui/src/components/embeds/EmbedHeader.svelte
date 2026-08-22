@@ -627,7 +627,9 @@
   .header-title {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-4);
+    min-width: 0;
     max-width: 100%;
     margin-top: var(--spacing-1);
   }
@@ -647,6 +649,7 @@
   }
 
   .header-title-text {
+    min-width: 0;
     font-size: var(--font-size-h3);
     font-weight: 700;
     color: var(--color-font-button);
@@ -657,6 +660,7 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: anywhere;
   }
 
   /* Subtitle */

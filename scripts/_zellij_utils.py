@@ -30,7 +30,8 @@ from typing import Dict, List, Optional
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
-OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.6-sol")
+OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.5")
+OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
 OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
@@ -589,7 +590,7 @@ def spawn_opencode_session(
 ) -> bool:
     """Spawn a persisted OpenCode chat through the already-running web server."""
     session_name = _sanitize_session_name(session_name)
-    if permission_mode not in {"plan", "execute"}:
+    if permission_mode not in {"plan", "execute", "execute-readonly"}:
         print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
         return False
     opencode_bin = _resolve_opencode_bin()
@@ -614,7 +615,15 @@ def spawn_opencode_session(
     if permission_mode == "plan":
         command.extend(["--agent", "plan"])
     else:
-        command.extend(["--agent", "build", "--model", OPENCODE_EXECUTE_MODEL, "--auto"])
+        command.extend([
+            "--agent",
+            "build",
+            "--model",
+            OPENCODE_EXECUTE_MODEL,
+            "--variant",
+            OPENCODE_EXECUTE_VARIANT,
+            "--auto",
+        ])
     command.append(prompt)
 
     tmp_dir = Path(cwd) / "scripts" / ".tmp"

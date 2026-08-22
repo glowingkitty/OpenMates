@@ -498,6 +498,57 @@ def test_validator_rejects_schema_v2_task_without_expected_files(tmp_path):
         raise AssertionError("Schema V2 tasks without expected_files should fail validation")
 
 
+def test_validator_reports_all_independent_schema_errors(tmp_path):
+    spec_validate = load_module("spec_validate")
+    body = schema_v2_spec().replace(
+        "    phase: working_tasks\n",
+        "    phase: unsupported\n",
+    ).replace(
+        """    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+""",
+        """    covers:
+      - AC-1
+""",
+    ).replace(
+        """    expected_files:
+      - scripts/spec_validate.py
+""",
+        "",
+        1,
+    )
+
+    with pytest.raises(spec_validate.SpecError) as raised:
+        spec_validate.validate_spec(write_spec(tmp_path, body))
+
+    assert len(raised.value.errors) == 3
+    message = str(raised.value)
+    assert "TASK-1.phase" in message
+    assert "tasks[1].covers must be a mapping" in message
+    assert "TASK-1 Schema V2 record requires expected_files" in message
+
+
+def test_validator_reports_malformed_task_verification_ids_once(tmp_path):
+    spec_validate = load_module("spec_validate")
+    body = schema_v2_spec().replace(
+        """    verification_ids:
+      - V-EXAMPLE
+    dependencies: []
+""",
+        """    verification_ids: V-EXAMPLE
+    dependencies: []
+""",
+    )
+
+    with pytest.raises(spec_validate.SpecError) as raised:
+        spec_validate.validate_spec(write_spec(tmp_path, body))
+
+    assert raised.value.errors == ["tasks[1].verification_ids must be a non-empty list"]
+
+
 def test_spec_verify_rejects_schema_v2_green_evidence_without_subject_commit(tmp_path):
     spec_verify = load_module("spec_verify")
     path = write_spec(

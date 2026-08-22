@@ -29,6 +29,7 @@ from backend.core.api.app.services.user_task_queue_service import UserTaskQueueS
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_task_projection_service import WorkflowTaskProjectionService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
@@ -51,6 +52,8 @@ class UserTaskCreateRequest(BaseModel):
     task_id: str = Field(min_length=1)
     encrypted_task_key: str | None = None
     encrypted_title: str = Field(min_length=1)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_description: str | None = None
     encrypted_labels: str | None = None
     encrypted_tags: str | None = None
@@ -74,11 +77,18 @@ class UserTaskCreateRequest(BaseModel):
     version: int
     created_at: int
     updated_at: int
+    plaintext_title: str | None = None
+    plaintext_description: str | None = None
+    plaintext_latest_instruction: str | None = None
+    plaintext_chat_title: str | None = None
+    plaintext_project_context: str | None = None
     key_wrappers: list[UserTaskKeyWrapperRequest] = Field(default_factory=list)
 
 
 class UserTaskUpdateRequest(BaseModel):
     encrypted_title: str | None = None
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_task_key: str | None = None
     encrypted_description: str | None = None
     encrypted_labels: str | None = None
@@ -110,10 +120,13 @@ class UserTaskUpdateRequest(BaseModel):
 class UserTaskMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
 
 
 class UserTaskStartAIRequest(BaseModel):
+    team_id: str | None = None
     primary_chat_id: str | None = None
     linked_project_ids: list[str] | None = None
     encrypted_latest_instruction: str | None = None
@@ -129,6 +142,7 @@ class UserTaskStartAIRequest(BaseModel):
 class UserTaskActionRequest(BaseModel):
     version: int
     blocked_reason_code: str | None = None
+    team_id: str | None = None
 
 
 class UserTaskReorderMoveRequest(BaseModel):
@@ -142,6 +156,7 @@ class UserTaskReorderMoveRequest(BaseModel):
 
 class UserTaskReorderRequest(BaseModel):
     moves: list[UserTaskReorderMoveRequest] = Field(min_length=1)
+    team_id: str | None = None
 
 
 class UserTaskExtractRequest(BaseModel):
@@ -188,7 +203,11 @@ class UserTaskAskPlanRequest(BaseModel):
 
 
 def get_user_task_service(request: Request) -> UserTaskService:
-    return UserTaskService(request.app.state.directus_service.user_task, cache_service=request.app.state.cache_service)
+    return UserTaskService(
+        request.app.state.directus_service.user_task,
+        cache_service=request.app.state.cache_service,
+        encryption_service=request.app.state.encryption_service,
+    )
 
 
 def get_user_task_queue_service(request: Request) -> UserTaskQueueService:
@@ -221,11 +240,18 @@ async def _current_user(request: Request, response: Response) -> User:
     )
 
 
+async def _require_task_team_role(request: Request, user_id: str, team_id: str | None) -> None:
+    if team_id:
+        await request.app.state.directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+
+
 def _handle_task_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     if isinstance(exc, UserTaskConflictError):
         raise HTTPException(status_code=409, detail="TASK_VERSION_CONFLICT") from exc
+    if isinstance(exc, DuplicateObjectSlugError):
+        raise HTTPException(status_code=409, detail="TASK_SLUG_CONFLICT") from exc
     if isinstance(exc, UserTaskNotFoundError):
         raise HTTPException(status_code=404, detail="Task not found") from exc
     if isinstance(exc, ValueError):
@@ -525,13 +551,21 @@ async def update_user_task(
     response: Response,
     task_id: str,
     body: UserTaskUpdateRequest,
+    team_id: str | None = Query(default=None),
     service: UserTaskService = Depends(get_user_task_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
     try:
-        before = await service.task_methods.get_task(task_id, current_user.id)
-        task = await service.update_task(task_id, current_user.id, body.model_dump(exclude_unset=True))
+        await _require_task_team_role(request, current_user.id, team_id)
+        before = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        task = await service.update_task(
+            task_id,
+            current_user.id,
+            body.model_dump(exclude_unset=True),
+            team_id=team_id,
+        )
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -557,8 +591,14 @@ async def start_user_task_ai(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        before = await service.task_methods.get_task(task_id, current_user.id)
-        task = await service.start_ai(task_id, current_user.id, body.model_dump(exclude_unset=True))
+        await _require_task_team_role(request, current_user.id, body.team_id)
+        before = await service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        task = await service.start_ai(
+            task_id,
+            current_user.id,
+            body.model_dump(exclude_unset=True, exclude={"team_id"}),
+            team_id=body.team_id,
+        )
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -589,6 +629,8 @@ async def move_user_task_to_team(
             workspace_type="task",
             object_id=task_id,
             confirmed=body.confirmed,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
         return {"task": task}
@@ -603,17 +645,20 @@ async def delete_user_task(
     response: Response,
     task_id: str,
     version: int = Query(...),
+    team_id: str | None = Query(default=None),
     service: UserTaskService = Depends(get_user_task_service),
     workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
-    skipped_projection = await run_in_threadpool(workflow_projection_service.skip_scheduled_projection, current_user.id, task_id)
-    if skipped_projection is not None:
-        return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
+    team_id = _unwrap_query_default(team_id)
     try:
-        before = await service.task_methods.get_task(task_id, current_user.id)
-        deleted = await service.task_methods.delete_task(task_id, current_user.id, version)
+        await _require_task_team_role(request, current_user.id, team_id)
+        skipped_projection = None if team_id else await run_in_threadpool(workflow_projection_service.skip_scheduled_projection, current_user.id, task_id)
+        if skipped_projection is not None:
+            return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
+        before = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
         history = await _record_task_history(
@@ -641,8 +686,9 @@ async def complete_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        before = await queue_service.task_methods.get_task(task_id, current_user.id)
-        task = await queue_service.complete_task(task_id, current_user.id, version=body.version)
+        await _require_task_team_role(request, current_user.id, body.team_id)
+        before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        task = await queue_service.complete_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -668,12 +714,14 @@ async def block_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        before = await queue_service.task_methods.get_task(task_id, current_user.id)
+        await _require_task_team_role(request, current_user.id, body.team_id)
+        before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
         task = await queue_service.block_task(
             task_id,
             current_user.id,
             version=body.version,
             blocked_reason_code=body.blocked_reason_code,
+            team_id=body.team_id,
         )
         history = await _record_task_history(
             history_service,
@@ -700,8 +748,9 @@ async def unblock_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        before = await queue_service.task_methods.get_task(task_id, current_user.id)
-        task = await queue_service.unblock_task(task_id, current_user.id, version=body.version)
+        await _require_task_team_role(request, current_user.id, body.team_id)
+        before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        task = await queue_service.unblock_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -727,8 +776,9 @@ async def skip_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        before = await queue_service.task_methods.get_task(task_id, current_user.id)
-        task = await queue_service.skip_task(task_id, current_user.id, version=body.version)
+        await _require_task_team_role(request, current_user.id, body.team_id)
+        before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        task = await queue_service.skip_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -752,22 +802,30 @@ async def reorder_user_tasks(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
+    try:
+        await _require_task_team_role(request, current_user.id, body.team_id)
+    except Exception as exc:
+        _handle_task_error(exc)
     now = int(time.time())
     tasks: list[dict[str, Any]] = []
     history_entries: list[dict[str, Any]] = []
     for move in body.moves:
-        moved_before = await service.task_methods.get_task(move.task_id, current_user.id)
+        moved_before = await service.task_methods.get_task(move.task_id, current_user.id, body.team_id) if body.team_id else await service.task_methods.get_task(move.task_id, current_user.id)
         patch = move.model_dump(exclude_unset=True, exclude={"task_id", "before_task_id", "after_task_id"})
         patch["updated_at"] = now
         if "position" not in patch:
             if move.before_task_id:
-                anchor_before = await service.task_methods.get_task(move.before_task_id, current_user.id)
+                anchor_before = await service.task_methods.get_task(move.before_task_id, current_user.id, body.team_id) if body.team_id else await service.task_methods.get_task(move.before_task_id, current_user.id)
                 patch["position"] = int(anchor_before.get("position") or 0) - 1 if anchor_before else now
             elif move.after_task_id:
-                after = await service.task_methods.get_task(move.after_task_id, current_user.id)
+                after = await service.task_methods.get_task(move.after_task_id, current_user.id, body.team_id) if body.team_id else await service.task_methods.get_task(move.after_task_id, current_user.id)
                 patch["position"] = int(after.get("position") or 0) + 1 if after else now
         try:
-            task = await service.update_task(move.task_id, current_user.id, patch)
+            task = (
+                await service.update_task(move.task_id, current_user.id, patch, team_id=body.team_id)
+                if body.team_id
+                else await service.update_task(move.task_id, current_user.id, patch)
+            )
             tasks.append(task)
             history_entries.append({"object_type": "task", "object_id": move.task_id, "operation": "reorder", "before": moved_before, "after": task})
         except Exception as exc:

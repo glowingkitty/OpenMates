@@ -11,7 +11,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
-  import { Header, Settings, Notification, WorkspaceHomeShell, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, NotificationStack, WorkspaceHomeShell, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
   import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
   import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
   import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -1098,11 +1098,7 @@
   </div>
 {/if}
 
-<div class="notification-container">
-  {#each $notificationStore.notifications as notification (notification.id)}
-    <Notification {notification} />
-  {/each}
-</div>
+<NotificationStack />
 
 <style>
   .workflows-route-state {
@@ -1473,29 +1469,16 @@
     min-width: fit-content;
   }
 
-  .notification-container {
-    position: fixed;
-    top: 0;
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 10000;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 20px;
-    gap: 10px;
-  }
-
-  .notification-container :global(.notification) {
-    pointer-events: auto;
-  }
-
   @media (max-width: 760px) {
+    .main-content {
+      inset-inline-start: 0;
+    }
+
     .workflows-container {
-      height: calc(100vh - 75px);
-      height: calc(100dvh - 75px);
+      height: calc(100vh - 66px);
+      height: calc(100dvh - 66px);
       padding: 8px 10px;
+      box-sizing: border-box;
     }
 
     .workflow-sidebar-shell {

@@ -176,6 +176,9 @@ const CORE_WORKER_SERVICES = [
   "task-worker",
   "user-init-worker",
   "core-worker",
+  "user-tasks-worker",
+  "reminder-worker",
+  "workflow-worker",
   "task-scheduler",
   "app-ai-worker",
   "app-images-worker",
@@ -188,6 +191,7 @@ const CORE_WORKER_SERVICES = [
 ];
 const OPENMATESCLOUD_OVERLAY_DIR = "OpenMatesCloud";
 const OPENMATESCLOUD_COMPOSE_FILE = "docker-compose.openmatescloud.yml";
+export const OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE = "backend/core/docker-compose.no-webapp.yml";
 const SOURCE_COMPOSE_FILES: Record<ServerRole, string> = {
   core: "backend/core/docker-compose.yml",
   upload: "backend/upload/docker-compose.yml",
@@ -198,14 +202,14 @@ const COMPOSE_OVERRIDE = "backend/core/docker-compose.override.yml";
 const CORE_OBSERVABILITY_BY_PROFILE: Record<CoreProfile, string[]> = {
   minimal: [],
   standard: ["openobserve", "promtail"],
-  production: ["openobserve", "promtail", "prometheus", "cadvisor"],
+  production: ["openobserve", "promtail", "prometheus", "cadvisor", "node-exporter"],
 };
 
 const ROLE_DEFINITIONS: Record<ServerRole, RoleDefinition> = {
   core: {
     dataBearing: true,
     requiredServices: ["api", "cms", "cms-database", "cache", "vault", "vault-setup", "cms-setup"],
-    optionalServices: [...CORE_WORKER_SERVICES, "admin-sidecar", "webapp", "openobserve", "promtail", "prometheus", "cadvisor", "alertmanager"],
+    optionalServices: [...CORE_WORKER_SERVICES, "admin-sidecar", "webapp", "openobserve", "promtail", "prometheus", "cadvisor", "node-exporter", "alertmanager"],
     healthChecks: ["http://localhost:8000/health"],
     templatePath: "templates/core/docker-compose.selfhost.yml",
     composeFile: "backend/core/docker-compose.selfhost.yml",
@@ -263,6 +267,7 @@ const INTEGRATION_SECRET_PREFIXES = [
   "SECRET__REVOLUT_BUSINESS__",
   "SECRET__INVOICE_",
 ];
+const CELERY_PROBE_CHECK_TIMEOUT_SECONDS = 15;
 
 const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
   core: [
@@ -271,8 +276,8 @@ const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
     { id: "core.database", required: true, timeoutSeconds: 10 },
     { id: "core.cache", required: true, timeoutSeconds: 10 },
     { id: "core.vault", required: true, timeoutSeconds: 10 },
-    { id: "core.worker_queue", required: true, timeoutSeconds: 15 },
-    { id: "core.scheduler_freshness", required: true, timeoutSeconds: 5 },
+    { id: "core.worker_queue", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
+    { id: "core.scheduler_freshness", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
     { id: "core.chat_plumbing", required: true, timeoutSeconds: 20 },
   ],
   upload: [
@@ -425,7 +430,7 @@ export function planOpenMatesCloudOverlay(input: OpenMatesCloudOverlayInput): Op
     deploymentMode,
     enabled: true,
     overlayPath,
-    composeFiles: [overlayComposeFile],
+    composeFiles: [overlayComposeFile, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE],
     env: {
       OPENMATES_CLOUD_OVERLAY_ENABLED: "true",
       OPENMATES_CLOUD_OVERLAY_PATH: overlayPath,
@@ -463,7 +468,7 @@ export function planDockerComposeArgs(input: DockerComposeArgsInput): string[] {
   return appendOpenMatesCloudComposeFiles(args, overlayPlan);
 }
 
-export function planServerRuntime(input: { role?: ServerRole | string; profile?: CoreProfile; withAlerts?: boolean }): RuntimePlan {
+export function planServerRuntime(input: { role?: ServerRole | string; profile?: CoreProfile; withAlerts?: boolean; includeWebapp?: boolean }): RuntimePlan {
   const role = parseServerRole(input.role);
   const definition = ROLE_DEFINITIONS[role];
   const coreProfile: CoreProfile = input.profile ?? "production";
@@ -471,8 +476,9 @@ export function planServerRuntime(input: { role?: ServerRole | string; profile?:
   const profileServices = role === "core" ? [...CORE_OBSERVABILITY_BY_PROFILE[coreProfile]] : [];
   if (role === "core" && input.withAlerts) profileServices.push("alertmanager");
 
+  const webappServices = input.includeWebapp === false ? [] : ["webapp"];
   const defaultServices = role === "core"
-    ? unique([...definition.requiredServices, ...CORE_WORKER_SERVICES, "admin-sidecar", ...profileServices, "webapp"])
+    ? unique([...definition.requiredServices, ...CORE_WORKER_SERVICES, "admin-sidecar", ...profileServices, ...webappServices])
     : unique([...definition.requiredServices, ...definition.optionalServices]);
 
   return {
@@ -508,13 +514,40 @@ export function appendSelectedServices(args: string[], selectedServices: string[
   return filterRequested ? [...args, ...selectedServices] : args;
 }
 
+export function planServerLogRangeArgs(flags: Record<string, string | boolean>): string[] {
+  const args: string[] = [];
+  const since = flags.since;
+  const tail = flags.tail;
+
+  if (since === true) throw new Error("Provide a since value: --since <duration|timestamp>.");
+  if (tail === true) throw new Error("Provide a tail value: --tail <n>.");
+
+  if (typeof since === "string") {
+    const trimmedSince = since.trim();
+    if (!trimmedSince) throw new Error("--since cannot be empty.");
+    args.push("--since", trimmedSince);
+  }
+
+  if (typeof tail === "string") {
+    const trimmedTail = tail.trim();
+    if (!trimmedTail) throw new Error("--tail cannot be empty.");
+    args.push("--tail", trimmedTail);
+  } else if (typeof since !== "string") {
+    args.push("--tail", "100");
+  }
+
+  return args;
+}
+
 export function shouldCheckWebHealth(input: {
   role?: ServerRole | string;
+  deploymentMode?: ServerDeploymentMode;
   selectedServices?: string[];
   filterRequested?: boolean;
 }): boolean {
   const role = parseServerRole(input.role);
   if (role !== "core") return false;
+  if (input.deploymentMode === "official_cloud") return false;
   return input.filterRequested !== true || (input.selectedServices ?? []).includes("webapp");
 }
 
@@ -839,4 +872,8 @@ export function planRuntimeMonitoringServices(
       "",
     ].join("\n"),
   };
+}
+
+export function shouldAutoInstallRuntimeMonitoringServices(env: Record<string, string | undefined>): boolean {
+  return env.OPENMATES_SKIP_RUNTIME_MONITORING !== "1";
 }

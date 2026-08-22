@@ -68,6 +68,7 @@ const {
 
 test.describe.configure({ mode: 'serial' });
 
+// contract-test: supporting surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle
 test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	page,
 	context
@@ -185,7 +186,12 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await page.getByTestId('banner-back-button').first().click();
 	await expect(page.getByRole('menuitem', { name: /recovery.*key/i })).toBeVisible({ timeout: 10000 });
 
+	const recoveryAuthMethodsResponse = page.waitForResponse(
+		(response: any) => response.url().endsWith('/v1/auth/methods') && response.request().method() === 'GET'
+	);
 	await page.getByRole('menuitem', { name: /recovery.*key/i }).click();
+	const recoveryAuthMethods = await recoveryAuthMethodsResponse;
+	expect(recoveryAuthMethods.ok(), `Recovery Key auth methods request failed with ${recoveryAuthMethods.status()}`).toBe(true);
 	await takeStepScreenshot(page, 'recovery-key-overview');
 	logCheckpoint('Navigated to Recovery Key settings.');
 

@@ -116,7 +116,72 @@ def _project_message_data(data: Any) -> dict[str, Any]:
             for key in ("providerID", "modelID", "variant")
             if key in model
         }
+    projected["has_summary"] = isinstance(data.get("summary"), dict)
+    tokens = data.get("tokens")
+    if isinstance(tokens, dict):
+        cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
+        projected["token_total"] = sum(
+            int(value or 0)
+            for value in (
+                tokens.get("input"),
+                tokens.get("output"),
+                tokens.get("reasoning"),
+                cache.get("write"),
+                cache.get("read"),
+            )
+        )
     return projected
+
+
+def detect_unknown_finish_clusters(evidence: dict[str, Any]) -> list[dict[str, Any]]:
+    """Group zero-inference resume interruptions without exposing summary content."""
+    incidents: list[tuple[int, str]] = []
+    summary_window_ms = 15 * 60 * 1000
+    for session in evidence.get("sessions", []):
+        messages = sorted(session.get("messages", []), key=lambda item: int(item.get("time_created", 0)))
+        for index, message in enumerate(messages[:-1]):
+            data = message.get("data") or {}
+            timestamp = int(message.get("time_created", 0))
+            next_message = messages[index + 1]
+            next_data = next_message.get("data") or {}
+            summary_time = int(next_message.get("time_created", 0))
+            message_ordinal = message.get("message_ordinal")
+            next_ordinal = next_message.get("message_ordinal")
+            if (
+                data.get("role") == "assistant"
+                and data.get("finish") == "unknown"
+                and data.get("token_total") == 0
+                and data.get("lifecycle_only") is True
+                and next_data.get("role") == "user"
+                and next_data.get("has_summary") is True
+                and isinstance(message_ordinal, int)
+                and next_ordinal == message_ordinal + 1
+                and 0 <= summary_time - timestamp <= summary_window_ms
+            ):
+                incidents.append((timestamp, str(session.get("session_id") or "")))
+
+    incidents.sort()
+    clusters: list[list[tuple[int, str]]] = []
+    for incident in incidents:
+        if not clusters or incident[0] - clusters[-1][-1][0] > summary_window_ms:
+            clusters.append([incident])
+        else:
+            clusters[-1].append(incident)
+
+    def iso(timestamp_ms: int) -> str:
+        return datetime.fromtimestamp(timestamp_ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return [
+        {
+            "kind": "synthetic_summary_unknown_finish",
+            "session_count": len({session_id for _timestamp, session_id in cluster}),
+            "event_count": len(cluster),
+            "first_seen": iso(cluster[0][0]),
+            "last_seen": iso(cluster[-1][0]),
+        }
+        for cluster in clusters
+        if len({session_id for _timestamp, session_id in cluster}) >= 2
+    ]
 
 
 def _project_part_data(data: Any) -> dict[str, Any] | None:
@@ -296,11 +361,13 @@ def collect_transcript_evidence(
             if len(message_rows) > session_message_budget:
                 truncated["messages"] = True
                 message_rows = message_rows[:session_message_budget]
-            if len(message_rows) > 1:
-                message_rows = [message_rows[0], *reversed(message_rows[1:])]
+            indexed_message_rows = list(enumerate(message_rows))
+            if len(indexed_message_rows) > 1:
+                indexed_message_rows = [indexed_message_rows[0], *reversed(indexed_message_rows[1:])]
             messages: list[dict[str, Any]] = []
             session_bytes = 0
-            for message_id, message_created, message_data in message_rows:
+            for message_ordinal, (message_id, message_created, message_data) in indexed_message_rows:
+                part_limit = max(min(remaining_parts, max_parts_per_message), 1)
                 part_rows = connection.execute(
                     """
                     SELECT time_created, data
@@ -314,19 +381,31 @@ def collect_transcript_evidence(
                         str(message_id),
                         end_ms,
                         start_ms,
-                        max(min(remaining_parts, max_parts_per_message), 1),
+                        part_limit + 1,
                     ),
                 ).fetchall()
+                part_rows_truncated = len(part_rows) > part_limit
+                part_rows = part_rows[:part_limit]
                 parts = []
+                raw_part_types: list[str] = []
                 for part_created, part_data in part_rows:
                     decoded_part = _decode_bounded_json(str(part_data), max_field_chars, truncated)
+                    if isinstance(decoded_part, dict):
+                        raw_part_types.append(str(decoded_part.get("type") or "unknown"))
                     projected_part = _project_part_data(decoded_part)
                     if projected_part is not None:
                         parts.append({"time_created": int(part_created), "data": projected_part})
                 decoded_message = _decode_bounded_json(str(message_data), max_field_chars, truncated)
+                projected_message = _project_message_data(decoded_message)
+                projected_message["lifecycle_only"] = (
+                    not part_rows_truncated
+                    and bool(raw_part_types)
+                    and set(raw_part_types) <= {"step-start", "step-finish"}
+                )
                 message = {
+                    "message_ordinal": message_ordinal,
                     "time_created": int(message_created),
-                    "data": _project_message_data(decoded_message),
+                    "data": projected_message,
                     "parts": parts,
                 }
                 candidate_bytes = len(json.dumps(message, ensure_ascii=False).encode("utf-8"))

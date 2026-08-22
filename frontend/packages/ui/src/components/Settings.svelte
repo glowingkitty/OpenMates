@@ -56,6 +56,9 @@ changes to the documentation (to keep the documentation up to date).
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
+    import { activeTeam, activeTeamId, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
+    import { listTeams, type TeamViewModel } from '../services/teamService';
+    import { getTeamAvatarBackground } from '../utils/teamAvatar';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
@@ -72,12 +75,12 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
-    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects } from './settings/settingsRoutes';
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects, SettingsTeams } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
     import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
-    import { appSkillsStore } from '../stores/appSkillsStore';
+    import { appSkillsStore, featureAvailabilityStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { allAppsInitialFilter, type AllAppsFilterType } from '../stores/allAppsFilterStore';
     import { modelsMetadata } from '../data/modelsMetadata';
@@ -173,6 +176,23 @@ changes to the documentation (to keep the documentation up to date).
     let settingsContentElement: HTMLElement | undefined = $state();
     let profileContainer: HTMLElement | undefined = $state();
     let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
+
+    $effect(() => {
+        if (!isMenuVisible || !settingsContentElement) return;
+
+        const content = settingsContentElement;
+        let frameId: number | undefined;
+        tick().then(() => {
+            if (!isMenuVisible) return;
+            frameId = requestAnimationFrame(() => {
+                content.scrollTop = 0;
+            });
+        });
+
+        return () => {
+            if (frameId !== undefined) cancelAnimationFrame(frameId);
+        };
+    });
 
     /**
      * Scroll position memory for the "All Apps" page only.
@@ -298,6 +318,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
+            } else if (/^teams\/[^/]+$/.test(route)) {
+                views[route] = SettingsTeams;
             } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
                 views[route] = views['developers/api-keys'];
             } else {
@@ -357,6 +379,7 @@ changes to the documentation (to keep the documentation up to date).
                 if (
                     key === 'account' ||
                     (key.startsWith('account/') && key !== 'account/security' && key !== 'account/security/sessions' && !key.startsWith('account/security/sessions/')) ||
+                    key === 'teams' || key.startsWith('teams/') ||
                     key === 'settings_memories' ||
                     key === 'billing' || key.startsWith('billing/')
                 ) {
@@ -440,6 +463,16 @@ changes to the documentation (to keep the documentation up to date).
     let headerChatDecorIcons = $state<HeaderChatDecorIcon[]>([]);
     let headerIconRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let isRefreshingHeaderIcons = false;
+    let profileTeams = $state<TeamViewModel[]>([]);
+    let profileTeamsLoading = $state(false);
+    let profileTeamsLoaded = $state(false);
+    let profileTeamsLoadError = $state('');
+    let profileTeamsRefreshGeneration = 0;
+    let sortedProfileTeams = $derived([...profileTeams].sort((a, b) => b.createdAt - a.createdAt));
+    let teamsFeatureEnabled = $derived(
+        $featureAvailabilityStore.initialized &&
+        $featureAvailabilityStore.disabledById?.['platform:teams'] !== true
+    );
 
     function hashToUnitInterval(seed: string): number {
         let hash = 2166136261;
@@ -560,8 +593,10 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     function getNormalizedChatSettingsPath(settingsPath: string): string {
-        const match = settingsPath.match(/^chats\/([^/]+)(?:\/[^/]+)?$/);
-        return match ? `chats/${match[1]}` : settingsPath;
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/([^/]+))?$/);
+        if (!match) return settingsPath;
+        const [, chatId, tab] = match;
+        return tab === 'usage' ? `chats/${chatId}/usage` : `chats/${chatId}`;
     }
 
     async function hydrateChatSettingsContext(settingsPath: string): Promise<void> {
@@ -1529,6 +1564,12 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        const teamSettingsPattern = /^teams\/[^/]+$/;
+        if (teamSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         const apiKeyDetailPattern = /^developers\/api-keys\/[^/]+$/;
         if (apiKeyDetailPattern.test(settingsPath) && settingsPath !== 'developers/api-keys/create' && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
@@ -1686,6 +1727,11 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             activeSubMenuTitleRaw = detail.title ?? $text('settings.projects.project_settings');
+        } else if (/^teams\/[^/]+$/.test(settingsPath)) {
+            activeSubMenuIcon = 'team';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.teams');
         } else if (settingsPath === 'developers/api-keys/create') {
             activeSubMenuIcon = 'key';
             activeSubMenuProviderIconSvg = '';
@@ -1828,8 +1874,9 @@ changes to the documentation (to keep the documentation up to date).
             // If so, go back to the app details page (apps/{appId}) instead of just removing the last segment
             const currentPath = navigationPath.join('/');
             
-            // Special handling for non-authenticated users on 'shared/share' - go directly to main
-            if (!$authStore.isAuthenticated && currentPath === 'shared/share') {
+            // Chat settings has no navigable `chats` index, so its breadcrumb
+            // button returns to the settings root instead of an unavailable page.
+            if (currentPath.startsWith('chats/') || (!$authStore.isAuthenticated && currentPath === 'shared/share')) {
                 direction = 'backward';
                 activeSettingsView = 'main';
                 showSubmenuInfo = false;
@@ -2016,6 +2063,9 @@ changes to the documentation (to keep the documentation up to date).
                 } else if (previousPath === 'projects') {
                     icon = 'project';
                     title = $text('settings.projects');
+                } else if (previousPath === 'teams') {
+                    icon = 'team';
+                    title = $text('settings.teams');
                 }
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
@@ -2102,6 +2152,66 @@ changes to the documentation (to keep the documentation up to date).
         }));
     }
 
+    async function loadProfileTeams(): Promise<void> {
+        if (!get(authStore).isAuthenticated || !isTeamsFeatureEnabled()) {
+            profileTeams = [];
+            profileTeamsLoaded = false;
+            profileTeamsLoadError = '';
+            setActiveTeamContext(null);
+            return;
+        }
+
+        const refreshGeneration = profileTeamsRefreshGeneration + 1;
+        profileTeamsRefreshGeneration = refreshGeneration;
+        profileTeamsLoading = true;
+        profileTeamsLoadError = '';
+        try {
+            const nextTeams = await listTeams();
+            if (
+                refreshGeneration !== profileTeamsRefreshGeneration ||
+                !get(authStore).isAuthenticated ||
+                !isTeamsFeatureEnabled()
+            ) return;
+            profileTeams = nextTeams;
+            const persistedTeamId = get(activeTeamId);
+            const persistedTeam = persistedTeamId
+                ? nextTeams.find((team) => team.team_id === persistedTeamId) ?? null
+                : null;
+            setActiveTeamContext(persistedTeam);
+        } catch (error) {
+            if (refreshGeneration !== profileTeamsRefreshGeneration) return;
+            console.error('[Settings] Failed to load teams for profile context switcher:', error);
+            profileTeamsLoadError = 'Teams could not be loaded.';
+        } finally {
+            if (refreshGeneration === profileTeamsRefreshGeneration) {
+                profileTeamsLoaded = true;
+                profileTeamsLoading = false;
+            }
+        }
+    }
+
+    function isTeamsFeatureEnabled(): boolean {
+        const availability = get(featureAvailabilityStore);
+        return availability.initialized && availability.disabledById?.['platform:teams'] !== true;
+    }
+
+    function handleProfileTeamContextChange(contextId: string): void {
+        if (contextId === 'personal') {
+            setActiveTeamContext(null);
+            notificationStore.success('Personal context selected');
+            return;
+        }
+
+        const team = profileTeams.find((candidate) => candidate.team_id === contextId);
+        if (!team) {
+            notificationStore.error('Team context could not be selected');
+            return;
+        }
+
+        setActiveTeamContext(team);
+        notificationStore.success('Team context switched');
+    }
+
     // No more docking/undocking - we use two separate containers instead
    
     // Handler for profile click to show menu
@@ -2115,6 +2225,10 @@ changes to the documentation (to keep the documentation up to date).
             panelState.openSettings();
         } else {
             panelState.closeSettings();
+            // The overlay also applies this class imperatively. Remove it in
+            // the same close turn so the chat cannot remain washed out while
+            // reactive panel/store updates settle.
+            document.querySelector('.active-chat-container')?.classList.remove('dimmed');
         }
 
         // If menu is being closed, reset scroll position and view state
@@ -2348,6 +2462,13 @@ changes to the documentation (to keep the documentation up to date).
         };
         window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 
+        const handleTeamsUpdated = () => {
+            if (!get(authStore).isAuthenticated || !isTeamsFeatureEnabled()) return;
+            profileTeamsLoaded = false;
+            void loadProfileTeams();
+        };
+        window.addEventListener(TEAMS_UPDATED_EVENT, handleTeamsUpdated);
+
         // Prime decorative icons on mount to avoid empty first paint.
         scheduleHeaderChatDecorIconRefresh();
 
@@ -2432,6 +2553,7 @@ changes to the documentation (to keep the documentation up to date).
             window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
             window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+            window.removeEventListener(TEAMS_UPDATED_EVENT, handleTeamsUpdated);
             if (headerIconRefreshTimer) {
                 clearTimeout(headerIconRefreshTimer);
                 headerIconRefreshTimer = null;
@@ -2457,6 +2579,22 @@ changes to the documentation (to keep the documentation up to date).
     $effect(() => {
         if (isMenuVisible) {
             scheduleHeaderChatDecorIconRefresh();
+        }
+    });
+
+    $effect(() => {
+        if (!$authStore.isAuthenticated || !teamsFeatureEnabled) {
+            profileTeamsRefreshGeneration += 1;
+            profileTeams = [];
+            profileTeamsLoaded = false;
+            profileTeamsLoading = false;
+            profileTeamsLoadError = '';
+            setActiveTeamContext(null);
+            return;
+        }
+
+        if (!profileTeamsLoaded && !profileTeamsLoading) {
+            void loadProfileTeams();
         }
     });
 
@@ -2923,6 +3061,18 @@ changes to the documentation (to keep the documentation up to date).
                     {:else}
                         <div class="clickable-icon icon_settings"></div>
                     {/if}
+                    {#if $activeTeam}
+                        <span
+                            class="profile-team-badge"
+                            data-testid="profile-active-team-avatar"
+                            aria-label={`Active team: ${$activeTeam.name}`}
+                            title={`Active team: ${$activeTeam.name}`}
+                            style:background={getTeamAvatarBackground($activeTeam)}
+                        >
+                            <span class="profile-team-badge-icon"></span>
+                            <span class="profile-team-badge-label">{$activeTeam.name}</span>
+                        </span>
+                    {/if}
                 </div>
             {/if}
     	</div>
@@ -3073,6 +3223,11 @@ changes to the documentation (to keep the documentation up to date).
                 credits={displayCredits}
                 paymentEnabled={$demoMode || paymentEnabled}
                 scrollTop={contentScrollTop}
+                teams={sortedProfileTeams}
+                activeTeamId={$activeTeamId}
+                teamContextLoading={profileTeamsLoading}
+                teamContextError={profileTeamsLoadError}
+                onTeamContextChange={handleProfileTeamContextChange}
                 onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onAvatarClick={() => handleOpenSettings({ detail: { settingsPath: 'account/profile-picture', direction: 'forward', icon: 'profile-picture', title: $text('settings.account.profile_picture') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onUsernameClick={() => handleOpenSettings({ detail: { settingsPath: 'account/username', direction: 'forward', icon: 'username', title: $text('settings.account.username') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
@@ -3423,6 +3578,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-picture {
+        position: relative;
         border-radius: 50%;
         width: 100%;
         height: 100%;
@@ -3438,7 +3594,7 @@ changes to the documentation (to keep the documentation up to date).
     
     /* When a profile image blob URL is available, clip <img> to the circle */
     .profile-picture-img {
-        overflow: hidden;
+        overflow: visible;
     }
 
     .profile-picture-avatar {
@@ -3447,6 +3603,48 @@ changes to the documentation (to keep the documentation up to date).
         object-fit: cover;
         border-radius: 50%;
         display: block;
+    }
+
+    .profile-team-badge {
+        position: absolute;
+        right: -0.125rem;
+        bottom: -0.5rem;
+        display: flex;
+        max-width: 9rem;
+        height: 1.25rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        padding: 0 0.4rem;
+        border: 0.125rem solid var(--color-grey-0);
+        border-radius: var(--radius-full);
+        box-shadow: var(--shadow-xs);
+        pointer-events: none;
+    }
+
+    .profile-team-badge-icon {
+        width: 0.6875rem;
+        height: 0.6875rem;
+        background: var(--color-font-button);
+        -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+        mask-image: url('@openmates/ui/static/icons/team.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        flex: 0 0 auto;
+    }
+
+    .profile-team-badge-label {
+        overflow: hidden;
+        color: var(--color-font-button);
+        font-size: 0.625rem;
+        font-weight: 700;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .language-icon-container {
@@ -3790,6 +3988,7 @@ changes to the documentation (to keep the documentation up to date).
         flex-direction: column;
         flex: 1;
         overflow-y: auto;
+        overflow-anchor: none;
         padding-bottom: var(--spacing-8);
         position: relative; /* Ensure positioned context for absolutely positioned children */
     }

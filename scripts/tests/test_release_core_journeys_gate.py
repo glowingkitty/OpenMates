@@ -5,6 +5,8 @@ attestation aligned without contacting GitHub, Vercel, or Docker. Runtime
 verification remains a separate advisory release-gate step.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -45,7 +47,7 @@ EXPECTED_RELEASE_BASELINE = {
     "signup-skip-2fa-flow.spec.ts",
     "usage-token-breakdown.spec.ts",
 }
-EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
+EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 1, 4)
 
 
 def load_module(name: str, path: Path):
@@ -98,6 +100,8 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
 
     run_tests.print_core_journey_matrix()
     matrix = json.loads(capsys.readouterr().out)
+    assigned_accounts = [entry["account"] for entry in matrix["include"]]
+    assert len(assigned_accounts) == len(set(assigned_accounts))
     assert matrix == {
         "include": [
             {
@@ -113,6 +117,10 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
     orchestrator.core_journeys = True
     orchestrator.only_failed = False
     assert orchestrator._discover_specs() == run_tests.RELEASE_GATE_SPECS
+
+    orchestrator.core_journeys = False
+    assert "deep-research-real-inference.spec.ts" in orchestrator.EXCLUDED_SPECS
+    assert "sub-chats-real-inference.spec.ts" in orchestrator.EXCLUDED_SPECS
 
 
 def test_release_matrix_fails_closed_when_account_capacity_is_exceeded(
@@ -220,6 +228,29 @@ def test_backend_attestation_preflight_fails_closed(monkeypatch: pytest.MonkeyPa
         prepare.preflight_release_candidate()
 
 
+def test_backend_attestation_resolves_control_plane_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    prepare = load_module(
+        "release_gate_prepare_root",
+        ROOT / "scripts" / "prepare_release_candidate.py",
+    )
+    checkout_root = tmp_path / "agent-f3b8"
+    git_dir = tmp_path / "main" / ".git"
+    checkout_root.mkdir()
+    git_dir.mkdir(parents=True)
+
+    def fake_run(command: list[str], **kwargs):
+        assert command == ["git", "rev-parse", "--git-common-dir"]
+        assert kwargs["cwd"] == checkout_root
+        return SimpleNamespace(returncode=0, stdout=str(git_dir), stderr="")
+
+    monkeypatch.setattr(prepare.subprocess, "run", fake_run)
+
+    assert prepare.resolve_control_plane_root(checkout_root) == git_dir.parent
+
+
 def test_backend_attestation_uses_lock_services_health_and_exact_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -231,15 +262,25 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
     assert prepare.CORE_SERVICES == (
         "api",
         "task-worker",
+        "user-init-worker",
         "core-worker",
+        "user-tasks-worker",
+        "reminder-worker",
         "task-scheduler",
         "app-ai-worker",
     )
     assert prepare.RELEASE_STATUS_CONTEXT == "Dev Release Candidate / Prepared"
     assert prepare.lock_command("f563", acquire=True)[-4:] == ["--session", "f563", "--type", "docker"]
-    assert "--force-recreate" in prepare.compose_prepare_command()
-    assert "--build" in prepare.compose_prepare_command()
-    assert prepare.compose_prepare_command()[2:4] == ["--env-file", ".env"]
+    assert prepare.managed_prepare_command() == [
+        "openmates",
+        "server",
+        "restart",
+        "--rebuild",
+        "--services",
+        ",".join(prepare.CORE_SERVICES),
+    ]
+    assert "docker" not in prepare.managed_prepare_command()
+    assert "compose" not in prepare.managed_prepare_command()
     commands: list[list[str]] = []
     monkeypatch.setattr(
         prepare,

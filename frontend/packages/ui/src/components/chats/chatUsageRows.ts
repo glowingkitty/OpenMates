@@ -111,6 +111,7 @@ function iconForUsageEntry(entry: ChatUsageEntry): string {
     videos: 'videos',
     maps: 'maps',
     code: 'code',
+    audio: 'audio',
   };
   return entry.app_id ? appIconMap[entry.app_id] || 'chat' : 'chat';
 }

@@ -1,0 +1,24 @@
+<mjml>
+  <mj-head>
+    <mj-title>OpenMates health status alert</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" />
+      <mj-text color="#e7e7ec" line-height="1.4" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#0f1016">
+    <mj-section background-color="#191c26" border-radius="12px" padding="24px">
+      <mj-column>
+        <mj-text font-size="25px" font-weight="bold" padding-bottom="4px">Health status alert</mj-text>
+        <mj-text font-size="13px" color="#aeb0ba" padding-bottom="18px">{{ occurred_at }}</mj-text>
+        <mj-text font-size="16px"><strong>Environment:</strong> {{ environment }}</mj-text>
+        <mj-text font-size="16px"><strong>Service:</strong> {{ service_type }}/{{ service_id }}</mj-text>
+        <mj-text font-size="16px"><strong>Status:</strong> {{ previous_status }} -> {{ new_status }}</mj-text>
+        <mj-text font-size="16px"><strong>Sanitized error:</strong> {{ error_message }}</mj-text>
+        <mj-text font-size="16px"><strong>Response time:</strong> {{ response_time_ms }} ms</mj-text>
+        <mj-text font-size="16px"><strong>Previous status duration:</strong> {{ duration_seconds }} seconds</mj-text>
+        <mj-text font-size="14px" color="#aeb0ba" padding-top="14px">This was sent once for a persisted health status transition. Repeated checks in the same status do not send more email.</mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 from fastapi import WebSocket, status
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.directus import DirectusService
 # Import the main fingerprint generator and the model
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
@@ -105,14 +106,16 @@ async def get_current_user_ws(
             verified_hash = auth_refresh_token.replace("__ws_verified__", "")
             logger.debug(f"WebSocket auth: Using pre-verified ws_token session hash {verified_hash[:8]}...")
             session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{verified_hash}"
-            user_data = await cache_service.get(session_cache_key)
+            session_data = await cache_service.get(session_cache_key)
         else:
             token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
             logger.debug(f"WebSocket auth: Checking cache for user with token ending ...{token_suffix}")
             token_hash = hashlib.sha256(auth_refresh_token.encode()).hexdigest()
             session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{token_hash}"
             logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
-            user_data = await cache_service.get_user_by_token(auth_refresh_token)
+            session_data = await cache_service.get(session_cache_key)
+        session_user_id = canonical_session_user_id(session_data)
+        user_data = {"user_id": session_user_id} if session_user_id else None
         logger.debug(f"WebSocket auth: Cache lookup result: {'Found' if user_data else 'Not Found'}")
         
         if not user_data:

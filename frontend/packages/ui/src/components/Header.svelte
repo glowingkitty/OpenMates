@@ -15,7 +15,6 @@
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
-    import { demoMode } from '../stores/demoModeStore';
     import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
     import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
     import { isWorkspaceFeatureAvailable } from '../config/workspaceFeatureGates';
@@ -49,9 +48,7 @@
     let serverEditionLabel = $derived(
         serverEdition === 'self_hosted'
             ? $text('header.self_hosting_edition')
-            : serverEdition === 'development' && !$demoMode
-              ? $text('header.development_server')
-              : $text('signup.version_title')
+            : $text('signup.version_title')
     );
 
     let headerDiv: HTMLElement;
@@ -97,11 +94,11 @@
         ...(projectsEnabled
             ? [{ href: '/projects', testId: 'projects-nav-link', label: $text('navigation.projects'), iconClass: 'project-icon', active: isProjectsRoute, disabled: false }]
             : []),
-        ...(plansEnabled
-            ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
-            : []),
         ...(tasksEnabled
             ? [{ href: '/tasks', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: isTasksRoute, disabled: false }]
+            : []),
+        ...(plansEnabled
+            ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
             : []),
         ...(workflowsEnabled
             ? [{ href: '/workflows', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: isWorkflowsRoute, disabled: false }]
@@ -1129,8 +1126,8 @@
     }
 
     .plan-icon {
-        -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-        mask-image: url('@openmates/ui/static/icons/planning.svg');
+        -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+        mask-image: url('@openmates/ui/static/icons/task.svg');
     }
 
     .workflow-icon {
@@ -1139,8 +1136,8 @@
     }
 
     .task-icon {
-        -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-        mask-image: url('@openmates/ui/static/icons/task.svg');
+        -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+        mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
     }
 
     .workspace-select-shell {

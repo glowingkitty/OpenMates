@@ -19,33 +19,37 @@ sessions behind.
 3. Choose the least-capable mode that can complete the spawned task:
    - Use `plan` only for pure planning or review that can be completed without
      Bash, repository session start, file reads/searches, or test artifacts.
-   - Use `execute` for read-only investigations that need Bash, repo scripts,
-     `sessions.py start`, file reads/searches, or test artifacts. If the user
-     did not approve implementation, make the prompt explicitly read-only.
+   - Use `execute-readonly` for read-only investigations that need Bash, repo
+     scripts, `sessions.py start`, file reads/searches, or test artifacts only
+     when the user explicitly asks for research, a report, review, or no code
+     changes. The generated prompt is explicitly read-only and rejects
+     implementation or deploy instructions.
    - Use `execute` for implementation or direct fixes only when the user
      explicitly requests code changes in the spawned chat.
+   - Use `execute` for failed-test debugging when the user asks workers to
+     debug, fix, continue, or get tests green. Do not make these workers
+     report-only; instruct them to lease a non-overlapping group, implement the
+     smallest fix, deploy only through the approved workflow when verification
+     requires deployed code, and continue until the leased tests are green or a
+     real blocker is recorded.
+   - Execute and execute-readonly spawned chats are launched by `sessions.py
+     spawn-chat` with GPT-5.5 xhigh unless `OPENCODE_EXECUTE_MODEL` or
+     `OPENCODE_EXECUTE_VARIANT` intentionally overrides that default.
 4. Choose a unique lowercase chat name with hyphens, no secrets, and at most
    50 characters. It becomes the OpenCode chat title.
-5. For every `execute` spawned chat, include this as the first required action:
+5. For every `execute` or `execute-readonly` spawned chat, include this as the first required action:
 
    ```text
-   Before edits, Bash-heavy investigation, or child tasks, run:
+   Before Bash-heavy investigation, child tasks, or edits in execute mode, run:
    python3 scripts/sessions.py start --mode <feature|bug|docs|question|testing> --task "<task>"
    Use the returned short session ID for tracking, verification, deploy, and end.
    Do not spawn another chat.
    ```
 
-   For read-only investigations in `execute` mode, also include:
-
-   ```text
-   This is execute mode only so read-only Bash/status commands are available.
-   Do not edit, write, create, delete, deploy, commit, apply patches, or modify files.
-   ```
-
 6. Launch exactly once:
 
    ```bash
-   python3 scripts/sessions.py spawn-chat --prompt "<complete prompt>" --name "<name>" --mode <plan|execute>
+   python3 scripts/sessions.py spawn-chat --prompt "<complete prompt>" --name "<name>" --mode <plan|execute-readonly|execute>
    ```
 
 7. Verify the command prints an OpenCode session ID/sidebar URL or a pending

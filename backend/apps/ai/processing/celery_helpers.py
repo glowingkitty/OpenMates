@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 # Models3D shares the existing image-generation worker because both workloads
 # need the same encrypted S3/Vault media services and no separate worker exists.
+# Audio generation shares the music worker for the same reason; there is no
+# dedicated app_audio queue/container.
 SHARED_APP_QUEUES = {
+    "audio": "app_music",
     "models3d": "app_images",
 }
 

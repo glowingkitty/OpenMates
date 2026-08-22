@@ -1,0 +1,38 @@
+{
+  "fingerprint": "28677ed7bae19ae4",
+  "category": "wikipedia",
+  "group_id": "reminder_set_web",
+  "recorded_at": "2026-08-15T12:15:39.895300+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Pomodoro_Technique%7CInbox_zero%7CAttention_residue&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Sat, 15 Aug 2026 12:15:39 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-mmhth",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "471",
+      "x-request-id": "6f0f8117-81a0-41cd-927e-cbf455b41f42",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"880551113\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Pomodoro_Technique\",\"to\":\"Pomodoro Technique\"},{\"fromencoded\":false,\"from\":\"Inbox_zero\",\"to\":\"Inbox zero\"},{\"fromencoded\":false,\"from\":\"Attention_residue\",\"to\":\"Attention residue\"}],\"redirects\":[{\"from\":\"Attention residue\",\"to\":\"Zeigarnik effect\"}],\"pages\":[{\"ns\":0,\"title\":\"Inbox zero\",\"missing\":true},{\"pageid\":764348,\"ns\":0,\"title\":\"Zeigarnik effect\",\"pageprops\":{\"wikibase_item\":\"Q184812\"},\"description\":\"Activity that has been interrupted may be more readily recalled\",\"descriptionsource\":\"local\"},{\"pageid\":26154544,\"ns\":0,\"title\":\"Pomodoro Technique\",\"pageprops\":{\"wikibase_item\":\"Q2091716\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Il_pomodoro.jpg/330px-Il_pomodoro.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":300},\"description\":\"Time management method\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

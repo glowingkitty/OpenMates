@@ -1543,6 +1543,19 @@ async def listen_for_chat_updates(app: FastAPI):
 
 
 async def listen_for_embed_data_events(app: FastAPI):
+    """Supervise the per-user Redis listener across transient subscription failures."""
+    while True:
+        try:
+            await _listen_for_embed_data_events_once(app)
+            logger.warning("Per-user WebSocket Redis listener ended; reconnecting")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("Per-user WebSocket Redis listener failed; reconnecting: %s", exc, exc_info=True)
+        await asyncio.sleep(1)
+
+
+async def _listen_for_embed_data_events_once(app: FastAPI):
     """
     Listens to Redis Pub/Sub for embed data events (send_embed_data) that must be
     forwarded to clients so they can encrypt and store embeds, then render previews.
@@ -1575,12 +1588,32 @@ async def listen_for_embed_data_events(app: FastAPI):
                 payload_for_client = redis_payload.get("payload") or redis_payload
                 user_id_uuid = payload_for_client.get("user_id") or redis_payload.get("user_id_uuid")
 
+                if not user_id_uuid and user_id_hash_from_channel:
+                    matching_local_users = [
+                        connected_user_id
+                        for connected_user_id in manager.active_connections
+                        if hashlib.sha256(connected_user_id.encode()).hexdigest() == user_id_hash_from_channel
+                    ]
+                    if len(matching_local_users) == 1:
+                        user_id_uuid = matching_local_users[0]
+
                 if not event_for_client or not user_id_uuid:
                     logger.warning(
                         f"Embed Data Listener: Missing event_for_client or user_id on channel '{redis_channel_name}'. "
                         f"Payload keys: {list(redis_payload.keys())}"
                     )
                     continue
+
+                if event_for_client.startswith("team_"):
+                    team_id = payload_for_client.get("team_id")
+                    membership = (
+                        await app.state.directus_service.team.get_membership(str(team_id), user_id_uuid)
+                        if isinstance(team_id, str) and team_id
+                        else None
+                    )
+                    if not membership:
+                        logger.info("Skipped stale Team event %s for removed member", event_for_client)
+                        continue
 
                 # Enhanced logging for send_embed_data events to track duplication
                 if event_for_client == "send_embed_data":
@@ -2139,6 +2172,80 @@ def _schedule_sync_metadata_chats_background(
     )
 
 
+def _schedule_phased_sync_background(
+    *,
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict,
+    user_otel_attrs: dict | None = None,
+    previous_task: asyncio.Task | None = None,
+) -> asyncio.Task:
+    async def run_phased_sync() -> None:
+        if previous_task is not None:
+            try:
+                await previous_task
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Previous phased sync task failed before queued request for user=%s device=%s",
+                    user_id[:8],
+                    device_fingerprint_hash[:8],
+                )
+        await handle_phased_sync_request(
+            websocket=websocket,
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            payload=payload,
+            user_otel_attrs=user_otel_attrs,
+        )
+
+    # Startup sync can perform Directus/cache fallback work for large accounts.
+    # Keep the receive loop free so chat_turn_preflight and recovery claims ACK promptly.
+    return asyncio.create_task(run_phased_sync())
+
+
+def _cancel_superseded_phased_sync_tasks(
+    tasks: set[asyncio.Task],
+    active_context: tuple[Optional[str], Optional[int]] | None,
+    payload: dict,
+) -> tuple[tuple[Optional[str], int], bool, bool]:
+    raw_team_id = payload.get("team_id")
+    raw_context_epoch = payload.get("context_epoch")
+    if (
+        isinstance(raw_context_epoch, bool)
+        or not isinstance(raw_context_epoch, int)
+        or raw_context_epoch < 0
+    ):
+        raise ValueError("context_epoch must be a non-negative integer")
+    next_context = (
+        raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None,
+        raw_context_epoch,
+    )
+    if active_context is not None:
+        active_team_id, active_epoch = active_context
+        if active_epoch is not None and raw_context_epoch < active_epoch:
+            return (active_team_id, active_epoch), False, False
+        if active_epoch == raw_context_epoch and active_team_id != next_context[0]:
+            raise ValueError("context_epoch must increase when team context changes")
+    if active_context is None or active_context == next_context:
+        return next_context, False, True
+
+    for task in list(tasks):
+        if not task.done():
+            task.cancel()
+    return next_context, True, True
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2177,6 +2284,10 @@ async def websocket_endpoint(
         device_fingerprint_hash,
         supports_task_update_jobs=supports_task_update_jobs,
     )
+
+    phased_sync_tasks: set[asyncio.Task] = set()
+    phased_sync_tail_task: asyncio.Task | None = None
+    phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
     try:
         recovery_epoch = await ChatRecoveryCutoverController(
@@ -2851,8 +2962,29 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "phased_sync_request":
-                # Handle phased sync requests (Phase 1, 2, 3)
-                await handle_phased_sync_request(
+                try:
+                    phased_sync_context, context_changed, should_schedule = _cancel_superseded_phased_sync_tasks(
+                        phased_sync_tasks,
+                        phased_sync_context,
+                        payload,
+                    )
+                except ValueError as sync_context_error:
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": str(sync_context_error)}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    continue
+                if not should_schedule:
+                    continue
+                if context_changed:
+                    phased_sync_tail_task = None
+                previous_phased_sync_task = (
+                    phased_sync_tail_task
+                    if phased_sync_tail_task is not None and not phased_sync_tail_task.done()
+                    else None
+                )
+                phased_sync_tail_task = _schedule_phased_sync_background(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
@@ -2862,7 +2994,10 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    previous_task=previous_phased_sync_task,
                 )
+                phased_sync_tasks.add(phased_sync_tail_task)
+                phased_sync_tail_task.add_done_callback(phased_sync_tasks.discard)
 
             elif message_type == "sync_status_request":
                 # Handle sync status requests
@@ -3261,5 +3396,9 @@ async def websocket_endpoint(
         finally:
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
+    finally:
+        for task in list(phased_sync_tasks):
+            if not task.done():
+                task.cancel()
 
 # Note: Fingerprint and device cache logic now correctly uses imported utility functions

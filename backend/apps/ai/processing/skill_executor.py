@@ -186,6 +186,7 @@ async def execute_skill(
     cache_service: Optional[Any] = None,
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
     encryption_service: Optional[Any] = None,
+    secrets_manager: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -215,6 +216,7 @@ async def execute_skill(
         skill_task_id: Optional unique ID for this skill invocation (cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1 = 2 total attempts)
+        secrets_manager: Optional secrets manager for provider-backed skills
 
     Returns:
         Dict containing the skill execution result.
@@ -246,6 +248,8 @@ async def execute_skill(
         request_body["_cache_service"] = cache_service
     if encryption_service:
         request_body["_encryption_service"] = encryption_service
+    if secrets_manager:
+        request_body["_secrets_manager"] = secrets_manager
 
     registry = get_global_registry()
     if not registry.has_app(app_id) or not registry.is_skill_available(app_id, skill_id):
@@ -329,6 +333,7 @@ async def execute_skill(
                     surface=APP_SKILL_SURFACE_ASSISTANT,
                     request_body=arguments,
                     external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                    secrets_manager=secrets_manager,
                     cache_service=cache_service,
                     log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
                 ),
@@ -413,6 +418,7 @@ async def execute_skill_with_multiple_requests(
     cache_service: Optional[Any] = None,
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
     encryption_service: Optional[Any] = None,
+    secrets_manager: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -434,6 +440,7 @@ async def execute_skill_with_multiple_requests(
         skill_task_id: Optional unique ID for this skill invocation (for cancellation)
         cache_service: Optional cache service for checking cancellation status
         max_retries: Maximum number of retry attempts (default: 1)
+        secrets_manager: Optional secrets manager for provider-backed skills
     
     Returns:
         List of results from skill execution (one per request)
@@ -473,6 +480,7 @@ async def execute_skill_with_multiple_requests(
                 extracted_chat_id, extracted_message_id, extracted_user_id,
                 skill_task_id, cache_service, max_retries,
                 encryption_service=encryption_service,
+                secrets_manager=secrets_manager,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -483,6 +491,7 @@ async def execute_skill_with_multiple_requests(
                 extracted_chat_id, extracted_message_id, extracted_user_id,
                 skill_task_id, cache_service, max_retries,
                 encryption_service=encryption_service,
+                secrets_manager=secrets_manager,
             )
             return [result]
         else:
@@ -495,6 +504,7 @@ async def execute_skill_with_multiple_requests(
             extracted_chat_id, extracted_message_id, extracted_user_id,
             skill_task_id, cache_service, max_retries,
             encryption_service=encryption_service,
+            secrets_manager=secrets_manager,
         )
         return [result]
 
@@ -522,6 +532,7 @@ async def execute_skill_with_multiple_requests(
             extracted_chat_id, extracted_message_id, extracted_user_id,
             skill_task_id, cache_service, max_retries,
             encryption_service=encryption_service,
+            secrets_manager=secrets_manager,
         )
         return [result]
     
@@ -531,6 +542,7 @@ async def execute_skill_with_multiple_requests(
         extracted_chat_id, extracted_message_id, extracted_user_id,
         skill_task_id, cache_service, max_retries,
         encryption_service=encryption_service,
+        secrets_manager=secrets_manager,
     )
     return [result]
 

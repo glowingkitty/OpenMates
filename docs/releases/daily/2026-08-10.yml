@@ -1,0 +1,3814 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-10'
+generated_at: '2026-08-11T00:20:05+00:00'
+range:
+  since: '2026-08-10T00:00:00+00:00'
+  until: '2026-08-11T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 58
+  section_counts:
+    features: 4
+    bug_fixes: 39
+    improvements: 0
+    docs: 4
+    tests: 8
+    infrastructure: 1
+    internal: 2
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 35
+  dev_only_items: 58
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add user plan detail endpoint'
+    section: features
+    commits:
+    - 81a07512e
+    authored_at: '2026-08-10T21:53:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/tests/test_user_plans_route_detail.py
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add audio example chats'
+    section: features
+    commits:
+    - 4f912b39b
+    authored_at: '2026-08-10T17:48:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-confirmation-tick.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_confirmation_tick.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_welcome_message.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Apple landing onboarding parity'
+    section: features
+    commits:
+    - d530314d3
+    authored_at: '2026-08-10T16:28:05+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - backend/tests/test_auth_endpoints.py
+    - contracts/features/auth/contract.yml
+    - contracts/features/auth/examples.yml
+    - contracts/features/landing-onboarding/contract.yml
+    - contracts/features/landing-onboarding/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/signup/signupFlow.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add CLI image AI detection'
+    section: features
+    commits:
+    - ada06054c
+    authored_at: '2026-08-10T00:14:42+00:00'
+    changed_paths:
+    - docs/user-guide/cli/apps-and-skills.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/imagesDetectAi.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: finish sub-chat previews above notifications'
+    section: bug_fixes
+    commits:
+    - 044f7e5a7
+    authored_at: '2026-08-10T23:23:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate sub-chat recovery continuations'
+    section: bug_fixes
+    commits:
+    - d23d3b608
+    authored_at: '2026-08-10T22:30:51+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore example chat load spec'
+    section: bug_fixes
+    commits:
+    - ea2bc7123
+    authored_at: '2026-08-10T21:51:25+00:00'
+    changed_paths:
+    - contracts/features/public-example-chats/contract.yml
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync chat reminder privacy state'
+    section: bug_fixes
+    commits:
+    - fff92f26e
+    authored_at: '2026-08-10T21:41:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate reminder worker queue'
+    section: bug_fixes
+    commits:
+    - 1e0b56b74
+    authored_at: '2026-08-10T20:14:46+00:00'
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:reminder'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: give runtime scheduler probe room'
+    section: bug_fixes
+    commits:
+    - b04422353
+    authored_at: '2026-08-10T18:06:52+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: give self-host cms setup room to finish'
+    section: bug_fixes
+    commits:
+    - 5c475aded
+    authored_at: '2026-08-10T17:22:55+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/directus/Dockerfile
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow forced end from merged sessions'
+    section: bug_fixes
+    commits:
+    - 164647b02
+    authored_at: '2026-08-10T17:11:18+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_recovery.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unblock forced session end and detached tests'
+    section: bug_fixes
+    commits:
+    - b2b533062
+    authored_at: '2026-08-10T17:04:42+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip runtime monitor service in self-host smoke'
+    section: bug_fixes
+    commits:
+    - 7f80ac31b
+    authored_at: '2026-08-10T17:03:17+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept low audio safeguard severity'
+    section: bug_fixes
+    commits:
+    - 60776fac3
+    authored_at: '2026-08-10T16:59:27+00:00'
+    changed_paths:
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use valid Apple landing spacing token'
+    section: bug_fixes
+    commits:
+    - 116474dab
+    authored_at: '2026-08-10T16:41:49+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip uncredentialed Python SDK live smoke'
+    section: bug_fixes
+    commits:
+    - d34a646d2
+    authored_at: '2026-08-10T16:33:48+00:00'
+    changed_paths:
+    - packages/openmates-python/tests/test_projects_real_dev.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize publish workflow tests'
+    section: bug_fixes
+    commits:
+    - 205714fe1
+    authored_at: '2026-08-10T16:29:27+00:00'
+    changed_paths:
+    - .github/workflows/publish-python-sdk.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - packages/openmates-python/tests/test_plans.py
+    - scripts/tests/test_prepare_cli_publish_version.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pass secrets into chat app skills'
+    section: bug_fixes
+    commits:
+    - 4141d4ca7
+    authored_at: '2026-08-10T16:23:00+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: advance dev to v0.16 after main merge'
+    section: bug_fixes
+    commits:
+    - 64011f80c
+    authored_at: '2026-08-10T15:59:28+00:00'
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - README.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - package.json
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/bump_alpha_version_line.py
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/tests/test_bump_alpha_version_line.py
+    - shared/config/product_version.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: patch vulnerable dependency pins'
+    section: bug_fixes
+    commits:
+    - e0160980f
+    authored_at: '2026-08-10T15:34:08+00:00'
+    changed_paths:
+    - backend/apps/pdf/requirements.txt
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/requirements-dev.txt
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:pdf'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load nonce-prefixed image uploads'
+    section: bug_fixes
+    commits:
+    - 73b0043e1
+    authored_at: '2026-08-10T14:31:23+00:00'
+    changed_paths:
+    - backend/apps/images/skills/view_skill.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:images, embed:images:view, skill:images:view'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep live draft header during restore'
+    section: bug_fixes
+    commits:
+    - 266b05450
+    authored_at: '2026-08-10T14:29:27+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/utils/__tests__/chatDraftState.test.ts
+    - frontend/packages/ui/src/utils/chatDraftState.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden app skill protocol quote cleanup'
+    section: bug_fixes
+    commits:
+    - e3727480e
+    authored_at: '2026-08-10T14:20:01+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: defer empty draft flush during chat restore'
+    section: bug_fixes
+    commits:
+    - 64d406b87
+    authored_at: '2026-08-10T13:26:52+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow slow preprocessing fallbacks'
+    section: bug_fixes
+    commits:
+    - 78f29f1fe
+    authored_at: '2026-08-10T13:16:27+00:00'
+    changed_paths:
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose OpenCode uploads and browser smoke fallback'
+    section: bug_fixes
+    commits:
+    - b0724db60
+    authored_at: '2026-08-10T13:16:03+00:00'
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - scripts/playwright_visual_smoke.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align ElevenLabs speech pricing and metadata'
+    section: bug_fixes
+    commits:
+    - d719cae6c
+    authored_at: '2026-08-10T13:00:56+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/static/icons/elevenlabs.svg
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:speak, skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry billing invoice row failures'
+    section: bug_fixes
+    commits:
+    - 088198b76
+    authored_at: '2026-08-10T12:58:05+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/tests/test_billing_admin_notifications.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear stale chat header on forced logout'
+    section: bug_fixes
+    commits:
+    - 054df4cb3
+    authored_at: '2026-08-10T12:31:51+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate draft chat restoration races'
+    section: bug_fixes
+    commits:
+    - 829dc5b85
+    authored_at: '2026-08-10T12:22:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish stale grouped search previews'
+    section: bug_fixes
+    commits:
+    - a3111d168
+    authored_at: '2026-08-10T12:19:00+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid clearing draft preview on chat load'
+    section: bug_fixes
+    commits:
+    - 97bbe8743
+    authored_at: '2026-08-10T02:54:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: detect Apple draft preview without draft version'
+    section: bug_fixes
+    commits:
+    - a641ac901
+    authored_at: '2026-08-10T02:44:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show draft preview in Apple chat header'
+    section: bug_fixes
+    commits:
+    - bd8d355fa
+    authored_at: '2026-08-10T02:39:13+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Apple compact shell close logic'
+    section: bug_fixes
+    commits:
+    - f57e0db45
+    authored_at: '2026-08-10T02:22:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard startup anonymous chat restore'
+    section: bug_fixes
+    commits:
+    - 4bb223ace
+    authored_at: '2026-08-10T01:55:16+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fence anonymous restore during auth'
+    section: bug_fixes
+    commits:
+    - fb99c3559
+    authored_at: '2026-08-10T01:51:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: register chat navigation Apple UI test'
+    section: bug_fixes
+    commits:
+    - 33fec8494
+    authored_at: '2026-08-10T01:38:50+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset active draft-only chat on draft delete'
+    section: bug_fixes
+    commits:
+    - 14dc05fe1
+    authored_at: '2026-08-10T01:20:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve live draft header during cleanup refresh'
+    section: bug_fixes
+    commits:
+    - 789f6c4cf
+    authored_at: '2026-08-10T00:52:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset active draft-only chat after clear'
+    section: bug_fixes
+    commits:
+    - d3650b3e2
+    authored_at: '2026-08-10T00:32:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore stale draft cleanup after context switch'
+    section: bug_fixes
+    commits:
+    - fa21cb423
+    authored_at: '2026-08-10T00:02:47+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record audio example chat evidence'
+    section: docs
+    commits:
+    - 6fd2f2e5d
+    authored_at: '2026-08-10T22:37:56+00:00'
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: backfill Projects contract'
+    section: docs
+    commits:
+    - 67ad6abe4
+    authored_at: '2026-08-10T21:47:17+00:00'
+    changed_paths:
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: add SDK surface contract'
+    section: docs
+    commits:
+    - 4a1009f74
+    authored_at: '2026-08-10T21:44:56+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/sdk/contract.yml
+    - contracts/surfaces/sdk/examples.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refresh README hero screenshot'
+    section: docs
+    commits:
+    - d514acd09
+    authored_at: '2026-08-10T13:50:25+00:00'
+    changed_paths:
+    - README.md
+    - docs/images/readme-daily-inspiration.png
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: isolate email-change aliases'
+    section: tests
+    commits:
+    - 50b661a63
+    authored_at: '2026-08-10T18:30:52+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept legacy search preview counts'
+    section: tests
+    commits:
+    - 2019e8e73
+    authored_at: '2026-08-10T13:12:22+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: embed:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relaunch Apple chat navigation fixture'
+    section: tests
+    commits:
+    - bac664452
+    authored_at: '2026-08-10T02:33:36+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss Apple chat panel with swipe'
+    section: tests
+    commits:
+    - 99dc9a244
+    authored_at: '2026-08-10T02:26:37+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss Apple chat panel via current row'
+    section: tests
+    commits:
+    - 3907848d0
+    authored_at: '2026-08-10T02:17:43+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: identify Apple chat history close button'
+    section: tests
+    commits:
+    - b4a9cb7a7
+    authored_at: '2026-08-10T02:13:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close Apple chat history panel'
+    section: tests
+    commits:
+    - f2087ee32
+    authored_at: '2026-08-10T02:08:47+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close Apple chat sidebar before header navigation'
+    section: tests
+    commits:
+    - 7878dad1a
+    authored_at: '2026-08-10T02:03:34+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: make OpenCode workflow review manual'
+    section: infrastructure
+    commits:
+    - 2a28122dd
+    authored_at: '2026-08-10T15:17:52+00:00'
+    changed_paths:
+    - .agents/skills/opencode-improvement-research/SKILL.md
+    - .agents/skills/opencode-workflow-review/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/opencode-chat-improvement-review/spec.yml
+    - opencode.json
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Target session revoke force logout
+    section: internal
+    commits:
+    - 1d620b549
+    authored_at: '2026-08-10T21:43:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_sessions.py
+    - backend/tests/test_auth_session_revocation.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Add OpenCode progress notifier
+    section: internal
+    commits:
+    - d86ea7101
+    authored_at: '2026-08-10T16:09:43+00:00'
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: finish sub-chat previews above notifications'
+    commits:
+    - 044f7e5a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record audio example chat evidence'
+    commits:
+    - 6fd2f2e5d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate sub-chat recovery continuations'
+    commits:
+    - d23d3b608
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add user plan detail endpoint'
+    commits:
+    - 81a07512e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore example chat load spec'
+    commits:
+    - ea2bc7123
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: backfill Projects contract'
+    commits:
+    - 67ad6abe4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: add SDK surface contract'
+    commits:
+    - 4a1009f74
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Target session revoke force logout
+    commits:
+    - 1d620b549
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sync chat reminder privacy state'
+    commits:
+    - fff92f26e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate reminder worker queue'
+    commits:
+    - 1e0b56b74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+  - title: 'test: isolate email-change aliases'
+    commits:
+    - 50b661a63
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: give runtime scheduler probe room'
+    commits:
+    - b04422353
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add audio example chats'
+    commits:
+    - 4f912b39b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: give self-host cms setup room to finish'
+    commits:
+    - 5c475aded
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow forced end from merged sessions'
+    commits:
+    - 164647b02
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: unblock forced session end and detached tests'
+    commits:
+    - b2b533062
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip runtime monitor service in self-host smoke'
+    commits:
+    - 7f80ac31b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: accept low audio safeguard severity'
+    commits:
+    - 60776fac3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use valid Apple landing spacing token'
+    commits:
+    - 116474dab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: skip uncredentialed Python SDK live smoke'
+    commits:
+    - d34a646d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize publish workflow tests'
+    commits:
+    - 205714fe1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Apple landing onboarding parity'
+    commits:
+    - d530314d3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: pass secrets into chat app skills'
+    commits:
+    - 4141d4ca7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Add OpenCode progress notifier
+    commits:
+    - d86ea7101
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: advance dev to v0.16 after main merge'
+    commits:
+    - 64011f80c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: patch vulnerable dependency pins'
+    commits:
+    - e0160980f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+  - title: 'chore: make OpenCode workflow review manual'
+    commits:
+    - 2a28122dd
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load nonce-prefixed image uploads'
+    commits:
+    - 73b0043e1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'fix: keep live draft header during restore'
+    commits:
+    - 266b05450
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: harden app skill protocol quote cleanup'
+    commits:
+    - e3727480e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: refresh README hero screenshot'
+    commits:
+    - d514acd09
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: defer empty draft flush during chat restore'
+    commits:
+    - 64d406b87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow slow preprocessing fallbacks'
+    commits:
+    - 78f29f1fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: expose OpenCode uploads and browser smoke fallback'
+    commits:
+    - b0724db60
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept legacy search preview counts'
+    commits:
+    - 2019e8e73
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix: align ElevenLabs speech pricing and metadata'
+    commits:
+    - d719cae6c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: retry billing invoice row failures'
+    commits:
+    - 088198b76
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clear stale chat header on forced logout'
+    commits:
+    - 054df4cb3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate draft chat restoration races'
+    commits:
+    - 829dc5b85
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: finish stale grouped search previews'
+    commits:
+    - a3111d168
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: avoid clearing draft preview on chat load'
+    commits:
+    - 97bbe8743
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: detect Apple draft preview without draft version'
+    commits:
+    - a641ac901
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: show draft preview in Apple chat header'
+    commits:
+    - bd8d355fa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: relaunch Apple chat navigation fixture'
+    commits:
+    - bac664452
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: dismiss Apple chat panel with swipe'
+    commits:
+    - 99dc9a244
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: align Apple compact shell close logic'
+    commits:
+    - f57e0db45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: dismiss Apple chat panel via current row'
+    commits:
+    - 3907848d0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: identify Apple chat history close button'
+    commits:
+    - b4a9cb7a7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: close Apple chat history panel'
+    commits:
+    - f2087ee32
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: close Apple chat sidebar before header navigation'
+    commits:
+    - 7878dad1a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: guard startup anonymous chat restore'
+    commits:
+    - 4bb223ace
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: fence anonymous restore during auth'
+    commits:
+    - fb99c3559
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: register chat navigation Apple UI test'
+    commits:
+    - 33fec8494
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: reset active draft-only chat on draft delete'
+    commits:
+    - 14dc05fe1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve live draft header during cleanup refresh'
+    commits:
+    - 789f6c4cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reset active draft-only chat after clear'
+    commits:
+    - d3650b3e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add CLI image AI detection'
+    commits:
+    - ada06054c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore stale draft cleanup after context switch'
+    commits:
+    - fa21cb423
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: align ElevenLabs speech pricing and metadata'
+    commits:
+    - d719cae6c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: finish sub-chat previews above notifications'
+    commits:
+    - 044f7e5a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate sub-chat recovery continuations'
+    commits:
+    - d23d3b608
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add user plan detail endpoint'
+    commits:
+    - 81a07512e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore example chat load spec'
+    commits:
+    - ea2bc7123
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sync chat reminder privacy state'
+    commits:
+    - fff92f26e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate reminder worker queue'
+    commits:
+    - 1e0b56b74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    newsletter_ready: false
+  - title: 'fix: give runtime scheduler probe room'
+    commits:
+    - b04422353
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: give self-host cms setup room to finish'
+    commits:
+    - 5c475aded
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: skip runtime monitor service in self-host smoke'
+    commits:
+    - 7f80ac31b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use valid Apple landing spacing token'
+    commits:
+    - 116474dab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: skip uncredentialed Python SDK live smoke'
+    commits:
+    - d34a646d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize publish workflow tests'
+    commits:
+    - 205714fe1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Apple landing onboarding parity'
+    commits:
+    - d530314d3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: pass secrets into chat app skills'
+    commits:
+    - 4141d4ca7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: advance dev to v0.16 after main merge'
+    commits:
+    - 64011f80c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: patch vulnerable dependency pins'
+    commits:
+    - e0160980f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    newsletter_ready: false
+  - title: 'fix: load nonce-prefixed image uploads'
+    commits:
+    - 73b0043e1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep live draft header during restore'
+    commits:
+    - 266b05450
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden app skill protocol quote cleanup'
+    commits:
+    - e3727480e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: allow slow preprocessing fallbacks'
+    commits:
+    - 78f29f1fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: expose OpenCode uploads and browser smoke fallback'
+    commits:
+    - b0724db60
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align ElevenLabs speech pricing and metadata'
+    commits:
+    - d719cae6c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: clear stale chat header on forced logout'
+    commits:
+    - 054df4cb3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate draft chat restoration races'
+    commits:
+    - 829dc5b85
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finish stale grouped search previews'
+    commits:
+    - a3111d168
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid clearing draft preview on chat load'
+    commits:
+    - 97bbe8743
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: detect Apple draft preview without draft version'
+    commits:
+    - a641ac901
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show draft preview in Apple chat header'
+    commits:
+    - bd8d355fa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align Apple compact shell close logic'
+    commits:
+    - f57e0db45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: guard startup anonymous chat restore'
+    commits:
+    - 4bb223ace
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: fence anonymous restore during auth'
+    commits:
+    - fb99c3559
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reset active draft-only chat on draft delete'
+    commits:
+    - 14dc05fe1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve live draft header during cleanup refresh'
+    commits:
+    - 789f6c4cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reset active draft-only chat after clear'
+    commits:
+    - d3650b3e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add CLI image AI detection'
+    commits:
+    - ada06054c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 044f7e5a7593a614b5249370e411190c412779bf
+    short_sha: 044f7e5a7
+    authored_at: '2026-08-10T23:23:15+00:00'
+    subject: 'fix: finish sub-chat previews above notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    related_feature_ids: []
+  - sha: 6fd2f2e5d4cf89e417c43be1d9b2a4f8143dbd16
+    short_sha: 6fd2f2e5d
+    authored_at: '2026-08-10T22:37:56+00:00'
+    subject: 'docs: record audio example chat evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    related_feature_ids: []
+  - sha: d23d3b608c5f49d4d8eb437283639fa7cc832fe2
+    short_sha: d23d3b608
+    authored_at: '2026-08-10T22:30:51+00:00'
+    subject: 'fix: isolate sub-chat recovery continuations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: 81a07512e8b761e5c6bef3d1430f9b0071295b68
+    short_sha: 81a07512e
+    authored_at: '2026-08-10T21:53:05+00:00'
+    subject: 'feat: add user plan detail endpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/tests/test_user_plans_route_detail.py
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    related_feature_ids:
+    - platform:plans
+  - sha: ea2bc7123ec93633897d3fb7ccd0fe0aa464718a
+    short_sha: ea2bc7123
+    authored_at: '2026-08-10T21:51:25+00:00'
+    subject: 'fix: restore example chat load spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/public-example-chats/contract.yml
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 67ad6abe45a6228a6d3ae629c7539260a830c1cc
+    short_sha: 67ad6abe4
+    authored_at: '2026-08-10T21:47:17+00:00'
+    subject: 'docs: backfill Projects contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 4a1009f749871d9f8a6496435c15aab8abf3efb5
+    short_sha: 4a1009f74
+    authored_at: '2026-08-10T21:44:56+00:00'
+    subject: 'docs: add SDK surface contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/sdk/contract.yml
+    - contracts/surfaces/sdk/examples.yml
+    related_feature_ids: []
+  - sha: 1d620b549884661c0ef774fd84ec617848fb99eb
+    short_sha: 1d620b549
+    authored_at: '2026-08-10T21:43:53+00:00'
+    subject: Target session revoke force logout
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_sessions.py
+    - backend/tests/test_auth_session_revocation.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fff92f26e57b6dea5fc2882a775fbcc19eaac583
+    short_sha: fff92f26e
+    authored_at: '2026-08-10T21:41:31+00:00'
+    subject: 'fix: sync chat reminder privacy state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: 1e0b56b74f539576d07b9ca28954a4115bd5ffc8
+    short_sha: 1e0b56b74
+    authored_at: '2026-08-10T20:14:46+00:00'
+    subject: 'fix: isolate reminder worker queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/reminder/tasks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids:
+    - app:reminder
+  - sha: 50b661a630660cb1ccf5a47c8fdb90ace391ac94
+    short_sha: 50b661a63
+    authored_at: '2026-08-10T18:30:52+00:00'
+    subject: 'test: isolate email-change aliases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: b044223530754aca8648ca3553cffc25a9a16082
+    short_sha: b04422353
+    authored_at: '2026-08-10T18:06:52+00:00'
+    subject: 'fix: give runtime scheduler probe room'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 4f912b39b71bcffebed0b4b1f89ff7b7fa29a207
+    short_sha: 4f912b39b
+    authored_at: '2026-08-10T17:48:48+00:00'
+    subject: 'feat: add audio example chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-confirmation-tick.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_confirmation_tick.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_welcome_message.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: 5c475adedbb4322e6b5eacd006c61e490baa6085
+    short_sha: 5c475aded
+    authored_at: '2026-08-10T17:22:55+00:00'
+    subject: 'fix: give self-host cms setup room to finish'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/directus/Dockerfile
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    related_feature_ids: []
+  - sha: 164647b02c6c507f467d46bbf0d6c4cf07eb0e7c
+    short_sha: 164647b02
+    authored_at: '2026-08-10T17:11:18+00:00'
+    subject: 'fix: allow forced end from merged sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_recovery.py
+    related_feature_ids: []
+  - sha: b2b533062cc16df8f6222a59cde6b8fcbe544800
+    short_sha: b2b533062
+    authored_at: '2026-08-10T17:04:42+00:00'
+    subject: 'fix: unblock forced session end and detached tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_worktree_finalization.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 7f80ac31ba37e697bc987067d1ea8d95e4a5a1c1
+    short_sha: 7f80ac31b
+    authored_at: '2026-08-10T17:03:17+00:00'
+    subject: 'fix: skip runtime monitor service in self-host smoke'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 60776fac3640ec4cd18d95f8100b781069946aa3
+    short_sha: 60776fac3
+    authored_at: '2026-08-10T16:59:27+00:00'
+    subject: 'fix: accept low audio safeguard severity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    related_feature_ids: []
+  - sha: 116474dab939ac32731b25a18dc58633b0d9c9b0
+    short_sha: 116474dab
+    authored_at: '2026-08-10T16:41:49+00:00'
+    subject: 'fix: use valid Apple landing spacing token'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d34a646d22f497f215d756a422bfa87e90e83ce2
+    short_sha: d34a646d2
+    authored_at: '2026-08-10T16:33:48+00:00'
+    subject: 'fix: skip uncredentialed Python SDK live smoke'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - packages/openmates-python/tests/test_projects_real_dev.py
+    related_feature_ids: []
+  - sha: 205714fe17d78b450438abfbf33b82a40f90d026
+    short_sha: 205714fe1
+    authored_at: '2026-08-10T16:29:27+00:00'
+    subject: 'fix: stabilize publish workflow tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-python-sdk.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - packages/openmates-python/tests/test_plans.py
+    - scripts/tests/test_prepare_cli_publish_version.mjs
+    related_feature_ids: []
+  - sha: d530314d3bd859d16268821193baa8791f0e0948
+    short_sha: d530314d3
+    authored_at: '2026-08-10T16:28:05+00:00'
+    subject: 'feat: add Apple landing onboarding parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - backend/tests/test_auth_endpoints.py
+    - contracts/features/auth/contract.yml
+    - contracts/features/auth/examples.yml
+    - contracts/features/landing-onboarding/contract.yml
+    - contracts/features/landing-onboarding/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/signup/signupFlow.test.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4141d4ca741392734d28b3cad70881a93dd10ce3
+    short_sha: 4141d4ca7
+    authored_at: '2026-08-10T16:23:00+00:00'
+    subject: 'fix: pass secrets into chat app skills'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    related_feature_ids:
+    - app:ai
+  - sha: d86ea710115058d029a397c60a05095300fd0f80
+    short_sha: d86ea7101
+    authored_at: '2026-08-10T16:09:43+00:00'
+    subject: Add OpenCode progress notifier
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-active-progress-notifier/spec.yml
+    - scripts/opencode_progress_notifier.py
+    - scripts/tests/test_opencode_progress_notifier.py
+    related_feature_ids: []
+  - sha: 64011f80c2ef4f5dc8d7d3f55706ec5c5f45bdd7
+    short_sha: 64011f80c
+    authored_at: '2026-08-10T15:59:28+00:00'
+    subject: 'fix: advance dev to v0.16 after main merge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - README.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - package.json
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/bump_alpha_version_line.py
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/tests/test_bump_alpha_version_line.py
+    - shared/config/product_version.json
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e0160980f3b6811bfa9eef0190dfab93bca752e3
+    short_sha: e0160980f
+    authored_at: '2026-08-10T15:34:08+00:00'
+    subject: 'fix: patch vulnerable dependency pins'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/pdf/requirements.txt
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/requirements-dev.txt
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids:
+    - app:pdf
+  - sha: 2a28122dd296755e849a5f03087b07373fe4f657
+    short_sha: 2a28122dd
+    authored_at: '2026-08-10T15:17:52+00:00'
+    subject: 'chore: make OpenCode workflow review manual'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/opencode-improvement-research/SKILL.md
+    - .agents/skills/opencode-workflow-review/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/opencode-workflow-review/SKILL.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/opencode-chat-improvement-review/spec.yml
+    - opencode.json
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    related_feature_ids: []
+  - sha: 73b0043e1b26e831e2440391b85efaf634f4756d
+    short_sha: 73b0043e1
+    authored_at: '2026-08-10T14:31:23+00:00'
+    subject: 'fix: load nonce-prefixed image uploads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/images/skills/view_skill.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    related_feature_ids:
+    - app:images
+    - embed:images:view
+    - skill:images:view
+  - sha: 266b054506fc89875c94a6152481dba5e005636a
+    short_sha: 266b05450
+    authored_at: '2026-08-10T14:29:27+00:00'
+    subject: 'fix: keep live draft header during restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/utils/__tests__/chatDraftState.test.ts
+    - frontend/packages/ui/src/utils/chatDraftState.ts
+    related_feature_ids: []
+  - sha: e3727480e2fded4584a3ec2a8f6e12fb3d87ffc1
+    short_sha: e3727480e
+    authored_at: '2026-08-10T14:20:01+00:00'
+    subject: 'fix: harden app skill protocol quote cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    related_feature_ids:
+    - app:ai
+  - sha: d514acd09989aa8f94f2cb2133da05ba0d95e40b
+    short_sha: d514acd09
+    authored_at: '2026-08-10T13:50:25+00:00'
+    subject: 'docs: refresh README hero screenshot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - README.md
+    - docs/images/readme-daily-inspiration.png
+    related_feature_ids: []
+  - sha: 64d406b87cf146aba01706e3fd05540a147154b2
+    short_sha: 64d406b87
+    authored_at: '2026-08-10T13:26:52+00:00'
+    subject: 'fix: defer empty draft flush during chat restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+  - sha: 78f29f1fedde174359ef65f749a6ee6036f14b5a
+    short_sha: 78f29f1fe
+    authored_at: '2026-08-10T13:16:27+00:00'
+    subject: 'fix: allow slow preprocessing fallbacks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tests/test_timeout_utils.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/timeout_utils.py
+    related_feature_ids:
+    - app:ai
+  - sha: b0724db603e93fe2f48e9b0c1a7737b56c943cff
+    short_sha: b0724db60
+    authored_at: '2026-08-10T13:16:03+00:00'
+    subject: 'fix: expose OpenCode uploads and browser smoke fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    - frontend/apps/web_app/scripts/visual-smoke.mjs
+    - scripts/playwright_visual_smoke.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    related_feature_ids: []
+  - sha: 2019e8e73ce79d0696654b9282f4258a2565ab23
+    short_sha: 2019e8e73
+    authored_at: '2026-08-10T13:12:22+00:00'
+    subject: 'test: accept legacy search preview counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    related_feature_ids:
+    - embed:web:search
+  - sha: d719cae6c5c0258e525435891b2329ff4605c488
+    short_sha: d719cae6c
+    authored_at: '2026-08-10T13:00:56+00:00'
+    subject: 'fix: align ElevenLabs speech pricing and metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/static/icons/elevenlabs.svg
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - shared/docs/privacy_policy.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:speak
+    - skill:audio:speak
+  - sha: 088198b769095d6ed62c4dfe7678f0600457fdb2
+    short_sha: 088198b76
+    authored_at: '2026-08-10T12:58:05+00:00'
+    subject: 'fix: retry billing invoice row failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/tests/test_billing_admin_notifications.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 054df4cb35336d05ea22e4805e3fae3714feaf6b
+    short_sha: 054df4cb3
+    authored_at: '2026-08-10T12:31:51+00:00'
+    subject: 'fix: clear stale chat header on forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 829dc5b85eeb8617961e3be7e4783fcf61c767d9
+    short_sha: 829dc5b85
+    authored_at: '2026-08-10T12:22:40+00:00'
+    subject: 'fix: isolate draft chat restoration races'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: a3111d1684103df1d213a22e8de21062bc09f770
+    short_sha: a3111d168
+    authored_at: '2026-08-10T12:19:00+00:00'
+    subject: 'fix: finish stale grouped search previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    related_feature_ids: []
+  - sha: 97bbe8743f2baebd6359395b90f0ab6ae9737a44
+    short_sha: 97bbe8743
+    authored_at: '2026-08-10T02:54:54+00:00'
+    subject: 'fix: avoid clearing draft preview on chat load'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a641ac901fff883af0f88d221e949db49d11c87f
+    short_sha: a641ac901
+    authored_at: '2026-08-10T02:44:05+00:00'
+    subject: 'fix: detect Apple draft preview without draft version'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bd8d355fab914b37fce6340360db244d1e5b3603
+    short_sha: bd8d355fa
+    authored_at: '2026-08-10T02:39:13+00:00'
+    subject: 'fix: show draft preview in Apple chat header'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bac6644524d0c992ac8ebf929063dd40cf91fb50
+    short_sha: bac664452
+    authored_at: '2026-08-10T02:33:36+00:00'
+    subject: 'test: relaunch Apple chat navigation fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 99dc9a244e77ba7ec856cc8f77c6942b9a5de194
+    short_sha: 99dc9a244
+    authored_at: '2026-08-10T02:26:37+00:00'
+    subject: 'test: dismiss Apple chat panel with swipe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f57e0db457b49348676b3c702f8242afbe270f5d
+    short_sha: f57e0db45
+    authored_at: '2026-08-10T02:22:06+00:00'
+    subject: 'fix: align Apple compact shell close logic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3907848d0700f10eeb00f99d7ec7a7a926a3a6e0
+    short_sha: 3907848d0
+    authored_at: '2026-08-10T02:17:43+00:00'
+    subject: 'test: dismiss Apple chat panel via current row'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b4a9cb7a76f485e51f1ff0622bd94b91eafa5018
+    short_sha: b4a9cb7a7
+    authored_at: '2026-08-10T02:13:06+00:00'
+    subject: 'test: identify Apple chat history close button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f2087ee328a2c080689cf0df99f6ec0baace035f
+    short_sha: f2087ee32
+    authored_at: '2026-08-10T02:08:47+00:00'
+    subject: 'test: close Apple chat history panel'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7878dad1a15cbf0e34a9a6fa24b4f50667be86e7
+    short_sha: 7878dad1a
+    authored_at: '2026-08-10T02:03:34+00:00'
+    subject: 'test: close Apple chat sidebar before header navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4bb223ace05010c764a0d4aac993bd4e27172e72
+    short_sha: 4bb223ace
+    authored_at: '2026-08-10T01:55:16+00:00'
+    subject: 'fix: guard startup anonymous chat restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fb99c35594023a9601f4b7b5d6ba59b8fe98ce86
+    short_sha: fb99c3559
+    authored_at: '2026-08-10T01:51:22+00:00'
+    subject: 'fix: fence anonymous restore during auth'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 33fec84948988fe26c81e70975e1c40804073da3
+    short_sha: 33fec8494
+    authored_at: '2026-08-10T01:38:50+00:00'
+    subject: 'fix: register chat navigation Apple UI test'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 14dc05fe1b7cd42112f30c17bd1a0eef8eae941c
+    short_sha: 14dc05fe1
+    authored_at: '2026-08-10T01:20:53+00:00'
+    subject: 'fix: reset active draft-only chat on draft delete'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 789f6c4cf14e0f7e37c63909305d4fa551b22322
+    short_sha: 789f6c4cf
+    authored_at: '2026-08-10T00:52:18+00:00'
+    subject: 'fix: preserve live draft header during cleanup refresh'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d3650b3e27e7899437e46de31470cdfc6e1c7d02
+    short_sha: d3650b3e2
+    authored_at: '2026-08-10T00:32:26+00:00'
+    subject: 'fix: reset active draft-only chat after clear'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: ada06054c944dd648c3045297b8a053c7b6cda6c
+    short_sha: ada06054c
+    authored_at: '2026-08-10T00:14:42+00:00'
+    subject: 'feat: add CLI image AI detection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/cli/apps-and-skills.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/imagesDetectAi.test.ts
+    related_feature_ids: []
+  - sha: fa21cb423f4d7b20be1c35d43c7003b8e2a2fe13
+    short_sha: fa21cb423
+    authored_at: '2026-08-10T00:02:47+00:00'
+    subject: 'fix: ignore stale draft cleanup after context switch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on platform parity for Apple devices, chat draft reliability, and refining AI skill execution.
+    Significant work was also done on self-hosting infrastructure and internal development workflows.
+  released_changes: []
+  bug_fixes:
+  - text: The Apple platform experience received several refinements, including fixes for draft previews in the chat header,
+      shell navigation logic, and safeguards for anonymous session restoration during authentication.
+    evidence:
+      commits:
+      - 97bbe8743
+      - a641ac901
+      - bd8d355fa
+      - f57e0db45
+      - 4bb223ace
+      - fb99c3559
+    release_status: dev_only
+  - text: Chat interface stability was improved by ensuring sub-chat previews appear correctly above notifications and maintaining
+      draft header state during context switches or cleanup refreshes.
+    evidence:
+      commits:
+      - 044f7e5a7
+      - 266b05450
+      - 14dc05fe1
+      - 789f6c4cf
+      - d3650b3e2
+      - a3111d168
+    release_status: dev_only
+  - text: AI skill processing was hardened with better protocol quote cleanup, support for nonce-prefixed image uploads, and
+      aligned pricing metadata for ElevenLabs speech generation.
+    evidence:
+      commits:
+      - d719cae6c
+      - 73b0043e1
+      - e3727480e
+      - 78f29f1fe
+      - 4141d4ca7
+    release_status: dev_only
+  - text: Self-hosting and infrastructure reliability were addressed by isolating reminder worker queues and providing more
+      room for runtime scheduler probes and CMS setup tasks to complete.
+    evidence:
+      commits:
+      - 1e0b56b74
+      - b04422353
+      - 5c475aded
+      - 7f80ac31b
+    release_status: dev_only
+  unreleased_progress:
+  - text: Onboarding parity for Apple platforms is in development to align the iOS and macOS experiences with the web landing
+      page.
+    evidence:
+      commits:
+      - d530314d3
+    release_status: dev_only
+  - text: The CLI is gaining new capabilities for AI-based image detection.
+    evidence:
+      commits:
+      - ada06054c
+    release_status: dev_only
+  - text: New API endpoints are being established to provide detailed user plan information within the plans platform.
+    evidence:
+      commits:
+      - 81a07512e
+    release_status: dev_only
+  internal_progress:
+  - text: OpenCode development tools now include a progress notifier and manual workflow reviews to improve research and improvement
+      cycles.
+    evidence:
+      commits:
+      - d86ea7101
+      - 2a28122dd
+      - 164647b02
+    release_status: dev_only
+  - text: Internal session management and billing retry logic were updated to handle forced logouts and invoice row failures
+      more gracefully.
+    evidence:
+      commits:
+      - 1d620b549
+      - 088198b76
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Apple landing onboarding parity
+      evidence:
+        commits:
+        - d530314d3
+      reason: Platform parity for iOS and macOS is currently disabled and not yet released to main.
+    - text: User plan detail endpoint
+      evidence:
+        commits:
+        - 81a07512e
+      reason: The Plans platform is a disabled feature and the commit is not in the main branch.
+    rationale: No user-facing changes were merged into the main branch or marked ready for public communication during this
+      period.
+  social_video_recommendations:
+  - idea: A side-by-side comparison of the onboarding experience between web and Apple platforms.
+    priority: medium
+    reason: Visual parity across platforms is a strong product story for users moving between devices.
+    evidence:
+      commits:
+      - d530314d3
+  quality_notes:
+  - Extensive UI testing was added for Apple platform navigation to ensure parity with web experiences.
+  - Dependency pins were patched to address potential vulnerabilities across the backend and frontend.
+  validation_warnings: []

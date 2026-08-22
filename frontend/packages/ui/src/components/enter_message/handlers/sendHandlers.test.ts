@@ -6,9 +6,14 @@
  * must not make ActiveChat treat a normal follow-up as a brand-new chat.
  */
 import { describe, expect, it } from 'vitest';
-import { shouldDispatchDraftChatAsNewChat } from './sendClassification';
+import {
+  isUnsupportedTeamIncognitoContext,
+  shouldAwaitAITaskStart,
+  shouldDispatchDraftChatAsNewChat,
+} from './sendClassification';
 
 describe('shouldDispatchDraftChatAsNewChat', () => {
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chats.message.identity-idempotent
   it('does not dispatch newChat for an active existing chat with prior messages', () => {
     expect(shouldDispatchDraftChatAsNewChat({
       currentChatId: 'chat-1',
@@ -19,6 +24,7 @@ describe('shouldDispatchDraftChatAsNewChat', () => {
     })).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chats.message.identity-idempotent
   it('does not dispatch newChat for an inactive existing chat with prior messages', () => {
     expect(shouldDispatchDraftChatAsNewChat({
       draftChatId: 'chat-1',
@@ -28,6 +34,7 @@ describe('shouldDispatchDraftChatAsNewChat', () => {
     })).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.draft-only.addressable
   it('dispatches newChat for a draft-only shell with a usable key', () => {
     expect(shouldDispatchDraftChatAsNewChat({
       draftChatId: 'chat-1',
@@ -37,12 +44,52 @@ describe('shouldDispatchDraftChatAsNewChat', () => {
     })).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.draft-only.addressable
   it('does not dispatch newChat when the draft chat id does not match', () => {
     expect(shouldDispatchDraftChatAsNewChat({
       draftChatId: 'chat-2',
       chatIdToUse: 'chat-1',
       existingChat: { messages_v: 0 },
       existingChatHasUsableKey: true,
+    })).toBe(false);
+  });
+});
+
+describe('isUnsupportedTeamIncognitoContext', () => {
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,message-input.privacy-context
+  it('rejects incognito sends while a Team context is active', () => {
+    expect(isUnsupportedTeamIncognitoContext('team-1', true)).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked,message-input.privacy-context
+  it('allows Team and incognito sends when they are used separately', () => {
+    expect(isUnsupportedTeamIncognitoContext('team-1', false)).toBe(false);
+    expect(isUnsupportedTeamIncognitoContext(null, true)).toBe(false);
+  });
+});
+
+describe('shouldAwaitAITaskStart', () => {
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked
+  it('does not show AI processing for an ordinary authenticated Team message', () => {
+    expect(shouldAwaitAITaskStart({
+      authenticated: true,
+      teamId: 'team-1',
+      invokesTeamAI: false,
+    })).toBe(false);
+  });
+
+  it.each([
+    { authenticated: true, teamId: null, invokesTeamAI: false },
+    { authenticated: true, teamId: 'team-1', invokesTeamAI: true },
+  ])('waits for an AI task when the send can invoke AI', (args) => {
+    expect(shouldAwaitAITaskStart(args)).toBe(true);
+  });
+
+  it('does not wait for an AI task for anonymous sends', () => {
+    expect(shouldAwaitAITaskStart({
+      authenticated: false,
+      teamId: null,
+      invokesTeamAI: false,
     })).toBe(false);
   });
 });

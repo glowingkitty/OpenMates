@@ -48,6 +48,10 @@ on:
         description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
+      seeded_gift_card_code:
+        description: "Disposable dev-only gift-card code seeded by scripts/run_tests.py for real redemption specs."
+        type: string
+        default: ""
       checkout_ref:
         description: "Commit SHA selected by scripts/run_tests.py."
         required: true
@@ -57,6 +61,10 @@ on:
         description: "Allow credential-mutating utility specs to update repository secrets."
         type: boolean
         default: true
+      proof_video_profile:
+        description: "Optional exact proof-video capture profile; supports web-laptop and web-phone."
+        type: string
+        default: ""
       migrate_account_secrets_to_expanded_bundle:
         description: "Move the selected expanded account credentials into the consolidated encrypted secret."
         type: boolean
@@ -93,6 +101,10 @@ on:
         required: false
         type: string
         default: ""
+      seeded_gift_card_code:
+        required: false
+        type: string
+        default: ""
       checkout_ref:
         required: true
         type: string
@@ -100,6 +112,10 @@ on:
         required: false
         type: boolean
         default: false
+      proof_video_profile:
+        required: false
+        type: string
+        default: ""
       migrate_account_secrets_to_expanded_bundle:
         required: false
         type: boolean
@@ -114,8 +130,6 @@ on:
       TEST_ACCOUNT_OTP_KEY: {required: true}
       SIGNUP_TEST_EMAIL_DOMAINS: {required: false}
       E2E_SIGNUP_INVITE_CODE: {required: false}
-      MAILOSAUR_API_KEY: {required: false}
-      MAILOSAUR_SERVER_ID: {required: false}
       GMAIL_CLIENT_ID: {required: false}
       GMAIL_CLIENT_SECRET: {required: false}
       GMAIL_REFRESH_TOKEN: {required: false}
@@ -239,6 +253,12 @@ jobs:
           echo "Migrated expanded account slot $SLOT into the consolidated secret."
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Export seeded gift card code
+        if: inputs.seeded_gift_card_code != ''
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${{ inputs.seeded_gift_card_code }}"
+          echo "OPENMATES_E2E_GIFT_CARD_CODE=${{ inputs.seeded_gift_card_code }}" >> "$GITHUB_ENV"
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend
@@ -374,7 +394,10 @@ jobs:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
         if: inputs.spec != '__cli_integration_code_docs__'
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb zutty x11-xserver-utils
         working-directory: frontend/apps/web_app
       - name: Install Proton Mail Bridge for live Proton specs
         if: inputs.spec == 'proton-bridge-live.spec.ts'
@@ -397,6 +420,11 @@ jobs:
         id: pw_run
         continue-on-error: true
         run: |
+          if [ -f scripts/audit_cli_e2e_recording.py ]; then
+            python3 scripts/audit_cli_e2e_recording.py
+          else
+            echo "::warning::scripts/audit_cli_e2e_recording.py is absent from checkout_ref=${{ inputs.checkout_ref }}; skipping recorder audit for this historical subject commit."
+          fi
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           set +e
@@ -436,11 +464,13 @@ jobs:
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
+          OPENMATES_CLI_RECORD_E2E: "1"
+          OPENMATES_E2E_SPEC: ${{ inputs.spec }}
+          PLAYWRIGHT_VIDEO_WIDTH: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
+          PLAYWRIGHT_VIDEO_HEIGHT: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
-          MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
-          MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}

@@ -3440,27 +3440,27 @@ landing_mates_focus_modes:
   verified_by_human: []
 landing_people_models:
   context: Provider choice explanation in the people-first landing header story
-  en: Leading AI models, together in one place.
-  de: Führende KI-Modelle, gemeinsam an einem Ort.
-  zh: Leading AI models, together in one place.
-  es: Leading AI models, together in one place.
-  fr: Leading AI models, together in one place.
-  pt: Leading AI models, together in one place.
-  ru: Leading AI models, together in one place.
-  ja: Leading AI models, together in one place.
-  ko: Leading AI models, together in one place.
-  it: Leading AI models, together in one place.
-  tr: Leading AI models, together in one place.
-  vi: Leading AI models, together in one place.
-  id: Leading AI models, together in one place.
-  pl: Leading AI models, together in one place.
-  nl: Leading AI models, together in one place.
-  ar: Leading AI models, together in one place.
-  hi: Leading AI models, together in one place.
-  th: Leading AI models, together in one place.
-  cs: Leading AI models, together in one place.
-  sv: Leading AI models, together in one place.
-  he: Leading AI models, together in one place.
+  en: All the best AI models, in one place.
+  de: Alle besten KI-Modelle an einem Ort.
+  zh: All the best AI models, in one place.
+  es: All the best AI models, in one place.
+  fr: All the best AI models, in one place.
+  pt: All the best AI models, in one place.
+  ru: All the best AI models, in one place.
+  ja: All the best AI models, in one place.
+  ko: All the best AI models, in one place.
+  it: All the best AI models, in one place.
+  tr: All the best AI models, in one place.
+  vi: All the best AI models, in one place.
+  id: All the best AI models, in one place.
+  pl: All the best AI models, in one place.
+  nl: All the best AI models, in one place.
+  ar: All the best AI models, in one place.
+  hi: All the best AI models, in one place.
+  th: All the best AI models, in one place.
+  cs: All the best AI models, in one place.
+  sv: All the best AI models, in one place.
+  he: All the best AI models, in one place.
   verified_by_human: []
 landing_people_access:
   context: Cross-platform access explanation in the people-first landing header story

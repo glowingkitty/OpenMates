@@ -60,10 +60,32 @@ test("auto-discovered modules export only valid OpenCode plugin factories", asyn
   assert.equal(typeof await cliAutoLoginPluginModule.CliAutoLogin({}), "object");
 });
 
+test("merged worktree routing requires an existing Git worktree", () => {
+  const { routingDecisionForTest } = pluginModule.OpenMatesHooks.test;
+  const worktreePath = process.cwd();
+  assert.deepEqual(
+    routingDecisionForTest({
+      session: { worktree: { path: worktreePath, status: "merged", merged_commit: "abc123456789" } },
+    }),
+    { decision: "worktree_routed", worktreePath },
+  );
+  assert.deepEqual(
+    routingDecisionForTest({
+      session: {
+        worktree: {
+          path: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-missing",
+          status: "merged",
+        },
+      },
+    }),
+    { decision: "unresolved", worktreePath: "" },
+  );
+});
+
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
-  assert.match(source, /workdir: \(prodSshControlPlane \|\| staleCodeReportControlPlane\) \? PROJECT_ROOT : worktreePath/);
+  assert.match(source, /workdir: \(prodSshControlPlane \|\| staleCodeReportControlPlane \|\| improvementReviewControlPlane \|\| sessionsPyControlPlane\) \? PROJECT_ROOT : worktreePath/);
   assert.match(source, /Reason:/);
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
@@ -125,7 +147,7 @@ test("canonical edit hooks preserve worktree-relative paths", () => {
   assert.match(bridge, /printf '%s\/%s\\n' "\$CALLER_CWD" "\$file"/);
   assert.match(autoTrack, /\.openmates-agent-worktrees/);
   assert.match(preEditGuard, /normalize_repo_relative/);
-  assert.match(preEditGuard, /\.sessions\[\]\?\.worktree\?\.path\?/);
+  assert.match(preEditGuard, /\.sessions\[\]\? \| \(\.worktree\.path\? \/\/ \.repo_root\?/);
 });
 
 test("opencode config allows legacy external agent worktrees", () => {
@@ -146,7 +168,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
         stale: {
           opencode_session_id: "stale-session",
           binding_mode: "worktree_routed",
-          worktree: { path: process.cwd(), status: "merged", merged_commit: "abc123456789" },
+          worktree: { path: process.cwd(), status: "missing", merged_commit: "abc123456789" },
         },
       },
     },
@@ -163,34 +185,91 @@ test("routing recovery allows direct prod ssh status and close only", async () =
       { tool: "bash", sessionID: "stale-session" },
       { args: { command: "./scripts/prod-ssh.sh 'docker ps'", workdir: "/model-selected-root" } },
     ),
-    /repository session worktree is already merged/,
+    /no active sessions\.py worktree could be resolved/,
   );
+});
+
+test("merged routing continues through the source worktree", async () => {
+  const commit = "a".repeat(40);
+  const hooks = await pluginModule.OpenMatesHooks({
+    routingData: {
+      sessions: {
+        stale: {
+          opencode_session_id: "stale-session",
+          binding_mode: "worktree_routed",
+          mode: "testing",
+          worktree: { path: process.cwd(), status: "merged", merged_commit: commit },
+        },
+      },
+    },
+    recordRouting: false,
+  });
+  const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
+  const output = { args: { command, workdir: "/model-selected-root" } };
+  await assert.doesNotReject(() => hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "stale-session" },
+    output,
+  ));
+  assert.equal(output.args.workdir, process.cwd());
+
+  const followUp = { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } };
+  await assert.doesNotReject(
+    () => hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "stale-session" },
+      followUp,
+    ),
+  );
+  assert.equal(followUp.args.workdir, process.cwd());
+});
+
+test("question routing runs approved audits from the control plane", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({
+    routingData: {
+      sessions: {
+        question: {
+          opencode_session_id: "question-session",
+          mode: "question",
+        },
+      },
+    },
+    recordRouting: false,
+  });
+  const output = {
+    args: {
+      command: "python3 scripts/audit_agent_tooling_parity.py --json",
+      workdir: "/model-selected-root",
+    },
+  };
+  await assert.doesNotReject(() => hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "question-session" },
+    output,
+  ));
+  assert.equal(output.args.workdir, "/home/superdev/projects/OpenMates");
 });
 
 test("bash guard allows source file references that are not writes", async () => {
   await assert.doesNotReject(() => runBeforeShell("docker compose -f backend/core/docker-compose.yml ps"));
 });
 
-test("bash guard blocks Docker Compose mutations without the Docker lock", async () => {
+test("bash guard blocks direct Docker Compose lifecycle mutations", async () => {
   await assert.rejects(
     () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
-    /Reason: Docker Compose mutations require.*Next: run python3 scripts\/sessions\.py lock/,
+    /Reason: Direct Docker Compose lifecycle mutations bypass.*Next: use openmates server/,
   );
 });
 
-test("Docker mutation decision allows the current session's Docker lock", () => {
+test("Docker mutation decision rejects direct Compose even with a Docker lock", () => {
   const data = {
     locks: { docker_rebuild: { status: "IN_PROGRESS", claimed_by: "abcd" } },
     sessions: { abcd: { opencode_session_id: "test-session" } },
   };
-  assert.deepEqual(
-    pluginModule.OpenMatesHooks.test.dockerMutationDecisionForTest({
+  const decision = pluginModule.OpenMatesHooks.test.dockerMutationDecisionForTest({
       command: "docker compose --env-file .env -f backend/core/docker-compose.yml build api",
       sessionID: "test-session",
       data,
-    }),
-    { decision: "allow", message: "Docker lock held by this session" },
-  );
+    });
+  assert.equal(decision.decision, "block");
+  assert.match(decision.message, /openmates server restart --rebuild/);
 });
 
 test("bash guard allows programmatic source reads", async () => {

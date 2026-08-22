@@ -110,17 +110,17 @@ models:
         currency: USD
         max_context: 1000000
     features:
-      knowledge_cutoff: "2025-01"
+      knowledge_cutoff: "2026-03"
 
-  - id: "gemini-3.6-flash"
-    name: "Gemini 3.6 Flash"
-    description: "Stable Gemini 3.6 Flash model with stronger coding, agentic, multimodal, and long-context performance than Gemini 3.5 Flash at a lower output-token price. Primary: Google AI Studio US; fallback: Google Vertex AI global."
+  - id: "gemini-3.7-flash"
+    name: "Gemini 3.7 Flash"
+    description: "Stable Gemini 3.7 Flash model with strong coding, agentic, multimodal, and long-context performance at a low introductory token price. Primary: Google AI Studio US; fallback: Google Vertex AI global."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2026-07-21" # Gemini 3.6 Flash GA release
+    release_date: "2026-08-13" # Gemini 3.7 Flash GA release
     allow_auto_select: true
     external_ids:
-      lmarena: "gemini-3.6-flash"
+      lmarena: "gemini-3.7-flash-high"
     reasoning: true
     input_types:
       - text
@@ -134,25 +134,25 @@ models:
     servers:
       - id: "google_ai_studio"
         name: "Google AI Studio"
-        model_id: "gemini-3.6-flash"
+        model_id: "gemini-3.7-flash"
         region: "US" # Server region for UI display
       - id: "google"
         name: "Google Vertex AI"
-        model_id: "gemini-3.6-flash"
+        model_id: "gemini-3.7-flash"
         region: "global"
     pricing:
       tokens:
         input:
-          per_credit_unit: 200 # Based on $1.50/M input tokens.
+          per_credit_unit: 450 # Based on $0.75/M input tokens introductory pricing through 2026-12-31.
         output:
-          per_credit_unit: 45 # Based on $7.50/M output tokens.
+          per_credit_unit: 90 # Based on $3.75/M output tokens introductory pricing through 2026-12-31.
     costs:
       input_per_million_token:
-        price: 1.50
+        price: 0.75
         currency: USD
         max_context: 1048576
       output_per_million_token:
-        price: 7.50
+        price: 3.75
         currency: USD
         max_context: 1048576
     features:
@@ -160,6 +160,7 @@ models:
       max_output_tokens: 65536
       tool_use: true
       streaming: true
+      # Introductory price expires 2026-12-31; Google lists $1.50/M input and $7.50/M output from 2027-01-01.
 
   - id: "gemini-3.1-pro-preview" # Official model ID
     name: "Gemini 3.1 Pro"

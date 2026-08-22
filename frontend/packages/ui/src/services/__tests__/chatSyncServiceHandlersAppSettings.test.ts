@@ -697,6 +697,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
 
   // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover
   it("does not let one pending recovery job block another available job", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const handlers = new Map<string, Set<(payload: unknown) => void>>();
     const emit = (type: string, payload: unknown) => {
       for (const handler of Array.from(handlers.get(type) ?? [])) handler(payload);
@@ -812,6 +813,10 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       message: "Unrelated stale job failed after the target job persisted.",
     });
     await recovery;
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[ChatSyncService:Recovery] Failed recovery job job-1:",
+      expect.anything(),
+    );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatUpdated" }),

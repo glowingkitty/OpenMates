@@ -56,6 +56,7 @@ from backend.core.api.app.services.workflow_template_service import (
 )
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
 router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Depends(ensure_workflows_enabled)])
@@ -63,6 +64,8 @@ router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Dep
 
 class WorkflowCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     description: str | None = Field(default=None, max_length=2_000)
     graph: WorkflowGraph
     enabled: bool = False
@@ -76,6 +79,8 @@ class WorkflowCreateRequest(BaseModel):
 
 class WorkflowUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     description: str | None = Field(default=None, max_length=2_000)
     graph: WorkflowGraph | None = None
     enabled: bool | None = None
@@ -86,6 +91,8 @@ class WorkflowUpdateRequest(BaseModel):
 class WorkflowMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
 
 
@@ -333,7 +340,7 @@ def _workflow_ask_update_operation(patch: WorkflowUpdateRequest) -> str:
     if patch.graph is not None:
         return "workflow_version"
     if patch.enabled is not None and all(
-        value is None for value in (patch.title, patch.description, patch.run_content_retention)
+        value is None for value in (patch.title, patch.encrypted_slug, patch.slug_lookup_hash, patch.description, patch.run_content_retention)
     ):
         return "status"
     return "update"
@@ -441,6 +448,8 @@ def _handle_workflow_error(exc: Exception) -> None:
         raise HTTPException(status_code=400, detail="RUN_NOT_CANCELLABLE") from exc
     if isinstance(exc, WorkflowVersionCurrentError):
         raise HTTPException(status_code=409, detail="WORKFLOW_VERSION_ALREADY_CURRENT") from exc
+    if isinstance(exc, DuplicateObjectSlugError):
+        raise HTTPException(status_code=409, detail="WORKFLOW_SLUG_CONFLICT") from exc
     if isinstance(exc, WorkflowTemplateProjectionStaleError):
         raise HTTPException(status_code=409, detail="STALE_TEMPLATE_PROJECTION") from exc
     if isinstance(exc, WorkflowBindingRequirementsUnresolvedError):
@@ -518,6 +527,8 @@ async def create_workflow(
             body.auto_delete_at,
             current_user.vault_key_id,
             body.description,
+            body.encrypted_slug,
+            body.slug_lookup_hash,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
@@ -632,6 +643,8 @@ async def ask_workflows(
                 run_content_retention=patch.run_content_retention,
                 vault_key_id=current_user.vault_key_id,
                 description=patch.description,
+                encrypted_slug=patch.encrypted_slug,
+                slug_lookup_hash=patch.slug_lookup_hash,
             )
             after = workflow.model_dump(mode="json", by_alias=True)
             operation = _workflow_ask_update_operation(patch)
@@ -704,6 +717,8 @@ async def ask_workflows(
             create.auto_delete_at,
             current_user.vault_key_id,
             create.description,
+            create.encrypted_slug,
+            create.slug_lookup_hash,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
@@ -785,6 +800,8 @@ async def create_yaml_workflow(
             None,
             current_user.vault_key_id,
             compilation.description,
+            None,
+            None,
         )
         return {"workflow": workflow.model_dump(mode="json", by_alias=True), "validation": validation}
     except WorkflowYamlCompilationError as exc:
@@ -1373,6 +1390,8 @@ async def move_workflow_to_team(
             workspace_type="workflow",
             object_id=workflow_id,
             confirmed=body.confirmed,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
         return {"workflow": workflow}
@@ -1402,6 +1421,8 @@ async def update_workflow(
             run_content_retention=body.run_content_retention,
             vault_key_id=current_user.vault_key_id,
             description=body.description,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         operation = _workflow_ask_update_operation(body)

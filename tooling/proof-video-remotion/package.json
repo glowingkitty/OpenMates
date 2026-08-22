@@ -1,0 +1,20 @@
+{
+  "name": "@openmates/proof-video-remotion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node src/render.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.512",
+    "@remotion/renderer": "4.0.512",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.512"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.24",
+    "typescript": "5.9.2"
+  }
+}

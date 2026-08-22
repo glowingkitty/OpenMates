@@ -13,11 +13,31 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { dismissSecurityReminderIfPresent, loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
+const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
+const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
+const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 4_000 : 0;
+
+async function holdProofVideoState(page: any): Promise<void> {
+	if (PROOF_VIDEO_STATE_HOLD_MS > 0) await page.waitForTimeout(PROOF_VIDEO_STATE_HOLD_MS);
+}
+
+async function expectLoadingBelowHeader(page: any): Promise<void> {
+	const header = page.getByTestId('chat-header-banner');
+	const loading = page.getByTestId('active-chat-history-loading');
+	await expect.poll(async () => {
+		const [headerBox, loadingBox] = await Promise.all([header.boundingBox(), loading.boundingBox()]);
+		if (!headerBox || !loadingBox) return Number.NEGATIVE_INFINITY;
+		return loadingBox.y - (headerBox.y + headerBox.height);
+	}, {
+		timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
+		message: 'Selected-chat loading status must remain below the chat header'
+	}).toBeGreaterThanOrEqual(8);
+}
 
 function tail<T>(items: T[]): T[] {
 	return items.slice(Math.max(0, items.length - STARTUP_SYNC_DIAGNOSTIC_TAIL));
@@ -68,7 +88,7 @@ async function waitForStartupSyncFrames(
 	}
 }
 
-async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
+async function prepareLocalMetadataOnlyChat(page: any): Promise<string | null> {
 	return await page.evaluate(async () => {
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open('chats_db');
@@ -83,20 +103,32 @@ async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve(request.result || []);
 			});
+			chats.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
 
 			for (const chat of chats) {
 				const chatId = chat.chat_id || chat.id;
 				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+				if (Number(chat.messages_v || 0) <= 0) continue;
+				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
 
-				const messageCount = await new Promise<number>((resolve, reject) => {
+				const messages = await new Promise<any[]>((resolve, reject) => {
 					const tx = db.transaction(['messages'], 'readonly');
 					const index = tx.objectStore('messages').index('chat_id');
-					const request = index.count(chatId);
+					const request = index.getAll(chatId);
 					request.onerror = () => reject(request.error);
-					request.onsuccess = () => resolve(request.result || 0);
+					request.onsuccess = () => resolve(request.result || []);
 				});
-
-				if (messageCount === 0) return chatId;
+				if (messages.length > 0) {
+					await new Promise<void>((resolve, reject) => {
+						const tx = db.transaction(['messages'], 'readwrite');
+						const store = tx.objectStore('messages');
+						for (const message of messages) store.delete(message.message_id);
+						tx.oncomplete = () => resolve();
+						tx.onerror = () => reject(tx.error);
+						tx.onabort = () => reject(tx.error);
+					});
+				}
+				return chatId;
 			}
 			return null;
 		} finally {
@@ -105,8 +137,168 @@ async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
 	});
 }
 
-// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
-test('startup sync is bounded and older content hydrates on demand', async ({ page }: { page: any }) => {
+async function getLocalChatSwitchPair(
+	page: any
+): Promise<Array<{ chatId: string; messageCount: number }>> {
+	return await page.evaluate(async (targetCount: number) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+
+		try {
+			const chats = await new Promise<any[]>((resolve, reject) => {
+				const tx = db.transaction(['chats'], 'readonly');
+				const request = tx.objectStore('chats').getAll();
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result || []);
+			});
+			chats.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
+
+			const cleanChats: Array<{ chatId: string; messages: any[] }> = [];
+			for (const chat of chats) {
+				const chatId = chat.chat_id || chat.id;
+				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+				if (Number(chat.messages_v || 0) <= 0) continue;
+				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
+
+				const messages = await new Promise<any[]>((resolve, reject) => {
+					const tx = db.transaction(['messages'], 'readonly');
+					const index = tx.objectStore('messages').index('chat_id');
+					const request = index.getAll(chatId);
+					request.onerror = () => reject(request.error);
+					request.onsuccess = () => resolve(request.result || []);
+				});
+				if (messages.length === 0) continue;
+				messages.sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0));
+				cleanChats.push({ chatId, messages });
+				if (cleanChats.length >= 2) break;
+			}
+			if (cleanChats.length < 2) return [];
+
+			const [firstChat, secondChat] = cleanChats;
+			const messagesToDelete = firstChat.messages.slice(0, Math.max(0, firstChat.messages.length - targetCount));
+			if (messagesToDelete.length > 0) {
+				await new Promise<void>((resolve, reject) => {
+					const tx = db.transaction(['messages'], 'readwrite');
+					const store = tx.objectStore('messages');
+					for (const message of messagesToDelete) store.delete(message.message_id);
+					tx.oncomplete = () => resolve();
+					tx.onerror = () => reject(tx.error);
+					tx.onabort = () => reject(tx.error);
+				});
+			}
+			return [
+				{ chatId: firstChat.chatId, messageCount: Math.min(firstChat.messages.length, targetCount) },
+				{ chatId: secondChat.chatId, messageCount: secondChat.messages.length }
+			];
+		} finally {
+			db.close();
+		}
+	}, LOCAL_SHORT_WINDOW_TARGET_COUNT);
+}
+
+async function verifyCachedShortChatOpening(page: any): Promise<void> {
+	await waitForChatReady(page, undefined, 60000);
+
+	let localChats: Array<{ chatId: string; messageCount: number }> = [];
+	await expect.poll(async () => {
+		localChats = await getLocalChatSwitchPair(page);
+		return localChats.length;
+	}, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Startup sync should cache a short chat plus another navigation target'
+	}).toBeGreaterThanOrEqual(2);
+	const [firstLocalChat, secondLocalChat] = localChats;
+
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+
+	const windowRoute = `**/v1/chats/${encodeURIComponent(firstLocalChat.chatId)}/messages/window**`;
+	let releaseRepair: () => void = () => undefined;
+	const repairGate = new Promise<void>((resolve) => {
+		releaseRepair = resolve;
+	});
+	let repairRequested = false;
+	let repairReleased = false;
+	let finishRepair: () => void = () => undefined;
+	const repairFinished = new Promise<void>((resolve) => {
+		finishRepair = resolve;
+	});
+	const delayRepairResponse = async (route: any) => {
+		repairRequested = true;
+		try {
+			const realResponse = await route.fetch();
+			await repairGate;
+			await route.fulfill({ response: realResponse });
+		} finally {
+			finishRepair();
+		}
+	};
+	await page.route(windowRoute, delayRepairResponse, { times: 1 });
+
+	try {
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, firstLocalChat.chatId);
+
+		await expect.poll(() => repairRequested, {
+			timeout: 10000,
+			message: 'Opening a cached short chat should start background completeness repair'
+		}).toBe(true);
+
+		await expect(page.getByTestId('welcome-content')).not.toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		});
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			firstLocalChat.chatId,
+			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
+		);
+		await expect.poll(async () =>
+			Number(await page.getByTestId('active-chat-container').getAttribute('data-current-message-count') || 0),
+		{
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS,
+			message: 'The bounded local message window should render before repair completes'
+		}).toBeGreaterThan(0);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+		await holdProofVideoState(page);
+
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			secondLocalChat.chatId,
+			{ timeout: 10000 }
+		);
+
+		repairReleased = true;
+		releaseRepair();
+		await repairFinished;
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', secondLocalChat.chatId);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
+		await holdProofVideoState(page);
+	} finally {
+		if (!repairReleased) releaseRepair();
+		if (repairRequested) await repairFinished;
+		await page.unroute(windowRoute, delayRepairResponse);
+	}
+}
+
+// contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('startup sync is bounded and older content hydrates on demand', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
 	test.setTimeout(180000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -203,6 +395,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	});
 
 	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
 	await waitForStartupSyncFrames(receivedTypes, diagnostics);
 
 	expect(receivedTypes).toContain('phase_1b_chat_content_ready');
@@ -221,14 +414,75 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		}
 	}
 
-	const metadataOnlyChatId = await getLocalChatWithNoMessages(page);
+	const metadataOnlyChatId = await prepareLocalMetadataOnlyChat(page);
 	if (!metadataOnlyChatId) {
 		console.log('No local metadata-only chat found; startup sync boundary verified, skipping hydration check.');
 		return;
 	}
 
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || new URL(page.url()).origin;
-	await page.goto(`${baseUrl}/#chat-id=${metadataOnlyChatId}`);
+	const coldWindowRoute = `**/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window**`;
+	let releaseColdWindow: () => void = () => undefined;
+	const coldWindowGate = new Promise<void>((resolve) => {
+		releaseColdWindow = resolve;
+	});
+	let coldWindowRequested = false;
+	let coldWindowReleased = false;
+	let failColdWindow = false;
+	let finishColdWindow: () => void = () => undefined;
+	const coldWindowFinished = new Promise<void>((resolve) => {
+		finishColdWindow = resolve;
+	});
+	const delayColdWindowResponse = async (route: any) => {
+		coldWindowRequested = true;
+		try {
+			const realResponse = await route.fetch();
+			await coldWindowGate;
+			if (failColdWindow) {
+				await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"test_unavailable"}' });
+			} else {
+				await route.fulfill({ response: realResponse });
+			}
+		} finally {
+			finishColdWindow();
+		}
+	};
+	await page.route(coldWindowRoute, delayColdWindowResponse, { times: 1 });
+
+	try {
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, metadataOnlyChatId);
+		await expect.poll(() => coldWindowRequested, {
+			timeout: 10000,
+			message: 'Opening metadata-only chat should request its real bounded window'
+		}).toBe(true);
+		await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			metadataOnlyChatId,
+			{ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS }
+		);
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('active-chat-history-loading')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await page.getByTestId('message-editor').click();
+		await expectLoadingBelowHeader(page);
+		await holdProofVideoState(page);
+
+		failColdWindow = true;
+		await context.setOffline(true);
+		coldWindowReleased = true;
+		releaseColdWindow();
+		await coldWindowFinished;
+		await expect(page.getByTestId('active-chat-history-retry')).toBeVisible({ timeout: 15000 });
+		await holdProofVideoState(page);
+	} finally {
+		if (!coldWindowReleased) releaseColdWindow();
+		if (coldWindowRequested) await coldWindowFinished;
+		await page.unroute(coldWindowRoute, delayColdWindowResponse);
+		await context.setOffline(false);
+	}
+	await page.getByTestId('message-editor').press('Escape');
+	await expect(page.getByTestId('message-editor')).not.toBeFocused();
 
 	await expect.poll(() => {
 		const expectedRestPath = `/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window`;
@@ -238,4 +492,17 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		timeout: 15000,
 		message: 'Opening metadata-only chat should request on-demand content hydration'
 	}).toBe(true);
+
+	await verifyCachedShortChatOpening(page);
+});
+
+// contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('cached short chat opens coherently before delayed completeness repair', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await verifyCachedShortChatOpening(page);
 });

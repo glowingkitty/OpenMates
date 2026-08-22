@@ -13,6 +13,7 @@ from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.tasks.persistence_tasks import (
     _async_persist_encrypted_chat_metadata,
 )
+from backend.core.api.app.services.directus.team_methods import hash_id
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,8 @@ async def handle_encrypted_chat_metadata(
     try:
         try:
             chat_id = payload.get("chat_id")
+            team_id = payload.get("team_id")
+            hashed_team_id = hash_id(team_id) if isinstance(team_id, str) and team_id else None
             message_id = payload.get("message_id")
             encrypted_content = payload.get("encrypted_content")
             encrypted_sender_name = payload.get("encrypted_sender_name")
@@ -166,10 +169,23 @@ async def handle_encrypted_chat_metadata(
                 )
                 return
 
-            # Verify chat ownership
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            # Verify personal ownership or Team write membership and canonical scope.
+            if hashed_team_id:
+                await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                existing_team_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                if existing_team_chat and existing_team_chat.get("hashed_team_id") != hashed_team_id:
+                    logger.warning("User %s attempted cross-Team encrypted metadata write for chat %s", user_id, chat_id)
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "team_chat_scope_mismatch", "message": "This chat does not belong to the selected team.", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                is_owner = bool(existing_team_chat)
+            else:
+                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
         
-            if not is_owner:
+            if not is_owner and not hashed_team_id:
                 # Cache miss — verify ownership via DB before rejecting.
                 # This handles chats pre-created by background tasks (e.g. reminder
                 # Celery task) that exist in Directus but aren't in the user's cache yet.
@@ -311,21 +327,24 @@ async def handle_encrypted_chat_metadata(
                     if hist_msg_id and hist_encrypted_content:
                         celery_app.send_task(
                             "app.tasks.persistence_tasks.persist_new_chat_message",
-                            args=[
-                                hist_msg_id, 
-                                chat_id, 
-                                user_id_hash, 
-                                hist_msg.get("role", "user"),
-                                hist_msg.get("encrypted_sender_name"),
-                                hist_msg.get("encrypted_category"),
-                                hist_msg.get("encrypted_model_name"),
-                                hist_encrypted_content,
-                                hist_msg.get("created_at"),
-                                None, None, # messages_v, last_edited_overall_timestamp
-                                hist_msg.get("task_id"),
-                                encrypted_chat_key,
-                                user_id
-                            ]
+                            kwargs={
+                                "message_id": hist_msg_id,
+                                "chat_id": chat_id,
+                                "hashed_user_id": user_id_hash,
+                                "role": hist_msg.get("role", "user"),
+                                "encrypted_sender_name": hist_msg.get("encrypted_sender_name"),
+                                "encrypted_category": hist_msg.get("encrypted_category"),
+                                "encrypted_model_name": hist_msg.get("encrypted_model_name"),
+                                "encrypted_content": hist_encrypted_content,
+                                "created_at": hist_msg.get("created_at"),
+                                "new_chat_messages_version": None,
+                                "new_last_edited_overall_timestamp": None,
+                                "encrypted_chat_key": encrypted_chat_key,
+                                "user_id": user_id,
+                                "encrypted_pii_mappings": hist_msg.get("encrypted_pii_mappings"),
+                                **({"hashed_team_id": hashed_team_id} if hashed_team_id else {}),
+                            },
+                            queue="persistence",
                         )
 
             # Store encrypted user message if provided
@@ -396,6 +415,7 @@ async def handle_encrypted_chat_metadata(
                         user_id,
                         encrypted_pii_mappings  # PII placeholder-to-original mappings (encrypted)
                     ],
+                    kwargs={"hashed_team_id": hashed_team_id},
                     queue='persistence'
                 )
                 logger.info(f"✅ QUEUED persist_new_chat_message task for message {message_id}, task_id: {task_result.id}")
@@ -449,6 +469,8 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["parent_id"] = payload.get("parent_id")
             if payload.get("is_sub_chat") is not None:
                 chat_update_fields["is_sub_chat"] = payload.get("is_sub_chat")
+            if hashed_team_id:
+                chat_update_fields["hashed_team_id"] = hashed_team_id
 
             if chat_update_fields:
                 logger.info(f"Storing encrypted chat metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
@@ -478,6 +500,7 @@ async def handle_encrypted_chat_metadata(
                     "websocket-direct",
                     user_id_hash,
                     user_id,
+                    hashed_team_id,
                 )
                 if not persisted:
                     raise RuntimeError(f"Encrypted chat metadata was not persisted for chat {chat_id}")
@@ -536,6 +559,10 @@ async def handle_encrypted_chat_metadata(
                 # Add all updated fields to broadcast
                 if encrypted_chat_key:
                     broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
+                    if allow_chat_key_rotation:
+                        broadcast_payload["payload"]["allow_chat_key_rotation"] = True
+                    if chat_key_rotation_reason:
+                        broadcast_payload["payload"]["chat_key_rotation_reason"] = chat_key_rotation_reason
                 if encrypted_title:
                     broadcast_payload["payload"]["encrypted_title"] = encrypted_title
                 if encrypted_chat_summary:

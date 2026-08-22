@@ -10,6 +10,7 @@ import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_preflight_handler
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.services.directus.team_methods import hash_id
 
 
 class RecordingManager:
@@ -60,6 +61,7 @@ def preflight_payload() -> dict:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.completion.lease-fenced
 @pytest.mark.asyncio
 async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
@@ -90,6 +92,7 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
     ]
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_preflight_persists_canonical_server_identity_without_plaintext(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
@@ -121,6 +124,43 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
     }}]
 
 
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.context.full-switch-local
+@pytest.mark.asyncio
+async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", RecordingRecoveryService)
+    RecordingRecoveryService.calls = []
+    RecordingRecoveryService.failure = None
+    RecordingRecoveryService.failure_operation = None
+    manager = RecordingManager()
+    payload = preflight_payload()
+    payload["team_id"] = "team-1"
+    directus_service = type("Directus", (), {
+        "team": type("Team", (), {
+            "require_team_role": staticmethod(lambda *_args: _async_none()),
+        })(),
+    })()
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager,
+        directus_service=directus_service,
+        user_id="user-id",
+        user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+
+    operation, data = RecordingRecoveryService.calls[1]
+    assert operation == "prepare_preflight"
+    assert data["hashed_team_id"] == hash_id("team-1")
+    assert data["encrypted_user_message"]["encrypted_content"] == "ciphertext"
+
+
+async def _async_none() -> None:
+    return None
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chats.completion.lease-fenced
 @pytest.mark.asyncio
 async def test_enqueue_retries_reuse_task_billing_and_outbox_identity(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")

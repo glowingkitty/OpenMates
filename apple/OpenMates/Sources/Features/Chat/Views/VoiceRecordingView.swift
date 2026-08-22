@@ -191,11 +191,19 @@ struct ComposerRecordingOverlay: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: .spacing4) {
-                Text(recorder.error ?? (startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording))
-                    .font(.omP.weight(.bold))
-                    .foregroundStyle(Color.white)
-                    .multilineTextAlignment(.center)
-                    .accessibilityIdentifier("release-text")
+                VStack(spacing: .spacing1) {
+                    Text(recorder.error ?? AppStrings.recordingActive)
+                        .font(.omP.weight(.bold))
+                        .foregroundStyle(Color.white)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("release-text")
+
+                    Text(AppStrings.recordingShortcuts)
+                        .font(.omXs.weight(.medium))
+                        .foregroundStyle(Color.white.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("record-shortcuts")
+                }
 
                 recordingWaveform
             }
@@ -246,6 +254,8 @@ struct ComposerRecordingOverlay: View {
                     .accessibilityIdentifier("record-finish-button")
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("record-action-buttons")
             }
             .frame(minHeight: Self.minimumTouchTargetSize)
             .accessibilityElement(children: .contain)

@@ -49,6 +49,7 @@
   let headerHeight = $derived(
     Math.round(expandedHeight - (expandedHeight - COLLAPSED_HEIGHT) * collapseProgress)
   );
+  let isCollapsed = $derived(collapseProgress > 0.5);
   let iconSize = $derived(Math.round(42 - 10 * collapseProgress));
   let detailsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2));
   let resolvedIcon = $derived(resolveIconName(icon || 'chat'));
@@ -74,24 +75,26 @@
     <span>{breadcrumbLabel}</span>
   </button>
 
-  <div class="chat-settings-identity" class:collapsed={collapseProgress > 0.5}>
-    <div
-      class="chat-settings-icon"
-      aria-hidden="true"
-      style:--chat-settings-icon-size={`${iconSize}px`}
-      style:--chat-settings-icon-mask={`var(--icon-url-${resolvedIcon})`}
-    ></div>
-    <h1 class="chat-settings-title" data-testid="chat-settings-title">{title}</h1>
-  </div>
+  <div class="chat-settings-main" class:collapsed={isCollapsed}>
+    <div class="chat-settings-identity" class:collapsed={isCollapsed}>
+      <div
+        class="chat-settings-icon"
+        aria-hidden="true"
+        style:--chat-settings-icon-size={`${iconSize}px`}
+        style:--chat-settings-icon-mask={`var(--icon-url-${resolvedIcon})`}
+      ></div>
+      <h1 class="chat-settings-title" data-testid="chat-settings-title">{title}</h1>
+    </div>
 
-  <div
-    class="chat-settings-credits"
-    data-testid="chat-settings-credits"
-    style:--chat-settings-details-opacity={detailsOpacity}
-    aria-hidden={detailsOpacity < 0.05}
-  >
-    <span>{displayCredits}</span>
-    <span class="credits-icon" aria-label="credits"></span>
+    <div
+      class="chat-settings-credits"
+      data-testid="chat-settings-credits"
+      style:--chat-settings-details-opacity={detailsOpacity}
+      aria-hidden={detailsOpacity < 0.05}
+    >
+      <span>{displayCredits}</span>
+      <span class="credits-icon" aria-label="credits"></span>
+    </div>
   </div>
 </div>
 
@@ -141,6 +144,22 @@
     background: color-mix(in srgb, var(--color-font-button, #fff) 8%, transparent);
   }
 
+  .chat-settings-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--spacing-5) var(--spacing-5);
+    box-sizing: border-box;
+    transition: padding var(--duration-fast) var(--easing-default);
+  }
+
+  .chat-settings-main.collapsed {
+    padding: 0 var(--spacing-5);
+  }
+
   .nav-back-icon {
     flex: 0 0 auto;
     background: currentColor;
@@ -152,16 +171,17 @@
     align-items: center;
     justify-content: center;
     gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-6) 0;
+    width: 100%;
+    min-width: 0;
     text-align: center;
     transition: all var(--duration-fast) var(--easing-default);
   }
 
   .chat-settings-identity.collapsed {
     flex-direction: row;
-    justify-content: flex-start;
-    text-align: left;
-    padding: 0 var(--spacing-5);
+    justify-content: center;
+    text-align: center;
+    gap: var(--spacing-2);
   }
 
   .chat-settings-icon {
@@ -190,6 +210,15 @@
     -webkit-text-fill-color: var(--color-font-button, #fff) !important;
   }
 
+  .chat-settings-identity.collapsed .chat-settings-title {
+    min-width: 0;
+    max-width: min(100%, 20rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
   .chat-settings-credits {
     display: flex;
     align-items: center;
@@ -202,6 +231,10 @@
     color: var(--color-font-button, #fff) !important;
     -webkit-text-fill-color: var(--color-font-button, #fff) !important;
     transition: opacity var(--duration-fast) var(--easing-default);
+  }
+
+  .chat-settings-main.collapsed .chat-settings-credits {
+    display: none;
   }
 
   .credits-icon {

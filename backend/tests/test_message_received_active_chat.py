@@ -6,11 +6,16 @@
 # make the originating connection active before AI dispatch so stream chunks
 # are routed back to the sending browser deterministically.
 
+# contract-test-file: infrastructure
+
 import asyncio
+import base64
 import json
 import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+
+from backend.core.api.app.services.directus.team_methods import hash_id
 
 sys.modules.setdefault(
     "backend.core.api.app.services.cache",
@@ -52,6 +57,10 @@ class FakeEmbedService:
 
     async def resolve_embed_references_in_content(self, content, user_vault_key_id, log_prefix, seen_embed_refs):
         return content, {}
+
+
+def client_ciphertext(label: bytes = b"ciphertext-ok") -> str:
+    return base64.b64encode(b"OM" + bytes.fromhex("1a5b3b7c") + (b"0" * 12) + label + (b"t" * 16)).decode("ascii")
 
 
 class FakeSkillRegistry:
@@ -346,6 +355,8 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         delete_user_draft_from_cache=AsyncMock(return_value=False),
         delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
         get_ai_messages_history=AsyncMock(return_value=cached_messages),
+        delete_chat_messages_history=AsyncMock(),
+        add_message_to_chat_history=AsyncMock(),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
@@ -354,10 +365,15 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
-            get_chat_metadata=AsyncMock(return_value={"messages_v": 4, "title_v": 1}),
+            get_chat_metadata=AsyncMock(
+                return_value={"messages_v": 4, "title_v": 1, "hashed_team_id": hash_id("team-123")}
+            ),
             check_chat_ownership=AsyncMock(return_value=False),
         ),
-        team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "owner"})),
+        team=SimpleNamespace(
+            require_team_role=AsyncMock(return_value={"role": "owner"}),
+            list_active_member_hashes=AsyncMock(return_value=set()),
+        ),
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),
     )
@@ -372,6 +388,12 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         }
     )
     recovery_calls = []
+
+    async def fake_broadcast_team_event(**_kwargs):
+        return None
+
+    async def fake_notify_team_member_mentions(**_kwargs):
+        return None
 
     class FakeRecoveryService:
         def __init__(self, directus_service):
@@ -393,6 +415,8 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
     )
     monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
     monkeypatch.setattr(message_received_handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(message_received_handler, "broadcast_team_event", fake_broadcast_team_event)
+    monkeypatch.setattr(message_received_handler, "notify_team_member_mentions", fake_notify_team_member_mentions)
     monkeypatch.setattr(
         message_received_handler,
         "ChatRecoveryCutoverController",
@@ -419,9 +443,18 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
                 "message": {
                     "message_id": "msg-current",
                     "role": "user",
-                    "content": "@openmates summarize this",
+                    "encrypted_content": client_ciphertext(b"team-current"),
                     "created_at": 1_700_000_010,
                     "chat_has_title": True,
+                },
+                "team_ai_invocation": {
+                    "history": [
+                        {
+                            "role": "user",
+                            "content": "@openmates summarize this",
+                            "created_at": 1_700_000_010,
+                        }
+                    ]
                 },
             },
         )

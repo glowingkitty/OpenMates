@@ -300,6 +300,7 @@ async def handle_post_processing_metadata(
                 "websocket-direct",
                 user_id_hash,
                 user_id,
+                hash_id(str(team_id)) if is_team_chat else None,
             )
             if not persisted:
                 raise RuntimeError(f"Post-processing metadata was not persisted for chat {chat_id}")

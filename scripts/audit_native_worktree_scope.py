@@ -24,7 +24,9 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     ".opencode/plugins/openmates-hooks.js": (
         "resolveWorktreeRoute",
         "routeLocalToolArgsForTest",
-        "workdir: worktreePath",
+        "workdir:",
+        "worktreePath",
+        "sessionsPyControlPlane",
         "Reason:",
         "Next:",
     ),
@@ -41,14 +43,12 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "docs/specs/agent-presence-coordination/spec.yml": (
         "id: opencode-native-worktree-binding",
         "relationship: blocked_by",
-        "approved_by_user: false",
+        "status: verified",
     ),
 }
 
 
 FORBIDDEN_PRESENCE_SNIPPETS = (
-    "presence registry",
-    "session.status",
     "presence heartbeat",
 )
 

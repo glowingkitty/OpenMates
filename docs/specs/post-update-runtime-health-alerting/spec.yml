@@ -90,7 +90,7 @@ clarification:
     - question: When should ongoing monitoring alert?
       answer: Alert after two consecutive five-minute failures, immediately for credential or required-configuration failures, on stale checks over fifteen minutes, and on recovery.
     - question: How should billing behave on self-hosted servers?
-      answer: Self-hosting has no billing or payment processing, so billing checks are not applicable and billing notifications must never be emitted.
+      answer: Self-hosting omits every billing field, section, check, status, and notification without mentioning billing in operator output.
   vision_summary: >
     Every CLI-managed server should display and persist a deterministic
     post-update runtime checklist. Required failures leave the new deployment
@@ -251,7 +251,7 @@ scenarios:
       - Post-update and periodic verification run.
     then:
       - No Stripe secret is read and no Stripe request is made.
-      - Billing checks are absent or explicitly not applicable, never failed or skipped as a warning.
+      - Billing fields, sections, check IDs, statuses, and messages are entirely absent.
       - No billing event is stored or sent to email, Discord, or webhook destinations.
 
   - id: S-5
@@ -459,7 +459,7 @@ contracts:
       - {id: billing.webhook_configured, required: true, timeout_seconds: 5}
       - {id: billing.health_freshness, required: true, timeout_seconds: 5}
     self_hosted:
-      - Billing check IDs are omitted or not_applicable.
+      - Billing fields, sections, check IDs, statuses, and messages are omitted entirely.
       - No billing incident state or notification can be created.
     execution:
       - Apply one sixty-second global deadline after container readiness.
@@ -768,7 +768,7 @@ tests:
     covers: [AC-5]
     assertions:
       - Image-mode post-update verification passes without provider keys.
-      - Billing checks are not applicable and no billing event or notification is emitted.
+      - Billing fields, sections, checks, events, and notifications are absent from all output.
       - Existing self-host startup and browser smoke remain green.
     red_phase:
       required: true
@@ -820,22 +820,40 @@ verifications:
     evidence: {status: "", summary: "", timestamp: ""}
 
 demonstration:
-  eligibility: required
-  surface: terminal
+  eligibility:
+    status: required
+    surface: cli
+    reason: The OpenMates CLI is the product surface for runtime verification and recovery evidence.
+    classified_at: "2026-08-06T11:55:00Z"
   status: pending
   narration_outline:
-    - purpose: Show a successful update checklist.
+    - id: NARR-1
+      purpose: Show a successful update checklist.
       expected_proof: Every required runtime check transitions to passed before update success.
-      scenarios: [S-1]
+      scenario_ids: [S-1]
       acceptance_criteria: [AC-1, AC-3, AC-10]
-    - purpose: Show a controlled required-check failure.
+    - id: NARR-2
+      purpose: Show a controlled required-check failure.
       expected_proof: The deployment stays running, update status fails, notifications dispatch, and the restore command is shown.
-      scenarios: [S-2]
+      scenario_ids: [S-2]
       acceptance_criteria: [AC-2]
-    - purpose: Show cloud versus self-host billing separation.
+    - id: NARR-3
+      purpose: Show cloud versus self-host billing separation.
       expected_proof: Cloud runs a no-spend billing check while self-host output contains no billing check or alert.
-      scenarios: [S-3, S-4]
+      scenario_ids: [S-3, S-4]
       acceptance_criteria: [AC-4, AC-5]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
 
 risks:
   - id: R-1

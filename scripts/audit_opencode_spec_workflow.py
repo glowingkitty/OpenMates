@@ -43,13 +43,28 @@ PLAN_PROMPT_TERMS = {
     "handoff",
     "narration outline",
     "frame-only review",
-    "Discord publication",
+    "proof-video",
+    "narration audio is optional",
+    "OpenCode response-media",
 }
 PLAN_EDIT_PERMISSION_ITEMS = (
     ("*", "deny"),
     ("docs/specs/**/spec.yml", "allow"),
 )
 SKILL_TERMS = {
+    ".claude/skills/create-demo-video/SKILL.md": {
+        "proof_video_workflow.py start --current",
+        "audio is off by default",
+        "WebVTT",
+        "Never burn captions",
+        "immutable one-to-twelve-frame",
+        "product_defect",
+        "opencode_response_media.py",
+        "actual `openmates` CLI",
+        "periodically every five seconds",
+        "forty-eight cumulative submitted frames",
+        "proof_video_workflow.py review",
+    },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",
         "coverage_status",
@@ -80,8 +95,9 @@ SKILL_TERMS = {
         "--viewport laptop --viewport mobile",
         "ownership",
         "handoff",
-        "demonstration review",
-        "Discord publication",
+        "frame-only review",
+        "OpenCode response-media",
+        "optional narration audio",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "Continue On Failure",
@@ -93,26 +109,47 @@ SKILL_TERMS = {
         "subject commit",
         "material",
         "frame-only",
-        "publication_pending",
+        "response-media snippets",
+        "intentional audio status",
+        "OpenCode response-media",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
+PROOF_REVIEWER_TERMS = {
+    "one to twelve clean image frames",
+    "Never request or read the\nfull video",
+    "capture_defect",
+    "render_defect",
+    "product_defect",
+    "uncertain",
+    "incidental_findings",
+    "every supplied frame",
+}
+OPENCODE_PROOF_REVIEWER_TERMS = {
+    "mode: all",
+    '"*": deny',
+    "review-prompt-round-*.json",
+    "frames/*",
+    "grep: deny",
+    "glob: deny",
+    "external_directory: deny",
+}
 INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "Agent Workflow Retrospective", "task-closing", "None observed"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",
     'runBridge("PreToolUse"',
     "edit-lease",
     'OPENMATES_ROOT_GUARD || "strict"',
-    "Docker Compose mutations require",
+    "Direct Docker Compose lifecycle mutations bypass",
 }
 OPENCODE_WARNING_TERMS = {"additionalContext", "WARNING: File", "exit 0"}
 FORBIDDEN_COORDINATION_TERMS = {
@@ -149,7 +186,7 @@ def audit_config(config: dict[str, Any]) -> list[str]:
         failures.append("agent.plan.mode must be primary")
 
     prompt = plan_agent.get("prompt", "")
-    documented_plan_terms = {"narration outline", "frame-only review", "Discord publication"}
+    documented_plan_terms = PLAN_PROMPT_TERMS - {"schema_version"}
     instruction_text = "\n".join(
         (REPO_ROOT / path).read_text(encoding="utf-8")
         for path in instructions
@@ -173,6 +210,29 @@ def audit_skills(root: Path = REPO_ROOT) -> list[str]:
             if term not in text:
                 failures.append(f"{rel_path} missing required term: {term}")
     return failures
+
+
+def audit_proof_video_reviewer(root: Path = REPO_ROOT) -> list[str]:
+    path = root / ".claude/agents/proof-video-reviewer.md"
+    if not path.exists():
+        return ["missing canonical proof-video reviewer"]
+    text = path.read_text(encoding="utf-8")
+    return [f"proof-video reviewer missing required term: {term}" for term in sorted(PROOF_REVIEWER_TERMS) if term not in text]
+
+
+def audit_opencode_proof_video_reviewer(root: Path = REPO_ROOT) -> list[str]:
+    path = root / ".opencode/agents/proof-video-reviewer.md"
+    if not path.exists():
+        return ["missing generated OpenCode proof-video reviewer"]
+    text = path.read_text(encoding="utf-8")
+    problems = [
+        f"OpenCode proof-video reviewer missing required term: {term}"
+        for term in sorted(OPENCODE_PROOF_REVIEWER_TERMS)
+        if term not in text
+    ]
+    if "**/test-results/proof-videos/**" in text:
+        problems.append("OpenCode proof-video reviewer read access is not scoped to its current run directory")
+    return problems
 
 
 def audit_skill_mirrors(root: Path = REPO_ROOT) -> list[str]:
@@ -238,6 +298,8 @@ def audit() -> list[str]:
     return (
         audit_config(_load_opencode_config())
         + audit_skills()
+        + audit_proof_video_reviewer()
+        + audit_opencode_proof_video_reviewer()
         + audit_skill_mirrors()
         + audit_instructions()
         + audit_opencode_coordination()

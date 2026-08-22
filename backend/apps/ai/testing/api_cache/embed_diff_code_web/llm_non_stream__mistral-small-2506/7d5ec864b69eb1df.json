@@ -1,0 +1,53 @@
+{
+  "fingerprint": "7d5ec864b69eb1df",
+  "category": "llm_non_stream/mistral-small-2506",
+  "group_id": "embed_diff_code_web",
+  "recorded_at": "2026-08-16T15:30:00+00:00",
+  "request": {
+    "model": "mistral-small-2506",
+    "messages_count": 1,
+    "tools_count": 1,
+    "temperature": null,
+    "tool_choice": "required",
+    "tool_names": ["analyze_request_properties"],
+    "last_message_hash": "a8f8893f18ebc8aa",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Write a Python function called calculate_average that takes a list of numbers and returns their average. Keep it simple, just 5-10 lines."
+    }
+  },
+  "response": {
+    "type": "non_stream",
+    "value": {
+      "kind": "pydantic",
+      "module": "backend.apps.ai.llm_providers.mistral_client",
+      "class": "UnifiedMistralResponse",
+      "value": {
+        "task_id": "live-mock-embed-diff-code-routing",
+        "model_id": "mistral-small-2506",
+        "success": true,
+        "tool_calls_made": [
+          {
+            "tool_call_id": "call_embed_diff_code_routing",
+            "function_name": "analyze_request_properties",
+            "function_arguments_raw": "{\"llm_response_temp\":0.4,\"complexity\":\"simple\",\"task_area\":\"code\",\"user_unhappy\":false,\"china_model_sensitive\":false,\"enable_subchats\":false,\"load_app_settings_and_memories\":[],\"relevant_app_skills\":[],\"relevant_focus_modes\":[],\"relevant_embedded_previews\":[\"code\"],\"chat_summary\":\"Python average function request\",\"chat_tags\":[\"python\",\"average\",\"code\"]}",
+            "function_arguments_parsed": {
+              "llm_response_temp": 0.4,
+              "complexity": "simple",
+              "task_area": "code",
+              "user_unhappy": false,
+              "china_model_sensitive": false,
+              "enable_subchats": false,
+              "load_app_settings_and_memories": [],
+              "relevant_app_skills": [],
+              "relevant_focus_modes": [],
+              "relevant_embedded_previews": ["code"],
+              "chat_summary": "Python average function request",
+              "chat_tags": ["python", "average", "code"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

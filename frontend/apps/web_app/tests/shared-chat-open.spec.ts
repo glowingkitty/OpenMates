@@ -63,6 +63,7 @@ test.afterEach(async ({}, testInfo: any) => {
  * 4. Decrypts and stores the chat in IndexedDB
  * 5. Redirects to the main app with the chat loaded
  */
+// contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open
 test('stale shared chat link shows invalid-link error instead of decrypted dummy content', async ({
 	page
 }: {
@@ -130,6 +131,7 @@ test('stale shared chat link shows invalid-link error instead of decrypted dummy
 	logCheckpoint('Stale shared chat link rejected successfully');
 });
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open,chat-share-settings.readonly-viewer-controls
 test('public shared chat shows audio transcript to logged-out visitors', async ({
 	page
 }: {
@@ -192,9 +194,14 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 
 	await settingsMenu.getByTestId('chat-settings-tab-share').click();
 	await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu.getByTestId('share-short-link-url')).toContainText(/\/share\/chat\/|\/s\//, {
+	await expect(settingsMenu.getByTestId('share-short-link-copy')).toHaveCount(0);
+	await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveCount(0);
+	await settingsMenu.getByTestId('chat-settings-share-show-url').click();
+	const originalShareUrl = settingsMenu.getByTestId('chat-settings-share-url');
+	await expect(originalShareUrl).toContainText(/\/share\/chat\/|\/s\//, {
 		timeout: 10000
 	});
+	await expect(originalShareUrl).toHaveCSS('user-select', 'text');
 	await expect(settingsMenu.getByTestId('chat-settings-share-community')).not.toBeVisible();
 	await expect(settingsMenu.getByTestId('chat-settings-share-password')).not.toBeVisible();
 	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).not.toBeVisible();

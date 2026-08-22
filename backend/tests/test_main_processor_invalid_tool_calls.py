@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_main_processor_invalid_tool_calls.py
 # Regression tests for invalid AI tool-call handling in main processing.
 # Invalid LLM-emitted tools must not execute or surface as embeds, but their
@@ -7,6 +8,7 @@
 import asyncio
 import copy
 import importlib
+import inspect
 import json
 import sys
 import types
@@ -187,6 +189,16 @@ _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
 _is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
+_get_result_declared_charge_items = main_processor._get_result_declared_charge_items
+_get_result_declared_usage_details = main_processor._get_result_declared_usage_details
+_get_variable_preflight_reserved_credits = main_processor._get_variable_preflight_reserved_credits
+
+
+def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
+    source = inspect.getsource(main_processor.handle_main_processing)
+    dispatch_marker = source.index("execute_skill_with_multiple_requests(")
+
+    assert "secrets_manager=secrets_manager" in source[dispatch_marker:dispatch_marker + 700]
 
 
 def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
@@ -256,6 +268,39 @@ def test_benchmark_metadata_tags_tool_skill_usage_details() -> None:
     assert usage_details["benchmark_target_model"] == "google/gemini-3.5-flash"
     assert usage_details["benchmark_judge_model"] == "google/gemini-3-flash-preview"
     assert "ignored_non_string" not in usage_details
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,audio-generate.billing.success-only,audio-speak.billing.success-only
+def test_chat_skill_billing_uses_audio_result_declared_credits() -> None:
+    generate_results = [
+        {"status": "finished", "model": "eleven_text_to_sound_v2", "duration_seconds": 0.679, "credits_charged": 14},
+        {"status": "error", "credits_charged": None},
+    ]
+    speak_results = [
+        {"status": "finished", "model": "eleven_flash_v2_5", "duration_seconds": 4.968, "credits_charged": 10},
+    ]
+
+    assert _get_result_declared_charge_items("audio", "generate", generate_results) == [
+        (0, 14, generate_results[0]),
+    ]
+    assert _get_result_declared_charge_items("audio", "speak", speak_results) == [
+        (0, 10, speak_results[0]),
+    ]
+    assert _get_result_declared_charge_items("audio", "transcribe", generate_results) is None
+    assert _get_result_declared_usage_details("audio", "speak", speak_results[0]) == {
+        "model_used": "elevenlabs/eleven_flash_v2_5",
+        "duration_second": 4.968,
+    }
+    assert _get_variable_preflight_reserved_credits(
+        "audio",
+        "generate",
+        {"requests": [{"prompt": "ready"}, {"prompt": "done"}]},
+    ) == [20, 20]
+    assert _get_variable_preflight_reserved_credits(
+        "audio",
+        "speak",
+        {"requests": [{"text": "  Hi  "}, {"text": "  Ok  ", "model": "eleven_multilingual_v2"}]},
+    ) == [1, 1]
 
 
 def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:

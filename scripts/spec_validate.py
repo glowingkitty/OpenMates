@@ -61,9 +61,10 @@ VALID_DECISION_STATUSES = {"active", "superseded"}
 VALID_ATTEMPT_OUTCOMES = {"planned", "failed_as_expected", "rejected", "blocked", "succeeded"}
 VALID_DEMONSTRATION_ELIGIBILITY = {"required", "not_applicable"}
 VALID_DEMONSTRATION_SURFACES = {"visual", "cli", "native", "mixed", "non_visual"}
-VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked"}
-VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked"}
-VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked"}
+VALID_DEMONSTRATION_STATUSES = {"pending", "passed", "failed", "blocked", "waived"}
+VALID_DEMONSTRATION_REVIEW_STATUSES = {"pending", "passed", "failed", "blocked", "waived"}
+VALID_DEMONSTRATION_PRIVACY_STATUSES = {"pending", "passed", "failed", "blocked", "waived", "not_applicable"}
+VALID_DEMONSTRATION_AUDIO_STATUSES = {"pending", "passed", "not_required", "failed", "blocked"}
 VALID_DEMONSTRATION_PUBLICATION_STATUSES = {
     "pending",
     "not_configured",
@@ -88,6 +89,15 @@ BROAD_AC_PATTERNS = (
 
 class SpecError(ValueError):
     """Raised when a spec.yml file fails validation."""
+
+    def __init__(self, errors: str | list[str]) -> None:
+        self.errors = [errors] if isinstance(errors, str) else errors
+        if len(self.errors) == 1:
+            message = self.errors[0]
+        else:
+            details = "\n".join(f"  {index}. {error}" for index, error in enumerate(self.errors, start=1))
+            message = f"{len(self.errors)} validation errors:\n{details}"
+        super().__init__(message)
 
 
 def _schema_version(data: dict[str, Any]) -> int:
@@ -433,6 +443,14 @@ def _validate_demonstration(
             "demonstration.evidence.privacy_status must be one of "
             + ", ".join(sorted(VALID_DEMONSTRATION_PRIVACY_STATUSES))
         )
+    audio_status = evidence.get("audio_status", "pending")
+    if not isinstance(audio_status, str) or not audio_status.strip():
+        raise SpecError("demonstration.evidence.audio_status must be a string")
+    if audio_status not in VALID_DEMONSTRATION_AUDIO_STATUSES:
+        raise SpecError(
+            "demonstration.evidence.audio_status must be one of "
+            + ", ".join(sorted(VALID_DEMONSTRATION_AUDIO_STATUSES))
+        )
     review_status = _require_string(evidence, "demonstration.evidence.review_status")
     if review_status not in VALID_DEMONSTRATION_REVIEW_STATUSES:
         raise SpecError(
@@ -474,43 +492,82 @@ def _validate_tasks(
     if tasks is None:
         return set()
     seen: set[str] = set()
+    errors: list[str] = []
     valid_verification_refs = test_ids | verification_ids
     for index, task in enumerate(_as_list(tasks, "tasks"), start=1):
         task = _as_mapping(task, f"tasks[{index}]")
         task_id = _require_string(task, f"tasks[{index}].id")
         if not TASK_ID.match(task_id):
-            raise SpecError(f"task id {task_id!r} must match TASK-<number> or T-<number>")
+            errors.append(f"task id {task_id!r} must match TASK-<number> or T-<number>")
         if task_id in seen:
-            raise SpecError(f"duplicate task id {task_id}")
+            errors.append(f"duplicate task id {task_id}")
         seen.add(task_id)
-        _require_string(task, f"tasks[{index}].title")
+        try:
+            _require_string(task, f"tasks[{index}].title")
+        except SpecError as exc:
+            errors.extend(exc.errors)
         if "status" in task and task["status"] not in VALID_TASK_STATUSES:
-            raise SpecError(f"{task_id}.status must be one of {', '.join(sorted(VALID_TASK_STATUSES))}")
+            errors.append(f"{task_id}.status must be one of {', '.join(sorted(VALID_TASK_STATUSES))}")
         if "phase" in task and task["phase"] not in VALID_TASK_PHASES:
-            raise SpecError(f"{task_id}.phase must be one of {', '.join(sorted(VALID_TASK_PHASES))}")
+            errors.append(f"{task_id}.phase must be one of {', '.join(sorted(VALID_TASK_PHASES))}")
         covers = task.get("covers")
         if covers is not None:
-            _validate_task_refs(_as_mapping(covers, f"tasks[{index}].covers"), f"{task_id}.covers", scenario_ids, ac_ids)
-        refs = _optional_string_list(task.get("verification", task.get("verification_ids")), f"tasks[{index}].verification")
+            try:
+                _validate_task_refs(_as_mapping(covers, f"tasks[{index}].covers"), f"{task_id}.covers", scenario_ids, ac_ids)
+            except SpecError as exc:
+                errors.extend(exc.errors)
+        verification_key = "verification" if "verification" in task else "verification_ids"
+        try:
+            refs = _optional_string_list(task.get(verification_key), f"tasks[{index}].{verification_key}")
+        except SpecError as exc:
+            errors.extend(exc.errors)
+            refs = []
         for ref in refs:
             if (ref.startswith("T-") or ref.startswith("V-")) and valid_verification_refs and ref not in valid_verification_refs:
-                raise SpecError(f"{task_id} references unknown verification/test {ref}")
+                errors.append(f"{task_id} references unknown verification/test {ref}")
         if schema_version >= 2:
             for field in ("status", "phase", "covers", "expected_files", "verification_ids", "dependencies", "blockers", "follow_up_tasks", "ownership"):
                 if field not in task:
-                    raise SpecError(f"{task_id} Schema V2 record requires {field}")
-            _as_list(task.get("expected_files"), f"{task_id}.expected_files")
-            _optional_string_list(task.get("verification_ids"), f"{task_id}.verification_ids")
-            ownership = _as_mapping(task.get("ownership"), f"{task_id}.ownership")
-            _as_list(ownership.get("files"), f"{task_id}.ownership.files")
-            if not isinstance(ownership.get("shared_files"), list):
-                raise SpecError(f"{task_id}.ownership.shared_files must be a list")
+                    errors.append(f"{task_id} Schema V2 record requires {field}")
+            for key, validator in (("expected_files", _as_list),):
+                if key not in task:
+                    continue
+                try:
+                    validator(task[key], f"{task_id}.{key}")
+                except SpecError as exc:
+                    errors.extend(exc.errors)
+            if verification_key != "verification_ids" and "verification_ids" in task:
+                try:
+                    _optional_string_list(task["verification_ids"], f"{task_id}.verification_ids")
+                except SpecError as exc:
+                    errors.extend(exc.errors)
+            if "ownership" in task:
+                try:
+                    ownership = _as_mapping(task["ownership"], f"{task_id}.ownership")
+                except SpecError as exc:
+                    errors.extend(exc.errors)
+                    ownership = None
+                if ownership is not None:
+                    try:
+                        _as_list(ownership.get("files"), f"{task_id}.ownership.files")
+                    except SpecError as exc:
+                        errors.extend(exc.errors)
+                    if not isinstance(ownership.get("shared_files"), list):
+                        errors.append(f"{task_id}.ownership.shared_files must be a list")
     if schema_version >= 2:
         for index, task in enumerate(_as_list(tasks, "tasks"), start=1):
             task_id = _require_string(_as_mapping(task, f"tasks[{index}]"), f"tasks[{index}].id")
-            for dependency in _string_list(task.get("dependencies"), f"{task_id}.dependencies", allow_empty=True):
+            dependencies = []
+            if "dependencies" in task:
+                try:
+                    dependencies = _string_list(task["dependencies"], f"{task_id}.dependencies", allow_empty=True)
+                except SpecError as exc:
+                    errors.extend(exc.errors)
+            for dependency in dependencies:
                 if dependency not in seen:
-                    raise SpecError(f"{task_id} depends on unknown task {dependency}")
+                    errors.append(f"{task_id} depends on unknown task {dependency}")
+    if errors:
+        raise SpecError(errors)
     return seen
 
 

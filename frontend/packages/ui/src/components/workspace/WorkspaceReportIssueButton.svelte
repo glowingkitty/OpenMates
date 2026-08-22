@@ -23,21 +23,32 @@
   }
 </script>
 
-<button
-  class="clickable-icon icon_bug report-issue-button"
-  type="button"
-  data-testid="report-issue-button"
-  aria-label={$text('header.report_issue')}
-  title={$text('header.report_issue')}
-  onclick={openReportIssue}
-></button>
+<div class="report-issue-button-shell" data-testid="report-issue-button-shell">
+  <button
+    class="clickable-icon icon_bug report-issue-button"
+    type="button"
+    data-testid="report-issue-button"
+    aria-label={$text('header.report_issue')}
+    title={$text('header.report_issue')}
+    onclick={openReportIssue}
+  ></button>
+</div>
 
 <style>
-  .report-issue-button {
+  .report-issue-button-shell {
     position: relative;
     z-index: var(--z-index-raised-2);
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+    border-radius: 40px;
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+  }
+
+  .report-issue-button {
+    flex: 0 0 auto;
   }
 </style>

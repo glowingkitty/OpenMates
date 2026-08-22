@@ -1,0 +1,61 @@
+{
+  "fingerprint": "69e90d1ff66ed921",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "electronics_search_web",
+  "recorded_at": "2026-08-15T12:18:34.828733+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "d8bb9ee47a8c8c1b",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find a TI WEBENCH buck converter for 12V input to 3.3V at 3A"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "electronics-search_components-c1a17a71",
+          "function_name": "electronics-search-components",
+          "function_arguments_raw": "{\"requests\": [{\"input_voltage_min\": 12, \"input_voltage_max\": 12, \"output_voltage\": 3.3, \"output_current_max\": 3, \"category\": \"power_converters\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "input_voltage_min": 12,
+                "input_voltage_max": 12,
+                "output_voltage": 3.3,
+                "output_current_max": 3,
+                "category": "power_converters"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPO5zWDF5ulUtflqAZP8pyOjUhyPiOGBPdoOPxWm64rvU0bPXx6rLeEvYqYgvUuSZ3hjvyjn2mun4aP8QqMakgOGH/Kcov9QbC/ZrpgegMKn+n5k6ik3XT"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14382,
+          "candidates_token_count": 58,
+          "total_token_count": 14440,
+          "user_input_tokens": 25,
+          "system_prompt_tokens": 13410
+        }
+      }
+    ]
+  }
+}

@@ -2,40 +2,22 @@
   frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
 
   Fullscreen view for Maps Search skill embeds.
-  Uses EntryWithMapTemplate so search results and map share the same fullscreen
-  template contract as other map-style embeds.
+  Uses UnifiedEmbedFullscreen plus EmbedsMapView so parent search results keep
+  the standard embed fullscreen chrome while places are selected in-place.
 
   Displays:
   - Interactive map with markers for all place results
-  - Scrollable list of MapLocationEmbedPreview cards
-  - Child drill-down overlay with MapLocationEmbedFullscreen
+  - Scrollable list of place cards from EmbedsMapView
+  - No nested child fullscreen when selecting a result
 
   See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
-  import MapLocationEmbedPreview from './MapLocationEmbedPreview.svelte';
-  import MapLocationEmbedFullscreen from './MapLocationEmbedFullscreen.svelte';
-  import type { ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedsMapView from '../EmbedsMapView.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
-  import type { MapMarker } from '../EmbedLeafletMap.svelte';
-  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
-
-  interface PlaceResult {
-    embed_id: string;
-    displayName?: string;
-    formattedAddress?: string;
-    location?: { latitude?: number; longitude?: number };
-    rating?: number;
-    userRatingCount?: number;
-    websiteUri?: string;
-    placeId?: string;
-    placeType?: string;
-    imageUrl?: string;
-  }
 
   interface MapsFilterSummary {
     required?: unknown;
@@ -89,6 +71,11 @@
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
   }
 
+  function hasEmbedRefs(value: unknown): boolean {
+    if (Array.isArray(value)) return value.some((item) => typeof item === 'string' && item.trim().length > 0);
+    return typeof value === 'string' && value.split('|').some((item) => item.trim().length > 0);
+  }
+
   function humanizeAmenity(value: string): string {
     return value
       .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -102,185 +89,28 @@
   let query = $derived(typeof decodedContent.query === 'string' ? decodedContent.query : (typeof searchGroup.query === 'string' ? searchGroup.query : ''));
   let provider = $derived(typeof decodedContent.provider === 'string' ? decodedContent.provider : (typeof searchGroup.provider === 'string' ? searchGroup.provider : 'Google'));
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let resultsProp = $derived(extractSearchResultsFromContent(searchGroup) as PlaceResult[]);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let warningMessages = $derived(stringArray(searchGroup.warnings));
   let filterSummary = $derived(asRecord(searchGroup.filter_summary) as MapsFilterSummary | undefined);
   let requiredAmenities = $derived(stringArray(filterSummary?.required).map(humanizeAmenity));
   let noVerifiedResults = $derived(filterSummary?.status === 'no_verified_results');
+  let hasChildEmbeds = $derived(hasEmbedRefs(embedIds));
 
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 
-  let selectedPlace = $state<PlaceResult | null>(null);
-  let selectedIndex = $state(0);
-  let loadedPlaces = $state<PlaceResult[]>([]);
+  let mapViewSourceRefs = $derived(embedId ? [embedId] : []);
+  let mapViewHighlightRefs = $derived(initialChildEmbedId ? [initialChildEmbedId] : []);
 
-  $effect(() => {
-    loadedPlaces = transformLegacyResults(resultsProp);
-  });
-
-  function handleOpenPlace(place: PlaceResult, index: number) {
-    selectedPlace = place;
-    selectedIndex = index;
-  }
-
-  function handleClosePlace() {
-    selectedPlace = null;
-  }
-
-  function handlePreviousPlace(places: PlaceResult[]) {
-    if (selectedIndex <= 0) return;
-    selectedIndex -= 1;
-    selectedPlace = places[selectedIndex] ?? null;
-  }
-
-  function handleNextPlace(places: PlaceResult[]) {
-    if (selectedIndex >= places.length - 1) return;
-    selectedIndex += 1;
-    selectedPlace = places[selectedIndex] ?? null;
-  }
-
-  function pickFirstString(...values: Array<unknown>): string | undefined {
-    for (const value of values) {
-      if (typeof value === 'string' && value.trim()) {
-        return value;
-      }
-    }
-    return undefined;
-  }
-
-  function pickFirstNumber(...values: Array<unknown>): number | undefined {
-    for (const value of values) {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-      }
-      if (typeof value === 'string' && value.trim()) {
-        const parsed = Number(value);
-        if (Number.isFinite(parsed)) return parsed;
-      }
-    }
-    return undefined;
-  }
-
-  function transformToPlaceResult(
-    childEmbedId: string,
-    content: Record<string, unknown>
-  ): PlaceResult {
-    const nestedLocation = content.location as Record<string, unknown> | undefined;
-    const latitude = pickFirstNumber(
-      nestedLocation?.latitude,
-      nestedLocation?.lat,
-      content.location_latitude,
-      content.location_lat,
-      content.latitude,
-      content.lat,
-    );
-    const longitude = pickFirstNumber(
-      nestedLocation?.longitude,
-      nestedLocation?.lon,
-      nestedLocation?.lng,
-      content.location_longitude,
-      content.location_lon,
-      content.location_lng,
-      content.longitude,
-      content.lon,
-      content.lng,
-    );
-
-    const placeTypeValue = content.placeType || content.place_type;
-    const placeType = typeof placeTypeValue === 'string'
-      ? placeTypeValue
-      : Array.isArray(content.types) && typeof content.types[0] === 'string'
-        ? content.types[0]
-        : undefined;
-
-    return {
-      embed_id: childEmbedId,
-      displayName: pickFirstString(content.displayName, content.name),
-      formattedAddress: pickFirstString(content.formattedAddress, content.formatted_address, content.address),
-      location: latitude != null && longitude != null
-        ? { latitude, longitude }
-        : undefined,
-      rating: pickFirstNumber(content.rating),
-      userRatingCount: pickFirstNumber(content.userRatingCount, content.user_rating_count, content.reviews),
-      websiteUri: pickFirstString(content.websiteUri, content.website_uri),
-      placeId: pickFirstString(content.placeId, content.place_id),
-      placeType,
-      imageUrl: pickFirstString(content.imageUrl, content.image_url, content.photo_url),
-    };
-  }
-
-  function transformLegacyResults(results: unknown[]): PlaceResult[] {
-    return (results as Array<Record<string, unknown>>).map((result, index) =>
-      transformToPlaceResult(`legacy-${index}`, result)
-    );
-  }
-
-  function getPlaceResults(ctx: ChildEmbedContext): PlaceResult[] {
-    if (ctx.children && ctx.children.length > 0) {
-      return ctx.children as PlaceResult[];
-    }
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return transformLegacyResults(ctx.legacyResults);
-    }
-    return [];
-  }
-
-  function handleChildrenLoaded(children: unknown[]) {
-    loadedPlaces = children as PlaceResult[];
-
-    if (!initialChildEmbedId) return;
-    const idx = loadedPlaces.findIndex((place) => place.embed_id === initialChildEmbedId);
-    if (idx !== -1) {
-      handleOpenPlace(loadedPlaces[idx], idx);
-    }
-  }
-
-  function buildMarkers(places: PlaceResult[]): MapMarker[] {
-    return places
-      .filter((place) => place.location?.latitude != null && place.location?.longitude != null)
-      .map((place) => ({
-        lat: place.location!.latitude!,
-        lon: place.location!.longitude!,
-        label: place.displayName,
-      }));
-  }
-
-  function buildMapCenter(places: PlaceResult[]): { lat: number; lon: number } | undefined {
-    const validPlaces = places.filter(
-      (place) => place.location?.latitude != null && place.location?.longitude != null
-    );
-    if (validPlaces.length === 0) return undefined;
-
-    const latitudes = validPlaces.map((place) => place.location!.latitude!);
-    const longitudes = validPlaces.map((place) => place.location!.longitude!);
-
-    return {
-      lat: (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
-      lon: (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
-    };
-  }
-
-  let mapMarkers = $derived(buildMarkers(loadedPlaces));
-  let mapCenter = $derived(buildMapCenter(loadedPlaces));
 </script>
 
-<EntryWithMapTemplate
+<UnifiedEmbedFullscreen
   appId="maps"
   skillId="search"
-  {onClose}
+  onClose={onClose}
   currentEmbedId={embedId}
   skillIconName="search"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
-  {embedIds}
-  childEmbedTransformer={transformToPlaceResult}
-  legacyResults={resultsProp}
-  onChildrenLoaded={handleChildrenLoaded}
-  onAutoOpenChild={(index, children) => {
-    const places = children as PlaceResult[];
-    if (places[index]) handleOpenPlace(places[index], index);
-  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -288,152 +118,61 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
-  {mapCenter}
-  mapZoom={12}
-  mapMarkers={mapMarkers}
 >
-  {#snippet detailContent(ctx)}
-    {@const places = getPlaceResults(ctx)}
+  {#snippet content()}
+    <div class="maps-search-fullscreen-body">
+      {#if hasChildEmbeds}
+        <EmbedsMapView
+          id={`${embedId || 'maps-search'}-fullscreen-map-view`}
+          title={query || 'Maps search results'}
+          sourceRefs={mapViewSourceRefs}
+          highlightRefs={mapViewHighlightRefs}
+          interactionMode="select"
+        />
+      {:else}
+        <div class="no-results" data-testid="maps-no-results">
+          <p>{$text('embeds.no_results')}</p>
 
-    {#if ctx.isLoadingChildren}
-      <div class="loading-state">
-        <p>{$text('common.loading')}</p>
-      </div>
-    {:else if places.length === 0}
-      <div class="no-results" data-testid="maps-no-results">
-        <p>{$text('embeds.no_results')}</p>
-
-        {#if noVerifiedResults || warningMessages.length > 0}
-          <section class="maps-enrichment-status" data-testid="maps-enrichment-status">
-            {#if noVerifiedResults}
-              <h3 data-testid="maps-no-verified-results-title">{$text('embeds.maps.search.no_verified_amenities')}</h3>
-              <p data-testid="maps-filter-summary">
-                {filterSummary?.verified_count ?? 0} {$text('embeds.maps.search.verified_matches')}
-                {#if typeof filterSummary?.candidate_count === 'number'}
-                  {$text('embeds.maps.search.out_of_candidates').replace('{count}', String(filterSummary.candidate_count))}
-                {/if}
-              </p>
-              {#if requiredAmenities.length > 0}
-                <p class="required-amenities" data-testid="maps-required-amenities">
-                  {$text('embeds.maps.search.required_amenities')}: {requiredAmenities.join(', ')}
+          {#if noVerifiedResults || warningMessages.length > 0}
+            <section class="maps-enrichment-status" data-testid="maps-enrichment-status">
+              {#if noVerifiedResults}
+                <h3 data-testid="maps-no-verified-results-title">{$text('embeds.maps.search.no_verified_amenities')}</h3>
+                <p data-testid="maps-filter-summary">
+                  {filterSummary?.verified_count ?? 0} {$text('embeds.maps.search.verified_matches')}
+                  {#if typeof filterSummary?.candidate_count === 'number'}
+                    {$text('embeds.maps.search.out_of_candidates').replace('{count}', String(filterSummary.candidate_count))}
+                  {/if}
                 </p>
+                {#if requiredAmenities.length > 0}
+                  <p class="required-amenities" data-testid="maps-required-amenities">
+                    {$text('embeds.maps.search.required_amenities')}: {requiredAmenities.join(', ')}
+                  </p>
+                {/if}
               {/if}
-            {/if}
 
-            {#each warningMessages as warning}
-              <p class="maps-warning" data-testid="maps-enrichment-warning">{warning}</p>
-            {/each}
-          </section>
-        {/if}
-      </div>
-    {:else}
-      {#if warningMessages.length > 0}
-        <section class="maps-enrichment-status compact" data-testid="maps-enrichment-status">
-          {#each warningMessages as warning}
-            <p class="maps-warning" data-testid="maps-enrichment-warning">{warning}</p>
-          {/each}
-        </section>
+              {#each warningMessages as warning}
+                <p class="maps-warning" data-testid="maps-enrichment-warning">{warning}</p>
+              {/each}
+            </section>
+          {/if}
+        </div>
       {/if}
-
-      <div class="results-list">
-        {#each places as place, index}
-          {@const isSelected = selectedPlace?.embed_id === place.embed_id}
-          <div
-            class="result-item"
-            class:selected={isSelected}
-            role="button"
-            tabindex="0"
-            onclick={() => handleOpenPlace(place, index)}
-            onkeydown={(event) => (event.key === 'Enter' || event.key === ' ') && handleOpenPlace(place, index)}
-          >
-            <MapLocationEmbedPreview
-              id={place.embed_id}
-              displayName={place.displayName}
-              formattedAddress={place.formattedAddress}
-              rating={place.rating}
-              userRatingCount={place.userRatingCount}
-              placeType={place.placeType}
-              imageUrl={place.imageUrl}
-              {isSelected}
-              status="finished"
-              isMobile={false}
-              onFullscreen={() => handleOpenPlace(place, index)}
-            />
-          </div>
-        {/each}
-      </div>
-
-      {#if selectedPlace}
-        <ChildEmbedOverlay>
-          <MapLocationEmbedFullscreen
-            data={{ decodedContent: selectedPlace }}
-            onClose={handleClosePlace}
-            hasPreviousEmbed={selectedIndex > 0}
-            hasNextEmbed={selectedIndex < places.length - 1}
-            onNavigatePrevious={() => handlePreviousPlace(places)}
-            onNavigateNext={() => handleNextPlace(places)}
-          />
-        </ChildEmbedOverlay>
-      {/if}
-    {/if}
+    </div>
   {/snippet}
-</EntryWithMapTemplate>
+</UnifiedEmbedFullscreen>
 
 <style>
-  .results-list {
+  .maps-search-fullscreen-body {
+    --maps-search-fullscreen-header-height: 240px;
+    --maps-search-fullscreen-body-height: calc(100% - var(--maps-search-fullscreen-header-height));
+
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-4);
-    overflow-y: auto;
-    max-height: min(70dvh, 620px);
-    padding-right: var(--spacing-1);
+    height: var(--maps-search-fullscreen-body-height);
+    min-height: 360px;
+    background: var(--color-bg-secondary);
   }
 
-  .result-item {
-    cursor: pointer;
-    border-radius: var(--radius-7);
-    border: 2px solid transparent;
-    transition: border-color var(--duration-fast) var(--easing-default);
-    pointer-events: all;
-  }
-
-  .result-item:hover {
-    border-color: var(--color-border);
-  }
-
-  .result-item.selected {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 0, 123, 255), 0.15);
-  }
-
-  .result-item:focus {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-
-  .result-item :global(.unified-embed-preview.desktop) {
-    width: 100% !important;
-    min-width: unset !important;
-    max-width: unset !important;
-    height: 280px !important;
-    min-height: 280px !important;
-    max-height: 280px !important;
-  }
-
-  .result-item :global(.place-card) {
-    justify-content: flex-start;
-    padding: 0 var(--spacing-8) var(--spacing-5);
-  }
-
-  .result-item :global(.place-image) {
-    width: calc(100% + var(--spacing-16));
-    max-width: none;
-    height: 112px;
-    margin: 0 calc(-1 * var(--spacing-8)) var(--spacing-4);
-    border-radius: 30px 30px var(--radius-4) var(--radius-4);
-  }
-
-  .loading-state,
   .no-results {
     color: var(--color-font-secondary);
     font-size: 1rem;
@@ -449,10 +188,6 @@
     border-radius: var(--radius-5);
     background: var(--color-surface-raised, var(--color-bg-secondary));
     text-align: left;
-  }
-
-  .maps-enrichment-status.compact {
-    margin: 0 0 var(--spacing-4);
   }
 
   .maps-enrichment-status h3 {
@@ -477,27 +212,78 @@
     text-transform: capitalize;
   }
 
-  .results-list::-webkit-scrollbar {
-    width: 6px;
+  :global(.maps-search-fullscreen-body .embeds-map-view) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
-  .results-list::-webkit-scrollbar-track {
-    background: transparent;
+  :global(.maps-search-fullscreen-body .map-view-body) {
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
-  .results-list::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 3px;
+  :global(.maps-search-fullscreen-body .map-view-list),
+  :global(.maps-search-fullscreen-body .map-view-map),
+  :global(.maps-search-fullscreen-body .results-view-pane) {
+    min-height: 0;
   }
 
-  .results-list::-webkit-scrollbar-thumb:hover {
-    background: var(--color-grey-60);
+  :global(.maps-search-fullscreen-body .map-view-list),
+  :global(.maps-search-fullscreen-body .map-view-map),
+  :global(.maps-search-fullscreen-body .results-view-pane),
+  :global(.maps-search-fullscreen-body .results-view-calendar) {
+    max-height: none;
   }
 
-  @container fullscreen (max-width: 600px) {
-    .results-list {
-      max-height: none;
-      padding-right: 0;
+  @media (min-width: 721px) {
+    :global(.maps-search-fullscreen-body .map-view-body) {
+      display: grid;
+      grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-list) {
+      flex-direction: column;
+      height: 100%;
+      overflow: auto;
+      border-right: 1px solid var(--color-grey-20, #f3f3f3);
+      border-bottom: 0;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-map),
+    :global(.maps-search-fullscreen-body .results-view-pane),
+    :global(.maps-search-fullscreen-body .results-view-calendar),
+    :global(.maps-search-fullscreen-body .embed-leaflet-map) {
+      height: 100%;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .maps-search-fullscreen-body {
+      --maps-search-fullscreen-header-height: 190px;
+
+      min-height: 0;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-list) {
+      flex: 0 0 auto;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    :global(.maps-search-fullscreen-body .results-view-pane) {
+      flex: 1 1 auto;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-map),
+    :global(.maps-search-fullscreen-body .embed-leaflet-map) {
+      min-height: clamp(320px, 52dvh, 520px);
     }
   }
 </style>

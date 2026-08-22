@@ -16,13 +16,73 @@ vi.mock("../websocketService", () => ({
   },
 }));
 import {
+	buildTeamMessageTransport,
+	applyTeamPreflightScope,
   isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
   shouldIncludePreflightChatMetadata,
   shouldSkipClientCodeBlockExtraction,
 } from "../sendersChatMessages";
 
+const TEAM_MESSAGE = {
+	message_id: "message-2",
+	chat_id: "chat-1",
+	role: "user" as const,
+	content: "hello team",
+	status: "sending" as const,
+	created_at: 200,
+	sender_name: "Alice",
+};
+
 describe("sendersChatMessages protocol fences", () => {
+	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked
+	it("keeps ordinary Team turns ciphertext-only", () => {
+		const transport = buildTeamMessageTransport({
+			message: TEAM_MESSAGE,
+			content: "hello team",
+			encryptedContent: "encrypted-message",
+			encryptedSenderName: "encrypted-sender",
+			history: [],
+		});
+
+		expect(transport.message).toEqual(expect.objectContaining({
+			encrypted_content: "encrypted-message",
+			encrypted_sender_name: "encrypted-sender",
+		}));
+		expect(transport.message).not.toHaveProperty("content");
+		expect(transport.teamAIInvocation).toBeUndefined();
+	});
+
+	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
+	it("sends attributed history only for an explicit OpenMates invocation", () => {
+		const transport = buildTeamMessageTransport({
+			message: { ...TEAM_MESSAGE, content: "@OpenMates summarize" },
+			content: "@OpenMates summarize",
+			encryptedContent: "encrypted-message",
+			history: [{
+				...TEAM_MESSAGE,
+				message_id: "message-1",
+				content: "Earlier context",
+				created_at: 100,
+				sender_name: "Bob",
+			}],
+		});
+
+		expect(transport.message).not.toHaveProperty("content");
+		expect(transport.teamAIInvocation?.history).toEqual([
+			expect.objectContaining({ content: "Earlier context", sender_name: "Bob" }),
+			expect.objectContaining({ content: "@OpenMates summarize", sender_name: "Alice" }),
+		]);
+	});
+
+	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,teams.context.full-switch-local
+	it("puts Team scope on the durable preflight boundary", () => {
+		const preflightPayload: Record<string, unknown> = {};
+
+		applyTeamPreflightScope(preflightPayload, "team-1");
+
+		expect(preflightPayload).toEqual({ team_id: "team-1" });
+	});
   // contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
   it("does not extract interactive question protocol blocks as code embeds", () => {
     expect(shouldSkipClientCodeBlockExtraction("interactive_question", "{}"))

@@ -39,3 +39,12 @@ apple_iap_transactions:
     processed_at:
       type: datetime
       note: "UTC timestamp when fulfillment was reserved for processing."
+    state:
+      type: string
+      length: 16
+      nullable: true
+      note: "reserved before credit mutation; completed after durable fulfillment; null means a legacy completed row"
+    completed_at:
+      type: datetime
+      nullable: true
+      note: "UTC timestamp when durable credit fulfillment completed"

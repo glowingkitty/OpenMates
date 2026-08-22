@@ -40,6 +40,11 @@ if "/app/backend" not in sys.path:
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
+from backend.core.api.app.services.purchase_settlement_ledger import (  # noqa: E402
+    begin_purchase_settlement,
+    cancel_purchase_settlement,
+    complete_purchase_settlement,
+)
 from backend.core.api.app.services.team_billing_service import TeamBillingService  # noqa: E402
 from backend.core.api.app.utils.bank_transfer_references import bank_transfer_reference_lookup_variants  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
@@ -285,6 +290,15 @@ async def approve(args: argparse.Namespace) -> int:
                 return 0
 
             await _mark_manual_approval_started(directus, item_id, args.received_cents)
+            purchase_settlement = await begin_purchase_settlement(
+                directus,
+                settlement_key=f"bank_transfer:{order_id}",
+                provider="bank_transfer",
+                purchase_type="team_credit_purchase",
+                credits_sold=credits_amount,
+            )
+            if not purchase_settlement.get("_created"):
+                raise ApprovalError("Purchase settlement requires reconciliation before retry.")
             completed_at = datetime.now(timezone.utc).isoformat()
             await TeamBillingService(directus).add_credits(
                 team_id=str(team_id),
@@ -303,6 +317,7 @@ async def approve(args: argparse.Namespace) -> int:
             if args.bank_transaction_id:
                 order_update["revolut_transaction_id"] = args.bank_transaction_id
             await _update_order(directus, item_id, order_update)
+            await complete_purchase_settlement(directus, purchase_settlement)
             await cache.update_bank_transfer_status(
                 order_id=order_id,
                 reference=reference,
@@ -313,9 +328,8 @@ async def approve(args: argparse.Namespace) -> int:
                 },
             )
             await cache.increment_stat("income_eur_cents", args.received_cents)
-            await cache.increment_stat("credits_sold", credits_amount)
+            await cache.record_credit_purchase(credits_amount)
             await cache.update_liability(credits_amount)
-            await cache.increment_stat("purchase_count")
             await cache.increment_json_stat("purchases_by_provider", "team_bank_transfer_manual")
             ComplianceService.log_financial_transaction(
                 user_id=user_id,
@@ -355,11 +369,21 @@ async def approve(args: argparse.Namespace) -> int:
             str(new_total_credits),
             vault_key_id,
         )
+        purchase_settlement = await begin_purchase_settlement(
+            directus,
+            settlement_key=f"bank_transfer:{order_id}",
+            provider="bank_transfer",
+            purchase_type="credit_purchase",
+            credits_sold=credits_amount,
+        )
+        if not purchase_settlement.get("_created"):
+            raise ApprovalError("Purchase settlement requires reconciliation before retry.")
 
         user_update = _paid_signup_completion_update_payload(
             encrypted_credit_balance=encrypted_credits,
         )
         if not await directus.update_user(user_id, user_update):
+            await cancel_purchase_settlement(directus, purchase_settlement)
             raise ApprovalError(f"Failed to update encrypted credits for user {user_id}.")
 
         order_update = {
@@ -371,6 +395,7 @@ async def approve(args: argparse.Namespace) -> int:
         if args.bank_transaction_id:
             order_update["revolut_transaction_id"] = args.bank_transaction_id
         await _update_order(directus, item_id, order_update)
+        await complete_purchase_settlement(directus, purchase_settlement)
 
         await cache.update_bank_transfer_status(
             order_id=order_id,
@@ -392,9 +417,8 @@ async def approve(args: argparse.Namespace) -> int:
         await cache.set_user(user_profile, user_id=user_id)
 
         await cache.increment_stat("income_eur_cents", args.received_cents)
-        await cache.increment_stat("credits_sold", credits_amount)
+        await cache.record_credit_purchase(credits_amount)
         await cache.update_liability(credits_amount)
-        await cache.increment_stat("purchase_count")
         await cache.increment_json_stat("purchases_by_provider", "bank_transfer_manual")
 
         if not args.no_email:

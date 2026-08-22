@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
 FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
 FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
+PROVIDER_STREAM_ERROR_PREFIX = "[ERROR"
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -112,6 +113,11 @@ def _chunk_has_substantive_output(chunk: Any) -> bool:
         return getattr(chunk, "tool_call", None) is not None
 
     return False
+
+
+def _is_provider_error_marker(chunk: Any) -> bool:
+    """Return True when a provider encoded a stream failure as text."""
+    return isinstance(chunk, str) and chunk.strip().startswith(PROVIDER_STREAM_ERROR_PREFIX)
 
 
 def _discover_server_providers_from_modules() -> Dict[str, Any]:
@@ -263,6 +269,39 @@ def _build_provider_registry() -> Dict[str, Any]:
 # The registry is built once when this module is first imported and reused for all LLM requests.
 # No performance overhead on individual requests - just a simple dictionary lookup.
 PROVIDER_CLIENT_REGISTRY: Dict[str, Any] = _build_provider_registry()
+_LIVE_MOCK_REGISTRY_WRAP_CHECKED = False
+
+
+def _ensure_live_mock_provider_registry_wrapped() -> None:
+    """Wrap providers lazily if MOCK_EXTERNAL_APIS becomes available after import."""
+    global _LIVE_MOCK_REGISTRY_WRAP_CHECKED
+    if _LIVE_MOCK_REGISTRY_WRAP_CHECKED:
+        return
+    if os.getenv("MOCK_EXTERNAL_APIS") != "true" or os.getenv("SERVER_ENVIRONMENT", "production") == "production":
+        return
+
+    try:
+        from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
+        from backend.shared.testing.api_response_cache import get_shared_cache
+    except ImportError as e:
+        logger.warning(f"[LiveMock] Could not import caching wrapper: {e}")
+        _LIVE_MOCK_REGISTRY_WRAP_CHECKED = True
+        return
+
+    cache = get_shared_cache()
+    wrapped_count = 0
+    for server_id, provider_client in list(PROVIDER_CLIENT_REGISTRY.items()):
+        if getattr(provider_client, "_live_mock_cache_wrapped", False):
+            continue
+        PROVIDER_CLIENT_REGISTRY[server_id] = wrap_provider_with_cache(provider_client, cache)
+        wrapped_count += 1
+
+    if wrapped_count:
+        logger.info(
+            f"[LiveMock] Lazily wrapped {wrapped_count} LLM provider(s) with caching "
+            f"(activated per-request via TEST_LIVE_MOCK/RECORD markers)"
+        )
+    _LIVE_MOCK_REGISTRY_WRAP_CHECKED = True
 
 
 def _get_provider_client(provider_prefix: str) -> Optional[Any]:
@@ -275,6 +314,7 @@ def _get_provider_client(provider_prefix: str) -> Optional[Any]:
     Returns:
         The client function if found, None otherwise
     """
+    _ensure_live_mock_provider_registry_wrapped()
     return PROVIDER_CLIENT_REGISTRY.get(provider_prefix)
 
 
@@ -1798,6 +1838,17 @@ async def call_main_llm_stream(
                         if _is_usage_chunk(chunk):
                             buffered_usage_chunks.append(chunk)
                             continue
+
+                        if _is_provider_error_marker(chunk):
+                            error_msg = chunk.strip()
+                            logger.error(
+                                f"{attempt_log_prefix} Provider emitted stream error marker: {error_msg}"
+                            )
+                            last_error = error_msg
+                            if _any_content_yielded:
+                                yield STANDARDIZED_USER_ERROR_MESSAGE
+                                return
+                            raise ValueError(error_msg)
 
                         if _chunk_has_substantive_output(chunk):
                             provider_produced_substantive_output = True

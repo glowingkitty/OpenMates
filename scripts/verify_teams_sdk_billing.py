@@ -72,6 +72,9 @@ const listed = await client.teams.listBankTransferOrders(teamId);
 if (!Array.isArray(listed.orders) || !listed.orders.some((item) => item.order_id === order.order_id)) {{
   throw new Error('npm SDK order was not listed');
 }}
+const chat = await client.chats.send('npm SDK private Team note', {{ teamId, senderName: 'SDK verifier' }});
+const chatResult = chat.raw ?? chat;
+if (chatResult.ai_dispatched !== false && chatResult.aiDispatched !== false) throw new Error(`npm SDK ordinary Team chat result omitted the no-AI contract (fields: ${{Object.keys(chatResult).sort().join(',')}}, persistent: ${{chatResult.persistent === true}}, has_chat_id: ${{typeof chatResult.chat_id === 'string'}})`);
 """
     env = {**os.environ, "OPENMATES_API_KEY": api_key, "OPENMATES_API_URL": api_url, "OPENMATES_TEAM_ID": team_id}
     run(["node", "--input-type=module", "-e", code], cwd=ROOT, env=env, timeout=180, emit_error=False)
@@ -93,6 +96,9 @@ if status.get('status') != 'pending':
 listed = client.teams.list_bank_transfer_orders(team_id)
 if order['order_id'] not in {item.get('order_id') for item in listed.get('orders', [])}:
     raise SystemExit('pip SDK order was not listed')
+chat = client.chats.send('pip SDK private Team note', team_id=team_id, sender_name='SDK verifier')
+if chat.raw.get('ai_dispatched') is not False:
+    raise SystemExit('pip SDK ordinary Team chat unexpectedly dispatched AI')
 """
     env = {
         **os.environ,

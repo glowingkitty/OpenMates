@@ -10,9 +10,19 @@ import re
 import secrets
 from typing import Any
 
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
+
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
+
+
+class TaskLockBusyError(RuntimeError):
+    """Raised when another task lifecycle transition owns the short write lease."""
 
 
 USER_TASK_FIELDS = (
@@ -21,11 +31,16 @@ USER_TASK_FIELDS = (
     "plan_id,plan_step_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
-    "encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
+    "encrypted_slug,slug_lookup_hash,encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
 
 USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
+USER_TASK_ADMISSION_FIELDS = (
+    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,primary_chat_id,"
+    "plan_id,plan_step_id,due_at,priority,position,version,created_at,updated_at,"
+    "started_at,blocked_reason_code,queue_state,ai_execution_state"
+)
 
 USER_TASK_KEY_WRAPPER_FIELDS = (
     "id,hashed_task_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
@@ -81,6 +96,17 @@ def _coerce_priority(value: Any) -> int:
     if priority < 0 or priority > 4:
         raise ValueError("Task priority must be an integer from 0 to 4")
     return priority
+
+
+def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
+    terms: list[dict[str, Any]] = [
+        {"slug_lookup_hash": {"_eq": slug_lookup_hash}},
+        {"hashed_user_id": {"_eq": hash_id(user_id)}},
+        {"hashed_team_id": {"_null": True}},
+    ]
+    if exclude_row_id:
+        terms.append({"id": {"_neq": exclude_row_id}})
+    return {"_and": terms}
 
 
 def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -> bool:
@@ -290,9 +316,9 @@ class UserTaskMethods:
             return _with_short_id(response[0])
         return None
 
-    async def get_task_by_short_id(self, short_id: str, user_id: str) -> dict[str, Any] | None:
+    async def get_task_by_short_id(self, short_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         matches: list[dict[str, Any]] = []
-        for task in await self.list_tasks(user_id, limit=500):
+        for task in await self.list_tasks(user_id, team_id=team_id, limit=500):
             if task.get("short_id") == short_id:
                 matches.append(task)
         if len(matches) == 1:
@@ -305,9 +331,33 @@ class UserTaskMethods:
         params: dict[str, Any] = {
             "filter[assignee_type][_eq]": "ai",
             "filter[due_at][_lte]": due_before,
-            "filter[status][_in]": ["backlog", "todo"],
+            "filter[status][_eq]": "todo",
             "fields": USER_TASK_FIELDS,
             "sort": "due_at,position,created_at",
+            "limit": max(1, min(limit, 500)),
+        }
+        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
+
+    async def list_waiting_ai_task_scopes_for_reconciliation(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "filter[assignee_type][_eq]": "ai",
+            "filter[status][_eq]": "todo",
+            "fields": ["hashed_user_id", "hashed_team_id"],
+            "groupBy": ["hashed_user_id", "hashed_team_id"],
+            "sort": "hashed_team_id,hashed_user_id",
+        }
+        return await self._list_all_admission_rows(params, page_size=limit)
+
+    async def list_stale_queued_ai_tasks(self, started_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "filter[assignee_type][_eq]": "ai",
+            "filter[status][_eq]": "in_progress",
+            "filter[queue_state][_eq]": "active",
+            "filter[ai_execution_state][_eq]": "queued",
+            "filter[started_at][_lte]": started_before,
+            "fields": USER_TASK_ADMISSION_FIELDS,
+            "sort": "started_at,task_id",
             "limit": max(1, min(limit, 500)),
         }
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
@@ -335,9 +385,83 @@ class UserTaskMethods:
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
+    async def list_open_tasks_for_admission(
+        self,
+        user_id: str,
+        *,
+        team_id: str | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "filter[status][_in]": ["todo", "in_progress", "blocked"],
+            "fields": USER_TASK_ADMISSION_FIELDS,
+            "sort": "task_id",
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
+        return await self._list_all_admission_rows(params, page_size=limit)
+
+    async def list_open_tasks_for_hashed_admission(self, scope: str, owner_hash: str, *, limit: int = 500) -> list[dict[str, Any]]:
+        owner_field = "hashed_team_id" if scope == "team" else "hashed_user_id"
+        params: dict[str, Any] = {
+            f"filter[{owner_field}][_eq]": owner_hash,
+            "filter[status][_in]": ["todo", "in_progress", "blocked"],
+            "fields": USER_TASK_ADMISSION_FIELDS,
+            "sort": "task_id",
+        }
+        if scope == "personal":
+            params["filter[hashed_team_id][_null]"] = True
+        return await self._list_all_admission_rows(params, page_size=limit)
+
+    async def _list_all_admission_rows(self, params: dict[str, Any], *, page_size: int) -> list[dict[str, Any]]:
+        bounded_page_size = max(1, min(page_size, 500))
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        task_id_cursor: str | None = None
+        grouped_query = bool(params.get("groupBy"))
+        while True:
+            page_params = {**params, "limit": bounded_page_size}
+            if grouped_query:
+                page_params["offset"] = offset
+            elif task_id_cursor:
+                page_params["filter[task_id][_gt]"] = task_id_cursor
+            response = await self.directus_service.get_items(
+                "user_tasks",
+                params=page_params,
+                no_cache=True,
+            )
+            page = response if isinstance(response, list) else []
+            rows.extend(page)
+            if len(page) < bounded_page_size:
+                return rows
+            if grouped_query:
+                offset += bounded_page_size
+                continue
+            next_cursor = str(page[-1].get("task_id") or "")
+            if not next_cursor or next_cursor == task_id_cursor:
+                raise RuntimeError("User Task admission pagination did not advance")
+            task_id_cursor = next_cursor
+
+    async def get_plan_for_hashed_admission(self, plan_id: str, scope: str, owner_hash: str) -> dict[str, Any] | None:
+        owner_field = "hashed_team_id" if scope == "team" else "hashed_user_id"
+        params: dict[str, Any] = {
+            "filter[plan_id][_eq]": plan_id,
+            f"filter[{owner_field}][_eq]": owner_hash,
+            "fields": "plan_id,current_task_id,status,continuation_state",
+            "limit": 1,
+        }
+        if scope == "personal":
+            params["filter[hashed_team_id][_null]"] = True
+        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        return response[0] if response and isinstance(response, list) else None
+
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         key_wrappers = payload.pop("key_wrappers", []) or []
         linked_project_ids = payload.pop("linked_project_ids", []) or []
+        validate_encrypted_slug_metadata(payload, record_label="Task")
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
         version = payload.get("version")
@@ -363,8 +487,11 @@ class UserTaskMethods:
             plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
         ):
             return None
+        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id)
         success, data = await self.directus_service.create_item("user_tasks", record)
         if not success:
+            if is_slug_unique_violation(data):
+                raise DuplicateObjectSlugError("Task slug already exists in this workspace")
             logger.error("Failed to create user task: %s", data)
             return None
         created_wrappers: list[dict[str, Any]] = []
@@ -526,6 +653,18 @@ class UserTaskMethods:
             return response[0]
         return None
 
+    async def get_task_execution_context_for_admission(self, task: dict[str, Any], *, now: int) -> dict[str, Any] | None:
+        params = {
+            "filter[hashed_task_id][_eq]": hash_id(str(task.get("task_id") or "")),
+            "filter[hashed_chat_id][_eq]": hash_id(str(task.get("primary_chat_id") or "")),
+            "filter[expires_at][_gt]": now,
+            "fields": USER_TASK_EXECUTION_CONTEXT_FIELDS,
+            "sort": "-created_at",
+            "limit": 1,
+        }
+        response = await self.directus_service.get_items("user_task_execution_contexts", params=params, no_cache=True, admin_required=True)
+        return response[0] if response and isinstance(response, list) else None
+
     async def delete_expired_task_execution_contexts(self, now: int, *, limit: int = 100) -> int:
         response = await self.directus_service.get_items(
             "user_task_execution_contexts",
@@ -563,11 +702,19 @@ class UserTaskMethods:
         finally:
             await self._release_task_lock(lock_key, lock_token)
 
-    async def update_task_if_version(self, task_id: str, user_id: str, patch: dict[str, Any], expected_version: int) -> dict[str, Any] | None:
-        lock_key = self._task_lock_key(user_id, task_id)
+    async def update_task_if_version(
+        self,
+        task_id: str,
+        user_id: str,
+        patch: dict[str, Any],
+        expected_version: int,
+        *,
+        team_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        lock_key = self._task_lock_key(team_id or user_id, task_id)
         lock_token = await self._acquire_task_lock(lock_key)
         try:
-            existing = await self.get_task(task_id, user_id)
+            existing = await self.get_task(task_id, user_id, team_id)
             if not existing:
                 return None
             existing_version = existing.get("version")
@@ -577,15 +724,33 @@ class UserTaskMethods:
                 return None
             patch_version = patch.get("version")
             committed_version = int(patch_version) if patch_version is not None and int(patch_version) != int(expected_version) else None
-            return await self._update_task_unlocked(task_id, user_id, patch, existing=existing, committed_version=committed_version)
+            return await self._update_task_unlocked(
+                task_id,
+                user_id,
+                patch,
+                existing=existing,
+                committed_version=committed_version,
+                team_id=team_id,
+            )
         finally:
             await self._release_task_lock(lock_key, lock_token)
 
-    async def _update_task_unlocked(self, task_id: str, user_id: str, patch: dict[str, Any], *, existing: dict[str, Any] | None = None, committed_version: int | None = None) -> dict[str, Any] | None:
-        existing = existing or await self.get_task(task_id, user_id)
+    async def _update_task_unlocked(
+        self,
+        task_id: str,
+        user_id: str,
+        patch: dict[str, Any],
+        *,
+        existing: dict[str, Any] | None = None,
+        committed_version: int | None = None,
+        team_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        existing = existing or await self.get_task(task_id, user_id, team_id)
         if not existing:
             return None
         update = dict(patch)
+        validate_encrypted_slug_metadata(update, record_label="Task")
+        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, exclude_row_id=existing.get("id"))
         key_wrappers = update.pop("key_wrappers", None)
         existing_wrappers: list[dict[str, Any]] = []
         created_wrappers: list[dict[str, Any]] = []
@@ -661,12 +826,19 @@ class UserTaskMethods:
                 existing["id"],
                 final_update,
                 int(existing_version),
-                owner_hash_field="hashed_user_id",
-                owner_hash=hash_id(user_id),
+                owner_hash_field="hashed_team_id" if team_id else "hashed_user_id",
+                owner_hash=hash_id(team_id or user_id),
             )
             if not updated:
-                updated = await self._committed_task_after_empty_update(task_id, user_id, next_version)
+                updated = await self._committed_task_after_empty_update(
+                    task_id,
+                    user_id,
+                    next_version,
+                    team_id=team_id,
+                )
             if not updated:
+                if is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                    raise DuplicateObjectSlugError("Task slug already exists in this workspace")
                 if not await self._delete_key_wrappers(created_wrappers):
                     raise RuntimeError("Failed to clean up new user task key wrappers")
                 await self._restore_task_key_wrappers(user_id, task_id, existing_wrappers)
@@ -679,13 +851,34 @@ class UserTaskMethods:
             existing["id"],
             update,
             int(existing_version),
-            owner_hash_field="hashed_user_id",
-            owner_hash=hash_id(user_id),
+            owner_hash_field="hashed_team_id" if team_id else "hashed_user_id",
+            owner_hash=hash_id(team_id or user_id),
         )
-        return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version)
+        if not updated and is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+            raise DuplicateObjectSlugError("Task slug already exists in this workspace")
+        return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version, team_id=team_id)
 
-    async def _committed_task_after_empty_update(self, task_id: str, user_id: str, expected_version: int) -> dict[str, Any] | None:
-        current = await self.get_task(task_id, user_id)
+    async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None) -> None:
+        if not slug_lookup_hash:
+            return
+        params = {
+            "filter": _slug_lookup_filter(user_id, slug_lookup_hash, exclude_row_id=exclude_row_id),
+            "fields": "id",
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        if rows and isinstance(rows, list):
+            raise DuplicateObjectSlugError("Task slug already exists in this workspace")
+
+    async def _committed_task_after_empty_update(
+        self,
+        task_id: str,
+        user_id: str,
+        expected_version: int,
+        *,
+        team_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        current = await self.get_task(task_id, user_id, team_id)
         if current and int(current.get("version") or 0) == int(expected_version):
             return current
         return None
@@ -706,7 +899,7 @@ class UserTaskMethods:
         token = secrets.token_urlsafe(16)
         acquired = await client.set(key, token, nx=True, ex=30)
         if not acquired:
-            raise RuntimeError("Task is already being updated")
+            raise TaskLockBusyError("Task is already being updated")
         return token
 
     async def _release_task_lock(self, key: str, token: str | None) -> None:
@@ -783,11 +976,174 @@ class UserTaskMethods:
         finally:
             await self._release_task_lock(lock_key, lock_token)
 
-    async def delete_task(self, task_id: str, user_id: str, expected_version: int) -> bool:
-        lock_key = self._task_lock_key(user_id, task_id)
+    async def claim_ai_task(self, task: dict[str, Any], now: int) -> dict[str, Any] | None:
+        row_id = task.get("id")
+        task_id = str(task.get("task_id") or "")
+        version = task.get("version")
+        team_hash = str(task.get("hashed_team_id") or "")
+        user_hash = str(task.get("hashed_user_id") or "")
+        owner_hash_field = "hashed_team_id" if team_hash else "hashed_user_id"
+        owner_hash = team_hash or user_hash
+        if not row_id or not task_id or version is None or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
         lock_token = await self._acquire_task_lock(lock_key)
         try:
-            existing = await self.get_task(task_id, user_id)
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                {
+                    "status": "in_progress",
+                    "queue_state": "active",
+                    "ai_execution_state": "queued",
+                    "started_at": task.get("started_at") or now,
+                    "updated_at": now,
+                    "version": int(version) + 1,
+                },
+                int(version),
+                owner_hash_field=owner_hash_field,
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def set_ai_task_waiting(self, task: dict[str, Any], state: str, now: int) -> dict[str, Any] | None:
+        row_id = task.get("id")
+        task_id = str(task.get("task_id") or "")
+        version = task.get("version")
+        team_hash = str(task.get("hashed_team_id") or "")
+        user_hash = str(task.get("hashed_user_id") or "")
+        owner_hash_field = "hashed_team_id" if team_hash else "hashed_user_id"
+        owner_hash = team_hash or user_hash
+        if not row_id or not task_id or version is None or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                {
+                    "status": "todo",
+                    "queue_state": "waiting",
+                    "ai_execution_state": state,
+                    "updated_at": now,
+                    "version": int(version) + 1,
+                },
+                int(version),
+                owner_hash_field=owner_hash_field,
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def fail_stale_queued_ai_task(self, task: dict[str, Any], now: int) -> dict[str, Any] | None:
+        row_id = task.get("id")
+        task_id = str(task.get("task_id") or "")
+        version = task.get("version")
+        team_hash = str(task.get("hashed_team_id") or "")
+        user_hash = str(task.get("hashed_user_id") or "")
+        owner_hash_field = "hashed_team_id" if team_hash else "hashed_user_id"
+        owner_hash = team_hash or user_hash
+        if not row_id or not task_id or version is None or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                {
+                    "status": "blocked",
+                    "queue_state": "waiting_for_user",
+                    "ai_execution_state": "failed",
+                    "blocked_reason_code": "ai_dispatch_timeout",
+                    "updated_at": now,
+                    "version": int(version) + 1,
+                },
+                int(version),
+                owner_hash_field=owner_hash_field,
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def claim_queued_ai_task_execution(
+        self,
+        task_id: str,
+        user_id: str,
+        *,
+        team_id: str | None = None,
+        now: int,
+    ) -> dict[str, Any] | None:
+        lock_key = self._task_lock_key(team_id or user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id, team_id)
+            if (
+                not existing
+                or existing.get("status") != "in_progress"
+                or existing.get("queue_state") != "active"
+                or existing.get("ai_execution_state") != "queued"
+            ):
+                return None
+            return await self._update_task_unlocked(
+                task_id,
+                user_id,
+                {
+                    "status": "in_progress",
+                    "queue_state": "active",
+                    "ai_execution_state": "running",
+                    "updated_at": now,
+                },
+                existing=existing,
+                team_id=team_id,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def fail_claimed_ai_task(self, task: dict[str, Any], reason: str, now: int) -> dict[str, Any] | None:
+        row_id = task.get("id")
+        version = task.get("version")
+        team_hash = str(task.get("hashed_team_id") or "")
+        user_hash = str(task.get("hashed_user_id") or "")
+        owner_hash_field = "hashed_team_id" if team_hash else "hashed_user_id"
+        owner_hash = team_hash or user_hash
+        if not row_id or version is None or not owner_hash:
+            return None
+        return await self.directus_service.update_item_if_version(
+            "user_tasks",
+            row_id,
+            {
+                "status": "blocked",
+                "queue_state": "waiting_for_user",
+                "ai_execution_state": "failed",
+                "blocked_reason_code": reason,
+                "updated_at": now,
+                "version": int(version) + 1,
+            },
+            int(version),
+            owner_hash_field=owner_hash_field,
+            owner_hash=owner_hash,
+        )
+
+    async def acquire_admission_lock(self, scope: str, scope_id: str) -> str | None:
+        return await self._acquire_task_lock(f"user_task_admission_lock:{scope}:{hash_id(scope_id)}")
+
+    async def release_admission_lock(self, scope: str, scope_id: str, token: str | None) -> None:
+        await self._release_task_lock(f"user_task_admission_lock:{scope}:{hash_id(scope_id)}", token)
+
+    async def acquire_hashed_admission_lock(self, scope: str, owner_hash: str) -> str | None:
+        return await self._acquire_task_lock(f"user_task_admission_lock:{scope}:{owner_hash}")
+
+    async def release_hashed_admission_lock(self, scope: str, owner_hash: str, token: str | None) -> None:
+        await self._release_task_lock(f"user_task_admission_lock:{scope}:{owner_hash}", token)
+
+    async def delete_task(self, task_id: str, user_id: str, expected_version: int, *, team_id: str | None = None) -> bool:
+        lock_key = self._task_lock_key(team_id or user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id, team_id)
             if not existing:
                 return False
             existing_version = existing.get("version")

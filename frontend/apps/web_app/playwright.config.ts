@@ -31,10 +31,19 @@ if (videoMode && videoMode !== 'on' && videoMode !== 'off') {
 	throw new Error('PLAYWRIGHT_VIDEO_MODE only supports "on" or "off" in this config.');
 }
 
+const resolvedVideoMode = (videoMode || 'on') as 'on' | 'off';
+const videoWidth = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const videoHeight = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_HEIGHT || '', 10);
+if ((process.env.PLAYWRIGHT_VIDEO_WIDTH || process.env.PLAYWRIGHT_VIDEO_HEIGHT) && !(videoWidth > 0 && videoHeight > 0)) {
+	throw new Error('PLAYWRIGHT_VIDEO_WIDTH and PLAYWRIGHT_VIDEO_HEIGHT must both be positive integers when set.');
+}
+const videoSize = videoWidth > 0 && videoHeight > 0 ? { width: videoWidth, height: videoHeight } : undefined;
+
 const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
+		...(videoSize ? { viewport: videoSize } : {}),
 		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
@@ -42,7 +51,8 @@ const config: PlaywrightTestConfig = {
 		screenshot: 'on',
 		// Keep a browser recording for every spec run in GitHub artifacts.
 		// Videos stay in Actions storage; local/Obsidian processing stores links only.
-		video: videoMode || 'on',
+		video: videoSize ? { mode: resolvedVideoMode, size: videoSize } : resolvedVideoMode,
+		...(videoSize ? { viewport: videoSize } : {}),
 		trace: 'off',
 		launchOptions: {
 			args: [

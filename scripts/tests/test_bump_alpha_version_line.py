@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Tests for deterministic OpenMates alpha product-line bumps."""
 
 from __future__ import annotations
@@ -46,6 +47,10 @@ def make_fixture(root: Path) -> None:
     write(root / "frontend/packages/ui/src/i18n/sources/signup/main.yml", "version_title:\n  en: v0.14\n")
     write(root / "backend/core/docker-compose.selfhost.yml", "image: openmates-api:${OPENMATES_IMAGE_TAG:-v0.14.0}\n")
     write(root / "docs/contributing/guides/git-and-deployment.md", "Current phase: v0.14 and 0.14.N-alpha.0.\n")
+    write(root / ".github/workflows/publish-cli.yml", "dev example 0.14.0-alpha.4, main example 0.14.0\n")
+    write(root / ".github/workflows/publish-python-sdk.yml", "dev example 0.14.0a4, main example 0.14.0\n")
+    write(root / ".github/workflows/publish-selfhost-images.yml", "image tag example v0.14.0-alpha.0\n")
+    write(root / "scripts/prepare_cli_publish_version.mjs", "// prereleases on that exact base, e.g. 0.14.0-alpha.N.\n")
 
 
 def run_script(root: Path, minor: int, check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -73,6 +78,10 @@ def test_bump_updates_allowed_version_files(tmp_path: Path) -> None:
     assert "v0.15" in (tmp_path / "frontend/packages/ui/src/i18n/sources/signup/main.yml").read_text(encoding="utf-8")
     assert "v0.15.0" in (tmp_path / "backend/core/docker-compose.selfhost.yml").read_text(encoding="utf-8")
     assert "0.15.N-alpha.0" in (tmp_path / "docs/contributing/guides/git-and-deployment.md").read_text(encoding="utf-8")
+    assert "0.15.0-alpha.4" in (tmp_path / ".github/workflows/publish-cli.yml").read_text(encoding="utf-8")
+    assert "0.15.0a4" in (tmp_path / ".github/workflows/publish-python-sdk.yml").read_text(encoding="utf-8")
+    assert "v0.15.0-alpha.0" in (tmp_path / ".github/workflows/publish-selfhost-images.yml").read_text(encoding="utf-8")
+    assert "0.15.0-alpha.N" in (tmp_path / "scripts/prepare_cli_publish_version.mjs").read_text(encoding="utf-8")
     assert run_script(tmp_path, 15, check=True).returncode == 0
 
 

@@ -1,0 +1,1597 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-16'
+generated_at: '2026-08-17T00:20:04+00:00'
+range:
+  since: '2026-08-16T00:00:00+00:00'
+  until: '2026-08-17T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 31
+  section_counts:
+    features: 1
+    bug_fixes: 12
+    improvements: 0
+    docs: 1
+    tests: 17
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 7
+  dev_only_items: 31
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: show activity for processing notifications'
+    section: features
+    commits:
+    - b946065ba
+    authored_at: '2026-08-16T13:04:33+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/Notification.preview.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    - frontend/packages/ui/src/components/OfflineBanner.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: retain notifications through CSS outro'
+    section: bug_fixes
+    commits:
+    - 6b74383b1
+    authored_at: '2026-08-16T16:27:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind notification state to transition'
+    section: bug_fixes
+    commits:
+    - 6b0b50262
+    authored_at: '2026-08-16T16:07:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: aggregate spec task validation errors'
+    section: bug_fixes
+    commits:
+    - b7edbb6af
+    authored_at: '2026-08-16T15:34:57+00:00'
+    changed_paths:
+    - scripts/spec_validate.py
+    - scripts/tests/test_spec_workflow_validation.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify workflow task deletion'
+    section: bug_fixes
+    commits:
+    - abe20f951
+    authored_at: '2026-08-16T15:32:07+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: animate notification stack lifecycle'
+    section: bug_fixes
+    commits:
+    - fc7d45218
+    authored_at: '2026-08-16T15:13:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover notification vault keys on cache miss'
+    section: bug_fixes
+    commits:
+    - d9bb421e9
+    authored_at: '2026-08-16T13:16:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/email_notification_settings_handler.py
+    - backend/tests/test_email_notification_settings_handler.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse parent worktree for writable children'
+    section: bug_fixes
+    commits:
+    - a112a847f
+    authored_at: '2026-08-16T13:00:16+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden OpenCode timeout handling'
+    section: bug_fixes
+    commits:
+    - e8d0203dd
+    authored_at: '2026-08-16T12:46:22+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_timeout_reliability.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: label operational test Discord reports'
+    section: bug_fixes
+    commits:
+    - 13458dd64
+    authored_at: '2026-08-16T10:56:15+00:00'
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/tests/test_operational_monitoring_tasks.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - scripts/audit_operational_monitoring_contract.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make email tests Gmail-only'
+    section: bug_fixes
+    commits:
+    - 8f4ef1f59
+    authored_at: '2026-08-16T10:48:43+00:00'
+    changed_paths:
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/opencode-workflow-review/SKILL.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .codex/agents/test-failure-triager.toml
+    - .github/workflows/playwright-spec.yml
+    - .github/workflows/release-core-journeys.yml
+    - .opencode/agents/test-failure-triager.md
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/directus/gift_card_methods.py
+    - backend/core/directus/schemas/gift_cards.yml
+    - backend/scripts/create_reusable_gift_card.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/tests/test_gift_card_domain_restriction.py
+    - contracts/features/newsletter/contract.yml
+    - contracts/features/newsletter/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docker-compose.playwright.yml
+    - docs/contributing/guides/testing.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - frontend/apps/web_app/tests/README.md
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-provision-auth-accounts.spec.ts
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - frontend/apps/web_app/tests/helpers/env-guard.ts
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    - frontend/apps/web_app/tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/run-tests-sequential.sh
+    - scripts/run-tests-worker.sh
+    - scripts/tests.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: synchronize source worktree after deploy'
+    section: bug_fixes
+    commits:
+    - 063944693
+    authored_at: '2026-08-16T10:34:38+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse OpenCode chat worktrees safely'
+    section: bug_fixes
+    commits:
+    - 8f735b5b8
+    authored_at: '2026-08-16T10:24:08+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: bind nightly coverage evidence'
+    section: docs
+    commits:
+    - 2c1303e53
+    authored_at: '2026-08-16T16:12:39+00:00'
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: observe notification auto-dismiss state'
+    section: tests
+    commits:
+    - 0eea64cf7
+    authored_at: '2026-08-16T16:44:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize progressive chat opening regression'
+    section: tests
+    commits:
+    - 106b79999
+    authored_at: '2026-08-16T16:42:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify notification motion geometrically'
+    section: tests
+    commits:
+    - 24d1e1ad8
+    authored_at: '2026-08-16T15:43:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add embed diff live mock preprocessing cassettes'
+    section: tests
+    commits:
+    - cc99cd6cf
+    authored_at: '2026-08-16T15:42:52+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/11cfede695ea8c86.json
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/36c43eaf83795c37.json
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/7d5ec864b69eb1df.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce progressive chat opening'
+    section: tests
+    commits:
+    - dd1514aaf
+    authored_at: '2026-08-16T15:36:24+00:00'
+    changed_paths:
+    - contracts/features/chat-navigation/contract.yml
+    - contracts/features/chat-navigation/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/progressive-chat-opening/spec.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: observe notification intro at insertion'
+    section: tests
+    commits:
+    - c764ae0df
+    authored_at: '2026-08-16T15:30:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: audit layered delivery coverage'
+    section: tests
+    commits:
+    - 4b9e397fe
+    authored_at: '2026-08-16T15:25:41+00:00'
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/audit_playwright_determinism.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: declare isolated browser state'
+    section: tests
+    commits:
+    - 930cb32c1
+    authored_at: '2026-08-16T15:07:51+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - scripts/audit_playwright_determinism.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require full campaign verification'
+    section: tests
+    commits:
+    - 869dac8c0
+    authored_at: '2026-08-16T15:00:24+00:00'
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add canonical investigation bundles'
+    section: tests
+    commits:
+    - d71e8f3e2
+    authored_at: '2026-08-16T14:53:18+00:00'
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize notification motion coverage'
+    section: tests
+    commits:
+    - 71aee398b
+    authored_at: '2026-08-16T14:49:30+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: group correlated dependency failures'
+    section: tests
+    commits:
+    - c0efd2e1f
+    authored_at: '2026-08-16T14:46:23+00:00'
+    changed_paths:
+    - .claude/agents/test-failure-triager.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add prerequisite incidents and lanes'
+    section: tests
+    commits:
+    - '499530115'
+    authored_at: '2026-08-16T14:42:26+00:00'
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require notification stack motion'
+    section: tests
+    commits:
+    - 16d642f3c
+    authored_at: '2026-08-16T14:33:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept fast Task continuation completion'
+    section: tests
+    commits:
+    - ab5aac233
+    authored_at: '2026-08-16T13:07:35+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/tests/test_task_live_smoke_cleanup.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clean live Task smoke artifacts'
+    section: tests
+    commits:
+    - d9ead2733
+    authored_at: '2026-08-16T12:38:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/tests/test_task_live_smoke_cleanup.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align merged worktree continuation contracts'
+    section: tests
+    commits:
+    - b2a34b143
+    authored_at: '2026-08-16T10:39:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: observe notification auto-dismiss state'
+    commits:
+    - 0eea64cf7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize progressive chat opening regression'
+    commits:
+    - 106b79999
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain notifications through CSS outro'
+    commits:
+    - 6b74383b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: bind nightly coverage evidence'
+    commits:
+    - 2c1303e53
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bind notification state to transition'
+    commits:
+    - 6b0b50262
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify notification motion geometrically'
+    commits:
+    - 24d1e1ad8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add embed diff live mock preprocessing cassettes'
+    commits:
+    - cc99cd6cf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: reproduce progressive chat opening'
+    commits:
+    - dd1514aaf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: aggregate spec task validation errors'
+    commits:
+    - b7edbb6af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify workflow task deletion'
+    commits:
+    - abe20f951
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: observe notification intro at insertion'
+    commits:
+    - c764ae0df
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: audit layered delivery coverage'
+    commits:
+    - 4b9e397fe
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: animate notification stack lifecycle'
+    commits:
+    - fc7d45218
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: declare isolated browser state'
+    commits:
+    - 930cb32c1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require full campaign verification'
+    commits:
+    - 869dac8c0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add canonical investigation bundles'
+    commits:
+    - d71e8f3e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize notification motion coverage'
+    commits:
+    - 71aee398b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: group correlated dependency failures'
+    commits:
+    - c0efd2e1f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add prerequisite incidents and lanes'
+    commits:
+    - '499530115'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require notification stack motion'
+    commits:
+    - 16d642f3c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover notification vault keys on cache miss'
+    commits:
+    - d9bb421e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept fast Task continuation completion'
+    commits:
+    - ab5aac233
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: show activity for processing notifications'
+    commits:
+    - b946065ba
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reuse parent worktree for writable children'
+    commits:
+    - a112a847f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden OpenCode timeout handling'
+    commits:
+    - e8d0203dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clean live Task smoke artifacts'
+    commits:
+    - d9ead2733
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: label operational test Discord reports'
+    commits:
+    - 13458dd64
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make email tests Gmail-only'
+    commits:
+    - 8f4ef1f59
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align merged worktree continuation contracts'
+    commits:
+    - b2a34b143
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: synchronize source worktree after deploy'
+    commits:
+    - 063944693
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reuse OpenCode chat worktrees safely'
+    commits:
+    - 8f735b5b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: retain notifications through CSS outro'
+    commits:
+    - 6b74383b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bind notification state to transition'
+    commits:
+    - 6b0b50262
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clarify workflow task deletion'
+    commits:
+    - abe20f951
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: animate notification stack lifecycle'
+    commits:
+    - fc7d45218
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover notification vault keys on cache miss'
+    commits:
+    - d9bb421e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: show activity for processing notifications'
+    commits:
+    - b946065ba
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make email tests Gmail-only'
+    commits:
+    - 8f4ef1f59
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 0eea64cf75c59e083f49439edbd2f8eaf7f48296
+    short_sha: 0eea64cf7
+    authored_at: '2026-08-16T16:44:41+00:00'
+    subject: 'test: observe notification auto-dismiss state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    related_feature_ids: []
+  - sha: 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646
+    short_sha: 106b79999
+    authored_at: '2026-08-16T16:42:26+00:00'
+    subject: 'test: stabilize progressive chat opening regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 6b74383b1e4b69d8848884da84049027d24ced5f
+    short_sha: 6b74383b1
+    authored_at: '2026-08-16T16:27:04+00:00'
+    subject: 'fix: retain notifications through CSS outro'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: 2c1303e53621384abfb3b7c9eba930f4bb070f92
+    short_sha: 2c1303e53
+    authored_at: '2026-08-16T16:12:39+00:00'
+    subject: 'docs: bind nightly coverage evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    related_feature_ids: []
+  - sha: 6b0b50262f2dee69394436102548c887f225303a
+    short_sha: 6b0b50262
+    authored_at: '2026-08-16T16:07:09+00:00'
+    subject: 'fix: bind notification state to transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+  - sha: 24d1e1ad864c545b663110caac45b73ea4cce861
+    short_sha: 24d1e1ad8
+    authored_at: '2026-08-16T15:43:45+00:00'
+    subject: 'test: verify notification motion geometrically'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: cc99cd6cf446cfadfff3635887535e9da20769ee
+    short_sha: cc99cd6cf
+    authored_at: '2026-08-16T15:42:52+00:00'
+    subject: 'test: add embed diff live mock preprocessing cassettes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/11cfede695ea8c86.json
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/36c43eaf83795c37.json
+    - backend/apps/ai/testing/api_cache/embed_diff_code_web/llm_non_stream__mistral-small-2506/7d5ec864b69eb1df.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/shared/testing/api_response_cache.py
+    related_feature_ids:
+    - app:ai
+  - sha: dd1514aaf26c87e8c043493303da9db6ef291a8c
+    short_sha: dd1514aaf
+    authored_at: '2026-08-16T15:36:24+00:00'
+    subject: 'test: reproduce progressive chat opening'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/chat-navigation/contract.yml
+    - contracts/features/chat-navigation/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/progressive-chat-opening/spec.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: b7edbb6afd1325e68aa45ffa2b790dfba23e2fff
+    short_sha: b7edbb6af
+    authored_at: '2026-08-16T15:34:57+00:00'
+    subject: 'fix: aggregate spec task validation errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_validate.py
+    - scripts/tests/test_spec_workflow_validation.py
+    related_feature_ids: []
+  - sha: abe20f951cfc3e762dc9fb267a89f9c455b566e0
+    short_sha: abe20f951
+    authored_at: '2026-08-16T15:32:07+00:00'
+    subject: 'fix: clarify workflow task deletion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    related_feature_ids: []
+  - sha: c764ae0df4752a12e0d90c33349e6c5b75927d76
+    short_sha: c764ae0df
+    authored_at: '2026-08-16T15:30:13+00:00'
+    subject: 'test: observe notification intro at insertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: 4b9e397fe7c59778e50e3bd5a6d6315c7acb84b9
+    short_sha: 4b9e397fe
+    authored_at: '2026-08-16T15:25:41+00:00'
+    subject: 'test: audit layered delivery coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/audit_playwright_determinism.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    related_feature_ids: []
+  - sha: fc7d45218d3a574166a605ce9142865e90e75ec5
+    short_sha: fc7d45218
+    authored_at: '2026-08-16T15:13:53+00:00'
+    subject: 'fix: animate notification stack lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-mobile.spec.ts
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+  - sha: 930cb32c1ab0839878aa405626747ff10a74c7ac
+    short_sha: 930cb32c1
+    authored_at: '2026-08-16T15:07:51+00:00'
+    subject: 'test: declare isolated browser state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - scripts/audit_playwright_determinism.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    related_feature_ids: []
+  - sha: 869dac8c079dc41310c4f8489046f564668a9ee8
+    short_sha: 869dac8c0
+    authored_at: '2026-08-16T15:00:24+00:00'
+    subject: 'test: require full campaign verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: d71e8f3e21e7b200c9e842a6488450a75cbdc07f
+    short_sha: d71e8f3e2
+    authored_at: '2026-08-16T14:53:18+00:00'
+    subject: 'test: add canonical investigation bundles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 71aee398b4baf98db49c816f10275c9b80bbdab7
+    short_sha: 71aee398b
+    authored_at: '2026-08-16T14:49:30+00:00'
+    subject: 'test: stabilize notification motion coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+  - sha: c0efd2e1fa7dca2e2964b59405c151be08d5ba70
+    short_sha: c0efd2e1f
+    authored_at: '2026-08-16T14:46:23+00:00'
+    subject: 'test: group correlated dependency failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/agents/test-failure-triager.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 49953011585be487014f11a566274c4cbb76d208
+    short_sha: '499530115'
+    authored_at: '2026-08-16T14:42:26+00:00'
+    subject: 'test: add prerequisite incidents and lanes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 16d642f3ca37fbb61782863bb287c1a19a2444a6
+    short_sha: 16d642f3c
+    authored_at: '2026-08-16T14:33:02+00:00'
+    subject: 'test: require notification stack motion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: d9bb421e9410b1149f94b4078b7dc02713dc69a2
+    short_sha: d9bb421e9
+    authored_at: '2026-08-16T13:16:21+00:00'
+    subject: 'fix: recover notification vault keys on cache miss'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/email_notification_settings_handler.py
+    - backend/tests/test_email_notification_settings_handler.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ab5aac233df44479b632df3ee05a3e2196f1e4c2
+    short_sha: ab5aac233
+    authored_at: '2026-08-16T13:07:35+00:00'
+    subject: 'test: accept fast Task continuation completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/tests/test_task_live_smoke_cleanup.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: b946065bacbbed982f4e34194f18fc9dd4105bb5
+    short_sha: b946065ba
+    authored_at: '2026-08-16T13:04:33+00:00'
+    subject: 'feat: show activity for processing notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/Notification.preview.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    - frontend/packages/ui/src/components/OfflineBanner.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: a112a847fc3352b27a50b0fe85fb3f73b327eaca
+    short_sha: a112a847f
+    authored_at: '2026-08-16T13:00:16+00:00'
+    subject: 'fix: reuse parent worktree for writable children'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/specs/agent-presence-coordination/spec.yml
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_opencode_task_child_roles.mjs
+    related_feature_ids: []
+  - sha: e8d0203ddb3961aa7402e39b570e8946322c9494
+    short_sha: e8d0203dd
+    authored_at: '2026-08-16T12:46:22+00:00'
+    subject: 'fix: harden OpenCode timeout handling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - opencode.json
+    - scripts/audit_opencode_output_quality.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_timeout_reliability.py
+    related_feature_ids: []
+  - sha: d9ead2733bb5803fe0f694798ebddb9ec6fb1703
+    short_sha: d9ead2733
+    authored_at: '2026-08-16T12:38:40+00:00'
+    subject: 'test: clean live Task smoke artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/tests/test_task_live_smoke_cleanup.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: 13458dd64651af07571cf739f60a2efaf459d55a
+    short_sha: 13458dd64
+    authored_at: '2026-08-16T10:56:15+00:00'
+    subject: 'fix: label operational test Discord reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/operational_monitoring.py
+    - backend/core/api/app/tasks/operational_monitoring_tasks.py
+    - backend/tests/test_operational_monitoring_tasks.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - scripts/audit_operational_monitoring_contract.py
+    related_feature_ids: []
+  - sha: 8f4ef1f5983d542b1c2add3671bc5472dd98666c
+    short_sha: 8f4ef1f59
+    authored_at: '2026-08-16T10:48:43+00:00'
+    subject: 'fix: make email tests Gmail-only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/opencode-workflow-review/SKILL.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .codex/agents/test-failure-triager.toml
+    - .github/workflows/playwright-spec.yml
+    - .github/workflows/release-core-journeys.yml
+    - .opencode/agents/test-failure-triager.md
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/directus/gift_card_methods.py
+    - backend/core/directus/schemas/gift_cards.yml
+    - backend/scripts/create_reusable_gift_card.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/tests/test_gift_card_domain_restriction.py
+    - contracts/features/newsletter/contract.yml
+    - contracts/features/newsletter/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docker-compose.playwright.yml
+    - docs/contributing/guides/testing.md
+    - docs/specs/nightly-test-zero-failures/spec.yml
+    - frontend/apps/web_app/tests/README.md
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-provision-auth-accounts.spec.ts
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - frontend/apps/web_app/tests/helpers/env-guard.ts
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    - frontend/apps/web_app/tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/run-tests-sequential.sh
+    - scripts/run-tests-worker.sh
+    - scripts/tests.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    related_feature_ids: []
+  - sha: b2a34b14384710850529ea8e4d949c54627f4f01
+    short_sha: b2a34b143
+    authored_at: '2026-08-16T10:39:05+00:00'
+    subject: 'test: align merged worktree continuation contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 063944693c2792cf0eec21ca32e40e4d12621373
+    short_sha: 063944693
+    authored_at: '2026-08-16T10:34:38+00:00'
+    subject: 'fix: synchronize source worktree after deploy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    related_feature_ids: []
+  - sha: 8f735b5b85babb16ff0bbcc50351ac2172400ed0
+    short_sha: 8f735b5b8
+    authored_at: '2026-08-16T10:24:08+00:00'
+    subject: 'fix: reuse OpenCode chat worktrees safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the notification user interface and hardening internal developer workflows. Significant
+    work was done to ensure smooth animations and reliable state management for the notification stack, alongside improvements
+    to the OpenCode development environment.
+  released_changes: []
+  bug_fixes:
+  - text: The notification system received several stability updates, including fixes for CSS transitions, state binding during
+      animations, and a recovery mechanism for vault keys during cache misses.
+    evidence:
+      commits:
+      - 6b74383b1
+      - 6b0b50262
+      - fc7d45218
+      - d9bb421e9
+    release_status: dev_only
+  - text: OpenCode developer workflows were hardened with improved worktree reuse for child roles, better timeout handling,
+      and synchronized worktree cleanup after deployments.
+    evidence:
+      commits:
+      - a112a847f
+      - e8d0203dd
+      - 063944693
+      - 8f735b5b8
+    release_status: dev_only
+  - text: Operational monitoring now includes specific labeling for Discord reports generated during test cycles.
+    evidence:
+      commits:
+      - 13458dd64
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added activity indicators to notifications to show progress while they are being processed.
+    evidence:
+      commits:
+      - b946065ba
+    release_status: dev_only
+  - text: Development continued on the currently disabled workflow and task modules, including clearer deletion logic in the
+      CLI and improved spec validation.
+    evidence:
+      commits:
+      - abe20f951
+      - b7edbb6af
+      - ab5aac233
+      - d9ead2733
+    release_status: dev_only
+  internal_progress:
+  - text: Extensive testing infrastructure updates were implemented, including Gmail-specific email test constraints, progressive
+      chat opening regressions, and automated audits for Playwright test determinism.
+    evidence:
+      commits:
+      - 8f4ef1f59
+      - 106b79999
+      - dd1514aaf
+      - cc99cd6cf
+      - 4b9e397fe
+      - 930cb32c1
+      - 869dac8c0
+      - d71e8f3e2
+      - c0efd2e1f
+      - '499530115'
+      - b2a34b143
+      - 0eea64cf7
+      - 24d1e1ad8
+      - c764ae0df
+      - 71aee398b
+      - 16d642f3c
+      - 2c1303e53
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Activity indicators for processing notifications.
+      evidence:
+        commits:
+        - b946065ba
+      reason: This feature is currently in dev_only status and not yet merged to the main branch.
+    - text: Workflow and task management refinements.
+      evidence:
+        commits:
+        - abe20f951
+        - b7edbb6af
+      reason: Workflows and tasks are currently listed as disabled features.
+    rationale: No user-facing changes reached the main branch or were marked ready for public communication during this period.
+      Work focused on internal stability and features currently under development or disabled.
+  social_video_recommendations:
+  - idea: Demonstrate the new notification activity indicators and the smooth transition logic of the notification stack.
+    priority: medium
+    reason: Visual refinements to the UI provide a good opportunity for a 'polish' update video.
+    evidence:
+      commits:
+      - b946065ba
+      - fc7d45218
+  quality_notes:
+  - The notification stack underwent significant visual and logic testing to ensure motion consistency.
+  - Developer experience was improved by resolving worktree collisions and timeout reliability in OpenCode.
+  validation_warnings: []

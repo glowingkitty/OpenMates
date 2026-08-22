@@ -1,0 +1,47 @@
+{
+  "fingerprint": "470dd90f7612c967",
+  "category": "wikipedia",
+  "group_id": "videos_search_web",
+  "recorded_at": "2026-08-15T12:15:18.714193+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/api/rest_v1/page/summary/Software_verification_and_validation"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-webkit-csp": "default-src 'none'; frame-ancestors 'none'",
+      "cache-control": "s-maxage=1209600, max-age=300",
+      "content-language": "en",
+      "content-type": "application/json; charset=utf-8; profile=\"https://www.mediawiki.org/wiki/Specs/Summary/1.5.0\"",
+      "date": "Sat, 15 Aug 2026 12:15:18 GMT",
+      "server": "production-tls",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD",
+      "access-control-allow-headers": "accept, content-type, content-length, cache-control, accept-language, api-user-agent, if-match, if-modified-since, if-none-match, dnt, accept-encoding",
+      "access-control-expose-headers": "etag",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "referrer-policy": "origin-when-cross-origin",
+      "x-xss-protection": "1; mode=block",
+      "etag": "W/\"1360179463/97a788a0-95be-11f1-82dd-077755c83f60\"",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "vary": "Accept-Language, x-restbase-compat, Accept-Encoding",
+      "x-cache": "cp3067 miss, cp3067 miss",
+      "x-cache-status": "miss",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "content-length": "810",
+      "x-request-id": "b6edff2c-00c9-4d38-a16a-a4ede40c9fd8",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"miss\", host;desc=\"cp3067\",co_id;desc=\"678181108\""
+    },
+    "body": "{\"type\":\"standard\",\"title\":\"Software verification and validation\",\"displaytitle\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Software verification and validation</span></span>\",\"namespace\":{\"id\":0,\"text\":\"\"},\"wikibase_item\":\"Q7921330\",\"titles\":{\"canonical\":\"Software_verification_and_validation\",\"normalized\":\"Software verification and validation\",\"display\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Software verification and validation</span></span>\"},\"pageid\":699718,\"lang\":\"en\",\"dir\":\"ltr\",\"revision\":\"1360179463\",\"tid\":\"2e2ada69-6c11-11f1-9026-33bbf1fc7dc9\",\"timestamp\":\"2026-06-19T19:00:47Z\",\"description\":\"Process in software project management, software testing, and software engineering\",\"description_source\":\"local\",\"content_urls\":{\"desktop\":{\"page\":\"https://en.wikipedia.org/wiki/Software_verification_and_validation\",\"revisions\":\"https://en.wikipedia.org/wiki/Software_verification_and_validation?action=history\",\"edit\":\"https://en.wikipedia.org/wiki/Software_verification_and_validation?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Software_verification_and_validation\"},\"mobile\":{\"page\":\"https://en.wikipedia.org/wiki/Software_verification_and_validation\",\"revisions\":\"https://en.wikipedia.org/wiki/Special:History/Software_verification_and_validation\",\"edit\":\"https://en.wikipedia.org/wiki/Software_verification_and_validation?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Software_verification_and_validation\"}},\"extract\":\"In software project management, software testing, and software engineering, verification and validation is the process of checking that a software system meets specifications and requirements so that it fulfills its intended purpose. It may also be referred to as software quality control. It is normally the responsibility of software testers as part of the software development lifecycle. In simple terms, software verification is: \\\"Assuming we should build X, does our software achieve its goals without any bugs or gaps?\\\" On the other hand, software validation is: \\\"Was X what we should have built? Does X meet the high-level requirements?\\\"\",\"extract_html\":\"<p>In software project management, software testing, and software engineering, <b>verification and validation</b> is the process of checking that a software system meets specifications and requirements so that it fulfills its intended purpose. It may also be referred to as software quality control. It is normally the responsibility of software testers as part of the software development lifecycle. In simple terms, software verification is: \\\"Assuming we should build X, does our software achieve its goals without any bugs or gaps?\\\" On the other hand, software validation is: \\\"Was X what we should have built? Does X meet the high-level requirements?\\\"</p>\"}"
+  }
+}

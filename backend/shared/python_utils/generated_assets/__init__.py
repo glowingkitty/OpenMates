@@ -8,6 +8,7 @@
 from .service import (
     CHUNKED_MODEL_ENCRYPTION,
     GeneratedAssetVariant,
+    TOKEN_TTL_SECONDS,
     build_download_url,
     cache_s3_file_keys,
     create_download_token,
@@ -20,6 +21,7 @@ from .chunked_encryption import decrypt_chunked_stream, encrypt_chunked_stream
 __all__ = [
     "GeneratedAssetVariant",
     "CHUNKED_MODEL_ENCRYPTION",
+    "TOKEN_TTL_SECONDS",
     "build_download_url",
     "cache_s3_file_keys",
     "create_download_token",

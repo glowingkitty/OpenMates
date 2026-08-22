@@ -61,6 +61,8 @@ jobs:
         run: pnpm --filter openmates-vscode-extension build
 
       - name: Build bundled web app for VS Code
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter web_app build:vscode
 
       - name: Run VS Code Extension Host smoke

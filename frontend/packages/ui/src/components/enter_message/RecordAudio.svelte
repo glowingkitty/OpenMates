@@ -491,6 +491,7 @@
     .record-overlay {
         position: absolute;
         inset: 0;
+        min-height: 220px;
         border-radius: 24px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         z-index: var(--z-index-sticky);

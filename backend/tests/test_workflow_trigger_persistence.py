@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from typing import Any
 
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, InMemoryWorkflowRepository
@@ -56,6 +57,23 @@ def event_graph() -> dict[str, Any]:
     }
 
 
+def one_time_schedule_graph(at_value: str) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "trigger_node_id": "trigger",
+        "nodes": [
+            {
+                "id": "trigger",
+                "type": "schedule_trigger",
+                "config": {"schedule": {"type": "once", "at": at_value}},
+            },
+            {"id": "end", "type": "end", "config": {}},
+        ],
+        "edges": [{"from": "trigger", "to": "end"}],
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained,workflows.surface.semantic-parity
 def test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_changes() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -104,6 +122,23 @@ def test_schedule_trigger_is_encrypted_and_replaced_when_its_graph_version_chang
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+def test_one_time_schedule_trigger_initially_indexes_the_due_timestamp() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    at_value = "2099-01-02T03:04:05Z"
+    workflow = service.create_workflow("alice", "One-time proof", one_time_schedule_graph(at_value), enabled=True)
+
+    trigger = repository.get_trigger_for_workflow(workflow.id, "alice")
+    expected_next_run_at = int(datetime.fromisoformat(at_value.replace("Z", "+00:00")).timestamp())
+
+    assert trigger is not None
+    assert trigger["enabled"] is True
+    assert trigger["next_run_at"] == expected_next_run_at
+    assert workflow.next_run_at == expected_next_run_at
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained,workflows.surface.semantic-parity
 def test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_config_ref() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -129,6 +164,7 @@ def test_event_trigger_persists_only_hashed_routing_metadata_and_an_opaque_confi
     assert "deploy" not in raw_blob_rows
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.surface.semantic-parity
 def test_deleting_a_workflow_removes_its_trigger_and_trigger_config_blob() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -179,6 +215,7 @@ class FakeDirectusTriggerResponse:
         raise AssertionError(f"Unexpected Directus status: {self.status_code}")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 def test_directus_trigger_repository_upserts_by_public_trigger_id() -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     client = FakeDirectusTriggerClient()

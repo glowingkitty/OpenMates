@@ -11,6 +11,7 @@ import logging
 from typing import Any
 
 from backend.core.api.app.services.user_task_scheduler_service import process_due_ai_tasks
+from backend.core.api.app.services.user_task_execution_service import UserTaskExecutionService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 
@@ -22,7 +23,17 @@ def process_due_ai_tasks_task(self: BaseServiceTask, now: int | None = None, lim
     try:
         async def run() -> dict[str, Any]:
             await self.initialize_services()
-            return await process_due_ai_tasks(self.directus_service.user_task, now=now, limit=limit)
+            execution_service = UserTaskExecutionService(
+                self.directus_service.user_task,
+                encryption_service=self.encryption_service,
+                cache_service=self.cache_service,
+            )
+            return await process_due_ai_tasks(
+                self.directus_service.user_task,
+                now=now,
+                limit=limit,
+                on_admitted=execution_service.dispatch_admitted,
+            )
 
         return asyncio.run(run())
     except Exception as exc:

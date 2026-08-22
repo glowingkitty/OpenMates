@@ -1,0 +1,94 @@
+{
+  "fingerprint": "f9aab1fb8e7f38db",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_connections_web",
+  "recorded_at": "2026-08-15T12:15:47.099019+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "f59b8be7cb3de4b5",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[14]:\n  - transport_method: airplane\n    source_provider: google_flights\n    trip_type: one_way\n    total_price: \"155\"\n    currency: EUR\n    bookable_seats: null\n    last_ticketing_date: null\n ..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the flight options from Berlin (BER) to Munich (MUC) for next week (August 19, 2026):\n\n```embeds_results_view\ntitle: Berlin to Munich flights\nembeds: eurowings-2026-8tw, lufthansa-2026-2Xr, lufthansa-2026-hOk, lufthansa-2026-3pg\n```\n\n### Direct Flights\n*   [Lufthansa 06:20 (Non-stop)](embed:lufthansa-2026-2Xr) — €298 | 1h 10m\n*   [Lufthansa 07:20 (Non-stop)](embed:lufthansa-2026-3pg) — €352 | 1h 10m\n*   [Lufthansa 12:50 (Non-stop)](embed:lufthansa-2026-hOk) — €298 | 1h 10m\n\n### Connecting Flights\n*   [Eurowings 16:40 (1 stop via DUS)](embed:eurowings-2026-8tw) — €155 | 3h 20m (Cheapest option)\n\nWould you like to check return flights from Munich to Berlin, or explore train connections for this route?",
+    "chunk_count": 15,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the flight options from Berlin (BER) to Munich (MUC) for next week"
+      },
+      {
+        "kind": "text",
+        "value": " (August 19, 2026):\n\n```embeds_results_view\ntitle: Berlin to Munich"
+      },
+      {
+        "kind": "text",
+        "value": " flights\nembeds: eurowings-2026-8tw, lufthansa-2026"
+      },
+      {
+        "kind": "text",
+        "value": "-2Xr, lufthansa-2026-hOk, lufthansa-2026-3pg\n"
+      },
+      {
+        "kind": "text",
+        "value": "```\n\n### Direct Flights\n*   [Lufthansa 06:20 (Non-stop)](embed:lufthansa-20"
+      },
+      {
+        "kind": "text",
+        "value": "26-2Xr) — €298 | 1h 10m\n*  "
+      },
+      {
+        "kind": "text",
+        "value": " [Lufthansa 07:20 (Non-stop)](embed:lufthansa-2026-3pg"
+      },
+      {
+        "kind": "text",
+        "value": ") — €352 | 1h 10m\n*  "
+      },
+      {
+        "kind": "text",
+        "value": " [Lufthansa 12:50 (Non-stop)](embed:lufthansa-2026-hOk) — €29"
+      },
+      {
+        "kind": "text",
+        "value": "8 | 1h 10m\n\n### Connecting Flights\n*  "
+      },
+      {
+        "kind": "text",
+        "value": " [Eurowings 16:40 (1 stop via DUS)](embed:eurowings-2026-8tw) — €155 | 3"
+      },
+      {
+        "kind": "text",
+        "value": "h 20m (Cheapest option)\n\nWould you like to check return flights from Munich to Berlin, or explore train"
+      },
+      {
+        "kind": "text",
+        "value": " connections for this route?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 32871,
+          "candidates_token_count": 306,
+          "total_token_count": 33177,
+          "user_input_tokens": 13800,
+          "system_prompt_tokens": 14814
+        }
+      }
+    ]
+  }
+}

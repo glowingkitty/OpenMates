@@ -40,6 +40,8 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
+    preview_component: audio/AudioGenerateEmbedPreview.svelte
+    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.generate
@@ -74,6 +76,8 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
+    preview_component: audio/AudioGenerateEmbedPreview.svelte
+    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.speak
@@ -180,7 +184,7 @@ skills:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_text_to_sound_v2
     pricing:
-      per_second: 2
+      per_second: 20
     tool_schema:
       type: object
       properties:
@@ -251,9 +255,9 @@ skills:
     class_path: backend.apps.audio.skills.speak_skill.SpeakSkill
     providers:
       - name: ElevenLabs
-    full_model_reference: elevenlabs/eleven_flash_v2_5
+    full_model_reference: elevenlabs/eleven_multilingual_v2
     pricing:
-      per_minute: 50
+      per_second: 2
     tool_schema:
       type: object
       properties:
@@ -301,9 +305,9 @@ skills:
                 default: mp3_44100_128
               model:
                 type: string
-                enum: [eleven_flash_v2_5, eleven_multilingual_v2]
-                default: eleven_flash_v2_5
-                description: ElevenLabs TTS model. Flash v2.5 is the low-cost default; Multilingual v2 is the premium high-quality option.
+                enum: [eleven_multilingual_v2, eleven_flash_v2_5]
+                default: eleven_multilingual_v2
+                description: ElevenLabs TTS model. Multilingual v2 is the higher-quality default; Flash v2.5 is the lower-cost explicit option.
             required:
               - text
               - provider

@@ -2,8 +2,8 @@
 # Defines the schema for the 'gift_cards' collection in Directus.
 # Each record represents a gift card that can be redeemed for credits.
 # By default gift cards are single-use (deleted on redemption). The is_reusable
-# + allowed_email_domain fields below enable persistent cards locked to a specific
-# email domain, used by the hourly prod smoke test (OPE-76).
+# + allowed_email_identity_hash fields below enable persistent cards locked to a
+# specific mailbox identity, used by the hourly prod smoke test (OPE-76).
 gift_cards:
   type: collection
   fields:
@@ -47,9 +47,14 @@ gift_cards:
       default: false
       note: "When true, the card is NOT deleted on redemption and can be redeemed repeatedly. Only set manually via admin API for infrastructure/test cards. User-purchased and admin-UI cards always default to false."
 
+    allowed_email_identity_hash:
+      type: string
+      length: 64
+      nullable: true
+      note: "Optional SHA-256/base64 mailbox-identity restriction. Gmail dots, aliases, and googlemail.com normalize to one identity before hashing. Null = no restriction."
+
     allowed_email_domain:
       type: string
       length: 255
       nullable: true
-      note: "Optional restriction: when set, the gift card can ONLY be redeemed by users whose email's full domain matches this value exactly (case-insensitive, not a suffix match). Used to lock the prod smoke test card to our specific Mailosaur server subdomain so no other Mailosaur user can redeem it. Null = no restriction."
-
+      note: "Deprecated legacy restriction. Cards with only this field set fail closed until migrated to allowed_email_identity_hash."

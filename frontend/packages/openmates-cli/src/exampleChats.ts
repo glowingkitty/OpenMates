@@ -8,9 +8,32 @@
  */
 
 import { ALL_EXAMPLE_CHATS } from "../../ui/src/demo_chats/exampleChatData";
+import {
+  collectExampleChatFileReferences,
+  extractReferencedExampleEmbedIds,
+  type ChatFileReference,
+} from "../../ui/src/demo_chats/exampleChatFiles";
+import type { ExampleChatEmbed } from "../../ui/src/demo_chats/types";
 import enLocale from "../../ui/src/i18n/locales/en.json" with { type: "json" };
 
 type LocaleNode = string | { [key: string]: LocaleNode };
+
+interface ExampleChatAlias {
+  target: string;
+  fileTitle?: string;
+  fileUrl?: string;
+}
+
+const EXAMPLE_CHAT_ALIASES = new Map<string, ExampleChatAlias>([
+  [
+    "example-audio-speak-friendly-welcome-message",
+    {
+      target: "example-audio-speak-openmates-welcome-message",
+      fileTitle: "audio-speak-friendly-welcome-message.mp3",
+      fileUrl: "/store-examples/audio-speak-friendly-welcome-message.mp3",
+    },
+  ],
+]);
 
 export interface ExampleChatListItem {
   id: string;
@@ -39,6 +62,8 @@ export interface ExampleChatMessage {
 export interface ExampleChatConversation {
   chat: ExampleChatListItem;
   messages: ExampleChatMessage[];
+  embeds: ExampleChatEmbed[];
+  files: ChatFileReference[];
   followUpSuggestions: string[];
 }
 
@@ -128,7 +153,9 @@ export function listExampleChatsForApp(appId: string): ExampleChatSkillListItem[
 }
 
 export function getExampleChatConversation(query: string): ExampleChatConversation | null {
-  const normalized = query.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  const alias = EXAMPLE_CHAT_ALIASES.get(normalizedQuery);
+  const normalized = alias?.target ?? normalizedQuery;
   const chat = ALL_EXAMPLE_CHATS.find((candidate) => {
     const title = translate(candidate.title).toLowerCase();
     return (
@@ -141,6 +168,12 @@ export function getExampleChatConversation(query: string): ExampleChatConversati
   });
   if (!chat) return null;
 
+  const files = collectExampleChatFileReferences(chat.embeds, chat.messages).map((file) => ({
+    ...file,
+    title: alias?.fileTitle ?? file.title,
+    url: alias?.fileUrl ?? file.url,
+  }));
+
   return {
     chat: toListItem(chat),
     messages: chat.messages.map((message) => ({
@@ -152,8 +185,10 @@ export function getExampleChatConversation(query: string): ExampleChatConversati
       category: message.category ?? chat.category,
       modelName: message.model_name ?? null,
       createdAt: message.created_at,
-      embedIds: [],
+      embedIds: extractReferencedExampleEmbedIds([message], chat.embeds),
     })),
+    embeds: chat.embeds,
+    files,
     followUpSuggestions: chat.follow_up_suggestions.map(translate),
   };
 }

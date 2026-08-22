@@ -34,6 +34,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -137,6 +138,7 @@ async function insertComposerText(
 // Test: PII detection, click-to-undo, undo all, send, show/hide toggle
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.message.owner-local-reveal
 test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders, and show/hide toggle', async ({
 	page
 }: {
@@ -513,6 +515,7 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 // hallucinate fake skills when asked to draft a mail containing PII — the mail
 // skill must be the one invoked and produce a finished mail embed.
 // ---------------------------------------------------------------------------
+// contract-test: direct surface=gui.web assertions=pii.message.owner-local-reveal,pii.embed.owner-local-reveal-sync
 test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	page
 }: {
@@ -691,6 +694,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// STEP 7: Toggle from the EMBED FULLSCREEN — must hide in fullscreen,
 	// AND behind it the preview + user message must also hide.
 	// ======================================================================
+	await dismissVisibleNotifications(page);
 	await embedPiiToggle.click();
 	logCheckpoint('Clicked fullscreen PII toggle to hide.');
 	await page.waitForTimeout(500);
@@ -706,6 +710,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 
 	// Close fullscreen and verify preview + message are also hidden.
 	const closeButton = page.getByTestId('embed-minimize');
+	await dismissVisibleNotifications(page);
 	await closeButton.click();
 	logCheckpoint('Closed fullscreen embed.');
 	await page.waitForTimeout(500);
@@ -724,11 +729,13 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const reopenAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
 	expect(reopenAttr).toBe('false');
 
+	await dismissVisibleNotifications(page);
 	await embedPiiToggle.click();
 	logCheckpoint('Clicked fullscreen PII toggle to reveal again.');
 	await page.waitForTimeout(500);
 	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('true');
 
+	await dismissVisibleNotifications(page);
 	await closeButton.click();
 	await page.waitForTimeout(500);
 	await assertAllRevealed('after fullscreen reveal');
@@ -817,9 +824,11 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	expect(reopenFsText).toContain(receiverEmail);
 
 	// Toggle from the fullscreen to hide — preview + message must also hide.
+	await dismissVisibleNotifications(page);
 	await embedPiiToggle.click();
 	await page.waitForTimeout(500);
 	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('false');
+	await dismissVisibleNotifications(page);
 	await closeButton.click();
 	await page.waitForTimeout(500);
 	await assertAllHidden('post-reopen after fullscreen hide');

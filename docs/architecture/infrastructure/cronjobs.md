@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-05
+last_verified: 2026-08-14
 key_files:
 - .github/dependabot.yml
 - pnpm-workspace.yaml
@@ -95,9 +95,10 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 daily`                 | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
-| `01:45 daily`                 | `opencode_chat_improvement_review.py`  | Luna research over the previous 24h of OpenCode chats + Discord |
+| manual only                   | `opencode-workflow-review` skill       | Luna research over recent OpenCode workflow evidence |
 | `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
 | `01:10 1st day`               | `release-intelligence-cron.sh monthly` | Generate previous-month monthly rollup    |
+| manual until production gate   | internal events newsletter generator   | Create deterministic biweekly OpenMates Events campaign drafts |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
 | `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
 | `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |
@@ -108,13 +109,14 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 | 07, 13, 19 Berlin             | `tests.py run --prod-paid-chat`        | Paid production CLI chat smoke with one tiny `PONG` prompt |
 | 09 Berlin                     | `tests.py run --prod-app-skill`        | Production CLI `apps web search` app-skill smoke |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
+| `08:30 daily` (host systemd)   | `openmates server monitoring digest`   | Privacy-safe 24-hour operational email/Discord report |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
-| `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
-| `hourly`                      | `sessions.py worktree reconcile --apply-safe` | Delete safely classified agent worktrees after 48h idle and retain manifests for 30 days |
+| `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats after 14 days; TODO chats after a 90-day hard limit |
+| `hourly`                      | `sessions.py worktree expire` + reconciliation | Unconditionally delete managed worktrees at 72h; safely reconcile younger work and retain manifests for 30 days |
 
-> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The separate daily OpenCode improvement research job analyzes bounded local transcripts but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
+> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The manual `opencode-workflow-review` skill can run bounded Luna research over local transcripts and supporting deterministic sources, but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
 
 ### Job Details
 
@@ -128,7 +130,11 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 
 **Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76), writes `last-passed-tests.json` / `last-failed-tests.json`, pushes one OpenObserve summary, and archives to `test-results/daily-run-YYYY-MM-DD.json`. The scheduled runner is notification-only: it does not start OpenCode auto-fix, so failed-test remediation can never hold the daily lock and block the next scheduled run. Manual follow-up can still use `scripts/auto_fix_failed_tests.py --from-daily-run` when an operator intentionally wants controller-owned fixes. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated manual auto-fix channel).
 
+**Operational monitoring digest** (08:30 UTC daily, host systemd): The CLI-installed host timer invokes the packaged Docker report command for exactly one environment and only the configured email/Discord channels. Host systemd is the sole scheduler; Celery Beat does not schedule this digest. A separate five-minute host watchdog detects missing accepted reports after 26 hours and uses the retrying API-independent notifier for incident and recovery delivery. State, freshness metrics, and redacted monthly JSONL receipts live under `<install>/.openmates/runtime-health/`.
+
 **Release intelligence** (`00:20 daily`, `00:45 Mon`, `01:10 first day`): `scripts/release-intelligence-cron.sh` creates LLM-backed changelog artifacts from git history and prior rollups. Daily mode writes `docs/releases/daily/YYYY-MM-DD.yml` for the previous UTC day. Weekly mode reads the last seven daily artifacts, writes `docs/releases/weekly/YYYY-Www.yml`, and posts a compact Discord summary. Monthly mode reads weekly artifacts for the previous month and writes `docs/releases/monthly/YYYY-MM.yml`. Artifacts include deterministic release readiness, feature availability gates, newsletter include/exclude candidates, and LLM summaries. Env: `GEMINI_API_KEY` or `SECRET__GOOGLE_AI_STUDIO__API_KEY`; optional `DISCORD_WEBHOOK_RELEASE_INTELLIGENCE` with fallback to `DISCORD_WEBHOOK_DEV_NIGHTLY` for weekly summaries. Manual: `scripts/release-intelligence-cron.sh daily|weekly|monthly`.
+
+**Events newsletter campaign drafts** (manual until production gate): The internal newsletter campaign service can load `shared/events/openmates_events.yml`, select published events starting in the next four weeks, and create or reuse a deterministic `openmates_events` campaign draft for the cadence date. This path is internal-only, does not enumerate subscribers, and does not send previews or broadcasts. Future automation may anchor the cadence every 14 days at 09:00 Europe/Berlin only after the exact-payload production consent gate is satisfied.
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 
@@ -146,7 +152,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 
 **Workflow review**: Maintainer-invoked only. Run `python3 scripts/_workflow_review_helper.py collect --since <UTC_ISO> --until <UTC_ISO>` to create a bounded OpenCode, git, and test evidence report under `test-results/workflow-review/`. It never schedules or launches an agent.
 
-**Daily OpenCode improvement research** (`01:45 UTC`): Reads bounded top-level and subagent transcript/tool evidence from the previous 24 hours in the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and dedicated `cron-research` agent. That agent is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; a compact top-level nightly summary is available to the daily meeting, and a canonical-secret-scanned Markdown report is sent through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Install idempotently with `python3 scripts/opencode_chat_improvement_review.py --install-cron`. Manual research: `python3 scripts/opencode_chat_improvement_review.py --hours 24 --dry-run-notify`.
+**Manual OpenCode workflow review**: The retired daily `01:45 UTC` Luna analysis is disabled. When a maintainer wants a weekly or on-demand review, invoke the `opencode-workflow-review` skill or run `python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify`. The runner reads bounded top-level and subagent transcript/tool evidence from the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and hidden dedicated `cron-research` agent. That agent remains explicitly runnable by the script but is hidden from normal OpenCode agent/mode selection, and is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; optional Discord notification is available for explicit manual runs. The workflow never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Remove old managed cron entries with `python3 scripts/opencode_chat_improvement_review.py --uninstall-cron`; `--install-cron` is retired.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
@@ -166,9 +172,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are monito
 
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
-**OpenCode session cleanup** (01:30 daily): Deletes OpenCode chats older than 14 days when their title does not contain `TODO`, using `opencode session delete` so session storage is removed with the SQLite row. Logs to `logs/opencode-cleanup.log` and writes `logs/nightly-reports/session-cleanup.json` for daily meeting consumption. Manual: `./scripts/cleanup-opencode-sessions.sh`.
+**OpenCode session cleanup** (01:30 daily): Deletes non-TODO OpenCode chats older than 14 days and TODO chats older than the 90-day hard limit, including archived chats, using `opencode session delete` so session storage is removed with the SQLite row. Override with `OPENMATES_OPENCODE_RETENTION_DAYS` and `OPENMATES_OPENCODE_TODO_RETENTION_DAYS`. Logs to `logs/opencode-cleanup.log` and writes `logs/nightly-reports/session-cleanup.json` for daily meeting consumption. Manual: `./scripts/cleanup-opencode-sessions.sh`.
 
-**Agent worktree checkpoint integration and reconciliation** (hourly): Fetches `origin/dev`, runs `python3 scripts/sessions.py worktree auto-integrate`, then runs `python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`. Auto-integration processes only current local checkpoint refs from opted-in mutating sessions after the grace period and invokes the normal exact-base deploy path with no gate waivers. Holds, live edits, sensitive paths, changed patches, conflicts, and failed gates remain visible and recoverable. Legacy and uncheckpointed worktrees are never automatically integrated. Reconciliation without `--apply-safe` remains report-only; safe application deletes only worktrees proven integrated or duplicated, plus stale worktrees explicitly approved as obsolete. Deletions retain compact source-free manifests for 30 days. Install the tracked user timer with `bash scripts/worktree-reconciliation-setup.sh`. Manual dry run: `python3 scripts/sessions.py worktree auto-integrate --dry-run`. Manual reconciliation report: `python3 scripts/sessions.py worktree reconcile --target origin/dev`. Immediate reviewed cleanup must be explicitly scoped, for example `--only <SESSION_ID> --approve-obsolete <SESSION_ID> --idle-hours 0 --apply-safe`; never lower the threshold without `--only`.
+**Agent worktree hard expiry, checkpoint integration, and reconciliation** (hourly): First runs `python3 scripts/sessions.py worktree expire --max-age-hours 72`, before any network operation. This is a hard storage invariant: every managed worktree at least 72 hours old is deleted regardless of active/merged status, dirty or unique files, holds, leases, or classification. Deletions retain compact source-free manifests for 30 days. Creation also runs expiry and refuses a new worktree at 200 managed directories, below 30 GiB free, or at 85% filesystem use, so a cleanup failure cannot silently exhaust the host. The job then fetches `origin/dev`, runs `python3 scripts/sessions.py worktree auto-integrate`, and runs `python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe` for safely classified younger work. Auto-integration processes only current local checkpoint refs from opted-in mutating sessions after the grace period and invokes the normal exact-base deploy path with no gate waivers. Reconciliation without `--apply-safe` remains report-only. Install the tracked user systemd timer (the cron-equivalent used for this job) with `bash scripts/worktree-reconciliation-setup.sh`. Manual dry run: `python3 scripts/sessions.py worktree auto-integrate --dry-run`. Manual reconciliation report: `python3 scripts/sessions.py worktree reconcile --target origin/dev`. Immediate reviewed cleanup must be explicitly scoped, for example `--only <SESSION_ID> --approve-obsolete <SESSION_ID> --idle-hours 0 --apply-safe`; never lower the reconciliation threshold without `--only`.
 
 **Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches OpenCode investigation chats; completed triggers moved to `done/`.
 
@@ -198,6 +204,7 @@ python3 scripts/stale_code_daily.py --dry-run-notify
 python3 scripts/find_dead_code.py --category python --json
 ./scripts/run-tests-daily.sh --force
 python3 scripts/_workflow_review_helper.py collect --since 2026-07-03T00:00:00Z --until 2026-07-10T00:00:00Z
+python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify
 ```
 
 ### Adding a New Job

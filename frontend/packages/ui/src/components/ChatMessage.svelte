@@ -1,45 +1,3 @@
-<script module lang="ts">
-  import type { Chat } from '../types/chat';
-
-  const subChatsByParentCache = new Map<string, Chat[]>();
-  const pendingSubChatsByParent = new Map<string, Promise<Chat[]>>();
-
-  async function getSubChatsForParentChat(parentChatId: string, forceRefresh = false): Promise<Chat[]> {
-    if (!forceRefresh && subChatsByParentCache.has(parentChatId)) {
-      return subChatsByParentCache.get(parentChatId) ?? [];
-    }
-
-    const pending = pendingSubChatsByParent.get(parentChatId);
-    if (!forceRefresh && pending) return pending;
-
-    const loadPromise = (async () => {
-      const [{ getSubChatsForParent }, { chatDB }, { getExampleSubChats }] = await Promise.all([
-        import('../services/db/chatCrudOperations'),
-        import('../services/db'),
-        import('../demo_chats'),
-      ]);
-      const exampleSubChats = getExampleSubChats(parentChatId);
-      const dbSubChats = await getSubChatsForParent(chatDB, parentChatId);
-      const seenChatIds = new Set(exampleSubChats.map((chat) => chat.chat_id));
-      const subChats = [
-        ...exampleSubChats,
-        ...dbSubChats.filter((chat) => !seenChatIds.has(chat.chat_id)),
-      ];
-      subChatsByParentCache.set(parentChatId, subChats);
-      return subChats;
-    })().finally(() => {
-      pendingSubChatsByParent.delete(parentChatId);
-    });
-
-    pendingSubChatsByParent.set(parentChatId, loadPromise);
-    return loadPromise;
-  }
-
-  function clearSubChatsForParentCache(parentChatId: string): void {
-    subChatsByParentCache.delete(parentChatId);
-  }
-</script>
-
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
@@ -80,7 +38,7 @@
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
-  import { sanitizeSubChatPreviewText } from '../services/subChatPreviewService';
+  import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -90,9 +48,9 @@
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
-  import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
+  import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -335,61 +293,9 @@
       return;
     }
     try {
-      const all = await getSubChatsForParentChat(currentChatId);
-      const msgTime = original_message?.created_at || 0;
-      // Filter sub-chats created close to this assistant message (within 60s)
-      const matchingSubChats = all
-        .filter(c => {
-          const isSubChat = c.is_sub_chat || c.parent_id !== null;
-          if (!isSubChat) return false;
-          if (currentChatId.startsWith('example-')) return c.parent_id === currentChatId;
-          return Math.abs(c.created_at - msgTime) < 60;
-        });
-      const previews: SubChatPreview[] = [];
-      const fallbackKey = await chatKeyManager.getKey(currentChatId);
-
-      for (const chat of matchingSubChats) {
-        const chatKey = await chatKeyManager.getKey(chat.chat_id) || fallbackKey;
-        const preview: SubChatPreview = { ...chat };
-
-        if (chatKey) {
-          if (!preview.title && chat.encrypted_title) {
-            preview.title = await decryptWithChatKey(chat.encrypted_title, chatKey, {
-              chatId: chat.chat_id,
-              fieldName: 'sub_chat_title',
-            }) || preview.title;
-          }
-          if (chat.encrypted_chat_summary) {
-            preview.previewSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, {
-              chatId: chat.chat_id,
-              fieldName: 'sub_chat_summary',
-            });
-          }
-          if (chat.encrypted_category) {
-            preview.previewCategory = await decryptWithChatKey(chat.encrypted_category, chatKey, {
-              chatId: chat.chat_id,
-              fieldName: 'sub_chat_category',
-            });
-          }
-          if (chat.encrypted_icon) {
-            preview.previewIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey, {
-              chatId: chat.chat_id,
-              fieldName: 'sub_chat_icon',
-            });
-          }
-        }
-
-        preview.title = sanitizeSubChatPreviewText(preview.title) || undefined;
-        preview.previewSummary =
-          sanitizeSubChatPreviewText(preview.previewSummary) ||
-          sanitizeSubChatPreviewText(chat.chat_summary) ||
-          null;
-        preview.previewCategory ||= chat.category || 'general_knowledge';
-        preview.previewIcon = getValidIconName(preview.previewIcon || '', preview.previewCategory || 'general_knowledge');
-        previews.push(preview);
-      }
-
-      subChatsOfThisMessage = previews;
+      subChatsOfThisMessage = await loadSubChatPreviews(currentChatId, {
+        messageCreatedAt: original_message?.created_at || 0,
+      });
     } catch (e) {
       console.error('Error loading sub-chats for message:', e);
     }
@@ -1598,6 +1504,20 @@
       settingsDeepLink.set(`ai/model/${modelMeta.id}`);
       panelState.openSettings();
     }
+  }
+
+  function handleGeneratedByCostClick() {
+    if (!currentChatId || exampleResponseCredits === null) return;
+
+    const detailsEvent = new CustomEvent('openmates-open-chat-details', {
+      cancelable: true,
+      detail: { chatId: currentChatId, tab: 'usage' },
+    });
+    window.dispatchEvent(detailsEvent);
+    if (detailsEvent.defaultPrevented) return;
+
+    settingsDeepLink.set(chatSettingsRouteFor(currentChatId, 'usage'));
+    panelState.openSettings();
   }
 
   /**
@@ -3580,9 +3500,9 @@
       <div class="generated-by-container">
         <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         {#if exampleResponseCredits !== null}
-          <span class="generated-by-cost" data-testid="generated-by-cost">
+          <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
-          </span>
+          </button>
         {/if}
         <button 
           class="report-bad-answer-btn" 
@@ -4288,9 +4208,17 @@
   }
 
   .generated-by-cost {
+    all: unset;
     color: var(--color-grey-60);
+    cursor: pointer;
     font-size: var(--font-size-small);
     white-space: nowrap;
+  }
+
+  .generated-by-cost:hover,
+  .generated-by-cost:focus-visible {
+    color: var(--color-primary);
+    text-decoration: underline;
   }
 
   .generated-by-container {

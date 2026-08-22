@@ -31,6 +31,11 @@ import {
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
 } from "./crypto.js";
+import {
+  buildEncryptedObjectSlugMetadata,
+  decryptObjectSlug,
+  objectSlugMatches,
+} from "./objectSlugs.js";
 
 const PLAN_STATUSES: UserPlanStatus[] = ["draft", "checking_assumptions", "awaiting_confirmation", "active", "executing", "running_checks", "blocked", "completed", "archived"];
 const LEARNING_TYPES: UserPlanLearningType[] = ["workflow_improvement", "agent_instruction_improvement"];
@@ -43,6 +48,7 @@ const DEFAULT_PLAN_PREFIX = "PLAN";
 export interface DecryptedUserPlan {
   planId: string;
   shortId: string;
+  slug: string;
   title: string;
   summary: string;
   goal: string;
@@ -118,6 +124,7 @@ export interface PlanCreateOptions {
   currentStepId?: string | null;
   currentTaskId?: string | null;
   plannerFocusId?: string | null;
+  slug?: string;
 }
 
 export interface PlanUpdateOptions {
@@ -144,6 +151,7 @@ export interface PlanUpdateOptions {
   currentStepId?: string | null;
   currentTaskId?: string | null;
   plannerFocusId?: string | null;
+  slug?: string;
 }
 
 export interface PlanProjectKey {
@@ -281,6 +289,11 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
   const encryptedPlanKey = await encryptBytesWithAesGcm(planKey, masterKey);
   const timestamp = nowSeconds();
   const linkedProjectIds = input.linkedProjectIds ?? [];
+  const slugMetadata = await buildEncryptedObjectSlugMetadata({
+    value: input.slug ?? input.title,
+    encryptionKey: planKey,
+    lookupKey: masterKey,
+  });
   const keyWrappers = await buildUserPlanKeyWrappers({
     planKey,
     masterKey,
@@ -294,6 +307,8 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
     plan_id: randomUUIDCompat(),
     version: 1,
     encrypted_plan_key: encryptedPlanKey,
+    encrypted_slug: slugMetadata.encrypted_slug,
+    slug_lookup_hash: slugMetadata.slug_lookup_hash,
     encrypted_title: await encryptWithAesGcmCombined(input.title, planKey),
     encrypted_summary: await encryptWithAesGcmCombined(input.summary ?? "", planKey),
     encrypted_goal: await encryptWithAesGcmCombined(input.goal ?? "", planKey),
@@ -325,6 +340,15 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
 export async function buildUpdateUserPlanInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanUpdateOptions): Promise<UserPlanUpdateInput> {
   const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
   const patch: UserPlanUpdateInput = { version: plan.version, updated_at: nowSeconds() };
+  if (input.slug !== undefined) {
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({
+      value: input.slug,
+      encryptionKey: planKey,
+      lookupKey: masterKey,
+    });
+    patch.encrypted_slug = slugMetadata.encrypted_slug;
+    patch.slug_lookup_hash = slugMetadata.slug_lookup_hash;
+  }
   if (input.title !== undefined) patch.encrypted_title = await encryptWithAesGcmCombined(input.title, planKey);
   if (input.summary !== undefined) patch.encrypted_summary = await encryptWithAesGcmCombined(input.summary, planKey);
   if (input.goal !== undefined) patch.encrypted_goal = await encryptWithAesGcmCombined(input.goal, planKey);
@@ -407,6 +431,7 @@ export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Ar
   return {
     planId: record.plan_id,
     shortId: deriveShortId(record),
+    slug: await decryptObjectSlug(record.encrypted_slug, planKey),
     title: await decryptOptional(record.encrypted_title, planKey) || "(untitled plan)",
     summary: await decryptOptional(record.encrypted_summary, planKey),
     goal: await decryptOptional(record.encrypted_goal, planKey),
@@ -524,6 +549,9 @@ export async function decryptPlanLearnings(plan: DecryptedUserPlan, records: Use
 export function findPlan(plans: DecryptedUserPlan[], id: string): DecryptedUserPlan {
   const planIdMatch = plans.find((candidate) => candidate.planId === id);
   if (planIdMatch) return planIdMatch;
+  const slugMatches = plans.filter((candidate) => objectSlugMatches(candidate.slug, id));
+  if (slugMatches.length > 1) throw new Error(`Plan slug '${id}' is ambiguous in the current plan list. Use the full plan ID.`);
+  if (slugMatches.length === 1) return slugMatches[0];
   const shortIdMatches = plans.filter((candidate) => candidate.shortId === id.toUpperCase());
   if (shortIdMatches.length > 1) throw new Error(`Plan '${id}' is ambiguous in the current plan list. Use the full plan ID.`);
   const plan = shortIdMatches[0];
@@ -613,17 +641,18 @@ export async function buildUpdatePlanVerificationInput(plan: DecryptedUserPlan, 
 
 export function renderPlanList(plans: DecryptedUserPlan[]): string {
   if (plans.length === 0) return "No plans found.";
-  const lines = ["Plans", "ID          Status                 Chat       Title"];
+  const lines = ["Plans", "Handle              Status                 Chat       Title"];
   for (const plan of plans) {
-    lines.push(`${pad(plan.shortId, 11)} ${pad(plan.status, 22)} ${pad(plan.primaryChatId ?? "-", 10)} ${plan.title}`);
+    lines.push(`${pad(planHandle(plan), 19)} ${pad(plan.status, 22)} ${pad(plan.primaryChatId ?? "-", 10)} ${plan.title}`);
   }
   return lines.join("\n");
 }
 
 export function renderPlanDetail(plan: DecryptedUserPlan): string {
   const lines = [
-    `Plan ${plan.shortId}`,
+    `Plan ${planHandle(plan)}`,
     `Title: ${plan.title}`,
+    ...(plan.slug ? [`Slug: ${plan.slug}`] : []),
     `Status: ${plan.status}`,
     `Plan ID: ${plan.planId}`,
     `Version: ${plan.version}`,
@@ -649,6 +678,10 @@ export function renderPlanDetail(plan: DecryptedUserPlan): string {
   if (plan.plannerFocusId) lines.push(`Planner focus: ${plan.plannerFocusId}`);
   if (plan.completedAt) lines.push(`Completed at: ${plan.completedAt}`);
   return lines.join("\n");
+}
+
+function planHandle(plan: DecryptedUserPlan): string {
+  return plan.slug || plan.shortId;
 }
 
 export function renderPlanLearningList(learnings: DecryptedPlanLearning[]): string {

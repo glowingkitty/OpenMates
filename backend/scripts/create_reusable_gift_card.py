@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a reusable, domain-bound gift card for the hourly prod-smoke test.
+Create a reusable, mailbox-bound gift card for the hourly prod-smoke test.
 
 This is a one-off bootstrap script — the card only needs to be created once
 per environment, then its `code` goes into the `PROD_SMOKE_GIFT_CARD_CODE`
@@ -8,18 +8,17 @@ GitHub secret. The card is NEVER deleted on redemption (is_reusable=true) so
 every hourly test run grants the configured credit amount to a fresh signup
 without draining anything.
 
-The domain restriction (allowed_email_domain) guarantees only emails from our
-Mailosaur subdomain can redeem it — see OPE-76 and the exact-match enforcement
-in backend/core/api/app/services/directus/gift_card_methods.py.
+The identity restriction stores only a hash and treats Gmail run aliases as the
+same mailbox. See OPE-76 and the enforcement in gift_card_methods.py.
 
 Usage (run inside the `api` docker container on dev or prod):
 
     docker exec api python /app/backend/scripts/create_reusable_gift_card.py \\
         --credits 1000 \\
-        --domain abc1xyz9.mailosaur.net \\
+        --email smoke.test@gmail.com \\
         --notes "OPE-76 prod smoke card"
 
-Safety: refuses to create a second reusable card for the same domain. Pass
+Safety: refuses to create a second reusable card for the same mailbox. Pass
 `--force` to override (you almost never want this).
 """
 import argparse
@@ -33,6 +32,7 @@ import sys
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.directus.gift_card_methods import _email_identity_hash
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -62,28 +62,27 @@ def generate_gift_card_code() -> str:
 
 async def find_existing_reusable_card(
     directus_service: DirectusService,
-    domain: str,
+    identity_hash: str,
 ) -> dict | None:
-    """Return the first reusable card already locked to this domain, or None.
+    """Return the first reusable card already locked to this mailbox, or None.
 
     Uses get_all_gift_cards() and filters in Python — the collection is tiny
     (reusable cards are infrastructure-scoped) so fetching all and filtering
     is simpler than building a Directus query string here.
     """
     all_cards = await directus_service.get_all_gift_cards()
-    target = domain.strip().lower()
     for card in all_cards:
         if not card.get('is_reusable'):
             continue
-        card_domain = (card.get('allowed_email_domain') or '').strip().lower()
-        if card_domain == target:
+        card_identity_hash = (card.get('allowed_email_identity_hash') or '').strip()
+        if card_identity_hash == identity_hash:
             return card
     return None
 
 
 async def main() -> int:
     parser = argparse.ArgumentParser(
-        description='Create a reusable, domain-bound gift card for prod smoke tests.'
+        description='Create a reusable, mailbox-bound gift card for prod smoke tests.'
     )
     parser.add_argument(
         '--credits',
@@ -92,10 +91,10 @@ async def main() -> int:
         help='Credits granted per redemption (1-50000). A single value covers every future hourly run because reusable cards grant this amount fresh each time.',
     )
     parser.add_argument(
-        '--domain',
+        '--email',
         type=str,
         required=True,
-        help='Exact full email domain allowed to redeem (e.g. abc1xyz9.mailosaur.net). Case-insensitive exact match — NOT a suffix match.',
+        help='Exact mailbox allowed to redeem. Gmail run aliases map to this identity; plaintext is never stored.',
     )
     parser.add_argument(
         '--notes',
@@ -106,16 +105,17 @@ async def main() -> int:
     parser.add_argument(
         '--force',
         action='store_true',
-        help='Create even if a reusable card already exists for this domain.',
+        help='Create even if a reusable card already exists for this mailbox.',
     )
     args = parser.parse_args()
 
     if not (1 <= args.credits <= 50000):
         logger.error('--credits must be between 1 and 50000.')
         return 2
-    if '@' in args.domain or '.' not in args.domain:
-        logger.error('--domain must be a bare domain like abc1xyz9.mailosaur.net (no @, must contain a dot).')
+    if '@' not in args.email:
+        logger.error('--email must be a valid mailbox address.')
         return 2
+    identity_hash = _email_identity_hash(args.email)
 
     sm = SecretsManager()
     await sm.initialize()
@@ -129,15 +129,14 @@ async def main() -> int:
 
     try:
         # Safety guard: avoid accidental duplicates.
-        existing = await find_existing_reusable_card(directus_service, args.domain)
+        existing = await find_existing_reusable_card(directus_service, identity_hash)
         if existing and not args.force:
             logger.error(
-                'A reusable gift card already exists for domain %s:\n'
+                'A reusable gift card already exists for the requested mailbox identity:\n'
                 '  Code:    %s\n'
                 '  Credits: %s\n'
                 '  ID:      %s\n'
                 'Refusing to create a second one. Pass --force to override.',
-                args.domain,
                 existing.get('code'),
                 existing.get('credits_value'),
                 existing.get('id'),
@@ -163,7 +162,7 @@ async def main() -> int:
             credits_value=args.credits,
             purchaser_user_id_hash=None,
             is_reusable=True,
-            allowed_email_domain=args.domain,
+            allowed_email_identity_hash=identity_hash,
         )
         if not created:
             logger.error('Directus refused to create the gift card. See logs above.')
@@ -182,7 +181,7 @@ async def main() -> int:
         print('SUCCESS: Created reusable gift card')
         print(f'  Code:              {code}')
         print(f'  Credits per grant: {args.credits}')
-        print(f'  Domain restricted: {args.domain}')
+        print('  Mailbox restricted: yes (hashed)')
         print(f'  ID:                {created.get("id")}')
         print('')
         print('Next step: add the code to GitHub secrets:')

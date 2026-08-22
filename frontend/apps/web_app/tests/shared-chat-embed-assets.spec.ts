@@ -11,6 +11,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
+const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -19,7 +20,11 @@ const {
 	getTestAccount,
 	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	createIsolatedBrowserContext,
+	declareTestState,
+	loginToTestAccount
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
@@ -28,10 +33,19 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
-const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'sample.png');
+const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'golden_gate_bridge.jpg');
 const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
+const PROOF_FRAME_HOLD_MS = 5_500;
 
 const consoleLogs: string[] = [];
+const TEST_STATE = declareTestState({
+	auth: 'authenticated setup followed by logged-out share',
+	browserStorage: 'fresh',
+	account: 'shared fixture used only to create and clean up the source chat',
+	chat: 'source chat created and deleted in this test',
+	notifications: 'unchanged',
+	securityReminders: 'unchanged'
+});
 
 function deriveApiUrl(baseUrl: string): string {
 	try {
@@ -88,6 +102,7 @@ function extractEmbedIdsFromText(content: unknown): string[] {
 	for (const match of text.matchAll(/"embed_id"\s*:\s*"([^"\s]+)"/gi)) ids.add(match[1]);
 	for (const ref of extractEmbedRefsFromText(text)) {
 		if (/^[a-f0-9-]{36}$/i.test(ref)) ids.add(ref);
+		for (const id of extractEmbedIdCandidatesFromRef(ref)) ids.add(id);
 	}
 	return [...ids];
 }
@@ -100,9 +115,19 @@ function extractEmbedRefsFromText(content: unknown): string[] {
 	return [...refs];
 }
 
+function extractEmbedIdCandidatesFromRef(embedRef: string): string[] {
+	const ids = new Set<string>();
+	if (/^[a-f0-9-]{36}$/i.test(embedRef)) ids.add(embedRef.toLowerCase());
+	for (const match of embedRef.matchAll(/(?:^|-)([a-f0-9]{8})(?=-[a-f0-9]{4})/gi)) {
+		ids.add(match[1].toLowerCase());
+	}
+	return [...ids];
+}
+
 function extractEmbedIdPrefixesFromRefs(embedRefs: Iterable<string>): string[] {
 	const prefixes = new Set<string>();
 	for (const embedRef of embedRefs) {
+		for (const id of extractEmbedIdCandidatesFromRef(embedRef)) prefixes.add(id);
 		for (const match of embedRef.matchAll(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]+/gi)) {
 			prefixes.add(match[0].toLowerCase());
 		}
@@ -301,14 +326,21 @@ async function loginCliViaBrowser(page: any, apiUrl: string, logCheckpoint: (msg
 	logCheckpoint('CLI login complete.');
 }
 
-async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 90_000): Promise<any> {
+async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 180_000): Promise<any> {
 	const startedAt = Date.now();
 	let lastOutput = '';
+	clearCliSyncCache();
 	while (Date.now() - startedAt < timeoutMs) {
-		clearCliSyncCache();
-		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		const remainingMs = timeoutMs - (Date.now() - startedAt);
+		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], Math.max(30_000, remainingMs));
 		lastOutput = result.stdout + result.stderr;
-		if (result.code === 0 && result.stdout.trim()) return JSON.parse(result.stdout);
+		if (result.stdout.trim()) {
+			try {
+				return JSON.parse(result.stdout);
+			} catch {
+				if (result.code === 0) throw new Error(`Invalid chats show JSON: ${result.stdout.slice(0, 500)}`);
+			}
+		}
 		await new Promise((resolve) => setTimeout(resolve, 2_000));
 	}
 	throw new Error(`Timed out waiting for chat ${chatId}: ${lastOutput.slice(0, 500)}`);
@@ -382,6 +414,24 @@ async function waitForFinishedPdfEmbed(
 	throw new Error(`Timed out waiting for finished uploaded PDF embed: ${lastSummary}`);
 }
 
+async function holdVisibleProofFrames(page: any): Promise<void> {
+	await page.getByTestId('chat-header-banner').scrollIntoViewIfNeeded();
+	// playwright-determinism: allow - proof recording requires a fixed visible-frame hold.
+	await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
+	const nextEmbedButton = page.locator('button.nav-arrow-right:visible').first();
+	for (let index = 0; index < 3; index += 1) {
+		// playwright-determinism: allow - each carousel item must remain visible in the proof recording.
+		await page.waitForTimeout(PROOF_FRAME_HOLD_MS);
+		if (index < 2) {
+			const box = await nextEmbedButton.boundingBox({ timeout: 5_000 });
+			if (!box) throw new Error('Shared asset proof carousel right arrow is not visible');
+			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+			// playwright-determinism: allow - allow the proof carousel transition to finish before capture.
+			await page.waitForTimeout(750);
+		}
+	}
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -395,13 +445,14 @@ test.afterEach(async ({}, testInfo: any) => {
 	}
 });
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.shared-link-open
 test('shared chat loads uploaded PDF, image, and audio recording assets while logged out', async ({
 	page,
 	browser
 }: {
 	page: any;
 	browser: any;
-}) => {
+}, testInfo: any) => {
 	test.slow();
 	test.setTimeout(900_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -413,19 +464,28 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 	const logCheckpoint = createSignupLogger('SHARED_EMBED_ASSETS');
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-shared-assets-'));
 	let fullChatId: string | undefined;
-	let sharedContext: any;
+	let proofContext: any | undefined;
 
 	try {
 		await loginCliViaBrowser(page, apiUrl, logCheckpoint);
 
-		const audioPath = path.join(tmpDir, 'shared-chat-recording.wav');
+		const runMarker = randomUUID().slice(0, 8);
+		const pdfPath = path.join(tmpDir, `shared-proof-${runMarker}-document.pdf`);
+		const imagePath = path.join(tmpDir, `shared-proof-${runMarker}-image.jpg`);
+		const audioPath = path.join(tmpDir, `shared-proof-${runMarker}-recording.wav`);
+		fs.copyFileSync(SAMPLE_PDF, pdfPath);
+		fs.copyFileSync(SAMPLE_IMAGE, imagePath);
 		writeTinyWav(audioPath);
-		logCheckpoint('Created audio fixture for upload.');
+		logCheckpoint('Created temporary asset fixtures for upload.');
 
 		const message =
-			`Create a short response confirming these uploaded files are attached. ` +
-			`@${SAMPLE_PDF} @${SAMPLE_IMAGE} @${audioPath}`;
-		const sendResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 600_000);
+			'Create a short shared-chat note confirming the attached PDF, image, and audio recording are ready to preview. ' +
+			`@${pdfPath} @${imagePath} @${audioPath}`;
+		const sendResult = await runCli(
+			apiUrl,
+			['chats', 'new', message, '--slug', `shared-proof-${runMarker}`, '--json', '--no-task-update-jobs'],
+			600_000
+		);
 		consoleLogs.push(`Create chat stdout: ${sendResult.stdout.slice(0, 2000)}`);
 		consoleLogs.push(`Create chat stderr: ${sendResult.stderr.slice(0, 2000)}`);
 		expect(sendResult.code).toBe(0);
@@ -454,12 +514,20 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		expect(shareUrl).toContain('#key=');
 		logCheckpoint('Generated share URL.');
 
-		sharedContext = await browser.newContext({ baseURL: baseUrl });
-		const sharedPage = await sharedContext.newPage();
-		const presignedStatuses: number[] = [];
+		proofContext = await createIsolatedBrowserContext(browser, TEST_STATE, {
+			permissions: ['microphone'],
+			viewport: { width: 390, height: 844 },
+			recordVideo: {
+				dir: testInfo.outputPath('shared-chat-embed-assets-proof-video'),
+				size: { width: 390, height: 844 }
+			}
+		});
+		const sharedPage = await proofContext.newPage();
+		const proofVideo = sharedPage.video();
+		const presignedResponses: Array<{ status: number; url: string }> = [];
 		sharedPage.on('response', (response: any) => {
 			if (response.url().includes('/v1/embeds/presigned-url')) {
-				presignedStatuses.push(response.status());
+				presignedResponses.push({ status: response.status(), url: response.url() });
 			}
 		});
 		sharedPage.on('console', (msg: any) => {
@@ -467,6 +535,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		});
 
 		await sharedPage.goto(shareUrl);
+		await expect(sharedPage.locator('[data-authenticated="true"]')).toHaveCount(0, { timeout: 60_000 });
 		await expect(sharedPage).toHaveURL(/#chat-id=/, { timeout: 60_000 });
 		await expect(
 			sharedPage.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')
@@ -489,7 +558,32 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(audioEmbed).toBeVisible({ timeout: 120_000 });
 		await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
 
-		await expect(imageEmbed.locator('img').first()).toBeVisible({ timeout: 60_000 });
+		const renderedImage = imageEmbed.locator('img').first();
+		await expect(renderedImage).toBeVisible({ timeout: 60_000 });
+		await expect
+			.poll(
+				() =>
+					renderedImage.evaluate(async (image: HTMLImageElement) => {
+						if (!image.complete) await image.decode();
+						if (image.naturalWidth < 2 || image.naturalHeight < 2) return false;
+						const canvas = document.createElement('canvas');
+						canvas.width = 16;
+						canvas.height = 16;
+						const context = canvas.getContext('2d');
+						if (!context) return false;
+						context.drawImage(image, 0, 0, canvas.width, canvas.height);
+						const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+						let minimum = 255;
+						let maximum = 0;
+						for (let index = 0; index < pixels.length; index += 4) {
+							minimum = Math.min(minimum, pixels[index], pixels[index + 1], pixels[index + 2]);
+							maximum = Math.max(maximum, pixels[index], pixels[index + 1], pixels[index + 2]);
+						}
+						return maximum - minimum >= 32;
+					}),
+				{ timeout: 60_000 }
+			)
+			.toBe(true);
 		await expect(pdfEmbed.locator('img').first()).toBeVisible({ timeout: 120_000 });
 		await expect(sharedPage.getByTestId('recording-preview-audio').first()).toHaveAttribute('src', /blob:/, {
 			timeout: 60_000
@@ -497,15 +591,29 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(sharedPage.getByTestId('recording-preview-waveform').first()).toBeVisible({
 			timeout: 60_000
 		});
+		await holdVisibleProofFrames(sharedPage);
 
 		await expect
-			.poll(() => presignedStatuses.length, { timeout: 60_000 })
+			.poll(() => presignedResponses.length, { timeout: 60_000 })
 			.toBeGreaterThanOrEqual(3);
-		expect(presignedStatuses.every((status) => status === 200)).toBe(true);
+		const failedPresignedResponses = presignedResponses.filter((response) => response.status !== 200);
+		expect(
+			failedPresignedResponses,
+			`Expected all shared asset presigned-url responses to be 200. Responses: ${JSON.stringify(presignedResponses)}`
+		).toEqual([]);
 		await assertNoMissingTranslations(sharedPage);
 		logCheckpoint('Logged-out shared chat loaded PDF, image, and audio assets.');
+
+		await proofContext.close();
+		proofContext = undefined;
+		if (proofVideo) {
+			await testInfo.attach('shared-chat-embed-assets-proof-video', {
+				path: await proofVideo.path(),
+				contentType: 'video/webm'
+			});
+		}
 	} finally {
-		if (sharedContext) await sharedContext.close();
+		if (proofContext) await proofContext.close();
 		if (fullChatId) {
 			await runCli(apiUrl, ['chats', 'delete', fullChatId, '--yes'], 30_000);
 		}

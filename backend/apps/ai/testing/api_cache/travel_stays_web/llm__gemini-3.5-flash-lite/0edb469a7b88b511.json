@@ -1,0 +1,94 @@
+{
+  "fingerprint": "0edb469a7b88b511",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_stays_web",
+  "recorded_at": "2026-08-15T12:16:05.235951+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "813583834a2ac253",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[6]:\n  - title: \"10 Best Berlin Hotels, Germany (From US$52)\"\n    url: \"https://www.booking.com/city/de/berlin.html\"\n    description: \"Set within 1.2 mi of Kurfürstendamm, KPM Hotel & Residence..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Berlin has a wide range of hotel options to suit different preferences and budgets for next week. Popular booking platforms include [Booking.com](embed:booking.com-WzL), [Tripadvisor](embed:tripadvisor.com-d7f), [Expedia](embed:expedia.com-Cpj), and [KAYAK](embed:kayak.com-tWz). \n\nTo help narrow down the best choices for your trip, what kind of accommodation are you looking for?\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"hotel_preference\",\n  \"multiple\": false,\n  \"question\": \"What is your preferred hotel style or budget for Berlin?\",\n  \"options\": [\n    {\n      \"id\": \"budget\",\n      \"text\": \"Budget-friendly / Hostels (under $70/night)\"\n    },\n    {\n      \"id\": \"midrange\",\n      \"text\": \"Mid-range & Boutique Hotels (3 to 4 stars)\"\n    },\n    {\n      \"id\": \"luxury\",\n      \"text\": \"Luxury & 5-Star Hotels (e.g., Hotel Adlon Kempinski)\"\n    },\n    {\n      \"id\": \"central\",\n      \"text\": \"Central location near Mitte / Alexanderplatz\"\n    }\n  ]\n}\n```\n\n***\n\n**Next Steps / Follow-ups:**\n- If you have specific dates and a budget in mind, let me know so I can check exact availability.\n- You can also explore flights or transit options if you are still planning your travel to Berlin.",
+    "chunk_count": 15,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Berlin"
+      },
+      {
+        "kind": "text",
+        "value": " has a wide range of hotel options to suit different preferences and budgets for next week. Popular"
+      },
+      {
+        "kind": "text",
+        "value": " booking platforms include [Booking.com](embed:booking.com-WzL), [Tripadvisor](embed:trip"
+      },
+      {
+        "kind": "text",
+        "value": "advisor.com-d7f), [Expedia](embed:expedia.com-Cpj), and"
+      },
+      {
+        "kind": "text",
+        "value": " [KAYAK](embed:kayak.com-tWz). \n\nTo help narrow down the best choices for"
+      },
+      {
+        "kind": "text",
+        "value": " your trip, what kind of accommodation are you looking for?\n\n```interactive_question\n{\n  \"type\": \""
+      },
+      {
+        "kind": "text",
+        "value": "choice\",\n  \"id\": \"hotel_preference\",\n  \"multiple\": false,\n  \"question\": \"What is your"
+      },
+      {
+        "kind": "text",
+        "value": " preferred hotel style or budget for Berlin?\",\n  \"options\":"
+      },
+      {
+        "kind": "text",
+        "value": " [\n    {\n      \"id\": \"budget\",\n      \"text\": \"Budget-friendly / Hostels (under $70/night)\"\n    },\n    {\n      \"id\": \"midrange\",\n      \"text\": \"Mid-range & Boutique Hotels (3 to 4 stars)\"\n    },\n    {\n      \"id\": \"luxury\",\n      \"text\": \"Luxury & 5-Star"
+      },
+      {
+        "kind": "text",
+        "value": " Hotels (e.g., Hotel Adlon Kempinski)\"\n    },\n    {\n      \"id\": \"central\",\n"
+      },
+      {
+        "kind": "text",
+        "value": "      \"text\": \"Central location near Mitte / Alexanderplatz\"\n    }\n  ]\n}\n```\n\n***"
+      },
+      {
+        "kind": "text",
+        "value": "\n\n**Next Steps / Follow-ups:**\n- If you have specific dates and a budget in mind, let me know"
+      },
+      {
+        "kind": "text",
+        "value": " so I can check exact availability.\n- You can also explore flights or transit options if you are still planning your travel to"
+      },
+      {
+        "kind": "text",
+        "value": " Berlin."
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 17952,
+          "candidates_token_count": 299,
+          "total_token_count": 18251,
+          "user_input_tokens": 3288,
+          "system_prompt_tokens": 13433
+        }
+      }
+    ]
+  }
+}

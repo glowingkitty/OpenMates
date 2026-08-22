@@ -42,7 +42,7 @@ async def handle_email_notification_settings(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("email_notification_settings", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -76,7 +76,19 @@ async def handle_email_notification_settings(
             if enabled and email:
                 # Encrypt email using server-side vault encryption
                 vault_key_id = await cache_service.get_user_vault_key_id(user_id)
-            
+
+                if not vault_key_id:
+                    logger.debug(
+                        f"vault_key_id not in cache for user {user_id}, fetching from Directus"
+                    )
+                    user_profile_result = await directus_service.get_user_profile(user_id)
+                    if user_profile_result and user_profile_result[0]:
+                        vault_key_id = (user_profile_result[1] or {}).get("vault_key_id")
+                        if vault_key_id:
+                            await cache_service.update_user(
+                                user_id, {"vault_key_id": vault_key_id}
+                            )
+
                 if not vault_key_id:
                     logger.error(f"No vault key ID found for user {user_id}. Cannot encrypt notification email.")
                     await manager.send_personal_message(

@@ -33,11 +33,13 @@ export interface ServerConfig {
   composeFiles?: string[];
   /** Distribution mode: prebuilt images by default, source builds for contributors/forks. */
   installMode?: "image" | "source";
+  /** Whether source updates pull a managed clone or build the existing working tree as-is. */
+  sourceStrategy?: "managed_clone" | "working_tree";
   /** Deployment mode: self-host core by default, official cloud when OpenMatesCloud overlay is enabled. */
   deploymentMode?: "self_host" | "official_cloud";
   /** Absolute OpenMatesCloud overlay checkout path for official-cloud installs. */
   openMatesCloudOverlayPath?: string;
-  /** OpenMates image tag used by image-mode installs, e.g. v0.15.0. */
+  /** OpenMates image tag used by image-mode installs, e.g. v0.16.0. */
   imageTag?: string;
   /** Image channel alias used by image-mode installs, e.g. dev or main. */
   imageChannel?: "dev" | "main";
@@ -51,10 +53,16 @@ export interface ServerConfig {
 // Filesystem helpers (minimal — no secrets, so 0o644 is fine for the file)
 // ---------------------------------------------------------------------------
 
-const STATE_DIR = join(homedir(), ".openmates");
 const CONFIG_FILE = "server.json";
 
+function stateDir(): string {
+  return process.env.OPENMATES_STATE_DIR
+    ? resolve(process.env.OPENMATES_STATE_DIR)
+    : join(homedir(), ".openmates");
+}
+
 function ensureStateDir(): string {
+  const STATE_DIR = stateDir();
   if (!existsSync(STATE_DIR)) {
     mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
   }
@@ -72,7 +80,7 @@ export function saveServerConfig(config: ServerConfig): void {
 }
 
 export function loadServerConfig(): ServerConfig | null {
-  const filePath = join(STATE_DIR, CONFIG_FILE);
+  const filePath = join(stateDir(), CONFIG_FILE);
   if (!existsSync(filePath)) return null;
   try {
     return JSON.parse(readFileSync(filePath, "utf-8")) as ServerConfig;
@@ -82,7 +90,7 @@ export function loadServerConfig(): ServerConfig | null {
 }
 
 export function removeServerConfig(): void {
-  const filePath = join(STATE_DIR, CONFIG_FILE);
+  const filePath = join(stateDir(), CONFIG_FILE);
   if (existsSync(filePath)) {
     rmSync(filePath);
   }

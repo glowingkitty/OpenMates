@@ -132,6 +132,8 @@ async def confirm_recovery_key_stored(
         # Update user cache
         if is_signup:
             user_data["last_opened"] = "/signup/profile-picture"
+        user_data["lookup_hashes"] = lookup_hashes
+        user_data["consent_recovery_key_stored_timestamp"] = current_time
         await cache_service.set_user(user_data, refresh_token=refresh_token)
         logger.info(f"Updated user cache for {user_id} (is_signup={is_signup})")
 
@@ -259,13 +261,19 @@ async def regenerate_recovery_key(
                 message="Failed to update recovery key data. Please try again."
             )
 
-        # Step 5: Invalidate relevant caches
+        # Step 5: Keep the authenticated user cache in sync and invalidate derived login metadata.
         try:
-            await cache_service.delete(f"user_profile:{user_id}")
+            cache_update_success = await cache_service.update_user(user_id, {
+                "lookup_hashes": lookup_hashes,
+                "consent_recovery_key_stored_timestamp": current_time,
+            })
+            if not cache_update_success:
+                logger.warning(f"Could not update cached recovery key metadata for user {user_id}")
+                await cache_service.delete(f"user_profile:{user_id}")
             await cache_service.delete(f"login_methods:{user_id}")
-            logger.info(f"Invalidated caches for user {user_id}")
+            logger.info(f"Updated recovery key cache metadata for user {user_id}")
         except Exception as e:
-            logger.warning(f"Error invalidating caches for user {user_id}: {e}")
+            logger.warning(f"Error updating recovery key cache metadata for user {user_id}: {e}")
             # Non-critical, continue
 
         # Step 6: Log compliance event

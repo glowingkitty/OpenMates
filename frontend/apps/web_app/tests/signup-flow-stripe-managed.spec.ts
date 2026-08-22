@@ -39,6 +39,7 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	validateSignupInviteIfRequired,
+	expectVisibleSettingsMenu,
 	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
@@ -54,22 +55,23 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  *
  * ARCHITECTURE NOTES:
  * - The test is intentionally self-contained: we avoid adding npm/pnpm deps by
- *   using built-in Node.js crypto for TOTP and Mailosaur's raw REST API via fetch.
+ *   using built-in Node.js crypto for TOTP and Gmail's REST API via fetch.
  * - The email confirmation code and purchase confirmation email are fetched
- *   from Mailosaur (server + API key must be provided via env vars).
+ *   from the configured Gmail test inbox.
  * - We generate a unique signup email using SIGNUP_TEST_EMAIL_DOMAINS so the
  *   backend domain allowlist can be enforced while still allowing test signups.
  *
  * REQUIRED ENV VARS:
  * - SIGNUP_TEST_EMAIL_DOMAINS: Comma-separated list of allowed test domains.
  * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
- * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
+ * - GMAIL_TEST_ADDRESS: Dedicated Gmail inbox used with run-scoped aliases.
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 // Generic US Visa — works in Stripe Managed Payments (non-EU Embedded Checkout).
 const STRIPE_TEST_CARD_NUMBER = '4242424242424242';
 
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('completes signup and Managed Payments purchase from Settings billing', async ({
 	page,
 	context
@@ -105,7 +107,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	});
 
 	test.slow();
-	// Allow extra time for Mailosaur email delivery, purchase confirmation, and account deletion.
+	// Allow extra time for Gmail delivery, purchase confirmation, and account deletion.
 	// This is a long spec: signup, Settings billing payment, refund link validation, and deletion.
 	test.setTimeout(600000);
 
@@ -118,7 +120,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -126,7 +128,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
-	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
+	const { waitForMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
 		emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
@@ -138,6 +140,21 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234';
 	logSignupCheckpoint('Initialized signup identity.', { signupEmail });
+
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: false,
+				use_managed_payments: true,
+			}),
+		});
+	});
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
 	await page.goto(getE2EDebugUrl('/'));
@@ -216,8 +233,8 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	await takeStepScreenshot(page, 'confirm-email');
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
-	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
-	const confirmEmailMessage = await waitForMailosaurMessage({
+	logSignupCheckpoint('Polling Gmail for confirmation email.');
+	const confirmEmailMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: emailRequestedAt
 	});
@@ -261,7 +278,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 
 	// Billing moved out of signup. Purchase credits from Settings > Billing > Buy Credits.
 	await settingsMenuButtonForPurchase.click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await expectVisibleSettingsMenu(page);
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
@@ -406,7 +423,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 
 	// Purchase confirmation email: verify key content and refund link.
 	logSignupCheckpoint('Waiting for purchase confirmation email.');
-	const purchaseEmail = await waitForMailosaurMessage({
+	const purchaseEmail = await waitForMessage({
 		sentTo: signupEmail,
 		subjectContains: 'Purchase confirmation',
 		receivedAfter: paymentSubmittedAt,
@@ -445,7 +462,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	if (!(await page.locator('[data-testid="settings-menu"].visible').isVisible({ timeout: 2000 }).catch(() => false))) {
 		await settingsMenuButton.click();
 	}
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
+	await expectVisibleSettingsMenu(page);
 	await takeStepScreenshot(page, 'settings-menu-open');
 	logSignupCheckpoint('Opened settings menu for credit verification.');
 
@@ -496,7 +513,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 
-	const deleteVerificationMessage = await waitForMailosaurMessage({
+	const deleteVerificationMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: deleteEmailRequestedAt
 	});

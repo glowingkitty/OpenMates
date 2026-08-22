@@ -272,6 +272,57 @@ def scenario_lifecycle(api_url: str, skip_build: bool) -> dict[str, Any]:
     return {"status": "passed", "team_id_prefix": team_id[:8]}
 
 
+def scenario_profile_images(api_url: str, skip_build: bool) -> dict[str, Any]:
+    setup_cli(api_url, skip_build)
+    team_id = create_test_team("CLI Teams profile")
+    try:
+        generated = run_cli_json([
+            "teams",
+            "profile-image",
+            "generated",
+            team_id,
+            "--icon",
+            "sparkles",
+            "--background-color",
+            "#3456aa",
+        ], timeout=120)
+        require(team_id_from(generated) == team_id, "Generated team profile-image update returned a different team")
+
+        with tempfile.TemporaryDirectory(prefix="openmates-team-profile-") as tmp:
+            tmp_path = Path(tmp)
+            upload_path = tmp_path / "team-profile.png"
+            # 1x1 transparent PNG, small enough for the profile-image pipeline.
+            upload_path.write_bytes(base64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+            ))
+            upload = run_cli_json([
+                "teams",
+                "profile-image",
+                "upload",
+                team_id,
+                "--file",
+                str(upload_path),
+            ], timeout=240)
+            require(upload.get("status") == "ok", f"Team profile-image upload did not return ok: {upload}")
+            require(upload.get("url") == f"/v1/teams/{team_id}/profile-image", "Team profile-image upload did not return the authenticated proxy URL")
+
+            output_path = tmp_path / "downloaded-team-profile.bin"
+            downloaded = run_cli_json([
+                "teams",
+                "profile-image",
+                "get",
+                team_id,
+                "--output",
+                str(output_path),
+            ], timeout=120)
+            require(downloaded.get("output") == str(output_path), "Team profile-image get returned the wrong output path")
+            require(output_path.exists() and output_path.stat().st_size > 0, "Team profile-image get did not write image bytes")
+            require(str(downloaded.get("content_type") or "").startswith("image/"), f"Team profile-image get returned non-image content type: {downloaded}")
+    finally:
+        cleanup_team(team_id)
+    return {"status": "passed", "team_id_prefix": team_id[:8]}
+
+
 def scenario_membership(api_url: str, skip_build: bool) -> dict[str, Any]:
     slots = available_test_account_slots()
     require(len(slots) >= 2, "Membership verification requires two OPENMATES_TEST_ACCOUNT slots")
@@ -413,6 +464,7 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
             "@openmates Reply with exactly: team gate ok",
             "--team",
             team_id,
+            "--auto-approve-memories",
             "--response-timeout-seconds",
             "180",
         ], timeout=240)
@@ -567,6 +619,7 @@ def scenario_memory_accounts(api_url: str, skip_build: bool) -> dict[str, Any]:
 
 SCENARIOS = {
     "lifecycle": scenario_lifecycle,
+    "profile-images": scenario_profile_images,
     "membership": scenario_membership,
     "billing": scenario_billing,
     "data-portability": scenario_data_portability,

@@ -1,9 +1,10 @@
+# contract-test-file: infrastructure
 # backend/tests/test_caching_http_transport.py
 # Regression coverage for shared live-mock HTTP response replay.
 #
 # Cached provider responses are written as decoded JSON/text cassettes while
-# preserving the original provider headers for debugging. Replay must strip
-# wire-level compression headers so httpx does not try to decode plain text.
+# preserving safe provider headers for debugging. Replay must strip wire-level
+# compression headers so httpx does not try to decode plain text.
 
 from __future__ import annotations
 
@@ -13,6 +14,18 @@ import pytest
 from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.caching_http_transport import CachingHTTPTransport
 from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+
+
+class _StaticAsyncTransport(httpx.AsyncBaseTransport):
+    def __init__(self, responses: dict[str, httpx.Response]) -> None:
+        self.responses = responses
+        self.requests: list[httpx.Request] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        response = self.responses[str(request.url)]
+        response.request = request
+        return response
 
 
 @pytest.mark.asyncio
@@ -52,3 +65,135 @@ async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_pat
     assert "content-encoding" not in response.headers
     assert response.headers.get("content-length") != "999"
     assert "transfer-encoding" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_record_mode_refreshes_existing_http_cache(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path)
+    group_id = "refresh_existing_body"
+    category = "rewe"
+    url = "https://shop.rewe.de/api/products?search=bio+joghurt"
+    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary={"method": "GET", "url": url},
+        response_data={
+            "status_code": 301,
+            "headers": {"location": "https://www.rewe.de/shop/api/products"},
+            "body": "",
+        },
+    )
+    real_transport = _StaticAsyncTransport(
+        {
+            url: httpx.Response(
+                200,
+                headers={"content-type": "application/json"},
+                content=b'{"products":[{"id":"fresh"}]}',
+            )
+        }
+    )
+
+    activate_mock_mode("record", group_id)
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(real_transport, cache, category)
+        ) as client:
+            response = await client.get(url)
+    finally:
+        deactivate_mock_mode()
+
+    assert response.json()["products"] == [{"id": "fresh"}]
+    cached = cache.load(group_id, category, fingerprint)
+    assert cached is not None
+    assert cached["response"]["status_code"] == 200
+    assert "fresh" in cached["response"]["body"]
+
+
+@pytest.mark.asyncio
+async def test_record_mode_omits_set_cookie_response_header(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path)
+    group_id = "omit_set_cookie"
+    category = "rewe"
+    url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
+    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
+    real_transport = _StaticAsyncTransport(
+        {
+            url: httpx.Response(
+                200,
+                headers={
+                    "content-type": "application/json",
+                    "set-cookie": "__cf_bm=secret; HttpOnly; Secure",
+                },
+                content=b'{"products":[{"id":"safe"}]}',
+            )
+        }
+    )
+
+    activate_mock_mode("record", group_id)
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(real_transport, cache, category)
+        ) as client:
+            response = await client.get(url)
+    finally:
+        deactivate_mock_mode()
+
+    assert response.json()["products"] == [{"id": "safe"}]
+    cached = cache.load(group_id, category, fingerprint)
+    assert cached is not None
+    assert cached["response"]["headers"].get("content-type") == "application/json"
+    assert "set-cookie" not in cached["response"]["headers"]
+
+
+@pytest.mark.asyncio
+async def test_cached_redirect_replay_follows_location(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path)
+    group_id = "redirect_replay"
+    category = "rewe"
+    original_url = "https://shop.rewe.de/api/products?search=bio+joghurt"
+    redirected_url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
+    original_fingerprint = cache.fingerprint_http_request(
+        method="GET",
+        url=original_url,
+    )
+    redirected_fingerprint = cache.fingerprint_http_request(
+        method="GET",
+        url=redirected_url,
+    )
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=original_fingerprint,
+        request_summary={"method": "GET", "url": original_url},
+        response_data={
+            "status_code": 301,
+            "headers": {"location": redirected_url},
+            "body": "",
+        },
+    )
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=redirected_fingerprint,
+        request_summary={"method": "GET", "url": redirected_url},
+        response_data={
+            "status_code": 200,
+            "headers": {"content-type": "application/json"},
+            "body": '{"products":[{"id":"redirected"}]}',
+        },
+    )
+
+    activate_mock_mode("mock", group_id)
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(httpx.AsyncHTTPTransport(), cache, category),
+            follow_redirects=True,
+        ) as client:
+            response = await client.get(original_url)
+    finally:
+        deactivate_mock_mode()
+
+    assert response.json()["products"] == [{"id": "redirected"}]
+    assert [history.status_code for history in response.history] == [301]

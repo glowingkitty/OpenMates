@@ -224,10 +224,8 @@
                     // which fires onComplete in-page instead of redirecting.
                     return_url: returnUrl.toString(),
                 };
-                // Pass mode override so backend routes EU vs non-EU correctly
-                if (modeOverride) {
-                    requestBody.provider = modeOverride;
-                }
+                // Keep order creation in the same EU/managed mode selected by config or switch buttons.
+                requestBody.provider = modeOverride || (useManagedPayments ? 'managed' : 'stripe');
             }
 
             const response = await fetch(getApiEndpoint(endpoint), {
@@ -266,6 +264,7 @@
                 await mountEmbeddedCheckout();
             } else {
                 // EU: regular Stripe Elements (PaymentIntent flow)
+                await tick();
                 initializePaymentElement();
             }
         } catch (error) {
@@ -1069,6 +1068,7 @@
                     class="provider-switch-btn"
                     data-testid="switch-to-stripe"
                     onclick={() => switchPaymentMode('stripe')}
+                    disabled={isLoading || isInitializing}
                 >
                     {$text('signup.switch_to_eu_card')}
                 </button>
@@ -1105,7 +1105,7 @@
                             class="provider-switch-btn"
                             data-testid="switch-to-non-eu"
                             onclick={() => switchPaymentMode('managed')}
-                            disabled={isLoading}
+                            disabled={isLoading || isInitializing}
                         >
                             {$text('signup.switch_to_non_eu_card')}
                         </button>
@@ -1113,7 +1113,7 @@
                             <button
                                 class="provider-switch-btn"
                                 onclick={() => { showBankTransfer = true; }}
-                                disabled={isLoading}
+                                disabled={isLoading || isInitializing}
                                 data-testid="switch-to-bank-transfer"
                             >
                                 {$text('settings.billing.bank_transfer')}
@@ -1162,7 +1162,7 @@
                         class="provider-switch-btn"
                         data-testid="switch-to-non-eu"
                         onclick={() => switchPaymentMode('managed')}
-                        disabled={isLoading}
+                        disabled={isLoading || isInitializing}
                     >
                         {$text('signup.switch_to_non_eu_card')}
                     </button>
@@ -1170,7 +1170,7 @@
                         <button
                             class="provider-switch-btn"
                             onclick={() => { showBankTransfer = true; }}
-                            disabled={isLoading}
+                            disabled={isLoading || isInitializing}
                             data-testid="switch-to-bank-transfer"
                         >
                             {$text('settings.billing.bank_transfer')}

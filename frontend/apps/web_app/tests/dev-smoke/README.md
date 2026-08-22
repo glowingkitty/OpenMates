@@ -32,7 +32,7 @@ the dev server. The hourly cron sources `.env` before running.
 
 - `PLAYWRIGHT_TEST_BASE_URL` — dev base URL (e.g. `https://app.dev.openmates.org`)
 - `OPENMATES_TEST_ACCOUNT_*_EMAIL/PASSWORD/OTP_KEY` — used by chat-flow + Stripe specs
-- `MAILOSAUR_API_KEY`, `MAILOSAUR_SERVER_ID`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by managed Stripe signup
+- `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_TEST_ADDRESS`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by email-dependent journeys
 - `DISCORD_WEBHOOK_DEV_SMOKE` — failure notifications (post-on-failure only; silence = healthy)
 
 ## On failure

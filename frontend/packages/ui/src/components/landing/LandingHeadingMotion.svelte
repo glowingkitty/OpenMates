@@ -4,7 +4,7 @@
    *
    * Shared heading motion envelope for every logged-out landing slide.
    * Parent components own geometry; this wrapper owns consistent vertical
-   * entry, visible, exit, and hidden visual states.
+   * entry, continuous center drift, exit, and hidden visual states.
    */
 
   import type { Snippet } from 'svelte';
@@ -53,12 +53,16 @@
 
   .landing-heading-motion.entering {
     opacity: 0;
-    transform: translate3d(0, 20px, 0);
+    transform: translate3d(0, 36px, 0) scale(0.96);
+  }
+
+  .landing-heading-motion.visible {
+    animation: landingHeadingCenterDrift 1800ms ease-in-out infinite alternate;
   }
 
   .landing-heading-motion.exiting {
     opacity: 0;
-    transform: translate3d(0, -20px, 0);
+    transform: translate3d(0, -36px, 0) scale(0.98);
   }
 
   .landing-heading-motion.hidden {
@@ -67,9 +71,15 @@
     transition: none;
   }
 
+  @keyframes landingHeadingCenterDrift {
+    from { translate: 0 3px; scale: 1; }
+    to { translate: 0 -3px; scale: 1.018; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .landing-heading-motion {
       transition-duration: 1ms;
+      animation: none;
     }
   }
 </style>

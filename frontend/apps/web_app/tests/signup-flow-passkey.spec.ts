@@ -61,7 +61,7 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  * REQUIRED ENV VARS:
  * - SIGNUP_TEST_EMAIL_DOMAINS: Comma-separated list of allowed test domains.
  * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
- * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
+ * - GMAIL_TEST_ADDRESS: Dedicated Gmail inbox used with run-scoped aliases.
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
@@ -120,6 +120,7 @@ async function teardownVirtualPasskeyAuthenticator(
  */
 
 for (const stayLoggedIn of PASSKEY_STAY_LOGGED_IN_CASES) {
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,auth.passkey.origin-prf-bound,auth.session.lifecycle
 test(`completes passkey signup and account deletion with stay logged in ${stayLoggedIn ? 'enabled' : 'disabled'}`, async ({
 	page,
 	context
@@ -162,7 +163,7 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -170,7 +171,7 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
+	const { waitForMessage, extractSixDigitCode } = emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -257,8 +258,8 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 		await takeStepScreenshot(page, 'confirm-email');
 		await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
-		logSignupCheckpoint('Polling Mailosaur for confirmation email.');
-		const confirmEmailMessage = await waitForMailosaurMessage({
+		logSignupCheckpoint('Polling Gmail for confirmation email.');
+		const confirmEmailMessage = await waitForMessage({
 			sentTo: signupEmail,
 			receivedAfter: emailRequestedAt,
 			timeoutMs: 60000,

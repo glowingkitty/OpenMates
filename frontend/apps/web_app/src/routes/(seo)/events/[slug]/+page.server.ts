@@ -2,7 +2,7 @@
 //
 // Server-side loader for public OpenMates event pages at /events/{slug}.
 // The visible page is crawlable and exposes schema.org/Event JSON-LD.
-// Human browsers are forwarded to the interactive SPA embed fullscreen on mount.
+// Humans can open the interactive SPA embed fullscreen from the CTA.
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -17,6 +17,10 @@ function isDevelopmentHost(hostname: string): boolean {
 		hostname === '127.0.0.1';
 }
 
+function absoluteUrl(siteOrigin: string, value: string): string {
+	return new URL(value, siteOrigin).href;
+}
+
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const event = getOpenMatesEventBySlug(params.slug);
 	if (!event) {
@@ -29,24 +33,16 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 
 	const siteOrigin = getSiteOrigin(url);
 	const canonicalUrl = `${siteOrigin}/events/${event.slug}`;
-	const location = `${event.venue.name}, ${event.venue.address}, ${event.venue.city}, ${event.venue.country}`;
-	const jsonLd = {
-		'@context': 'https://schema.org',
-		'@type': 'Event',
-		name: event.title,
-		description: event.summary,
-		startDate: event.date_start,
-		endDate: event.date_end,
-		eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-		eventStatus: 'https://schema.org/EventScheduled',
-		image: [event.image_url],
-		url: canonicalUrl,
-		organizer: {
-			'@type': 'Organization',
-			name: event.organizer.name,
-			url: `${siteOrigin}/events/${event.slug}`
-		},
-		location: {
+	const imageUrl = absoluteUrl(siteOrigin, event.image_url);
+	const location = event.event_type === 'ONLINE'
+		? 'Online'
+		: [event.venue.name, event.venue.address, event.venue.city, event.venue.country].filter(Boolean).join(', ');
+	const eventLocation = event.event_type === 'ONLINE'
+		? {
+			'@type': 'VirtualLocation',
+			url: event.online_url || event.url
+		}
+		: {
 			'@type': 'Place',
 			name: event.venue.name,
 			address: {
@@ -55,12 +51,35 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 				addressLocality: event.venue.city,
 				addressCountry: event.venue.country
 			},
-			geo: {
-				'@type': 'GeoCoordinates',
-				latitude: event.venue.lat,
-				longitude: event.venue.lon
-			}
+			...(event.venue.lat != null && event.venue.lon != null
+				? {
+					geo: {
+						'@type': 'GeoCoordinates',
+						latitude: event.venue.lat,
+						longitude: event.venue.lon
+					}
+				}
+				: {})
+		};
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'Event',
+		name: event.title,
+		description: event.summary,
+		startDate: event.date_start,
+		endDate: event.date_end,
+		eventAttendanceMode: event.event_type === 'ONLINE'
+			? 'https://schema.org/OnlineEventAttendanceMode'
+			: 'https://schema.org/OfflineEventAttendanceMode',
+		eventStatus: 'https://schema.org/EventScheduled',
+		image: [imageUrl],
+		url: canonicalUrl,
+		organizer: {
+			'@type': 'Organization',
+			name: event.organizer.name,
+			url: `${siteOrigin}/events/${event.slug}`
 		},
+		location: eventLocation,
 		offers: {
 			'@type': 'Offer',
 			url: event.url,
@@ -73,6 +92,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	return {
 		event,
 		canonicalUrl,
+		imageUrl,
 		location,
 		jsonLd: JSON.stringify(jsonLd),
 		isDevHost: isDevelopmentHost(url.hostname),

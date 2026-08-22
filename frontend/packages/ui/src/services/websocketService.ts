@@ -182,7 +182,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isRetryableRecoveryProtocolError(payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   return (
-    ((payload.code === "version_conflict" || payload.code === "lease_conflict") &&
+    ((payload.code === "version_conflict" ||
+      payload.code === "lease_conflict" ||
+      payload.code === "recovery_job_not_found") &&
       typeof payload.job_id === "string" &&
       typeof payload.request_id === "string") ||
     payload.code === "recovery_persistence_required"

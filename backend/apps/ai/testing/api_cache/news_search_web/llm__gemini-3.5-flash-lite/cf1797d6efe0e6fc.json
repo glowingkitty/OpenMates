@@ -1,0 +1,57 @@
+{
+  "fingerprint": "cf1797d6efe0e6fc",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "news_search_web",
+  "recorded_at": "2026-08-15T11:03:29.278836+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "60521204ad39ff7c",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Search news for openmates_e2e_news_fixture_ai"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "news-search-2967753a",
+          "function_name": "news-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"openmates_e2e_news_fixture_ai\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "openmates_e2e_news_fixture_ai"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPUgY6U7enuduryHBaeuK09FlmXBcPv7UL15J7ZUYHX9fNY/SWLqE4r9/O/aX14q3zkFDLqBxXxnikoh2v8SMK3pLEtvxNdy1uE6+D9GedpMBlSUB9uzSz"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14327,
+          "candidates_token_count": 30,
+          "total_token_count": 14357,
+          "user_input_tokens": 13,
+          "system_prompt_tokens": 13353
+        }
+      }
+    ]
+  }
+}

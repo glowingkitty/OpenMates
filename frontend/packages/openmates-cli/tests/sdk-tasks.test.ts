@@ -16,6 +16,8 @@ import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -46,6 +48,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK user tasks", () => {
+  // contract-test: supporting surface=sdks.npm assertions=tasks.surface.semantic-parity
   it("exposes task app-skill child embeds and pending client search state", async () => {
     await withServer(
       (request, body) => {
@@ -121,6 +124,7 @@ describe("OpenMates SDK user tasks", () => {
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("manages decrypted tasks through API-key master-key recovery", async () => {
     const masterKey = Buffer.alloc(32, 7);
     const material = await createApiKeyCryptoMaterial("sdk task parity", masterKey.toString("base64"));
@@ -205,26 +209,33 @@ describe("OpenMates SDK user tasks", () => {
         const listed = await client.tasks.list({ labels: ["sdk", "urgent"], priority: "high" });
         assert.equal(listed[0]?.title, "SDK parity task");
 
-        const edited = await client.tasks.edit("TASK-1", { title: "SDK parity task edited", status: "in_progress", addLabels: ["docs"], removeLabels: ["urgent"], priority: "urgent" });
+        const teamFilters = { teamId: "team-1" };
+        await client.tasks.list(teamFilters);
+        const edited = await client.tasks.edit("TASK-1", { title: "SDK parity task edited", status: "in_progress", addLabels: ["docs"], removeLabels: ["urgent"], priority: "urgent" }, teamFilters);
         assert.equal(edited.title, "SDK parity task edited");
         assert.equal(edited.status, "in_progress");
         assert.deepEqual(edited.labels, ["sdk", "docs"]);
         assert.equal(edited.priorityLevel, "urgent");
 
-        assert.equal((await client.tasks.startAI("TASK-1")).status, "in_progress");
-        assert.equal((await client.tasks.block("TASK-1", "needs_input")).status, "blocked");
-        assert.equal((await client.tasks.unblock("TASK-1")).status, "todo");
-        assert.equal((await client.tasks.skip("TASK-1")).queueState, "skipped");
-        assert.equal((await client.tasks.done("TASK-1")).status, "done");
-        assert.equal((await client.tasks.move("TASK-1", { position: 42, status: "todo" }))[0]?.position, 42);
-        assert.deepEqual((await client.tasks.addToProject("TASK-1", "project-1")).linkedProjectIds, ["project-1"]);
-        assert.deepEqual((await client.tasks.removeFromProject("TASK-1", "project-1")).linkedProjectIds, []);
-        assert.equal((await client.tasks.delete("TASK-1", { confirmed: true })).deleted, true);
+        assert.equal((await client.tasks.startAI("TASK-1", teamFilters)).status, "in_progress");
+        assert.equal((await client.tasks.block("TASK-1", "needs_input", teamFilters)).status, "blocked");
+        assert.equal((await client.tasks.unblock("TASK-1", teamFilters)).status, "todo");
+        assert.equal((await client.tasks.skip("TASK-1", teamFilters)).queueState, "skipped");
+        assert.equal((await client.tasks.done("TASK-1", teamFilters)).status, "done");
+        assert.equal((await client.tasks.move("TASK-1", { position: 42, status: "todo" }, teamFilters))[0]?.position, 42);
+        assert.deepEqual((await client.tasks.addToProject("TASK-1", PROJECT_ID)).linkedProjectIds, [PROJECT_ID]);
+        assert.deepEqual((await client.tasks.removeFromProject("TASK-1", PROJECT_ID)).linkedProjectIds, []);
+        assert.equal((await client.tasks.delete("TASK-1", { confirmed: true, filters: teamFilters })).deleted, true);
       },
       `Bearer ${material.apiKey}`,
     );
 
     assert.ok(seen.some((request) => request.url === "/v1/sdk/session"), "SDK session wrapper was not requested");
     assert.ok(seen.some((request) => request.url?.startsWith("/v1/user-tasks?") && request.url.includes("priority=3") && (request.url.match(/label_hash=/g) ?? []).length === 2));
+    assert.ok(seen.some((request) => request.method === "PATCH" && request.url?.includes("team_id=team-1")));
+    assert.ok(seen.some((request) => request.url?.endsWith("/start-ai") && (request.body as Record<string, unknown>).team_id === "team-1"));
+    assert.ok(seen.some((request) => request.url?.endsWith("/complete") && (request.body as Record<string, unknown>).team_id === "team-1"));
+    assert.ok(seen.some((request) => request.url === "/v1/user-tasks/reorder" && (request.body as Record<string, unknown>).team_id === "team-1"));
+    assert.ok(seen.some((request) => request.method === "DELETE" && request.url?.includes("team_id=team-1")));
   });
 });

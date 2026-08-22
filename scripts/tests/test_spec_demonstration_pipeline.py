@@ -6,6 +6,8 @@ Privacy: all commands, frames, secrets, and account identifiers are synthetic.
 Tests: python3 -m pytest scripts/tests/test_spec_demonstration_pipeline.py.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -31,6 +33,57 @@ def load_module():
     return module
 
 
+def test_resolve_run_artifact_path_accepts_run_local_and_repository_relative_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "__file__", str(tmp_path / "scripts" / "spec_demo.py"))
+    run_dir = tmp_path / "test-results" / "proof-videos" / "session" / "proof"
+
+    assert module.resolve_run_artifact_path(run_dir, "demo.mp4") == run_dir / "demo.mp4"
+    assert module.resolve_run_artifact_path(
+        run_dir,
+        "test-results/proof-videos/session/proof/demo.mp4",
+    ) == run_dir / "demo.mp4"
+    assert module.resolve_run_artifact_path(run_dir, run_dir / "demo.mp4") == run_dir / "demo.mp4"
+    with pytest.raises(module.DemonstrationError, match="escapes the run directory"):
+        module.resolve_run_artifact_path(run_dir, "../outside.mp4")
+    with pytest.raises(module.DemonstrationError, match="escapes the run directory"):
+        module.resolve_run_artifact_path(run_dir, tmp_path / "outside.mp4")
+
+
+def write_synthetic_audio(path: Path, *, duration: float = 1.0) -> Path:
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"sine=frequency=440:duration={duration}",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return path
+
+
+def synthetic_audio_metadata(path: Path) -> dict[str, object]:
+    return {
+        "status": "passed",
+        "provider": "elevenlabs",
+        "model": "eleven_flash_v2_5",
+        "voice": "warm_neutral",
+        "path": str(path),
+        "sha256": "sha256:" + "a" * 64,
+        "mime_type": "audio/wav",
+        "duration_seconds": 1.0,
+        "reused_from": "",
+    }
+
+
 def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Path) -> None:
     module = load_module()
     video = tmp_path / "flow.webm"
@@ -43,6 +96,7 @@ def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Pa
             "run_id": "run-old",
             "subject_commit": "old1234",
             "artifact_path": str(video),
+            "artifact_sha256": module.sha256_file(video),
             "test_account_provenance": "synthetic fixture account",
         },
         {
@@ -52,6 +106,7 @@ def test_playwright_source_requires_exact_run_commit_and_provenance(tmp_path: Pa
             "run_id": "run-1",
             "subject_commit": "abc1234",
             "artifact_path": str(video),
+            "artifact_sha256": module.sha256_file(video),
             "test_account_provenance": "synthetic fixture account",
         },
     ]
@@ -138,6 +193,24 @@ def test_pty_capture_times_out_and_caps_output(tmp_path: Path) -> None:
         )
 
 
+def test_pty_capture_returns_when_child_exits_before_inherited_pty_closes(tmp_path: Path) -> None:
+    module = load_module()
+    started = time.monotonic()
+
+    result = module.capture_pty(
+        [sys.executable, "-c", "import os, time; pid = os.fork(); print('parent done'); os._exit(0) if pid else time.sleep(5)"],
+        run_id="inherited-pty",
+        target_environment="local synthetic fixture",
+        output_dir=tmp_path,
+        test_account_provenance="no account used",
+        timeout_seconds=2,
+    )
+
+    assert result["exit_status"] == 0
+    assert time.monotonic() - started < 2
+    assert "parent done" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+
+
 def test_reconstruction_requires_visible_label_and_matching_transcript_hash() -> None:
     module = load_module()
     source = {"transcript_hash": "sha256:exact", "reconstructed": False}
@@ -145,25 +218,21 @@ def test_reconstruction_requires_visible_label_and_matching_transcript_hash() ->
     reconstructed = module.mark_reconstructed(source, displayed_transcript_hash="sha256:exact")
 
     assert reconstructed["reconstructed"] is True
-    assert reconstructed["visible_label"] == "Reconstructed from exact sanitized terminal transcript"
+    assert reconstructed["visible_label"] == "Reconstructed from exact terminal transcript"
     with pytest.raises(module.DemonstrationError, match="transcript hash"):
         module.mark_reconstructed(source, displayed_transcript_hash="sha256:different")
 
 
-def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
+def test_ffmpeg_terminal_render_uses_full_terminal_frame(tmp_path: Path) -> None:
     module = load_module()
     timeline = module.build_cli_terminal_timeline(
         argv=["openmates", "demo"],
         events=[{"time_seconds": 0.8, "stream": "output", "text": "exact terminal output\n"}],
     )
-    captions = tmp_path / "captions.srt"
-    captions.write_text(
-        "1\n00:00:00,000 --> 00:00:01,000\nThe exact output is visible.\n",
-        encoding="utf-8",
-    )
     output = tmp_path / "demo.mp4"
+    audio = write_synthetic_audio(tmp_path / "narration.wav")
 
-    module.render_terminal_video(timeline, captions, output)
+    module.render_terminal_video(timeline, audio, output)
 
     assert output.is_file() and output.stat().st_size > 0
     probe = subprocess.run(
@@ -175,6 +244,7 @@ def test_ffmpeg_terminal_render_and_caption_output(tmp_path: Path) -> None:
     assert float(json.loads(probe.stdout)["format"]["duration"]) >= 1.0
     metadata = module.video_metadata(output)
     assert (metadata["width"], metadata["height"]) == (1280, 720)
+    assert metadata["has_audio"] is True
     end_frame = module.extract_frame(
         output,
         timestamp_seconds=module.video_metadata(output)["duration_seconds"],
@@ -203,22 +273,116 @@ def test_cli_terminal_timeline_types_command_then_replays_real_output_delay() ->
     )
 
     states = timeline["states"]
-    assert states[0]["text"] == "$ "
-    assert states[1]["text"].startswith("$ o")
+    assert states[0]["text"] == "$ openmates plans create --title 'Tutorial plan'"
     assert states[-1]["text"].endswith("Status: draft\n")
-    assert timeline["first_output_at"] == pytest.approx(timeline["typing_completed_at"] + 1.25)
+    assert timeline["first_output_at"] == pytest.approx(
+        timeline["typing_completed_at"] + module.TERMINAL_MAX_OUTPUT_GAP_SECONDS,
+    )
     assert timeline["duration_seconds"] >= 15
     assert all("exit_status" not in state["text"] for state in states)
     assert all("run_id" not in state["text"] for state in states)
 
 
+def test_cli_terminal_timeline_caps_slow_network_gaps() -> None:
+    module = load_module()
+    timeline = module.build_cli_terminal_timeline(
+        argv=["openmates", "teams", "create", "--name", "T95"],
+        events=[
+            {"time_seconds": 20.0, "stream": "output", "text": "team created\n"},
+            {"time_seconds": 55.0, "stream": "output", "text": "credits visible\n"},
+        ],
+    )
+
+    assert timeline["first_output_at"] == pytest.approx(
+        timeline["typing_completed_at"] + module.TERMINAL_MAX_OUTPUT_GAP_SECONDS,
+    )
+    assert timeline["duration_seconds"] < 20
+    assert timeline["states"][-1]["text"].endswith("credits visible\n")
+
+
+def test_terminal_ass_text_tails_latest_visible_lines() -> None:
+    module = load_module()
+    text = "\n".join(f"line {index}" for index in range(module.TERMINAL_VISIBLE_LINES + 3))
+
+    rendered = module._terminal_ass_text(text)
+
+    assert "line 0" not in rendered
+    assert f"line {module.TERMINAL_VISIBLE_LINES + 2}" in rendered
+
+
+def test_cli_display_command_replaces_test_harness_and_dist_cli_paths() -> None:
+    module = load_module()
+
+    assert module.user_facing_cli_argv([
+        "node",
+        "scripts/openmates_cli_test_account.mjs",
+        "chat",
+        "Explain teams",
+        "--api-url",
+        "https://api.dev.openmates.org",
+    ]) == [
+        "openmates",
+        "chat",
+        "Explain teams",
+        "--api-url",
+        "https://api.dev.openmates.org",
+    ]
+    assert module.user_facing_cli_argv(["node", "dist/cli.js", "teams", "list"]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv(["node", "./dist/cli.js", "teams", "list"]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv([
+        "node",
+        "frontend/packages/openmates-cli/dist/cli.js",
+        "teams",
+        "list",
+    ]) == ["openmates", "teams", "list"]
+    assert module.user_facing_cli_argv([
+        "node",
+        "scripts/teams_cli_proof.mjs",
+        "--name",
+        "CLI Proof Team",
+        "--slug",
+        "cli-proof-team",
+    ]) == ["openmates", "teams", "create", "--name", "CLI Proof Team", "--slug", "cli-proof-team", "--switch"]
+    assert module.user_facing_cli_argv(["openmates", "teams", "list"]) == ["openmates", "teams", "list"]
+
+
+def test_teams_cli_proof_helper_prints_approved_visible_commands() -> None:
+    source = (ROOT / "scripts" / "teams_cli_proof.mjs").read_text(encoding="utf-8")
+
+    for command in (
+        "openmates teams create --name",
+        "openmates switch-to personal",
+        "openmates switch-to ${slug}",
+        "openmates teams ${slug} switch-to",
+        "openmates chats list",
+    ):
+        assert command in source
+    assert "&& openmates switch-to" not in source
+    assert "Team created and selected: ${options.slug}" in source
+
+
+def test_teams_cli_proof_helper_validates_visible_chat_isolation() -> None:
+    source = (ROOT / "scripts" / "teams_cli_proof.mjs").read_text(encoding="utf-8")
+
+    assert "function listChatsForIsolation" in source
+    assert source.count('printCommand("openmates chats list")') >= 2
+    assert "Personal chat list unexpectedly included the team chat" in source
+    assert "Team chat list did not include the created team chat" in source
+    assert "CHAT_LIST_RETRY_ATTEMPTS" in source
+    assert "CHAT_LIST_RETRY_DELAY_MS" in source
+    assert "Personal chats listed: created team chat" in source
+    assert "Team chats listed: created team chat" in source
+    assert "is absent" in source
+    assert "is present" in source
+
+
 def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) -> None:
     module = load_module()
-    path = tmp_path / "captions.srt"
+    path = tmp_path / "captions.vtt"
 
     segments = module.write_tutorial_captions(
         path,
-        text="First, create the Plan. Next, inspect the returned fields. The undo commands make the change reversible.",
+        text="First, the terminal shows the plan command being typed at a readable pace. Next, the screen lists the returned plan fields so the reviewer can confirm the created result. The final message explains that the undo command is visible if the plan should be reversed.",
         duration_seconds=15,
         narration_id="NARR-1",
         first_transition_at=7,
@@ -231,97 +395,178 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
     assert path.read_text(encoding="utf-8").count(" --> ") == 3
 
 
-def test_text_scan_detects_known_environment_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = load_module()
-    secret = "synthetic-webhook-value-without-vendor-pattern"
-    monkeypatch.setenv("SYNTHETIC_WEBHOOK_TOKEN", secret)
-
-    assert module.scan_text_with_canonical_scanner(f"visible {secret}")
-
-
-def test_text_scan_detects_dedicated_discord_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = load_module()
-    secret = "https://discord.invalid/api/webhooks/synthetic/private-value"
-    monkeypatch.setenv("DISCORD_WEBHOOK_SPEC_DEMOS", secret)
-
-    assert module.scan_text_with_canonical_scanner(f"visible {secret}")
-
-
-def test_playwright_privacy_scan_does_not_treat_ci_run_id_as_phone_number() -> None:
-    module = load_module()
-    source = {
-        "run_id": "31231661641",
-        "subject_commit": "6150eb0",
-        "target": "https://app.dev.openmates.org",
-        "artifact_path": "/tmp/playwright-31231661641/video.webm",
-    }
-
-    payload = module.playwright_source_privacy_payload(source)
-
-    assert "31231661641" not in payload
-    assert "6150eb0" in payload
-    assert module.scan_text_sources({"source_metadata": payload})["status"] == "passed"
-
-
-def test_cli_anonymization_uses_visible_typed_placeholders(
+def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = load_module()
-    secret = "synthetic-webhook-value-without-vendor-pattern"
-    monkeypatch.setenv("SYNTHETIC_WEBHOOK_TOKEN", secret)
-    transcript = tmp_path / "transcript.txt"
-    transcript.write_text(f"token={secret}\n", encoding="utf-8")
-    capture = {
-        "argv": ["example", secret],
-        "transcript_hash": module.sha256_file(transcript),
-    }
-
-    anonymized = module.anonymize_cli_capture(tmp_path, capture)
-    rendered = transcript.read_text(encoding="utf-8")
-
-    assert secret not in rendered
-    assert secret[-8:] not in rendered
-    assert "[REDACTED_GENERIC_SECRET_1]" in rendered
-    assert all(secret not in value for value in anonymized["argv"])
-    assert all(secret[-8:] not in value for value in anonymized["argv"])
-    assert anonymized["anonymization"]["applied"] is True
-    assert anonymized["transcript_hash"] == module.sha256_file(transcript)
-
-
-def test_cli_anonymization_failure_removes_raw_capture(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:15.967\nVisible.\n", encoding="utf-8")
     monkeypatch.setattr(
         module,
-        "anonymize_cli_capture",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(module.DemonstrationError("scanner failed")),
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 15.967,
+            "width": 1280,
+            "height": 720,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
     )
 
-    with pytest.raises(module.DemonstrationError, match="scanner failed"):
-        module.produce_cli_demonstration(
-            run_dir=tmp_path,
-            argv=[sys.executable, "-c", "print('raw sensitive output')"],
-            spec_id="example",
-            subject_commit="abc1234",
-            run_id="run-1",
-            target_environment="local fixture",
-            test_account_provenance="no account used",
+    def extract(_video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, object]:
+        return {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        }
+
+    monkeypatch.setattr(module, "extract_frame", extract)
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="teams-v1",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="First, the terminal shows team creation output. Next, visible context output confirms the selected team. Finally, credits output stays visible for review.",
+        captions_path=captions,
+        expected_proof="The terminal shows team CLI output.",
+        acceptance_criteria=["AC-1"],
+        source={"kind": "cli", "argv": ["openmates", "teams", "create"]},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {
+                "id": "CAP-1",
+                "narration_id": "NARR-1",
+                "text": "First, the terminal shows team creation output.",
+                "start": 0.0,
+                "end": 15.978,
+                "claim_ids": ["CLAIM-1"],
+            }
+        ],
+        scene_times=[2.0],
+        action_times=[7.0],
+        state_change_times=[12.0],
+    )
+
+    assert manifest["captions"][0]["end"] == 15.967
+    assert manifest["expected_proof"][0]["evidence_intervals"] == [[0.0, 15.967]]
+    assert manifest["privacy"] == {
+        "status": "not_applicable",
+        "scan": "disabled",
+        "reason": "proof_video_pii_detection_disabled",
+    }
+    request = json.loads((tmp_path / "review-request.json").read_text(encoding="utf-8"))
+    assert request["captions"][0]["end"] == 15.967
+    timestamps = {frame["timestamp_seconds"] for frame in request["frames"]}
+    assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
+
+
+def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: type(
+            "Result",
+            (),
+            {"returncode": 0, "stdout": "", "stderr": "showinfo pts_time:1.250 x\nshowinfo pts_time:4.5 x\n"},
+        )(),
+    )
+
+    assert module.detect_scene_change_times(video) == [1.25, 4.5]
+
+
+def test_playwright_event_timestamps_follow_trim_and_retiming() -> None:
+    module = load_module()
+
+    assert module.scale_source_event_times(
+        [-1, 5, 10, 20, "not-a-time"],
+        trim_start_seconds=5,
+        playback_rate=2,
+        output_duration_seconds=8,
+    ) == [0.0, 2.5, 7.5]
+
+
+def test_review_frame_times_prioritize_action_events_over_scene_noise() -> None:
+    module = load_module()
+
+    times = module.build_review_frame_times(
+        duration_seconds=30,
+        interval_seconds=5,
+        scene_times=[1.5, 2.8, 4.1, 6.4, 8.7, 11.0, 13.3, 17.2],
+        action_times=[12.2],
+    )
+
+    assert {11.95, 12.2, 12.45}.issubset(set(times))
+
+
+def test_review_frame_times_keep_later_action_centers_before_nearby_variants() -> None:
+    module = load_module()
+
+    times = module.build_review_frame_times(
+        duration_seconds=30,
+        interval_seconds=5,
+        action_times=[6.0, 12.0, 18.0, 24.0],
+    )
+
+    assert {6.0, 12.0, 18.0, 24.0}.issubset(set(times))
+
+
+def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:
+    module = load_module()
+
+    with pytest.raises(module.DemonstrationError, match="too generic|visible action"):
+        module.write_tutorial_captions(
+            tmp_path / "captions.vtt",
+            text="The feature works correctly.",
+            duration_seconds=5,
             narration_id="NARR-1",
-            caption_text="Safe caption.",
-            expected_proof="Safe output is visible.",
-            acceptance_criteria=["AC-1"],
-            anonymize_sensitive=True,
         )
 
-    assert not (tmp_path / "transcript.txt").exists()
-    assert not (tmp_path / "events.jsonl").exists()
+
+def test_device_profile_dimensions_reject_landscape_mobile_wrapper() -> None:
+    module = load_module()
+    profile = module.resolve_device_profile("web-phone")
+
+    with pytest.raises(module.DemonstrationError, match="390x844"):
+        module.assert_device_profile_dimensions({"width": 800, "height": 450}, profile)
+
+
+def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
+    module = load_module()
+    video = tmp_path / "letterbox.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:s=390x844:r=10",
+            "-vf",
+            "drawbox=x=0:y=160:w=390:h=524:color=white:t=fill",
+            "-t",
+            "1",
+            str(video),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
+        module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
 
 
 @pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])
-def test_cli_anonymization_never_retains_secret_punctuation_suffixes(
+def test_canonical_redaction_helper_never_retains_secret_punctuation_suffixes(
     suffix: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -336,7 +581,7 @@ def test_cli_anonymization_never_retains_secret_punctuation_suffixes(
     assert "[REDACTED_" in result["text"]
 
 
-def test_cli_anonymization_preserves_benign_placeholder_shaped_output() -> None:
+def test_canonical_redaction_helper_preserves_benign_placeholder_shaped_output() -> None:
     module = load_module()
     text = "Build completed [BUILD_abc] without findings."
 
@@ -358,12 +603,11 @@ def test_playwright_render_input_must_match_selected_artifact(tmp_path: Path) ->
         module.verify_playwright_render_input(selected, other_video)
 
 
-def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
+def test_clean_render_strips_source_metadata_without_caption_or_scale_filters(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
-    captions = tmp_path / "captions.srt"
     output = tmp_path / "output.mp4"
-    captions.write_text("1\n00:00:00,000 --> 00:00:00,800\nSafe caption.\n", encoding="utf-8")
+    audio = write_synthetic_audio(tmp_path / "narration.wav")
     subprocess.run(
         [
             "ffmpeg", "-y", "-f", "lavfi", "-i", "color=black:s=320x240:r=10", "-t", "1",
@@ -374,9 +618,205 @@ def test_caption_render_strips_source_metadata(tmp_path: Path) -> None:
     )
 
     assert module.video_metadata(source)["tags"]["comment"] == "private synthetic metadata"
-    module.render_captioned_video(source, captions, output)
+    observed: list[list[str]] = []
+    real_run = module.subprocess.run
+
+    def capture_run(command, **kwargs):
+        observed.append(command)
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "run", capture_run)
+    module.render_clean_video(source, audio, output)
 
     assert "comment" not in module.video_metadata(output)["tags"]
+    assert module.video_metadata(output)["has_audio"] is True
+    render_command = next(command for command in observed if command and command[0] == "ffmpeg" and str(output) in command)
+    filters = " ".join(render_command)
+    assert "subtitles=" not in filters
+    assert "scale=" not in filters
+    assert "pad=" not in filters
+    assert module.video_metadata(output)["width"] == module.video_metadata(source)["width"]
+    assert module.video_metadata(output)["height"] == module.video_metadata(source)["height"]
+
+
+def test_clean_render_defaults_to_video_without_audio(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "output.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    module.render_clean_video(source, None, output)
+
+    assert output.is_file()
+    assert module.video_metadata(output)["has_audio"] is False
+
+
+def test_tutorial_captions_are_written_as_webvtt(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "captions.vtt"
+
+    segments = module.write_tutorial_captions(
+        path,
+        text="The screen shows the first visible action and its controls. The selected result remains clearly visible for careful review. The final screen confirms the expected completed state for the viewer.",
+        duration_seconds=9.0,
+        narration_id="NARR-1",
+    )
+
+    content = path.read_text(encoding="utf-8")
+    assert content.startswith("WEBVTT\n\n")
+    assert "00:00:00.000 -->" in content
+    assert ",000" not in content
+    assert len(segments) == 3
+
+
+def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "trimmed.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "2", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    result = module.trim_source_to_ready_marker(
+        source,
+        output,
+        ready_timestamp_seconds=1.0,
+        lead_seconds=0.15,
+    )
+
+    assert result["trim_start_seconds"] == pytest.approx(0.85)
+    assert result["ready_timestamp_seconds"] == 1.0
+    assert module.video_metadata(output)["duration_seconds"] == pytest.approx(1.15, abs=0.15)
+    assert (module.video_metadata(output)["width"], module.video_metadata(output)["height"]) == (320, 240)
+
+
+def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "black-then-blue.mp4"
+    output = tmp_path / "trimmed.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=black:s=320x240:r=10:d=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=320x240:r=10:d=1",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1:a=0",
+            str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    module.trim_source_to_ready_marker(source, output, ready_timestamp_seconds=1.2, lead_seconds=0)
+    raw = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(output), "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+    red, green, blue = raw[:3]
+    assert blue > 100
+    assert red < 50
+    assert green < 50
+
+
+def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844:r=10", "-t", "5", str(source)],
+        check=True,
+        capture_output=True,
+    )
+    source_record = {
+        "command_or_spec": "example.spec.ts",
+        "target": "https://app.dev.openmates.org",
+        "deployment_reference": "abc1234",
+        "run_id": "run-one",
+        "subject_commit": "abc1234",
+        "artifact_path": str(source),
+        "artifact_sha256": module.sha256_file(source),
+        "test_account_provenance": "synthetic fixture account",
+    }
+    kwargs = {
+        "run_dir": tmp_path / "proof",
+        "source_video": source,
+        "source": source_record,
+        "spec_id": "example",
+        "subject_commit": "abc1234",
+        "narration_id": "NARR-1",
+        "caption_text": "The screen shows the first visible action. The selected result remains visible for review. The final screen confirms the expected state.",
+        "expected_proof": "The expected state is visible.",
+        "acceptance_criteria": ["AC-1"],
+        "narration_audio_path": None,
+        "device_profile_name": "web-phone",
+    }
+
+    with pytest.raises(module.DemonstrationError, match="0.75"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=0.5)
+    with pytest.raises(module.DemonstrationError, match="1.0"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=1.25)
+    with pytest.raises(module.DemonstrationError, match="35 seconds"):
+        module.produce_playwright_demonstration(**kwargs, playback_rate=0.75, hold_last_frame_seconds=30)
+
+
+def test_spec_timeline_render_uses_checkpoint_frame_holds_without_speedup(tmp_path: Path) -> None:
+    module = load_module()
+    frame = tmp_path / "checkpoint.png"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844", "-frames:v", "1", str(frame)],
+        check=True,
+        capture_output=True,
+    )
+    output = tmp_path / "demo.mp4"
+
+    metadata = module.render_spec_timeline_video(
+        {"checkpoint_frames": [{"path": str(frame), "sha256": module.sha256_file(frame)}]},
+        output,
+        caption_text="The screen shows the first visible action. The selected result remains visible for review. The final screen confirms the expected state.",
+    )
+
+    assert metadata["rendered_from"] == "spec_timeline_checkpoint_frames"
+    assert metadata["checkpoint_frame_count"] == 1
+    assert output.is_file()
+    assert module.video_metadata(output)["duration_seconds"] <= module.MAX_PROOF_OUTPUT_SECONDS
+
+
+def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    product_audio = write_synthetic_audio(tmp_path / "product.wav")
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=320x240:r=10", "-t", "1", str(source)],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(module.DemonstrationError, match="Product audio requires explicit narration audio"):
+        module.render_clean_video(source, None, tmp_path / "output.mp4", demo_audio_path=product_audio)
+
+
+def test_terminal_render_rejects_output_over_35_seconds(tmp_path: Path) -> None:
+    module = load_module()
+    with pytest.raises(module.DemonstrationError, match="35 seconds"):
+        module.render_terminal_video(
+            {"duration_seconds": 35.1, "states": [{"start": 0.0, "end": 35.1, "text": "$ safe"}]},
+            None,
+            tmp_path / "output.mp4",
+        )
 
 
 def test_manifest_keeps_raw_and_derived_artifacts_distinct(tmp_path: Path) -> None:
@@ -399,8 +839,12 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
 ) -> None:
     module = load_module()
     observed = {}
-    monkeypatch.setattr(module, "scan_text_sources", lambda _values: {"status": "passed", "findings": []})
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
 
     def prepare(**kwargs):
         observed.update(kwargs)
@@ -418,16 +862,126 @@ def test_cli_production_deletes_raw_events_and_records_claim_traceability(
         target_environment="local fixture",
         test_account_provenance="no account used",
         narration_id="NARR-1",
-        caption_text="Safe caption.",
+        caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
+        narration_audio_path=tmp_path / "narration.wav",
     )
 
     assert result["status"] == "review_ready"
     assert observed["acceptance_criteria"] == ["AC-1"]
 
 
-def test_cli_production_anonymizes_sensitive_argv_before_review(
+def test_cli_production_rejects_failed_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(
+        module,
+        "capture_pty",
+        lambda *_args, **_kwargs: {
+            "argv": ["openmates", "demo"],
+            "target_environment": "local fixture",
+            "run_id": "run-1",
+            "exit_status": 1,
+            "transcript_hash": "sha256:" + "1" * 64,
+            "event_hash": "sha256:" + "2" * 64,
+            "artifact_hash": "sha256:" + "2" * 64,
+            "test_account_provenance": "no account used",
+            "duration_seconds": 0.2,
+        },
+    )
+
+    with pytest.raises(module.DemonstrationError, match="exited with status 1"):
+        module.produce_cli_demonstration(
+            run_dir=tmp_path,
+            argv=["openmates", "demo"],
+            spec_id="example",
+            subject_commit="abc1234",
+            run_id="run-1",
+            target_environment="local fixture",
+            test_account_provenance="no account used",
+            narration_id="NARR-1",
+            caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
+            expected_proof="Safe output is visible.",
+            acceptance_criteria=["AC-1"],
+            narration_audio_path=None,
+        )
+
+
+def test_cli_production_renders_user_facing_openmates_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    observed: dict[str, object] = {}
+    monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
+
+    def capture(captured_argv: list[str], **kwargs: object) -> dict[str, object]:
+        run_dir = Path(kwargs["output_dir"])
+        (run_dir / "events.jsonl").write_text(
+            json.dumps({"time_seconds": 0.0, "stream": "input", "argv": captured_argv}) + "\n"
+            + json.dumps({"time_seconds": 0.2, "stream": "output", "text": "visible team output\n"}) + "\n",
+            encoding="utf-8",
+        )
+        (run_dir / "transcript.txt").write_text("raw harness transcript\n", encoding="utf-8")
+        return {
+            "argv": captured_argv,
+            "target_environment": kwargs["target_environment"],
+            "run_id": kwargs["run_id"],
+            "exit_status": 0,
+            "transcript_hash": "sha256:" + "1" * 64,
+            "event_hash": "sha256:" + "2" * 64,
+            "artifact_hash": "sha256:" + "2" * 64,
+            "test_account_provenance": kwargs["test_account_provenance"],
+            "duration_seconds": 0.2,
+        }
+
+    def timeline(**kwargs: object) -> dict[str, object]:
+        observed["timeline_argv"] = kwargs["argv"]
+        return {
+            "states": [{"start": 0.0, "end": 15.0, "text": "$ openmates teams list\nvisible team output\n"}],
+            "typing_completed_at": 1.0,
+            "first_output_at": 1.2,
+            "duration_seconds": 15.0,
+        }
+
+    def prepare(**kwargs: object) -> dict[str, str]:
+        observed.update(kwargs)
+        return {"status": "review_ready"}
+
+    monkeypatch.setattr(module, "capture_pty", capture)
+    monkeypatch.setattr(module, "build_cli_terminal_timeline", timeline)
+    monkeypatch.setattr(module, "prepare_review_artifacts", prepare)
+
+    result = module.produce_cli_demonstration(
+        run_dir=tmp_path,
+        argv=["node", "scripts/openmates_cli_test_account.mjs", "teams", "list", "--json"],
+        spec_id="teams-cli",
+        subject_commit="abc1234",
+        run_id="run-1",
+        target_environment="local fixture",
+        test_account_provenance="synthetic account",
+        narration_id="NARR-1",
+        caption_text="First, the terminal shows the teams list command as a normal openmates command. Next, the visible output confirms the team result in the terminal. The final caption keeps review focused on realistic user-facing CLI output.",
+        expected_proof="The regular openmates teams command is visible.",
+        acceptance_criteria=["AC-1"],
+        narration_audio_path=tmp_path / "narration.wav",
+    )
+
+    assert result["status"] == "review_ready"
+    assert observed["timeline_argv"] == ["openmates", "teams", "list", "--json"]
+    assert observed["source"]["argv"] == ["node", "scripts/openmates_cli_test_account.mjs", "teams", "list", "--json"]
+    assert observed["source"]["display_argv"] == ["openmates", "teams", "list", "--json"]
+
+
+def test_cli_production_preserves_captured_argv_before_review(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -436,6 +990,11 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
     observed: dict[str, object] = {}
     monkeypatch.setenv("SYNTHETIC_COMMAND_TOKEN", secret)
     monkeypatch.setattr(module, "render_terminal_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "prepare_narration_audio",
+        lambda **_kwargs: synthetic_audio_metadata(tmp_path / "narration.wav"),
+    )
 
     def prepare(**kwargs: object) -> dict[str, str]:
         observed.update(kwargs)
@@ -452,13 +1011,12 @@ def test_cli_production_anonymizes_sensitive_argv_before_review(
         target_environment="local fixture",
         test_account_provenance="no account used",
         narration_id="NARR-1",
-        caption_text="Safe caption.",
+        caption_text="First, the terminal shows the safe local command being captured. Next, the visible output confirms the synthetic result without account data. The final caption keeps review focused on the command screen and retained evidence.",
         expected_proof="Safe output is visible.",
         acceptance_criteria=["AC-1"],
-        anonymize_sensitive=True,
+        narration_audio_path=tmp_path / "narration.wav",
     )
 
     assert result["status"] == "review_ready"
-    assert secret not in json.dumps(observed["source"])
-    assert secret[-8:] not in json.dumps(observed["source"])
-    assert "[REDACTED_" in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+    assert secret in json.dumps(observed["source"])
+    assert secret in (tmp_path / "transcript.txt").read_text(encoding="utf-8")

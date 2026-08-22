@@ -82,9 +82,10 @@ The plan must include:
 - Whether a material technical-plan decision needs user approval beyond the
   approved product contract
 - For required demonstrations, select the real capture source, caption renderer,
-  deterministic text privacy scan, frame sampling, artifact retention, and
-  Discord delivery path. The plan must state that the full video never enters
-  model context and that exact captions are written only after normal green gates.
+  frame sampling, artifact retention, and OpenCode response-media embed path. The
+  plan must state that proof videos do not run proof-specific PII/sensitive-data
+  detection or replacement, that the full video never enters model context, and
+  that exact captions are written only after normal green gates.
 
 ### Step 4: Keep The Plan Minimal
 

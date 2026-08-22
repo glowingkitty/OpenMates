@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 # backend/scripts/test_gemini_ai_studio_models.py
 #
 # Direct Google AI Studio model probe and small deterministic benchmark.
@@ -27,7 +28,7 @@ DEFAULT_MODELS = [
     "gemini-3-flash-preview",
     "gemini-3.5-flash-lite",
     "gemini-3.5-flash",
-    "gemini-3.6-flash",
+    "gemini-3.7-flash",
     "gemini-3.1-pro-preview",
 ]
 

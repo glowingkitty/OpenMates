@@ -42,12 +42,15 @@ counterpart.
 
 ### Step 1: Read the failure report and screenshots (parallel)
 
-Start from the Directus-backed state for the failing test:
+Start from the canonical bounded evidence bundle, then consult broader Directus state only if the bundle identifies missing evidence:
 
 ```bash
+python3 scripts/tests.py investigate --test-key playwright::<spec-name>.spec.ts --run <run-id> --json
 python3 scripts/tests.py status --json
 python3 scripts/tests.py triage --json
 ```
+
+Use the bundle's validated diagnostic presets rather than constructing ad hoc log queries. Preserve explicit missing-artifact and unknown-revision states in the report.
 
 Use Read for the failure report and screenshot files and Glob for the screenshot directory. Runtime artifacts are shared read-only evidence; do not copy them or create a child repository session.
 

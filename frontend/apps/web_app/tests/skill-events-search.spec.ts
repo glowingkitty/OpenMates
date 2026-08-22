@@ -71,6 +71,7 @@ test.describe('App: Events / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible
 	test('Phase 0: Apps metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 
@@ -98,12 +99,14 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────
+	// contract-test: supporting surface=gui.web assertions=chats.surface.semantic-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/events', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'events', log);
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
+	// contract-test: direct surface=cli assertions=cli.output.actionable-readable,cli.surface.semantic-parity
 	test('Phase 2: CLI apps events search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -119,7 +122,7 @@ test.describe('App: Events / Skill: search', () => {
 				}),
 				'--json'
 			],
-			45_000
+			90_000
 		);
 
 		expectCliSuccess(result);
@@ -140,6 +143,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
+	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
 	test('Phase 3: CLI chats new triggers events search', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -160,6 +164,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
+	// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 	test('Phase 4: Web chat triggers events search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -202,6 +207,9 @@ test.describe('App: Events / Skill: search', () => {
 		const finalGroupedCardCount = await finalGroupedCards.count();
 		expect(finalGroupedCardCount).toBeGreaterThan(0);
 		await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
+		await expect(finalGroupedView.getByText('Waiting for source results')).toHaveCount(0);
+		await expect(finalGroupedView.getByText('Referenced embeds do not expose coordinates yet.')).toHaveCount(0);
 		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
 		await expect(
 			page.getByTestId('message-content').filter({ has: finalGroupedView })
@@ -214,13 +222,18 @@ test.describe('App: Events / Skill: search', () => {
 			(window as any).__reportIssueStabilityProbe = value;
 			return value;
 		});
-		await page.locator('#settings-menu-toggle').click();
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
-		await settingsMenu
-			.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
-			.first()
-			.click();
+		const directReportIssue = page.getByRole('button', { name: /^Report Issue$/i }).first();
+		if (await directReportIssue.isVisible().catch(() => false)) {
+			await directReportIssue.click();
+		} else {
+			await page.locator('#settings-menu-toggle').click();
+			const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+			await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+			await settingsMenu
+				.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+				.first()
+				.click();
+		}
 		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
 
 		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);

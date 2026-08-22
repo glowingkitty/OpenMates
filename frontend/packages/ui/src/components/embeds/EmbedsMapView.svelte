@@ -30,6 +30,7 @@
     embedRefs?: string[];
     sourceRefs?: string[];
     highlightRefs?: string[];
+    interactionMode?: 'open' | 'select';
   }
 
   interface MapViewEntry {
@@ -110,6 +111,7 @@
     embedRefs = [],
     sourceRefs = [],
     highlightRefs = [],
+    interactionMode = 'open',
   }: Props = $props();
 
   let entries = $state<MapViewEntry[]>([]);
@@ -126,6 +128,7 @@
   let mapHydrationObserver: IntersectionObserver | null = null;
   let mapHydrationTimer: ReturnType<typeof setTimeout> | null = null;
   let mapHydrationIdleCallback: number | null = null;
+  let selectedRef = $state<string | null>(null);
   let lastRefIndexVersion = -1;
   let loadGeneration = 0;
 
@@ -988,6 +991,10 @@
 
   function openEntry(entry: MapViewEntry): void {
     if (!entry.embedId || !entry.embedData) return;
+    if (interactionMode === 'select') {
+      selectedRef = entry.ref;
+      return;
+    }
     dispatchEmbedFullscreen({
       embedId: entry.embedId,
       embedType: entry.embedType,
@@ -1221,12 +1228,14 @@
             type="button"
             class="map-view-card"
             class:highlighted={entry.highlighted}
+            class:selected={selectedRef === entry.ref}
             class:hovered={entry.ref === hoveredRef}
             class:dimmed={hoveredRef != null && entry.ref !== hoveredRef}
             data-testid="embeds-map-view-card"
             data-entry-status={entry.status}
             data-entry-category={entry.category}
             data-highlighted={entry.highlighted ? 'true' : 'false'}
+            data-selected={selectedRef === entry.ref ? 'true' : 'false'}
             data-hovered={entry.ref === hoveredRef ? 'true' : 'false'}
             data-dimmed={hoveredRef != null && entry.ref !== hoveredRef ? 'true' : 'false'}
             onclick={() => openEntry(entry)}
@@ -1266,9 +1275,11 @@
                       type="button"
                       class="calendar-item"
                       class:highlighted={item.entry.highlighted}
+                      class:selected={selectedRef === item.entry.ref}
                       class:hovered={item.entry.ref === hoveredRef}
                       data-testid="embeds-results-view-calendar-item"
                       data-entry-category={item.entry.category}
+                      data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
                       onclick={() => openEntry(item.entry)}
                       onpointerenter={() => (hoveredRef = item.entry.ref)}
                       onpointerleave={() => {

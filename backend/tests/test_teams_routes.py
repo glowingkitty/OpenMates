@@ -300,6 +300,7 @@ def build_client(
     return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
 
 
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity
 def test_teams_routes_block_when_feature_disabled() -> None:
     client = build_client(FakeTeamService(), config={})
 
@@ -309,6 +310,7 @@ def test_teams_routes_block_when_feature_disabled() -> None:
     assert response.json()["detail"] == "FEATURE_DISABLED"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity
 def test_teams_routes_expose_lifecycle_contract() -> None:
     service = FakeTeamService()
     client = build_client(service)
@@ -319,6 +321,7 @@ def test_teams_routes_expose_lifecycle_contract() -> None:
         json={
             "team_id": "team-1",
             "encrypted_name": client_ciphertext(b"name"),
+            "encrypted_profile_image_metadata": client_ciphertext(b"profile-image"),
             "encrypted_team_key": client_ciphertext(b"team-key-owner"),
             "encrypted_zero_balance": client_ciphertext(b"zero"),
             "created_at": 100,
@@ -334,6 +337,7 @@ def test_teams_routes_expose_lifecycle_contract() -> None:
     assert client.delete("/v1/teams/team-1").json() == {"success": True}
 
 
+# contract-test: supporting surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.membership.role-gated,teams.workspace.surface-parity
 def test_teams_routes_expose_invite_and_member_contract() -> None:
     service = FakeTeamService()
     client = build_client(service)
@@ -366,6 +370,7 @@ def test_teams_routes_expose_invite_and_member_contract() -> None:
     assert role_response.json()["membership"]["role"] == "viewer"
 
 
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated
 def test_team_delete_offlines_sources_before_durable_team_deletion() -> None:
     service = FakeTeamService()
     client = build_client(service)
@@ -376,6 +381,7 @@ def test_team_delete_offlines_sources_before_durable_team_deletion() -> None:
     assert service.events == ["offline_team_sources", "delete_team"]
 
 
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
 def test_member_removal_stays_fail_closed_if_cache_revocation_fails() -> None:
     service = FakeTeamService()
     client = build_client(service)
@@ -387,6 +393,7 @@ def test_member_removal_stays_fail_closed_if_cache_revocation_fails() -> None:
     assert service.events == ["deactivate_member"]
 
 
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
 def test_team_permission_error_maps_to_403() -> None:
     client = build_client(DenyingTeamService())
 
@@ -396,6 +403,7 @@ def test_team_permission_error_maps_to_403() -> None:
     assert response.json()["detail"] == "TEAM_PERMISSION_DENIED"
 
 
+# contract-test: direct surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.workspace.surface-parity
 def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
     monkeypatch.setattr(teams, "get_price_for_credits", lambda _credits, _currency: 500)
     client = build_client(FakeTeamService(), FakeTeamBillingService())
@@ -426,6 +434,7 @@ def test_teams_routes_expose_billing_contract(monkeypatch) -> None:
     assert usage_response.json()["usage"] == [{"event_id": "usage-1", "credit_amount": 10}]
 
 
+# contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 def test_team_bank_transfer_routes_fail_closed_without_cloud_billing(monkeypatch) -> None:
     from backend.core.api.app.utils import server_mode
 
@@ -445,6 +454,7 @@ def test_team_bank_transfer_routes_fail_closed_without_cloud_billing(monkeypatch
     assert response.json()["detail"] == "Feature not available on this server edition"
 
 
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 def test_team_bank_transfer_create_requires_owner_or_admin(monkeypatch) -> None:
     monkeypatch.setattr(teams, "get_price_for_credits", lambda _credits, _currency: 500)
 
@@ -466,6 +476,7 @@ def test_team_bank_transfer_create_requires_owner_or_admin(monkeypatch) -> None:
         assert response.json()["detail"] == "TEAM_PERMISSION_DENIED"
 
 
+# contract-test: direct surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 def test_team_bank_transfer_status_is_scoped_to_team_id(monkeypatch) -> None:
     monkeypatch.setattr(teams, "get_price_for_credits", lambda _credits, _currency: 500)
     client = build_client(RoleTeamService("owner", {"team-1", "team-2"}), FakeTeamBillingService())
@@ -484,6 +495,7 @@ def test_team_bank_transfer_status_is_scoped_to_team_id(monkeypatch) -> None:
     assert cross_team_list.json()["orders"] == []
 
 
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled
 def test_teams_routes_reject_cleartext_encrypted_fields() -> None:
     client = build_client(FakeTeamService())
 
@@ -492,6 +504,7 @@ def test_teams_routes_reject_cleartext_encrypted_fields() -> None:
         json={
             "team_id": "team-1",
             "encrypted_name": "Plain Team Name",
+            "encrypted_profile_image_metadata": client_ciphertext(b"profile-image"),
             "encrypted_team_key": client_ciphertext(b"team-key"),
             "created_at": 100,
         },

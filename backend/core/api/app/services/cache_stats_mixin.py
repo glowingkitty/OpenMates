@@ -36,9 +36,25 @@ class CacheStatsMixin:
         try:
             await client.hincrby(key, field, amount)
             # Set expiry to 48 hours to ensure it lasts through the next day's flush
-            await client.expire(key, 172800) 
+            await client.expire(key, 172800)
         except Exception as e:
             logger.error(f"Error incrementing stat {field}: {e}")
+
+    async def record_credit_purchase(self, credits_sold: int, date_str: Optional[str] = None) -> None:
+        """Atomically update non-authoritative daily purchase analytics."""
+        client = await self.client
+        if not client:
+            raise RuntimeError("purchase_metrics_cache_unavailable")
+        key = self._get_daily_stats_key(date_str)
+        try:
+            async with client.pipeline(transaction=True) as pipeline:
+                pipeline.hincrby(key, "purchase_count", 1)
+                pipeline.hincrby(key, "credits_sold", int(credits_sold))
+                pipeline.expire(key, 172800)
+                await pipeline.execute()
+        except Exception:
+            logger.exception("Daily purchase analytics transaction failed")
+            raise
 
     async def increment_json_stat(self, prefix: str, sub_key: str, amount: int = 1, date_str: Optional[str] = None):
         """

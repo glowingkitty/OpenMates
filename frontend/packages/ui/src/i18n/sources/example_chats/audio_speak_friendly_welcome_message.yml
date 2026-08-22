@@ -1,0 +1,204 @@
+title:
+  context: "Title of example chat: Audio Speak Friendly Welcome Message"
+  en: "Audio Speak Friendly Welcome Message"
+  de: "Audio Speak Freundliche Willkommensnachricht"
+  zh: "Audio Speak Friendly Welcome Message"
+  es: "Audio Speak Friendly Welcome Message"
+  fr: "Audio Speak Friendly Welcome Message"
+  pt: "Audio Speak Friendly Welcome Message"
+  ru: "Audio Speak Friendly Welcome Message"
+  ja: "Audio Speak Friendly Welcome Message"
+  ko: "Audio Speak Friendly Welcome Message"
+  it: "Audio Speak Friendly Welcome Message"
+  tr: "Audio Speak Friendly Welcome Message"
+  vi: "Audio Speak Friendly Welcome Message"
+  id: "Audio Speak Friendly Welcome Message"
+  pl: "Audio Speak Friendly Welcome Message"
+  nl: "Audio Speak Friendly Welcome Message"
+  ar: "Audio Speak Friendly Welcome Message"
+  hi: "Audio Speak Friendly Welcome Message"
+  th: "Audio Speak Friendly Welcome Message"
+  cs: "Audio Speak Friendly Welcome Message"
+  sv: "Audio Speak Friendly Welcome Message"
+  he: "Audio Speak Friendly Welcome Message"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Audio Speak Friendly Welcome Message"
+  en: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  de: "Verwandle mit dem Audio-Speak-App-Skill eine kurze Willkommenszeile in eine freundlich gesprochene Nachricht."
+  zh: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  es: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  fr: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  pt: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  ru: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  ja: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  ko: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  it: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  tr: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  vi: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  id: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  pl: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  nl: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  ar: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  hi: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  th: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  cs: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  sv: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  he: "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Audio Speak Friendly Welcome Message. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  de: "Sprich dies als warme, natuerliche Willkommensnachricht: Willkommen zurueck bei OpenMates. Dein Workspace ist bereit, wann immer du es bist."
+  zh: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  es: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  fr: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  pt: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  ru: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  ja: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  ko: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  it: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  tr: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  vi: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  id: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  pl: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  nl: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  ar: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  hi: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  th: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  cs: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  sv: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  he: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Audio Speak Friendly Welcome Message. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    Ich habe die Willkommenszeile als freundlich gesprochene Audionachricht erstellt.
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"463ace0f-02f9-43c2-94ee-cf385162bb75","app_id":"audio","skill_id":"speak"}
+    ```
+
+    I generated the welcome line as a friendly spoken audio message.
+  verified_by_human: []

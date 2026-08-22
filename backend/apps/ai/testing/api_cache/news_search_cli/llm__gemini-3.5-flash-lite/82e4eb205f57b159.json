@@ -1,0 +1,74 @@
+{
+  "fingerprint": "82e4eb205f57b159",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "news_search_cli",
+  "recorded_at": "2026-08-15T11:03:01.871064+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "6799493076cd64ce",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,page_age,profile_name,thumbnail_src,extra_snippets,embed_ref}:\n  OpenMates E2E AI News Fixture,\"https://app.dev.openmates.org/news/fixtures/ai-progress\",A deterministi..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the news results for your search:\n\n```embeds_results_view\ntitle: OpenMates E2E AI News Fixture\nembeds: app.dev.openmates.org-SXQ, app.dev.openmates.org-bdx\n```\n\n- [OpenMates E2E AI News Fixture](embed:app.dev.openmates.org-SXQ) (July 25, 2026) — A deterministic AI news fixture used by the OpenMates E2E news search flow.\n- [AI Research Fixture Update](embed:app.dev.openmates.org-bdx) (July 24, 2026) — A second deterministic article card for testing grouped news search results.\n\nWould you like to search for any other topics or explore other OpenMates features?",
+    "chunk_count": 10,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the news results for your search:\n\n```embeds_results_view\ntitle: OpenMates"
+      },
+      {
+        "kind": "text",
+        "value": " E2E AI News Fixture\nembeds: app.dev.openmates.org-SXQ, app.dev.open"
+      },
+      {
+        "kind": "text",
+        "value": "mates.org-bdx\n```\n\n- [OpenMates E2E AI News Fixture](embed:app.dev."
+      },
+      {
+        "kind": "text",
+        "value": "openmates.org-SXQ) (July 25, 2026) — A deterministic AI news fixture"
+      },
+      {
+        "kind": "text",
+        "value": " used by the OpenMates E2E news search flow.\n- [AI Research Fixture Update](embed:"
+      },
+      {
+        "kind": "text",
+        "value": "app.dev.openmates.org-bdx) (July 24, 2026)"
+      },
+      {
+        "kind": "text",
+        "value": " — A second deterministic article card for testing grouped news search results.\n\nWould you like to search for any other topics or explore other"
+      },
+      {
+        "kind": "text",
+        "value": " OpenMates features?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14636,
+          "candidates_token_count": 184,
+          "total_token_count": 14820,
+          "user_input_tokens": 230,
+          "system_prompt_tokens": 13353
+        }
+      }
+    ]
+  }
+}

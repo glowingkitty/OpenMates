@@ -58,6 +58,7 @@ class _StubDirectusService:
 
 def test_fixture_initial_delay_defaults_to_readiness_delay() -> None:
     assert get_fixture_initial_delay_seconds({}) == DEFAULT_INITIAL_CHUNK_DELAY_MS / 1000.0
+    assert DEFAULT_INITIAL_CHUNK_DELAY_MS >= 1000
 
 
 def test_fixture_initial_delay_can_be_overridden_to_zero() -> None:

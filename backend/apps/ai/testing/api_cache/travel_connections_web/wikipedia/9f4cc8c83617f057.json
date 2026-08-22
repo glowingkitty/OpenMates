@@ -1,0 +1,47 @@
+{
+  "fingerprint": "9f4cc8c83617f057",
+  "category": "wikipedia",
+  "group_id": "travel_connections_web",
+  "recorded_at": "2026-08-15T12:16:30.106826+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/api/rest_v1/page/summary/Shinkansen"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-webkit-csp": "default-src 'none'; frame-ancestors 'none'",
+      "cache-control": "s-maxage=1209600, max-age=300",
+      "content-language": "en",
+      "content-type": "application/json; charset=utf-8; profile=\"https://www.mediawiki.org/wiki/Specs/Summary/1.5.0\"",
+      "date": "Fri, 14 Aug 2026 16:58:27 GMT",
+      "server": "production-tls",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD",
+      "access-control-allow-headers": "accept, content-type, content-length, cache-control, accept-language, api-user-agent, if-match, if-modified-since, if-none-match, dnt, accept-encoding",
+      "access-control-expose-headers": "etag",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "referrer-policy": "origin-when-cross-origin",
+      "x-xss-protection": "1; mode=block",
+      "etag": "W/\"1368819753/95dd87e0-968b-11f1-9e41-2ff71090c76a\"",
+      "content-encoding": "gzip",
+      "age": "69482",
+      "accept-ranges": "bytes",
+      "vary": "Accept-Language, x-restbase-compat, Accept-Encoding",
+      "x-cache": "cp3067 miss, cp3067 hit/6",
+      "x-cache-status": "hit-front",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "content-length": "842",
+      "x-request-id": "2ef92328-2c15-4c55-90e6-48089882cdfe",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"hit-front\", host;desc=\"cp3067\",co_id;desc=\"4285101402\""
+    },
+    "body": "{\"type\":\"standard\",\"title\":\"Shinkansen\",\"displaytitle\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Shinkansen</span></span>\",\"namespace\":{\"id\":0,\"text\":\"\"},\"wikibase_item\":\"Q164338\",\"titles\":{\"canonical\":\"Shinkansen\",\"normalized\":\"Shinkansen\",\"display\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Shinkansen</span></span>\"},\"pageid\":92516,\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Shinkansen_map_202405_en.png/330px-Shinkansen_map_202405_en.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":330,\"height\":341},\"originalimage\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/a/a1/Shinkansen_map_202405_en.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled\",\"width\":3100,\"height\":3200},\"lang\":\"en\",\"dir\":\"ltr\",\"revision\":\"1368819753\",\"tid\":\"51ac3a2f-955b-11f1-bf55-a04e13bf2fb1\",\"timestamp\":\"2026-08-11T08:04:47Z\",\"description\":\"Japanese high-speed rail system\",\"description_source\":\"local\",\"content_urls\":{\"desktop\":{\"page\":\"https://en.wikipedia.org/wiki/Shinkansen\",\"revisions\":\"https://en.wikipedia.org/wiki/Shinkansen?action=history\",\"edit\":\"https://en.wikipedia.org/wiki/Shinkansen?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Shinkansen\"},\"mobile\":{\"page\":\"https://en.wikipedia.org/wiki/Shinkansen\",\"revisions\":\"https://en.wikipedia.org/wiki/Special:History/Shinkansen\",\"edit\":\"https://en.wikipedia.org/wiki/Shinkansen?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Shinkansen\"}},\"extract\":\"The Shinkansen , colloquially known in English as the bullet train, is a network of high-speed railway lines in Japan. The system was developed to provide connections between Tokyo and other regions of the country. In addition to long-distance services, some sections in and around the largest metropolitan areas are used for commuter travel.\",\"extract_html\":\"<p>The <b>Shinkansen</b><span style=\\\"font-weight:normal\\\"> </span>, colloquially known in English as the <b>bullet train</b>, is a network of high-speed railway lines in Japan. The system was developed to provide connections between Tokyo and other regions of the country. In addition to long-distance services, some sections in and around the largest metropolitan areas are used for commuter travel.</p>\"}"
+  }
+}

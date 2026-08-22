@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Contract tests for daily OpenCode chat improvement research.
+# contract-test-file: tooling
+"""Contract tests for manual OpenCode workflow improvement research.
 
-The scheduled path may inspect bounded local transcripts, ask GPT-5.6 Luna for
-research, publish gitignored reports, and notify Discord. It must never invoke
-the separate user-triggered implementation workflow or mutate tracked files.
+The manual path may inspect bounded local transcripts, ask GPT-5.6 Luna for
+research, publish gitignored reports, and optionally notify Discord. Retired
+cron plumbing must not re-enable unattended reports or invoke implementation.
 """
 
 from __future__ import annotations
@@ -15,6 +16,9 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+from types import SimpleNamespace
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -141,6 +145,95 @@ def test_collector_applies_exclusions_before_sql_limit(tmp_path, monkeypatch) ->
 
     assert evidence["session_count"] == 1
     assert evidence["sessions"][0]["session_id"] == "ses-parent"
+
+
+def test_collector_reports_unknown_finish_resume_clusters_without_summary_content() -> None:
+    helper = load_module(WORKFLOW_HELPER_PATH, "workflow_review_unknown_finish")
+    evidence = {
+        "sessions": [
+            {
+                "session_id": f"ses-{index}",
+                "messages": [
+                        {
+                            "message_ordinal": 0,
+                            "time_created": 1_783_073_000_000 + index * 1_000,
+                        "data": {
+                            "role": "assistant",
+                            "finish": "unknown",
+                            "token_total": 0,
+                            "lifecycle_only": True,
+                        },
+                        "parts": [],
+                    },
+                        {
+                            "message_ordinal": 1,
+                            "time_created": 1_783_073_060_000 + index * 1_000,
+                        "data": {"role": "user", "has_summary": True},
+                        "parts": [],
+                    },
+                ],
+            }
+            for index in range(3)
+        ]
+    }
+
+    clusters = helper.detect_unknown_finish_clusters(evidence)
+
+    assert clusters == [{
+        "kind": "synthetic_summary_unknown_finish",
+        "session_count": 3,
+        "event_count": 3,
+        "first_seen": "2026-07-03T10:03:20Z",
+        "last_seen": "2026-07-03T10:03:22Z",
+    }]
+    assert "summary" not in json.dumps(clusters).lower().replace("synthetic_summary", "")
+
+
+def test_unknown_finish_clusters_reject_wrong_order_truncation_and_single_session() -> None:
+    helper = load_module(WORKFLOW_HELPER_PATH, "workflow_review_unknown_finish_negative")
+    base = 1_783_073_000_000
+    evidence = {
+        "sessions": [
+            {
+                "session_id": "summary-first",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "user", "has_summary": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "truncated",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": False}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "single",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "intervening",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 1, "time_created": base + 500, "data": {"role": "user", "has_summary": False}, "parts": []},
+                    {"message_ordinal": 2, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+            {
+                "session_id": "trimmed-gap",
+                "messages": [
+                    {"message_ordinal": 0, "time_created": base, "data": {"role": "assistant", "finish": "unknown", "token_total": 0, "lifecycle_only": True}, "parts": []},
+                    {"message_ordinal": 2, "time_created": base + 1_000, "data": {"role": "user", "has_summary": True}, "parts": []},
+                ],
+            },
+        ]
+    }
+
+    assert helper.detect_unknown_finish_clusters(evidence) == []
 
 
 def test_dispatch_passes_explicit_luna_model(tmp_path, monkeypatch) -> None:
@@ -406,38 +499,78 @@ def test_reporting_runner_persists_final_notification_status(tmp_path, monkeypat
     assert stored["markdown_sha256"]
 
 
-def test_cron_rendering_is_idempotent_and_research_only() -> None:
+def test_main_defaults_to_weekly_manual_interval(monkeypatch) -> None:
+    runner = load_module(RUNNER_PATH, "opencode_improvement_manual_default")
+    captured: dict[str, object] = {}
+
+    def fake_run_review(project_root, output_dir, *, hours, dry_run_notify, excluded_session_ids):
+        captured.update(
+            {
+                "project_root": project_root,
+                "output_dir": output_dir,
+                "hours": hours,
+                "dry_run_notify": dry_run_notify,
+                "excluded_session_ids": excluded_session_ids,
+            }
+        )
+        return 0, SimpleNamespace(json_latest=Path("latest.json"), markdown_latest=Path("latest.md"))
+
+    monkeypatch.setattr(runner, "run_review", fake_run_review)
+    monkeypatch.setattr(sys, "argv", ["opencode_chat_improvement_review.py", "--dry-run-notify"])
+
+    assert runner.main() == 0
+    assert captured["hours"] == 168
+    assert captured["dry_run_notify"] is True
+
+
+def test_cron_rendering_removes_retired_managed_job() -> None:
     runner = load_module(RUNNER_PATH, "opencode_improvement_cron")
-    existing = "15 5 * * * /other/job\n"
+    existing = "\n".join(
+        [
+            "15 5 * * * /other/job",
+            runner.CRON_BEGIN,
+            "# Daily at 01:45 UTC. Automatic research and notification only; tracked changes require manual review.",
+            "45 1 * * * cd /srv/openmates && python3 /srv/openmates/scripts/opencode_chat_improvement_review.py --hours 24",
+            runner.CRON_END,
+            "",
+        ]
+    )
     root = Path("/srv/openmates")
 
     first = runner.render_crontab(existing, root)
     second = runner.render_crontab(first, root)
 
     assert first == second
-    assert first.count(runner.CRON_BEGIN) == 1
-    assert first.count("scripts/opencode_chat_improvement_review.py") == 1
-    assert "logs/opencode-chat-improvement-review.log" in first
+    assert runner.CRON_BEGIN not in first
+    assert runner.CRON_END not in first
+    assert "scripts/opencode_chat_improvement_review.py" not in first
     assert "implement-opencode-improvements" not in first
     assert "sessions.py deploy" not in first
     assert "git commit" not in first
     assert "/other/job" in first
 
 
+def test_cron_installation_is_retired() -> None:
+    runner = load_module(RUNNER_PATH, "opencode_improvement_cron_install")
+
+    with pytest.raises(RuntimeError, match="retired"):
+        runner.install_cron(Path("/srv/openmates"))
+
+
 def test_cron_source_has_no_implementation_or_deploy_path() -> None:
     source = RUNNER_PATH.read_text(encoding="utf-8")
 
-    assert "implement-opencode-improvements" not in source
     assert "sessions.py deploy" not in source
     assert "git commit" not in source
     assert "git push" not in source
 
 
-def test_cron_research_agent_denies_mutating_tools() -> None:
+def test_cron_research_agent_is_hidden_and_denies_mutating_tools() -> None:
     config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
     agent = config["agent"]["cron-research"]
 
     assert agent["mode"] == "primary"
+    assert agent["hidden"] is True
     assert agent["permission"]["*"] == "deny"
     assert agent["permission"]["edit"] == "deny"
     assert agent["permission"]["bash"] == "deny"
@@ -447,11 +580,15 @@ def test_cron_research_agent_denies_mutating_tools() -> None:
 
 def test_skills_separate_research_from_user_triggered_implementation() -> None:
     research = (ROOT / ".claude/skills/opencode-improvement-research/SKILL.md").read_text(encoding="utf-8")
+    manual = (ROOT / ".claude/skills/opencode-workflow-review/SKILL.md").read_text(encoding="utf-8")
     implementation = (ROOT / ".claude/skills/implement-opencode-improvements/SKILL.md").read_text(encoding="utf-8")
 
     assert "user-invocable: false" in research
     assert "openai/gpt-5.6-luna" in research
     assert "must not edit tracked files" in research.lower()
+    assert "user-invocable: true" in manual
+    assert "opencode_chat_improvement_review.py --hours 168 --dry-run-notify" in manual
+    assert "must not edit tracked files" in manual.lower()
     assert "user-invocable: true" in implementation
     assert "explicit" in implementation.lower()
     assert "revalid" in implementation.lower()

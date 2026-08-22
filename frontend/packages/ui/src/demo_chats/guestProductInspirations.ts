@@ -102,7 +102,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-provider-cross-platform",
-      phrase: "Built for people & the best possible experience.",
+      phrase: "Build for the best possible user experience.",
       title: "Bring OpenMates across your tools",
       assistantResponse:
         "OpenMates is designed around portable chats, multiple AI providers, and clients beyond one browser tab.",
@@ -171,7 +171,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-provider-cross-platform",
-      phrase: "Für Menschen und die bestmögliche Erfahrung entwickelt.",
+      phrase: "Für die bestmögliche Nutzererfahrung entwickelt.",
       title: "Nutze OpenMates in deinen Tools",
       assistantResponse:
         "OpenMates ist fuer portable Chats, mehrere KI-Provider und verschiedene Clients gebaut.",

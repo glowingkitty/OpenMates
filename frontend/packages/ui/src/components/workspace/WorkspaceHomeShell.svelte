@@ -15,7 +15,7 @@
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
-  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans';
+  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
 
   type ContinueItem = {
     id: string;
@@ -41,6 +41,8 @@
     itemTestId?: string;
     continueSectionTestId?: string;
     centerTestId?: string;
+    contentSlotVisible?: boolean;
+    contentSlotTestId?: string;
     showReportIssue?: boolean;
     showAllMode?: boolean;
     showAllLabel?: string;
@@ -76,6 +78,8 @@
     itemTestId = 'resume-chat-card',
     continueSectionTestId = `${surface}-workspace-continue`,
     centerTestId = `${surface}-workspace-center`,
+    contentSlotVisible = false,
+    contentSlotTestId = `${surface}-workspace-content`,
     showReportIssue = false,
     showAllMode = false,
     showAllLabel = '',
@@ -156,45 +160,46 @@
   }
 </script>
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
-  {#if !showAllMode}
-    <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`}>
-      <DailyInspirationBanner
-        {surface}
-        onStartChat={handleStartInspiration}
-        containerWidth={containerWidth}
-      />
-    </div>
-  {/if}
-
-  {#if showTopButtons}
-    <div class="workspace-top-buttons" class:workspace-all-items-top-buttons={showAllMode}>
-      <div class="workspace-left-buttons">
-        {#if showReportIssue}
-          <WorkspaceReportIssueButton />
-        {/if}
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
+  <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined}>
+    {#if !showAllMode}
+      <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`}>
+        <DailyInspirationBanner
+          {surface}
+          onStartChat={handleStartInspiration}
+          containerWidth={containerWidth}
+        />
       </div>
-      {#if hasAllItemsToolbar}
-        <div class="workspace-all-items-toolbar" data-testid={allItemsToolbarTestId}>
-          {#if onBackToRecent}
-            <button type="button" class="workspace-all-items-action" data-testid={backTestId} onclick={handleBackToRecent}>
-              <AllItemsBackIcon size={18} color="currentColor" />
-              <span>{backLabel}</span>
-            </button>
-          {/if}
-          {#if onSearchAll}
-            <button type="button" class="workspace-all-items-action" data-testid={searchTestId} onclick={handleSearchAll}>
-              <AllItemsSearchIcon size={18} color="currentColor" />
-              <span>{searchLabel}</span>
-            </button>
+    {/if}
+
+    {#if showTopButtons}
+      <div class="workspace-top-buttons" class:workspace-all-items-top-buttons={showAllMode}>
+        <div class="workspace-left-buttons">
+          {#if showReportIssue}
+            <WorkspaceReportIssueButton />
           {/if}
         </div>
-      {/if}
-      <div class="workspace-right-buttons"></div>
-    </div>
-  {/if}
+        {#if hasAllItemsToolbar}
+          <div class="workspace-all-items-toolbar" data-testid={allItemsToolbarTestId}>
+            {#if onBackToRecent}
+              <button type="button" class="workspace-all-items-action" data-testid={backTestId} onclick={handleBackToRecent}>
+                <AllItemsBackIcon size={18} color="currentColor" />
+                <span>{backLabel}</span>
+              </button>
+            {/if}
+            {#if onSearchAll}
+              <button type="button" class="workspace-all-items-action" data-testid={searchTestId} onclick={handleSearchAll}>
+                <AllItemsSearchIcon size={18} color="currentColor" />
+                <span>{searchLabel}</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
+        <div class="workspace-right-buttons"></div>
+      </div>
+    {/if}
 
-  <div class="center-content workspace-center-content" data-testid={centerTestId}>
+    <div class="center-content workspace-center-content" data-testid={centerTestId}>
     {#if showAllMode}
       <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
         <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
@@ -242,6 +247,7 @@
         {#if eyebrow}
           <p class="workspace-eyebrow">{eyebrow}</p>
         {/if}
+        <span class="workspace-surface-background-icon" data-testid={`${surface}-workspace-background-icon`} data-surface={surface} aria-hidden="true"></span>
         <h2>{heading}</h2>
         {#if subtitle}
           <p class="workspace-subtitle">{subtitle}</p>
@@ -427,6 +433,13 @@
       </div>
     {/if}
     {/if}
+    </div>
+
+    {#if contentSlotVisible}
+      <div class="workspace-content-slot" data-testid={contentSlotTestId}>
+        <slot />
+      </div>
+    {/if}
   </div>
 
   <div class="workspace-composer-slot">
@@ -441,16 +454,40 @@
     position: relative;
     padding: 0;
     border-radius: 17px;
-    background: transparent;
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
     overflow: hidden;
   }
 
-  .workspace-daily-inspiration-area {
+  .workspace-scroll-layer {
+    position: relative;
     width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: clamp(108px, 16vh, 152px);
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .workspace-daily-inspiration-area {
+    --daily-inspiration-area-height: clamp(190px, 50.9383cqi, 420px);
+    width: 100%;
+    height: var(--daily-inspiration-area-height);
+    min-height: 250px;
+    max-height: 35dvh;
+    flex: 0 0 var(--daily-inspiration-area-height);
     max-width: none;
     margin: 0;
-    flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .workspace-top-buttons {
@@ -533,6 +570,15 @@
     text-align: center;
   }
 
+  .workspace-home-shell.content-slot-mode .workspace-center-content.center-content {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    flex-shrink: 0;
+    margin-top: clamp(22px, 4.5vh, 56px);
+  }
+
   .workspace-home-shell.all-items-mode .workspace-center-content.center-content {
     top: 50%;
   }
@@ -601,6 +647,50 @@
     font-weight: 600;
   }
 
+  .workspace-center-content .welcome-text {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .workspace-surface-background-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: -1;
+    width: clamp(76px, 11vw, 128px);
+    height: clamp(76px, 11vw, 128px);
+    background: var(--color-grey-30);
+    transform: translate(-50%, -54%);
+    pointer-events: none;
+    -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+  }
+
+  .workspace-surface-background-icon[data-surface='projects'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+    mask-image: url('@openmates/ui/static/icons/project.svg');
+  }
+
+  .workspace-surface-background-icon[data-surface='plans'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+    mask-image: url('@openmates/ui/static/icons/task.svg');
+  }
+
+  .workspace-surface-background-icon[data-surface='workflows'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
+    mask-image: url('@openmates/ui/static/icons/workflow.svg');
+  }
+
+  .workspace-surface-background-icon[data-surface='tasks'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+  }
+
+  .workspace-surface-background-icon[data-surface='teams'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
+    mask-image: url('@openmates/ui/static/icons/team.svg');
+  }
+
   .workspace-center-content .workspace-subtitle {
     margin: 8px 0 0;
     color: var(--color-grey-60);
@@ -617,6 +707,16 @@
 
   .workspace-continue-section {
     width: 100%;
+  }
+
+  .workspace-content-slot {
+    width: min(100% - 48px, 1860px);
+    margin: clamp(34px, 8vh, 92px) auto 0;
+    pointer-events: auto;
+  }
+
+  .workspace-home-shell.content-slot-mode .workspace-daily-inspiration-area {
+    flex-shrink: 0;
   }
 
   .workspace-link-row {
@@ -680,13 +780,13 @@
   }
 
   .workspace-show-all-link[data-surface='tasks'] .workspace-link-icon-surface {
-    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-    mask-image: url('@openmates/ui/static/icons/task.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
+    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
   }
 
   .workspace-show-all-link[data-surface='plans'] .workspace-link-icon-surface {
-    -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
-    mask-image: url('@openmates/ui/static/icons/planning.svg');
+    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+    mask-image: url('@openmates/ui/static/icons/task.svg');
   }
 
   .recent-chats-scroll-container {
@@ -854,6 +954,10 @@
     padding: 15px;
     box-sizing: border-box;
     justify-items: center;
+  }
+
+  .workspace-home-shell.content-slot-mode .workspace-composer-slot {
+    background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-grey-0) 92%, transparent) 40%, var(--color-grey-0) 100%);
   }
 
   .resume-chat-large-card {
@@ -1036,6 +1140,11 @@
       padding: 0;
     }
 
+    .workspace-daily-inspiration-area {
+      --daily-inspiration-area-height: 190px;
+      min-height: 190px;
+    }
+
     .workspace-center-content .welcome-text h2 {
       font-size: var(--font-size-h2-mobile);
       line-height: 1.08;
@@ -1043,6 +1152,16 @@
 
     .workspace-center-content.center-content {
       top: calc(50% + 13vh);
+    }
+
+    .workspace-home-shell.content-slot-mode .workspace-center-content.center-content {
+      top: auto;
+      margin-top: clamp(18px, 4vh, 36px);
+    }
+
+    .workspace-surface-background-icon {
+      width: 76px;
+      height: 76px;
     }
 
     .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
@@ -1082,7 +1201,17 @@
     }
 
     .workspace-composer-slot {
-      padding-inline: var(--spacing-5);
+      padding-inline: 0;
+      padding-bottom: var(--spacing-5);
+    }
+
+    .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
+      padding-bottom: 118px;
+    }
+
+    .workspace-content-slot {
+      width: min(100% - 28px, 1860px);
+      margin-top: clamp(28px, 6vh, 54px);
     }
   }
 </style>

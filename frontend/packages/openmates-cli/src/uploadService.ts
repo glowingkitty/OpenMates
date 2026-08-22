@@ -354,6 +354,8 @@ export interface ProfileImageUploadResponse {
   reject_count?: number;
 }
 
+export type TeamProfileImageUploadResponse = ProfileImageUploadResponse;
+
 function getProfileImageMime(filename: string): string {
   const ext = extname(filename).toLowerCase();
   if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
@@ -361,9 +363,11 @@ function getProfileImageMime(filename: string): string {
   throw new Error("Profile images must be JPEG or PNG files.");
 }
 
-export async function uploadProfileImage(
+async function uploadProfileImageForm(
   filePath: string,
   session: OpenMatesSession,
+  uploadPath: string,
+  fields: Record<string, string> = {},
 ): Promise<ProfileImageUploadResponse> {
   const filename = basename(filePath);
   const fileBytes = readFileSync(filePath);
@@ -371,7 +375,7 @@ export async function uploadProfileImage(
   if (fileBytes.byteLength > PROFILE_IMAGE_MAX_SIZE_BYTES) {
     throw new Error("Profile image must be 300 KB or smaller. Resize/compress the image and try again.");
   }
-  const uploadUrl = `${getUploadUrl(session.apiUrl)}/v1/upload/profile-image`;
+  const uploadUrl = `${getUploadUrl(session.apiUrl)}${uploadPath}`;
   const origin = getUploadOrigin(session.apiUrl);
 
   const cookies: string[] = [];
@@ -380,6 +384,9 @@ export async function uploadProfileImage(
   }
 
   const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.append(key, value);
+  }
   formData.append("file", new Blob([fileBytes], { type: contentType }), filename);
   const response = await fetch(uploadUrl, {
     method: "POST",
@@ -394,4 +401,23 @@ export async function uploadProfileImage(
     throw new Error(data.detail ?? `Profile image upload failed (HTTP ${response.status}).`);
   }
   return data;
+}
+
+export async function uploadProfileImage(
+  filePath: string,
+  session: OpenMatesSession,
+): Promise<ProfileImageUploadResponse> {
+  return uploadProfileImageForm(filePath, session, "/v1/upload/profile-image");
+}
+
+export async function uploadTeamProfileImage(
+  filePath: string,
+  session: OpenMatesSession,
+  teamId: string,
+  encryptedProfileImageMetadata: string,
+): Promise<TeamProfileImageUploadResponse> {
+  return uploadProfileImageForm(filePath, session, "/v1/upload/team-profile-image", {
+    team_id: teamId,
+    encrypted_profile_image_metadata: encryptedProfileImageMetadata,
+  });
 }

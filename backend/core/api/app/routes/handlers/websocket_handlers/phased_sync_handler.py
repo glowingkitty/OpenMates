@@ -411,16 +411,21 @@ async def _fetch_chat_key_wrappers_for_chats(
     directus_service: DirectusService,
     chat_ids: List[str],
     user_id: str,
+    team_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
     if not chat_ids:
         return []
     try:
         hashed_chat_ids = [hashlib.sha256(chat_id.encode()).hexdigest() for chat_id in chat_ids]
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        if team_id:
+            return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+                hashed_chat_ids,
+                hashed_team_id=hashlib.sha256(team_id.encode()).hexdigest(),
+            )
         return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
             hashed_chat_ids,
-            hashed_user_id=hashed_user_id,
+            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
         )
     except Exception as exc:
         logger.warning("Failed to fetch chat key wrappers for sync: %s", exc, exc_info=True)
@@ -578,6 +583,7 @@ async def handle_phased_sync_request(
             client_embed_ids: set = set(payload.get("client_embed_ids", []))
             raw_team_id = payload.get("team_id")
             team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
+            context_epoch = payload.get("context_epoch")
             if team_id:
                 await directus_service.team.require_team_role(
                     team_id,
@@ -602,25 +608,50 @@ async def handle_phased_sync_request(
             if sync_phase == "phase1" or sync_phase == "all":
                 phase1_chat_ids = await _handle_phase1_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, team_id
+                    client_chat_versions, client_chat_ids, sent_embed_ids, team_id, context_epoch
                 )
 
-            # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
-            # Sent after Phase 1a so "continue where you left off" renders without waiting
-            if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
-                await _handle_phase1b_sync(
-                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
-                    user_otel_attrs=user_otel_attrs,
+            if sync_phase == "all":
+                startup_phase_tasks = []
+                if phase1_chat_ids:
+                    startup_phase_tasks.append(
+                        _handle_phase1b_sync(
+                            manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                            phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                            team_id=team_id,
+                            context_epoch=context_epoch,
+                            user_otel_attrs=user_otel_attrs,
+                        )
+                    )
+                startup_phase_tasks.append(
+                    _handle_phase2_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                        refresh_chat_ids,
+                        context_epoch,
+                    )
                 )
+                await asyncio.gather(*startup_phase_tasks)
+            else:
+                # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
+                # Sent after Phase 1a so "continue where you left off" renders without waiting
+                if sync_phase == "phase1" and phase1_chat_ids:
+                    await _handle_phase1b_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                        team_id=team_id,
+                        context_epoch=context_epoch,
+                        user_otel_attrs=user_otel_attrs,
+                    )
 
-            # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
-            if sync_phase == "phase2" or sync_phase == "all":
-                await _handle_phase2_sync(
-                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
-                    refresh_chat_ids
-                )
+                # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
+                if sync_phase == "phase2":
+                    await _handle_phase2_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                        refresh_chat_ids,
+                        context_epoch,
+                    )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
             # default web startup `all` sync, otherwise chats 11-100 would receive
@@ -632,9 +663,10 @@ async def handle_phased_sync_request(
                     phase1_chat_ids,
                     team_id,
                     user_otel_attrs=user_otel_attrs,
+                    context_epoch=context_epoch,
                 )
 
-            if sync_phase == "all":
+            if sync_phase == "all" and not team_id:
                 try:
                     await _handle_app_settings_memories_sync(
                         manager, directus_service, user_id, device_fingerprint_hash
@@ -651,7 +683,9 @@ async def handle_phased_sync_request(
                     "type": "phased_sync_complete",
                     "payload": {
                         "phase": sync_phase,
-                        "timestamp": int(datetime.now(timezone.utc).timestamp())
+                        "timestamp": int(datetime.now(timezone.utc).timestamp()),
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
                     }
                 },
                 user_id,
@@ -850,6 +884,7 @@ async def _handle_phase1_sync(
     client_chat_ids: List[str],
     sent_embed_ids: set,
     team_id: Optional[str] = None,
+    context_epoch: Optional[int] = None,
 ) -> List[str]:
     """
     Phase 1a: Metadata-only for last-opened + 10 most recent chats.
@@ -950,6 +985,8 @@ async def _handle_phase1_sync(
                         "recent_chat_metadata": [],
                         "new_chat_suggestions": new_chat_suggestions,
                         "daily_inspirations": daily_inspirations,
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
                         "phase": "phase1",
                         "already_synced": False
                     }
@@ -1118,6 +1155,8 @@ async def _handle_phase1_sync(
                     "recent_chat_metadata": recent_chat_metadata,
                     "new_chat_suggestions": new_chat_suggestions,
                     "daily_inspirations": daily_inspirations,
+                    "team_id": team_id,
+                    "context_epoch": context_epoch,
                     "phase": "phase1",
                     "already_synced": False
                 }
@@ -1157,7 +1196,9 @@ async def _handle_phase1b_sync(
     client_chat_versions: Dict[str, Dict[str, int]],
     sent_embed_ids: set,
     client_embed_ids: Optional[set] = None,
+    team_id: Optional[str] = None,
     user_otel_attrs: dict | None = None,
+    context_epoch: Optional[int] = None,
 ):
     """
     Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
@@ -1287,6 +1328,7 @@ async def _handle_phase1b_sync(
             directus_service,
             phase1_chat_ids,
             user_id,
+            team_id=team_id,
         )
 
         # Send Phase 1b as separate WS message
@@ -1300,6 +1342,8 @@ async def _handle_phase1b_sync(
                     "chat_key_wrappers": all_chat_key_wrappers,
                     "code_run_outputs": all_code_run_outputs,
                     "notebook_run_outputs": all_notebook_run_outputs,
+                    "team_id": team_id,
+                    "context_epoch": context_epoch,
                 }
             },
             user_id,
@@ -1333,6 +1377,7 @@ async def _handle_phase2_sync(
     client_embed_ids: Optional[List[str]] = None,
     team_id: Optional[str] = None,
     refresh_chat_ids: Optional[List[str]] = None,
+    context_epoch: Optional[int] = None,
 ):
     """
     Phase 2: Metadata-only for 100 chats (no messages, no embeds).
@@ -1438,6 +1483,8 @@ async def _handle_phase2_sync(
                         "chat_count": 0,
                         "total_chat_count": total_chat_count,
                         "phase": "phase2",
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
                         **reconciliation,
                     }
                 },
@@ -1528,6 +1575,8 @@ async def _handle_phase2_sync(
                     "chat_count": len(chats_to_send),
                     "total_chat_count": total_chat_count,
                     "phase": "phase2",
+                    "team_id": team_id,
+                    "context_epoch": context_epoch,
                     **reconciliation,
                 }
             },
@@ -1555,6 +1604,7 @@ async def _handle_phase3_sync(
     phase1_chat_ids: Optional[List[str]] = None,
     team_id: Optional[str] = None,
     user_otel_attrs: dict | None = None,
+    context_epoch: Optional[int] = None,
 ):
     """
     Phase 3: Background message + embed sync — chunked batches of 10 chats.
@@ -1711,7 +1761,9 @@ async def _handle_phase3_sync(
             payload_data: Dict[str, Any] = {
                 "chats": batch_data,
                 "batch_number": batch_num,
-                "is_last_batch": (i + BATCH_SIZE >= len(chats_needing_messages))
+                "is_last_batch": (i + BATCH_SIZE >= len(chats_needing_messages)),
+                "team_id": team_id,
+                "context_epoch": context_epoch,
             }
             # Only include embeds/keys if present (saves bandwidth for chats without embeds)
             if batch_embeds:
@@ -1736,6 +1788,7 @@ async def _handle_phase3_sync(
                 directus_service,
                 batch_chat_ids,
                 user_id,
+                team_id=team_id,
             )
             if batch_chat_key_wrappers:
                 payload_data["chat_key_wrappers"] = batch_chat_key_wrappers

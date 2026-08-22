@@ -46,6 +46,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	assertNoMissingTranslations,
 	fillStripeCardDetails,
 	getTestAccount,
@@ -85,6 +86,7 @@ const STRIPE_TEST_CARD = '4000002460000001';
 // Test: Settings → Buy Credits → Stripe (EU card) full checkout
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('settings buy credits: completes full Stripe (EU card) purchase flow', async ({
 	page
 }: {
@@ -112,6 +114,21 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-stripe' });
 	await archiveExistingScreenshots(log);
 
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: true,
+				use_managed_payments: false,
+			}),
+		});
+	});
+
 	// ─── Login ────────────────────────────────────────────────────────────────────
 
 	await loginToTestAccount(page, log, screenshot);
@@ -125,15 +142,7 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-
-	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({
-		timeout: 15000
-	});
+	await expectVisibleSettingsMenu(page);
 	await screenshot(page, 'settings-menu-open');
 
 	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
@@ -179,9 +188,13 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	// If there are saved payment methods, the component shows the saved methods list
 	// with an "Add Payment Method" button. If there are none, the payment form shows
 	// directly. Either path is valid — click the button when present, otherwise skip.
-	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
-	const hasAddBtn = await addPaymentMethodBtn.isVisible({ timeout: 15000 }).catch(() => false);
+	const addPaymentMethodBtn = page.getByTestId('add-payment-method');
+	const hasAddBtn = await addPaymentMethodBtn
+		.waitFor({ state: 'attached', timeout: 15000 })
+		.then(() => true)
+		.catch(() => false);
 	if (hasAddBtn) {
+		await addPaymentMethodBtn.scrollIntoViewIfNeeded();
 		await addPaymentMethodBtn.click();
 		log('Clicked Add Payment Method button.');
 	} else {

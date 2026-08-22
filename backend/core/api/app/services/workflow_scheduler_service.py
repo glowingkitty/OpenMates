@@ -69,7 +69,7 @@ class WorkflowSchedulerService:
 
         # Recurrence plaintext is accessed only after the durable claim succeeds.
         next_run_at = await decrypt_and_schedule(owner_user_id, blob_ref)
-        if not isinstance(next_run_at, int) or next_run_at <= 0:
+        if not isinstance(next_run_at, int) or next_run_at < 0:
             raise ValueError("Decrypted workflow recurrence returned an invalid next_run_at")
 
         started = await self._runtime_service.execute(
@@ -120,12 +120,10 @@ class WorkflowSchedulerService:
             if not isinstance(at_value, str) or not at_value:
                 raise ValueError("One-time workflow schedule requires at")
             try:
-                candidate = datetime.fromisoformat(at_value.replace("Z", "+00:00"))
+                datetime.fromisoformat(at_value.replace("Z", "+00:00"))
             except ValueError as exc:
                 raise ValueError("One-time workflow schedule timestamp is invalid") from exc
-            if candidate.tzinfo is None:
-                candidate = candidate.replace(tzinfo=timezone.utc)
-            return int(candidate.timestamp())
+            return 0
         time_value = schedule.get("time")
         if not isinstance(time_value, str):
             raise ValueError("Decrypted workflow schedule requires a time")
@@ -159,6 +157,20 @@ class WorkflowSchedulerService:
                 if candidate.weekday() in normalized_weekdays and candidate > local_current:
                     return int(candidate.timestamp())
         raise ValueError("Workflow schedule type is not supported for unattended execution")
+
+    @staticmethod
+    def initial_next_run_at_from_schedule(schedule_config: Any, now: int | None = None) -> int:
+        """Calculate the indexed first due time before a schedule has been claimed."""
+        schedule = schedule_config.get("schedule", schedule_config) if isinstance(schedule_config, dict) else None
+        if isinstance(schedule, dict) and schedule.get("type") == "once":
+            at_value = schedule.get("at")
+            if not isinstance(at_value, str) or not at_value:
+                raise ValueError("One-time workflow schedule requires at")
+            try:
+                return int(datetime.fromisoformat(at_value.replace("Z", "+00:00")).timestamp())
+            except ValueError as exc:
+                raise ValueError("One-time workflow schedule timestamp is invalid") from exc
+        return WorkflowSchedulerService.next_run_at_from_schedule(schedule_config, now=now)
 
     @staticmethod
     def _required_string(payload: dict[str, Any], field: str) -> str:

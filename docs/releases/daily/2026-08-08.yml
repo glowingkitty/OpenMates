@@ -1,0 +1,2513 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-08'
+generated_at: '2026-08-09T00:20:05+00:00'
+range:
+  since: '2026-08-08T00:00:00+00:00'
+  until: '2026-08-09T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 48
+  section_counts:
+    features: 0
+    bug_fixes: 35
+    improvements: 0
+    docs: 3
+    tests: 6
+    infrastructure: 0
+    internal: 2
+    other: 2
+  newsletter_ready_items: 0
+  user_facing_items: 31
+  dev_only_items: 48
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: label repaired source links'
+    section: bug_fixes
+    commits:
+    - 864b0ef65
+    authored_at: '2026-08-08T23:02:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair grouped bare embed source links'
+    section: bug_fixes
+    commits:
+    - 0689e579d
+    authored_at: '2026-08-08T17:34:16+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    section: bug_fixes
+    commits:
+    - e20ee6e17
+    authored_at: '2026-08-08T17:31:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate user init worker'
+    section: bug_fixes
+    commits:
+    - 0c7782005
+    authored_at: '2026-08-08T17:05:17+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep recovery continuations distinct'
+    section: bug_fixes
+    commits:
+    - 03293502a
+    authored_at: '2026-08-08T15:49:45+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve continuation assistant identity'
+    section: bug_fixes
+    commits:
+    - 913579b0d
+    authored_at: '2026-08-08T14:51:50+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover large-account startup sync'
+    section: bug_fixes
+    commits:
+    - cc1489671
+    authored_at: '2026-08-08T14:36:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound Phase 2 draft discovery'
+    section: bug_fixes
+    commits:
+    - 904e3ddd7
+    authored_at: '2026-08-08T13:59:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix Phase 2 draft sync timeout
+    section: bug_fixes
+    commits:
+    - 6245e7d5d
+    authored_at: '2026-08-08T13:38:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress legacy sub-chat fallback per chat'
+    section: bug_fixes
+    commits:
+    - ea54403cb
+    authored_at: '2026-08-08T13:14:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair stale admin session cache'
+    section: bug_fixes
+    commits:
+    - fded42bfc
+    authored_at: '2026-08-08T13:05:44+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    - backend/tests/test_auth_common.py
+    - backend/tests/test_auth_dependencies.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize sub-chat batch rendering'
+    section: bug_fixes
+    commits:
+    - 0cf50939e
+    authored_at: '2026-08-08T12:57:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix duplicate sub-chat carousel fallback
+    section: bug_fixes
+    commits:
+    - 2c5af1dbb
+    authored_at: '2026-08-08T12:25:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix sub-chat child processing state
+    section: bug_fixes
+    commits:
+    - 831e9d87c
+    authored_at: '2026-08-08T11:57:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore app provider logos'
+    section: bug_fixes
+    commits:
+    - 5084738cc
+    authored_at: '2026-08-08T11:42:04+00:00'
+    changed_paths:
+    - backend/providers/printables.yml
+    - backend/providers/sec_edgar.yml
+    - frontend/packages/ui/static/icons/printables.svg
+    - frontend/packages/ui/static/icons/sec_edgar.png
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve billing account ids in auth sessions'
+    section: bug_fixes
+    commits:
+    - 4d64ae804
+    authored_at: '2026-08-08T10:35:42+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/scripts/repair_test_account_account_ids.py
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover OpenCode routing after merged worktree'
+    section: bug_fixes
+    commits:
+    - 3dd4c60f8
+    authored_at: '2026-08-08T10:25:21+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore deep research processing proof state'
+    section: bug_fixes
+    commits:
+    - 0de5d8d5a
+    authored_at: '2026-08-08T10:25:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear stale cache warm flags'
+    section: bug_fixes
+    commits:
+    - bde654380
+    authored_at: '2026-08-08T10:19:18+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_warming_flags.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require shared config in selfhost API image'
+    section: bug_fixes
+    commits:
+    - 65261d697
+    authored_at: '2026-08-08T10:03:03+00:00'
+    changed_paths:
+    - backend/core/api/Dockerfile.selfhost
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent daily inspiration text-media mismatches'
+    section: bug_fixes
+    commits:
+    - 23956bddd
+    authored_at: '2026-08-08T09:49:55+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind chained OpenCode session starts'
+    section: bug_fixes
+    commits:
+    - d8ecfe6e1
+    authored_at: '2026-08-08T09:48:32+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix billing worker compose queue split
+    section: bug_fixes
+    commits:
+    - 9266ff853
+    authored_at: '2026-08-08T09:37:18+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve persisted draft identity on resume'
+    section: bug_fixes
+    commits:
+    - fef75c90f
+    authored_at: '2026-08-08T05:05:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize welcome interaction layers'
+    section: bug_fixes
+    commits:
+    - ab938a70f
+    authored_at: '2026-08-08T04:39:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind blur saves to composer context'
+    section: bug_fixes
+    commits:
+    - 6b3aff22d
+    authored_at: '2026-08-08T04:03:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct deep research child chat lifecycle'
+    section: bug_fixes
+    commits:
+    - 170d4547f
+    authored_at: '2026-08-08T03:51:44+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve hidden draft previews on blur'
+    section: bug_fixes
+    commits:
+    - 363c26318
+    authored_at: '2026-08-08T03:35:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid late draft transition flush'
+    section: bug_fixes
+    commits:
+    - d5cb72241
+    authored_at: '2026-08-08T03:07:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve versioned draft classification'
+    section: bug_fixes
+    commits:
+    - 4c02c81e3
+    authored_at: '2026-08-08T02:44:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/utils/__tests__/chatDraftState.test.ts
+    - frontend/packages/ui/src/utils/chatDraftState.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove competing anonymous hydration'
+    section: bug_fixes
+    commits:
+    - 40c707f27
+    authored_at: '2026-08-08T02:21:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require reviewable narrated demos'
+    section: bug_fixes
+    commits:
+    - 8652ae9c2
+    authored_at: '2026-08-08T02:14:20+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: timestamp compose menu opening synchronously'
+    section: bug_fixes
+    commits:
+    - f42f0375a
+    authored_at: '2026-08-08T01:46:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore welcome focus lifecycle'
+    section: bug_fixes
+    commits:
+    - ff5879ce1
+    authored_at: '2026-08-08T01:28:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/hit-test-diagnostics.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit Deep research synthesis to budget'
+    section: bug_fixes
+    commits:
+    - 6150eb068
+    authored_at: '2026-08-08T00:55:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_sub_chat_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: add chat sync startup contract'
+    section: docs
+    commits:
+    - d7c536d01
+    authored_at: '2026-08-08T16:16:38+00:00'
+    changed_paths:
+    - contracts/architecture/sync/contract.yml
+    - contracts/architecture/sync/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: prefer gate-deploy for worktree readiness'
+    section: docs
+    commits:
+    - 519869e8f
+    authored_at: '2026-08-08T12:33:13+00:00'
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record reviewed Deep research proof'
+    section: docs
+    commits:
+    - 6c77b5632
+    authored_at: '2026-08-08T02:32:21+00:00'
+    changed_paths:
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: classify referrals as core route in cloud guard'
+    section: tests
+    commits:
+    - 6b82177f2
+    authored_at: '2026-08-08T12:12:38+00:00'
+    changed_paths:
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover OpenCode routing recovery'
+    section: tests
+    commits:
+    - 6572eac56
+    authored_at: '2026-08-08T10:54:22+00:00'
+    changed_paths:
+    - scripts/tests/test_opencode_hooks_recovery.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose sub-chat lifecycle defects'
+    section: tests
+    commits:
+    - c0c8afc26
+    authored_at: '2026-08-08T03:03:54+00:00'
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture chat hit testing'
+    section: tests
+    commits:
+    - ea0ad1950
+    authored_at: '2026-08-08T01:02:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/hit-test-diagnostics.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize composer mention selection'
+    section: tests
+    commits:
+    - 98b20897d
+    authored_at: '2026-08-08T00:19:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/helpers/mention-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: follow Deep research continuation stages'
+    section: tests
+    commits:
+    - 8e5b88bdd
+    authored_at: '2026-08-08T00:08:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: 'tooling: add OpenCode chat transcript reader'
+    section: internal
+    commits:
+    - 52d77f4c3
+    authored_at: '2026-08-08T12:01:19+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/daily-meeting/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/docs_guide_review.py
+    - scripts/linear-poller.py
+    - scripts/prompts/daily-meeting.md
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Recover primed sync status from warm cache
+    section: internal
+    commits:
+    - a0a0a0a21
+    authored_at: '2026-08-08T10:46:38+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Revert cache warming worker split
+    section: other
+    commits:
+    - d08a14d39
+    authored_at: '2026-08-08T11:28:04+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Isolate cache warming worker
+    section: other
+    commits:
+    - 107c69b86
+    authored_at: '2026-08-08T11:05:36+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'fix: label repaired source links'
+    commits:
+    - 864b0ef65
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair grouped bare embed source links'
+    commits:
+    - 0689e579d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    commits:
+    - e20ee6e17
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate user init worker'
+    commits:
+    - 0c7782005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: add chat sync startup contract'
+    commits:
+    - d7c536d01
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep recovery continuations distinct'
+    commits:
+    - 03293502a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve continuation assistant identity'
+    commits:
+    - 913579b0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: recover large-account startup sync'
+    commits:
+    - cc1489671
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound Phase 2 draft discovery'
+    commits:
+    - 904e3ddd7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix Phase 2 draft sync timeout
+    commits:
+    - 6245e7d5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: suppress legacy sub-chat fallback per chat'
+    commits:
+    - ea54403cb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair stale admin session cache'
+    commits:
+    - fded42bfc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize sub-chat batch rendering'
+    commits:
+    - 0cf50939e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: prefer gate-deploy for worktree readiness'
+    commits:
+    - 519869e8f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix duplicate sub-chat carousel fallback
+    commits:
+    - 2c5af1dbb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: classify referrals as core route in cloud guard'
+    commits:
+    - 6b82177f2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'tooling: add OpenCode chat transcript reader'
+    commits:
+    - 52d77f4c3
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix sub-chat child processing state
+    commits:
+    - 831e9d87c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore app provider logos'
+    commits:
+    - 5084738cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Revert cache warming worker split
+    commits:
+    - d08a14d39
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Isolate cache warming worker
+    commits:
+    - 107c69b86
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover OpenCode routing recovery'
+    commits:
+    - 6572eac56
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Recover primed sync status from warm cache
+    commits:
+    - a0a0a0a21
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve billing account ids in auth sessions'
+    commits:
+    - 4d64ae804
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover OpenCode routing after merged worktree'
+    commits:
+    - 3dd4c60f8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore deep research processing proof state'
+    commits:
+    - 0de5d8d5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clear stale cache warm flags'
+    commits:
+    - bde654380
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: require shared config in selfhost API image'
+    commits:
+    - 65261d697
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent daily inspiration text-media mismatches'
+    commits:
+    - 23956bddd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: bind chained OpenCode session starts'
+    commits:
+    - d8ecfe6e1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix billing worker compose queue split
+    commits:
+    - 9266ff853
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve persisted draft identity on resume'
+    commits:
+    - fef75c90f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize welcome interaction layers'
+    commits:
+    - ab938a70f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bind blur saves to composer context'
+    commits:
+    - 6b3aff22d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: correct deep research child chat lifecycle'
+    commits:
+    - 170d4547f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve hidden draft previews on blur'
+    commits:
+    - 363c26318
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: avoid late draft transition flush'
+    commits:
+    - d5cb72241
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: expose sub-chat lifecycle defects'
+    commits:
+    - c0c8afc26
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve versioned draft classification'
+    commits:
+    - 4c02c81e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record reviewed Deep research proof'
+    commits:
+    - 6c77b5632
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remove competing anonymous hydration'
+    commits:
+    - 40c707f27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: require reviewable narrated demos'
+    commits:
+    - 8652ae9c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: timestamp compose menu opening synchronously'
+    commits:
+    - f42f0375a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore welcome focus lifecycle'
+    commits:
+    - ff5879ce1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: capture chat hit testing'
+    commits:
+    - ea0ad1950
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fit Deep research synthesis to budget'
+    commits:
+    - 6150eb068
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: stabilize composer mention selection'
+    commits:
+    - 98b20897d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: follow Deep research continuation stages'
+    commits:
+    - 8e5b88bdd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: repair grouped bare embed source links'
+    commits:
+    - 0689e579d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    commits:
+    - e20ee6e17
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate user init worker'
+    commits:
+    - 0c7782005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep recovery continuations distinct'
+    commits:
+    - 03293502a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve continuation assistant identity'
+    commits:
+    - 913579b0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: recover large-account startup sync'
+    commits:
+    - cc1489671
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound Phase 2 draft discovery'
+    commits:
+    - 904e3ddd7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix Phase 2 draft sync timeout
+    commits:
+    - 6245e7d5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: suppress legacy sub-chat fallback per chat'
+    commits:
+    - ea54403cb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair stale admin session cache'
+    commits:
+    - fded42bfc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize sub-chat batch rendering'
+    commits:
+    - 0cf50939e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix duplicate sub-chat carousel fallback
+    commits:
+    - 2c5af1dbb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix sub-chat child processing state
+    commits:
+    - 831e9d87c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Revert cache warming worker split
+    commits:
+    - d08a14d39
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Isolate cache warming worker
+    commits:
+    - 107c69b86
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve billing account ids in auth sessions'
+    commits:
+    - 4d64ae804
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore deep research processing proof state'
+    commits:
+    - 0de5d8d5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clear stale cache warm flags'
+    commits:
+    - bde654380
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent daily inspiration text-media mismatches'
+    commits:
+    - 23956bddd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve persisted draft identity on resume'
+    commits:
+    - fef75c90f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize welcome interaction layers'
+    commits:
+    - ab938a70f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bind blur saves to composer context'
+    commits:
+    - 6b3aff22d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: correct deep research child chat lifecycle'
+    commits:
+    - 170d4547f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve hidden draft previews on blur'
+    commits:
+    - 363c26318
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid late draft transition flush'
+    commits:
+    - d5cb72241
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve versioned draft classification'
+    commits:
+    - 4c02c81e3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove competing anonymous hydration'
+    commits:
+    - 40c707f27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: require reviewable narrated demos'
+    commits:
+    - 8652ae9c2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: timestamp compose menu opening synchronously'
+    commits:
+    - f42f0375a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore welcome focus lifecycle'
+    commits:
+    - ff5879ce1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fit Deep research synthesis to budget'
+    commits:
+    - 6150eb068
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 864b0ef650f78547e2bfe0fb2a5742ad45d522e4
+    short_sha: 864b0ef65
+    authored_at: '2026-08-08T23:02:07+00:00'
+    subject: 'fix: label repaired source links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 0689e579db9f52c045ff7650ceefd2b30d2179f0
+    short_sha: 0689e579d
+    authored_at: '2026-08-08T17:34:16+00:00'
+    subject: 'fix: repair grouped bare embed source links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids:
+    - app:ai
+  - sha: e20ee6e17f9e1debc383153a29dd01834f471e2d
+    short_sha: e20ee6e17
+    authored_at: '2026-08-08T17:31:25+00:00'
+    subject: 'fix: speed Phase 2 draft metadata sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 0c77820050dd4d75166307fd3cba5ab67cd1024b
+    short_sha: 0c7782005
+    authored_at: '2026-08-08T17:05:17+00:00'
+    subject: 'fix: isolate user init worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    related_feature_ids: []
+  - sha: d7c536d011e88c58ea9de6a1ad5b9027160439ae
+    short_sha: d7c536d01
+    authored_at: '2026-08-08T16:16:38+00:00'
+    subject: 'docs: add chat sync startup contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/architecture/sync/contract.yml
+    - contracts/architecture/sync/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 03293502abff2e37a74eb1628faa23148a07a52a
+    short_sha: 03293502a
+    authored_at: '2026-08-08T15:49:45+00:00'
+    subject: 'fix: keep recovery continuations distinct'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: 913579b0d6b875214843e3c0a28f77d4332db7e9
+    short_sha: 913579b0d
+    authored_at: '2026-08-08T14:51:50+00:00'
+    subject: 'fix: preserve continuation assistant identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+  - sha: cc148967131591fc885271c1ae9c82fa916db5e4
+    short_sha: cc1489671
+    authored_at: '2026-08-08T14:36:32+00:00'
+    subject: 'fix: recover large-account startup sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 904e3ddd75599e2467a2a459b71b0738c77d9c7a
+    short_sha: 904e3ddd7
+    authored_at: '2026-08-08T13:59:56+00:00'
+    subject: 'fix: bound Phase 2 draft discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 6245e7d5da9295d86187b499023d5a579232e675
+    short_sha: 6245e7d5d
+    authored_at: '2026-08-08T13:38:51+00:00'
+    subject: Fix Phase 2 draft sync timeout
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: ea54403cb3c2441f4e4cb84fc9fcb44c000a00d5
+    short_sha: ea54403cb
+    authored_at: '2026-08-08T13:14:45+00:00'
+    subject: 'fix: suppress legacy sub-chat fallback per chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: fded42bfcb147e4568371a62a82a154abfd5ae1c
+    short_sha: fded42bfc
+    authored_at: '2026-08-08T13:05:44+00:00'
+    subject: 'fix: repair stale admin session cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    - backend/tests/test_auth_common.py
+    - backend/tests/test_auth_dependencies.py
+    related_feature_ids: []
+  - sha: 0cf50939e04d4fafcb1c9a692d8fc6ed59aabbac
+    short_sha: 0cf50939e
+    authored_at: '2026-08-08T12:57:16+00:00'
+    subject: 'fix: stabilize sub-chat batch rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    related_feature_ids: []
+  - sha: 519869e8f7d0776c184eb64b7dc526932e8f2b05
+    short_sha: 519869e8f
+    authored_at: '2026-08-08T12:33:13+00:00'
+    subject: 'docs: prefer gate-deploy for worktree readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    related_feature_ids: []
+  - sha: 2c5af1dbb93f4f4a1c41f77110cae0fdfc5c39d6
+    short_sha: 2c5af1dbb
+    authored_at: '2026-08-08T12:25:13+00:00'
+    subject: Fix duplicate sub-chat carousel fallback
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: 6b82177f233b9dd9d57f2cb3c4f39ea9cb4e1ab9
+    short_sha: 6b82177f2
+    authored_at: '2026-08-08T12:12:38+00:00'
+    subject: 'test: classify referrals as core route in cloud guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_openmatescloud_overlay_packaging.py
+    related_feature_ids: []
+  - sha: 52d77f4c3f513fcf38491a773dfc0f2c93c6b84d
+    short_sha: 52d77f4c3
+    authored_at: '2026-08-08T12:01:19+00:00'
+    subject: 'tooling: add OpenCode chat transcript reader'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/daily-meeting/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/docs_guide_review.py
+    - scripts/linear-poller.py
+    - scripts/prompts/daily-meeting.md
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_sessions_opencode_chat.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 831e9d87cf995a3b8ffb957b7fa53c294ac15b58
+    short_sha: 831e9d87c
+    authored_at: '2026-08-08T11:57:36+00:00'
+    subject: Fix sub-chat child processing state
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 5084738ccb2cfaf502b7e4f34f84c879f29b984e
+    short_sha: 5084738cc
+    authored_at: '2026-08-08T11:42:04+00:00'
+    subject: 'fix: restore app provider logos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/printables.yml
+    - backend/providers/sec_edgar.yml
+    - frontend/packages/ui/static/icons/printables.svg
+    - frontend/packages/ui/static/icons/sec_edgar.png
+    related_feature_ids: []
+  - sha: d08a14d39c1c53a2d84ba2d98614301a24a38019
+    short_sha: d08a14d39
+    authored_at: '2026-08-08T11:28:04+00:00'
+    subject: Revert cache warming worker split
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    related_feature_ids: []
+  - sha: 107c69b861d6c967965439df9d85f1c14702e7af
+    short_sha: 107c69b86
+    authored_at: '2026-08-08T11:05:36+00:00'
+    subject: Isolate cache warming worker
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    related_feature_ids: []
+  - sha: 6572eac5697b87ebb63e1ab0197b9bc29ab33cf4
+    short_sha: 6572eac56
+    authored_at: '2026-08-08T10:54:22+00:00'
+    subject: 'test: cover OpenCode routing recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_opencode_hooks_recovery.py
+    related_feature_ids: []
+  - sha: a0a0a0a2135fcd0db9f27f006601584c0e3c1d8b
+    short_sha: a0a0a0a21
+    authored_at: '2026-08-08T10:46:38+00:00'
+    subject: Recover primed sync status from warm cache
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 4d64ae8046f2e42d3184fea5583b24b704ae2d6e
+    short_sha: 4d64ae804
+    authored_at: '2026-08-08T10:35:42+00:00'
+    subject: 'fix: preserve billing account ids in auth sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/scripts/repair_test_account_account_ids.py
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 3dd4c60f83a515d7aaa0e658fb814745bcdd3ca4
+    short_sha: 3dd4c60f8
+    authored_at: '2026-08-08T10:25:21+00:00'
+    subject: 'fix: recover OpenCode routing after merged worktree'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 0de5d8d5a79fed8d45965b9befe276772939d784
+    short_sha: 0de5d8d5a
+    authored_at: '2026-08-08T10:25:06+00:00'
+    subject: 'fix: restore deep research processing proof state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bde6543804954c6cf6e61d8d8adc79dbe61e7f53
+    short_sha: bde654380
+    authored_at: '2026-08-08T10:19:18+00:00'
+    subject: 'fix: clear stale cache warm flags'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_warming_flags.py
+    related_feature_ids: []
+  - sha: 65261d697929e10ad40014610cb8e1cbbad8306e
+    short_sha: 65261d697
+    authored_at: '2026-08-08T10:03:03+00:00'
+    subject: 'fix: require shared config in selfhost API image'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/Dockerfile.selfhost
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    related_feature_ids: []
+  - sha: 23956bdddde512e4a518d3031c664a124e42a1f2
+    short_sha: 23956bddd
+    authored_at: '2026-08-08T09:49:55+00:00'
+    subject: 'fix: prevent daily inspiration text-media mismatches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    related_feature_ids:
+    - app:ai
+  - sha: d8ecfe6e174529eb879ff5fc082138daa8f8b04c
+    short_sha: d8ecfe6e1
+    authored_at: '2026-08-08T09:48:32+00:00'
+    subject: 'fix: bind chained OpenCode session starts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    related_feature_ids: []
+  - sha: 9266ff85385c22357d76a0dbb36139b571331786
+    short_sha: 9266ff853
+    authored_at: '2026-08-08T09:37:18+00:00'
+    subject: Fix billing worker compose queue split
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: fef75c90f6643122cdf39b799ebbe2264658cebf
+    short_sha: fef75c90f
+    authored_at: '2026-08-08T05:05:58+00:00'
+    subject: 'fix: preserve persisted draft identity on resume'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: ab938a70f0e4e4c6affcebc92d3a5a67e17c76a2
+    short_sha: ab938a70f
+    authored_at: '2026-08-08T04:39:22+00:00'
+    subject: 'fix: stabilize welcome interaction layers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 6b3aff22d655936a8a23dccfc3f97665ed0f9614
+    short_sha: 6b3aff22d
+    authored_at: '2026-08-08T04:03:39+00:00'
+    subject: 'fix: bind blur saves to composer context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 170d4547f57adf7078833bad60c3d0591b7f3730
+    short_sha: 170d4547f
+    authored_at: '2026-08-08T03:51:44+00:00'
+    subject: 'fix: correct deep research child chat lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 363c263180a79a96db81172ec6532423cffa1ad0
+    short_sha: 363c26318
+    authored_at: '2026-08-08T03:35:42+00:00'
+    subject: 'fix: preserve hidden draft previews on blur'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: d5cb72241e4ef75b60c4701b2ab650fab8a3f65c
+    short_sha: d5cb72241
+    authored_at: '2026-08-08T03:07:02+00:00'
+    subject: 'fix: avoid late draft transition flush'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: c0c8afc269d8d5ebe7a76fff004d128b279ab256
+    short_sha: c0c8afc26
+    authored_at: '2026-08-08T03:03:54+00:00'
+    subject: 'test: expose sub-chat lifecycle defects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    related_feature_ids: []
+  - sha: 4c02c81e37c020edca8191acd88f8c2196288a56
+    short_sha: 4c02c81e3
+    authored_at: '2026-08-08T02:44:21+00:00'
+    subject: 'fix: preserve versioned draft classification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/utils/__tests__/chatDraftState.test.ts
+    - frontend/packages/ui/src/utils/chatDraftState.ts
+    related_feature_ids: []
+  - sha: 6c77b563259e347adc9810c01f17e846565bd00d
+    short_sha: 6c77b5632
+    authored_at: '2026-08-08T02:32:21+00:00'
+    subject: 'docs: record reviewed Deep research proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    related_feature_ids: []
+  - sha: 40c707f27209b6fa06ed98de301792d5fd58c710
+    short_sha: 40c707f27
+    authored_at: '2026-08-08T02:21:49+00:00'
+    subject: 'fix: remove competing anonymous hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 8652ae9c2152173aeea8e93c8be008b637c3a551
+    short_sha: 8652ae9c2
+    authored_at: '2026-08-08T02:14:20+00:00'
+    subject: 'fix: require reviewable narrated demos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - docs/specs/sub-chat-orchestration-billing-integrity/spec.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: f42f0375a94502dda958a7cd755d5b2ba7404e43
+    short_sha: f42f0375a
+    authored_at: '2026-08-08T01:46:40+00:00'
+    subject: 'fix: timestamp compose menu opening synchronously'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    related_feature_ids: []
+  - sha: ff5879ce1a51ccf1974f3d0d538ca81f8b56bf03
+    short_sha: ff5879ce1
+    authored_at: '2026-08-08T01:28:33+00:00'
+    subject: 'fix: restore welcome focus lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/hit-test-diagnostics.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/in_message_previews/PressAndHoldMenu.svelte
+    related_feature_ids: []
+  - sha: ea0ad1950afb76b99357524732fcc2e622f6e267
+    short_sha: ea0ad1950
+    authored_at: '2026-08-08T01:02:20+00:00'
+    subject: 'test: capture chat hit testing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/hit-test-diagnostics.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 6150eb0689ed404402206ebc641eff69421d4dee
+    short_sha: 6150eb068
+    authored_at: '2026-08-08T00:55:34+00:00'
+    subject: 'fix: fit Deep research synthesis to budget'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_sub_chat_orchestration.py
+    related_feature_ids:
+    - app:ai
+  - sha: 98b20897d09f0d1af169ea59f99a6ef396936bfb
+    short_sha: 98b20897d
+    authored_at: '2026-08-08T00:19:24+00:00'
+    subject: 'test: stabilize composer mention selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/helpers/mention-test-helpers.ts
+    related_feature_ids: []
+  - sha: 8e5b88bdd69f952099d0aad55ba44ec4d0829ac7
+    short_sha: 8e5b88bdd
+    authored_at: '2026-08-08T00:08:14+00:00'
+    subject: 'test: follow Deep research continuation stages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on stabilizing AI orchestration and synchronization performance. Significant work was completed
+    on the Deep Research sub-chat lifecycle, phased metadata syncing for large accounts, and composer interaction reliability.
+  released_changes: []
+  bug_fixes:
+  - text: Refined AI orchestration by correcting Deep Research child chat lifecycles, managing synthesis budgets, and ensuring
+      assistant identity is preserved during recovery continuations.
+    evidence:
+      commits:
+      - 170d4547f
+      - 6150eb068
+      - 03293502a
+      - 913579b0d
+      - 23956bddd
+      - 0689e579d
+    release_status: dev_only
+  - text: Optimized phased synchronization to handle large-account startup syncs and prevent timeouts during draft metadata
+      discovery.
+    evidence:
+      commits:
+      - e20ee6e17
+      - cc1489671
+      - 904e3ddd7
+      - 6245e7d5d
+    release_status: dev_only
+  - text: Stabilized the message composer and welcome interaction layers, addressing issues with draft persistence, focus
+      lifecycles, and synchronous menu opening.
+    evidence:
+      commits:
+      - 6b3aff22d
+      - 363c26318
+      - d5cb72241
+      - 4c02c81e3
+      - ab938a70f
+      - ff5879ce1
+      - f42f0375a
+      - 40c707f27
+      - fef75c90f
+    release_status: dev_only
+  - text: Improved infrastructure and authentication reliability by isolating user initialization workers and repairing stale
+      admin session caches.
+    evidence:
+      commits:
+      - 4d64ae804
+      - fded42bfc
+      - bde654380
+      - 0c7782005
+      - 9266ff853
+      - 65261d697
+      - 5084738cc
+    release_status: dev_only
+  unreleased_progress:
+  - text: AI Deep Research and sub-chat orchestration refinements.
+    evidence:
+      commits:
+      - 170d4547f
+      - 6150eb068
+      - 03293502a
+      - 913579b0d
+      - 23956bddd
+      - 0689e579d
+    release_status: dev_only
+  - text: Phased sync performance and reliability improvements.
+    evidence:
+      commits:
+      - e20ee6e17
+      - cc1489671
+      - 904e3ddd7
+      - 6245e7d5d
+    release_status: dev_only
+  internal_progress:
+  - text: Enhanced internal developer tooling with a new OpenCode chat transcript reader and improved routing recovery for
+      merged worktrees.
+    evidence:
+      commits:
+      - 52d77f4c3
+      - 3dd4c60f8
+      - d8ecfe6e1
+      - 6572eac56
+    release_status: dev_only
+  - text: Updated documentation and contribution guides to require reviewable narrated demos and define chat sync startup
+      contracts.
+    evidence:
+      commits:
+      - 8652ae9c2
+      - 6c77b5632
+      - 519869e8f
+      - d7c536d01
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI Deep Research Orchestration Fixes
+      evidence:
+        commits:
+        - 170d4547f
+        - 6150eb068
+        - 03293502a
+        - 913579b0d
+        - 23956bddd
+        - 0689e579d
+      reason: AI orchestration improvements are currently in dev_only status and not yet released to main.
+    - text: Phased Sync Performance Updates
+      evidence:
+        commits:
+        - e20ee6e17
+        - cc1489671
+        - 904e3ddd7
+        - 6245e7d5d
+      reason: Sync performance optimizations are currently dev_only.
+    rationale: All user-facing improvements from this period are currently in dev_only status and have not yet reached the
+      main branch for public communication.
+  social_video_recommendations:
+  - idea: A technical deep-dive into how OpenMates manages 'Deep Research' budgets and child-chat lifecycles to ensure complex
+      AI tasks remain coherent.
+    priority: medium
+    reason: The sub-chat orchestration logic is a core differentiator for the AI experience.
+    evidence:
+      commits:
+      - 170d4547f
+      - 6150eb068
+  quality_notes:
+  - Extensive test coverage was added for AI continuation stages and sync edge cases.
+  - Infrastructure stability was prioritized through worker isolation and cache management repairs.
+  validation_warnings: []

@@ -75,6 +75,9 @@ cmd_open() {
         log "Close it with: $0 close"
         return 0
     fi
+    if [[ -S "$SOCK" ]]; then
+        rm -f "$SOCK"
+    fi
 
     command -v expect >/dev/null 2>&1 || \
         die "expect is not installed. Run: sudo apt install -y expect"
@@ -111,7 +114,7 @@ set ssh_opts [list \
 ]
 
 log_user 0
-eval spawn ssh $ssh_opts
+spawn ssh {*}$ssh_opts
 expect {
     -nocase "assword:"          { send -- "$password\r"; exp_continue }
     -nocase "verification code" { send -- "$otp\r";      exp_continue }

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
@@ -2259,6 +2260,38 @@ class ProfileImageProcessRequest(BaseModel):
     target_env: str = Field(default="prod", description="'dev' or 'prod' — selects the correct S3 bucket for old-key deletion")
 
 
+class TeamProfileImageProcessRequest(BaseModel):
+    """Payload sent by the upload server after storing an encrypted team image."""
+
+    user_id: str = Field(..., description="Authenticated uploader user ID")
+    team_id: str = Field(..., description="Team whose profile image was uploaded")
+    encrypted_profile_image_metadata: str = Field(..., description="Client-encrypted generated/uploaded image metadata")
+    s3_key: str = Field(..., description="S3 object key in the private profile-images bucket")
+    aes_key_b64: str = Field(..., description="Plaintext AES-256 key (base64) — will be Vault-wrapped; NEVER stored as-is")
+    nonce_b64: str = Field(..., description="AES-GCM nonce (base64, 12 bytes)")
+    target_env: str = Field(default="prod", description="'dev' or 'prod' — selects the correct S3 bucket for old-key deletion")
+
+
+class TeamProfileImageAuthorizeRequest(BaseModel):
+    """Payload sent by the upload server before accepting team image bytes."""
+
+    user_id: str = Field(..., description="Authenticated uploader user ID")
+    team_id: str = Field(..., description="Team whose profile image will be uploaded")
+
+
+@router.post("/team-profile-image/authorize")
+async def authorize_team_profile_image_upload(
+    payload: TeamProfileImageAuthorizeRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Fail closed before the upload service scans or stores team image bytes."""
+    try:
+        await directus_service.team.require_team_role(payload.team_id, payload.user_id, {"owner", "admin"})
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    return {"status": "ok"}
+
+
 @router.post("/profile-image/process")
 async def process_profile_image(
     payload: ProfileImageProcessRequest,
@@ -2382,6 +2415,66 @@ async def process_profile_image(
             status_code=500,
             detail=f"Profile image processing failed: {str(e)}",
         )
+
+
+@router.post("/team-profile-image/process")
+async def process_team_profile_image(
+    payload: TeamProfileImageProcessRequest,
+    request: Request,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """Vault-wrap uploaded team image metadata and persist it after role checks."""
+    log_prefix = f"[TeamProfileImageProcess] [team:{payload.team_id[:8]}...] [user:{payload.user_id[:8]}...]"
+    logger.info(f"{log_prefix} Processing encrypted team profile image (s3_key={payload.s3_key})")
+    try:
+        vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+        if not vault_key_id:
+            profile_success, user_data, profile_msg = await directus_service.get_user_profile(payload.user_id)
+            if not profile_success or not user_data:
+                logger.error(f"{log_prefix} Could not fetch uploader profile: {profile_msg}")
+                raise HTTPException(status_code=404, detail="User not found")
+            vault_key_id = user_data.get("vault_key_id")
+            if not vault_key_id:
+                raise HTTPException(status_code=500, detail="User account incomplete: missing encryption key")
+            await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
+
+        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(payload.aes_key_b64, vault_key_id)
+        if not wrapped_aes_key:
+            raise HTTPException(status_code=500, detail="AES key wrapping failed")
+
+        result = await directus_service.team.process_team_profile_image(
+            team_id=payload.team_id,
+            actor_user_id=payload.user_id,
+            encrypted_profile_image_metadata=payload.encrypted_profile_image_metadata,
+            s3_key=payload.s3_key,
+            encrypted_profile_image_aes_key=wrapped_aes_key,
+            profile_image_aes_nonce=payload.nonce_b64,
+            profile_image_vault_key_id=vault_key_id,
+            updated_at=int(time.time()),
+        )
+        old_s3_key = result.get("old_s3_key")
+        if old_s3_key:
+            try:
+                await request.app.state.s3_service.delete_file("profile_images_private", old_s3_key)
+            except Exception as exc:
+                logger.warning(
+                    "%s Failed to delete old S3 object %s: %s (Directus update succeeded)",
+                    log_prefix,
+                    old_s3_key,
+                    exc,
+                )
+        proxy_url = f"/v1/teams/{payload.team_id}/profile-image"
+        logger.info(f"{log_prefix} Encrypted team profile image processed successfully → {proxy_url}")
+        return {"status": "ok", "url": proxy_url}
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"{log_prefix} Unexpected error: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Team profile image processing failed: {str(exc)}") from exc
 
 
 # ---------------------------------------------------------------------------

@@ -153,6 +153,7 @@ TASK_CONFIG = [
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
+    {'name': 'app_music',   'module': 'backend.apps.audio.tasks'},  # Audio generate/speak tasks share music worker resources
     {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks
     {'name': 'app_social_media', 'module': 'backend.apps.social_media.tasks'},  # Social media collection tasks
@@ -173,9 +174,10 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
     {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
-    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
+    {'name': 'user_tasks', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
 
@@ -993,10 +995,14 @@ task_routes = {
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
     "runtime_health.worker_probe": {'queue': 'app_ai'},
+    "runtime_health.chat_plumbing_probe": {'queue': 'app_ai'},
     "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
+    "operational_monitoring.send_digest": {'queue': 'email'},
+    "user_tasks.process_due_ai_tasks": {'queue': 'user_tasks'},
+    "user_tasks.archive_completed_tasks": {'queue': 'persistence'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1007,8 +1013,10 @@ task_routes = {
     "demo.*": {'queue': 'demo'},
     # Reminder tasks use custom names like "reminder.*"
     "reminder.*": {'queue': 'reminder'},
-    # Manual workflow runs must not wait behind persistence/scheduled-trigger backlog.
+    # Workflow execution tasks must not wait behind persistence backlog.
     "workflows.run": {'queue': 'workflow'},
+    "workflows.run_scheduled_trigger": {'queue': 'workflow'},
+    "workflows.scan_due_triggers": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1026,7 +1034,7 @@ app.conf.task_routes = task_routes
 
 # Health check runs every 5 minutes (for providers without health endpoints)
 # Providers with health endpoints can be checked more frequently (1 minute) in the future
-# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to their intended workers.
 # ===========================================================================
 # TASK ROUTING VALIDATION HELPER
 # ===========================================================================
@@ -1048,13 +1056,17 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     "runtime_health.worker_probe": "app_ai",
+    "runtime_health.chat_plumbing_probe": "app_ai",
     "runtime_health.scheduler_heartbeat": "health_check",
+    "user_tasks.process_due_ai_tasks": "user_tasks",
+    "user_tasks.archive_completed_tasks": "persistence",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
     "health_check.check_all_apps": "health_check",
     "health_check.check_external_services": "health_check",
     "health_check.send_degraded_services_discord_report": "health_check",
+    "operational_monitoring.send_digest": "email",
     
     # Usage archive tasks
     "usage.archive_old_entries": "persistence",
@@ -1076,6 +1088,9 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
+    "app.tasks.email_tasks.bank_transfer_reminder_email_task.send_bank_transfer_reminder": "email",
+    "app.tasks.email_tasks.bank_transfer_amount_notice_email_task.send_bank_transfer_amount_notice": "email",
+    "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task.send_bank_transfer_duplicate_reference": "email",
     "app.tasks.linear_issue_task.create_linear_issue_for_report": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
@@ -1134,9 +1149,11 @@ _EXPLICIT_TASK_ROUTES = {
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
 
-     # Workflow tasks
-     "workflows.run": "workflow",
- }
+      # Workflow tasks
+      "workflows.run": "workflow",
+      "workflows.run_scheduled_trigger": "workflow",
+      "workflows.scan_due_triggers": "workflow",
+  }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
     """
@@ -1307,7 +1324,7 @@ app.conf.beat_schedule = {
     'process-due-ai-user-tasks': {
         'task': 'user_tasks.process_due_ai_tasks',
         'schedule': timedelta(seconds=60),
-        'options': {'queue': 'persistence'},
+        'options': {'queue': 'user_tasks'},
     },
     'archive-completed-user-tasks-daily': {
         'task': 'user_tasks.archive_completed_tasks',
@@ -1378,7 +1395,10 @@ app.conf.beat_schedule = {
     'process-pending-embeds': {
         'task': 'app.tasks.persistence_tasks.process_pending_embeds',
         'schedule': timedelta(seconds=300),  # Every 5 minutes
-        'options': {'queue': 'persistence'},
+        'options': {
+            'queue': 'persistence',
+            'expires': 240,
+        },
     },
     # Temporary workflows are retained for seven days after chat creation unless
     # the user keeps them as reusable workflows.
@@ -1390,7 +1410,7 @@ app.conf.beat_schedule = {
     'scan-due-workflow-triggers': {
         'task': 'workflows.scan_due_triggers',
         'schedule': timedelta(seconds=60),
-        'options': {'queue': 'persistence'},
+        'options': {'queue': 'workflow'},
     },
     # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.
     # Runs Sunday at 03:00 UTC so it doesn't overlap with the daily auto-delete at 02:30 UTC.

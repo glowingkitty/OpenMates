@@ -1131,6 +1131,7 @@ class DirectusService:
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
         """
+        self.last_update_error = None
         # System collections are accessed directly, not via /items/
         if collection.startswith('directus_'):
             system_path = collection.replace('directus_', '')
@@ -1176,9 +1177,11 @@ class DirectusService:
                     logger.warning(f"Update item response for {collection}/{item_id} has unexpected JSON format: {response_json}")
                     return response_json  # Return raw JSON if format is unexpected
             else:
+                self.last_update_error = {"status_code": response_obj.status_code, "text": response_obj.text}
                 logger.error(f"Failed to update item {item_id} in collection {collection}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}")
                 return None
         except Exception as e:
+            self.last_update_error = {"error": str(e)}
             logger.error(f"Error parsing update response for {collection}/{item_id}: {e}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}", exc_info=True)
             return None
 
@@ -1194,6 +1197,7 @@ class DirectusService:
         admin_required: bool = False,
     ) -> Optional[Dict]:
         """Update one item only when its stored version still matches."""
+        self.last_update_error = None
         url = f"{self.base_url}/items/{collection}"
         params: Dict[str, Any] = {
             "filter[id][_eq]": item_id,
@@ -1213,9 +1217,11 @@ class DirectusService:
 
         response_obj = await self._make_api_request("PATCH", url, headers=headers, json={"keys": [item_id], "data": data}, params=params)
         if response_obj is None:
+            self.last_update_error = {"error": "request returned no response"}
             logger.error("Conditional update for %s/%s returned no response", collection, item_id)
             return None
         if not 200 <= response_obj.status_code < 300:
+            self.last_update_error = {"status_code": response_obj.status_code, "text": response_obj.text}
             logger.warning("Conditional update for %s/%s failed with HTTP %s", collection, item_id, response_obj.status_code)
             return None
         response_json = response_obj.json()

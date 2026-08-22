@@ -6,16 +6,16 @@ export {};
  *
  * Enables email notifications in Settings → Chat → Notifications, sets a
  * 1-minute reminder, then closes the browser context (simulating the user
- * leaving). Polls Mailosaur for a reminder email for up to 3 minutes.
+ * leaving). Polls Gmail for a reminder email for up to 6 minutes.
  * Re-opens to clean up the chat.
  *
  * Runtime: ~5 minutes.
  *
  * REQUIRED ENV VARS:
- *   OPENMATES_TEST_ACCOUNT_EMAIL    — must be a Mailosaur address
+ *   OPENMATES_TEST_ACCOUNT_EMAIL    — must match GMAIL_TEST_ADDRESS or one of its aliases
  *   OPENMATES_TEST_ACCOUNT_PASSWORD
  *   OPENMATES_TEST_ACCOUNT_OTP_KEY
- *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN (preferred) or MAILOSAUR_API_KEY (fallback)
+ *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN / GMAIL_TEST_ADDRESS
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -91,6 +91,13 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 	log('Chat deleted.');
 }
 
+async function waitForEmailNotificationSettingsAck(page: any): Promise<void> {
+	await page.waitForEvent('console', {
+		predicate: (message: any) => message.text().includes('email_notification_settings_ack received'),
+		timeout: 30000
+	});
+}
+
 async function enableEmailNotifications(page: any, log: any, screenshot: any): Promise<void> {
 	const profileContainer = page.getByTestId('profile-container');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
@@ -122,8 +129,10 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	if (alreadyOn) {
 		log('Email notifications already enabled.');
 	} else {
+		const ackPromise = waitForEmailNotificationSettingsAck(page);
 		await toggle.click();
-		await page.waitForTimeout(2000);
+		await ackPromise;
+		await expect(checkbox).toBeChecked({ timeout: 5000 });
 		log('Email notifications enabled.');
 	}
 	await screenshot(page, 'email-toggle-enabled');
@@ -147,6 +156,7 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 // Test
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=notifications.settings.ack-persisted,notifications.delivery.email-enabled
 test('reminder — email: reminder email arrives after browser is closed', async ({
 	page,
 	context,
@@ -161,8 +171,8 @@ test('reminder — email: reminder email arrives after browser is closed', async
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	const emailClient = createEmailClient(TEST_EMAIL);
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -171,7 +181,7 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
+	const { deleteAllMessages, waitForMessage } = emailClient!;
 
 	await loginTestAccount(page, log);
 	await screenshot(page, 'logged-in');
@@ -209,23 +219,23 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	log('AI confirmed. Closing browser context now.');
 	await screenshot(page, 'before-close');
 
-	// Record a timestamp as a belt-and-suspenders filter (Mailosaur inbox was
-	// cleared above, so any arriving email is from this run).
+	// Gmail readonly access cannot clear the inbox, so timestamp and recipient
+	// filtering identify messages from this run.
 	const sentAfter = new Date().toISOString();
 
 	// Close the browser context — simulates user leaving
 	await context.close();
 	log('Browser context closed.');
 
-	// Poll Mailosaur for the reminder email (6-min window).
-	// The AI sets the reminder ~1 min from now; Brevo → Mailosaur delivery adds
+	// Poll Gmail for the reminder email (6-min window).
+	// The AI sets the reminder ~1 min from now; Brevo to Gmail delivery adds
 	// ~30–60 s. Backend retry loops can create additional reminders that fire
 	// every ~1 min, so we should see emails starting at ~2 min after message sent.
 	// 6 min gives ample buffer for the first email to arrive.
-	log('Polling Mailosaur for reminder email (up to 6 min)...');
+	log('Polling Gmail for reminder email (up to 6 min)...');
 	let email: any = null;
 	try {
-		email = await waitForMailosaurMessage({
+		email = await waitForMessage({
 			sentTo: TEST_EMAIL,
 			subjectContains: 'Reminder',
 			receivedAfter: sentAfter,

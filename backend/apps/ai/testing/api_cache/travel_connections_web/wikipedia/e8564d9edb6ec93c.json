@@ -1,0 +1,38 @@
+{
+  "fingerprint": "e8564d9edb6ec93c",
+  "category": "wikipedia",
+  "group_id": "travel_connections_web",
+  "recorded_at": "2026-08-15T12:16:29.525061+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Indicated_airspeed%7CShinkansen%7CMitteldeutschland&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Sat, 15 Aug 2026 12:16:29 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-jhs5q",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "507",
+      "x-request-id": "8e80ccb1-a876-43d6-9f5d-3cda9e608461",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"3033257110\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Indicated_airspeed\",\"to\":\"Indicated airspeed\"}],\"redirects\":[{\"from\":\"Mitteldeutschland\",\"to\":\"Central Germany\"}],\"pages\":[{\"pageid\":92516,\"ns\":0,\"title\":\"Shinkansen\",\"pageprops\":{\"wikibase_item\":\"Q164338\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Shinkansen_map_202405_en.png/330px-Shinkansen_map_202405_en.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":310},\"description\":\"Japanese high-speed rail system\",\"descriptionsource\":\"local\"},{\"pageid\":594312,\"ns\":0,\"title\":\"Indicated airspeed\",\"pageprops\":{\"wikibase_item\":\"Q2468712\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Airspeed_Indicator.svg/330px-Airspeed_Indicator.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":300},\"description\":\"Displayed on the airspeed indicator on an aircraft\",\"descriptionsource\":\"local\"},{\"pageid\":29047888,\"ns\":0,\"title\":\"Central Germany\",\"pageprops\":{\"wikibase_item\":\"Q16768521\"},\"description\":\"Topics referred to by the same term\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

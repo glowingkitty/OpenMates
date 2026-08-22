@@ -1,6 +1,7 @@
 packages:
   - "frontend/apps/*"
   - "frontend/packages/*"
+  - "tooling/*"
 
 # Delay newly published package versions so fast-moving supply-chain attacks
 # can be detected and removed before CI resolves them.

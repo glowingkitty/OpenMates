@@ -1,0 +1,58 @@
+{
+  "fingerprint": "a27df054c6a09100",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_read_cli",
+  "recorded_at": "2026-08-15T15:47:37.724006+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "75f6112ae38e99ec",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Read this page and summarize it: https://example.com"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-read-74d7ce05",
+          "function_name": "web-read",
+          "function_arguments_raw": "{\"requests\": [{\"id\": 1, \"url\": \"https://example.com\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "id": 1,
+                "url": "https://example.com"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIP3gt/ckWz8ViDXfo0RW26LVhPsVltvBvBmlepVN9K/hMkGylsqBjKlk8dk2ATdkwvbVez77OICGNjw3Bf2AYppF6AdQ6dZU8kDPgsFnNge4oMb5Lb2xsi"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14353,
+          "candidates_token_count": 27,
+          "total_token_count": 14380,
+          "user_input_tokens": 13,
+          "system_prompt_tokens": 13415
+        }
+      }
+    ]
+  }
+}

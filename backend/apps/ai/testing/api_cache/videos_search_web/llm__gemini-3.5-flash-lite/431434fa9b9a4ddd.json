@@ -1,0 +1,62 @@
+{
+  "fingerprint": "431434fa9b9a4ddd",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "videos_search_web",
+  "recorded_at": "2026-08-15T12:14:42.466280+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "b12ce0ee0719d5a9",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[2]{title,url,description,age,viewCount,likeCount,commentCount,tags,channelTitle,publishedAt,duration,embed_ref}:\n  Python Programming Tutorial for Beginners,\"https://www.youtube.com/watch?v=kq..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the videos found for your search:\n\n[!](embed:youtube.com-B7B)\n[!](embed:youtube.com-hV7)\n\n- [Python Programming Tutorial for Beginners](embed:youtube.com-B7B)\n- [Learn Python by Building Small Projects](embed:youtube.com-hV7)\n\nWould you like to explore any of these Python tutorials further, or would you like to search for something else?",
+    "chunk_count": 7,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here"
+      },
+      {
+        "kind": "text",
+        "value": " are the videos found for your search:\n\n[!](embed:youtube.com-B7"
+      },
+      {
+        "kind": "text",
+        "value": "B)\n[!](embed:youtube.com-hV7)\n\n- [Python Programming Tutorial for Beginners]("
+      },
+      {
+        "kind": "text",
+        "value": "embed:youtube.com-B7B)\n- [Learn Python by Building Small Projects](embed:youtube."
+      },
+      {
+        "kind": "text",
+        "value": "com-hV7)\n\nWould you like to explore any of these Python tutorials further, or would you like to search for something"
+      },
+      {
+        "kind": "text",
+        "value": " else?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15089,
+          "candidates_token_count": 97,
+          "total_token_count": 15186,
+          "user_input_tokens": 268,
+          "system_prompt_tokens": 13720
+        }
+      }
+    ]
+  }
+}

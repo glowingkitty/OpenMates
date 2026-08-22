@@ -1,0 +1,57 @@
+{
+  "fingerprint": "93188d2cbcb9830c",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "code_search_repos_web",
+  "recorded_at": "2026-08-14T10:58:01.496811+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 5,
+    "temperature": 0.3,
+    "tool_choice": "auto",
+    "last_message_hash": "c813d9ecd8b1c2b2",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Use the Code Search repos skill to find GitHub repositories for svelte markdown editor libraries"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "code-search_repos-f32b2d01",
+          "function_name": "code-search-repos",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"svelte markdown editor\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "svelte markdown editor"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIPb4YEwEFsmeJmUbOZpnTNc81txFf62qfuKxFp/j9Zu56Nx+WmIckeDZSwRZVMUEan0M+18HYqH0s3x08gm/ZLXJ1K75YbKoCEn4o6mfwl6si6aIR5N7lT"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14057,
+          "candidates_token_count": 23,
+          "total_token_count": 14080,
+          "user_input_tokens": 19,
+          "system_prompt_tokens": 13154
+        }
+      }
+    ]
+  }
+}

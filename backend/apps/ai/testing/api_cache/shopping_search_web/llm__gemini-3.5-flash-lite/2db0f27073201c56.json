@@ -1,0 +1,57 @@
+{
+  "fingerprint": "2db0f27073201c56",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "shopping_search_web",
+  "recorded_at": "2026-08-14T10:52:51.589949+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 8,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "d25fced30a2a2b46",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "status: error\nerror: \"422: [{'type': 'model_type', 'loc': ('requests', 0), 'msg': 'Input should be a valid dictionary or instance of ImageSearchRequestItem', 'input': 'REWE Bio Joghurt mild 500g', 'ct..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "images-search-b53d4bd2",
+          "function_name": "images-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"REWE Bio Joghurt mild 500g\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "REWE Bio Joghurt mild 500g"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "El4KXAERTTIP6nVtexGLdvnsxZj5rnjYwoffEE49jzxoKmc5k5goMDyAsybBkruI3ocMsSXpyAIgMjBCN0MuB1fTE+IiWt39X3XBVh/lsWk//s1RI++6ZilosUn96WBX"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 16658,
+          "candidates_token_count": 30,
+          "total_token_count": 16688,
+          "user_input_tokens": 2089,
+          "system_prompt_tokens": 13204
+        }
+      }
+    ]
+  }
+}

@@ -76,6 +76,7 @@ class ChatKeyWrapperMethods:
         hashed_chat_ids: list[str],
         *,
         hashed_user_id: str | None = None,
+        hashed_team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Fetch wrapper rows for already-authorized chat IDs."""
         if not hashed_chat_ids:
@@ -90,7 +91,9 @@ class ChatKeyWrapperMethods:
                 "fields": CHAT_WRAPPER_FIELDS,
                 "limit": -1,
             }
-            if hashed_user_id:
+            if hashed_team_id:
+                params["filter[hashed_team_id][_eq]"] = hashed_team_id
+            elif hashed_user_id:
                 params["filter[hashed_user_id][_eq]"] = hashed_user_id
             batch = await self.directus_service.get_items(
                 CHAT_KEY_WRAPPERS_COLLECTION,

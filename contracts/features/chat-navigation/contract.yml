@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-navigation
-version: 1
-status: approved
+version: 2
+status: draft
 title: Chat Navigation
 summary: >
   First-party chat GUI surfaces expose saved chats in one deterministic newest-first
@@ -14,6 +14,7 @@ scope:
     - ChatHeader previous/next controls and equivalent touch-swipe navigation.
     - Sidebar chat ordering as the canonical navigation order for the active chat list.
     - Draft-only chats that have saved draft content but no persisted messages or title.
+    - Coherent local-first chat opening while optional remote completeness repair continues.
   excludes:
     - Public shared-chat browsing and unauthenticated intro/example chat navigation.
     - Message send, AI response generation, or title/summary generation semantics.
@@ -61,6 +62,30 @@ models:
       required: true
       constraints: {adjacent_in: models.ChatNavigationList.order, preserves_first_party_active_chat_reference: true}
 
+  ChatOpenTransition:
+    target_chat_id:
+      type: chat_id
+      required: true
+    state:
+      type: enum
+      values: [target_loading, local_ready, repairing, ready, error]
+      required: true
+    welcome_surface_visible:
+      type: boolean
+      required: true
+      constraints: {value_after_target_selection: false}
+    previous_chat_content_visible:
+      type: boolean
+      required: true
+      constraints: {value_after_target_selection: false}
+    local_message_window:
+      type: encrypted_local_window
+      nullable: true
+      constraints: {decrypt_client_side: true, publish_before_optional_remote_repair: true}
+    remote_repair:
+      type: optional_background_operation
+      constraints: {blocks_target_shell: false, blocks_valid_local_window: false, current_selection_generation_only: true}
+
 assertions:
   - id: chat-navigation.order.sidebar-header-match
     type: behavior
@@ -74,6 +99,10 @@ assertions:
     type: invariant
     must: Empty new-chat shells are not persisted navigation targets until the user creates saved draft content or sends a message.
     depends_on: [models.ChatNavigationList, examples.empty_shells]
+  - id: chat-navigation.open.local-first-coherent
+    type: behavior
+    must: Selecting a saved chat atomically replaces the welcome or previous-chat surface with a target-specific chat shell; locally available decrypted header metadata and the bounded encrypted local message window render as soon as their client-held keys are ready, while optional remote completeness repair runs without blocking that shell or valid local content and may merge only into the current selection without duplicates or ordering regressions. Missing local data, unavailable keys, repair failure, or decryption failure remain target-specific loading or visible error states and never reveal ciphertext, stale previous-chat plaintext, or the workspace welcome surface under the selected chat.
+    depends_on: [models.ChatOpenTransition, examples.local_first_chat_open]
 
 surfaces:
   rest_api:
@@ -97,4 +126,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [sidebar_header_order, draft_only_targets, empty_shells]
+  required_groups: [sidebar_header_order, draft_only_targets, empty_shells, local_first_chat_open]

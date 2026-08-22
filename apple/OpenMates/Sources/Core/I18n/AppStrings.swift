@@ -743,6 +743,8 @@ enum AppStrings {
     static var enterFullscreen: String { L("enter_message.fullscreen.enter_fullscreen") }
     static var exitFullscreen: String { L("enter_message.fullscreen.exit_fullscreen") }
     static var recordAudio: String { L("enter_message.attachments.record_audio") }
+    static var recordingActive: String { L("enter_message.record_audio.recording") }
+    static var recordingShortcuts: String { L("enter_message.record_audio.enter_to_finish_escape_to_cancel") }
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
     static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }
     static var pressEnterToFinishRecording: String { L("enter_message.record_audio.press_enter_to_finish") }

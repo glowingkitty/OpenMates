@@ -55,6 +55,7 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	}
 }
 
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle', async ({
 	page
 }: {
@@ -205,6 +206,15 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 			content: 'Analyze Apple financial performance.'
 		};
 
+		const childAssistantMsg = {
+			message_id: 'child-msg-2',
+			chat_id: childId,
+			role: 'assistant',
+			created_at: now + 1,
+			status: 'synced',
+			content: 'Apple Q1 analysis is complete: revenue, margin, and services growth were reviewed.'
+		};
+
 		const grandMsg = {
 			message_id: 'grand-msg-1',
 			chat_id: grandId,
@@ -214,9 +224,20 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 			content: 'Verify Apple numbers.'
 		};
 
+		const grandAssistantMsg = {
+			message_id: 'grand-msg-2',
+			chat_id: grandId,
+			role: 'assistant',
+			created_at: now + 1,
+			status: 'synced',
+			content: 'Apple source verification is complete.'
+		};
+
 		await putItem(MESSAGES_STORE, parentMsg);
 		await putItem(MESSAGES_STORE, childMsg);
+		await putItem(MESSAGES_STORE, childAssistantMsg);
 		await putItem(MESSAGES_STORE, grandMsg);
+		await putItem(MESSAGES_STORE, grandAssistantMsg);
 
 		db.close();
 
@@ -387,6 +408,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('E2E Sub-chats flow test completed successfully!');
 });
 
+// contract-test: direct surface=gui.web assertions=chats.local-state.precedence,chats.surface.semantic-parity
 test('renders all sub-chat cards and confirmation approval card', async ({
 	page
 }: {

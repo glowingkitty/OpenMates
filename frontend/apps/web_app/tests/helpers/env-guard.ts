@@ -58,21 +58,6 @@ function skipWithoutCredentials(
 	t.skip(!email || !password || !otpKey, 'Test account credentials not configured (EMAIL/PASSWORD/OTP_KEY).');
 }
 
-/**
- * Skip all tests if Mailosaur credentials are missing.
- * For signup/email-verification specs that need the Mailosaur service.
- */
-function skipWithoutMailosaur(
-	t: SkipCapableTest,
-	mailosaurApiKey: string | undefined,
-	signupDomain?: string | undefined
-): void {
-	t.skip(!mailosaurApiKey, 'MAILOSAUR_API_KEY is required for email validation.');
-	if (signupDomain !== undefined) {
-		t.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	}
-}
-
 async function skipIfFeaturesDisabled(
 	t: SkipCapableTest,
 	page: PageWithRequest,
@@ -87,4 +72,4 @@ async function skipIfFeaturesDisabled(
 	t.skip(blocked.length > 0, `Feature disabled on this server: ${blocked.join(', ')}`);
 }
 
-module.exports = { skipWithoutCredentials, skipWithoutMailosaur, skipIfFeaturesDisabled };
+module.exports = { skipWithoutCredentials, skipIfFeaturesDisabled };

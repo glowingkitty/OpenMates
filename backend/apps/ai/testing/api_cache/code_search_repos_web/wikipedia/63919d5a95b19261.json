@@ -1,0 +1,39 @@
+{
+  "fingerprint": "63919d5a95b19261",
+  "category": "wikipedia",
+  "group_id": "code_search_repos_web",
+  "recorded_at": "2026-08-14T10:58:08.527566+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Svelte%7CTauri_%28software%29&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Fri, 14 Aug 2026 10:58:08 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-hxxmx",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "set-cookie": "WMF-Last-Access=14-Aug-2026;Path=/;HttpOnly;secure;Expires=Tue, 15 Sep 2026 00:00:00 GMT, WMF-Last-Access-Global=14-Aug-2026;Path=/;Domain=.wikipedia.org;HttpOnly;secure;Expires=Tue, 15 Sep 2026 00:00:00 GMT, GeoIP=FI:18:Helsinki:60.17:24.93:v4; Path=/; secure; Domain=.wikipedia.org, NetworkProbeLimit=0.001;Path=/;Secure;SameSite=None;Max-Age=3600, WMF-Uniq=s_zH4zcKU0WA9SOx-1H15gO8AAAAAFvdT2pXKMt5J9SqfL3pQ6Od5WNts_wvWvAm;Domain=.wikipedia.org;Path=/;HttpOnly;secure;SameSite=None;Expires=Sat, 14 Aug 2027 00:00:00 GMT",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "232",
+      "x-request-id": "1f684cec-ad0e-4d9a-8620-5f2073283348",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"4000516190\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Tauri_(software)\",\"to\":\"Tauri (software)\"}],\"pages\":[{\"ns\":0,\"title\":\"Tauri (software)\",\"missing\":true},{\"pageid\":13864521,\"ns\":0,\"title\":\"Svelte\",\"pageprops\":{\"wikibase_item\":\"Q16863097\"},\"description\":\"JavaScript framework\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

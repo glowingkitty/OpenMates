@@ -15,8 +15,9 @@ inherits:
 scope:
   includes:
     - Short UI and product sound-effect generation from text prompts
-    - Direct synchronous responses only when live provider latency remains suitable
-    - Playable generated-audio app-skill embeds with binary fields excluded from model inference
+    - Task-based generated-asset responses for every successful generated audio output
+    - Encrypted private chatfiles S3 storage indexed in upload_files with short-lived generated-asset downloads
+    - Playable generated-audio app-skill embeds and downloads with binary fields excluded from model inference
     - Real ElevenLabs provider use through OpenMates-managed credentials
   excludes:
     - Text-to-speech, narration, singing, vocals, or spoken words
@@ -31,6 +32,34 @@ models:
       required: true
       items: AudioGenerateRequestItem
       constraints: {min_items: 1, max_items: 5}
+
+  AudioGenerateDispatchResponse:
+    task_id:
+      type: stable_id
+      nullable: true
+      constraints: {required_for_single_request: true}
+    embed_id:
+      type: stable_id
+      nullable: true
+      constraints: {required_for_single_request: true, generated_asset_id: true}
+    task_ids:
+      type: array
+      nullable: true
+      items: stable_id
+      constraints: {required_for_batch_request: true, max_items: 5}
+    embed_ids:
+      type: array
+      nullable: true
+      items: stable_id
+      constraints: {required_for_batch_request: true, max_items: 5}
+    status:
+      type: enum
+      required: true
+      values: [processing]
+    error:
+      type: string
+      nullable: true
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden}
 
   AudioGenerateRequestItem:
     id:
@@ -66,6 +95,40 @@ models:
       default: eleven_text_to_sound_v2
       values: [eleven_text_to_sound_v2]
 
+  GeneratedAudioFileVariant:
+    s3_key:
+      type: string
+      required: true
+      constraints: {private_chatfiles_object: true, provider_url: forbidden}
+    size_bytes:
+      type: integer
+      required: true
+      constraints: {minimum: 1}
+    format:
+      type: enum
+      required: true
+      values: [mp3]
+    mime_type:
+      type: string
+      required: true
+      constraints: {audio_only: true}
+    duration_seconds:
+      type: number
+      required: true
+      constraints: {minimum: 0.5, maximum: 2.0}
+    encryption:
+      type: enum
+      required: true
+      values: [aes-gcm-nonce-prefixed-v1]
+    download_url:
+      type: string
+      nullable: true
+      constraints: {short_lived_generated_asset_url: true, required_for_rest_sdk_task_results: true}
+    download_expires_at:
+      type: integer
+      nullable: true
+      constraints: {required_when_download_url_present: true}
+
   AudioGenerateResult:
     id:
       type: string_or_integer
@@ -100,30 +163,26 @@ models:
       type: integer
       required: true
       constraints: {minimum: 1}
-    audio_base64:
-      type: string
-      nullable: true
-      constraints: {direct_response_only: true, exclude_from_llm_inference: true}
     files:
       type: object
       nullable: true
-      constraints: {encrypted_generated_asset_metadata_when_persisted: true}
+      constraints: {items: GeneratedAudioFileVariant, required_when_status_finished: true, encrypted_generated_asset_metadata: true}
     s3_base_url:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true}
+      constraints: {private_chatfiles_bucket_url: true, required_when_files_present: true}
     aes_key:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_in_client_encrypted_embed_content: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     aes_nonce:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_for_legacy_client_decryption_when_v2_marker_absent: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     vault_wrapped_aes_key:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_in_upload_files_and_client_encrypted_embed_content: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     credits_charged:
       type: integer
       nullable: true
@@ -176,23 +235,23 @@ assertions:
     depends_on: [examples.invalid_inputs, examples.safety_rejections]
   - id: audio-generate.output.playable-audio
     type: behavior
-    must: Successful outputs expose audio/mpeg-compatible playable data through direct responses and generated-audio embeds without requiring provider credentials on clients.
+    must: Successful outputs are dispatched asynchronously, persisted as encrypted private chatfiles generated assets, indexed in upload_files, and exposed as playable audio/mpeg generated-audio embeds or short-lived generated-asset download URLs without requiring provider credentials on clients.
     depends_on: [models.AudioGenerateResult, examples.successful_outputs]
   - id: audio-generate.output.binary-excluded-from-inference
     type: privacy
-    must: Audio bytes, encryption keys, nonces, wrapped keys, and raw provider diagnostics are excluded from LLM inference, logs, committed examples, and assistant prose.
+    must: New successful outputs never include inline audio_base64; audio bytes, encryption keys, nonces, wrapped keys, generated-asset bearer tokens, and raw provider diagnostics are excluded from LLM inference, logs, committed examples, public examples, and assistant prose.
     depends_on: [models.AudioGenerateResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
   - id: audio-generate.billing.success-only
     type: invariant
-    must: Credits are charged only for successful generated audio, using documented per-second pricing with at least a one-credit successful-output floor and idempotent billing.
+    must: Credits are charged only for successful generated audio, using result-declared duration billing at 20 OpenMates credits per ElevenLabs sound-effect second with a one-credit successful-output floor and idempotent billing.
     depends_on: [models.AudioGenerateResult.credits_charged, examples.successful_outputs, examples.error_outputs]
   - id: audio-generate.provider-error.visible
     type: failure
-    must: Provider key, timeout, quota, and generation failures produce safe visible errors and are never represented as successful empty audio.
+    must: Provider key, timeout, quota, generated-asset storage/indexing, and generation failures produce safe visible errors, update the processing embed or task status, and are never represented as successful empty audio.
     depends_on: [models.AudioGenerateResponse.error, examples.error_outputs]
-  - id: audio-generate.latency.direct-suitable
+  - id: audio-generate.execution.async-generated-assets
     type: invariant
-    must: Direct synchronous execution remains enabled only when low-cost live probes show representative short requests complete within the 5-6 second target; otherwise the implementation must switch to a task-based generated-asset flow before release.
+    must: audio.generate always uses the existing async app-skill task pattern for provider execution and returns processing task/embed IDs first; completed results are delivered through generated-asset metadata rather than inline binary data.
     depends_on: [examples.boundary_cases]
   - id: audio-generate.surface-parity
     type: parity

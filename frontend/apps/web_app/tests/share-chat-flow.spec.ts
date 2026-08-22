@@ -62,8 +62,16 @@ async function installShortUrlFallback(page: any): Promise<void> {
 	});
 }
 
+async function getVerticalCenterDistanceToViewport(page: any, locator: any): Promise<number> {
+	return locator.evaluate((element: HTMLElement) => {
+		const rect = element.getBoundingClientRect();
+		return Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2);
+	});
+}
+
 // ─── Test ────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls
 test('creates and shares a chat link with QR code and fallback link', async ({
 	page
 }: {
@@ -137,16 +145,24 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 		await expect(page.getByTestId('share-short-link-section')).toBeVisible({ timeout: 90000 });
 	});
 
-	const url = (await page.getByTestId('share-short-link-url').textContent())?.trim() ?? '';
+	await expect(page.getByTestId('share-short-link-copy')).toHaveCount(0);
+	await expect(page.getByTestId('share-short-link-url')).toHaveCount(0);
 	await page.getByTestId('chat-settings-share-show-qr').dispatchEvent('click');
-	await expect(page.locator('[data-testid="chat-settings-share-qr"] img')).toBeVisible({ timeout: 10000 });
+	const qrCode = page.getByTestId('chat-settings-share-qr');
+	await expect(qrCode.locator('img')).toBeVisible({ timeout: 10000 });
+	await expect(qrCode).toBeFocused({ timeout: 10000 });
+	await expect(async () => {
+		const centerDistance = await getVerticalCenterDistanceToViewport(page, qrCode);
+		expect(centerDistance).toBeLessThan(160);
+	}).toPass({ timeout: 10000 });
 	await page.getByTestId('chat-settings-share-show-url').dispatchEvent('click');
 	const longUrlBox = page.locator('[data-share-url-kind="long"]');
 	await expect(longUrlBox).toBeVisible({ timeout: 10000 });
+	const selectableUrl = page.getByTestId('chat-settings-share-url');
+	await expect(selectableUrl).toHaveCSS('user-select', 'text');
 	const longUrl = (await longUrlBox.textContent())?.trim() ?? '';
 	const expirationText = (await page.getByTestId('chat-settings-share-generated').textContent())?.trim() ?? '';
 
-	expect(url).toContain(`/share/chat/${activeChatId}#key=`);
 	expect(longUrl).toContain(`/share/chat/${activeChatId}#key=`);
 	expect(expirationText).toMatch(/Auto expire(?: in|:)\s+never/i);
 

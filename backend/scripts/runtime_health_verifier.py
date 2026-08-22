@@ -25,6 +25,12 @@ from backend.core.api.app.utils.server_mode import RuntimeDeploymentMode, resolv
 
 
 GLOBAL_DEADLINE_SECONDS = 60
+CELERY_PROBE_RESULT_TIMEOUT_SECONDS = 10
+CELERY_PROBE_CHECK_TIMEOUT_SECONDS = CELERY_PROBE_RESULT_TIMEOUT_SECONDS + 5
+STRIPE_REQUEST_TIMEOUT_SECONDS = 10
+HTTP_PROBE_TIMEOUT_SECONDS = 4
+BASELINE_HTTP_PROBE_ATTEMPTS = 2
+HTTP_PROBE_RETRY_DELAY_SECONDS = 0.25
 CheckRunner = Callable[[], Awaitable[None]]
 
 
@@ -57,8 +63,8 @@ _ROLE_CHECKS = {
         ("core.database", 10),
         ("core.cache", 10),
         ("core.vault", 10),
-        ("core.worker_queue", 15),
-        ("core.scheduler_freshness", 5),
+        ("core.worker_queue", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
+        ("core.scheduler_freshness", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
         ("core.chat_plumbing", 20),
     ),
     "upload": (
@@ -78,7 +84,7 @@ _BILLING_CHECKS = (
     ("billing.mode_enabled", 5),
     ("billing.stripe_account_read", 15),
     ("billing.routes_registered", 5),
-    ("billing.workers_registered", 10),
+    ("billing.workers_registered", CELERY_PROBE_CHECK_TIMEOUT_SECONDS),
     ("billing.webhook_configured", 5),
     ("billing.health_freshness", 5),
 )
@@ -130,10 +136,26 @@ async def execute_checks(
     return sorted(results, key=lambda result: [check.id for check in checks].index(result.id))
 
 
-async def _http_get(url: str) -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get(url)
-        response.raise_for_status()
+async def _http_get(url: str, *, attempts: int = 1, accepted_status_codes: set[int] | None = None) -> None:
+    last_probe_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            async with asyncio.timeout(HTTP_PROBE_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(timeout=HTTP_PROBE_TIMEOUT_SECONDS, follow_redirects=False) as client:
+                    response = await client.get(url)
+                    if accepted_status_codes is not None and response.status_code in accepted_status_codes:
+                        return
+                    response.raise_for_status()
+                    if accepted_status_codes is not None:
+                        raise RuntimeError("unexpected_http_status")
+                    return
+        except (httpx.TransportError, TimeoutError) as exc:
+            last_probe_error = exc
+            if attempt + 1 >= attempts:
+                raise
+            await asyncio.sleep(HTTP_PROBE_RETRY_DELAY_SECONDS)
+    if last_probe_error is not None:
+        raise last_probe_error
 
 
 def _cache_client():
@@ -161,10 +183,11 @@ async def _check_cache() -> None:
 
 
 async def _check_vault() -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get(f"{os.getenv('VAULT_URL', 'http://vault:8200')}/v1/sys/health")
-        if response.status_code not in {200, 429, 472, 473}:
-            response.raise_for_status()
+    await _http_get(
+        f"{os.getenv('VAULT_URL', 'http://vault:8200')}/v1/sys/health",
+        attempts=BASELINE_HTTP_PROBE_ATTEMPTS,
+        accepted_status_codes={200, 429, 472, 473},
+    )
 
 
 async def _check_tcp(host: str, port: int) -> None:
@@ -175,11 +198,16 @@ async def _check_tcp(host: str, port: int) -> None:
 
 async def _check_required_services(role: str) -> None:
     if role == "core":
-        await asyncio.gather(_http_get("http://localhost:8000/v1/health"), _http_get("http://cms:8055/server/ping"), _check_cache(), _check_vault())
+        await asyncio.gather(
+            _http_get("http://localhost:8000/v1/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
+            _http_get("http://cms:8055/server/ping", attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
+            _check_cache(),
+            _check_vault(),
+        )
     elif role == "upload":
-        await asyncio.gather(_http_get("http://app-uploads:8000/health"), _check_vault())
+        await asyncio.gather(_http_get("http://app-uploads:8000/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS), _check_vault())
     else:
-        await _http_get("http://preview:8080/health")
+        await _http_get("http://preview:8080/health", attempts=BASELINE_HTTP_PROBE_ATTEMPTS)
 
 
 async def _check_worker_queue() -> None:
@@ -193,7 +221,7 @@ async def _check_worker_queue() -> None:
 
         result = app.send_task(task_name, args=[probe_id], queue="app_ai")
         try:
-            return result.get(timeout=10, propagate=True)
+            return result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
         finally:
             result.forget()
 
@@ -216,7 +244,7 @@ async def _check_scheduler_freshness() -> None:
 
         result = app.send_task("runtime_health.scheduler_heartbeat", queue="health_check")
         try:
-            result.get(timeout=10, propagate=True)
+            result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
         finally:
             result.forget()
 
@@ -224,8 +252,26 @@ async def _check_scheduler_freshness() -> None:
 
 
 async def _check_chat_plumbing() -> None:
-    """Exercise the same app_ai dispatch/result transport without model inference."""
-    await _check_worker_queue()
+    """Exercise app_ai dispatch plus ephemeral Redis persistence without inference."""
+    probe_id = uuid.uuid4().hex
+    task_name = "runtime_health.chat_plumbing_probe"
+
+    def dispatch_probe() -> dict:
+        from backend.core.api.app.tasks.celery_config import app
+
+        result = app.send_task(task_name, args=[probe_id], queue="app_ai")
+        try:
+            return result.get(timeout=CELERY_PROBE_RESULT_TIMEOUT_SECONDS, propagate=True)
+        finally:
+            result.forget()
+
+    payload = await asyncio.to_thread(dispatch_probe)
+    if (
+        payload.get("probe_id") != probe_id
+        or payload.get("transport") != "redis"
+        or payload.get("cleanup_status") != "completed"
+    ):
+        raise RuntimeError("chat_plumbing_probe_mismatch")
 
 
 async def _check_billing_mode() -> None:
@@ -233,43 +279,64 @@ async def _check_billing_mode() -> None:
         raise RuntimeError("billing_mode_disabled")
 
 
-async def _check_stripe_account_read() -> None:
-    import stripe
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+async def _initialized_secrets_manager():
+    def build_secrets_manager():
+        from backend.core.api.app.utils.secrets_manager import SecretsManager
 
+        return SecretsManager()
+
+    secrets_manager = await asyncio.to_thread(build_secrets_manager)
+    if not await secrets_manager.initialize():
+        raise RuntimeError("vault_unavailable")
+    return secrets_manager
+
+
+def _environment_secret_key(environment: Optional[str], suffix: str) -> str:
+    env = "production" if environment == "production" else "sandbox"
+    return f"{env}_{suffix}"
+
+
+async def _check_stripe_account_read() -> None:
     environment = resolve_runtime_deployment_mode().environment
-    secret_key = "production_secret_key" if environment == "production" else "sandbox_secret_key"
-    api_key = await SecretsManager().get_secret("kv/data/providers/stripe", secret_key)
+    secrets_manager = await _initialized_secrets_manager()
+    api_key = await secrets_manager.get_secret(
+        "kv/data/providers/stripe",
+        _environment_secret_key(environment, "secret_key"),
+    )
     if not api_key:
         raise RuntimeError("stripe_credential_missing")
 
-    def retrieve_account() -> None:
-        stripe.api_key = api_key
-        stripe.Account.retrieve()
-
-    await asyncio.to_thread(retrieve_account)
+    async with asyncio.timeout(STRIPE_REQUEST_TIMEOUT_SECONDS):
+        async with httpx.AsyncClient(timeout=STRIPE_REQUEST_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            response = await client.get("https://api.stripe.com/v1/account", headers={"Authorization": f"Bearer {api_key}"})
+            response.raise_for_status()
 
 
 async def _check_billing_routes() -> None:
-    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-        response = await client.get("http://localhost:8000/openapi.json")
-        response.raise_for_status()
-        paths = response.json().get("paths", {})
-    if not any("billing" in path or "payment" in path for path in paths):
-        raise RuntimeError("billing_routes_missing")
+    await _http_get("http://localhost:8000/v1/payments/subscription", accepted_status_codes={401, 403})
 
 
 async def _check_billing_workers() -> None:
-    from backend.core.api.app.tasks.celery_config import app
+    def registered_workers() -> dict:
+        from backend.core.api.app.tasks.celery_config import app
 
-    registered = await asyncio.to_thread(lambda: app.control.inspect(timeout=5).registered() or {})
+        return app.control.inspect(timeout=5).registered() or {}
+
+    registered = await asyncio.to_thread(registered_workers)
     tasks = {task for worker_tasks in registered.values() for task in worker_tasks}
     if not any("billing" in task or "payment" in task for task in tasks):
         raise RuntimeError("billing_workers_missing")
 
 
 async def _check_billing_webhook() -> None:
-    if not any(os.getenv(key) for key in ("STRIPE_WEBHOOK_SECRET", "SECRET__STRIPE__WEBHOOK_SECRET")):
+    environment = resolve_runtime_deployment_mode().environment
+    secrets_manager = await _initialized_secrets_manager()
+    webhook_secret = await secrets_manager.get_secret(
+        "kv/data/providers/stripe",
+        _environment_secret_key(environment, "webhook_secret"),
+        log_missing=False,
+    )
+    if not webhook_secret:
         raise RuntimeError("billing_webhook_unconfigured")
 
 
@@ -288,7 +355,7 @@ def _runtime_runners(role: str) -> dict[str, CheckRunner]:
     health_url = {"core": "http://localhost:8000/v1/health", "upload": "http://app-uploads:8000/health", "preview": "http://preview:8080/health"}[role]
     return {
         "compose.required_services": lambda: _check_required_services(role),
-        "http.role_health": lambda: _http_get(health_url),
+        "http.role_health": lambda: _http_get(health_url, attempts=BASELINE_HTTP_PROBE_ATTEMPTS),
         "core.database": lambda: _http_get("http://cms:8055/server/health"),
         "core.cache": _check_cache,
         "core.vault": _check_vault,

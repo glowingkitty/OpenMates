@@ -75,6 +75,14 @@ user_plans:
     encrypted_title:
       type: text
       note: "[Client-encrypted durable storage] Plan title."
+    encrypted_slug:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] Stable user-facing plan slug. Plaintext slugs must never be stored server-side."
+    slug_lookup_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Owner/team-scoped keyed lookup hash for duplicate slug prevention."
     encrypted_summary:
       type: text
       nullable: true

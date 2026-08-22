@@ -43,6 +43,7 @@ ERROR_PATTERNS = [
         r"traceback \(most recent call last\)",
     )
 ]
+MEDIA_PRELOAD_URL_RE = re.compile(r"\.(?:mp3|m4a|wav|ogg|webm|mp4)(?:[?#]|$)", re.IGNORECASE)
 
 _active_browser: Any = None
 _active_playwright: Any = None
@@ -151,6 +152,11 @@ def artifact_path(root: Path, path: Path) -> str:
         return str(path)
 
 
+def is_ignorable_request_failure(failure: str, url: str) -> bool:
+    # Browsers may abort hidden media metadata/range preloads without breaking playback.
+    return "net::ERR_ABORTED" in failure and MEDIA_PRELOAD_URL_RE.search(url) is not None
+
+
 def cleanup_old_runs(visual_smoke_root: Path, keep_runs: int) -> list[str]:
     if not visual_smoke_root.is_dir():
         return []
@@ -216,6 +222,7 @@ def collect_layout_signals(page: Any, selectors: list[str]) -> dict[str, Any]:
 
 def smoke_url(browser: Any, url: str, viewport_name: str, viewport: dict[str, int], out_dir: Path, wait_ms: int, selectors: list[str]) -> dict[str, Any]:
     context = browser.new_context(viewport=viewport)
+    context.route("**/v1/analytics/beacon", lambda route: route.fulfill(status=204, body=""))
     page = context.new_page()
     console_errors: list[str] = []
     page_errors: list[str] = []
@@ -228,7 +235,11 @@ def smoke_url(browser: Any, url: str, viewport_name: str, viewport: dict[str, in
         failure = request.failure
         if callable(failure):
             failure = failure()
-        request_failures.append(f"{failure or 'request failed'} {request.url}")
+        failure_text = str(failure or "request failed")
+        request_url = str(request.url)
+        if is_ignorable_request_failure(failure_text, request_url):
+            return
+        request_failures.append(f"{failure_text} {request_url}")
 
     page.on("requestfailed", record_request_failure)
 

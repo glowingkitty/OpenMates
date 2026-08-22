@@ -1,26 +1,23 @@
 """
 backend/tests/test_gift_card_domain_restriction.py
 
-Unit tests for the OPE-76 reusable + domain-bound gift card extension:
+Unit tests for the OPE-76 reusable + mailbox-bound gift card extension:
 
 1. Regression guard: single-use cards still get deleted on redemption
 2. Reusable cards are NOT deleted (the row survives)
-3. Domain-bound cards reject mismatched email with a clear error
-4. Domain-bound cards reject users without an email
-5. Domain-bound cards accept an exact full-domain match
-6. **Exact match, NOT suffix match** — this is the security-critical test.
-   `mailosaur.net` as the allowed domain must NOT match a user with
-   `attacker.mailosaur.net`, because otherwise any Mailosaur customer could
-   redeem our prod smoke test card.
+3. Identity-bound cards reject a different mailbox with a clear error
+4. Identity-bound cards reject users without an email
+5. Gmail run aliases resolve to the configured mailbox identity
+6. Legacy domain-bound cards fail closed until migrated
 
 These tests mock the Directus HTTP layer entirely (via a fake DirectusService
 shell) and only exercise the pure Python logic in
 `backend/core/api/app/services/directus/gift_card_methods.py`.
 
 Bug history this test suite guards against:
-- OPE-76: without a domain restriction, the hourly prod smoke test gift card
+- OPE-76: without an identity restriction, the hourly prod smoke test gift card
   could in principle be redeemed by any authenticated user who learned the
-  code. This suite locks in the exact-match domain enforcement as a
+  code. This suite locks in exact mailbox-identity enforcement as a
   security invariant.
 """
 from __future__ import annotations
@@ -30,10 +27,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 
+# contract-test-file: tooling
+
 from backend.core.api.app.services.directus.gift_card_methods import (
-    GiftCardDomainMismatchError,
+    GiftCardIdentityMismatchError,
     GiftCardEmailRequiredError,
-    _enforce_gift_card_domain,
+    GiftCardRestrictionConfigurationError,
+    _email_identity_hash,
+    _enforce_gift_card_identity,
     create_gift_card,
     get_gift_card_by_code,
     redeem_gift_card,
@@ -99,68 +100,33 @@ class _FakeDirectus:
         return True, {"id": "fake-id", **data}
 
 
-# -------------------------- _enforce_gift_card_domain ---------------------------
+class TestEnforceGiftCardIdentity:
+    def test_gmail_aliases_share_one_mailbox_identity(self) -> None:
+        expected_hash = _email_identity_hash("openmates.e2e@gmail.com")
 
-
-class TestEnforceGiftCardDomain:
-    def test_no_restriction_no_check(self) -> None:
-        # No domain set → no exception, no email required.
-        _enforce_gift_card_domain(allowed_email_domain=None, user_email=None)
-        _enforce_gift_card_domain(allowed_email_domain="", user_email="anyone@example.com")
-
-    def test_matching_domain_accepted(self) -> None:
-        _enforce_gift_card_domain(
-            allowed_email_domain="abc123.mailosaur.net",
-            user_email="smoke04061430@abc123.mailosaur.net",
+        _enforce_gift_card_identity(
+            allowed_email_identity_hash=expected_hash,
+            legacy_allowed_email_domain=None,
+            user_email="openmatese2e+run-123@googlemail.com",
         )
 
-    def test_case_insensitive_match(self) -> None:
-        _enforce_gift_card_domain(
-            allowed_email_domain="ABC123.mailosaur.net",
-            user_email="smoke04061430@abc123.MAILOSAUR.net",
-        )
+    def test_different_gmail_mailbox_is_rejected(self) -> None:
+        expected_hash = _email_identity_hash("openmates.e2e@gmail.com")
 
-    def test_suffix_attack_rejected(self) -> None:
-        # The whole point of this extension: a different Mailosaur server
-        # subdomain must NOT match, even though both end in '.mailosaur.net'.
-        with pytest.raises(GiftCardDomainMismatchError):
-            _enforce_gift_card_domain(
-                allowed_email_domain="abc123.mailosaur.net",
-                user_email="attacker@xyz987.mailosaur.net",
+        with pytest.raises(GiftCardIdentityMismatchError):
+            _enforce_gift_card_identity(
+                allowed_email_identity_hash=expected_hash,
+                legacy_allowed_email_domain=None,
+                user_email="attacker@gmail.com",
             )
 
-    def test_bare_suffix_not_allowed(self) -> None:
-        # A card restricted to 'abc123.mailosaur.net' must not accept a user
-        # whose domain is the parent 'mailosaur.net'.
-        with pytest.raises(GiftCardDomainMismatchError):
-            _enforce_gift_card_domain(
-                allowed_email_domain="abc123.mailosaur.net",
-                user_email="anyone@mailosaur.net",
+    def test_legacy_domain_restriction_fails_closed(self) -> None:
+        with pytest.raises(GiftCardRestrictionConfigurationError):
+            _enforce_gift_card_identity(
+                allowed_email_identity_hash=None,
+                legacy_allowed_email_domain="legacy.test.example",
+                user_email="smoke@legacy.test.example",
             )
-
-    def test_subdomain_of_allowed_not_allowed(self) -> None:
-        # Conversely, a user whose domain is a sub-subdomain of the allowed
-        # domain must also be rejected — only exact matches count.
-        with pytest.raises(GiftCardDomainMismatchError):
-            _enforce_gift_card_domain(
-                allowed_email_domain="abc123.mailosaur.net",
-                user_email="anyone@evil.abc123.mailosaur.net",
-            )
-
-    def test_missing_email_raises_required_error(self) -> None:
-        with pytest.raises(GiftCardEmailRequiredError):
-            _enforce_gift_card_domain(
-                allowed_email_domain="abc123.mailosaur.net",
-                user_email=None,
-            )
-
-    def test_malformed_email_raises_required_error(self) -> None:
-        with pytest.raises(GiftCardEmailRequiredError):
-            _enforce_gift_card_domain(
-                allowed_email_domain="abc123.mailosaur.net",
-                user_email="not-an-email",
-            )
-
 
 # ----------------------------- redeem_gift_card ---------------------------------
 
@@ -212,16 +178,16 @@ async def test_domain_bound_card_rejects_mismatched_email() -> None:
         "code": "SMOKE-TEST-CODE",
         "credits_value": 500,
         "is_reusable": True,
-        "allowed_email_domain": "abc123.mailosaur.net",
+        "allowed_email_identity_hash": _email_identity_hash("smoke@example.com"),
     }
     fake = _FakeDirectus(gift_card_row=row)
 
-    with pytest.raises(GiftCardDomainMismatchError):
+    with pytest.raises(GiftCardIdentityMismatchError):
         await redeem_gift_card(
             fake,
             "SMOKE-TEST-CODE",
             "user-1",
-            user_email="attacker@xyz987.mailosaur.net",
+            user_email="attacker@example.com",
         )
     # No Directus mutation should have happened
     assert fake.delete_called_for == []
@@ -234,7 +200,7 @@ async def test_domain_bound_card_accepts_matching_email() -> None:
         "code": "SMOKE-TEST-CODE",
         "credits_value": 500,
         "is_reusable": True,
-        "allowed_email_domain": "abc123.mailosaur.net",
+        "allowed_email_identity_hash": _email_identity_hash("smoke@example.com"),
     }
     fake = _FakeDirectus(gift_card_row=row)
 
@@ -242,7 +208,7 @@ async def test_domain_bound_card_accepts_matching_email() -> None:
         fake,
         "SMOKE-TEST-CODE",
         "user-1",
-        user_email="smoke04061430@abc123.mailosaur.net",
+        user_email="smoke@example.com",
     )
     assert ok is True
     assert fake.delete_called_for == []  # still reusable
@@ -255,7 +221,7 @@ async def test_domain_bound_card_without_email_raises() -> None:
         "code": "SMOKE-TEST-CODE",
         "credits_value": 500,
         "is_reusable": True,
-        "allowed_email_domain": "abc123.mailosaur.net",
+        "allowed_email_identity_hash": _email_identity_hash("smoke@example.com"),
     }
     fake = _FakeDirectus(gift_card_row=row)
 
@@ -266,7 +232,7 @@ async def test_domain_bound_card_without_email_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_unrestricted_reusable_ignores_email() -> None:
-    """A reusable card without allowed_email_domain must not require an email
+    """A reusable card without an identity restriction must not require an email
     (no reason to — there's no check to run)."""
     row = {
         "id": "reusable-unrestricted",
@@ -278,6 +244,28 @@ async def test_unrestricted_reusable_ignores_email() -> None:
 
     ok = await redeem_gift_card(fake, "FREEBIE-CODE", "user-1", user_email=None)
     assert ok is True
+
+
+@pytest.mark.asyncio
+async def test_identity_bound_card_accepts_gmail_run_alias() -> None:
+    row = {
+        "id": "identity-bound-1",
+        "code": "SMOKE-TEST-CODE",
+        "credits_value": 500,
+        "is_reusable": True,
+        "allowed_email_identity_hash": _email_identity_hash("openmates.e2e@gmail.com"),
+    }
+    fake = _FakeDirectus(gift_card_row=row)
+
+    ok = await redeem_gift_card(
+        fake,
+        "SMOKE-TEST-CODE",
+        "user-1",
+        user_email="openmatese2e+run-123@gmail.com",
+    )
+
+    assert ok is True
+    assert fake.delete_called_for == []
 
 
 # ------------------------------ create_gift_card --------------------------------
@@ -302,13 +290,11 @@ async def test_create_gift_card_defaults_preserve_legacy_behavior() -> None:
     assert result is not None
     assert captured.get("code") == "NEW-CODE"
     assert "is_reusable" not in captured, "defaults must not leak into payload"
-    assert "allowed_email_domain" not in captured
+    assert "allowed_email_identity_hash" not in captured
 
 
 @pytest.mark.asyncio
-async def test_create_gift_card_lowercases_allowed_domain() -> None:
-    """Allowed domain must be stored lowercased so the redemption check
-    (which also lowercases) is guaranteed to match."""
+async def test_create_gift_card_stores_allowed_identity_hash() -> None:
     fake = _FakeDirectus(gift_card_row=None)
     captured: Dict[str, Any] = {}
 
@@ -323,8 +309,8 @@ async def test_create_gift_card_lowercases_allowed_domain() -> None:
         code="REUSABLE-CODE",
         credits_value=500,
         is_reusable=True,
-        allowed_email_domain="  ABC123.MAILOSAUR.net  ",
+        allowed_email_identity_hash="  identity-hash  ",
     )
 
     assert captured.get("is_reusable") is True
-    assert captured.get("allowed_email_domain") == "abc123.mailosaur.net"
+    assert captured.get("allowed_email_identity_hash") == "identity-hash"

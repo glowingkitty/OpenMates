@@ -15,6 +15,7 @@ export interface GeneratedAudioFileVariant {
   format?: string;
   mime_type?: string;
   duration_seconds?: number;
+  encryption?: string;
 }
 
 export interface GeneratedAudioFiles {
@@ -82,6 +83,7 @@ export function getGeneratedAudioFiles(
       format: getStringField(content, ['files_original_format']) || undefined,
       mime_type: getStringField(content, ['files_original_mime_type']) || undefined,
       duration_seconds: getNumberField(content, ['files_original_duration_seconds']),
+      encryption: getStringField(content, ['files_original_encryption']) || undefined,
     },
   };
 }

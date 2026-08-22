@@ -4,7 +4,6 @@
 import logging
 import asyncio
 import base64
-import binascii
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -18,10 +17,12 @@ from backend.core.api.app.schemas.chat import CachedChatListItemData, CachedChat
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.shared.python_utils.client_ciphertext import (
+    is_client_encrypted_base64 as _is_client_encrypted_base64,
+    validate_client_encrypted_chat_payload as _validate_client_encrypted_chat_payload,
+)
 
 logger = logging.getLogger(__name__)
-
-MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
 
 
 def _version_int(value: Any) -> int:
@@ -198,24 +199,24 @@ def cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
         raise
 
 
-def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: str) -> None:
-    """Reject non-client-encrypted payloads before they reach chat history."""
-    if not encrypted_content:
-        raise ValueError(
-            f"Message {message_id} is missing client-encrypted base64 content."
-        )
-
-    try:
-        decoded = base64.b64decode(encrypted_content, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError(
-            f"Message {message_id} must contain client-encrypted base64 content."
-        ) from exc
-
-    if len(decoded) < MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES:
-        raise ValueError(
-            f"Message {message_id} client-encrypted base64 content is too short."
-        )
+def _sanitize_optional_client_encrypted_field(
+    *,
+    message_id: str,
+    field_name: str,
+    value: Optional[str],
+) -> Optional[str]:
+    """Drop malformed optional encrypted sidecars before they reach sync clients."""
+    if not value:
+        return None
+    if _is_client_encrypted_base64(value):
+        return value
+    logger.warning(
+        "Dropping malformed optional encrypted field %s for message %s: length=%s",
+        field_name,
+        message_id,
+        len(value),
+    )
+    return None
 
 
 async def _async_persist_chat_title_task(
@@ -617,6 +618,7 @@ async def _async_persist_new_chat_message_task(
     encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
     user_message_id: Optional[str] = None, # Links system message to its triggering user message
     message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
+    hashed_team_id: Optional[str] = None,
 ):
     """
     Async logic for:
@@ -648,6 +650,11 @@ async def _async_persist_new_chat_message_task(
         encrypted_model_name = None  # Remove it for non-assistant messages
 
     _validate_client_encrypted_chat_payload(message_id, encrypted_content)
+    encrypted_pii_mappings = _sanitize_optional_client_encrypted_field(
+        message_id=message_id,
+        field_name="encrypted_pii_mappings",
+        value=encrypted_pii_mappings,
+    )
 
     directus_service = DirectusService()
 
@@ -740,6 +747,8 @@ async def _async_persist_new_chat_message_task(
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
 
         if chat_metadata:
+            if hashed_team_id and chat_metadata.get("hashed_team_id") != hashed_team_id:
+                raise PermissionError(f"Chat {chat_id} does not belong to the selected Team")
             # Chat exists, will update its metadata after message creation
             logger.info(f"Chat {chat_id} found. Will update metadata after message creation (task_id: {task_id}).")
         else:
@@ -761,6 +770,7 @@ async def _async_persist_new_chat_message_task(
             minimal_chat_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
                 "created_at": created_at or now_ts,
                 "updated_at": now_ts,
                 "messages_v": new_chat_messages_version or 1,
@@ -904,6 +914,7 @@ def persist_new_chat_message_task(
     encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
     user_message_id: Optional[str] = None, # Links system message to its triggering user message
     message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
+    hashed_team_id: Optional[str] = None,
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -924,6 +935,7 @@ def persist_new_chat_message_task(
             encrypted_pii_mappings,  # Pass encrypted PII mappings for cross-device restoration
             user_message_id,  # Links system message to triggering user message
             message_status,   # Preserves client status (e.g., "waiting_for_user") across devices
+            hashed_team_id,
         ))
     except Exception as e:
         logger.error(
@@ -1968,7 +1980,8 @@ async def _async_persist_encrypted_chat_metadata(
     encrypted_metadata: Dict[str, Any],
     task_id: str,
     hashed_user_id: Optional[str] = None,
-    user_id: Optional[str] = None  # User ID for cache updates (not hashed)
+    user_id: Optional[str] = None,  # User ID for cache updates (not hashed)
+    hashed_team_id: Optional[str] = None,
 ) -> bool:
     """
     Async logic for persisting encrypted chat metadata from the dual-phase architecture.
@@ -1995,6 +2008,9 @@ async def _async_persist_encrypted_chat_metadata(
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
         
         if chat_metadata:
+            if hashed_team_id and chat_metadata.get("hashed_team_id") != hashed_team_id:
+                logger.error("Rejected cross-Team metadata persistence for chat %s", chat_id)
+                return False
             # Chat exists - update with encrypted metadata
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
             
@@ -2033,6 +2049,7 @@ async def _async_persist_encrypted_chat_metadata(
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
             # These fields should be updated whenever provided, regardless of version
             update_fields = encrypted_metadata.copy()
+            update_fields.pop("hashed_team_id", None)
             # Rotation control flags are internal only - never persist to Directus.
             allow_chat_key_rotation = bool(update_fields.pop("allow_chat_key_rotation", False))
             chat_key_rotation_reason = update_fields.pop("chat_key_rotation_reason", None)
@@ -2290,6 +2307,7 @@ async def _async_persist_encrypted_chat_metadata(
             chat_creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
                 "created_at": encrypted_metadata.get("created_at") or now_ts,
                 "updated_at": encrypted_metadata.get("updated_at", now_ts),
                 # Version tracking - use actual values, never 0
@@ -3105,14 +3123,40 @@ def persist_embed_fallback_task(self, embed_id: str):
 # Pending Embed Encryption Safety Net (Celery Beat)
 # ==============================================================================
 
+PENDING_EMBED_BATCH_SIZE_PER_USER = 10
+PENDING_EMBED_MAX_USERS_PER_RUN = 20
+PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS = 180
+PENDING_EMBED_HARD_TIME_LIMIT_SECONDS = 240
+PENDING_EMBED_SINGLE_FLIGHT_TTL_SECONDS = PENDING_EMBED_HARD_TIME_LIMIT_SECONDS
+PENDING_EMBED_SINGLE_FLIGHT_KEY = "celery:single_flight:process_pending_embeds"
+PENDING_EMBED_USER_CURSOR_KEY = "celery:cursor:process_pending_embeds:user"
+PENDING_EMBED_ITEM_CURSOR_KEY_PREFIX = "celery:cursor:process_pending_embeds:item:"
+PENDING_EMBED_CURSOR_TTL_SECONDS = 2592000
+
+
+def _select_round_robin(
+    values: list[str],
+    cursor: Optional[str],
+    limit: int,
+) -> list[str]:
+    """Select a bounded round-robin slice without changing item age/order."""
+    import bisect
+
+    ordered = sorted(set(values))
+    if not ordered:
+        return []
+
+    start = bisect.bisect(ordered, cursor) if cursor else 0
+    rotated = ordered[start:] + ordered[:start]
+    return rotated[:limit]
+
 async def _async_process_pending_embeds(task_id: str):
     """
-    Safety net task that runs periodically to re-deliver pending embeds
-    to connected users. Also refreshes cache TTLs so embed data doesn't
-    expire while still pending.
+    Safety net task that periodically re-delivers bounded pending embed batches
+    to connected users.
 
     For each user with pending embeds:
-    1. Refreshes cache TTLs (prevents embed data expiry)
+    1. Selects the next bounded round-robin batch
     2. Checks if each embed was already persisted to Directus (removes if so)
     3. Re-sends undelivered embeds via Redis pub/sub (best-effort for connected clients)
     """
@@ -3121,35 +3165,84 @@ async def _async_process_pending_embeds(task_id: str):
     cache_service = CacheService()
 
     try:
+        redis_client = await cache_service.client
+        if not redis_client:
+            logger.error("[PENDING_EMBED_SAFETY_NET] Cache client unavailable; skipping run")
+            return
+
+        lock_acquired = await redis_client.set(
+            PENDING_EMBED_SINGLE_FLIGHT_KEY,
+            task_id,
+            nx=True,
+            ex=PENDING_EMBED_SINGLE_FLIGHT_TTL_SECONDS,
+        )
+        if not lock_acquired:
+            logger.info(
+                "[PENDING_EMBED_SAFETY_NET] Another run owns the current interval; "
+                f"coalescing task {task_id}"
+            )
+            return
+
         # Get all users with pending embeds
         user_ids = await cache_service.get_all_users_with_pending_embeds()
         if not user_ids:
             logger.debug("[PENDING_EMBED_SAFETY_NET] No users with pending embeds")
             return
 
+        cursor_value = await redis_client.get(PENDING_EMBED_USER_CURSOR_KEY)
+        if isinstance(cursor_value, bytes):
+            cursor_value = cursor_value.decode("utf-8")
+        user_ids = _select_round_robin(
+            user_ids,
+            cursor_value,
+            PENDING_EMBED_MAX_USERS_PER_RUN,
+        )
+        await redis_client.set(
+            PENDING_EMBED_USER_CURSOR_KEY,
+            user_ids[-1],
+            ex=PENDING_EMBED_CURSOR_TTL_SECONDS,
+        )
+
         logger.info(f"[PENDING_EMBED_SAFETY_NET] Found {len(user_ids)} user(s) with pending embeds")
 
-        total_refreshed = 0
+        total_processed = 0
         total_resent = 0
+        directus_service = DirectusService()
+        await directus_service.ensure_auth_token()
 
         for user_id in user_ids:
             try:
-                # Refresh cache TTLs for pending embeds (prevents expiry)
-                refreshed = await cache_service.refresh_pending_embed_cache_ttls(user_id)
-                total_refreshed += refreshed
+                pending_ids = await cache_service.get_pending_embed_ids(user_id)
+                item_cursor_key = (
+                    PENDING_EMBED_ITEM_CURSOR_KEY_PREFIX
+                    + hashlib.sha256(user_id.encode()).hexdigest()
+                )
+                item_cursor = await redis_client.get(item_cursor_key)
+                if isinstance(item_cursor, bytes):
+                    item_cursor = item_cursor.decode("utf-8")
+                pending_ids = _select_round_robin(
+                    pending_ids,
+                    item_cursor,
+                    PENDING_EMBED_BATCH_SIZE_PER_USER,
+                )
+                if not pending_ids:
+                    continue
+                await redis_client.set(
+                    item_cursor_key,
+                    pending_ids[-1],
+                    ex=PENDING_EMBED_CURSOR_TTL_SECONDS,
+                )
 
                 # Re-send pending embeds via pub/sub (for users who may be connected)
                 # This is a supplementary mechanism - the primary delivery is on WebSocket connect
-                pending_ids = await cache_service.get_pending_embed_ids(user_id)
                 user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
                 encryption_service = EncryptionService(cache_service=cache_service)
 
                 for embed_id in pending_ids:
+                    total_processed += 1
                     try:
                         # Check if already in Directus
-                        directus_service = DirectusService()
-                        await directus_service.ensure_auth_token()
                         existing = await directus_service.embed.get_embed_by_id(embed_id)
                         if existing:
                             # Already persisted, remove from pending
@@ -3237,7 +3330,7 @@ async def _async_process_pending_embeds(task_id: str):
 
         logger.info(
             f"[PENDING_EMBED_SAFETY_NET] Complete: "
-            f"refreshed {total_refreshed} cache TTLs, re-sent {total_resent} embeds "
+            f"processed {total_processed} pending embeds, re-sent {total_resent} embeds "
             f"across {len(user_ids)} users"
         )
 
@@ -3245,7 +3338,12 @@ async def _async_process_pending_embeds(task_id: str):
         await cache_service.close()
 
 
-@app.task(name="app.tasks.persistence_tasks.process_pending_embeds", bind=True)
+@app.task(
+    name="app.tasks.persistence_tasks.process_pending_embeds",
+    bind=True,
+    soft_time_limit=PENDING_EMBED_SOFT_TIME_LIMIT_SECONDS,
+    time_limit=PENDING_EMBED_HARD_TIME_LIMIT_SECONDS,
+)
 def process_pending_embeds_task(self):
     """Celery Beat safety net: periodically check and re-deliver pending embeds."""
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'

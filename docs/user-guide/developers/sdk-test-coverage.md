@@ -212,9 +212,11 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.billing()` | `om.teams.billing()` | direct | direct |
 | `teams` | `om.teams.create()` | `om.teams.create()` | direct | direct |
 | `teams` | `om.teams.createBankTransferOrder()` | `om.teams.create_bank_transfer_order()` | direct | direct |
+| `teams` | `om.teams.createPlain()` | `om.teams.create_plain()` | direct | direct |
 | `teams` | `om.teams.declineInvite()` | `om.teams.decline_invite()` | direct | direct |
 | `teams` | `om.teams.export()` | `om.teams.export()` | direct | direct |
 | `teams` | `om.teams.get()` | `om.teams.get()` | direct | direct |
+| `teams` | `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | direct | direct |
 | `teams` | `om.teams.import()` | `om.teams.import_team()` | direct | direct |
 | `teams` | `om.teams.invite()` | `om.teams.invite()` | direct | direct |
 | `teams` | `om.teams.list()` | `om.teams.list()` | direct | direct |
@@ -223,6 +225,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.rejectAccess()` | `om.teams.reject_access()` | direct | direct |
 | `teams` | `om.teams.removeMember()` | `om.teams.remove_member()` | direct | direct |
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
+| `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |
 | `workflows` | `om.workflows.addToProject()` | `om.workflows.add_to_project()` | direct | direct |
 | `workflows` | `om.workflows.ask()` | `om.workflows.ask()` | direct | direct |

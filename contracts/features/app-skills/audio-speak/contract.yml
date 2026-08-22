@@ -16,9 +16,10 @@ scope:
   includes:
     - Explicit user-invoked text-to-speech generation
     - OpenMates voice preset, accent, and style fields mapped internally to provider voice IDs
-    - Low-cost default and premium high-quality ElevenLabs text-to-speech model selection
-    - Direct synchronous responses only when live provider latency remains suitable
-    - Playable generated-audio app-skill embeds with binary fields excluded from model inference
+    - Higher-quality ElevenLabs Multilingual v2 text-to-speech as the default model, with Flash v2.5 available only by explicit selection
+    - Task-based generated-asset responses for every successful generated speech output
+    - Encrypted private chatfiles S3 storage indexed in upload_files with short-lived generated-asset downloads
+    - Playable generated-audio app-skill embeds and downloads with binary fields excluded from model inference
   excludes:
     - Automatic assistant voice replies or chat-wide voice playback settings
     - Voice cloning, user-uploaded voice samples, or raw provider voice IDs
@@ -33,6 +34,34 @@ models:
       required: true
       items: AudioSpeakRequestItem
       constraints: {min_items: 1, max_items: 3}
+
+  AudioSpeakDispatchResponse:
+    task_id:
+      type: stable_id
+      nullable: true
+      constraints: {required_for_single_request: true}
+    embed_id:
+      type: stable_id
+      nullable: true
+      constraints: {required_for_single_request: true, generated_asset_id: true}
+    task_ids:
+      type: array
+      nullable: true
+      items: stable_id
+      constraints: {required_for_batch_request: true, max_items: 3}
+    embed_ids:
+      type: array
+      nullable: true
+      items: stable_id
+      constraints: {required_for_batch_request: true, max_items: 3}
+    status:
+      type: enum
+      required: true
+      values: [processing]
+    error:
+      type: string
+      nullable: true
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden}
 
   AudioSpeakRequestItem:
     id:
@@ -71,8 +100,42 @@ models:
       values: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
     model:
       type: enum
-      default: eleven_flash_v2_5
-      values: [eleven_flash_v2_5, eleven_multilingual_v2]
+      default: eleven_multilingual_v2
+      values: [eleven_multilingual_v2, eleven_flash_v2_5]
+
+  GeneratedAudioFileVariant:
+    s3_key:
+      type: string
+      required: true
+      constraints: {private_chatfiles_object: true, provider_url: forbidden}
+    size_bytes:
+      type: integer
+      required: true
+      constraints: {minimum: 1}
+    format:
+      type: enum
+      required: true
+      values: [mp3]
+    mime_type:
+      type: string
+      required: true
+      constraints: {audio_only: true}
+    duration_seconds:
+      type: number
+      required: true
+      constraints: {maximum: 90.0}
+    encryption:
+      type: enum
+      required: true
+      values: [aes-gcm-nonce-prefixed-v1]
+    download_url:
+      type: string
+      nullable: true
+      constraints: {short_lived_generated_asset_url: true, required_for_rest_sdk_task_results: true}
+    download_expires_at:
+      type: integer
+      nullable: true
+      constraints: {required_when_download_url_present: true}
 
   AudioSpeakResult:
     id:
@@ -119,30 +182,26 @@ models:
       type: integer
       required: true
       constraints: {minimum: 1}
-    audio_base64:
-      type: string
-      nullable: true
-      constraints: {direct_response_only: true, exclude_from_llm_inference: true}
     files:
       type: object
       nullable: true
-      constraints: {encrypted_generated_asset_metadata_when_persisted: true}
+      constraints: {items: GeneratedAudioFileVariant, required_when_status_finished: true, encrypted_generated_asset_metadata: true}
     s3_base_url:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true}
+      constraints: {private_chatfiles_bucket_url: true, required_when_files_present: true}
     aes_key:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_in_client_encrypted_embed_content: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     aes_nonce:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_for_legacy_client_decryption_when_v2_marker_absent: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     vault_wrapped_aes_key:
       type: string
       nullable: true
-      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+      constraints: {required_in_upload_files_and_client_encrypted_embed_content: true, forbidden_in_rest_sdk_task_results: true, exclude_from_llm_inference: true}
     credits_charged:
       type: integer
       nullable: true
@@ -205,25 +264,29 @@ assertions:
     type: privacy
     must: The semantic safeguard receives only the minimal request text and safety context needed for classification, never audio bytes, provider credentials, encryption material, raw provider diagnostics, or unrelated chat state.
     depends_on: [models.AudioSpeakRequestItem.text, examples.successful_outputs, examples.error_outputs]
+  - id: audio-speak.model.high-quality-default
+    type: invariant
+    must: audio.speak defaults to ElevenLabs Multilingual v2 for higher-quality speech; Flash v2.5 remains available only as an explicit lower-cost request model and must not be silently substituted for default requests.
+    depends_on: [models.AudioSpeakRequestItem.model, examples.valid_inputs, examples.successful_outputs]
   - id: audio-speak.output.playable-audio
     type: behavior
-    must: Successful outputs expose audio/mpeg-compatible playable speech through direct responses and generated-audio embeds without requiring provider credentials on clients.
+    must: Successful outputs are dispatched asynchronously, persisted as encrypted private chatfiles generated assets, indexed in upload_files, and exposed as playable audio/mpeg generated-audio embeds or short-lived generated-asset download URLs without requiring provider credentials on clients.
     depends_on: [models.AudioSpeakResult, examples.successful_outputs]
   - id: audio-speak.output.binary-excluded-from-inference
     type: privacy
-    must: Audio bytes, safeguard reasoning, full source text when not needed for assistant reasoning, encryption keys, nonces, wrapped keys, and raw provider diagnostics are excluded from LLM inference, logs, committed examples, and assistant prose.
+    must: New successful outputs never include inline audio_base64; audio bytes, safeguard reasoning, full source text when not needed for assistant reasoning, encryption keys, nonces, wrapped keys, generated-asset bearer tokens, and raw provider diagnostics are excluded from LLM inference, logs, committed examples, public examples, and assistant prose.
     depends_on: [models.AudioSpeakResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.billing.success-only
     type: invariant
-    must: Credits are charged only for successful generated speech, using documented duration pricing derived from generated audio duration with at least a one-credit successful-output floor and idempotent billing.
+    must: Credits are charged only for successful generated speech, using result-declared duration billing at 4 OpenMates credits per default Multilingual v2/v3 second or 2 OpenMates credits per explicitly requested Flash/Turbo second with a one-credit successful-output floor and idempotent billing.
     depends_on: [models.AudioSpeakResult.credits_charged, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.provider-error.visible
     type: failure
-    must: Provider key, timeout, quota, voice mapping, and generation failures produce safe visible errors and are never represented as successful empty audio.
+    must: Provider key, timeout, quota, voice mapping, generated-asset storage/indexing, and generation failures produce safe visible errors, update the processing embed or task status, and are never represented as successful empty audio.
     depends_on: [models.AudioSpeakResponse.error, examples.error_outputs]
-  - id: audio-speak.latency.direct-suitable
+  - id: audio-speak.execution.async-generated-assets
     type: invariant
-    must: Direct synchronous execution remains enabled only when low-cost live probes show representative short speech requests complete within the 5-6 second target; otherwise the implementation must switch to a task-based generated-asset flow before release.
+    must: audio.speak always uses the existing async app-skill task pattern for safeguard/provider execution and returns processing task/embed IDs first; completed results are delivered through generated-asset metadata rather than inline binary data.
     depends_on: [examples.boundary_cases]
   - id: audio-speak.surface-parity
     type: parity

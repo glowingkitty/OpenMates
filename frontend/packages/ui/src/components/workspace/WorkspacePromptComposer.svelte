@@ -127,7 +127,7 @@
     position: relative;
     display: flex;
     width: min(629px, 100%);
-    min-height: 60px;
+    min-height: 64px;
     align-items: center;
     gap: var(--spacing-4);
     margin: 0 auto;
@@ -167,14 +167,14 @@
 
   textarea {
     width: 100%;
-    min-height: 40px;
+    min-height: 64px;
     max-height: 160px;
     resize: none;
     flex: 1;
     min-width: 0;
     border: 0;
     outline: none;
-    padding: 10px 0;
+    padding: 0;
     border-radius: 0;
     color: var(--color-font-primary);
     background: transparent;
@@ -230,7 +230,7 @@
 
   @media (max-width: 730px) {
     .workspace-prompt-composer {
-      min-height: 56px;
+      min-height: 64px;
       padding-left: 58px;
       padding-right: 58px;
     }

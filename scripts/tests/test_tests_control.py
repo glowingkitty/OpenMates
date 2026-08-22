@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shlex
 import sys
 from pathlib import Path
 
 import pytest
+
+# contract-test-file: tooling
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -31,6 +34,7 @@ def load_tests_control(tmp_path, monkeypatch):
 
     results_dir = tmp_path / "test-results"
     monkeypatch.setattr(module, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(module, "PROOF_SOURCE_DIR", results_dir / "proof-video-sources")
     monkeypatch.setattr(module, "STATE_FILE", results_dir / "tests-state.json")
     monkeypatch.setattr(module, "HISTORY_FILE", results_dir / "tests-history.jsonl")
     monkeypatch.setattr(module, "LEASES_FILE", results_dir / "failed-test-leases.json")
@@ -124,6 +128,83 @@ def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
     assert record["attempt_statuses"] == ["failed", "passed"]
 
 
+def test_record_run_redacts_sensitive_failure_text_before_persistence(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-sensitive",
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "name": "private-flow.spec.ts",
+            "file": "private-flow.spec.ts",
+            "status": "failed",
+            "error": "user@example.com Bearer secret-token cookie=session-secret https://example.test/share#key=private-key",
+        }]}},
+    })
+
+    state_text = json.dumps(tests_control.load_state())
+    run_text = json.dumps(tests_control.get_store().get_test_run("run-sensitive"))
+
+    for secret in ("user@example.com", "secret-token", "session-secret", "private-key"):
+        assert secret not in state_text
+        assert secret not in run_text
+
+
+def test_failed_prerequisite_records_one_parent_and_visible_blocked_dependants(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = {
+        "run_id": "run-worker-down",
+        "summary": {"total": 2, "passed": 0, "failed": 0, "skipped": 2},
+        "prerequisites": [{
+            "id": "task_worker",
+            "status": "failed",
+            "lane": "live_probe",
+            "error": "Task worker health check failed",
+            "dependant_test_keys": [
+                "playwright::reminder-email.spec.ts",
+                "playwright::notifications-flow.spec.ts",
+            ],
+        }],
+        "suites": {"playwright": {"status": "skipped", "tests": [
+            {"name": "reminder-email.spec.ts", "file": "reminder-email.spec.ts", "status": "skipped"},
+            {"name": "notifications-flow.spec.ts", "file": "notifications-flow.spec.ts", "status": "skipped"},
+        ]}},
+    }
+
+    state = tests_control.record_run_result(run)
+    triage = tests_control.build_triage()
+
+    parent = state["tests"]["prerequisite::task_worker"]
+    assert parent["status"] == "failed"
+    assert parent["lane"] == "live_probe"
+    for key in run["prerequisites"][0]["dependant_test_keys"]:
+        assert state["tests"][key]["status"] == "blocked_by_parent"
+        assert state["tests"][key]["parent_incident_key"] == parent["key"]
+    assert state["summary"]["failed"] == 1
+    assert state["summary"]["blocked_by_parent"] == 2
+    assert [entry["key"] for entry in triage["entries"]] == ["prerequisite::task_worker"]
+
+
+def test_status_summary_separates_deterministic_and_live_probe_health(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-lanes",
+        "suites": {
+            "pytest_unit": {"status": "passed", "lane": "deterministic", "tests": [
+                {"name": "tests/test_math.py::test_add", "status": "passed"},
+            ]},
+            "api_live": {"status": "failed", "lane": "live_probe", "tests": [
+                {"name": "gmail_delivery", "status": "failed", "error": "Gmail probe failed"},
+            ]},
+        },
+    })
+
+    summary = tests_control.load_state()["summary"]
+
+    assert summary["lanes"]["deterministic"]["passed"] == 1
+    assert summary["lanes"]["deterministic"]["failed"] == 0
+    assert summary["lanes"]["live_probe"]["failed"] == 1
+    assert summary["global_zero_complete"] is False
+
+
 def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     raw_report = {
@@ -211,6 +292,47 @@ def test_triage_ranks_account_and_chat_failures_with_linked_files(tmp_path, monk
     assert "frontend/packages/ui/src/components/enter_message/MessageInput.svelte" in entries[1]["linked_files"]
 
 
+def test_triage_groups_correlated_dependency_failures_before_error_signatures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = {
+        "run_id": "run-embed-delivery",
+        "correlations": [{
+            "id": "embed-delivery",
+            "category": "embed_delivery",
+            "test_keys": [
+                "playwright::skill-music.spec.ts",
+                "playwright::skill-images.spec.ts",
+            ],
+            "evidence": ["websocket_disconnect", "embed_persistence_failed"],
+        }],
+        "suites": {"playwright": {"status": "failed", "tests": [
+            {
+                "name": "skill-music.spec.ts",
+                "file": "skill-music.spec.ts",
+                "status": "failed",
+                "error": "Locator: getByTestId('music-player') Expected: visible",
+            },
+            {
+                "name": "skill-images.spec.ts",
+                "file": "skill-images.spec.ts",
+                "status": "failed",
+                "error": "WebSocket disconnected before the parent embed persisted",
+            },
+        ]}},
+    }
+
+    tests_control.record_run_result(run)
+    triage = tests_control.build_triage()
+
+    assert {entry["category"] for entry in triage["entries"]} == {"embed_delivery"}
+    assert {entry["group_id"] for entry in triage["entries"]} == {"dependency-embed-delivery"}
+    assert triage["groups"][0]["count"] == 2
+    assert triage["groups"][0]["correlation_evidence"] == [
+        "embed_persistence_failed",
+        "websocket_disconnect",
+    ]
+
+
 def test_classification_avoids_authenticity_false_positive(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
@@ -259,6 +381,7 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
         "--spec",
         "chat-flow.spec.ts",
         "--gate-deploy",
+        "--require-exact-commit",
         "--lease-required",
         "--lease-id",
         "lease-chat-123",
@@ -267,9 +390,81 @@ def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
 
     assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
     assert options.gate_deploy is True
+    assert options.require_exact_commit is True
     assert options.lease_required is True
     assert options.lease_id == "lease-chat-123"
     assert options.expected_commit == "abc123"
+
+
+def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "audio-recording.spec.ts",
+        "--proof-video-profile",
+        "web-laptop",
+        "--expected-commit=abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "audio-recording.spec.ts", "--proof-video-profile", "web-laptop"]
+    assert options.proof_video_profile == "web-laptop"
+    assert options.expected_commit == "abc123"
+
+
+def test_playwright_proof_video_size_also_sets_viewport() -> None:
+    config = (PROJECT_ROOT / "frontend" / "apps" / "web_app" / "playwright.config.ts").read_text(encoding="utf-8")
+
+    assert "const videoSize" in config
+    assert "viewport: videoSize" in config
+
+
+def test_run_options_consume_detach_before_forwarding(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--detach",
+        "--expected-commit",
+        "abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
+    assert options.detach is True
+    assert options.expected_commit == "abc123"
+
+
+def test_detached_run_reinvokes_control_wrapper_without_detach(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    popen_calls = []
+
+    class FakeProcess:
+        pid = 4242
+
+    def fake_popen(command, **kwargs):
+        popen_calls.append((command, kwargs))
+        return FakeProcess()
+
+    monkeypatch.setattr(tests_control.subprocess, "Popen", fake_popen)
+
+    result = tests_control.command_run_detached([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--detach",
+        "--expected-commit",
+        "abc123",
+    ])
+
+    assert result == 0
+    command, kwargs = popen_calls[0]
+    assert command[:3] == [sys.executable, str(TESTS_CONTROL_PATH), "run"]
+    assert "--detach" not in command
+    assert "--expected-commit" in command
+    assert kwargs["cwd"] == tmp_path
+    assert kwargs["start_new_session"] is True
+    assert (tmp_path / "test-results" / "runs").is_dir()
+    assert "Detached test run started" in capsys.readouterr().out
 
 
 def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_path, monkeypatch):
@@ -280,10 +475,113 @@ def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_
     assert tests_control.resolve_test_subject_commit("deployed-commit") == "deployed-commit-123"
 
 
+def test_subject_commit_accepts_ancestor_when_requested_spec_inputs_unchanged(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    spec_dir = tests_control.SPEC_DIR
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "shared-chat-embed-assets.spec.ts").write_text(
+        "const helper = require('./helpers/chat-test-helpers');\n"
+        "await page.getByTestId('shared-chat-badge');\n",
+        encoding="utf-8",
+    )
+    (spec_dir / "helpers").mkdir()
+    (spec_dir / "helpers" / "chat-test-helpers.ts").write_text("export {};\n", encoding="utf-8")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: [
+            "scripts/tests.py",
+            "docs/releases/daily/2026-08-15.md",
+            "frontend/packages/ui/src/stores/activeChatStore.ts",
+        ],
+    )
+
+    assert tests_control.resolve_test_subject_commit(
+        expected,
+        ["--spec", "shared-chat-embed-assets.spec.ts"],
+    ) == current_dev
+
+
+def test_subject_commit_exact_mode_rejects_newer_integrated_dev(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+
+    with pytest.raises(RuntimeError, match="exact-commit verification"):
+        tests_control.resolve_test_subject_commit(
+            expected,
+            ["--spec", "chat-flow.spec.ts"],
+            require_exact=True,
+        )
+
+
+def test_subject_commit_rejects_ancestor_when_requested_spec_changed(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed"):
+        tests_control.resolve_test_subject_commit(expected, ["--spec", "shared-chat-embed-assets.spec.ts"])
+
+
+def test_subject_commit_rejects_ancestor_when_token_linked_source_changed(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    spec_dir = tests_control.SPEC_DIR
+    component_path = tmp_path / "frontend" / "packages" / "ui" / "src" / "components" / "ChatHeader.svelte"
+    spec_dir.mkdir(parents=True)
+    component_path.parent.mkdir(parents=True)
+    (spec_dir / "shared-chat-embed-assets.spec.ts").write_text(
+        "await page.getByTestId('shared-chat-badge');\n",
+        encoding="utf-8",
+    )
+    component_path.write_text('<span data-testid="shared-chat-badge"></span>\n', encoding="utf-8")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/packages/ui/src/components/ChatHeader.svelte"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed"):
+        tests_control.resolve_test_subject_commit(expected, ["--spec", "shared-chat-embed-assets.spec.ts"])
+
+
 def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
     monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda _ancestor, _descendant: False)
 
     with pytest.raises(RuntimeError, match="moving target"):
         tests_control.resolve_test_subject_commit("unrelated-commit")
@@ -544,6 +842,421 @@ def test_import_run_accepts_raw_pytest_json_report(tmp_path, monkeypatch):
     assert tests_control.get_store().test_runs["29613991033"]["workflow"] == "pytest-unit.yml"
 
 
+def test_normalize_playwright_report_retains_one_terminal_video_artifact(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = tmp_path / "video.webm"
+    report = {
+        "config": {},
+        "metadata": {"gitCommit": {"hash": "abc1234", "branch": "dev"}},
+        "suites": [
+            {
+                "file": "example.spec.ts",
+                "specs": [
+                    {
+                        "file": "example.spec.ts",
+                        "tests": [
+                            {
+                                "results": [
+                                    {
+                                        "status": "passed",
+                                        "duration": 1000,
+                                        "attachments": [{"name": "video", "contentType": "video/webm", "path": str(video)}],
+                                    }
+                                ]
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    test = normalized["suites"]["playwright"]["tests"][0]
+    assert test["artifact_path"] == str(video)
+
+
+def test_record_latest_run_artifact_persists_deploy_gate_metadata(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"verified-video")
+    artifact.write_text(json.dumps({
+        "run_id": "run-one",
+        "git_sha": commit,
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts", "status": "passed", "artifact_path": str(video),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    persisted = json.loads(artifact.read_text(encoding="utf-8"))
+    assert recorded == commit
+    assert persisted["deployment_verified"] is True
+    assert persisted["deployment_reference"] == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["artifact_sha256"].startswith("sha256:")
+
+
+def test_record_latest_run_artifact_expands_short_sha_for_proof_source(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"verified-video")
+    artifact.write_text(json.dumps({
+        "run_id": "run-one",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts", "status": "passed", "artifact_path": str(video),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    persisted = json.loads(artifact.read_text(encoding="utf-8"))
+    assert recorded == commit
+    assert persisted["git_sha"] == commit
+    assert persisted["deployment_reference"] == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["git_sha"] == commit
+
+
+def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"verified-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+            "video_paths": ["frontend/test-results/example/video.webm"],
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
+    assert len(attestations) == 1
+    attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
+    assert attestation["artifact_path"] == str(video.resolve())
+
+
+def test_record_latest_run_artifact_rejects_stale_downloaded_recording(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"stale-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts", "run_id": "parent-run", "git_sha": "b" * 9,
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run", "git_sha": commit[:9], "environment": "development",
+        "suites": {"playwright": {"tests": [{"file": "example.spec.ts", "status": "passed"}]}},
+    }), encoding="utf-8")
+
+    tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_downloaded_recording_paths_do_not_collide_on_spec_basename(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "other-example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"wrong-spec-video")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "other/example.spec.ts", "run_id": "run-one", "git_sha": commit[:9],
+        "assets": {"video_key": "latest/other-example/videos/example.webm"},
+    }), encoding="utf-8")
+
+    matches = tests_control._downloaded_recording_paths("target/example.spec.ts", {"run-one"}, commit)
+
+    assert matches == []
+
+
+def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "example.spec.ts"],
+        expected_commit="abc1234",
+        gate_deploy=True,
+    )
+    monkeypatch.setenv("OPENMATES_SKIP_E2E_DEPLOY_GATE", "true")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abc1234")
+
+    assert tests_control.run_e2e_deploy_gate(options) is False
+    assert not tests_control.PROOF_SOURCE_DIR.exists()
+
+
+def test_exact_commit_verification_cannot_skip_deploy_gate(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "example.spec.ts"],
+        expected_commit=commit,
+        require_exact_commit=True,
+        gate_deploy=True,
+    )
+    monkeypatch.setenv("OPENMATES_SKIP_E2E_DEPLOY_GATE", "true")
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: commit)
+
+    with pytest.raises(RuntimeError, match="cannot skip"):
+        tests_control.run_e2e_deploy_gate(options)
+
+
+def test_normalize_playwright_report_preserves_duplicate_video_attachments(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = str(tmp_path / "video.webm")
+    result = {
+        "status": "passed",
+        "duration": 1000,
+        "attachments": [
+            {"contentType": "video/webm", "path": video},
+            {"contentType": "video/webm", "path": video},
+        ],
+    }
+    report = {
+        "config": {},
+        "suites": [{"file": "example.spec.ts", "specs": [{"tests": [{"results": [result]}]}]}],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    assert normalized["suites"]["playwright"]["tests"][0]["artifact_paths"] == [video, video]
+
+
+def test_normalize_playwright_report_preserves_terminal_proof_timeline_attachment(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    video = str(tmp_path / "video.webm")
+    timeline = str(tmp_path / "proof-timeline.json")
+    report = {
+        "config": {},
+        "suites": [{"file": "example.spec.ts", "specs": [{"tests": [{"results": [{
+            "status": "passed",
+            "duration": 1000,
+            "attachments": [
+                {"name": "video", "contentType": "video/webm", "path": video},
+                {
+                    "name": "openmates-proof-timeline",
+                    "contentType": "application/vnd.openmates.proof-timeline+json",
+                    "path": timeline,
+                },
+            ],
+        }]}]}]}],
+    }
+
+    normalized = tests_control.normalize_playwright_json_report(report, tmp_path / "playwright.json", external_run_id="run-one")
+
+    test_result = normalized["suites"]["playwright"]["tests"][0]
+    assert test_result["artifact_path"] == video
+    assert test_result["proof_timeline_path"] == timeline
+
+
+def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"video")
+    run_data = {
+        "run_id": "run-one",
+        "git_sha": commit,
+        "deployment_reference": commit,
+        "deployment_verified": True,
+        "gate_deploy": True,
+        "suites": {"playwright": {"tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "artifact_paths": [str(video), str(video)],
+        }]}},
+    }
+
+    records = tests_control.record_proof_source_attestations(run_data)
+
+    assert len(records) == 1
+    attestation = json.loads(records[0].read_text(encoding="utf-8"))
+    assert attestation["run_id"] == "run-one"
+    assert attestation["source_run_id"] == "run-one"
+
+
+def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    video = tmp_path / "source.webm"
+    video.write_bytes(b"video")
+    frame = tmp_path / "checkpoint.png"
+    frame.write_bytes(b"frame")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text(json.dumps({
+        "schema_version": 1,
+        "device": "web-laptop",
+        "contract": {
+            "id": "proof-video-web",
+            "title": "Proof web",
+            "surface": "web",
+            "devices": ["web-laptop"],
+            "domain": "app.dev.openmates.org",
+            "transcript": [{"id": "welcome", "text": "Welcome is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+            "assertions": [{"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+        },
+        "events": [
+            {"kind": "checkpoint", "id": "ready", "at_ms": 100},
+            {"kind": "checkpoint", "id": "done", "at_ms": 12100},
+        ],
+        "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
+    }), encoding="utf-8")
+    record_path = tests_control.PROOF_SOURCE_DIR / "record.json"
+    record_path.parent.mkdir(parents=True)
+    record_path.write_text(json.dumps({
+        "run_id": "12345",
+        "git_sha": commit,
+        "spec": "proof-video-architecture.spec.ts",
+        "status": "passed",
+        "source": "scripts_tests",
+        "deployment_reference": commit,
+        "target": "development",
+        "artifact_path": str(video),
+        "artifact_sha256": tests_control._file_sha256(video),
+        "proof_timeline_path": str(timeline),
+        "proof_timeline_sha256": tests_control._file_sha256(timeline),
+    }), encoding="utf-8")
+    calls: dict[str, object] = {}
+
+    def produce(**kwargs):
+        calls["produce"] = kwargs
+        return {"spec_id": kwargs["spec_id"], "subject_commit": kwargs["subject_commit"], "publication": {"status": "pending"}}
+
+    def review(**kwargs):
+        calls["review"] = kwargs
+        return {"status": "passed", "manifest": {"review": {"status": "passed"}, "publication": {"status": "pending"}}}
+
+    def publish(run_dir, manifest):
+        calls["publish"] = {"run_dir": run_dir, "manifest": manifest}
+        return {**manifest, "publication": {"status": "delivered", "snippet_html": "<video></video>"}}
+
+    finalizations = tests_control.auto_finalize_proof_video_sources(
+        {"git_sha": commit, "run_id": "parent-run", "environment": "development"},
+        [record_path],
+        session_id="8f7c",
+        produce_hook=produce,
+        review_hook=review,
+        publish_hook=publish,
+    )
+
+    assert finalizations == [{
+        "status": "delivered",
+        "spec": "proof-video-architecture.spec.ts",
+        "run_id": "12345",
+        "run_dir": str(tests_control.RESULTS_DIR / "proof-videos" / "8f7c" / "proof-video-architecture.spec-12345"),
+        "subject_commit": commit,
+        "device_profile": "web-laptop",
+        "publication_status": "delivered",
+        "snippet_html": "<video></video>",
+    }]
+    produce_kwargs = calls["produce"]
+    assert produce_kwargs["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["caption_text"] == "Welcome is visible."
+    assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
+    assert produce_kwargs["spec_timeline"]["device"] == "web-laptop"
+    assert produce_kwargs["playback_rate"] == 1.0
+    assert produce_kwargs["ready_timestamp_seconds"] == 0.1
+    assert calls["review"]["correction_round"] == 0
+    assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]
+
+
+def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    first_video = recording_dir / "videos" / "first.webm"
+    second_video = recording_dir / "videos" / "second.webm"
+    first_video.parent.mkdir(parents=True)
+    first_video.write_bytes(b"first-video")
+    second_video.write_bytes(b"second-video")
+    for slug, video in (("flow-one", first_video), ("flow-two", second_video)):
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--{slug}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+            "video_paths": ["frontend/test-results/example-one/video.webm", "frontend/test-results/example-two/video.webm"],
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
+    assert len(attestations) == 2
+    assert {attestation["artifact_path"] for attestation in attestations} == {str(first_video.resolve()), str(second_video.resolve())}
+    assert all(attestation["source_run_id"] == "12345" for attestation in attestations)
+    assert all(attestation["run_id"].startswith("12345:") for attestation in attestations)
+
+
+def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+
+    with pytest.raises(RuntimeError, match="passed deploy gate"):
+        tests_control.record_proof_source_attestations({
+            "run_id": "run-one",
+            "git_sha": commit,
+            "deployment_reference": commit,
+            "deployment_verified": True,
+            "suites": {"playwright": {"tests": []}},
+        })
+
+
 def test_full_unit_suite_retires_absent_stale_failures(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     tests_control.record_run_result({
@@ -584,6 +1297,80 @@ def test_triage_supports_limit_category_and_suite_filters(tmp_path, monkeypatch)
     assert triage["entries"][0]["suite"] == "playwright"
 
     assert tests_control.build_triage(suite_filter="pytest")["entries"] == []
+
+
+def test_investigate_returns_bounded_redacted_revision_and_artifact_evidence(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    key = "playwright::chat-flow.spec.ts"
+    tests_control.record_run_result({
+        "run_id": "run-good",
+        "git_sha": "good111",
+        "suites": {"playwright": {"status": "passed", "tests": [
+            {"name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed"},
+        ]}},
+    })
+    tests_control.record_run_result({
+        "run_id": "run-bad",
+        "git_sha": "bad222",
+        "changed_files": ["frontend/packages/ui/src/components/ChatHistory.svelte"],
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "name": "chat-flow.spec.ts",
+            "file": "chat-flow.spec.ts",
+            "status": "failed",
+            "error": "user@example.com failed with Bearer secret-token",
+            "artifact_path": "/private/test-results/trace.zip",
+        }]}},
+    })
+
+    bundle = tests_control.investigate_test(key, "run-bad")
+
+    assert bundle["test_key"] == key
+    assert bundle["source_run_id"] == "run-bad"
+    assert bundle["current"]["status"] == "failed"
+    assert "user@example.com" not in json.dumps(bundle)
+    assert "secret-token" not in json.dumps(bundle)
+    assert bundle["revisions"] == {
+        "last_good": "good111",
+        "first_bad_or_unknown": "bad222",
+    }
+    assert bundle["changed_files"] == ["frontend/packages/ui/src/components/ChatHistory.svelte"]
+    assert bundle["artifacts"]["trace"]["status"] == "missing"
+    assert bundle["artifacts"]["screenshot"]["status"] == "missing"
+    assert bundle["artifacts"]["report"]["status"] == "missing"
+    assert [preset["id"] for preset in bundle["diagnostic_presets"]] == ["backend-errors", "client-console"]
+    for preset in bundle["diagnostic_presets"]:
+        command = shlex.split(preset["command"])
+        query_index = command.index("--query-json")
+        query = json.loads(command[query_index + 1])
+        assert query["stream"] in {"default", "client_console"}
+        assert 0 < query["limit"] <= 50
+
+
+def test_investigate_links_parent_incident_and_cli_command(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "run-worker-down",
+        "prerequisites": [{
+            "id": "task_worker",
+            "status": "failed",
+            "error": "worker unavailable",
+            "dependant_test_keys": ["playwright::reminder-email.spec.ts"],
+        }],
+        "suites": {"playwright": {"status": "skipped", "tests": [
+            {"name": "reminder-email.spec.ts", "file": "reminder-email.spec.ts", "status": "skipped"},
+        ]}},
+    })
+
+    assert tests_control.main([
+        "investigate",
+        "--test-key", "playwright::reminder-email.spec.ts",
+        "--run", "run-worker-down",
+        "--json",
+    ]) == 0
+    bundle = json.loads(capsys.readouterr().out)
+
+    assert bundle["parent_incident"]["key"] == "prerequisite::task_worker"
+    assert bundle["parent_incident"]["status"] == "failed"
 
 
 def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
@@ -657,6 +1444,21 @@ def test_complete_lease_require_passing_blocks_active_failure_group(tmp_path, mo
 
     assert completed["status"] == "completed"
     assert completed["completed_commit"] == "def456a"
+
+
+def test_complete_debug_group_requires_member_test_keys(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    store = tests_control.get_store()
+    store.create_debug_campaign({"campaign_key": "campaign", "status": "active", "session_id": tests_control.os.environ["OPENCODE_SESSION_ID"]})
+    store.create_debug_group({"group_key": "group-empty", "campaign_key": "campaign", "member_test_keys": []})
+
+    def fail_list_test_results(test_keys=None):
+        raise AssertionError("empty debug groups must fail before test result history lookup")
+
+    monkeypatch.setattr(store, "list_test_results", fail_list_test_results)
+
+    with pytest.raises(RuntimeError, match="no member test keys recorded"):
+        tests_control.complete_debug_group("group-empty", commit="abc123d")
 
 
 def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatch):

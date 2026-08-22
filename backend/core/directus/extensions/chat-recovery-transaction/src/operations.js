@@ -9,7 +9,9 @@ const JOBS = 'chat_completion_recovery_jobs';
 const OUTBOX = 'chat_inference_outbox';
 const CHATS = 'chats';
 const MESSAGES = 'messages';
+const CHAT_KEY_WRAPPERS = 'chat_key_wrappers';
 const PROTOCOL_STATE = 'chat_recovery_protocol_state';
+const OPERATIONAL_EVENTS = 'operational_monitoring_events';
 const PROTOCOL_STATE_ID = 'chat-recovery';
 const PROTOCOL_VERSION = 1;
 const LEASE_MS = 60_000;
@@ -41,7 +43,8 @@ const CHAT_METADATA_FIELDS = new Set([
   'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
   'encrypted_follow_up_request_suggestions', 'encrypted_top_recommended_apps_for_chat',
   'encrypted_quick_tip_slugs', 'encrypted_icon', 'encrypted_category',
-  'encrypted_settings_memories_suggestions', 'created_at', 'updated_at',
+  'encrypted_settings_memories_suggestions', 'encrypted_slug', 'slug_lookup_hash',
+  'created_at', 'updated_at',
 ]);
 const OPERATION_FIELDS = Object.freeze({
   prepare_preflight: new Set([
@@ -526,6 +529,7 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && Number(chat.title_v ?? 0) === 0
   && Number(chat.metadata_v ?? 0) === 0
   && chat.last_message_timestamp == null;
+const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
 async function preparePreflight(database, raw, now) {
   const body = operationBody(raw, 'prepare_preflight');
@@ -590,6 +594,18 @@ async function preparePreflight(database, raw, now) {
         share_highlights: true,
       };
       await trx(CHATS).insert(chat);
+      if (teamHash) {
+        await trx(CHAT_KEY_WRAPPERS).insert({
+          id: randomUUID(),
+          hashed_chat_id: hashIdentifier(chatId),
+          hashed_team_id: teamHash,
+          key_type: 'team',
+          team_key_epoch: 1,
+          encrypted_chat_key: wrappedKey,
+          wrapper_version: 1,
+          created_at: timestamp,
+        });
+      }
     }
     const canonical = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, chat_key_version: keyVersion })
       .whereNull('deletion_invalidated_at').orderBy('prepared_at', 'asc').first();
@@ -931,6 +947,11 @@ async function invalidateDeletion(database, raw, now) {
     const outbox = trx(OUTBOX).where({ hashed_user_id: ownerHash });
     if (chatId) { preflights.andWhere({ chat_id: chatId }); jobs.andWhere({ chat_id: chatId }); outbox.andWhere({ chat_id: chatId }); }
     const deletedJobs = await jobs.delete();
+    if (deletedJobs > 0) {
+      await trx(OPERATIONAL_EVENTS).insert({
+        id: randomUUID(), event_type: 'recovery_jobs_invalidated', count: deletedJobs, occurred_at: now,
+      });
+    }
     const deletedOutbox = await outbox.delete();
     const deletedPreflights = await preflights.delete();
     return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs, deleted_outbox: deletedOutbox };

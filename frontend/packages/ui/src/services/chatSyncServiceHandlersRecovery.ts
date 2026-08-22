@@ -33,6 +33,7 @@ const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_VERSION_REFRESH_POLL_MS = 100;
 const RECOVERY_VERSION_REFRESH_TIMEOUT_MS = 5_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
+const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
 
 function buildRecoveryMessagePreview(content: string): string {
@@ -53,6 +54,8 @@ function buildRecoveryMessagePreview(content: string): string {
 }
 
 class RecoveryEventTimeoutError extends Error {}
+
+class RecoveryStaleJobError extends Error {}
 
 class RecoveryProtocolError extends Error {
   constructor(
@@ -171,6 +174,13 @@ function waitForRecoveryEvent(
         event.request_id !== requestId ||
         typeof event.code !== "string"
       ) return;
+      if (RECOVERY_STALE_TERMINAL_ERROR_CODES.has(event.code)) {
+        cleanup();
+        reject(new RecoveryStaleJobError(
+          typeof event.message === "string" ? event.message : `${type} referenced a stale recovery job.`,
+        ));
+        return;
+      }
       if (RECOVERY_RETRYABLE_ERROR_CODES.has(event.code)) return;
       cleanup();
       reject(new RecoveryProtocolError(
@@ -433,6 +443,13 @@ export async function handleRecoveryJobsAvailableImpl(
         }),
       );
     } catch (error) {
+      if (error instanceof RecoveryStaleJobError) {
+        console.debug(
+          `[ChatSyncService:Recovery] Ignoring stale recovery job ${job.job_id}:`,
+          error.message,
+        );
+        return;
+      }
       console.error(`[ChatSyncService:Recovery] Failed recovery job ${job.job_id}:`, error);
     } finally {
       recoveryJobsInProgress.delete(job.job_id);

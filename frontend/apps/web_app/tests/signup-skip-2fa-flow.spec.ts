@@ -64,6 +64,7 @@ function sha256Base64(value: string): string {
 	return nodeCrypto.createHash('sha256').update(value).digest('base64');
 }
 
+// contract-test: direct surface=gui.web assertions=auth.lookup.anti-enumeration
 test('lookup response does not reveal whether an account exists', async ({ request }: { request: any }) => {
 	const { email: existingEmail } = getTestAccount();
 	test.skip(!existingEmail, 'OPENMATES_TEST_ACCOUNT_EMAIL is required for enumeration protection check.');
@@ -104,6 +105,7 @@ test('lookup response does not reveal whether an account exists', async ({ reque
 	expect(missingFirst.user_email_salt).toEqual(missingSecond.user_email_salt);
 });
 
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,auth.login.method-convergence,auth.session.lifecycle
 test('completes password signup, login with password, and delete account via email OTP', async ({
 	page,
 	context,
@@ -143,7 +145,7 @@ test('completes password signup, login with password, and delete account via ema
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -152,7 +154,7 @@ test('completes password signup, login with password, and delete account via ema
 		throw new Error('Missing signup test domain after skip guard.');
 	}
 
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
+	const { waitForMessage, extractSixDigitCode } = emailClient!;
 
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
@@ -211,7 +213,7 @@ test('completes password signup, login with password, and delete account via ema
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
 	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 
-	const confirmEmailMessage = await waitForMailosaurMessage({
+	const confirmEmailMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: emailRequestedAt
 	});
@@ -400,8 +402,8 @@ test('completes password signup, login with password, and delete account via ema
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'delete-account-otp-input');
 
-	// Get the verification code from Mailosaur email.
-	const deleteVerificationMessage = await waitForMailosaurMessage({
+	// Get the verification code from Gmail.
+	const deleteVerificationMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: deleteEmailRequestedAt
 	});

@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_openai_tool_choice.py
 #
 # Purpose: regression test for OPE-376 — tool_choice="required" was being
@@ -66,6 +67,17 @@ class _StubClient:
         self.chat.completions = _CapturingCompletions()
 
 
+class _FailingStreamCompletions:
+    async def create(self, **_payload: Any) -> Any:
+        raise RuntimeError("Error code: 429 - quota exceeded")
+
+
+class _FailingStreamClient:
+    def __init__(self) -> None:
+        self.chat = type("C", (), {})()
+        self.chat.completions = _FailingStreamCompletions()
+
+
 @pytest.mark.parametrize("tool_choice", ["required", "auto", "none"])
 def test_tool_choice_is_passed_as_bare_string(monkeypatch: pytest.MonkeyPatch, tool_choice: str) -> None:
     """tool_choice must reach the OpenAI SDK as a bare string, never as
@@ -107,3 +119,26 @@ def test_tool_choice_is_passed_as_bare_string(monkeypatch: pytest.MonkeyPatch, t
         f"tool_choice must be passed as the bare string {tool_choice!r}, "
         f"got: {captured.get('tool_choice')!r}"
     )
+
+
+def test_streaming_provider_error_is_raised_for_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub = _FailingStreamClient()
+    monkeypatch.setattr(openai_client, "_openai_direct_client", stub)
+    monkeypatch.setattr(openai_client, "_is_reasoning_model", lambda _m: False)
+
+    async def consume_stream() -> None:
+        stream = await openai_client._invoke_openai_direct_api(
+            task_id="t-openai-429",
+            model_id="gpt-5.4",
+            messages=[{"role": "user", "content": "hi"}],
+            temperature=0.7,
+            max_tokens=16,
+            tools=None,
+            tool_choice="auto",
+            stream=True,
+        )
+        async for _chunk in stream:
+            pass
+
+    with pytest.raises(RuntimeError, match="OpenAI streaming error"):
+        asyncio.run(consume_stream())

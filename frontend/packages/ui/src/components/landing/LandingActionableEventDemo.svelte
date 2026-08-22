@@ -214,6 +214,7 @@
     min-width: 0;
     height: 100%;
     min-height: 0;
+    --landing-actionable-preview-center-lift: -16px;
     border-radius: var(--radius-4);
     overflow: visible;
     background: transparent;
@@ -291,8 +292,8 @@
     padding: 10px 12px;
     margin-top: 0;
     margin-bottom: 0;
-    font-size: clamp(0.74rem, 1vw, 0.92rem);
-    line-height: 1.25;
+    font-size: clamp(1rem, 2.6cqi, 1.35rem);
+    line-height: 1.35;
     font-weight: 700;
   }
 
@@ -311,11 +312,12 @@
     position: relative;
     z-index: var(--z-index-raised-2);
     width: 300px;
+    transform: translateY(var(--landing-actionable-preview-center-lift));
     transition: transform var(--duration-fast) ease;
   }
 
   .landing-actionable-preview[data-demo-pressed='true'] {
-    transform: scale(0.96);
+    transform: translateY(var(--landing-actionable-preview-center-lift)) scale(0.96);
   }
 
   .landing-actionable-preview :global(.unified-embed-preview) {
@@ -336,6 +338,7 @@
     color: white !important;
     box-shadow: var(--shadow-md) !important;
     font: inherit;
+    font-size: clamp(1rem, 2.8cqi, 1.3rem);
     font-weight: 800 !important;
     white-space: nowrap;
     transition:
@@ -444,7 +447,7 @@
 
     .landing-actionable-message-stage {
       position: relative;
-      width: min(calc(100% + 20px), 320px);
+      width: min(calc(100% + 20px), 360px);
       left: auto;
       justify-self: center;
       margin-inline: auto;
@@ -459,7 +462,7 @@
     .landing-actionable-message-stage :global(.user-message-content),
     .landing-actionable-message-stage :global(.mate-message-content) {
       padding: 12px 14px;
-      font-size: 0.82rem;
+      font-size: clamp(1rem, 4.2cqi, 1.2rem);
     }
 
     .landing-actionable-stage-content[data-stage='luma-cta'] {

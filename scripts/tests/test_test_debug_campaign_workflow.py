@@ -16,12 +16,15 @@ def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+# contract-test: tooling
 def test_fix_tests_is_campaign_orchestrator_and_fix_next_is_resume_wrapper():
     fix_tests = text(".claude/skills/fix-tests/SKILL.md")
     fix_next = text(".claude/skills/fix-next-test/SKILL.md")
 
     assert "campaign start" in fix_tests
+    assert "campaign list --active --overlap-current-failures" in fix_tests
     assert "campaign status" in fix_tests
+    assert fix_tests.index("campaign list --active --overlap-current-failures") < fix_tests.index("campaign start")
     assert "acceptance criteria" in fix_tests.lower()
     assert "complete-group" in fix_tests
     assert "campaign dispatch" in fix_tests
@@ -29,6 +32,7 @@ def test_fix_tests_is_campaign_orchestrator_and_fix_next_is_resume_wrapper():
     assert "independent workflow" in fix_next.lower()
 
 
+# contract-test: tooling
 def test_triager_and_auto_fix_use_durable_campaign_records():
     triager = text(".claude/agents/test-failure-triager.md")
     auto_fix = text("scripts/auto_fix_failed_tests.py")
@@ -41,6 +45,7 @@ def test_triager_and_auto_fix_use_durable_campaign_records():
     assert "last-failed-tests.json" not in auto_fix
 
 
+# contract-test: tooling
 def test_unit_workflows_accept_exact_campaign_targets():
     pytest_workflow = text(".github/workflows/pytest-unit.yml")
     vitest_workflow = text(".github/workflows/vitest.yml")

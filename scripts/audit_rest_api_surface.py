@@ -27,8 +27,6 @@ DEV_ONLY_PUBLIC_PATHS = {
     "/v1/team-invites/*",
     "/v1/teams",
     "/v1/teams/*",
-    "/v1/test-recordings",
-    "/v1/test-recordings/*",
 }
 
 OPENAPI_FALSE_ROUTERS = {

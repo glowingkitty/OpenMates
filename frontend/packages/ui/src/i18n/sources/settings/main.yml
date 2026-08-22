@@ -238,6 +238,30 @@ team:
   sv: Team
   he: צוות
   verified_by_human: []
+teams:
+  context: Settings menu item for managing joined teams
+  en: Teams
+  de: Teams
+  zh: 团队
+  es: Equipos
+  fr: Équipes
+  pt: Equipes
+  ru: Команды
+  ja: チーム
+  ko: 팀
+  it: Team
+  tr: Takımlar
+  vi: Nhóm
+  id: Tim
+  pl: Zespoły
+  nl: Teams
+  ar: الفرق
+  hi: टीमें
+  th: ทีม
+  cs: Týmy
+  sv: Team
+  he: צוותים
+  verified_by_human: []
 projects:
   context: Settings menu entry for project settings
   en: Projects
@@ -3577,6 +3601,54 @@ element:
   cs: Element X
   sv: Element X
   he: Element X
+  verified_by_human: []
+luma:
+  context: Luma events link
+  en: Luma
+  de: Luma
+  zh: Luma
+  es: Luma
+  fr: Luma
+  pt: Luma
+  ru: Luma
+  ja: Luma
+  ko: Luma
+  it: Luma
+  tr: Luma
+  vi: Luma
+  id: Luma
+  pl: Luma
+  nl: Luma
+  ar: Luma
+  hi: Luma
+  th: Luma
+  cs: Luma
+  sv: Luma
+  he: Luma
+  verified_by_human: []
+eventbrite:
+  context: Eventbrite events link
+  en: Eventbrite
+  de: Eventbrite
+  zh: Eventbrite
+  es: Eventbrite
+  fr: Eventbrite
+  pt: Eventbrite
+  ru: Eventbrite
+  ja: Eventbrite
+  ko: Eventbrite
+  it: Eventbrite
+  tr: Eventbrite
+  vi: Eventbrite
+  id: Eventbrite
+  pl: Eventbrite
+  nl: Eventbrite
+  ar: Eventbrite
+  hi: Eventbrite
+  th: Eventbrite
+  cs: Eventbrite
+  sv: Eventbrite
+  he: Eventbrite
   verified_by_human: []
 meetup:
   context: Meetup contact link

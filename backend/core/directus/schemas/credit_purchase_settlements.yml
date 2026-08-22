@@ -1,0 +1,42 @@
+# Privacy-safe durable credit purchase settlement ledger.
+#
+# Settlement identities are one-way hashes. No user identifiers, payment
+# identifiers, ciphertext, or provider payloads are stored in this collection.
+credit_purchase_settlements:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    settlement_key_hash:
+      type: string
+      length: 64
+      required: true
+      unique: true
+    record_type:
+      type: string
+      length: 16
+      required: true
+      note: "purchase or watermark"
+    provider:
+      type: string
+      length: 32
+      required: true
+    purchase_type:
+      type: string
+      length: 32
+      required: true
+    credits_sold:
+      type: integer
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+      note: "pending or completed"
+    started_at:
+      type: datetime
+      required: true
+    completed_at:
+      type: datetime
+      nullable: true

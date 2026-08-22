@@ -13,6 +13,7 @@ import pytest
 
 from backend.shared.providers.brave.brave_search import (
     _get_brave_api_key_candidates,
+    _is_monthly_quota_limited,
     _request_with_429_retry,
     search_web,
 )
@@ -52,6 +53,7 @@ class _FakeClient:
         return self.responses.pop(0)
 
 
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
 async def test_monthly_quota_exhaustion_uses_paid_fallback() -> None:
     free_quota_response = _response(
         429,
@@ -80,6 +82,7 @@ async def test_monthly_quota_exhaustion_uses_paid_fallback() -> None:
     assert [call["X-Subscription-Token"] for call in client.calls] == ["free-key", "paid-key"]
 
 
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
 async def test_monthly_quota_exhaustion_without_fallback_fails_without_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -111,14 +114,20 @@ async def test_monthly_quota_exhaustion_without_fallback_fails_without_retry(
     sleep_mock.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
 async def test_transient_rate_limit_retries_without_paid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     transient_response = _response(
         429,
         {
             "error": {
                 "code": "RATE_LIMITED",
-                "detail": "Too many requests.",
-                "meta": {"rate_limit": 1, "rate_current": 1},
+                "detail": "Request rate limit exceeded for plan",
+                "meta": {
+                    "rate_limit": 1,
+                    "rate_current": 1,
+                    "quota_limit": 2000,
+                    "quota_current": 1195,
+                },
             }
         },
     )
@@ -142,6 +151,39 @@ async def test_transient_rate_limit_retries_without_paid_fallback(monkeypatch: p
     sleep_mock.assert_awaited_once()
 
 
+@pytest.mark.parametrize(
+    ("code", "quota_limit", "quota_current", "expected"),
+    [
+        ("RATE_LIMITED", 2000, 2000, False),
+        ("QUOTA_LIMITED", 2000, 1195, True),
+        (None, 2000, 2000, True),
+        (None, False, True, False),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
+async def test_monthly_quota_classification(
+    code: str | None,
+    quota_limit: int | bool,
+    quota_current: int | bool,
+    expected: bool,
+) -> None:
+    response = _response(
+        429,
+        {
+            "error": {
+                "code": code,
+                "meta": {
+                    "quota_limit": quota_limit,
+                    "quota_current": quota_current,
+                },
+            }
+        },
+    )
+
+    assert _is_monthly_quota_limited(response) is expected
+
+
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
 async def test_exhausted_transient_rate_limit_uses_paid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     transient_responses = [
         _response(
@@ -184,6 +226,7 @@ async def test_exhausted_transient_rate_limit_uses_paid_fallback(monkeypatch: py
     assert sleep_mock.await_count == 5
 
 
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
 async def test_candidate_order_uses_one_default_then_explicit_paid(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET__BRAVE__API_KEY", "placeholder-env-key")
     secrets_manager = _FakeSecretsManager(
@@ -201,6 +244,7 @@ async def test_candidate_order_uses_one_default_then_explicit_paid(monkeypatch: 
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=web-search.no-results.explicit
 async def test_live_mock_zero_result_group_forces_empty_web_results(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")

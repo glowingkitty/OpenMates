@@ -48,6 +48,11 @@ const GIFT_CARD_SETTINGS_PATHS = [
 	'billing/gift-cards/buy/confirmation'
 ];
 const LEARNING_MODE_SETTINGS_PATH = 'learning-mode/setup';
+const SETTINGS_EVENT_LINKS = {
+	luma: 'https://luma.com/openmates',
+	eventbrite: 'https://www.eventbrite.com/o/121655417243',
+	meetup: 'https://www.meetup.com/openmates-meetup-group/'
+};
 const REQUIRED_NON_EMPTY_TRANSLATION_KEYS = [
 	'app_settings_memories.mail.writing_styles.example_2.footer'
 ];
@@ -156,6 +161,42 @@ async function openSettingsMenu(page: any): Promise<any> {
 	return settingsMenu;
 }
 
+async function expectSettingsFooterContract(settingsMenu: any): Promise<void> {
+	const footer = settingsMenu.getByTestId('settings-footer');
+	await expect(footer).toBeAttached();
+
+	const geometry = await settingsMenu.evaluate((menu: HTMLElement) => {
+		const slider = menu.querySelector<HTMLElement>('[data-testid="settings-content-slider"]');
+		const activeContent = menu.querySelector<HTMLElement>('[data-testid="settings-page-content"]');
+		const settingsFooter = menu.querySelector<HTMLElement>('[data-testid="settings-footer"]');
+		if (!slider || !activeContent || !settingsFooter) return null;
+
+		return {
+			activeContentHeight: activeContent.getBoundingClientRect().height,
+			footerGap: Math.round(
+				settingsFooter.getBoundingClientRect().top - slider.getBoundingClientRect().bottom
+			)
+		};
+	});
+
+	expect(geometry).not.toBeNull();
+	expect(geometry?.activeContentHeight).toBeGreaterThan(0);
+	expect(geometry?.footerGap).toBe(50);
+	await expect(footer).toContainText('Events');
+	await expect(footer).toContainText('For all of us');
+	await expect(footer).toContainText('For developers');
+	await expect(footer).toContainText('Contact');
+	await expect(footer).toContainText('Legal');
+	await expect(footer).not.toContainText(/web app version/i);
+
+	for (const [event, href] of Object.entries(SETTINGS_EVENT_LINKS)) {
+		const link = settingsMenu.getByTestId(`settings-event-${event}`);
+		await expect(link).toHaveAttribute('href', href);
+		await expect(link).toHaveAttribute('target', '_blank');
+		await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+	}
+}
+
 async function currentSettingsView(settingsMenu: any): Promise<string> {
 	return (await settingsMenu.getAttribute('data-active-view')) || 'main';
 }
@@ -252,6 +293,7 @@ test.describe('Settings translation coverage', () => {
 	test.describe.configure({ timeout: 600000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=settings-ui.navigation.parent-return,settings-ui.localization.visible-content-resolves,settings-ui.footer.structure-and-spacing,settings-ui.footer.events-and-version-policy
 	test('settings catalog and visible settings/sub-settings menus have no missing translation placeholders', async ({ page }) => {
 		validateSettingsCatalogTranslations();
 		validateRequiredNonEmptyTranslations();
@@ -268,6 +310,17 @@ test.describe('Settings translation coverage', () => {
 
 		await loginToTestAccount(page, logCheckpoint, screenshot);
 		const settingsMenu = await openSettingsMenu(page);
+		await expectSettingsFooterContract(settingsMenu);
+		await settingsMenu.locator('.settings-content-wrapper').evaluate((wrapper: HTMLElement) => {
+			const footer = wrapper.querySelector<HTMLElement>('[data-testid="settings-footer"]');
+			if (footer) wrapper.scrollTop = Math.max(0, footer.offsetTop - 180);
+		});
+		await page.waitForTimeout(800);
+		await screenshot(page, 'settings-footer');
+		await settingsMenu.locator('.settings-content-wrapper').evaluate((wrapper: HTMLElement) => {
+			wrapper.scrollTop = 0;
+		});
+		await page.waitForTimeout(NAVIGATION_WAIT_MS);
 		await screenshot(page, 'settings-main');
 
 		const visited = new Set<string>();

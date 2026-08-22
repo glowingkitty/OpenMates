@@ -26,6 +26,7 @@ from backend.core.api.app.services.project_remote_access_service import (
 )
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +206,8 @@ class ProjectCreateRequest(BaseModel):
     project_id: str
     encrypted_project_key: Optional[str] = None
     encrypted_name: str
+    encrypted_slug: Optional[str] = Field(default=None, min_length=1)
+    slug_lookup_hash: Optional[str] = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_description: Optional[str] = None
     encrypted_icon: Optional[str] = None
     encrypted_color: Optional[str] = None
@@ -223,6 +226,8 @@ class ProjectCreateRequest(BaseModel):
 
 class ProjectUpdateRequest(BaseModel):
     encrypted_name: Optional[str] = None
+    encrypted_slug: Optional[str] = Field(default=None, min_length=1)
+    slug_lookup_hash: Optional[str] = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_description: Optional[str] = None
     encrypted_icon: Optional[str] = None
     encrypted_color: Optional[str] = None
@@ -265,6 +270,8 @@ class ProjectMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
     moved_at: int | None = None
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     team_project_key_wrapper: ProjectKeyWrapperRequest
 
     @model_validator(mode="after")
@@ -412,7 +419,10 @@ async def create_project(
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     payload = body.model_dump()
     _require_team_project_wrapper(payload, team_id)
-    created = await directus_service.project.create_project(current_user.id, payload, team_id=team_id)
+    try:
+        created = await directus_service.project.create_project(current_user.id, payload, team_id=team_id)
+    except DuplicateObjectSlugError as exc:
+        raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
     if not created:
         raise HTTPException(status_code=500, detail="Failed to create project")
     history = await _record_project_history(
@@ -467,7 +477,10 @@ async def ask_projects(
     if body.encrypted_create is not None:
         create_payload = body.encrypted_create.model_dump()
         _require_team_project_wrapper(create_payload, team_id)
-        created = await directus_service.project.create_project(current_user.id, create_payload, team_id=team_id)
+        try:
+            created = await directus_service.project.create_project(current_user.id, create_payload, team_id=team_id)
+        except DuplicateObjectSlugError as exc:
+            raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
         if not created:
             raise HTTPException(status_code=500, detail="Failed to create project")
         projects.append(created)
@@ -476,7 +489,10 @@ async def ask_projects(
     for encrypted_update in encrypted_updates:
         patch = encrypted_update.patch.model_dump(exclude_unset=True)
         before = await directus_service.project.get_project(encrypted_update.project_id, current_user.id, team_id=team_id)
-        updated = await directus_service.project.update_project(encrypted_update.project_id, current_user.id, patch, team_id=team_id)
+        try:
+            updated = await directus_service.project.update_project(encrypted_update.project_id, current_user.id, patch, team_id=team_id)
+        except DuplicateObjectSlugError as exc:
+            raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
         if not updated:
             raise HTTPException(status_code=404, detail="Project not found")
         projects.append(updated)
@@ -567,8 +583,12 @@ async def move_project_to_team(
             current_user.id,
             body.team_id,
             body.team_project_key_wrapper.model_dump(),
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
+    except DuplicateObjectSlugError as exc:
+        raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
     except ProjectMoveError as exc:
         raise HTTPException(status_code=409, detail="PROJECT_MOVE_FAILED") from exc
     return {"project": project}
@@ -640,7 +660,10 @@ async def update_project(
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     patch = body.model_dump(exclude_unset=True)
     before = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
-    updated = await directus_service.project.update_project(project_id, current_user.id, patch, team_id=team_id)
+    try:
+        updated = await directus_service.project.update_project(project_id, current_user.id, patch, team_id=team_id)
+    except DuplicateObjectSlugError as exc:
+        raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
     if not updated:
         raise HTTPException(status_code=404, detail="Project not found")
     history = await _record_project_history(

@@ -39,11 +39,13 @@ OPENCODE_AGENT_MODELS = {
     "issue-forensics": "openai/gpt-5.6-sol",
     "legal-compliance-auditor": "openai/gpt-5.6-sol",
     "main-processor-guru": "openai/gpt-5.6-sol",
+    "proof-video-reviewer": "openai/gpt-5.6-terra",
     "seo-auditor": "openai/gpt-5.6-luna",
     "settings-ui-consistency-checker": "openai/gpt-5.6-luna",
     "skill-integration-doctor": "openai/gpt-5.6-terra",
     "test-failure-triager": "openai/gpt-5.6-luna",
 }
+OPENCODE_ALL_MODE_AGENTS = {"proof-video-reviewer"}
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
     "lint-swift-design-tokens.sh": REPO_ROOT / "scripts" / "lint-swift-design-tokens.sh",
@@ -176,7 +178,7 @@ def render_opencode_agent(source: Path) -> str:
     lines = [
         FRONTMATTER_BOUNDARY,
         f"description: {yaml_scalar(description)}",
-        "mode: subagent",
+        f"mode: {'all' if source.stem in OPENCODE_ALL_MODE_AGENTS else 'subagent'}",
         f"model: {model}",
         "options:",
         f"  reasoningEffort: {OPENCODE_REASONING_EFFORT}",
@@ -185,17 +187,30 @@ def render_opencode_agent(source: Path) -> str:
     if max_turns := metadata.get("maxTurns"):
         lines.append(f"steps: {max_turns}")
 
-    lines.extend([
-        "permission:",
-        "  read: allow",
-        "  grep: allow",
-        "  glob: allow",
-        f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
-        f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
-        FRONTMATTER_BOUNDARY,
-        "",
-        body,
-    ])
+    lines.append("permission:")
+    if source.stem == "proof-video-reviewer":
+        lines.extend(
+            [
+                "  read:",
+                '    "*": deny',
+                '    "review-prompt-round-*.json": allow',
+                '    "frames/*": allow',
+                "  grep: deny",
+                "  glob: deny",
+                "  external_directory: deny",
+            ]
+        )
+    else:
+        lines.extend(["  read: allow", "  grep: allow", "  glob: allow"])
+    lines.extend(
+        [
+            f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
+            f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
+            FRONTMATTER_BOUNDARY,
+            "",
+            body,
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -254,8 +269,9 @@ def validate_skill_names() -> list[str]:
     return problems
 
 
-def validate_hooks() -> list[str]:
+def sync_hooks(*, check: bool) -> list[str]:
     problems: list[str] = []
+    CODEX_HOOKS_DIR.mkdir(parents=True, exist_ok=True)
     for codex_hook in sorted(CODEX_HOOKS_DIR.glob("*.sh")):
         if codex_hook.name == CODEX_HOOK_BRIDGE.name:
             continue
@@ -263,7 +279,11 @@ def validate_hooks() -> list[str]:
         if not claude_hook.exists():
             problems.append(f"Codex hook mirror has no Claude source: {codex_hook}")
         elif codex_hook.read_text() != claude_hook.read_text():
-            problems.append(f"Codex hook mirror drifted from Claude source: {codex_hook}")
+            if check:
+                problems.append(f"Codex hook mirror drifted from Claude source: {codex_hook}")
+            else:
+                codex_hook.write_text(claude_hook.read_text())
+                codex_hook.chmod(claude_hook.stat().st_mode & 0o777)
 
     bridge_text = CODEX_HOOK_BRIDGE.read_text()
     referenced_hooks = set(re.findall(r'"([a-z0-9.-]+\.sh)"', bridge_text))
@@ -274,8 +294,15 @@ def validate_hooks() -> list[str]:
             if not NON_CLAUDE_HOOK_COMMANDS[hook_name].exists():
                 problems.append(f"adapter references missing script command: {hook_name}")
             continue
-        if not (CLAUDE_HOOKS_DIR / hook_name).exists():
+        claude_hook = CLAUDE_HOOKS_DIR / hook_name
+        codex_hook = CODEX_HOOKS_DIR / hook_name
+        if not claude_hook.exists():
             problems.append(f"adapter references missing Claude hook: {hook_name}")
+        elif check and not codex_hook.exists():
+            problems.append(f"missing Codex hook mirror: {codex_hook}")
+        elif not check and not codex_hook.exists():
+            codex_hook.write_text(claude_hook.read_text())
+            codex_hook.chmod(claude_hook.stat().st_mode & 0o777)
 
     return problems
 
@@ -289,7 +316,7 @@ def main() -> int:
         *sync_skills(check=args.check),
         *sync_agents(check=args.check),
         *validate_skill_names(),
-        *validate_hooks(),
+        *sync_hooks(check=args.check),
     ]
     if problems:
         for problem in problems:
@@ -299,7 +326,7 @@ def main() -> int:
     if args.check:
         print("Agent-tool parity is up to date.")
     else:
-        print("Synchronized Agent Skills, Codex agents, and OpenCode agents.")
+        print("Synchronized Agent Skills, Codex agents, OpenCode agents, and Codex hook mirrors.")
     return 0
 
 

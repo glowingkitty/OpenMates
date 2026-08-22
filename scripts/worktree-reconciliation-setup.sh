@@ -3,8 +3,9 @@
 # OpenMates Agent Worktree Reconciliation Timer Installer
 #
 # Installs a user-level systemd oneshot and hourly timer on the dev machine.
-# The job first integrates current eligible checkpoints through normal deploy
-# gates, then reports stale worktrees without deleting them. Legacy state is never merged.
+# The job first enforces the unconditional 72-hour hard lifetime without a
+# network dependency, then integrates current eligible checkpoints and safely
+# reconciles younger worktrees. Legacy state is never merged.
 # Run manually after deploying lifecycle changes to the root control plane.
 # =============================================================================
 set -euo pipefail
@@ -23,7 +24,9 @@ Description=OpenMates agent worktree reconciliation
 [Service]
 Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
-ExecStart=/bin/bash -lc 'git fetch origin dev || exit; auto_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree auto-integrate || auto_status=\$?; reconcile_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 || reconcile_status=\$?; if [ "\$reconcile_status" -ne 0 ]; then exit "\$reconcile_status"; fi; exit "\$auto_status"'
+TimeoutStartSec=50min
+Nice=10
+ExecStart=/bin/bash -lc 'expire_status=0; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree expire --max-age-hours 72 || expire_status=\$?; fetch_status=0; git fetch origin dev || fetch_status=\$?; if [ "\$fetch_status" -eq 0 ]; then /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree auto-integrate || echo "WARNING: checkpoint auto-integration failed; hard expiry already completed"; /usr/bin/python3 $PROJECT_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe || echo "WARNING: safe reconciliation failed; hard expiry already completed"; else echo "WARNING: git fetch failed; hard expiry already completed"; fi; exit "\$expire_status"'
 EOF
 
 cat > "$SYSTEMD_DIR/worktree-reconciliation.timer" <<EOF

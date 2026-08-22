@@ -11,7 +11,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -57,6 +56,7 @@ import {
   planServerRuntime,
   planUpdate,
   parseSecretEnvKey,
+  planServerLogRangeArgs,
   resolveServiceSelection,
   resolveTemplateSource,
   findMissingRequiredSecrets,
@@ -76,13 +76,28 @@ import {
   planRuntimeMonitoringServices,
   planRuntimeVerification,
   resolveRuntimeDeploymentMode,
+  shouldAutoInstallRuntimeMonitoringServices,
+  OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
+  buildOperationalDeliveryReceipt,
+  evaluateOperationalReportFreshness,
+  planOperationalMonitoring,
+  probeRuntimeEmailService,
   signRuntimeWebhookPayload,
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+
+const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
+const TEST_STATE_DIR = join(tmpdir(), `openmates-cli-state-${process.pid}-${Date.now()}`);
+process.env.OPENMATES_STATE_DIR = TEST_STATE_DIR;
+after(() => {
+  rmSync(TEST_STATE_DIR, { recursive: true, force: true });
+  if (ORIGINAL_STATE_DIR === undefined) delete process.env.OPENMATES_STATE_DIR;
+  else process.env.OPENMATES_STATE_DIR = ORIGINAL_STATE_DIR;
+});
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
@@ -138,7 +153,9 @@ function readEnvMapForComposeTest(installPath: string): Record<string, string> {
 
 function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
   const resolvedInstallMode = installMode ?? (
-    existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
+    existsSync(join(installPath, "backend", "core", "docker-compose.yml"))
+      ? "source"
+      : existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
   );
   const env = readEnvMapForComposeTest(installPath);
   const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true" ? "official_cloud" : "self_host";
@@ -290,7 +307,7 @@ function docAssert(claimId: string, assertion: () => void): void {
 // ---------------------------------------------------------------------------
 
 describe("ServerConfig", () => {
-  const STATE_DIR = join(homedir(), ".openmates");
+  const STATE_DIR = TEST_STATE_DIR;
   const CONFIG_PATH = join(STATE_DIR, "server.json");
   let backupExists = false;
   let backupContent: string | null = null;
@@ -318,6 +335,8 @@ describe("ServerConfig", () => {
         installPath: "/tmp/test-openmates",
         installedAt: Date.now(),
         composeProfile: "core",
+        installMode: "source",
+        sourceStrategy: "working_tree",
         apiUrl: "http://localhost:8000",
         appUrl: "http://localhost:5173",
       };
@@ -326,6 +345,8 @@ describe("ServerConfig", () => {
       assert.ok(loaded);
       assert.equal(loaded.installPath, config.installPath);
       assert.equal(loaded.composeProfile, "core");
+      assert.equal(loaded.installMode, "source");
+      assert.equal(loaded.sourceStrategy, "working_tree");
       assert.equal(loaded.apiUrl, "http://localhost:8000");
       assert.equal(loaded.appUrl, "http://localhost:5173");
     });
@@ -484,7 +505,7 @@ describe("composeArgs", () => {
     rmSync(emptyDir, { recursive: true, force: true });
   });
 
-  it("appends the OpenMatesCloud compose file when env enables official-cloud mode", () => {
+  it("appends the OpenMatesCloud compose file and no-webapp override when env enables official-cloud mode", () => {
     const rootDir = join(tmpdir(), `openmates-official-cloud-${Date.now()}`);
     const installPath = join(rootDir, "OpenMates");
     const overlayPath = join(rootDir, "OpenMatesCloud");
@@ -501,6 +522,7 @@ describe("composeArgs", () => {
       "compose", "--env-file", ".env",
       "-f", join("backend", "core", "docker-compose.yml"),
       "-f", overlayComposeFile,
+      "-f", OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
     ]);
     rmSync(rootDir, { recursive: true, force: true });
   });
@@ -509,7 +531,8 @@ describe("composeArgs", () => {
     const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
     const composeSource = source.slice(source.indexOf("export function composeArgs"), source.indexOf("/** Ensure compose interpolation"));
 
-    assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
+    assert.match(composeSource, /getInstallDeploymentMode/);
+    assert.match(composeSource, /ensureOfficialCloudNoWebappComposeFile/);
     assert.match(composeSource, /planDockerComposeArgs/);
   });
 
@@ -524,6 +547,17 @@ describe("composeArgs", () => {
     assert.match(pruneSource, /backups\.slice\(0, Math\.max\(0, backups\.length - ENV_BACKUP_RETENTION_COUNT\)\)/);
     assert.match(pruneSource, /rmSync\(join\(installPath, backup\), \{ force: true \}\)/);
     assert.match(backupSource, /pruneEnvBackups\(installPath\)/);
+  });
+});
+
+describe("server start override persistence", () => {
+  it("registers an unregistered source checkout before starting with overrides", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const startSource = source.slice(source.indexOf("async function serverStart"), source.indexOf("async function serverStop"));
+
+    assert.match(startSource, /flags\["with-overrides"\] === true && !config && !loadServerConfig\(\)/);
+    assert.match(startSource, /await serverRegister\(\{ path: installPath, "with-overrides": true \}\)/);
+    assert.match(startSource, /config = loadConfigForInstallPath\(installPath\)/);
   });
 });
 
@@ -586,7 +620,7 @@ describe("OpenMatesCloud overlay planning", () => {
     assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), baseArgs);
   });
 
-  it("resolves sibling official-cloud overlay and appends its compose file", () => {
+  it("resolves sibling official-cloud overlay and disables the bundled webapp", () => {
     const plan = planOpenMatesCloudOverlay({
       deploymentMode: "official_cloud",
       openMatesPath,
@@ -596,7 +630,10 @@ describe("OpenMatesCloud overlay planning", () => {
 
     assert.equal(plan.enabled, true);
     assert.equal(plan.overlayPath, siblingOverlayPath);
-    assert.deepEqual(plan.composeFiles, [join(siblingOverlayPath, "docker-compose.openmatescloud.yml")]);
+    assert.deepEqual(plan.composeFiles, [
+      join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
+    ]);
     assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "true");
     assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_PATH, siblingOverlayPath);
     assert.match(plan.modeLabel, /official cloud overlay/);
@@ -604,6 +641,8 @@ describe("OpenMatesCloud overlay planning", () => {
       ...baseArgs,
       "-f",
       join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      "-f",
+      OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
     ]);
   });
 
@@ -619,6 +658,21 @@ describe("OpenMatesCloud overlay planning", () => {
       "compose", "--env-file", ".env",
       "-f", join("backend", "core", "docker-compose.yml"),
       "-f", join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+      "-f", OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
+    ]);
+  });
+
+  it("keeps regular self-host Docker compose args on the base core stack", () => {
+    const args = planDockerComposeArgs({
+      openMatesPath,
+      installMode: "image",
+      deploymentMode: "self_host",
+      overlayExists: false,
+    });
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
     ]);
   });
 
@@ -734,8 +788,12 @@ describe("role-based server planning", () => {
   it("resolves core observability profiles and alert opt-in", () => {
     assert.deepEqual(planServerRuntime({ role: "core", profile: "minimal" }).profileServices, []);
     assert.deepEqual(planServerRuntime({ role: "core", profile: "standard" }).profileServices, ["openobserve", "promtail"]);
-    assert.deepEqual(planServerRuntime({ role: "core", profile: "production" }).profileServices, ["openobserve", "promtail", "prometheus", "cadvisor"]);
+    assert.deepEqual(planServerRuntime({ role: "core", profile: "production" }).profileServices, ["openobserve", "promtail", "prometheus", "cadvisor", "node-exporter"]);
     assert.ok(planServerRuntime({ role: "core", profile: "production", withAlerts: true }).profileServices.includes("alertmanager"));
+    assert.ok(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("node-exporter"));
+    assert.ok(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("workflow-worker"));
+    assert.equal(planServerRuntime({ role: "core", profile: "production", includeWebapp: false }).defaultServices.includes("webapp"), false);
+    assert.equal(planServerRuntime({ role: "core", profile: "production" }).defaultServices.includes("webapp"), true);
   });
 
   it("validates role-specific service selections before Docker is called", () => {
@@ -757,6 +815,7 @@ describe("role-based server planning", () => {
     assert.ok(upArgs.includes("api"));
     assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: services, filterRequested: true }), false);
     assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: ["api", "webapp"], filterRequested: true }), true);
+    assert.equal(shouldCheckWebHealth({ role: "core", deploymentMode: "official_cloud", filterRequested: false }), false);
     assert.equal(shouldCheckWebHealth({ role: "core", filterRequested: false }), true);
     assert.equal(shouldCheckWebHealth({ role: "upload", filterRequested: false }), false);
   });
@@ -807,7 +866,7 @@ describe("role-based server planning", () => {
     assert.match(baseBlock, /vault-setup-data:\/vault-data/, "worker base must mount Vault token data");
     assert.match(baseBlock, /\.\.\/\.\.\/config:\/app_config/, "worker base must mount provider config");
 
-    for (const service of ["task-worker", "task-scheduler"]) {
+    for (const service of ["task-worker", "reminder-worker", "task-scheduler"]) {
       const block = serviceBlock(service);
       assert.match(block, /<<: \*openmates-worker-base/, `${service} must inherit worker base`);
     }
@@ -858,6 +917,27 @@ describe("role-based server planning", () => {
       path: "templates/core/docker-compose.selfhost.yml",
     });
     assert.equal(resolveTemplateSource({ role: "core", packagedTemplateExists: false, templateRef: "dev" }).type, "github-raw");
+  });
+});
+
+describe("server log args", () => {
+  it("keeps the existing default tail for unbounded log reads", () => {
+    assert.deepEqual(planServerLogRangeArgs({}), ["--tail", "100"]);
+  });
+
+  it("passes --since through without applying the default tail cap", () => {
+    assert.deepEqual(planServerLogRangeArgs({ since: "10m" }), ["--since", "10m"]);
+  });
+
+  it("combines explicit --since and --tail filters", () => {
+    assert.deepEqual(planServerLogRangeArgs({ since: "2026-08-22T10:00:00Z", tail: "200" }), [
+      "--since", "2026-08-22T10:00:00Z", "--tail", "200",
+    ]);
+  });
+
+  it("rejects missing --since and --tail values", () => {
+    assert.throws(() => planServerLogRangeArgs({ since: true }), /Provide a since value/);
+    assert.throws(() => planServerLogRangeArgs({ tail: true }), /Provide a tail value/);
   });
 });
 
@@ -983,9 +1063,11 @@ describe("post-update runtime health", () => {
 
   it("omits billing checks for self-host inventories", () => {
     const checks = buildRuntimeCheckInventory("core", "self_host");
+    const schedulerCheck = checks.find((check) => check.id === "core.scheduler_freshness");
     assert.ok(checks.some((check) => check.id === "core.chat_plumbing"));
     assert.equal(checks.some((check) => check.id.startsWith("billing.")), false);
     assert.ok(checks.every((check) => check.timeoutSeconds > 0 && check.timeoutSeconds <= 60));
+    assert.equal(schedulerCheck?.timeoutSeconds, 15);
   });
 
   it("uses one bounded parallel verification plan and reports restore availability", () => {
@@ -1010,6 +1092,12 @@ describe("post-update runtime health", () => {
     assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
   });
 
+  it("requires an explicit environment opt-out to skip automatic runtime monitor service installation", () => {
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({}), true);
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({ OPENMATES_SKIP_RUNTIME_MONITORING: "0" }), true);
+    assert.equal(shouldAutoInstallRuntimeMonitoringServices({ OPENMATES_SKIP_RUNTIME_MONITORING: "1" }), false);
+  });
+
   it("alerts on the second transient failure, deduplicates, then recovers", () => {
     const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
     const second = applyRuntimeCheckResults(first.state, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
@@ -1020,6 +1108,17 @@ describe("post-update runtime health", () => {
     assert.equal(second.events[0]?.type, "service_unhealthy");
     assert.deepEqual(repeated.events, []);
     assert.equal(recovered.events[0]?.type, "recovered");
+  });
+
+  it("alerts immediately when the runtime verifier container is unavailable", () => {
+    const result = applyRuntimeCheckResults(
+      undefined,
+      [{ id: "core.runtime_verifier_available", status: "failed", failureClass: "critical_availability" }],
+      "2026-08-06T10:00:00Z",
+    );
+
+    assert.equal(result.events[0]?.type, "service_unhealthy");
+    assert.equal(result.state.checks?.["core.runtime_verifier_available"]?.incidentOpen, true);
   });
 
   it("tracks failure thresholds per check instead of combining unrelated failures", () => {
@@ -1042,6 +1141,142 @@ describe("post-update runtime health", () => {
     await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::ffff:a00:1"]));
     await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::a9fe:101"]));
     await assert.doesNotReject(() => validateRuntimeWebhookDestination("https://example.org/hook", ["93.184.216.34"]));
+  });
+});
+
+describe("operational monitoring digest", () => {
+  it("enables email only after a bounded provider availability probe", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      let requestedUrl = "";
+      globalThis.fetch = (async (input: string | URL | Request) => {
+        requestedUrl = String(input);
+        return new Response(null, { status: 200 });
+      }) as typeof fetch;
+      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), true);
+      assert.equal(requestedUrl, "https://api.brevo.com/v3/account");
+
+      globalThis.fetch = (async () => { throw new Error("network_unavailable"); }) as typeof fetch;
+      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.self-host.no-billing,operational-monitoring.environments.isolated-labeled
+  it("activates self-host email only with an admin recipient and available service", () => {
+    const active = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: false,
+    });
+    const missingRecipient = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      emailServiceAvailable: true,
+      discordConfigured: false,
+    });
+    const unavailableService = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: false,
+      discordConfigured: false,
+    });
+
+    assert.equal(active.emailEnabled, true);
+    assert.equal(active.scheduleEnabled, true);
+    assert.equal(missingRecipient.emailEnabled, false);
+    assert.equal(missingRecipient.configurationStatus, "missing_admin_email");
+    assert.equal(unavailableService.emailEnabled, false);
+    assert.equal(unavailableService.configurationStatus, "email_service_unavailable");
+    assert.match(active.digestUnit, /--channel email(?:\s|$)/);
+
+    const serialized = JSON.stringify(active).toLowerCase();
+    for (const forbidden of ["billing", "payment", "stripe", "invoice", "subscription", "purchase"]) {
+      assert.equal(serialized.includes(forbidden), false);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.delivery.observable
+  it("renders idempotent digest and stale-watchdog systemd plans", () => {
+    const first = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: true,
+    });
+    const second = planOperationalMonitoring({
+      environment: "self_host",
+      role: "core",
+      installPath: "/srv/openmates",
+      adminEmail: "admin@example.test",
+      emailServiceAvailable: true,
+      discordConfigured: true,
+    });
+
+    assert.deepEqual(first, second);
+    assert.match(first.digestTimer, /Persistent=true/);
+    assert.match(first.digestUnit, /server monitoring digest/);
+    assert.match(first.watchdogUnit, /server monitoring report-watchdog/);
+    assert.doesNotMatch(first.digestUnit + first.watchdogUnit, /admin@example\.test|SECRET__|API_KEY|TOKEN=/);
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.alerts.independent-urgent-path
+  it("detects stale reports once and recovers after a fresh accepted report", () => {
+    const grace = evaluateOperationalReportFreshness(
+      { incidentOpen: false, monitoringStartedAt: "2026-08-14T11:00:00Z" },
+      new Date("2026-08-14T12:00:00Z"),
+    );
+    const stale = evaluateOperationalReportFreshness(
+      { incidentOpen: false, monitoringStartedAt: "2026-08-13T09:00:00Z" },
+      new Date("2026-08-14T12:00:00Z"),
+    );
+    const repeated = evaluateOperationalReportFreshness(stale.state, new Date("2026-08-14T12:05:00Z"));
+    const recovered = evaluateOperationalReportFreshness(
+      { ...repeated.state, lastAcceptedReportAt: "2026-08-14T12:06:00Z" },
+      new Date("2026-08-14T12:07:00Z"),
+    );
+
+    assert.equal(grace.event, null);
+    assert.equal(stale.event?.type, "operational_report_stale");
+    assert.equal(repeated.event, null);
+    assert.equal(recovered.event?.type, "operational_report_recovered");
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.environments.isolated-labeled
+  it("keeps per-channel accepted and failed receipts without destinations", () => {
+    const email = buildOperationalDeliveryReceipt({
+      environment: "development",
+      reportId: "report-1",
+      reportSha256: "abc123",
+      channel: "email",
+      state: "accepted",
+      attemptCount: 1,
+      occurredAt: "2026-08-14T12:00:00Z",
+    });
+    const discord = buildOperationalDeliveryReceipt({
+      environment: "development",
+      reportId: "report-1",
+      reportSha256: "abc123",
+      channel: "discord",
+      state: "failed",
+      attemptCount: 3,
+      occurredAt: "2026-08-14T12:00:00Z",
+      sanitizedFailureClass: "delivery_timeout",
+    });
+
+    assert.equal(email.state, "accepted");
+    assert.equal(discord.state, "failed");
+    assert.equal("destination" in email, false);
+    assert.equal("webhookUrl" in discord, false);
   });
 });
 

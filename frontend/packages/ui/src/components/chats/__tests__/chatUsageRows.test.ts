@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../../../types/chat';
-import { buildChatUsageRows, totalKnownCredits, usageRowsToCsv, usageRowsToYaml } from '../chatUsageRows';
+import { buildChatUsageRows, totalKnownCredits, usageEntriesToChatUsageRows, usageRowsToCsv, usageRowsToYaml } from '../chatUsageRows';
 
 function message(overrides: Partial<Message>): Message {
   return {
@@ -21,6 +21,7 @@ function message(overrides: Partial<Message>): Message {
 }
 
 describe('chat settings usage rows', () => {
+  // contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
   it('builds rows only for assistant messages and keeps unknown credits visible', () => {
     const rows = buildChatUsageRows([
       message({ role: 'user', content: 'Please research this.' }),
@@ -49,6 +50,7 @@ describe('chat settings usage rows', () => {
     expect(totalKnownCredits(rows)).toBe(7);
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
   it('exports deterministic CSV and YAML rows', () => {
     const rows = buildChatUsageRows([
       message({ message_id: 'assistant-1', model_name: 'Brave "Search"', content: 'One two', example_response_credits: 2 }),
@@ -74,5 +76,41 @@ describe('chat settings usage rows', () => {
       '  credits: unknown',
       '  words: 0',
     ].join('\n'));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown,audio-speak.billing.success-only
+  it('maps audio app-skill usage entries to provider rows', () => {
+    const rows = usageEntriesToChatUsageRows([
+      {
+        id: 'audio-speak-usage',
+        type: 'skill_execution',
+        source: 'chat',
+        app_id: 'audio',
+        skill_id: 'speak',
+        model_used: 'elevenlabs/eleven_flash_v2_5',
+        credits: 10,
+        server_provider: 'ElevenLabs',
+        server_region: 'US',
+        chat_id: 'chat-1',
+        message_id: 'message-1',
+        created_at: 1_700_000_001,
+      },
+    ]);
+
+    expect(rows).toEqual([
+      {
+        id: 'audio-speak-usage',
+        label: 'audio | speak',
+        provider: 'ElevenLabs / US',
+        timestamp: 1_700_000_001,
+        credits: 10,
+        words: 0,
+        iconName: 'audio',
+        appId: 'audio',
+        skillId: 'speak',
+        inputTokens: null,
+        outputTokens: null,
+      },
+    ]);
   });
 });

@@ -9,10 +9,24 @@ import { chatDB } from "./db";
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { computeKeyFingerprint } from "./encryption/ChatKeyManager";
+import { unwrapTeamChatKey } from "./teamService";
 
 interface ChatKeyWriteGuardOptions {
   allowMissingEncryptedChatKey?: boolean;
   reportFailure?: boolean;
+}
+
+function recordChatKeyGuardFailure(
+  reason: string,
+  chat: { team_id?: string | null; candidate_encrypted_keys?: string[] } | null,
+): void {
+  if (typeof window === "undefined") return;
+  (window as Window & { __openmatesLastChatKeyGuardDebug?: Record<string, unknown> })
+    .__openmatesLastChatKeyGuardDebug = {
+      reason,
+      teamScoped: Boolean(chat?.team_id),
+      candidateCount: chat?.candidate_encrypted_keys?.length ?? 0,
+    };
 }
 
 function shouldReportFailure(options: ChatKeyWriteGuardOptions): boolean {
@@ -32,6 +46,7 @@ export async function ensureChatKeySafeForWrite(
   const reportFailure = shouldReportFailure(options);
 
   if (chat?.candidate_encrypted_keys?.length) {
+    recordChatKeyGuardFailure("candidate_keys_pending", chat);
     if (reportFailure) {
       console.error(
         `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: chat has ` +
@@ -45,6 +60,7 @@ export async function ensureChatKeySafeForWrite(
   }
 
   if (chat?.key_fingerprint && chat.key_fingerprint !== rawFingerprint) {
+    recordChatKeyGuardFailure("fingerprint_mismatch", chat);
     if (encryptedChatKey) addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
     if (reportFailure) {
       console.error(
@@ -60,6 +76,7 @@ export async function ensureChatKeySafeForWrite(
 
   if (!encryptedChatKey) {
     if (options.allowMissingEncryptedChatKey) return true;
+    recordChatKeyGuardFailure("encrypted_key_missing", chat);
     if (reportFailure) {
       console.error(
         `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: no persisted encrypted_chat_key to validate against`,
@@ -68,13 +85,35 @@ export async function ensureChatKeySafeForWrite(
     return false;
   }
 
-  const keyMatches = await encryptedChatKeyMatchesRawKey(
-    encryptedChatKey,
-    rawChatKey,
-    decryptChatKeyWithMasterKey,
-  );
+  let keyMatches: boolean | null;
+  try {
+    keyMatches = await encryptedChatKeyMatchesRawKey(
+      encryptedChatKey,
+      rawChatKey,
+      chat?.team_id
+        ? async (wrappedKey) => {
+            const teamChatKey = await unwrapTeamChatKey(chat.team_id!, wrappedKey);
+            if (!teamChatKey) throw new Error("Team chat key could not be unwrapped");
+            return teamChatKey;
+          }
+        : decryptChatKeyWithMasterKey,
+    );
+  } catch (error) {
+    recordChatKeyGuardFailure("persisted_key_unwrap_failed", chat);
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: persisted chat key could not be validated`,
+        error,
+      );
+      notificationStore.error(
+        "We could not safely store this update because this chat key could not be validated. Please reload and try again.",
+      );
+    }
+    return false;
+  }
 
   if (keyMatches === false) {
+    recordChatKeyGuardFailure("persisted_key_mismatch", chat);
     addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
     if (reportFailure) {
       console.error(

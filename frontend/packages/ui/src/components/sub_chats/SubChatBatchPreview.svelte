@@ -49,6 +49,8 @@
   let contextMenuVisible = $state(false);
   let downloading = $state(false);
   let prefersTouchCta = $state(false);
+  let latestLoadId = 0;
+  const terminalSubChatIds = new Set<string>();
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -65,17 +67,32 @@
 
   async function load(forceRefresh = false): Promise<void> {
     if (!parentChatId) return;
+    const loadId = ++latestLoadId;
     isLoading = true;
     try {
       if (forceRefresh) clearSubChatsForParentCache(parentChatId);
-      subChats = await loadSubChatPreviews(parentChatId, {
+      const previews = await loadSubChatPreviews(parentChatId, {
         subChatIds,
         forceRefresh,
+        allowUnsyncedAssistantSummary: status !== 'processing',
+        terminalSubChatIds,
+      });
+      if (loadId !== latestLoadId) return;
+
+      const previousById = new Map(subChats.map((subChat) => [subChat.chat_id, subChat]));
+      subChats = previews.map((preview) => {
+        const previous = previousById.get(preview.chat_id);
+        if (!previous?.previewSummary || preview.previewSummary) return preview;
+        return { ...preview, previewSummary: previous.previewSummary };
       });
     } catch (error) {
-      console.error('[SubChatBatchPreview] Failed to load sub-chat previews:', error);
+      if (loadId === latestLoadId) {
+        console.error('[SubChatBatchPreview] Failed to load sub-chat previews:', error);
+      }
     } finally {
-      isLoading = false;
+      if (loadId === latestLoadId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -145,6 +162,12 @@
     return detail.chat_id === parentChatId || detail.parent_id === parentChatId;
   }
 
+  function shouldRefreshFromChatUpdate(detail: Record<string, unknown> | undefined): boolean {
+    if (!detail) return false;
+    const chatId = typeof detail.chat_id === 'string' ? detail.chat_id : null;
+    return Boolean(chatId && subChatIds.includes(chatId));
+  }
+
   onMount(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
     const updatePointerCta = () => {
@@ -162,22 +185,36 @@
     const handleSubChatLifecycle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!shouldRefreshFromDetail(detail)) return;
+      if (detail?.type === 'sub_chat_completed' && typeof detail.chat_id === 'string') {
+        terminalSubChatIds.add(detail.chat_id);
+      }
+      void load(true);
+    };
+    const handleChatUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+      if (!shouldRefreshFromChatUpdate(detail)) return;
+      if (typeof detail.chat_id === 'string') {
+        terminalSubChatIds.add(detail.chat_id);
+      }
       void load(true);
     };
 
     window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
     window.addEventListener('subChatProgress', handleSubChatLifecycle);
     window.addEventListener('subChatCompleted', handleSubChatLifecycle);
+    chatSyncService.addEventListener('chatUpdated', handleChatUpdated);
 
     return () => {
       window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
       window.removeEventListener('subChatProgress', handleSubChatLifecycle);
       window.removeEventListener('subChatCompleted', handleSubChatLifecycle);
+      chatSyncService.removeEventListener('chatUpdated', handleChatUpdated);
       pointerQuery.removeEventListener('change', updatePointerCta);
     };
   });
 
   onDestroy(() => {
+    latestLoadId++;
     contextMenuVisible = false;
   });
 </script>

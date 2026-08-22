@@ -12,8 +12,12 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMates } from "../src/sdk.ts";
+import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
+import { buildEncryptedObjectSlugMetadata } from "../src/objectSlugs.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
+
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
 function minimalGraph() {
   return {
@@ -39,9 +43,16 @@ function templateImportPayload() {
   };
 }
 
+function assertPublicWorkflowSlug(workflow: Record<string, unknown>, slug: string): void {
+  assert.equal(workflow.slug, slug);
+  assert.equal("encrypted_slug" in workflow, false);
+  assert.equal("slug_lookup_hash" in workflow, false);
+}
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
+  expectedAuthorization = "Bearer x",
 ): Promise<void> {
   const seen: SeenRequest[] = [];
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -54,7 +65,7 @@ async function withServer(
         if (request.url?.startsWith("/v1/workflows/template-projections/")) {
           assert.equal(request.headers.authorization, undefined);
         } else {
-          assert.equal(request.headers.authorization, "Bearer x");
+          assert.equal(request.headers.authorization, expectedAuthorization);
         }
         assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
@@ -72,15 +83,31 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();
+    const masterKey = Buffer.alloc(32, 11);
+    const material = await createApiKeyCryptoMaterial("sdk workflow parity", masterKey.toString("base64"));
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: "Morning", encryptionKey: masterKey, lookupKey: masterKey });
+    const tempSlugMetadata = await buildEncryptedObjectSlugMetadata({ value: "Temporary", encryptionKey: masterKey, lookupKey: masterKey });
+    const encryptedSlugFields = {
+      encrypted_slug: slugMetadata.encrypted_slug,
+      slug_lookup_hash: slugMetadata.slug_lookup_hash,
+    };
+    const encryptedTempSlugFields = {
+      encrypted_slug: tempSlugMetadata.encrypted_slug,
+      slug_lookup_hash: tempSlugMetadata.slug_lookup_hash,
+    };
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
         if (request.url === "/v1/workflows" && request.method === "GET") {
-          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields }] };
         }
         if (request.url === "/v1/workflows/temporary" && request.method === "GET") {
-          return { workflows: [{ id: "wf-temp", title: "Temporary", status: "disabled", enabled: false, lifecycle: "temporary", run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+          return { workflows: [{ id: "wf-temp", title: "Temporary", status: "disabled", enabled: false, lifecycle: "temporary", run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedTempSlugFields }] };
         }
         if (request.url === "/v1/workflows/capabilities") {
           return { capabilities: [{ id: "weather:forecast", type: "app_skill", title: "Weather forecast", enabled: true }] };
@@ -91,11 +118,11 @@ describe("OpenMates SDK workflows", () => {
         }
         if (request.url === "/v1/workflows/yaml") {
           assert.deepEqual(body, { source: "title: Morning\n" });
-          return { workflow: { id: "wf-yaml", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-yaml", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
         }
         if (request.url === "/v1/workflows/wf-1/yaml") {
           assert.deepEqual(body, { source: "title: Updated\n" });
-          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v2", created_at: 1, updated_at: 2, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v2", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
         }
         if (request.url === "/v1/workflows/wf-1/runs") {
           return { runs: [{ id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [] }] };
@@ -143,7 +170,7 @@ describe("OpenMates SDK workflows", () => {
         }
         if (request.url === "/v1/workflows/template-import") {
           assert.deepEqual(body, templateImportPayload());
-          return { workflow: { id: "wf-imported", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph, binding_requirements: [] } };
+          return { workflow: { id: "wf-imported", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph, binding_requirements: [], ...encryptedSlugFields } };
         }
         if (request.url === "/v1/workflows/wf-1/run") {
           assert.deepEqual(body, { mode: "test", input: { dry: true } });
@@ -151,22 +178,38 @@ describe("OpenMates SDK workflows", () => {
           return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "test", status: "completed", content_retention_mode: "none", content_available: true, content_storage: "ephemeral", node_runs: [] } };
         }
         if (request.method === "DELETE") return { deleted: true };
-        return { workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph } };
+        return { workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields } };
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
-        assert.equal((await client.workflows.list())[0]?.id, "wf-1");
-        assert.equal((await client.workflows.temporary())[0]?.id, "wf-temp");
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        const listedWorkflow = (await client.workflows.list())[0];
+        const temporaryWorkflow = (await client.workflows.temporary())[0];
+        assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(temporaryWorkflow?.id, "wf-temp");
+        assertPublicWorkflowSlug(listedWorkflow as Record<string, unknown>, "morning");
+        assertPublicWorkflowSlug(temporaryWorkflow as Record<string, unknown>, "temporary");
         assert.equal((await client.workflows.capabilities())[0]?.id, "weather:forecast");
         assert.equal((await client.workflows.validateYaml("title: Morning\n")).draft_valid, true);
-        assert.equal((await client.workflows.createFromYaml("title: Morning\n")).workflow.id, "wf-yaml");
-        assert.equal((await client.workflows.updateFromYaml("wf-1", "title: Updated\n")).workflow.title, "Updated");
-        assert.equal((await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: "chat-1", createdByAssistant: true })).run_content_retention, "none");
-        assert.equal((await client.workflows.get("wf-1")).id, "wf-1");
-        assert.equal((await client.workflows.update("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
-        assert.equal((await client.workflows.enable("wf-1")).enabled, true);
-        assert.equal((await client.workflows.disable("wf-1")).id, "wf-1");
-        assert.equal((await client.workflows.keep("wf-1")).id, "wf-1");
+        const createdFromYaml = await client.workflows.createFromYaml("title: Morning\n");
+        const updatedFromYaml = await client.workflows.updateFromYaml("wf-1", "title: Updated\n");
+        const createdWorkflow = await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true });
+        const fetchedWorkflow = await client.workflows.get("wf-1");
+        const updatedWorkflow = await client.workflows.update("wf-1", { enabled: false, runContentRetention: "last_5" });
+        const enabledWorkflow = await client.workflows.enable("wf-1");
+        const disabledWorkflow = await client.workflows.disable("wf-1");
+        const keptWorkflow = await client.workflows.keep("wf-1");
+
+        assert.equal(createdFromYaml.workflow.id, "wf-yaml");
+        assert.equal(updatedFromYaml.workflow.title, "Updated");
+        assert.equal(createdWorkflow.run_content_retention, "none");
+        assert.equal(fetchedWorkflow.id, "wf-1");
+        assert.equal(updatedWorkflow.id, "wf-1");
+        assert.equal(enabledWorkflow.enabled, true);
+        assert.equal(disabledWorkflow.id, "wf-1");
+        assert.equal(keptWorkflow.id, "wf-1");
+        for (const workflow of [createdFromYaml.workflow, updatedFromYaml.workflow, createdWorkflow, fetchedWorkflow, updatedWorkflow, enabledWorkflow, disabledWorkflow, keptWorkflow]) {
+          assertPublicWorkflowSlug(workflow as Record<string, unknown>, "morning");
+        }
         assert.equal((await client.workflows.run("wf-1", { idempotencyKey: "stable-run-1", mode: "test", input: { dry: true } })).content_storage, "ephemeral");
         assert.equal((await client.workflows.runs("wf-1"))[0]?.content_storage, "durable");
         assert.equal((await client.workflows.runDetail("wf-1", "run-1")).node_runs?.[0]?.output_summary?.forecast, "rain");
@@ -176,39 +219,52 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.upsertTemplateProjection("wf-1", { templateId: "tpl-1", sourceVersion: 2, ciphertext: "opaque-ciphertext", ciphertextChecksum: "sha256:abc", ownerWrappedKey: "wrapped-key", projectionSchemaVersion: 1 })).updated_at, 123);
         assert.equal((await client.workflows.createTemplateShortUrl({ token: "Abc123XY", encryptedUrl: "opaque-url", templateId: "tpl-1", ttlSeconds: 3600 })).expires_at, 999);
         assert.equal((await client.workflows.revokeShortUrl("Abc123XY")).revoked_at, 1000);
-        assert.equal((await client.workflows.importTemplate(templateImportPayload())).id, "wf-imported");
+        const importedWorkflow = await client.workflows.importTemplate(templateImportPayload());
+        assert.equal(importedWorkflow.id, "wf-imported");
+        assertPublicWorkflowSlug(importedWorkflow as Record<string, unknown>, "morning");
         assert.equal((await client.workflows.delete("wf-1", { confirmed: true })).deleted, true);
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/workflows"],
-          ["GET", "/v1/workflows/temporary"],
-          ["GET", "/v1/workflows/capabilities"],
-          ["POST", "/v1/workflows/validate"],
-          ["POST", "/v1/workflows/yaml"],
-          ["POST", "/v1/workflows/wf-1/yaml"],
-          ["POST", "/v1/workflows"],
-          ["GET", "/v1/workflows/wf-1"],
-          ["PATCH", "/v1/workflows/wf-1"],
-          ["POST", "/v1/workflows/wf-1/enable"],
-          ["POST", "/v1/workflows/wf-1/disable"],
-          ["POST", "/v1/workflows/wf-1/keep"],
-          ["POST", "/v1/workflows/wf-1/run"],
-          ["GET", "/v1/workflows/wf-1/runs"],
-          ["GET", "/v1/workflows/wf-1/runs/run-1"],
-          ["POST", "/v1/workflows/wf-1/steps/math/test"],
-          ["POST", "/v1/workflows/wf-1/runs/run-1/cancel"],
-          ["POST", "/v1/workflows/wf-1/runs/run-1/respond"],
-          ["PUT", "/v1/workflows/wf-1/template-projection"],
-          ["POST", "/v1/share/short-url"],
-          ["DELETE", "/v1/share/short-url/Abc123XY"],
-          ["POST", "/v1/workflows/template-import"],
-          ["DELETE", "/v1/workflows/wf-1"],
-        ]);
-        assert.deepEqual(seen[6]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none", lifecycle: "temporary", source: "chat", source_chat_id: "chat-1", created_by_assistant: true });
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        for (const endpoint of [
+          "GET /v1/workflows",
+          "GET /v1/workflows/temporary",
+          "GET /v1/workflows/capabilities",
+          "POST /v1/workflows/validate",
+          "POST /v1/workflows/yaml",
+          "POST /v1/workflows/wf-1/yaml",
+          "POST /v1/sdk/session",
+          "POST /v1/workflows",
+          "GET /v1/workflows/wf-1",
+          "PATCH /v1/workflows/wf-1",
+          "POST /v1/workflows/wf-1/enable",
+          "POST /v1/workflows/wf-1/disable",
+          "POST /v1/workflows/wf-1/keep",
+          "POST /v1/workflows/wf-1/run",
+          "GET /v1/workflows/wf-1/runs",
+          "GET /v1/workflows/wf-1/runs/run-1",
+          "POST /v1/workflows/wf-1/steps/math/test",
+          "POST /v1/workflows/wf-1/runs/run-1/cancel",
+          "POST /v1/workflows/wf-1/runs/run-1/respond",
+          "PUT /v1/workflows/wf-1/template-projection",
+          "POST /v1/share/short-url",
+          "DELETE /v1/share/short-url/Abc123XY",
+          "POST /v1/workflows/template-import",
+          "DELETE /v1/workflows/wf-1",
+        ]) {
+          assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
+        }
+        const createBody = seen.find((request) => request.method === "POST" && request.url === "/v1/workflows")?.body as Record<string, unknown>;
+        assert.equal(createBody.title, "Morning");
+        assert.equal(createBody.source_chat_id, CHAT_ID);
+        assert.equal(typeof createBody.encrypted_slug, "string");
+        assert.equal(typeof createBody.slug_lookup_hash, "string");
+        assert.equal("slug" in createBody, false);
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("exposes workflow app-skill child embeds and server-side search results", async () => {
     await withServer(
       (request, body) => {
@@ -304,9 +360,17 @@ describe("OpenMates SDK workflows", () => {
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("manages workflow template sharing transport through the shared API contract", async () => {
+    const material = await createApiKeyCryptoMaterial("sdk workflow template", Buffer.alloc(32, 12).toString("base64"));
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.url === "/v1/workflows" && request.method === "GET") {
+          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        }
         if (request.url === "/v1/workflows/template-projections/tpl-1" && request.method === "GET") {
           return {
             template_id: "tpl-1",
@@ -326,23 +390,33 @@ describe("OpenMates SDK workflows", () => {
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         assert.equal((await client.workflows.getPublicTemplateProjection("tpl-1")).ciphertext, "opaque-ciphertext");
         assert.equal((await client.workflows.revokeTemplateProjection("wf-1")).revoked_at, 1000);
         assert.equal((await client.workflows.unrevokeTemplateProjection("wf-1")).revoked_at, null);
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/workflows/template-projections/tpl-1"],
-          ["POST", "/v1/workflows/wf-1/template-projection/revoke"],
-          ["POST", "/v1/workflows/wf-1/template-projection/unrevoke"],
-        ]);
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        assert.ok(endpoints.includes("GET /v1/workflows/template-projections/tpl-1"));
+        assert.ok(endpoints.includes("POST /v1/sdk/session"));
+        assert.ok(endpoints.includes("GET /v1/workflows"));
+        assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/revoke"));
+        assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/unrevoke"));
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("manages durable workflow input sessions", async () => {
+    const material = await createApiKeyCryptoMaterial("sdk workflow input", Buffer.alloc(32, 13).toString("base64"));
     await withServer(
       (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.url === "/v1/workflows" && request.method === "GET") {
+          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        }
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
           assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1" });
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
@@ -366,7 +440,7 @@ describe("OpenMates SDK workflows", () => {
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
-        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         assert.equal((await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1" })).session_id, "session-1");
         assert.equal((await client.workflows.inputSession("session-1")).status, "executed");
         assert.equal((await client.workflows.inputEvents("session-1", 2))[0]?.type, "validation_passed");
@@ -374,15 +448,21 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.stopInput("session-1")).status, "stopped");
         assert.equal((await client.workflows.undoInput("session-1")).status, "undone");
 
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["POST", "/v1/workflows/input"],
-          ["GET", "/v1/workflows/input/session-1"],
-          ["GET", "/v1/workflows/input/session-1/events?after_event_id=2"],
-          ["POST", "/v1/workflows/input/session-1/follow-up"],
-          ["POST", "/v1/workflows/input/session-1/stop"],
-          ["POST", "/v1/workflows/input/session-1/undo"],
-        ]);
+        const endpoints = seen.map((request) => `${request.method} ${request.url}`);
+        for (const endpoint of [
+          "POST /v1/sdk/session",
+          "GET /v1/workflows",
+          "POST /v1/workflows/input",
+          "GET /v1/workflows/input/session-1",
+          "GET /v1/workflows/input/session-1/events?after_event_id=2",
+          "POST /v1/workflows/input/session-1/follow-up",
+          "POST /v1/workflows/input/session-1/stop",
+          "POST /v1/workflows/input/session-1/undo",
+        ]) {
+          assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
+        }
       },
+      `Bearer ${material.apiKey}`,
     );
   });
 });

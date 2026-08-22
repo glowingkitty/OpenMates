@@ -23,6 +23,7 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
+import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -45,6 +46,38 @@ const MESSAGES_STORE_NAME = "messages";
 
 // Maximum candidate keys stored per chat — prevents unbounded IDB growth
 const MAX_CANDIDATE_KEYS = 5;
+
+const SHARED_CHAT_KEY_SOURCES = new Set(["share_link", "shared_storage"]);
+
+function isSharedChatKeySource(chatId: string): boolean {
+  const provenance = chatKeyManager.getProvenance(chatId);
+  return provenance ? SHARED_CHAT_KEY_SOURCES.has(provenance.source) : false;
+}
+
+async function unwrapPersistedChatKey(
+  teamId: string | null | undefined,
+  encryptedChatKey: string,
+): Promise<Uint8Array | null> {
+  if (!teamId) return decryptChatKeyWithMasterKey(encryptedChatKey);
+  try {
+    return await unwrapTeamChatKey(teamId, encryptedChatKey);
+  } catch (error) {
+    console.error(
+      `[ChatDatabase] Failed to unwrap Team chat key for team ${teamId}`,
+      error,
+    );
+    return null;
+  }
+}
+
+async function wrapPersistedChatKey(
+  teamId: string | null | undefined,
+  chatKey: Uint8Array,
+): Promise<string | null> {
+  return teamId
+    ? wrapTeamChatKey(teamId, chatKey)
+    : encryptChatKeyWithMasterKey(chatKey);
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -178,7 +211,8 @@ export async function encryptChatForStorage(
   // store the incoming key beside locally encrypted fields. The caller must
   // explicitly clear/reload ChatKeyManager before accepting a server key change.
   if (chatKey && chat.encrypted_chat_key) {
-    const incomingKey = await decryptChatKeyWithMasterKey(
+    const incomingKey = await unwrapPersistedChatKey(
+      chat.team_id,
       chat.encrypted_chat_key,
     );
     if (incomingKey) {
@@ -212,19 +246,25 @@ export async function encryptChatForStorage(
           ).catch(() => {});
           encryptedChat.encrypted_chat_key =
             existingChat?.encrypted_chat_key ??
-            (await encryptChatKeyWithMasterKey(chatKey));
+            (await wrapPersistedChatKey(chat.team_id, chatKey));
           console.warn(
             `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
               `cached key remains authoritative until sync explicitly reloads the server key`,
           );
         }
       }
+    } else if (chat.team_id) {
+      if (options?.isFromSync) return encryptedChat;
+      throw new Error(
+        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: existing Team chat key could not be unwrapped`,
+      );
     }
   }
 
   // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    const candidateKey = await decryptChatKeyWithMasterKey(
+    const candidateKey = await unwrapPersistedChatKey(
+      chat.team_id,
       chat.encrypted_chat_key,
     );
     if (candidateKey) {
@@ -246,6 +286,11 @@ export async function encryptChatForStorage(
           chat.encrypted_chat_key,
         ).catch(() => {});
       }
+    } else if (chat.team_id) {
+      if (options?.isFromSync) return encryptedChat;
+      throw new Error(
+        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: incoming Team chat key could not be unwrapped`,
+      );
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
@@ -257,7 +302,8 @@ export async function encryptChatForStorage(
   if (!chatKey) {
     const existingChat = await dbInstance.getChat(chat.chat_id);
     if (existingChat?.encrypted_chat_key) {
-      chatKey = await decryptChatKeyWithMasterKey(
+      chatKey = await unwrapPersistedChatKey(
+        existingChat.team_id ?? chat.team_id,
         existingChat.encrypted_chat_key,
       );
       if (chatKey) {
@@ -265,6 +311,11 @@ export async function encryptChatForStorage(
         encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
         console.info(
           `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id}`,
+        );
+      } else if (existingChat.team_id ?? chat.team_id) {
+        if (options?.isFromSync) return encryptedChat;
+        throw new Error(
+          `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: persisted Team chat key could not be unwrapped`,
         );
       }
     }
@@ -296,14 +347,26 @@ export async function encryptChatForStorage(
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
-    const result = await chatKeyManager.createAndPersistKeyLocked(chat.chat_id);
-    chatKey = result.chatKey;
-    encryptedChat.encrypted_chat_key = result.encryptedChatKey;
+    if (chat.team_id) {
+      chatKey = chatKeyManager.createKeyForNewChat(chat.chat_id);
+      encryptedChat.encrypted_chat_key = await wrapTeamChatKey(
+        chat.team_id,
+        chatKey,
+      );
+    } else {
+      const result = await chatKeyManager.createAndPersistKeyLocked(chat.chat_id);
+      chatKey = result.chatKey;
+      encryptedChat.encrypted_chat_key = result.encryptedChatKey;
+    }
   }
 
   // Ensure encrypted_chat_key is present in the stored object
-  if (!encryptedChat.encrypted_chat_key && !chat.is_anonymous) {
-    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+  if (
+    !encryptedChat.encrypted_chat_key &&
+    !chat.is_anonymous &&
+    !isSharedChatKeySource(chat.chat_id)
+  ) {
+    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
     } else {
@@ -388,35 +451,56 @@ export async function decryptChatFromStorage(
     decryptedChat.is_hidden = false;
     decryptedChat.is_hidden_candidate = false;
 
-    // Always check the decryption path to determine if chat is hidden, even if we have a cached key
-    // This ensures hidden chats are properly identified and filtered
-    const { hiddenChatService } = await import("../hiddenChatService");
-    const result = await hiddenChatService.tryDecryptChatKey(
-      chat.encrypted_chat_key,
-    );
-
-    // If normal decryption fails, mark as a hidden candidate for UI filtering.
-    // This keeps locked hidden chats out of the main list without a DB flag.
-    if (result.isHiddenCandidate) {
-      decryptedChat.is_hidden_candidate = true;
-    }
-
-    if (result.chatKey) {
-      // Inject into ChatKeyManager (single source of truth)
-      chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
-      if (result.isHidden) {
-        decryptedChat.is_hidden = true;
-      } else {
-        decryptedChat.is_hidden = false;
+    if (chat.team_id) {
+      try {
+        const teamChatKey = await unwrapTeamChatKey(
+          chat.team_id,
+          chat.encrypted_chat_key,
+        );
+        chatKeyManager.injectKey(
+          chat.chat_id,
+          teamChatKey,
+          "server_sync",
+        );
+      } catch (error) {
+        // A temporarily unavailable Team key must not erase a valid key that was
+        // already created or loaded in this tab. The write guard will fail closed.
+        console.error(
+          `[ChatDatabase] Failed to unwrap Team chat key while reading chat ${chat.chat_id}`,
+          error,
+        );
       }
     } else {
-      // Both decryption paths failed - could be corrupted or a locked hidden chat
-      console.debug(
-        `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
+      // Always check the decryption path to determine if chat is hidden, even if we have a cached key
+      // This ensures hidden chats are properly identified and filtered
+      const { hiddenChatService } = await import("../hiddenChatService");
+      const result = await hiddenChatService.tryDecryptChatKey(
+        chat.encrypted_chat_key,
       );
-      // Clear any stale key since decryption failed
-      chatKeyManager.removeKey(chat.chat_id);
-      // is_hidden is already false from the initial clear above
+
+      // If normal decryption fails, mark as a hidden candidate for UI filtering.
+      // This keeps locked hidden chats out of the main list without a DB flag.
+      if (result.isHiddenCandidate) {
+        decryptedChat.is_hidden_candidate = true;
+      }
+
+      if (result.chatKey) {
+        // Inject into ChatKeyManager (single source of truth)
+        chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
+        if (result.isHidden) {
+          decryptedChat.is_hidden = true;
+        } else {
+          decryptedChat.is_hidden = false;
+        }
+      } else {
+        // Both decryption paths failed - could be corrupted or a locked hidden chat
+        console.debug(
+          `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
+        );
+        // Clear any stale key since decryption failed
+        chatKeyManager.removeKey(chat.chat_id);
+        // is_hidden is already false from the initial clear above
+      }
     }
 
     // Note: We don't decrypt icon and category here because they should be decrypted

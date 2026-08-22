@@ -31,6 +31,7 @@ export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Not404Screen } from "./src/components/Not404Screen.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";
 export { default as ChatMessageNotification } from "./src/components/ChatMessageNotification.svelte";
+export { default as NotificationStack } from "./src/components/NotificationStack.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
@@ -107,6 +108,7 @@ export * from "./src/stores/networkStatusStore"; // Export network status store 
 export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
 export * from "./src/stores/workflowWorkspaceStore"; // Export workflows workspace cache/store
 export * from "./src/stores/workflowTemplateProjectionStore"; // Export encrypted Workflow template projection index
+export * from "./src/stores/teamStore"; // Export active team context for Teams workspace surfaces
 export { personalDataStore } from "./src/stores/personalDataStore"; // Export privacy demo/store controls
 export { openSearch, setSearchQuery } from "./src/stores/searchStore"; // Export openSearch and setSearchQuery for global keyboard shortcuts + 404 screen
 export { notFoundPathStore } from "./src/stores/notFoundPathStore"; // Export 404 not-found path store
@@ -155,6 +157,7 @@ export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";
+export * from "./src/services/teamService";
 export * from "./src/services/userTaskService";
 export * from "./src/services/workflowTemplateService";
 export { default as TasksPage } from "./src/components/tasks/TasksPage.svelte";

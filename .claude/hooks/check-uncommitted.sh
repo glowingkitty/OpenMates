@@ -24,9 +24,11 @@ SESSION_ID=$(jq -r '[.sessions | to_entries[] | .key] | last // empty' "$SESSION
 
 TRACKED_FILES=$(jq -r --arg id "$SESSION_ID" '.sessions[$id].modified_files // [] | .[]' "$SESSIONS_FILE" 2>/dev/null)
 [ -z "$TRACKED_FILES" ] && exit 0
+SESSION_REPO_ROOT=$(jq -r --arg id "$SESSION_ID" '.sessions[$id].repo_root // empty' "$SESSIONS_FILE" 2>/dev/null)
+[ -z "$SESSION_REPO_ROOT" ] && SESSION_REPO_ROOT="$PROJECT_DIR"
 
 # Check which tracked files are dirty in git
-cd "$PROJECT_DIR" || exit 0
+cd "$SESSION_REPO_ROOT" || exit 0
 DIRTY_FILES=""
 while IFS= read -r f; do
   if git diff --name-only HEAD 2>/dev/null | grep -qF "$f" || \

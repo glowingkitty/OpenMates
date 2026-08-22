@@ -14,6 +14,11 @@
  *  - .settings-note              — italic footnote/compliance text
  */
 
+/* Keep asynchronously measured submenu content above the settings footer. */
+.settings-submenu-content.active {
+  min-height: 500px;
+}
+
 /* ── Description blocks (privacy, billing, etc.) ────────────────────────── */
 
 .settings-description {

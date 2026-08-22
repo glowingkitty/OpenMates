@@ -1,9 +1,8 @@
 """Teams V1 connected-account context tests.
 
-Team connected accounts are deferred for V1. Personal connected accounts remain
-available in personal context, while every team-context connected-account route
-must fail explicitly instead of exposing personal credentials or half-enabled
-team account rows.
+Team rows are explicit and encrypted. Owner/admin manage them, members and
+viewers receive safe metadata only, and Team requests never fall back to a
+Personal connected account or token reference.
 """
 
 import sys
@@ -52,6 +51,10 @@ class FakeCache:
 
     async def get(self, key: str):
         return self.values.get(key)
+
+    async def delete(self, key: str):
+        self.values.pop(key, None)
+        return True
 
 
 class FakeEncryption:
@@ -126,27 +129,38 @@ def _row(account_id: str, *, team_id: str | None = None) -> dict:
     }
 
 
-def test_connected_account_list_is_personal_only_and_team_context_disabled() -> None:
-    directus = FakeDirectus()
+# contract-test: supporting surface=rest_api assertions=teams.connected-accounts.team-owned-isolation
+def test_connected_account_list_switches_context_and_redacts_member_secrets() -> None:
+    directus = FakeDirectus(role="member")
     directus.rows = {"personal": _row("personal"), "team": _row("team", team_id="team-1")}
     client = _client(directus)
 
     assert [row["id"] for row in client.get("/v1/connected-accounts").json()["rows"]] == ["personal"]
     response = client.get("/v1/connected-accounts?team_id=team-1")
-    assert response.status_code == 501
-    assert response.json()["detail"] == connected_accounts.TEAM_CONNECTED_ACCOUNTS_DISABLED
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["rows"]] == ["team"]
+    assert "encrypted_refresh_token_bundle" not in response.json()["rows"][0]
 
 
-def test_team_connected_account_create_is_disabled_before_storage() -> None:
+# contract-test: supporting surface=rest_api assertions=teams.connected-accounts.team-owned-isolation
+def test_team_connected_account_create_requires_owner_or_admin() -> None:
     directus = FakeDirectus(role="member")
     response = _client(directus).post("/v1/connected-accounts?team_id=team-1", json=_row("team-created"))
 
-    assert response.status_code == 501
-    assert response.json()["detail"] == connected_accounts.TEAM_CONNECTED_ACCOUNTS_DISABLED
+    assert response.status_code == 403
     assert directus.rows == {}
+
+    owner_directus = FakeDirectus(role="owner")
+    owner_response = _client(owner_directus).post(
+        "/v1/connected-accounts?team_id=team-1",
+        json=_row("team-created"),
+    )
+    assert owner_response.status_code == 200
+    assert owner_directus.rows["team-created"]["hashed_team_id"] == hash_id("team-1")
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.connected-accounts.team-owned-isolation
 async def test_team_turn_token_ref_cannot_be_exchanged_as_personal_context() -> None:
     async def exchange_refresh_token(_refresh_token: str, _metadata: dict):
         return {"access_token": "access-token"}
@@ -178,3 +192,15 @@ async def test_team_turn_token_ref_cannot_be_exchanged_as_personal_context() -> 
             app_id="calendar",
             action="read",
         )
+
+    handle = await broker.exchange_turn_token_ref(
+        turn_token_ref=ref.turn_token_ref,
+        user_id="alice",
+        user_vault_key_id="vault-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        action="read",
+        team_id="team-1",
+    )
+    assert handle.access_token_handle.startswith("ath_")

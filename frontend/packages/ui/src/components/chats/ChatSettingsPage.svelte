@@ -17,15 +17,15 @@
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
-  import { getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
+  import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
   const tabs = [
-    { id: 'plan', icon: 'planning' },
-    { id: 'tasks', icon: 'task' },
+    { id: 'tasks', icon: 'projectmanagement' },
+    { id: 'plan', icon: 'task' },
     { id: 'files', icon: 'files' },
     { id: 'usage', icon: 'usage' },
     { id: 'share', icon: 'share' },
@@ -61,6 +61,8 @@
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
   let staticUsageEntries = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatUsageEntries(chat.chat_id) : []);
+  let exampleStaticFiles = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatFileReferences(chat.chat_id) : []);
+  let hasExampleStaticFiles = $derived(exampleStaticFiles.length > 0);
   let localUsageRows = $derived.by(() => {
     const staticRows = usageEntriesToChatUsageRows(staticUsageEntries);
     return staticRows.length > 0 ? staticRows : buildChatUsageRows(messages);
@@ -68,7 +70,7 @@
   let hasStaticUsageData = $derived(localUsageRows.length > 0 && localUsageRows.some((row) => typeof row.credits === 'number'));
   let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(isExampleChatSettings ? localUsageRows : usageRows));
   let visibleTabs = $derived(isExampleChatSettings
-    ? tabs.filter((tab) => tab.id === 'share' || (tab.id === 'usage' && hasStaticUsageData))
+    ? tabs.filter((tab) => tab.id === 'share' || (tab.id === 'files' && hasExampleStaticFiles) || (tab.id === 'usage' && hasStaticUsageData))
     : tabs);
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
@@ -84,6 +86,7 @@
   function normalizeVisibleChatSettingsTab(tabId: string | null | undefined): ChatSettingsTab {
     const nextTab = normalizeChatSettingsTab(tabId);
     if (!isExampleChatSettings) return nextTab;
+    if (nextTab === 'files' && hasExampleStaticFiles) return 'files';
     if (nextTab === 'usage' && hasStaticUsageData) return 'usage';
     return 'share';
   }
@@ -165,7 +168,7 @@
   async function refreshFiles(): Promise<void> {
     isLoadingFiles = true;
     try {
-      files = await loadChatFileRows(messages);
+      files = isExampleChatSettings ? [...exampleStaticFiles] : await loadChatFileRows(messages);
     } catch (error) {
       console.error('[ChatSettingsPage] Failed to load chat files:', error);
       files = [];
@@ -311,6 +314,15 @@
   }
 
   function downloadFileReference(file: ChatFileRow): void {
+    if (file.url) {
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.title || `${file.embedId}.download`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
     downloadTextFile(JSON.stringify(file, null, 2), `${file.title || file.embedId}.json`, 'application/json');
   }
 

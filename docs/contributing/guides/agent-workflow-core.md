@@ -4,6 +4,13 @@ OpenCode is the primary OpenMates coding runtime. Claude Code remains the
 canonical authoring source for project skills, subagents, hooks, and shared
 rules; Codex and OpenCode consume generated or bridged mirrors.
 
+Each top-level OpenCode chat owns at most one physical source worktree per
+repository. Repeated starts and post-deploy continuation reuse that worktree;
+temporary integration worktrees exist only for the bounded deploy operation.
+OpenCode Web itself is stopped and started only inside the existing Zellij
+`code` session through `scripts/start-opencode-server.sh`, never through a
+detached process or systemd unit.
+
 Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
@@ -19,6 +26,14 @@ For hook, worktree, or child-chat debugging, read or search existing OpenCode
 chats with `python3 scripts/sessions.py chat read <ses_or_url>` and
 `python3 scripts/sessions.py chat search <ses_or_url> "query"`.
 
+For private OpenMatesCloud overlay work, keep OpenMates as the control-plane
+project but start the session with `python3 scripts/sessions.py start --repo
+openmatescloud --mode <mode> --task "..."`. The OpenCode hooks route normal
+file and shell tools into the sibling `/home/superdev/projects/OpenMatesCloud`
+checkout, while `python3 scripts/sessions.py deploy --session <id> ...` stays
+on the control plane and commits/pushes only the tracked OpenMatesCloud files to
+`origin/main`. Do not use raw `git commit` or `git push` in the sibling repo.
+
 When the user attaches files or images to an OpenCode chat, they are retained in
 the local OpenCode SQLite database as chat file parts. `sessions.py start`
 prints an `OPENCODE ATTACHMENTS` box when the current chat has extractable
@@ -26,6 +41,22 @@ uploads. Extract them with
 `python3 scripts/sessions.py chat attachments <ses_or_url> --out /tmp/opencode/<task>-attachments`
 before substituting a regenerated screenshot or asking the user to resend the
 file.
+
+To embed generated images or videos in an OpenCode assistant response, upload the
+media with `python3 scripts/opencode_response_media.py <path> --alt "..."` and
+paste the returned Markdown or HTML snippet. The script stores plaintext media in
+a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL.
+Use only intentionally shareable screenshots, diagrams, or demo clips; do not use
+it for secrets, private user data, logs, raw production evidence, or durable docs.
+External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
+When a screenshot or short clip materially helps the user understand a visual UI
+state, bug fix, visual-smoke result, proof-video, or implementation defect,
+include the uploaded media directly in the chat response instead of only naming
+an artifact path.
+When a proof-video review, visual smoke, or media validation fails and the script
+output includes `image_upload_command`, run it and embed the returned image
+Markdown in the blocker response. The image is required even when a video upload
+command is also available, so OpenCode can show the defect immediately.
 
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests
@@ -76,28 +107,56 @@ web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
 
-Eligible full specs and user-visible Tier 1 plans require an actual captioned
-narration video after applicable green gates and before requesting user
-confirmation. A test report, screenshots, or visual-smoke evidence alone never
-satisfies this gate. Use `create-demo-video` with passing real CLI or deployed
-Playwright evidence, review the bounded frame bundle, and give the user the
-retained video path or delivery link. Give the active agent the canonical
-captions and bounded image frames, never the full video. Use a default
-three-second interval plus event boundaries, request exact-timestamp frames only
-when needed, and keep Discord publication status separate from the review-based
-completion gate. If any reviewed frame shows an objective product defect such as
-clipping, premature truncation, wrong metadata, raw protocol/error text, missing
-processing animation, stale loading state, or broken navigation, classify it as
-an implementation defect and automatically return to a failing test, product
-fix, deploy, source rerun, and replacement recording. Do not accept, document as
-an accepted difference, or narrate around an obvious rendering defect. Audio
-narration remains optional unless explicitly requested.
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions; use short bullets only when a table would be awkward. Keep
+narrative paragraphs under three lines. Use icons semantically and sparingly:
+`📁` files, `🧪` verification, `⚠️` risk or uncertainty, `➡️` next action, and
+`🔧` fix. Do not paste large YAML, JSON, contracts, or logs into blocker
+summaries unless the user asks; reference the path or hash and provide one
+copy-paste action when useful.
+
+Every new feature implementation, every new hardcoded example chat, and every
+nightly/daily/CI failed E2E that is actively debugged in a chat and turns green
+requires proof-video evidence before completion. A test report, screenshots, or
+visual-smoke evidence alone never satisfies this gate. Use `create-demo-video`
+and `python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts`
+with passing deployed Playwright, Apple, or real OpenMates CLI evidence and
+device-scoped, hash-bound WebVTT captions that are toggleable in the player and never reduce or obscure the clean frame; narration audio is optional. Web/spec/example chat proof uses
+separate phone and laptop videos, Apple proof uses separate iPhone portrait and
+iPad landscape videos, and CLI proof uses one terminal video only for the actual `openmates` CLI product surface being demonstrated or fixed. Do not ask for CLI proof videos for generic smoke scripts, pytest helpers, Node scripts, or shell wrappers that do not visibly execute the OpenMates CLI.
+Use exact device-profile dimensions: phone web `390x844`, laptop web `1440x900`,
+iPhone portrait `393x852`, iPad landscape `1366x1024`, and CLI terminal
+`1280x720`. Do not accept black bars, letterboxing, pillarboxing, or device
+captures wrapped in a generic 16:9/16:10 canvas. The transcript must describe the
+specific visible UI/action/result, not generic success claims. For proof-enabled
+Playwright specs, the committed `*.spec.ts` file is the source of truth for the
+browser or terminal recording contract: command, profile, assertions, transcript,
+checkpoints, and attachments must come from the spec rather than a chat-only
+override. Use retiming or a last-frame hold when the source flow moves too quickly,
+and preserve product audio when playback is part of the claim. Give the active agent the canonical transcript
+and bounded image frames, never the full video. Use a default three-second
+interval plus event boundaries, request exact-timestamp frames only when needed,
+then upload the approved proof media with `scripts/opencode_response_media.py`.
+When review fails, the workflow emits a representative blocker frame image and
+`image_upload_command`; upload and embed that image in the blocker response before
+asking for user input or pausing.
+This is the OpenCode response-media proof path: embed the returned image Markdown
+or `<video>` HTML directly in the final OpenCode response. Do not send proof media
+to Discord unless the user explicitly asks for a separate Discord mirror. If any reviewed frame shows an objective product
+defect such as clipping, premature truncation, wrong metadata, raw protocol/error
+text, missing processing animation, stale loading state, or broken navigation,
+classify it as an implementation defect and automatically return to a failing
+test, product fix, deploy, source rerun, and replacement recording. Do not
+accept, document as an accepted difference, or narrate around an obvious
+rendering defect.
 
 ## Agent Workflow Retrospective
 
-For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
+For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems and inefficiencies from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, unnecessary retries, avoidable context growth, wasted subagent runs, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Include only inefficiencies that wasted agent cycles, context, tool calls, subagent runs, retries, or inference tokens and could plausibly have been prevented by better deterministic scripts, hooks, focused audits/tests, skills, agent/subagent definitions, or runtime instructions. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
 
-For each observed preventable process problem, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
+For each observed preventable process problem or inefficiency, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. Ground efficiency claims in observable actions only; do not estimate token counts or durations. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
 
 ## Common Commands
 
@@ -109,6 +168,7 @@ For each observed preventable process problem, check the relevant existing hooks
 - `python3 scripts/sessions.py chat read <ses_or_code_dev_url>`
 - `python3 scripts/sessions.py chat search <ses_or_code_dev_url> "worktree"`
 - `python3 scripts/sessions.py chat attachments <ses_or_code_dev_url> --out /tmp/opencode/<task>-attachments`
+- `python3 scripts/opencode_response_media.py <path> --alt "Description"`
 - `python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/<route> --session <id>`
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`

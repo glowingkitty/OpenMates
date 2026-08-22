@@ -1,0 +1,74 @@
+{
+  "fingerprint": "777342f9ed53ed19",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_stays_cli",
+  "recorded_at": "2026-08-15T12:14:45.288752+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "e4eaf324fca5e907",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[6]{title,url,description,age,page_age,language,family_friendly,profile_name,thumbnail_src,extra_snippets,embed_ref}:\n  Top 10 Hotels in Berlin in 2026 (from $68) | Hotels.com,\"https://www.hote..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Berlin has an incredible range of accommodations depending on what neighborhood and vibe you are looking for. To help narrow down the best options for your trip next week, what kind of hotel experience are you looking for? \n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"hotel_preferences\",\n  \"multiple\": false,\n  \"question\": \"What is your primary preference for your stay in Berlin?\",\n  \"options\": [\n    { \"id\": \"luxury\", \"text\": \"Luxury & 5-Star (e.g., Hotel Adlon, The Mandala)\" },\n    { \"id\": \"central\", \"text\": \"Central Sightseeing Hub (near Mitte / Alexanderplatz)\" },\n    { \"id\": \"boutique\", \"text\": \"Trendy & Boutique Design Hotel\" },\n    { \"id\": \"budget\", \"text\": \"Budget-Friendly & Good Value\" }\n  ]\n}\n```\n\nIf you already have specific dates, a preferred budget range, or a neighborhood in mind (like Kreuzberg, Prenzlauer Berg, or Mitte), let me know and I can give you more tailored recommendations!",
+    "chunk_count": 10,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Berlin"
+      },
+      {
+        "kind": "text",
+        "value": " has an incredible range of accommodations depending on what neighborhood and vibe you are looking for. To"
+      },
+      {
+        "kind": "text",
+        "value": " help narrow down the best options for your trip next week, what kind of hotel experience are you looking for? \n\n```interactive_question\n"
+      },
+      {
+        "kind": "text",
+        "value": "{\n  \"type\": \"choice\",\n  \"id\": \"hotel_preferences\",\n  \"multiple\": false"
+      },
+      {
+        "kind": "text",
+        "value": ",\n  \"question\": \"What is your primary preference for your stay in Berlin?\",\n  \"options\":"
+      },
+      {
+        "kind": "text",
+        "value": " [\n    { \"id\": \"luxury\", \"text\": \"Luxury & 5-Star (e.g., Hotel Adlon, The Mandala)\" },\n    { \"id\": \"central\", \"text\": \"Central Sightseeing Hub (near Mitte / Alexanderplatz)\" },\n    { \"id\": \"boutique\", \"text\": \"Trendy & Boutique Design Hotel"
+      },
+      {
+        "kind": "text",
+        "value": "\" },\n    { \"id\": \"budget\", \"text\": \"Budget-Friendly & Good Value\" }\n  ]"
+      },
+      {
+        "kind": "text",
+        "value": "\n}\n```\n\nIf you already have specific dates, a preferred budget range, or a neighborhood in mind (like Kreuzberg, Pren"
+      },
+      {
+        "kind": "text",
+        "value": "zlauer Berg, or Mitte), let me know and I can give you more tailored recommendations!"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 17746,
+          "candidates_token_count": 197,
+          "total_token_count": 17943,
+          "user_input_tokens": 3062,
+          "system_prompt_tokens": 13433
+        }
+      }
+    ]
+  }
+}

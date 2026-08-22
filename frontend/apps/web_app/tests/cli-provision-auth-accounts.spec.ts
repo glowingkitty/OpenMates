@@ -8,6 +8,7 @@
  * directory, and never commits generated credentials to the repository.
  */
 export {};
+// contract-test-file: tooling
 
 const { spawn } = require('node:child_process');
 const path = require('node:path');
@@ -36,7 +37,7 @@ test.describe('CLI E2E auth account provisioning', () => {
 		test.skip(!E2E_SIGNUP_INVITE_CODE, 'OPENMATES_CLI_SIGNUP_INVITE_CODE is required.');
 
 		const emailClient = createEmailClient();
-		test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+		test.skip(!emailClient, 'Gmail credentials are required.');
 
 		const quota = await checkEmailQuota();
 		test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -102,8 +103,8 @@ test.describe('CLI E2E auth account provisioning', () => {
 
 		await waitForPrompt;
 
-		const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
-		const confirmEmail = await waitForMailosaurMessage({
+		const { waitForMessage, extractSixDigitCode } = emailClient!;
+		const confirmEmail = await waitForMessage({
 			sentTo: accountEmail,
 			receivedAfter: emailRequestedAt
 		});

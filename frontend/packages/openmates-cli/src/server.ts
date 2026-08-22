@@ -3,14 +3,15 @@
  *
  * Purpose: install, start, stop, restart, update, reset, and monitor a
  *          self-hosted OpenMates instance via Docker Compose.
- * Architecture: shells out to git/docker — no OpenMatesClient or login required.
+ * Architecture: shells out to git/docker; optional quick tests reuse the
+ *               instance-bound authenticated CLI client after explicit consent.
  * Architecture doc: docs/architecture/apps/cli-remote-access.md
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -31,6 +32,7 @@ import {
   type CoreProfile,
   type ServerRole,
   type ServerDeploymentMode,
+  OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
   appendSelectedServices,
   defaultOpenMatesCloudComposeFile,
   defaultOpenMatesCloudOverlayPath,
@@ -42,6 +44,7 @@ import {
   planRuntimeVerification,
   planDockerComposeArgs,
   planRestore,
+  planServerLogRangeArgs,
   planServerRuntime,
   planUpdate as planServerUpdate,
   parseEnvEntries,
@@ -49,6 +52,7 @@ import {
   redactEnvValue,
   resolveServiceSelection,
   resolveRuntimeDeploymentMode,
+  shouldAutoInstallRuntimeMonitoringServices,
   shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
@@ -58,15 +62,30 @@ import {
 } from "./serverPlanning.js";
 import {
   applyRuntimeCheckResults,
+  buildOperationalDeliveryReceipt,
   deliverRuntimeNotification,
+  evaluateOperationalReportFreshness,
   evaluateRuntimeHeartbeat,
   evaluateRuntimeWatchdog,
+  planOperationalMonitoring,
+  probeRuntimeEmailService,
+  readOperationalReportState,
   readRuntimeIncidentState,
+  writeOperationalReportState,
   writeRuntimeIncidentState,
   type RuntimeCheckResult,
   type RuntimeNotificationDelivery,
   type RuntimeNotificationPayload,
 } from "./serverHealth.js";
+import type { OpenMatesClient } from "./client.js";
+import {
+  assessQuickServerTestEligibility,
+  decideQuickServerTestAction,
+  mergeQuickServerTestUpdateStatus,
+  runQuickServerTest,
+  selectExpectedServerApiUrl,
+  type QuickServerTestOutcome,
+} from "./serverQuickTest.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -83,6 +102,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
   upload: join("upload", "docker-compose.yml"),
   preview: join("preview", "docker-compose.preview.yml"),
 };
+const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
@@ -324,6 +344,7 @@ function getInstallMode(
   config: ServerConfig | null = loadConfigForInstallPath(installPath),
 ): NonNullable<ServerConfig["installMode"]> {
   if (config?.installMode) return config.installMode;
+  if (existsSync(join(installPath, SOURCE_COMPOSE_FILE))) return "source";
   if (Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) return "image";
   return "source";
 }
@@ -352,6 +373,13 @@ function getServerDeploymentMode(flags: Record<string, string | boolean>, config
   return normalizeServerDeploymentMode(config?.deploymentMode);
 }
 
+function getInstallDeploymentMode(installPath: string, config: ServerConfig | null): ServerDeploymentMode {
+  const env = readEnvMap(installPath);
+  if (env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true") return "official_cloud";
+  if (env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false") return "self_host";
+  return normalizeServerDeploymentMode(config?.deploymentMode);
+}
+
 function getOpenMatesCloudOverlayPath(flags: Record<string, string | boolean>, config: ServerConfig | null): string | undefined {
   const explicit = flags["openmatescloud-path"] ?? flags["openmates-cloud-path"];
   if (explicit === true) throw new Error("Provide an OpenMatesCloud path: --openmatescloud-path <dir>.");
@@ -368,6 +396,23 @@ function selectedComposeServices(role: ServerRole, flags: Record<string, string 
     services: typeof flags.services === "string" ? flags.services : undefined,
     exclude: typeof flags.exclude === "string" ? flags.exclude : undefined,
   });
+}
+
+function lifecycleServiceSelection(
+  role: ServerRole,
+  flags: Record<string, string | boolean>,
+  config: ServerConfig | null,
+): { services: string[]; requested: boolean } {
+  if (hasServiceFilter(flags)) {
+    return { services: selectedComposeServices(role, flags), requested: true };
+  }
+  if (config?.defaultServices?.length) {
+    return {
+      services: resolveServiceSelection(role, { services: config.defaultServices }),
+      requested: true,
+    };
+  }
+  return { services: [], requested: false };
 }
 
 function shouldPullImages(): boolean {
@@ -451,13 +496,10 @@ export function composeArgs(
   installMode: NonNullable<ServerConfig["installMode"]> = getInstallMode(installPath),
   role: ServerRole = "core",
 ): string[] {
-  const env = readEnvMap(installPath);
   const config = loadConfigForInstallPath(installPath);
-  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true"
-    ? "official_cloud"
-    : env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false"
-      ? "self_host"
-      : normalizeServerDeploymentMode(config?.deploymentMode);
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
+  ensureOfficialCloudNoWebappComposeFile(installPath, deploymentMode, role);
+  const env = readEnvMap(installPath);
   const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || config?.openMatesCloudOverlayPath || undefined;
   const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
   const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
@@ -633,8 +675,40 @@ function packagedTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", ROLE_TEMPLATE_FILES[role]);
 }
 
+function packagedNoWebappTemplatePath(): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", CORE_NO_WEBAPP_TEMPLATE_FILE);
+}
+
 function packagedCaddyTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "caddy", role, "Caddyfile");
+}
+
+function readOfficialCloudNoWebappComposeTemplate(): string {
+  const packaged = packagedNoWebappTemplatePath();
+  if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
+  return [
+    "# backend/core/docker-compose.no-webapp.yml",
+    "#",
+    "# Keeps official OpenMatesCloud core runtimes backend-only while regular",
+    "# self-host installs continue to start the webapp from the base compose file.",
+    "",
+    "services:",
+    "  webapp:",
+    "    profiles: [\"webapp\"]",
+    "",
+  ].join("\n");
+}
+
+function ensureOfficialCloudNoWebappComposeFile(
+  installPath: string,
+  deploymentMode: ServerDeploymentMode,
+  role: ServerRole,
+): void {
+  if (deploymentMode !== "official_cloud" || role !== "core") return;
+  const filePath = join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE);
+  if (existsSync(filePath)) return;
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, readOfficialCloudNoWebappComposeTemplate());
 }
 
 function fileHash(path: string): string | null {
@@ -665,6 +739,9 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
   writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  if (role === "core") {
+    writeFileSync(join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE), readOfficialCloudNoWebappComposeTemplate());
+  }
   if (role === "core") {
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
@@ -952,6 +1029,116 @@ function writeUpdateStatus(installPath: string, role: ServerRole, status: Record
   const filePath = updateStatusFile(installPath, role);
   mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
   writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
+}
+
+function persistQuickServerTestOutcome(
+  installPath: string,
+  role: ServerRole,
+  outcome: QuickServerTestOutcome,
+): void {
+  const filePath = updateStatusFile(installPath, role);
+  let current: Record<string, unknown> = {};
+  if (existsSync(filePath)) {
+    try {
+      current = JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>;
+    } catch {
+      current = {};
+    }
+  }
+  writeUpdateStatus(installPath, role, mergeQuickServerTestUpdateStatus(current, outcome));
+}
+
+function expectedServerApiUrl(
+  installPath: string,
+  config: ServerConfig | null,
+  flags: Record<string, string | boolean>,
+  allowApiUrlOverride: boolean,
+): string {
+  const envApiUrl = firstCsvValue(getEnvVar(readEnvContent(installPath), "VITE_API_URL"));
+  return selectExpectedServerApiUrl({
+    configuredApiUrl: envApiUrl || config?.apiUrl,
+    explicitApiUrl: typeof flags["api-url"] === "string" ? flags["api-url"] : null,
+    allowExplicitOverride: allowApiUrlOverride,
+  });
+}
+
+function printQuickTestLoginGuidance(eligibility: Extract<ReturnType<typeof assessQuickServerTestEligibility>, { status: "login_required" }>): void {
+  console.error("Quick server testing requires a CLI account logged into this self-hosted instance.");
+  console.error("Run:");
+  console.error(`  ${eligibility.loginCommand}`);
+  console.error("Then run:");
+  console.error(`  ${eligibility.rerunCommand}`);
+}
+
+async function promptForQuickServerTest(): Promise<boolean> {
+  console.error("\nQuick server test:");
+  console.error("  - Create, reload, and remove one temporary AI chat");
+  console.error("  - Run math.calculate");
+  console.error("  - Run one-result web.search");
+  console.error("\nThese checks use your logged-in account and may consume credits.");
+  const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question("Continue with quick server test? [y/N] ");
+    return ["y", "yes"].includes(answer.trim().toLowerCase());
+  } finally {
+    rl.close();
+  }
+}
+
+async function maybeRunQuickServerTest(
+  client: OpenMatesClient,
+  installPath: string,
+  role: ServerRole,
+  config: ServerConfig | null,
+  flags: Record<string, string | boolean>,
+  standalone = false,
+): Promise<QuickServerTestOutcome> {
+  const action = decideQuickServerTestAction({
+    interactive: process.stdin.isTTY === true && process.stderr.isTTY === true,
+    json: flags.json === true,
+    continuous: flags["continuous-update"] === true,
+    skipQuickTest: flags["skip-quick-test"] === true,
+    quickTest: flags["quick-test"] === true || standalone,
+    confirmSpendCredits: flags["confirm-spend-credits"] === true,
+    yes: flags.yes === true,
+  });
+  if (role !== "core") return { status: "not_run", reason: "non_core_role", checks: [] };
+  if (action === "skip") {
+    if (standalone) {
+      throw new Error("Non-interactive quick tests require --confirm-spend-credits.");
+    }
+    return { status: "not_run", reason: "not_confirmed", checks: [] };
+  }
+
+  const eligibility = assessQuickServerTestEligibility({
+    role,
+    expectedApiUrl: expectedServerApiUrl(installPath, config, flags, standalone),
+    client,
+  });
+  if (eligibility.status === "login_required") {
+    printQuickTestLoginGuidance(eligibility);
+    if (standalone || action === "run") {
+      throw new Error("Log into the self-hosted instance before running quick server tests.");
+    }
+    return { status: "not_run", reason: eligibility.reason, checks: [] };
+  }
+  if (eligibility.status !== "ready") {
+    return { status: "not_run", reason: eligibility.reason, checks: [] };
+  }
+  if (action === "prompt" && !await promptForQuickServerTest()) {
+    return { status: "not_run", reason: "declined", checks: [] };
+  }
+
+  console.error("Running authenticated quick server test...");
+  const result = await runQuickServerTest(client);
+  if (flags.json !== true) {
+    for (const check of result.checks) {
+      const marker = check.status === "passed" ? "x" : "!";
+      const reason = check.sanitized_reason ? ` (${check.sanitized_reason})` : "";
+      console.error(`  [${marker}] ${check.id}${reason}`);
+    }
+  }
+  return result;
 }
 
 function targetSourceLinks(imageTag: string, templateRef: string): Record<string, string | null> {
@@ -1547,11 +1734,12 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "ps"];
+  const selection = lifecycleServiceSelection(role, flags, config);
 
   if (flags.json === true) {
     args.push("--format", "json");
   }
-  if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
+  if (selection.requested) args.push(...selection.services);
 
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
@@ -1563,16 +1751,24 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   ensureGitWorkDirEnv(installPath);
   warnIfMissingLlmCredentials(installPath);
 
-  const withOverrides = flags["with-overrides"] === true;
-  const config = loadConfigForInstallPath(installPath);
+  let config = loadConfigForInstallPath(installPath);
+  if (flags["with-overrides"] === true && !config && !loadServerConfig()) {
+    // An unregistered source checkout otherwise treats --with-overrides as a
+    // one-shot Compose choice. A later command from an agent worktree can then
+    // recreate CMS without its host port and strand the control-plane hooks.
+    await serverRegister({ path: installPath, "with-overrides": true });
+    config = loadConfigForInstallPath(installPath);
+  }
+  const withOverrides = flags["with-overrides"] === true || config?.composeProfile === "full";
   const role = getServerRole(flags, config);
   const installMode = getInstallMode(installPath, config);
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
+  const selection = lifecycleServiceSelection(role, flags, config);
   const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
   const args = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
-  if (hasServiceFilter(flags)) {
-    const services = selectedComposeServices(role, flags);
-    pullArgs.push(...services);
-    args.push(...services);
+  if (selection.requested) {
+    pullArgs.push(...selection.services);
+    args.push(...selection.services);
   }
 
   // Update saved profile if starting with overrides
@@ -1593,8 +1789,12 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
     printJson({ command: "start", status: "success", path: installPath });
   } else {
     console.log("\nServer started.");
-    console.log("Web app: http://localhost:5173");
     console.log("API:     http://localhost:8000");
+    if (deploymentMode === "official_cloud") {
+      console.log("Web app: deployed separately for official cloud");
+    } else {
+      console.log("Web app: http://localhost:5173");
+    }
     if (withOverrides) {
       console.log("Directus CMS: http://localhost:8055");
       console.log("Grafana:      http://localhost:3000");
@@ -1610,8 +1810,9 @@ async function serverStop(flags: Record<string, string | boolean>): Promise<void
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
-  const args = hasServiceFilter(flags)
-    ? [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "stop", ...selectedComposeServices(role, flags)]
+  const selection = lifecycleServiceSelection(role, flags, config);
+  const args = selection.requested
+    ? [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "stop", ...selection.services]
     : [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "down"];
 
   console.error("Stopping OpenMates server...");
@@ -1633,42 +1834,49 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
+  const selection = lifecycleServiceSelection(role, flags, config);
 
   if (flags.rebuild === true) {
-    if (hasServiceFilter(flags)) {
-      throw new Error("--services/--exclude cannot be combined with --rebuild. Use graceful restart for service-scoped restarts.");
-    }
     if (installMode === "image") {
       throw new Error(
         "Image-mode installs use prebuilt images and cannot rebuild locally. " +
         "Run 'openmates server update' to pull newer images, or reinstall with --from-source to build from source.",
       );
     }
-    // Full rebuild: down → rm cache → build → up
+    // Full rebuild: down → optional cache reset → selected build → selected up
     console.error("Rebuilding OpenMates server (this may take a few minutes)...");
     const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    // Remove cache volume (non-fatal if it doesn't exist)
-    try {
-      exec("docker volume rm openmates-cache-data", installPath);
-    } catch {
-      // Volume may not exist — that's fine
+    if (flags["reset-cache"] === true) {
+      try {
+        exec("docker volume rm openmates-cache-data", installPath);
+      } catch {
+        // Volume may not exist — that's fine.
+      }
     }
 
-    const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
+    const buildArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "build"],
+      selection.services,
+      selection.requested,
+    );
     code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
+    const upArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+      selection.services,
+      selection.requested,
+    );
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Graceful restart (no rebuild)
     console.error("Restarting OpenMates server...");
     const args = [...composeArgs(installPath, withOverrides, installMode, role), "restart"];
-    if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
+    if (selection.requested) args.push(...selection.services);
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -1687,30 +1895,104 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
+  const selection = lifecycleServiceSelection(role, flags, config);
   const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "logs"];
 
   if (flags.follow === true || flags.f === true) {
     args.push("--follow");
   }
 
-  const tail = flags.tail;
-  if (typeof tail === "string") {
-    args.push("--tail", tail);
-  } else {
-    args.push("--tail", "100");
-  }
+  args.push(...planServerLogRangeArgs(flags));
 
-  if (hasServiceFilter(flags)) {
-    args.push(...selectedComposeServices(role, flags));
-  } else {
-    const container = flags.container;
-    if (typeof container === "string") {
-      args.push(container);
-    }
+  const container = flags.container;
+  if (typeof container === "string" && !hasServiceFilter(flags)) {
+    args.push(container);
+  } else if (selection.requested) {
+    args.push(...selection.services);
   }
 
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
+}
+
+async function serverRegister(flags: Record<string, string | boolean>): Promise<void> {
+  requireDocker();
+  requireGit();
+  const installPath = resolveServerPath(
+    typeof flags.path === "string" ? flags : { ...flags, path: process.cwd() },
+  );
+  const envPath = join(installPath, ".env");
+  if (!existsSync(join(installPath, SOURCE_COMPOSE_FILE))) {
+    throw new Error(`Source Compose file not found: ${join(installPath, SOURCE_COMPOSE_FILE)}`);
+  }
+  if (!existsSync(envPath)) {
+    throw new Error(`Runtime env file not found: ${envPath}`);
+  }
+
+  const gitRoot = resolve(exec("git rev-parse --show-toplevel", installPath));
+  if (gitRoot !== installPath) {
+    throw new Error(`--path must point to the OpenMates Git checkout root (${gitRoot}).`);
+  }
+
+  const existing = loadServerConfig();
+  if (existing?.installPath && resolve(existing.installPath) !== installPath && flags.yes !== true) {
+    throw new Error(
+      `Another server is registered at ${existing.installPath}. ` +
+      "Rerun with --yes to replace the local CLI registration; no server data will be changed.",
+    );
+  }
+
+  const role = getServerRole(flags, null);
+  const profile = getCoreProfile(flags, null);
+  const deploymentFlagSpecified = flags["official-cloud"] === true || typeof flags["deployment-mode"] === "string";
+  const deploymentMode = deploymentFlagSpecified
+    ? getServerDeploymentMode(flags, null)
+    : getInstallDeploymentMode(installPath, null);
+  if (deploymentMode === "official_cloud" && role !== "core") {
+    throw new Error("Official-cloud overlay registration is only supported for the core server role.");
+  }
+  const overlayPath = getOpenMatesCloudOverlayPath(flags, null)
+    ?? readEnvMap(installPath).OPENMATES_CLOUD_OVERLAY_PATH
+    ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(overlayPath);
+  if (deploymentMode === "official_cloud" && (!existsSync(overlayPath) || !existsSync(overlayComposeFile))) {
+    throw new Error(`OpenMatesCloud overlay path is required for official-cloud mode: ${overlayPath}`);
+  }
+
+  const runtimePlan = planServerRuntime({
+    role,
+    profile,
+    withAlerts: flags["with-alerts"] === true,
+    includeWebapp: deploymentMode !== "official_cloud",
+  });
+  const defaultServices = hasServiceFilter(flags)
+    ? selectedComposeServices(role, flags)
+    : runtimePlan.defaultServices;
+  const cliUrls = deriveSelfHostCliUrls(readFileSync(envPath, "utf-8"));
+  const config: ServerConfig = {
+    installPath,
+    installedAt: existing?.installPath === installPath ? existing.installedAt : Date.now(),
+    composeProfile: flags["with-overrides"] === true ? "full" : "core",
+    serverRole: role,
+    serverProfile: profile,
+    defaultServices,
+    composeFiles: [SOURCE_COMPOSE_FILE],
+    installMode: "source",
+    sourceStrategy: "working_tree",
+    deploymentMode,
+    openMatesCloudOverlayPath: deploymentMode === "official_cloud" ? overlayPath : undefined,
+    ...cliUrls,
+  };
+  saveServerConfig(config);
+
+  if (flags.json === true) {
+    printJson({ command: "register", status: "success", ...config });
+  } else {
+    console.log(`Registered existing OpenMates checkout at ${installPath}.`);
+    console.log("Mode: source (current working tree; Git is never pulled automatically)");
+    console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud backend" : "self-host"}`);
+    console.log(`Services: ${defaultServices.join(", ")}`);
+  }
 }
 
 async function serverInstall(flags: Record<string, string | boolean>): Promise<void> {
@@ -1724,7 +2006,12 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (deploymentMode === "official_cloud" && role !== "core") {
     throw new Error("Official-cloud overlay installs are only supported for the core server role.");
   }
-  const runtimePlan = planServerRuntime({ role, profile, withAlerts: flags["with-alerts"] === true });
+  const runtimePlan = planServerRuntime({
+    role,
+    profile,
+    withAlerts: flags["with-alerts"] === true,
+    includeWebapp: deploymentMode !== "official_cloud",
+  });
 
   // Check if already installed
   if (existsSync(join(installPath, SOURCE_COMPOSE_FILE)) || Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) {
@@ -1773,7 +2060,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       ...cliUrls,
     });
     try {
-      installRuntimeMonitoringServices(installPath, role);
+      await autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -1861,13 +2148,14 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     serverProfile: profile,
     defaultServices: runtimePlan.defaultServices,
     composeFiles: runtimePlan.composeFiles,
-    installMode: "source",
-    deploymentMode,
+      installMode: "source",
+      sourceStrategy: "managed_clone",
+      deploymentMode,
     openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
     ...cliUrls,
   });
   try {
-    installRuntimeMonitoringServices(installPath, role);
+    await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -1975,6 +2263,8 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
 function runtimeNotificationConfig(installPath: string) {
   const env = readEnvMap(installPath);
   const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
+  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const serverEnvironment = value("SERVER_ENVIRONMENT") === "production" ? "production" : "development";
   const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
   const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
   const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
@@ -1988,9 +2278,15 @@ function runtimeNotificationConfig(installPath: string) {
   const genericWebhook = webhookUrl && webhookSecret
     ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
     : undefined;
+  const discordWebhookUrl = value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
+    || (deploymentMode === "self_host"
+      ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST")
+      : serverEnvironment === "production"
+        ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION") || value("DISCORD_WEBHOOK_PROD_SMOKE")
+        : value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT") || value("DISCORD_WEBHOOK_DEV_SMOKE"));
   return {
     email,
-    discordWebhookUrl: value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL") || value("DISCORD_WEBHOOK_DEV_SMOKE"),
+    discordWebhookUrl,
     genericWebhook,
   };
 }
@@ -2028,15 +2324,78 @@ async function persistRuntimeResult(installPath: string, role: ServerRole, outpu
   );
 }
 
-function installRuntimeMonitoringServices(installPath: string, role: ServerRole): void {
+async function installRuntimeMonitoringServices(installPath: string, role: ServerRole): Promise<void> {
   const executablePath = resolve(process.argv[1] ?? "/usr/local/bin/openmates");
   const plan = planRuntimeMonitoringServices({ role, installPath, executablePath });
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  const emailServiceAvailable = notificationConfig.email
+    ? await probeRuntimeEmailService(notificationConfig.email)
+    : false;
+  if (notificationConfig.email && !emailServiceAvailable) {
+    console.error("Operational email reports remain disabled because the configured email service is unavailable.");
+  }
+  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const operationalPlan = planOperationalMonitoring({
+    environment: deploymentMode === "official_cloud"
+      ? (readEnvMap(installPath).SERVER_ENVIRONMENT === "production" ? "production" : "development")
+      : "self_host",
+    role,
+    installPath,
+    executablePath,
+    adminEmail: notificationConfig.email?.to,
+    emailServiceAvailable,
+    discordConfigured: Boolean(notificationConfig.discordWebhookUrl),
+  });
   const files = [
     [plan.serviceName, plan.unit],
     [plan.timerName, plan.timer],
     [plan.watchdogServiceName, plan.watchdogUnit],
     [plan.watchdogTimerName, plan.watchdogTimer],
+    ...(operationalPlan.scheduleEnabled ? [
+      [operationalPlan.digestServiceName, operationalPlan.digestUnit],
+      [operationalPlan.digestTimerName, operationalPlan.digestTimer],
+      [operationalPlan.watchdogServiceName, operationalPlan.watchdogUnit],
+      [operationalPlan.watchdogTimerName, operationalPlan.watchdogTimer],
+    ] : []),
   ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+  const reportStatePath = join(installPath, ".openmates", "runtime-health", `${role}-operational-report.json`);
+  const reportMetricsDir = join(installPath, ".openmates", "runtime-health", "metrics");
+  const startedMetricPath = join(reportMetricsDir, "operational-report-started.prom");
+  const successMetricPath = join(reportMetricsDir, "operational-report.prom");
+  const operationalUnitNames = [
+    operationalPlan.digestServiceName,
+    operationalPlan.digestTimerName,
+    operationalPlan.watchdogServiceName,
+    operationalPlan.watchdogTimerName,
+  ];
+  if (operationalPlan.scheduleEnabled) {
+    mkdirSync(dirname(reportStatePath), { recursive: true, mode: 0o700 });
+    mkdirSync(reportMetricsDir, { recursive: true, mode: 0o700 });
+    if (!existsSync(reportStatePath)) {
+      writeFileSync(
+        reportStatePath,
+        `${JSON.stringify({ incidentOpen: false, monitoringStartedAt: new Date().toISOString() }, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+    }
+    if (!existsSync(startedMetricPath)) {
+      writeFileSync(
+        startedMetricPath,
+        `operational_report_monitoring_started_timestamp_seconds{environment="${operationalPlan.environment}"} ${Math.floor(Date.now() / 1000)}\n`,
+        { mode: 0o600 },
+      );
+    }
+  } else {
+    const installedOperationalUnits = operationalUnitNames.filter((name) => existsSync(join("/etc", "systemd", "system", name)));
+    const installedOperationalTimers = installedOperationalUnits.filter((name) => name.endsWith(".timer"));
+    if (installedOperationalTimers.length) {
+      execFileSync("systemctl", ["disable", "--now", ...installedOperationalTimers], { stdio: "pipe" });
+    }
+    for (const name of installedOperationalUnits) rmSync(join("/etc", "systemd", "system", name));
+    for (const path of [reportStatePath, startedMetricPath, successMetricPath]) {
+      if (existsSync(path)) rmSync(path);
+    }
+  }
   for (const [name, content] of files) writeFileSync(join("/etc", "systemd", "system", name), content, { mode: 0o644 });
   execSync("systemctl daemon-reload", { stdio: "pipe" });
   const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
@@ -2044,7 +2403,16 @@ function installRuntimeMonitoringServices(installPath: string, role: ServerRole)
   for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
-async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+async function autoInstallRuntimeMonitoringServices(installPath: string, role: ServerRole): Promise<"installed" | "skipped"> {
+  if (!shouldAutoInstallRuntimeMonitoringServices(process.env)) {
+    console.error("Skipping runtime monitoring service installation because OPENMATES_SKIP_RUNTIME_MONITORING=1.");
+    return "skipped";
+  }
+  await installRuntimeMonitoringServices(installPath, role);
+  return "installed";
+}
+
+async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Record<string, string | boolean>): Promise<void> {
   if (rest[0] === "status") {
     const installPath = resolveServerPath(flags);
     const config = loadConfigForInstallPath(installPath);
@@ -2073,7 +2441,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (!Number.isFinite(intervalMinutes) || intervalMinutes < 5) throw new Error("--interval must be at least 5 minutes.");
     console.error(`Running continuous updater every ${intervalMinutes} minutes. Use Ctrl+C to stop.`);
     while (true) {
-      await serverUpdate([], { ...flags, continuous: false });
+      await serverUpdate(client, [], { ...flags, continuous: false, "continuous-update": true });
       await sleep(intervalMinutes * 60_000);
     }
   }
@@ -2086,8 +2454,11 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
-  const filterRequested = hasServiceFilter(flags);
-  const selectedServices = filterRequested ? selectedComposeServices(role, flags) : [];
+  const deploymentMode = getInstallDeploymentMode(installPath, config);
+  const selection = lifecycleServiceSelection(role, flags, config);
+  const filterRequested = selection.requested;
+  const selectedServices = selection.services;
+  const sourceStrategy = config?.sourceStrategy ?? "managed_clone";
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
   const secretPreflight = runtimeSecretPreflight(installPath, role);
   const missingOrUnverifiedSecrets = [
@@ -2209,7 +2580,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     try {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
-        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+        checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
       });
       const runtimeOutput = runRuntimeVerification(installPath, role, config);
       await persistRuntimeResult(installPath, role, runtimeOutput);
@@ -2217,7 +2588,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
         let monitoringProvision = "installed";
         try {
-          installRuntimeMonitoringServices(installPath, role);
+          monitoringProvision = await autoInstallRuntimeMonitoringServices(installPath, role);
         } catch {
           monitoringProvision = "failed";
         }
@@ -2244,7 +2615,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
     try {
-      installRuntimeMonitoringServices(installPath, role);
+      await autoInstallRuntimeMonitoringServices(installPath, role);
     } catch (error) {
       const restoreCommand = safetyPlan.backupName
         ? `openmates server restore --role ${role} --file ${join(roleBackupDir(installPath, role), safetyPlan.backupName)}`
@@ -2267,11 +2638,22 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
     });
-
-    if (flags.json === true) {
-      printJson({ ...plan, status: "success", dryRun: false, runtimeVerification: successfulRuntimeOutput });
-    } else {
+    if (flags.json !== true) {
       console.log("Server images updated, containers restarted, and health checks passed.");
+    }
+    const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
+    persistQuickServerTestOutcome(installPath, role, quickTest);
+    if (flags.json === true) {
+      printJson({
+        ...plan,
+        status: quickTest.status === "failed" ? "degraded" : "success",
+        dryRun: false,
+        runtimeVerification: successfulRuntimeOutput,
+        quickTest,
+      });
+    }
+    if (quickTest.status === "failed") {
+      throw new Error("Authenticated quick server test failed; updated containers remain running.");
     }
     return;
   }
@@ -2283,44 +2665,40 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         status: "planned",
         path: installPath,
         mode: "source",
+        sourceStrategy,
         selectedServices: filterRequested ? selectedServices : "all",
-        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+        checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
       });
     } else {
       console.log("Update plan:");
-      console.log("  Mode:          source");
+      console.log(`  Mode:          source (${sourceStrategy === "working_tree" ? "current working tree" : "managed clone"})`);
       console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
-      console.log(`  Web health:    ${shouldCheckWebHealth({ role, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
-      console.log("  Commands:      git pull --ff-only, docker compose build, docker compose up -d, health checks");
+      console.log(`  Web health:    ${shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
+      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, docker compose up -d, health checks`);
     }
     return;
   }
 
-  requireGit();
-
-  // Pull latest code
-  if (flags.force === true) {
-    console.error("Stashing local changes...");
-    try { exec("git stash", installPath); } catch { /* nothing to stash */ }
-  }
-
-  try {
-    const pullOutput = exec("git pull --ff-only", installPath);
-    console.error(pullOutput || "Already up to date.");
-  } catch {
+  if (sourceStrategy === "working_tree") {
     if (flags.force === true) {
-      // Restore stash before throwing
-      try { exec("git stash pop", installPath); } catch { /* no stash */ }
+      throw new Error("--force is not supported for registered working-tree servers; commit or resolve local changes explicitly.");
     }
-    throw new Error(
-      "Failed to pull updates. Your local branch may have diverged.\n" +
-      "Use --force to stash local changes and retry, or resolve manually with git.",
-    );
-  }
-
-  if (flags.force === true) {
-    try { exec("git stash pop", installPath); } catch { /* no stash to pop */ }
+    console.error("Using the registered working tree without pulling or changing Git state.");
+  } else {
+    requireGit();
+    if (flags.force === true) {
+      throw new Error("--force is disabled because automated git stash is unsafe. Resolve local changes explicitly, then rerun update.");
+    }
+    try {
+      const pullOutput = exec("git pull --ff-only", installPath);
+      console.error(pullOutput || "Already up to date.");
+    } catch {
+      throw new Error(
+        "Failed to pull updates. Your local branch may have diverged or contain local changes.\n" +
+        "Resolve the working tree explicitly, then rerun update.",
+      );
+    }
   }
 
   // Rebuild and restart
@@ -2341,7 +2719,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  const checkWebApp = shouldCheckWebHealth({ role, selectedServices, filterRequested });
+  const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
   let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
   try {
@@ -2352,7 +2730,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
       let monitoringProvision = "installed";
       try {
-        installRuntimeMonitoringServices(installPath, role);
+        monitoringProvision = await autoInstallRuntimeMonitoringServices(installPath, role);
       } catch {
         monitoringProvision = "failed";
       }
@@ -2375,7 +2753,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   }
 
   try {
-    installRuntimeMonitoringServices(installPath, role);
+    await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
     writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
     throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -2386,11 +2764,40 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     checks: successfulRuntimeOutput?.checks ?? [],
     runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
   });
-  if (flags.json === true) {
-    printJson({ command: "update", status: "success", path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput });
-  } else {
+  if (flags.json !== true) {
     console.log("Server updated, restarted, and health checks passed.");
   }
+  const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
+  persistQuickServerTestOutcome(installPath, role, quickTest);
+  if (flags.json === true) {
+    printJson({
+      command: "update",
+      status: quickTest.status === "failed" ? "degraded" : "success",
+      path: installPath,
+      mode: "source",
+      runtimeVerification: successfulRuntimeOutput,
+      quickTest,
+    });
+  }
+  if (quickTest.status === "failed") {
+    throw new Error("Authenticated quick server test failed; updated containers remain running.");
+  }
+}
+
+async function serverTest(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (flags.quick !== true && flags["quick-test"] !== true) {
+    throw new Error("Usage: openmates server test --quick [--confirm-spend-credits] [--json]");
+  }
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const result = await maybeRunQuickServerTest(client, installPath, role, config, flags, true);
+  if (flags.json === true) printJson({ command: "test", role, quickTest: result });
+  else if (result.status === "passed") console.log("Authenticated quick server test passed.");
+  if (result.status === "failed") throw new Error("Authenticated quick server test failed.");
 }
 
 async function serverVerify(flags: Record<string, string | boolean>): Promise<void> {
@@ -2421,8 +2828,89 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
       printJson({ command: "monitoring install-service", status: "planned", role, files: files.map(([name, content]) => ({ name, content })) });
       return;
     }
-    installRuntimeMonitoringServices(installPath, role);
+    await installRuntimeMonitoringServices(installPath, role);
     console.log(`Installed runtime monitor and independent watchdog for ${role}.`);
+    return;
+  }
+
+  if (rest[0] === "digest") {
+    requireDocker();
+    const deploymentMode = getInstallDeploymentMode(installPath, config);
+    const environment = deploymentMode === "official_cloud"
+      ? (readEnvMap(installPath).SERVER_ENVIRONMENT === "production" ? "production" : "development")
+      : "self_host";
+    const channel = typeof flags.channel === "string" ? flags.channel : "email,discord";
+    const result = spawnSync(
+      "docker",
+      [
+        ...composeArgs(installPath, config?.composeProfile === "full", getInstallMode(installPath, config), role),
+        "exec", "-T", "api", "python", "-m", "backend.scripts.operational_monitoring",
+        "--environment", environment, "--channels", channel,
+        ...(flags.test === true ? ["--test"] : []),
+      ],
+      { cwd: installPath, encoding: "utf-8", timeout: 120_000 },
+    );
+    const outputLine = result.stdout.trim().split("\n").filter(Boolean).at(-1);
+    if (!outputLine) throw new Error("Operational report command returned no structured output.");
+    const output = JSON.parse(outputLine) as {
+      delivery_state: string;
+      report_id: string;
+      report_sha256: string;
+      receipts: Array<{ environment: "development" | "production" | "self_host"; channel: "email" | "discord"; state: "queued" | "accepted" | "failed" | "unavailable"; attempt_count: number; occurred_at: string; sanitized_failure_class?: string }>;
+    };
+    const accepted = output.delivery_state === "accepted";
+    const state = await readOperationalReportState(installPath, role);
+    const nextState = accepted
+      ? { ...state, incidentOpen: false, incidentOpenedAt: undefined, lastAcceptedReportAt: new Date().toISOString() }
+      : state;
+    await writeOperationalReportState(installPath, role, nextState);
+    const metricsDir = join(installPath, ".openmates", "runtime-health", "metrics");
+    mkdirSync(metricsDir, { recursive: true, mode: 0o700 });
+    if (accepted) {
+      writeFileSync(
+        join(metricsDir, "operational-report.prom"),
+        `operational_report_last_success_timestamp_seconds{environment="${output.receipts[0]?.environment ?? environment}"} ${Math.floor(Date.now() / 1000)}\n`,
+        { mode: 0o600 },
+      );
+    }
+    const redactedReceipts = output.receipts.map((receipt) => buildOperationalDeliveryReceipt({
+      environment: receipt.environment,
+      reportId: output.report_id,
+      reportSha256: output.report_sha256,
+      channel: receipt.channel,
+      state: receipt.state,
+      attemptCount: receipt.attempt_count,
+      occurredAt: receipt.occurred_at,
+      sanitizedFailureClass: receipt.sanitized_failure_class,
+    }));
+    const receiptDir = join(installPath, ".openmates", "runtime-health", "receipts");
+    mkdirSync(receiptDir, { recursive: true, mode: 0o700 });
+    const receiptMonth = new Date().toISOString().slice(0, 7);
+    for (const receipt of redactedReceipts) {
+      appendFileSync(join(receiptDir, `${receiptMonth}.jsonl`), `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+    }
+    const displayed = { command: "monitoring digest", reportId: output.report_id, reportSha256: output.report_sha256, deliveryState: output.delivery_state, receipts: redactedReceipts };
+    if (flags.json === true) printJson(displayed);
+    else console.log(JSON.stringify(displayed, null, 2));
+    if (result.status !== 0 || output.delivery_state !== "accepted") throw new Error("Operational report delivery did not succeed on every requested channel.");
+    return;
+  }
+
+  if (rest[0] === "report-watchdog") {
+    const reportState = await readOperationalReportState(installPath, role);
+    const evaluated = evaluateOperationalReportFreshness(reportState, new Date());
+    await writeOperationalReportState(installPath, role, evaluated.state);
+    const delivery = evaluated.event
+      ? await dispatchRuntimeEvent(
+          installPath,
+          role,
+          evaluated.event.type === "operational_report_recovered" ? "recovery" : "monitor_stale",
+          [{ id: "operational.report", status: evaluated.event.type === "operational_report_recovered" ? "passed" : "failed", required: true, duration_ms: 0, sanitized_reason: evaluated.event.reason }],
+          new Date().toISOString(),
+        )
+      : [];
+    if (flags.json === true) printJson({ command: "monitoring report-watchdog", event: evaluated.event, delivery, state: evaluated.state });
+    else console.log(JSON.stringify({ event: evaluated.event, delivery, state: evaluated.state }, null, 2));
     return;
   }
 
@@ -2434,7 +2922,7 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
     else console.log(JSON.stringify(output, null, 2));
     return;
   }
-  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service [--role core|upload|preview]");
+  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service|digest|report-watchdog [--role core|upload|preview]");
 
   if (flags.watchdog === true) {
     const evaluated = evaluateRuntimeWatchdog(state, new Date());
@@ -2446,8 +2934,26 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
     return;
   }
 
-  requireDocker();
-  const output = runRuntimeVerification(installPath, role, config);
+  let output: RuntimeVerifierOutput;
+  try {
+    requireDocker();
+    output = runRuntimeVerification(installPath, role, config);
+  } catch (error) {
+    console.error(`Runtime verifier unavailable: ${error instanceof Error ? error.name : "UnknownError"}`);
+    output = {
+      status: "failed",
+      role,
+      completed_at: Date.now() / 1000,
+      checks: [{
+        id: `${role}.runtime_verifier_available`,
+        status: "failed",
+        required: true,
+        duration_ms: 0,
+        failureClass: "critical_availability",
+        sanitized_reason: "runtime_verifier_unavailable",
+      }],
+    };
+  }
   await persistRuntimeResult(installPath, role, output);
   let nextState = await readRuntimeIncidentState(installPath, role);
   const heartbeat = evaluateRuntimeHeartbeat(nextState, new Date());
@@ -3255,12 +3761,14 @@ Usage: openmates server <command> [options]
 
 Commands:
   install         Install OpenMates server (prebuilt GHCR images by default)
+  register        Adopt an existing source checkout without cloning or changing Git state
   start           Start the server
   stop            Stop the server
   restart         Restart the server
   status          Show server status (container health)
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
+  test            Run explicitly consented authenticated functional checks
   verify          Run the role-aware provider-free runtime contract without updating
   monitoring      Install, run, or inspect periodic runtime monitoring and the host watchdog
   notifications   Send labeled runtime-health notification delivery tests
@@ -3293,6 +3801,16 @@ Command Options:
     --deployment-mode <mode>  self-host or official-cloud
     --openmatescloud-path <dir>  Overlay checkout path (default: sibling OpenMatesCloud)
 
+  register:
+    --path <dir>        Existing OpenMates checkout (default: current directory)
+    --official-cloud   Use the sibling/configured OpenMatesCloud backend overlay
+    --with-overrides   Persist local admin/Directus port overrides
+    --profile <name>   Core profile: minimal, standard, or production
+    --with-alerts      Include alertmanager in the persisted service set
+    --services <csv>   Persist only selected role services
+    --exclude <csv>    Persist all role services except selected services
+    --yes              Replace a different saved local server registration
+
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
     --services <csv>    Start only selected role services
@@ -3300,6 +3818,7 @@ Command Options:
 
   restart:
     --rebuild           Full rebuild (down + build + up) instead of graceful restart
+    --reset-cache       Delete the cache volume during --rebuild (never implicit)
     --services <csv>    Restart only selected role services
     --exclude <csv>     Restart all role services except selected services
 
@@ -3309,6 +3828,7 @@ Command Options:
     --exclude <csv>     Filter logs to all role services except selected services
     --follow, -f        Stream logs in real time
     --tail <n>          Number of lines to show (default: 100)
+    --since <value>     Show logs since a duration or timestamp (e.g. 10m, 2026-08-22T10:00:00Z)
 
   update:
     --dry-run           Show update plan without changing files or containers
@@ -3320,6 +3840,13 @@ Command Options:
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+    --skip-quick-test   Do not offer the authenticated post-update quick test
+    --quick-test        Request the quick test (automation also needs --confirm-spend-credits)
+    --confirm-spend-credits  Explicitly authorize the bounded paid quick test
+
+  test:
+    openmates server test --quick [--confirm-spend-credits] [--json]
+    Interactive runs ask before spending; non-interactive runs require explicit spend confirmation.
 
   verify:
     openmates server verify [--role core|upload|preview] [--json]
@@ -3378,6 +3905,7 @@ Command Options:
 
 Examples:
   openmates server install
+  openmates server register --path . --official-cloud --with-overrides --exclude webapp
   openmates server install --from-source --official-cloud --openmatescloud-path ../OpenMatesCloud
   openmates server start --with-overrides
   openmates server logs --container api --follow
@@ -3387,7 +3915,7 @@ Examples:
   openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
-  openmates server update --image-tag v0.15.0
+  openmates server update --image-tag v0.16.0
   openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());
@@ -3398,6 +3926,7 @@ Examples:
 // ---------------------------------------------------------------------------
 
 export async function handleServer(
+  client: OpenMatesClient,
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
@@ -3412,13 +3941,15 @@ export async function handleServer(
   }
 
   switch (subcommand) {
+    case "register":   return serverRegister(flags);
     case "status":     return serverStatus(flags);
     case "start":      return serverStart(flags);
     case "stop":       return serverStop(flags);
     case "restart":    return serverRestart(flags);
     case "logs":       return serverLogs(flags);
     case "install":    return serverInstall(flags);
-    case "update":     return serverUpdate(rest, flags);
+    case "update":     return serverUpdate(client, rest, flags);
+    case "test":       return serverTest(client, flags);
     case "verify":     return serverVerify(flags);
     case "monitoring": return serverMonitoring(rest, flags);
     case "notifications": return serverNotifications(rest, flags);

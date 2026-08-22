@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build privacy-safe implementation demonstration evidence.
+"""Build implementation demonstration evidence.
 
 This local-only tool captures explicit CLI argv through a pseudo-terminal,
 renders terminal/caption media with FFmpeg, and prepares bounded frame evidence.
@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import errno
 import fcntl
 import hashlib
+import html
 import json
 import math
 import os
@@ -25,10 +26,10 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import textwrap
 import time
 from typing import Any, Callable, Iterable
-from urllib.parse import urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -36,9 +37,14 @@ TERMINAL_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
 TERMINAL_VIDEO_SIZE = "1280x720"
 TERMINAL_FONT_SIZE = 28
 TERMINAL_COLUMNS = 72
+TERMINAL_VISIBLE_LINES = 14
 TERMINAL_TYPING_INTERVAL_SECONDS = 0.04
+TERMINAL_MAX_OUTPUT_GAP_SECONDS = 1.2
 TERMINAL_TUTORIAL_MIN_SECONDS = 15.0
 TERMINAL_RESULT_HOLD_SECONDS = 8.0
+CLI_TEST_ACCOUNT_HARNESS = ("node", "scripts/openmates_cli_test_account.mjs")
+OPENMATES_CLI_DIST_PATH = "frontend/packages/openmates-cli/dist/cli.js"
+TEAMS_CLI_PROOF_HELPER_PATH = "scripts/teams_cli_proof.mjs"
 SECRET_SCANNER_CLI = REPO_ROOT / "frontend/packages/secret-scanner/src/cli.ts"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 SHOWINFO_PTS_RE = re.compile(r"\bpts_time:([0-9]+(?:\.[0-9]+)?)")
@@ -50,11 +56,20 @@ PLAYWRIGHT_SOURCE_FIELDS = {
     "run_id",
     "subject_commit",
     "artifact_path",
+    "artifact_sha256",
     "test_account_provenance",
 }
-MAX_REVIEW_INTERVAL_SECONDS = 3.0
+MAX_REVIEW_INTERVAL_SECONDS = 5.0
+MAX_REVIEW_FRAMES_PER_DEVICE = 12
+MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS = 0.05
+SCENE_CHANGE_THRESHOLD = 0.3
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
+MAX_REVIEW_ATTEMPTS = 3
 END_FRAME_OFFSET_SECONDS = 0.1
+MEDIA_TIMESTAMP_DECIMALS = 3
+DEFAULT_NARRATION_PROVIDER = "elevenlabs"
+DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
+DEFAULT_NARRATION_VOICE = "warm_neutral"
 REVIEW_VERDICTS = {"supported", "contradicted", "not_visible", "ambiguous", "wrong_time"}
 DEFECT_RETURN_STAGES = {
     "implementation": "implementation",
@@ -66,11 +81,83 @@ DEFECT_RETURN_STAGES = {
 }
 FULL_VIDEO_REVIEW_KEYS = {"video", "video_path", "video_bytes", "video_base64", "video_attachment"}
 SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-REVIEW_REQUEST_FIELDS = {"spec_id", "subject_commit", "captions", "expected_proof", "frames", "video_metadata"}
+REVIEW_REQUEST_FIELDS = {
+    "spec_id",
+    "subject_commit",
+    "captions",
+    "expected_proof",
+    "frames",
+    "frame_index_hash",
+    "proof_contract_hash",
+    "proof_group_id",
+    "video_metadata",
+    "narration_audio",
+}
 REVIEW_CAPTION_FIELDS = {"id", "narration_id", "text", "start", "end", "claim_ids"}
 REVIEW_PROOF_FIELDS = {"claim_id", "text", "acceptance_criteria", "evidence_intervals"}
 REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
-REVIEW_METADATA_FIELDS = {"duration_seconds", "sha256", "width", "height"}
+REVIEW_METADATA_REQUIRED_FIELDS = {"duration_seconds", "sha256", "width", "height"}
+REVIEW_METADATA_OPTIONAL_FIELDS = {
+    "black_bar_scan_status",
+    "demo_audio_mixed",
+    "device_profile",
+    "hold_last_frame_seconds",
+    "playback_rate",
+    "target_height",
+    "target_width",
+    "captions_sha256",
+}
+REVIEW_METADATA_FIELDS = REVIEW_METADATA_REQUIRED_FIELDS | REVIEW_METADATA_OPTIONAL_FIELDS
+NARRATION_AUDIO_FIELDS = {"status", "provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from"}
+PROOF_PRIVACY_SCAN_DISABLED = {
+    "status": "not_applicable",
+    "scan": "disabled",
+    "reason": "proof_video_pii_detection_disabled",
+}
+PROOF_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
+DEVICE_PROFILES = {
+    "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
+    "web-phone": {"width": 390, "height": 844, "surface": "web", "label": "phone web"},
+    "web-laptop": {"width": 1440, "height": 900, "surface": "web", "label": "laptop web"},
+    "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
+    "apple-ipad-landscape": {"width": 1366, "height": 1024, "surface": "apple", "label": "iPad landscape"},
+}
+POST_EXIT_PTY_DRAIN_SECONDS = 0.5
+DEVICE_PROFILE_ALIASES = {
+    "cli": "cli-terminal",
+    "terminal": "cli-terminal",
+    "mobile": "web-phone",
+    "phone": "web-phone",
+    "web-mobile": "web-phone",
+    "laptop": "web-laptop",
+    "web-desktop": "web-laptop",
+    "desktop": "web-laptop",
+    "iphone": "apple-iphone-portrait",
+    "iphone-portrait": "apple-iphone-portrait",
+    "ipad": "apple-ipad-landscape",
+    "ipad-landscape": "apple-ipad-landscape",
+}
+DEVICE_ASPECT_RATIO_TOLERANCE = 0.01
+CAPTURE_READY_TRIM_LEAD_SECONDS = 0.15
+BLACK_BAR_DARK_LUMA_MAX = 16
+BLACK_BAR_DARK_PIXEL_RATIO = 0.98
+BLACK_BAR_CENTER_DARK_PIXEL_RATIO = 0.80
+BLACK_BAR_MIN_PIXELS = 8
+BLACK_BAR_MIN_FRACTION = 0.025
+BLACK_BAR_MAX_EDGE_FRACTION = 0.25
+MIN_TUTORIAL_NARRATION_SENTENCES = 3
+MIN_TUTORIAL_NARRATION_WORDS = 24
+MIN_PROOF_PLAYBACK_RATE = 0.75
+MAX_PROOF_PLAYBACK_RATE = 1.0
+MAX_PROOF_OUTPUT_SECONDS = 35.0
+GENERIC_NARRATION_RE = re.compile(
+    r"\b(?:it works|works correctly|feature works|successfully demonstrates|as you can see|proof video|demo video)\b",
+    re.IGNORECASE,
+)
+VISIBLE_NARRATION_RE = re.compile(
+    r"\b(?:screen|page|card|button|menu|field|terminal|command|result|message|audio|play|player|caption|visible|shows?|opens?|lists?|renders?)\b",
+    re.IGNORECASE,
+)
 
 
 class DemonstrationError(RuntimeError):
@@ -110,7 +197,10 @@ def select_playwright_source(
         artifact_path = Path(str(candidate["artifact_path"]))
         if not artifact_path.is_file():
             raise DemonstrationError(f"Playwright artifact does not exist: {artifact_path}")
-        return {**candidate, "artifact_hash": sha256_file(artifact_path)}
+        actual_hash = sha256_file(artifact_path)
+        if candidate.get("artifact_sha256") != actual_hash:
+            raise DemonstrationError("Playwright artifact hash no longer matches deployed proof-source attestation")
+        return {**candidate, "artifact_hash": actual_hash}
     raise DemonstrationError(f"No Playwright recording matches run {run_id} and commit {subject_commit}")
 
 
@@ -150,6 +240,7 @@ def capture_pty(
     reached_eof = False
     output_bytes = 0
     failure: DemonstrationError | None = None
+    post_exit_started: float | None = None
     try:
         while True:
             if time.monotonic() - started > timeout_seconds:
@@ -177,8 +268,19 @@ def capture_pty(
                             "text": _normalise_terminal_text(chunk.decode("utf-8", errors="replace")),
                         }
                     )
-            if process.poll() is not None and (reached_eof or not ready):
-                break
+            if process.poll() is not None:
+                if reached_eof:
+                    break
+                if post_exit_started is None:
+                    post_exit_started = time.monotonic()
+                if time.monotonic() - post_exit_started >= POST_EXIT_PTY_DRAIN_SECONDS:
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+            else:
+                post_exit_started = None
     finally:
         os.close(master_fd)
         if process.poll() is None:
@@ -223,13 +325,41 @@ def capture_pty(
     }
 
 
+def user_facing_cli_argv(argv: list[str]) -> list[str]:
+    """Return the command a CLI user should see for test-account harness runs."""
+    if len(argv) >= 2 and Path(argv[0]).name == "node":
+        script_path = Path(argv[1]).as_posix().lstrip("./")
+        if script_path == TEAMS_CLI_PROOF_HELPER_PATH or script_path.endswith(f"/{TEAMS_CLI_PROOF_HELPER_PATH}"):
+            slug = ""
+            name = ""
+            for index, value in enumerate(argv[2:]):
+                if value == "--slug" and index + 3 < len(argv):
+                    slug = argv[index + 3]
+                if value == "--name" and index + 3 < len(argv):
+                    name = argv[index + 3]
+            visible = ["openmates", "teams", "create"]
+            if name:
+                visible.extend(["--name", name])
+            if slug:
+                visible.extend(["--slug", slug])
+            visible.append("--switch")
+            return visible
+    if argv[: len(CLI_TEST_ACCOUNT_HARNESS)] == list(CLI_TEST_ACCOUNT_HARNESS):
+        return ["openmates", *argv[len(CLI_TEST_ACCOUNT_HARNESS) :]]
+    if len(argv) >= 2 and Path(argv[0]).name == "node":
+        script_path = Path(argv[1]).as_posix().lstrip("./")
+        if script_path in {"dist/cli.js", OPENMATES_CLI_DIST_PATH} or script_path.endswith(f"/{OPENMATES_CLI_DIST_PATH}"):
+            return ["openmates", *argv[2:]]
+    return list(argv)
+
+
 def mark_reconstructed(source: dict[str, Any], *, displayed_transcript_hash: str) -> dict[str, Any]:
     if displayed_transcript_hash != source.get("transcript_hash"):
         raise DemonstrationError("Reconstructed terminal transcript hash does not match captured transcript hash")
     return {
         **source,
         "reconstructed": True,
-        "visible_label": "Reconstructed from exact sanitized terminal transcript",
+        "visible_label": "Reconstructed from exact terminal transcript",
     }
 
 
@@ -237,19 +367,144 @@ def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
+def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
+    if name is None or not str(name).strip():
+        return None
+    key = str(name).strip().lower()
+    canonical = DEVICE_PROFILE_ALIASES.get(key, key)
+    profile = DEVICE_PROFILES.get(canonical)
+    if profile is None:
+        supported = ", ".join(sorted(DEVICE_PROFILES))
+        raise DemonstrationError(f"Unsupported proof-video device profile {name!r}; use one of: {supported}")
+    return {"id": canonical, **profile}
+
+
+def assert_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str, Any] | None) -> None:
+    if profile is None:
+        return
+    width = int(profile["width"])
+    height = int(profile["height"])
+    if metadata.get("width") != width or metadata.get("height") != height:
+        actual = f"{metadata.get('width')}x{metadata.get('height')}"
+        expected = f"{width}x{height}"
+        label = str(profile.get("label") or profile["id"])
+        raise DemonstrationError(
+            f"{label} proof video must be {expected}, got {actual}. "
+            "Do not letterbox, pillarbox, or wrap device recordings in a generic landscape canvas."
+        )
+    expected_ratio = width / height
+    actual_ratio = int(metadata["width"]) / int(metadata["height"])
+    if abs(actual_ratio - expected_ratio) > DEVICE_ASPECT_RATIO_TOLERANCE:
+        raise DemonstrationError(f"Proof-video aspect ratio does not match device profile {profile['id']}")
+
+
+def _black_bar_probe_times(duration_seconds: float) -> list[float]:
+    if duration_seconds <= 0:
+        raise DemonstrationError("Video duration must be positive before black-bar scanning")
+    first_probe = min(duration_seconds - END_FRAME_OFFSET_SECONDS, max(0.25, duration_seconds * 0.1))
+    candidates = {first_probe, min(duration_seconds - END_FRAME_OFFSET_SECONDS, duration_seconds * 0.5)}
+    if duration_seconds > 2.0:
+        candidates.add(min(duration_seconds - END_FRAME_OFFSET_SECONDS, duration_seconds - 1.0))
+    return sorted(max(0.0, round(value, 3)) for value in candidates)
+
+
+def _crop_dark_ratio(frame_path: Path, *, crop: str) -> float:
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(frame_path),
+            "-vf",
+            f"crop={crop},format=gray",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        raise DemonstrationError(f"FFmpeg black-bar edge scan failed: {stderr.strip()[-500:]}")
+    if not result.stdout:
+        raise DemonstrationError("FFmpeg black-bar edge scan returned no pixels")
+    dark_pixels = sum(1 for value in result.stdout if value <= BLACK_BAR_DARK_LUMA_MAX)
+    return dark_pixels / len(result.stdout)
+
+
+def _edge_dark_ratio(frame_path: Path, *, edge: str, edge_pixels: int) -> float:
+    crop = {
+        "top": f"iw:{edge_pixels}:0:0",
+        "bottom": f"iw:{edge_pixels}:0:ih-{edge_pixels}",
+        "left": f"{edge_pixels}:ih:0:0",
+        "right": f"{edge_pixels}:ih:iw-{edge_pixels}:0",
+    }[edge]
+    return _crop_dark_ratio(frame_path, crop=crop)
+
+
+def _center_dark_ratio(frame_path: Path) -> float:
+    return _crop_dark_ratio(frame_path, crop="iw/2:ih/2:iw/4:ih/4")
+
+
+def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    width = int(metadata["width"])
+    height = int(metadata["height"])
+    edge_pixels = max(
+        BLACK_BAR_MIN_PIXELS,
+        min(int(min(width, height) * BLACK_BAR_MIN_FRACTION), int(min(width, height) * BLACK_BAR_MAX_EDGE_FRACTION)),
+    )
+    scan_dir = video_path.parent / ".black-bar-scan"
+    scan_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    scan_dir.chmod(0o700)
+    offenders: list[str] = []
+    try:
+        for index, timestamp in enumerate(_black_bar_probe_times(float(metadata["duration_seconds"]))):
+            frame_path = scan_dir / f"probe-{index:02d}.png"
+            extract_frame(video_path, timestamp_seconds=timestamp, output_path=frame_path)
+            ratios = {
+                edge: _edge_dark_ratio(frame_path, edge=edge, edge_pixels=edge_pixels)
+                for edge in ("top", "bottom", "left", "right")
+            }
+            center_ratio = _center_dark_ratio(frame_path)
+            if (
+                ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and ratios["bottom"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
+            ):
+                offenders.append(f"letterbox@{timestamp:g}s")
+            if (
+                ratios["left"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and ratios["right"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
+            ):
+                offenders.append(f"pillarbox@{timestamp:g}s")
+    finally:
+        shutil.rmtree(scan_dir, ignore_errors=True)
+    if offenders:
+        raise DemonstrationError(
+            "Proof video appears letterboxed or pillarboxed; black edge detected at "
+            + ", ".join(offenders[:6])
+        )
+    return {
+        "status": "passed",
+        "edge_pixels": edge_pixels,
+        "probes": len(_black_bar_probe_times(float(metadata["duration_seconds"]))),
+    }
+
+
 def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build visible typing and output states while preserving captured delays."""
+    """Build visible typing and output states with bounded network waits."""
     command = f"$ {shlex.join(argv)}"
-    states: list[dict[str, Any]] = []
-    visible = "$ "
-    for character in command[2:]:
-        states.append({"start": len(states) * TERMINAL_TYPING_INTERVAL_SECONDS, "text": visible})
-        visible += character
-    typing_completed_at = len(states) * TERMINAL_TYPING_INTERVAL_SECONDS
-    if not states:
-        states.append({"start": 0.0, "text": visible})
-    states.append({"start": typing_completed_at, "text": visible})
+    visible = command
+    typing_completed_at = 0.0
+    states: list[dict[str, Any]] = [{"start": 0.0, "text": visible}]
     first_output_at: float | None = None
+    output_cursor = typing_completed_at
+    previous_event_time: float | None = None
     for event in events:
         if event.get("stream") != "output":
             continue
@@ -257,7 +512,12 @@ def build_cli_terminal_timeline(*, argv: list[str], events: list[dict[str, Any]]
         if first_output_at is None and not visible.endswith("\n"):
             visible += "\n"
         visible += str(event.get("text", ""))
-        shifted_time = typing_completed_at + event_time
+        if previous_event_time is None:
+            output_cursor += min(event_time, TERMINAL_MAX_OUTPUT_GAP_SECONDS)
+        else:
+            output_cursor += min(max(0.0, event_time - previous_event_time), TERMINAL_MAX_OUTPUT_GAP_SECONDS)
+        previous_event_time = event_time
+        shifted_time = output_cursor
         first_output_at = shifted_time if first_output_at is None else first_output_at
         states.append({"start": shifted_time, "text": visible})
     last_change = float(states[-1]["start"])
@@ -284,7 +544,7 @@ def _terminal_ass_text(text: str) -> str:
     wrapped: list[str] = []
     for line in text.splitlines():
         wrapped.extend(textwrap.wrap(line, width=TERMINAL_COLUMNS, replace_whitespace=False) or [""])
-    escaped = "\n".join(wrapped).replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
+    escaped = "\n".join(wrapped[-TERMINAL_VISIBLE_LINES:]).replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
     return escaped.replace("\n", r"\N")
 
 
@@ -309,24 +569,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     _write_private(path, header + dialogues)
 
 
-def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_path: Path) -> None:
-    """Render a readable timed terminal tutorial with canonical captions."""
-    for path in (captions_path, TERMINAL_FONT):
+def render_terminal_video(timeline: dict[str, Any], audio_path: Path | None, output_path: Path) -> None:
+    """Render the terminal content without burning tutorial captions into its pixels."""
+    for path in (TERMINAL_FONT, *((audio_path,) if audio_path else ())):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     duration_seconds = float(timeline.get("duration_seconds", 0))
     if duration_seconds <= 0:
         raise DemonstrationError("Video duration must be positive")
+    if duration_seconds > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     timeline_path = output_path.with_suffix(".terminal.ass")
     _write_terminal_timeline(timeline_path, timeline)
     terminal = _ffmpeg_filter_path(timeline_path)
-    captions = _ffmpeg_filter_path(captions_path)
-    video_filter = (
-        f"subtitles='{terminal}',"
-        f"subtitles='{captions}':force_style='FontName=DejaVu Sans,FontSize=22,"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,MarginV=36'"
-    )
+    video_filter = f"subtitles='{terminal}'"
+    audio_args = ["-i", str(audio_path)] if audio_path else []
+    audio_output = ["-af", "apad", "-c:a", "aac", "-b:a", "128k"] if audio_path else ["-an"]
     result = subprocess.run(
         [
             "ffmpeg",
@@ -335,6 +594,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
             "lavfi",
             "-i",
             f"color=c=#111827:s={TERMINAL_VIDEO_SIZE}:r=30",
+            *audio_args,
             "-t",
             str(duration_seconds),
             "-vf",
@@ -343,6 +603,7 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
             "libx264",
             "-pix_fmt",
             "yuv420p",
+            *audio_output,
             "-map_metadata",
             "-1",
             "-map_chapters",
@@ -360,29 +621,75 @@ def render_terminal_video(timeline: dict[str, Any], captions_path: Path, output_
     timeline_path.unlink(missing_ok=True)
 
 
-def render_captioned_video(source_path: Path, captions_path: Path, output_path: Path) -> None:
-    """Burn canonical captions into a copy without mutating the raw recording."""
-    for path in (source_path, captions_path):
+def render_clean_video(
+    source_path: Path,
+    audio_path: Path | None,
+    output_path: Path,
+    *,
+    playback_rate: float = 1.0,
+    hold_last_frame_seconds: float = 0.0,
+    demo_audio_path: Path | None = None,
+) -> None:
+    """Retime a recording without shrinking it or adding tutorial overlays."""
+    optional_paths = (demo_audio_path,) if demo_audio_path else ()
+    for path in (source_path, *((audio_path,) if audio_path else ()), *optional_paths):
         if not path.is_file():
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
-        raise DemonstrationError("Caption output must not replace the raw recording")
+        raise DemonstrationError("Proof output must not replace the raw recording")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
+        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    if demo_audio_path is not None and audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    captions = _ffmpeg_filter_path(captions_path)
+    source_duration = media_duration_seconds(source_path)
+    output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+    video_filters = [f"setpts=PTS/{playback_rate:g}"]
+    if hold_last_frame_seconds:
+        video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
+    audio_inputs: list[str] = []
+    input_args = ["-i", str(source_path)]
+    audio_map: list[str] = []
+    if audio_path is not None:
+        input_args.extend(["-i", str(audio_path)])
+        audio_inputs.append(f"[1:a:0]volume=1.0,apad,atrim=0:{output_duration:g}[narr]")
+        audio_map = ["-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
+    if demo_audio_path is not None:
+        demo_index = 2 if audio_path is not None else 1
+        input_args.extend(["-stream_loop", "-1", "-i", str(demo_audio_path)])
+        audio_inputs.append(f"[{demo_index}:a:0]volume=0.30,atrim=0:{output_duration:g}[demo]")
+        if audio_path is not None:
+            audio_inputs.append(
+                "[narr][demo]amix=inputs=2:duration=longest:dropout_transition=0,"
+                "aformat=sample_fmts=fltp:channel_layouts=stereo[aout]"
+            )
+        else:
+            audio_inputs.append("[demo]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]")
+            audio_map = ["-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
+    elif audio_path is not None:
+        audio_inputs.append("[narr]aformat=sample_fmts=fltp:channel_layouts=stereo[aout]")
+    filter_complex = ";".join([f"[0:v:0]{','.join(video_filters)}[vout]", *audio_inputs])
     result = subprocess.run(
         [
             "ffmpeg",
             "-y",
-            "-i",
-            str(source_path),
-            "-vf",
-            f"subtitles='{captions}'",
+            *input_args,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[vout]",
+            *audio_map,
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
-            "-c:a",
-            "copy",
+            *([] if audio_map else ["-an"]),
+            "-t",
+            str(output_duration),
             "-map_metadata",
             "-1",
             "-map_metadata:s",
@@ -398,29 +705,77 @@ def render_captioned_video(source_path: Path, captions_path: Path, output_path: 
         check=False,
     )
     if result.returncode != 0:
-        raise DemonstrationError(f"FFmpeg caption render failed: {result.stderr.strip()[-1000:]}")
+        raise DemonstrationError(f"FFmpeg clean render failed: {result.stderr.strip()[-1000:]}")
 
 
-def scan_text_with_canonical_scanner(text: str) -> list[str]:
-    """Return finding types only; never expose matched secret values."""
+def render_spec_timeline_video(
+    spec_timeline: dict[str, Any],
+    output_path: Path,
+    *,
+    caption_text: str,
+) -> dict[str, Any]:
+    """Render proof-owned checkpoint frames with holds instead of speeding up source video."""
+
+    checkpoint_frames = [item for item in spec_timeline.get("checkpoint_frames", []) if isinstance(item, dict)]
+    frame_paths: list[Path] = []
+    for item in checkpoint_frames:
+        frame_path = Path(str(item.get("path") or ""))
+        if not frame_path.is_file():
+            continue
+        expected_hash = str(item.get("sha256") or "")
+        if expected_hash and sha256_file(frame_path) != expected_hash:
+            raise DemonstrationError(f"Spec-owned checkpoint frame hash mismatch: {frame_path}")
+        frame_paths.append(frame_path)
+    if not frame_paths:
+        raise DemonstrationError("Spec-owned proof timeline has no persisted checkpoint frames")
+    words = max(1, len(re.findall(r"\b\w+\b", caption_text)))
+    duration = min(MAX_PROOF_OUTPUT_SECONDS, max(12.0, words / 2.5, len(frame_paths) * 3.0))
+    hold_seconds = round(duration / len(frame_paths), MEDIA_TIMESTAMP_DECIMALS)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    concat_path = output_path.with_suffix(".concat.txt")
+    lines: list[str] = []
+    for frame_path in frame_paths:
+        lines.append(f"file '{frame_path.resolve().as_posix()}'")
+        lines.append(f"duration {hold_seconds:g}")
+    lines.append(f"file '{frame_paths[-1].resolve().as_posix()}'")
+    _write_private(concat_path, "\n".join(lines) + "\n")
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(SECRET_SCANNER_CLI)],
-        input=json.dumps({"text": text, "knownSecrets": _known_secret_values()}),
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(concat_path),
+            "-vf",
+            "fps=30,format=yuv420p",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ],
         capture_output=True,
         text=True,
         check=False,
-        cwd=REPO_ROOT,
     )
+    concat_path.unlink(missing_ok=True)
     if result.returncode != 0:
-        raise DemonstrationError(f"Canonical secret scanner failed: {result.stderr.strip()[-500:]}")
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise DemonstrationError("Canonical secret scanner returned invalid JSON") from exc
-    types = payload.get("types")
-    if not isinstance(types, list) or not all(isinstance(value, str) for value in types):
-        raise DemonstrationError("Canonical secret scanner returned invalid finding types")
-    return types
+        raise DemonstrationError(f"FFmpeg spec-timeline render failed: {result.stderr.strip()[-1000:]}")
+    return {
+        "rendered_from": "spec_timeline_checkpoint_frames",
+        "checkpoint_frame_count": len(frame_paths),
+        "checkpoint_hold_seconds": hold_seconds,
+    }
 
 
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
@@ -457,25 +812,6 @@ def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
     }
 
 
-def anonymize_cli_capture(run_dir: Path, capture: dict[str, Any]) -> dict[str, Any]:
-    """Replace sensitive values with conspicuous typed placeholders before rendering."""
-    transcript_path = run_dir / "transcript.txt"
-    transcript = redact_text_with_canonical_scanner(transcript_path.read_text(encoding="utf-8"))
-    _write_private(transcript_path, transcript["text"])
-    redacted_argv = [redact_text_with_canonical_scanner(str(value))["text"] for value in capture.get("argv", [])]
-    return {
-        **capture,
-        "argv": redacted_argv,
-        "transcript_hash": sha256_file(transcript_path),
-        "anonymization": {
-            "applied": transcript["count"] > 0,
-            "finding_count": transcript["count"],
-            "finding_types": transcript["types"],
-            "placeholder_style": "typed_and_numbered",
-        },
-    }
-
-
 def _known_secret_values() -> list[dict[str, str]]:
     values: dict[str, str] = {}
     for name, value in os.environ.items():
@@ -495,22 +831,6 @@ def _known_secret_values() -> list[dict[str, str]]:
     return [{"name": name, "value": value} for name, value in values.items()]
 
 
-def scan_text_sources(values: dict[str, str]) -> dict[str, Any]:
-    findings: list[dict[str, Any]] = []
-    for field, text in values.items():
-        types = sorted(set(scan_text_with_canonical_scanner(text)))
-        if types:
-            findings.append({"field": field, "types": types})
-    return {"status": "failed" if findings else "passed", "findings": findings}
-
-
-def playwright_source_privacy_payload(source: dict[str, Any]) -> str:
-    """Exclude the typed CI run identifier from heuristic PII detection."""
-    payload = json.dumps(source, sort_keys=True)
-    run_id = str(source.get("run_id", "")).strip()
-    return payload.replace(run_id, "[RUN_ID]") if run_id else payload
-
-
 def build_artifact_manifest(*, raw: Path, derived: Path, subject_commit: str) -> dict[str, Any]:
     if raw.resolve() == derived.resolve():
         raise DemonstrationError("Raw and derived demonstration artifacts must be distinct")
@@ -528,7 +848,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
             "-v",
             "error",
             "-show_entries",
-            "format=duration:format_tags:stream=width,height,codec_name:stream_tags",
+            "format=duration:format_tags:stream=codec_type,width,height,codec_name:stream_tags",
             "-of",
             "json",
             str(video_path),
@@ -542,6 +862,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(result.stdout)
         stream = next(item for item in payload["streams"] if item.get("width") and item.get("height"))
+        audio_stream = next((item for item in payload["streams"] if item.get("codec_type") == "audio"), None)
         duration = float(payload["format"]["duration"])
     except (KeyError, StopIteration, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise DemonstrationError("ffprobe did not return complete video metadata") from exc
@@ -557,17 +878,150 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
         "width": int(stream["width"]),
         "height": int(stream["height"]),
         "codec": str(stream.get("codec_name") or "unknown"),
+        "has_audio": audio_stream is not None,
+        "audio_codec": str(audio_stream.get("codec_name") or "unknown") if audio_stream else "",
         "sha256": sha256_file(video_path),
         "tags": tags,
     }
 
 
-def _srt_timestamp(seconds: float) -> str:
+def media_duration_seconds(path: Path) -> float:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"ffprobe failed: {result.stderr.strip()[-500:]}")
+    try:
+        return round(float(json.loads(result.stdout)["format"]["duration"]), 3)
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise DemonstrationError("ffprobe did not return complete audio metadata") from exc
+
+
+def trim_source_to_ready_marker(
+    source_path: Path,
+    output_path: Path,
+    *,
+    ready_timestamp_seconds: float,
+    lead_seconds: float = CAPTURE_READY_TRIM_LEAD_SECONDS,
+) -> dict[str, Any]:
+    """Accurately trim loading/setup frames using an explicit capture marker."""
+    if not source_path.is_file():
+        raise DemonstrationError(f"Proof source does not exist: {source_path}")
+    if ready_timestamp_seconds < 0 or lead_seconds < 0:
+        raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
+    trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
+    duration = media_duration_seconds(source_path)
+    if trim_start >= duration:
+        raise DemonstrationError("Capture-ready marker is outside the source video")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(source_path),
+            "-ss",
+            str(trim_start),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"FFmpeg marker trim failed: {result.stderr.strip()[-1000:]}")
+    return {
+        "ready_timestamp_seconds": round(ready_timestamp_seconds, 3),
+        "trim_start_seconds": trim_start,
+        "source_duration_seconds": duration,
+        "trimmed_duration_seconds": video_metadata(output_path)["duration_seconds"],
+    }
+
+
+def _narration_audio_mime_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".mp3":
+        return "audio/mpeg"
+    if suffix in {".m4a", ".mp4"}:
+        return "audio/mp4"
+    if suffix == ".wav":
+        return "audio/wav"
+    if suffix == ".ogg":
+        return "audio/ogg"
+    raise DemonstrationError("Narration audio must be mp3, m4a, wav, or ogg")
+
+
+def prepare_narration_audio(
+    *,
+    run_dir: Path,
+    audio_path: Path,
+    provider: str = DEFAULT_NARRATION_PROVIDER,
+    model: str = DEFAULT_NARRATION_MODEL,
+    voice: str = DEFAULT_NARRATION_VOICE,
+    reused_from: str = "",
+) -> dict[str, Any]:
+    if provider != DEFAULT_NARRATION_PROVIDER:
+        raise DemonstrationError("Narration audio provider must be ElevenLabs")
+    if model != DEFAULT_NARRATION_MODEL:
+        raise DemonstrationError(f"Narration audio must use {DEFAULT_NARRATION_MODEL}")
+    if not voice.strip():
+        raise DemonstrationError("Narration audio requires an ElevenLabs voice")
+    if not audio_path.is_file():
+        raise DemonstrationError(f"Narration audio does not exist: {audio_path}")
+    run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_dir.chmod(0o700)
+    target = run_dir / f"narration-audio{audio_path.suffix.lower()}"
+    if audio_path.resolve() != target.resolve():
+        shutil.copyfile(audio_path, target)
+        target.chmod(0o600)
+    return {
+        "status": "passed",
+        "provider": provider,
+        "model": model,
+        "voice": voice,
+        "path": str(target),
+        "sha256": sha256_file(target),
+        "mime_type": _narration_audio_mime_type(target),
+        "duration_seconds": media_duration_seconds(target),
+        "reused_from": reused_from,
+    }
+
+
+def narration_audio_not_required() -> dict[str, Any]:
+    return {
+        "status": "not_required",
+        "provider": "",
+        "model": "",
+        "voice": "",
+        "path": "",
+        "sha256": "",
+        "mime_type": "",
+        "duration_seconds": 0.0,
+        "reused_from": "",
+    }
+
+
+def _vtt_timestamp(seconds: float) -> str:
     milliseconds = max(0, round(seconds * 1000))
     hours, remainder = divmod(milliseconds, 3_600_000)
     minutes, remainder = divmod(remainder, 60_000)
     whole_seconds, milliseconds = divmod(remainder, 1000)
-    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d},{milliseconds:03d}"
+    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d}.{milliseconds:03d}"
 
 
 def write_single_caption(path: Path, *, text: str, duration_seconds: float) -> None:
@@ -575,7 +1029,7 @@ def write_single_caption(path: Path, *, text: str, duration_seconds: float) -> N
         raise DemonstrationError("Caption text and duration are required")
     _write_private(
         path,
-        f"1\n{_srt_timestamp(0)} --> {_srt_timestamp(duration_seconds)}\n{text.strip()}\n",
+        f"WEBVTT\n\n{_vtt_timestamp(0)} --> {_vtt_timestamp(duration_seconds)}\n{text.strip()}\n",
     )
 
 
@@ -588,6 +1042,7 @@ def write_tutorial_captions(
     first_transition_at: float | None = None,
 ) -> list[dict[str, Any]]:
     """Split tutorial narration into readable sentence-level caption cues."""
+    assert_realistic_tutorial_narration(text)
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     if not sentences or duration_seconds <= 0:
         raise DemonstrationError("Tutorial narration and duration are required")
@@ -614,11 +1069,81 @@ def write_tutorial_captions(
             }
         )
         blocks.append(
-            f"{index}\n{_srt_timestamp(cursor)} --> {_srt_timestamp(end)}\n{sentence}\n"
+            f"{_vtt_timestamp(cursor)} --> {_vtt_timestamp(end)}\n{sentence}\n"
         )
         cursor = end
-    _write_private(path, "\n".join(blocks))
+    _write_private(path, "WEBVTT\n\n" + "\n".join(blocks))
     return segments
+
+
+def write_webvtt_segments(path: Path, segments: list[dict[str, Any]]) -> None:
+    """Write the reviewed cue model as the canonical publication sidecar."""
+    blocks = [
+        f"{_vtt_timestamp(float(segment['start']))} --> {_vtt_timestamp(float(segment['end']))}\n{str(segment['text']).strip()}\n"
+        for segment in segments
+    ]
+    _write_private(path, "WEBVTT\n\n" + "\n".join(blocks))
+
+
+def validate_webvtt_matches_segments(path: Path, segments: list[dict[str, Any]]) -> None:
+    """Fail closed when sidecar text or timing differs from the reviewed cue model."""
+    content = path.read_text(encoding="utf-8-sig")
+    if not content.startswith("WEBVTT\n"):
+        raise DemonstrationError("Canonical captions must be valid WebVTT")
+    blocks = [block for block in content.removeprefix("WEBVTT").strip().split("\n\n") if block.strip()]
+    if len(blocks) != len(segments):
+        raise DemonstrationError("WebVTT cue count does not match reviewed captions")
+    timestamp_re = re.compile(r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$")
+
+    def seconds(values: tuple[str, ...]) -> float:
+        hours, minutes, whole_seconds, milliseconds = map(int, values)
+        if minutes >= 60 or whole_seconds >= 60:
+            raise DemonstrationError("WebVTT cue contains an invalid timestamp")
+        return round(hours * 3600 + minutes * 60 + whole_seconds + milliseconds / 1000, MEDIA_TIMESTAMP_DECIMALS)
+
+    previous_end = 0.0
+    for block, segment in zip(blocks, segments, strict=True):
+        lines = block.splitlines()
+        if len(lines) != 2:
+            raise DemonstrationError("WebVTT cues must contain one timestamp line and one text line")
+        match = timestamp_re.fullmatch(lines[0])
+        if match is None:
+            raise DemonstrationError("WebVTT cue contains an invalid timestamp")
+        start = seconds(match.groups()[:4])
+        end = seconds(match.groups()[4:])
+        if start < previous_end or start >= end:
+            raise DemonstrationError("WebVTT cues must be ordered and non-overlapping")
+        if start != round(float(segment["start"]), MEDIA_TIMESTAMP_DECIMALS) or end != round(
+            float(segment["end"]), MEDIA_TIMESTAMP_DECIMALS
+        ) or lines[1] != str(segment["text"]).strip():
+            raise DemonstrationError("WebVTT content does not match reviewed captions")
+        previous_end = end
+
+
+def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds: float) -> list[dict[str, Any]]:
+    if duration_seconds <= 0:
+        raise DemonstrationError("Interval duration must be positive")
+    clamped: list[dict[str, Any]] = []
+    for item in items:
+        start = round(float(item["start"]), MEDIA_TIMESTAMP_DECIMALS)
+        end = round(min(float(item["end"]), duration_seconds), MEDIA_TIMESTAMP_DECIMALS)
+        if not 0 <= start < end <= duration_seconds:
+            raise DemonstrationError("Caption interval is outside the rendered video duration")
+        clamped.append({**item, "start": start, "end": end})
+    return clamped
+
+
+def assert_realistic_tutorial_narration(text: str) -> None:
+    sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
+    words = re.findall(r"\b\w+\b", text)
+    if len(sentences) < MIN_TUTORIAL_NARRATION_SENTENCES or len(words) < MIN_TUTORIAL_NARRATION_WORDS:
+        raise DemonstrationError(
+            "Tutorial narration must use at least three concrete sentences that describe the visible action and result"
+        )
+    if GENERIC_NARRATION_RE.search(text):
+        raise DemonstrationError("Tutorial narration is too generic; describe the visible UI/action/result instead")
+    if not VISIBLE_NARRATION_RE.search(text):
+        raise DemonstrationError("Tutorial narration must mention visible UI, terminal output, or playback state")
 
 
 def prepare_review_artifacts(
@@ -629,29 +1154,43 @@ def prepare_review_artifacts(
     subject_commit: str,
     narration_id: str,
     caption_text: str,
+    captions_path: Path,
     expected_proof: str,
     acceptance_criteria: list[str],
     source: dict[str, Any],
+    narration_audio: dict[str, Any],
+    proof_assertions: list[dict[str, str]] | None = None,
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
     caption_segments: list[dict[str, Any]] | None = None,
+    device_profile: dict[str, Any] | None = None,
+    render_metadata: dict[str, Any] | None = None,
+    scene_times: Iterable[float] = (),
+    action_times: Iterable[float] = (),
+    state_change_times: Iterable[float] = (),
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
-    source_metadata = (
-        playwright_source_privacy_payload(source)
-        if source.get("kind") == "playwright"
-        else json.dumps(source, sort_keys=True)
-    )
-    text_privacy = scan_text_sources(
-        {
-            "caption_text": caption_text,
-            "expected_proof": expected_proof,
-            "narration_id": narration_id,
-            "video_filename": video_path.name,
-            "source_metadata": source_metadata,
-            "acceptance_criteria": json.dumps(acceptance_criteria),
-        }
-    )
-    if text_privacy["status"] != "passed":
-        raise DemonstrationError("Text privacy scan found sensitive content before review")
+    if not captions_path.is_file():
+        raise DemonstrationError("Canonical WebVTT captions are missing")
+    if device_profile is not None:
+        assert_device_profile_dimensions(metadata, device_profile)
+        metadata.update(
+            {
+                "device_profile": device_profile["id"],
+                "target_width": int(device_profile["width"]),
+                "target_height": int(device_profile["height"]),
+                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(video_path, metadata),
+            }
+        )
+    if render_metadata:
+        metadata.update(render_metadata)
+    if not isinstance(narration_audio, dict) or narration_audio.get("status") not in {"passed", "not_required"}:
+        raise DemonstrationError("Narration audio metadata must be passed or not_required")
+    missing_audio_fields = NARRATION_AUDIO_FIELDS - set(narration_audio)
+    if missing_audio_fields:
+        raise DemonstrationError(f"Narration audio metadata missing {sorted(missing_audio_fields)[0]}")
+    if narration_audio.get("status") == "passed" and not metadata.get("has_audio"):
+        raise DemonstrationError("Rendered demonstration video must contain the requested narration audio track")
     captions = caption_segments or [
         {
             "id": "CAP-1",
@@ -662,6 +1201,15 @@ def prepare_review_artifacts(
             "claim_ids": ["CLAIM-1"],
         }
     ]
+    claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
+    if claim_ids:
+        captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
+    captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
+    write_webvtt_segments(captions_path, captions)
+    validate_webvtt_matches_segments(captions_path, captions)
+    captions_sha256 = sha256_file(captions_path)
+    metadata["captions_sha256"] = captions_sha256
+    privacy = dict(PROOF_PRIVACY_SCAN_DISABLED)
     frame_dir = run_dir / "frames"
     frame_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     frame_dir.chmod(0o700)
@@ -670,7 +1218,10 @@ def prepare_review_artifacts(
         build_review_frame_times(
             duration_seconds=metadata["duration_seconds"],
             interval_seconds=MAX_REVIEW_INTERVAL_SECONDS,
+            scene_times=scene_times,
+            action_times=action_times,
             caption_intervals=[(float(caption["start"]), float(caption["end"])) for caption in captions],
+            state_change_times=state_change_times,
         )
     ):
         frame = extract_frame(
@@ -682,32 +1233,62 @@ def prepare_review_artifacts(
         frames.append(frame)
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
-    expected = [
-        {
-            "claim_id": "CLAIM-1",
-            "text": expected_proof,
-            "acceptance_criteria": acceptance_criteria,
-            "evidence_intervals": [[0.0, metadata["duration_seconds"]]],
-        }
-    ]
+    evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
+    expected = (
+        [
+            {
+                "claim_id": str(assertion["id"]),
+                "text": str(assertion["description"]),
+                "acceptance_criteria": [str(assertion["id"])],
+                "evidence_intervals": evidence_intervals,
+            }
+            for assertion in proof_assertions
+        ]
+        if proof_assertions
+        else [
+            {
+                "claim_id": "CLAIM-1",
+                "text": expected_proof,
+                "acceptance_criteria": acceptance_criteria,
+                "evidence_intervals": evidence_intervals,
+            }
+        ]
+    )
+    review_audio = {
+        **narration_audio,
+        "path": Path(str(narration_audio["path"])).name if narration_audio.get("path") else "",
+    }
     request = build_review_request(
         spec_id=spec_id,
         subject_commit=subject_commit,
         captions=captions,
         expected_proof=expected,
         frames=frames,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
         video_metadata=metadata,
+        narration_audio=review_audio,
     )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "spec_id": spec_id,
         "subject_commit": subject_commit,
         "source": source,
+        "proof_contract_hash": request["proof_contract_hash"],
+        "proof_group_id": request["proof_group_id"],
         "video_path": str(video_path),
         "video_metadata": metadata,
+        "caption_artifact": {
+            "path": str(captions_path),
+            "sha256": captions_sha256,
+            "mime_type": "text/vtt",
+            "language": "und",
+            "label": "Captions",
+        },
+        "narration_audio": narration_audio,
         "captions": captions,
         "expected_proof": expected,
-        "privacy": {"status": "passed", "findings": [], "text_scan": text_privacy},
+        "privacy": privacy,
         "review": {
             "status": "pending",
             "run_id": f"review-{run_dir.name}",
@@ -715,7 +1296,11 @@ def prepare_review_artifacts(
             "additional_frame_requests": [],
         },
         "publication": {"status": "pending"},
-        "retained_paths": [str(run_dir / "transcript.txt"), str(run_dir / "captions.srt")],
+        "retained_paths": [
+            str(run_dir / "transcript.txt"),
+            str(captions_path),
+            *([str(narration_audio["path"])] if narration_audio.get("path") else []),
+        ],
         "disposable_artifacts": [
             {"path": str(video_path), "kind": "derived_video", "sha256": metadata["sha256"]},
             *[
@@ -746,46 +1331,48 @@ def produce_cli_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
-    anonymize_sensitive: bool = False,
+    narration_audio_path: Path | None,
+    narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
+    narration_audio_model: str = DEFAULT_NARRATION_MODEL,
+    narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
+    narration_audio_reused_from: str = "",
+    timeout_seconds: float = 120.0,
 ) -> dict[str, Any]:
+    if timeout_seconds <= 0 or timeout_seconds > 600:
+        raise DemonstrationError("CLI proof timeout must be between 0 and 600 seconds")
     capture = capture_pty(
         argv,
         run_id=run_id,
         target_environment=target_environment,
         output_dir=run_dir,
         test_account_provenance=test_account_provenance,
+        timeout_seconds=timeout_seconds,
     )
+    if capture.get("exit_status") != 0:
+        raise DemonstrationError(f"CLI proof command exited with status {capture.get('exit_status')}")
     terminal_events: list[dict[str, Any]] = []
     try:
-        if anonymize_sensitive:
-            capture = anonymize_cli_capture(run_dir, capture)
+        display_argv = user_facing_cli_argv(list(capture["argv"]))
         for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines():
-            event = json.loads(line)
-            if event.get("stream") == "output" and anonymize_sensitive:
-                event["text"] = redact_text_with_canonical_scanner(str(event.get("text", "")))["text"]
-            terminal_events.append(event)
-        pre_render_privacy = scan_text_sources(
-            {
-                "argv": json.dumps(capture["argv"]),
-                "transcript": (run_dir / "transcript.txt").read_text(encoding="utf-8"),
-                "caption_text": caption_text,
-                "expected_proof": expected_proof,
-                "output_filename": "demo.mp4",
-            }
-        )
-        if pre_render_privacy["status"] != "passed":
-            (run_dir / "transcript.txt").unlink(missing_ok=True)
-            raise DemonstrationError("Text privacy scan found sensitive CLI content before rendering")
-    except Exception:
-        if anonymize_sensitive:
-            (run_dir / "transcript.txt").unlink(missing_ok=True)
-        raise
+            terminal_events.append(json.loads(line))
     finally:
         (run_dir / "events.jsonl").unlink(missing_ok=True)
-    timeline = build_cli_terminal_timeline(argv=list(capture["argv"]), events=terminal_events)
+    timeline = build_cli_terminal_timeline(argv=display_argv, events=terminal_events)
     duration = float(timeline["duration_seconds"])
-    captions_path = run_dir / "captions.srt"
+    captions_path = run_dir / "captions.vtt"
     video_path = run_dir / "demo.mp4"
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
+    )
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
@@ -793,7 +1380,11 @@ def produce_cli_demonstration(
         narration_id=narration_id,
         first_transition_at=timeline["first_output_at"],
     )
-    render_terminal_video(timeline, captions_path, video_path)
+    render_terminal_video(
+        timeline,
+        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+        video_path,
+    )
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -801,10 +1392,13 @@ def produce_cli_demonstration(
         subject_commit=subject_commit,
         narration_id=narration_id,
         caption_text=caption_text,
+        captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
-        source={"kind": "cli", **capture},
+        source={"kind": "cli", **capture, "display_argv": display_argv},
+        narration_audio=narration_audio,
         caption_segments=caption_segments,
+        state_change_times=[float(state["start"]) for state in timeline["states"][1:]],
     )
 
 
@@ -819,34 +1413,127 @@ def produce_playwright_demonstration(
     caption_text: str,
     expected_proof: str,
     acceptance_criteria: list[str],
+    narration_audio_path: Path | None,
+    proof_assertions: list[dict[str, str]] | None = None,
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
+    narration_audio_provider: str = DEFAULT_NARRATION_PROVIDER,
+    narration_audio_model: str = DEFAULT_NARRATION_MODEL,
+    narration_audio_voice: str = DEFAULT_NARRATION_VOICE,
+    narration_audio_reused_from: str = "",
+    device_profile_name: str | None = None,
+    playback_rate: float = 1.0,
+    hold_last_frame_seconds: float = 0.0,
+    ready_timestamp_seconds: float | None = None,
+    demo_audio_path: Path | None = None,
+    spec_timeline: dict[str, Any] | None = None,
+    browser_domain: str = "",
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
-    source_metadata = video_metadata(source_video)
-    pre_render_privacy = scan_text_sources(
-        {
-            "source_filename": source_video.name,
-            "source_metadata": playwright_source_privacy_payload(selected),
-            "caption_text": caption_text,
-            "expected_proof": expected_proof,
-            "output_filename": "demo.mp4",
-            "source_media_tags": json.dumps(source_metadata["tags"], sort_keys=True),
-        }
+    device_profile = resolve_device_profile(device_profile_name)
+    if device_profile is None:
+        raise DemonstrationError("Playwright proof videos require --device-profile")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
+        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    if demo_audio_path is not None and narration_audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
+    render_source_video = source_video
+    trim_metadata: dict[str, Any] = {}
+    trim_start_seconds = 0.0
+    has_spec_checkpoint_frames = bool(
+        spec_timeline
+        and any(isinstance(item, dict) and item.get("path") for item in spec_timeline.get("checkpoint_frames", []))
     )
-    if pre_render_privacy["status"] != "passed":
-        raise DemonstrationError("Text privacy scan found sensitive Playwright content before rendering")
+    if ready_timestamp_seconds is not None and not has_spec_checkpoint_frames:
+        run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        render_source_video = run_dir / "source-ready-trimmed.mp4"
+        trim_metadata = trim_source_to_ready_marker(
+            source_video,
+            render_source_video,
+            ready_timestamp_seconds=ready_timestamp_seconds,
+        )
+        trim_start_seconds = float(trim_metadata.get("trim_start_seconds") or 0.0)
+    source_metadata = video_metadata(render_source_video)
+    assert_device_profile_dimensions(source_metadata, device_profile)
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
-    captions_path = run_dir / "captions.srt"
+    captions_path = run_dir / "captions.vtt"
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
+    )
+    if has_spec_checkpoint_frames and (narration_audio_path is not None or demo_audio_path is not None):
+        raise DemonstrationError("Spec-owned checkpoint proof rendering does not support mixed audio tracks")
+    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
+    render_metadata: dict[str, Any]
+    video_path = run_dir / "demo.mp4"
+    scene_times: list[float]
+    action_times: list[float]
+    state_change_times: list[float]
+    if has_spec_checkpoint_frames:
+        render_metadata = render_spec_timeline_video(
+            spec_timeline or {},
+            video_path,
+            caption_text=caption_text,
+        )
+        output_duration = float(video_metadata(video_path)["duration_seconds"])
+        hold_seconds = float(render_metadata.get("checkpoint_hold_seconds") or 0)
+        scene_times = []
+        action_times = []
+        state_change_times = [
+            round(index * hold_seconds, MEDIA_TIMESTAMP_DECIMALS)
+            for index in range(1, int(render_metadata["checkpoint_frame_count"]))
+        ]
+    else:
+        if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+            raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+        render_clean_video(
+            render_source_video,
+            Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+            video_path,
+            playback_rate=playback_rate,
+            hold_last_frame_seconds=hold_last_frame_seconds,
+            demo_audio_path=demo_audio_path,
+        )
+        render_metadata = {
+            "playback_rate": playback_rate,
+            "hold_last_frame_seconds": hold_last_frame_seconds,
+            **trim_metadata,
+            "demo_audio_mixed": demo_audio_path is not None,
+        }
+        scene_times = detect_scene_change_times(video_path)
+        action_times = scale_source_event_times(
+            selected.get("action_timestamps", []),
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration,
+        )
+        state_change_times = scale_source_event_times(
+            selected.get("state_change_timestamps", []),
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration,
+        )
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
-        duration_seconds=source_metadata["duration_seconds"],
+        duration_seconds=output_duration,
         narration_id=narration_id,
     )
-    video_path = run_dir / "demo.mp4"
-    render_captioned_video(source_video, captions_path, video_path)
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -854,41 +1541,234 @@ def produce_playwright_demonstration(
         subject_commit=subject_commit,
         narration_id=narration_id,
         caption_text=caption_text,
+        captions_path=captions_path,
         expected_proof=expected_proof,
         acceptance_criteria=acceptance_criteria,
-        source={"kind": "playwright", **selected},
+        proof_assertions=proof_assertions,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
+        source={"kind": "playwright", **selected, **({"browser_domain": browser_domain} if browser_domain else {})},
+        narration_audio=narration_audio,
         caption_segments=caption_segments,
+        device_profile=device_profile,
+        render_metadata=render_metadata,
+        scene_times=scene_times,
+        action_times=action_times,
+        state_change_times=state_change_times,
     )
 
 
-def record_review(run_dir: Path, claims: list[dict[str, Any]]) -> dict[str, Any]:
+def scale_source_event_times(
+    values: Iterable[float],
+    *,
+    trim_start_seconds: float,
+    playback_rate: float,
+    output_duration_seconds: float,
+) -> list[float]:
+    if playback_rate <= 0:
+        raise DemonstrationError("Playback rate must be positive")
+    scaled: list[float] = []
+    for value in values:
+        try:
+            adjusted = (float(value) - trim_start_seconds) / playback_rate
+        except (TypeError, ValueError):
+            continue
+        if 0 <= adjusted <= output_duration_seconds:
+            scaled.append(round(adjusted, MEDIA_TIMESTAMP_DECIMALS))
+    return scaled
+
+
+def frame_index_hash(frames: list[dict[str, Any]]) -> str:
+    """Bind a review to the complete ordered frame index, not a hand-picked subset."""
+    canonical = [
+        {
+            "path": str(frame.get("path") or ""),
+            "sha256": str(frame.get("sha256") or ""),
+            "timestamp_seconds": frame.get("timestamp_seconds", frame.get("timestamp")),
+        }
+        for frame in frames
+    ]
+    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> None:
+    """Recompute the index and verify every reviewed frame is contained and unchanged."""
+    assert_frame_only_review_request(request)
+    frames = request.get("frames", [])
+    if request.get("frame_index_hash") != frame_index_hash(frames):
+        raise DemonstrationError("Review request frame-index hash does not match its canonical frames")
+    root = run_dir.resolve()
+    for frame in frames:
+        relative = Path(str(frame.get("path") or ""))
+        if relative.is_absolute():
+            raise DemonstrationError("Review frame paths must be relative to the run directory")
+        resolved = (root / relative).resolve()
+        if not resolved.is_relative_to(root):
+            raise DemonstrationError("Review frame path escapes the run directory")
+        if not resolved.is_file() or sha256_file(resolved) != frame.get("sha256"):
+            raise DemonstrationError(f"Review frame is missing or its hash changed: {relative}")
+
+
+def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    """Validate and persist one AI review receipt bound to every supplied frame."""
+    request = json.loads((run_dir / "review-request.json").read_text(encoding="utf-8"))
+    validate_review_request_files(run_dir, request)
     manifest_path = run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     review = manifest.get("review")
     if not isinstance(review, dict):
         raise DemonstrationError("Manifest review record must be a mapping")
     attempts = review.setdefault("attempts", [])
-    if not isinstance(attempts, list):
-        raise DemonstrationError("Manifest review attempts must be a list")
-    expected_claim_ids = [
-        item.get("claim_id") for item in manifest.get("expected_proof", []) if isinstance(item, dict)
-    ]
-    actual_claim_ids = [item.get("claim_id") for item in claims if isinstance(item, dict)]
+    if not isinstance(attempts, list) or len(attempts) >= MAX_REVIEW_ATTEMPTS:
+        raise DemonstrationError("Review attempt budget is exhausted; user input is required")
+    if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
+        raise DemonstrationError("Review receipt frame-index hash does not match the canonical request")
+
+    required_receipt_fields = {
+        "status",
+        "confidence",
+        "frame_index_hash",
+        "reviewed_frames",
+        "assertions",
+        "incidental_findings",
+        "return_stage",
+        "next_action",
+        "reviewer_session_id",
+        "device",
+        "proof_contract_hash",
+        "proof_group_id",
+        "source_artifact_hash",
+        "subject_commit",
+        "correction_round",
+        "correction_kind",
+        "workflow",
+    }
+    optional_receipt_fields = {"caption_artifact_hash"}
+    unknown_receipt_fields = set(receipt) - required_receipt_fields - optional_receipt_fields
+    if unknown_receipt_fields:
+        raise DemonstrationError(f"Review receipt contains unsupported field: {sorted(unknown_receipt_fields)[0]}")
+    missing_receipt_fields = required_receipt_fields - set(receipt)
+    if missing_receipt_fields:
+        raise DemonstrationError(f"Review receipt missing required field: {sorted(missing_receipt_fields)[0]}")
     if (
-        not expected_claim_ids
-        or len(actual_claim_ids) != len(set(actual_claim_ids))
-        or sorted(actual_claim_ids) != sorted(expected_claim_ids)
+        not isinstance(receipt.get("reviewer_session_id"), str)
+        or not receipt["reviewer_session_id"].strip()
+        or receipt.get("proof_contract_hash") != request.get("proof_contract_hash")
+        or receipt.get("proof_group_id") != request.get("proof_group_id")
+        or receipt.get("source_artifact_hash") != (request.get("video_metadata") or {}).get("sha256")
+        or receipt.get("caption_artifact_hash") != (request.get("video_metadata") or {}).get("captions_sha256")
+        or receipt.get("subject_commit") != request.get("subject_commit")
+        or receipt.get("device") != (request.get("video_metadata") or {}).get("device_profile", "unspecified-device")
+        or receipt.get("correction_round") not in range(3)
+        or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or not isinstance(receipt.get("workflow"), dict)
     ):
-        raise DemonstrationError("Review must provide exactly one verdict for every expected claim")
-    result = evaluate_review_claims(claims, prior_attempts=len(attempts))
-    attempts.append(result)
+        raise DemonstrationError("Review receipt is missing canonical runner provenance")
+
+    known_frames = {str(frame["path"]) for frame in request.get("frames", []) if isinstance(frame, dict)}
+    expected_ids = {
+        str(item["claim_id"])
+        for item in request.get("expected_proof", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    assertions = receipt.get("assertions")
+    assertion_ids = [str(item.get("id")) for item in assertions or [] if isinstance(item, dict)]
+    if (
+        not isinstance(assertions, list)
+        or len(assertion_ids) != len(set(assertion_ids))
+        or set(assertion_ids) != expected_ids
+    ):
+        raise DemonstrationError("Review receipt must provide exactly one verdict for every expected assertion")
+
+    def validate_citations(items: list[dict[str, Any]], label: str) -> None:
+        for item in items:
+            frames = item.get("frames")
+            if not isinstance(frames, list) or not frames:
+                raise DemonstrationError(f"Every {label} requires at least one cited frame")
+            unknown = [str(path) for path in frames if str(path) not in known_frames]
+            if unknown:
+                raise DemonstrationError(f"Review receipt cites unknown frame: {unknown[0]}")
+            if not isinstance(item.get("observation"), str) or not item["observation"].strip():
+                raise DemonstrationError(f"Every {label} requires a frame-grounded observation")
+
+    validate_citations(assertions, "assertion")
+    allowed_assertion_fields = {"id", "verdict", "frames", "observation"}
+    for assertion in assertions:
+        if set(assertion) != allowed_assertion_fields:
+            raise DemonstrationError("Review receipt assertion fields do not match the canonical schema")
+        if assertion.get("verdict") not in REVIEW_VERDICTS:
+            raise DemonstrationError(f"Unsupported review assertion verdict: {assertion.get('verdict')}")
+    incidental = receipt.get("incidental_findings", [])
+    if not isinstance(incidental, list):
+        raise DemonstrationError("Review receipt incidental_findings must be a list")
+    validate_citations(incidental, "incidental finding") if incidental else None
+    allowed_incidental_fields = {"id", "category", "severity", "confidence", "frames", "observation"}
+    allowed_incidental_categories = {
+        "clipping",
+        "overlap",
+        "overflow",
+        "geometry",
+        "color",
+        "loading",
+        "raw_text",
+        "navigation",
+        "responsiveness",
+        "other",
+    }
+    for finding in incidental:
+        if set(finding) != allowed_incidental_fields:
+            raise DemonstrationError("Review receipt incidental-finding fields do not match the canonical schema")
+        finding_confidence = finding.get("confidence")
+        if (
+            finding.get("category") not in allowed_incidental_categories
+            or finding.get("severity") not in {"blocking", "warning"}
+            or isinstance(finding_confidence, bool)
+            or not isinstance(finding_confidence, (int, float))
+            or not 0 <= finding_confidence <= 1
+        ):
+            raise DemonstrationError("Review receipt contains an invalid incidental finding")
+    reviewed_frames = receipt.get("reviewed_frames")
+    if (
+        not isinstance(reviewed_frames, list)
+        or len(reviewed_frames) != len(set(map(str, reviewed_frames)))
+        or set(map(str, reviewed_frames)) != known_frames
+    ):
+        raise DemonstrationError("Review receipt must attest every canonical frame exactly once")
+    blocking = [item for item in incidental if item.get("severity") == "blocking"]
+    status = receipt.get("status")
+    if status == "passed":
+        if any(item.get("verdict") != "supported" for item in assertions):
+            raise DemonstrationError("Passed review receipt contains an unsupported assertion")
+        if blocking:
+            raise DemonstrationError("Passed review receipt contains a blocking incidental finding")
+    elif status not in {"capture_defect", "render_defect", "product_defect", "uncertain"}:
+        raise DemonstrationError(f"Unsupported review receipt status: {status}")
+    confidence = receipt.get("confidence")
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+        raise DemonstrationError("Review receipt confidence must be between zero and one")
+    if receipt.get("return_stage") not in {"complete", "capture", "render", "implementation", "review"}:
+        raise DemonstrationError("Review receipt has an unsupported return stage")
+    if not isinstance(receipt.get("next_action"), str) or not receipt["next_action"].strip():
+        raise DemonstrationError("Review receipt requires one bounded next action")
+
+    attempt_number = len(attempts) + 1
+    receipt_record = {**receipt, "attempt_number": attempt_number}
+    attempts.append(receipt_record)
     review.update(
         {
-            "status": result["status"],
-            "attempt_count": result["attempt_number"],
-            "requires_user_input": result["requires_user_input"],
+            "status": "passed" if status == "passed" else "failed",
+            "classified_status": status,
+            "attempt_count": attempt_number,
+            "requires_user_input": bool((receipt.get("workflow") or {}).get("requires_user_input"))
+            or status == "uncertain"
+            or attempt_number >= MAX_REVIEW_ATTEMPTS,
+            "frame_index_hash": receipt["frame_index_hash"],
         }
     )
+    receipt_path = run_dir / "review-receipt.json"
+    _write_run_json(receipt_path, receipt_record)
+    review["receipt_sha256"] = sha256_file(receipt_path)
     _write_run_json(run_dir / "review.json", review)
     _write_run_json(manifest_path, manifest)
     return manifest
@@ -906,27 +1786,40 @@ def build_review_frame_times(
     if duration_seconds <= 0:
         raise DemonstrationError("Review duration must be positive")
     if interval_seconds <= 0 or interval_seconds > MAX_REVIEW_INTERVAL_SECONDS:
-        raise DemonstrationError("Periodic review interval must be positive and no longer than three seconds")
-    times = {0.0, round(float(duration_seconds), 3)}
+        raise DemonstrationError("Periodic review interval must be positive and no longer than five seconds")
+    periodic = {0.0, round(float(duration_seconds), 3)}
     current = 0.0
     while current < duration_seconds:
-        times.add(round(current, 3))
+        periodic.add(round(current, 3))
         current += interval_seconds
+
+    times = sorted(periodic)
+    event_candidates: list[float] = []
 
     def add_time(value: float) -> None:
         if 0 <= value <= duration_seconds:
-            times.add(round(float(value), 3))
+            rounded = round(float(value), 3)
+            if all(
+                abs(rounded - existing) >= MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS
+                for existing in [*times, *event_candidates]
+            ):
+                event_candidates.append(rounded)
 
-    for value in scene_times:
+    event_times = [*action_times, *state_change_times]
+    for value in event_times:
         add_time(value)
+    for value in event_times:
+        add_time(value - 0.25)
+        add_time(value + 0.25)
     for start, end in caption_intervals:
         add_time(start)
         add_time(end)
-    for value in [*action_times, *state_change_times]:
-        add_time(value - 0.25)
+    for value in scene_times:
         add_time(value)
-        add_time(value + 0.25)
-    return sorted(times)
+    remaining = MAX_REVIEW_FRAMES_PER_DEVICE - len(times)
+    if remaining > 0:
+        times.extend(event_candidates[:remaining])
+    return sorted(times[:MAX_REVIEW_FRAMES_PER_DEVICE])
 
 
 def assert_frame_only_review_request(request: dict[str, Any]) -> None:
@@ -961,12 +1854,18 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
         raise DemonstrationError("Review request spec_id must be a non-empty string")
     if not isinstance(request["subject_commit"], str) or not request["subject_commit"]:
         raise DemonstrationError("Review request subject_commit must be a non-empty string")
+    if not isinstance(request["frame_index_hash"], str) or not SHA256_RE.fullmatch(request["frame_index_hash"]):
+        raise DemonstrationError("Review request frame_index_hash must be a SHA-256 value")
+    if not isinstance(request["proof_contract_hash"], str) or not SHA256_RE.fullmatch(request["proof_contract_hash"]):
+        raise DemonstrationError("Review request proof_contract_hash must be a SHA-256 value")
+    if not isinstance(request["proof_group_id"], str) or not SHA256_RE.fullmatch(request["proof_group_id"]):
+        raise DemonstrationError("Review request proof_group_id must be a SHA-256 value")
     for field in ("captions", "expected_proof", "frames"):
         if not isinstance(request[field], list) or not request[field]:
             raise DemonstrationError(f"Review request {field} must be a non-empty list")
     metadata = request["video_metadata"]
     require_fields(metadata, REVIEW_METADATA_FIELDS, "video_metadata")
-    if REVIEW_METADATA_FIELDS - set(metadata):
+    if REVIEW_METADATA_REQUIRED_FIELDS - set(metadata):
         raise DemonstrationError("Review request video_metadata is missing required fields")
     duration = metadata.get("duration_seconds")
     if (
@@ -982,6 +1881,30 @@ def assert_frame_only_review_request(request: dict[str, Any]) -> None:
         or not SHA256_RE.fullmatch(metadata["sha256"])
     ):
         raise DemonstrationError("Review request video_metadata contains invalid values")
+    audio = request["narration_audio"]
+    require_fields(audio, NARRATION_AUDIO_FIELDS, "narration_audio")
+    if NARRATION_AUDIO_FIELDS - set(audio):
+        raise DemonstrationError("Review request narration_audio is missing required fields")
+    if audio.get("status") == "not_required":
+        if any(audio.get(field) for field in ("provider", "model", "voice", "path", "sha256", "mime_type", "duration_seconds", "reused_from")):
+            raise DemonstrationError("Review request not_required narration_audio must not contain audio provenance")
+    elif (
+        audio.get("status") != "passed"
+        or audio.get("provider") != DEFAULT_NARRATION_PROVIDER
+        or audio.get("model") != DEFAULT_NARRATION_MODEL
+        or not isinstance(audio.get("voice"), str)
+        or not audio["voice"].strip()
+        or not isinstance(audio.get("path"), str)
+        or not audio["path"].strip()
+        or not isinstance(audio.get("sha256"), str)
+        or not SHA256_RE.fullmatch(audio["sha256"])
+        or not isinstance(audio.get("mime_type"), str)
+        or not audio["mime_type"].startswith("audio/")
+        or not finite_number(audio.get("duration_seconds"))
+        or audio["duration_seconds"] <= 0
+        or not isinstance(audio.get("reused_from"), str)
+    ):
+        raise DemonstrationError("Review request narration_audio contains invalid values")
     for item in request.get("captions", []):
         require_fields(item, REVIEW_CAPTION_FIELDS, "captions")
         if REVIEW_CAPTION_FIELDS - set(item):
@@ -1046,15 +1969,32 @@ def build_review_request(
     expected_proof: list[dict[str, Any]],
     frames: list[dict[str, Any]],
     video_metadata: dict[str, Any],
+    narration_audio: dict[str, Any],
+    proof_contract_hash: str = "",
+    proof_group_id: str = "",
 ) -> dict[str, Any]:
-    allowed_metadata = {key: video_metadata[key] for key in ("duration_seconds", "sha256", "width", "height") if key in video_metadata}
+    allowed_metadata = {key: video_metadata[key] for key in REVIEW_METADATA_FIELDS if key in video_metadata}
+    if not proof_contract_hash:
+        proof_contract_payload = json.dumps(
+            {"spec_id": spec_id, "expected_proof": expected_proof},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        proof_contract_hash = f"sha256:{hashlib.sha256(proof_contract_payload).hexdigest()}"
+    if not proof_group_id:
+        proof_group_payload = f"{spec_id}\0{proof_contract_hash}".encode("utf-8")
+        proof_group_id = f"sha256:{hashlib.sha256(proof_group_payload).hexdigest()}"
     request = {
         "spec_id": spec_id,
         "subject_commit": subject_commit,
         "captions": captions,
         "expected_proof": expected_proof,
         "frames": frames,
+        "frame_index_hash": frame_index_hash(frames),
+        "proof_contract_hash": proof_contract_hash,
+        "proof_group_id": proof_group_id,
         "video_metadata": allowed_metadata,
+        "narration_audio": narration_audio,
     }
     assert_frame_only_review_request(request)
     return request
@@ -1080,6 +2020,32 @@ def register_exact_timestamp_request(
     }
     requests.append(record)
     return record
+
+
+def detect_scene_change_times(video_path: Path) -> list[float]:
+    """Return deterministic visual transition timestamps for bounded frame review."""
+    if not video_path.is_file():
+        raise DemonstrationError(f"Scene detection input does not exist: {video_path}")
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-i",
+            str(video_path),
+            "-vf",
+            f"select='gt(scene,{SCENE_CHANGE_THRESHOLD:g})',showinfo",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise DemonstrationError(f"FFmpeg scene detection failed: {result.stderr.strip()[-1000:]}")
+    return [round(float(value), 3) for value in re.findall(r"pts_time:([0-9]+(?:\.[0-9]+)?)", result.stderr)]
 
 
 def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, Any]:
@@ -1122,8 +2088,8 @@ def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Pa
 def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int) -> dict[str, Any]:
     if not claims:
         raise DemonstrationError("Review requires at least one claim verdict")
-    if isinstance(prior_attempts, bool) or not isinstance(prior_attempts, int) or not 0 <= prior_attempts < 4:
-        raise DemonstrationError("Prior review attempts must be an integer from 0 to 3")
+    if isinstance(prior_attempts, bool) or not isinstance(prior_attempts, int) or not 0 <= prior_attempts < MAX_REVIEW_ATTEMPTS:
+        raise DemonstrationError("Prior review attempts must be an integer from 0 to 2")
     failed_claim_ids: list[str] = []
     return_stages: list[str] = []
     invalidate = False
@@ -1134,13 +2100,16 @@ def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int)
             raise DemonstrationError("Every review verdict requires a claim_id")
         if verdict not in REVIEW_VERDICTS:
             raise DemonstrationError(f"Unsupported review verdict for {claim_id}: {verdict}")
+        observation = claim.get("observation")
+        if not isinstance(observation, str) or not observation.strip():
+            raise DemonstrationError(f"Review claim {claim_id} requires a frame-grounded observation")
+        if "frame" not in observation.lower():
+            raise DemonstrationError(f"Review claim {claim_id} observation must reference reviewed frames")
         if verdict == "supported":
             continue
         defect_class = claim.get("defect_class")
         if defect_class not in DEFECT_RETURN_STAGES:
             raise DemonstrationError(f"Failed claim {claim_id} requires one approved defect_class")
-        if not isinstance(claim.get("observation"), str) or not claim["observation"].strip():
-            raise DemonstrationError(f"Failed claim {claim_id} requires an observation")
         failed_claim_ids.append(claim_id)
         stage = DEFECT_RETURN_STAGES[defect_class]
         if stage not in return_stages:
@@ -1155,7 +2124,9 @@ def evaluate_review_claims(claims: list[dict[str, Any]], *, prior_attempts: int)
         "failed_claim_ids": failed_claim_ids,
         "return_stages": return_stages,
         "invalidate_implementation_evidence": invalidate,
-        "requires_user_input": status == "failed" and attempt_number >= 4,
+        "requires_user_input": status == "failed" and (
+            attempt_number >= MAX_REVIEW_ATTEMPTS or any(claim.get("verdict") == "ambiguous" for claim in claims)
+        ),
         "claims": claims,
     }
 
@@ -1200,136 +2171,205 @@ def delete_disposable_artifacts(run_dir: Path, manifest: dict[str, Any]) -> list
     return deleted
 
 
+def resolve_run_artifact_path(run_dir: Path, value: str | Path) -> Path:
+    """Resolve run-local names and repository-relative manifest artifact paths."""
+    path = Path(value)
+    run_dir = run_dir.resolve()
+    if path.is_absolute():
+        resolved = path.resolve()
+    else:
+        repository_path = (Path(__file__).resolve().parent.parent / path).resolve()
+        resolved = repository_path if repository_path == run_dir or run_dir in repository_path.parents else (run_dir / path).resolve()
+    if resolved != run_dir and run_dir not in resolved.parents:
+        raise DemonstrationError("Proof artifact path escapes the run directory")
+    return resolved
+
+
+def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *, verify_video: bool = True) -> None:
+    """Reject legacy or modified review records before any proof publication."""
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    receipt_path = run_dir / "review-receipt.json"
+    expected_hash = str(review.get("receipt_sha256") or "")
+    if not receipt_path.is_file() or not SHA256_RE.fullmatch(expected_hash):
+        raise DemonstrationError("Publication requires a hash-bound AI review receipt")
+    if sha256_file(receipt_path) != expected_hash:
+        raise DemonstrationError("AI review receipt hash no longer matches the reviewed manifest")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if (
+        receipt.get("status") != "passed"
+        or not str(receipt.get("reviewer_session_id") or "").strip()
+        or receipt.get("frame_index_hash") != review.get("frame_index_hash")
+        or receipt.get("proof_contract_hash") != manifest.get("proof_contract_hash")
+        or receipt.get("proof_group_id") != manifest.get("proof_group_id")
+        or receipt.get("source_artifact_hash") != (manifest.get("video_metadata") or {}).get("sha256")
+        or receipt.get("caption_artifact_hash") != (manifest.get("caption_artifact") or {}).get("sha256")
+        or receipt.get("subject_commit") != manifest.get("subject_commit")
+        or receipt.get("correction_round") not in range(3)
+        or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or not isinstance(receipt.get("workflow"), dict)
+    ):
+        raise DemonstrationError("AI review receipt does not match the passed manifest review")
+    if verify_video:
+        video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
+        expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
+        if not video_path.is_file() or sha256_file(video_path) != expected_video_hash:
+            raise DemonstrationError("Reviewed proof video is missing or its content hash changed")
+    if int(manifest.get("schema_version") or 1) >= 2:
+        caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+        captions_path = resolve_run_artifact_path(run_dir, str(caption_artifact.get("path") or ""))
+        expected_captions_hash = str(caption_artifact.get("sha256") or "")
+        if (
+            caption_artifact.get("mime_type") != "text/vtt"
+            or not captions_path.is_file()
+            or not SHA256_RE.fullmatch(expected_captions_hash)
+            or sha256_file(captions_path) != expected_captions_hash
+        ):
+            raise DemonstrationError("Reviewed WebVTT captions are missing or their content hash changed")
+
+
 def publish_reviewed_video(
     run_dir: Path,
     manifest: dict[str, Any],
     *,
-    webhook_url: str,
     now: datetime,
-    send: Callable[..., dict[str, str] | None] | None = None,
-    max_attachment_bytes: int = 10 * 1024 * 1024,
-    approved_artifact_link: str = "",
-    approved_artifact_hosts: set[str] | None = None,
-    send_link: Callable[..., dict[str, str] | None] | None = None,
+    uploader: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if manifest.get("privacy", {}).get("status") != "passed" or manifest.get("review", {}).get("status") != "passed":
-        raise DemonstrationError("Discord publication requires passed privacy and demonstration review")
-    video_path = Path(str(manifest.get("video_path", "")))
-    if not video_path.is_file():
-        raise DemonstrationError("Reviewed demonstration video does not exist")
-    now_text = _utc_text(now)
+    privacy_status = manifest.get("privacy", {}).get("status")
+    if privacy_status not in PROOF_PRIVACY_ACCEPTED_STATUSES or manifest.get("review", {}).get("status") != "passed":
+        raise DemonstrationError("OpenCode response-media publication requires finalized proof privacy state and demonstration review")
+    audio_status = manifest.get("narration_audio", {}).get("status")
+    if audio_status not in {"passed", "not_required"}:
+        raise DemonstrationError("OpenCode response-media publication requires passed or intentionally disabled narration audio")
+    if audio_status == "passed" and manifest.get("video_metadata", {}).get("has_audio") is not True:
+        raise DemonstrationError("OpenCode response-media publication requires the requested narration audio track")
     publication = manifest.setdefault("publication", {})
     if not isinstance(publication, dict):
         raise DemonstrationError("Manifest publication record must be a mapping")
+    if publication.get("status") == "delivered":
+        require_review_receipt_integrity(run_dir, manifest, verify_video=False)
+        _write_run_json(run_dir / "publication.json", publication)
+        _write_run_json(run_dir / "manifest.json", manifest)
+        return manifest
+    require_review_receipt_integrity(run_dir, manifest)
+    video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path", "")))
+    if not video_path.is_file():
+        raise DemonstrationError("Reviewed demonstration video does not exist")
+    now_text = _utc_text(now)
     first_attempt_text = publication.setdefault("first_attempt_at", now_text)
     publication["last_attempt_at"] = now_text
     first_attempt = datetime.fromisoformat(str(first_attempt_text).replace("Z", "+00:00"))
     publication.setdefault("retry_until", _utc_text(first_attempt + timedelta(hours=24)))
-    link_path = run_dir / ".publication-link"
-    oversized = video_path.stat().st_size > max_attachment_bytes
-    if oversized and not approved_artifact_link and link_path.is_file():
-        approved_artifact_link = link_path.read_text(encoding="utf-8")
-    if oversized and approved_artifact_link:
-        parsed_link = urlparse(approved_artifact_link)
-        allowed_hosts = approved_artifact_hosts or set()
-        if parsed_link.scheme != "https" or not parsed_link.hostname or parsed_link.hostname not in allowed_hosts:
-            raise DemonstrationError("Artifact link must use an approved HTTPS artifact host")
-        link_privacy = scan_text_sources({"approved_artifact_link": approved_artifact_link})
-        if link_privacy["status"] != "passed":
-            raise DemonstrationError("Approved artifact link failed privacy scanning")
-        _write_private(link_path, approved_artifact_link)
-    if not webhook_url:
-        publication["status"] = "not_configured"
-        _write_run_json(run_dir / "publication.json", publication)
-        _write_run_json(run_dir / "manifest.json", manifest)
-        return manifest
-
-    payload = {
-        "content": (
-            f"Reviewed implementation demonstration: {manifest.get('spec_id', 'unknown')} "
-            f"at {manifest.get('subject_commit', 'unknown')}"
-        )
-    }
-    publication_privacy = scan_text_sources(
-        {"discord_message": payload["content"], "video_filename": video_path.name}
+    alt_text = (
+        f"Reviewed implementation demonstration for {manifest.get('spec_id', 'unknown')} "
+        f"at {manifest.get('subject_commit', 'unknown')}"
     )
-    if publication_privacy["status"] != "passed":
-        raise DemonstrationError("Discord publication text failed privacy scanning")
-    if oversized:
-        if approved_artifact_link:
-            link_payload = {"content": f"{payload['content']}\nAccess-controlled artifact: {approved_artifact_link}"}
-            if send_link is None and send is not None:
-                delivery = send(
-                    webhook_url=webhook_url,
-                    payload=link_payload,
-                    content=None,
-                    filename="",
-                )
-            else:
-                if send_link is None:
-                    send_link = _discord_webhook_module().post_message
-                delivery = send_link(webhook_url=webhook_url, payload=link_payload)
-            if isinstance(delivery, dict) and delivery.get("message_id"):
-                publication.update(
-                    {
-                        "status": "delivered",
-                        "delivered_at": now_text,
-                        "message_id": str(delivery["message_id"]),
-                        "delivery_kind": "access_controlled_link",
-                    }
-                )
-                publication.pop("failure_reason", None)
-                publication.pop("next_retry_at", None)
-                publication["deleted_paths"] = delete_disposable_artifacts(run_dir, manifest)
-                publication["video_deleted_at"] = now_text
-                link_path.unlink(missing_ok=True)
-                _write_run_json(run_dir / "publication.json", publication)
-                _write_run_json(run_dir / "manifest.json", manifest)
-                return manifest
+    if uploader is None:
+        uploader = upload_response_media
+    try:
+        captions_value = str((manifest.get("caption_artifact") or {}).get("path") or "")
+        captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
+        caption_artifact = manifest.get("caption_artifact") or {}
+        upload = uploader(
+            path=video_path,
+            captions_path=captions_path,
+            captions_language=str(caption_artifact.get("language") or "und"),
+            captions_label=str(caption_artifact.get("label") or "Captions"),
+            alt=alt_text,
+        )
+    except Exception as exc:
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = "Reviewed video exceeds the configured Discord attachment limit and needs an approved access-controlled artifact link."
+        publication["failure_reason"] = f"OpenCode response-media upload did not complete: {str(exc)[:500]}"
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
         _write_run_json(run_dir / "publication.json", publication)
         _write_run_json(run_dir / "manifest.json", manifest)
         return manifest
-    if send is None:
-        send = _discord_webhook_module().post_attachment
-    delivery = send(
-        webhook_url=webhook_url,
-        payload=payload,
-        content=video_path.read_bytes(),
-        filename=video_path.name,
-    )
-    if not isinstance(delivery, dict) or not delivery.get("message_id") or not delivery.get("attachment_id"):
+
+    snippets = upload.get("snippets") if isinstance(upload, dict) else None
+    captions_upload = upload.get("captions") if isinstance(upload, dict) else None
+    requires_captions = int(manifest.get("schema_version") or 1) >= 2
+    expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
+    returned_video_hash = str((upload or {}).get("sha256") or "")
+    returned_video_url = str((upload or {}).get("url") or "")
+    expected_caption_hash = str((manifest.get("caption_artifact") or {}).get("sha256") or "")
+    returned_caption_hash = str((captions_upload or {}).get("sha256") or "")
+    returned_caption_url = str((captions_upload or {}).get("url") or "")
+    snippet_html = str((snippets or {}).get("html", ""))
+    if (
+        not isinstance(upload, dict)
+        or not upload.get("key")
+        or not isinstance(snippets, dict)
+        or returned_video_hash != expected_video_hash
+        or not returned_video_url
+        or html.escape(returned_video_url, quote=True) not in snippet_html
+        or (requires_captions and not isinstance(captions_upload, dict))
+        or (requires_captions and returned_caption_hash != expected_caption_hash)
+        or (requires_captions and not returned_caption_url)
+        or (requires_captions and html.escape(returned_caption_url, quote=True) not in snippet_html)
+        or (requires_captions and "<track kind=\"captions\"" not in snippet_html)
+    ):
         publication["status"] = "publication_pending"
-        publication["failure_reason"] = "Discord did not confirm message and attachment creation."
+        publication["failure_reason"] = "OpenCode response-media upload completed without usable snippets."
         publication["next_retry_at"] = _utc_text(now + timedelta(minutes=15))
     else:
         publication.update(
             {
                 "status": "delivered",
                 "delivered_at": now_text,
-                "message_id": str(delivery["message_id"]),
-                "attachment_id": str(delivery["attachment_id"]),
+                "delivery_kind": "opencode_response_media",
+                "response_media_key": str(upload["key"]),
+                "response_media_kind": str(upload.get("kind", "media")),
+                "response_media_markdown": str(snippets.get("markdown", "")),
+                "response_media_html": str(snippets.get("html", "")),
+                "response_media_captions": captions_upload or {},
             }
         )
+        if "expires_in" in upload:
+            publication["response_media_expires_in"] = upload["expires_in"]
         publication.pop("failure_reason", None)
         publication.pop("next_retry_at", None)
         publication["deleted_paths"] = delete_disposable_artifacts(run_dir, manifest)
         publication["video_deleted_at"] = now_text
-        link_path.unlink(missing_ok=True)
     _write_run_json(run_dir / "publication.json", publication)
     _write_run_json(run_dir / "manifest.json", manifest)
     return manifest
 
 
-def _discord_webhook_module() -> Any:
-    """Load the sibling helper in both script and repository-module contexts."""
+def upload_response_media(
+    *,
+    path: Path,
+    captions_path: Path | None,
+    captions_language: str,
+    captions_label: str,
+    alt: str,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts/opencode_response_media.py"),
+        str(path),
+        "--alt",
+        alt,
+        "--output",
+        "json",
+    ]
+    if captions_path is not None:
+        command[3:3] = [
+            "--captions",
+            str(captions_path),
+            "--captions-language",
+            captions_language,
+            "--captions-label",
+            captions_label,
+        ]
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise DemonstrationError(result.stderr.strip() or result.stdout.strip() or "response-media upload failed")
     try:
-        import discord_webhook
-    except ModuleNotFoundError:
-        from scripts import discord_webhook
-    return discord_webhook
+        parsed = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise DemonstrationError("response-media upload returned invalid JSON") from exc
+    if not isinstance(parsed, dict):
+        raise DemonstrationError("response-media upload returned an invalid payload")
+    return parsed
 
 
 def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: datetime) -> dict[str, Any]:
@@ -1346,7 +2386,7 @@ def expire_pending_video(run_dir: Path, manifest: dict[str, Any], *, now: dateti
         {
             "status": "expired_deleted",
             "expired_at": _utc_text(now),
-            "failure_reason": "Discord delivery did not complete within 24 hours.",
+            "failure_reason": "OpenCode response-media proof embed did not complete within 24 hours.",
             "deleted_paths": delete_disposable_artifacts(run_dir, manifest),
             "video_deleted_at": _utc_text(now),
         }
@@ -1376,11 +2416,7 @@ def sweep_publications(
     root: Path,
     *,
     now: datetime,
-    webhook_url: str,
-    send: Callable[..., dict[str, str] | None] | None = None,
-    max_attachment_bytes: int = 10 * 1024 * 1024,
-    approved_artifact_link: str = "",
-    approved_artifact_hosts: set[str] | None = None,
+    uploader: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, int]:
     counts = {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
     if not root.is_dir():
@@ -1411,25 +2447,12 @@ def sweep_publications(
             result = publish_reviewed_video(
                 manifest_path.parent,
                 manifest,
-                webhook_url=webhook_url,
                 now=now,
-                send=send,
-                max_attachment_bytes=max_attachment_bytes,
-                approved_artifact_link=approved_artifact_link,
-                approved_artifact_hosts=approved_artifact_hosts,
+                uploader=uploader,
             )
             if result.get("publication", {}).get("status") == "delivered":
                 counts["delivered"] += 1
     return counts
-
-
-def resolve_discord_webhook(env: dict[str, str]) -> str:
-    """Return only the dedicated implementation-demonstration destination."""
-    return env.get("DISCORD_WEBHOOK_SPEC_DEMOS", "")
-
-
-def resolve_artifact_hosts(value: str) -> set[str]:
-    return {host.strip().lower() for host in value.split(",") if host.strip()}
 
 
 def doctor() -> dict[str, Any]:
@@ -1440,21 +2463,6 @@ def doctor() -> dict[str, Any]:
         "node": shutil.which("node") is not None,
     }
     return {"status": "passed" if all(checks.values()) else "blocked", "checks": checks}
-
-
-def _load_named_env(keys: tuple[str, ...]) -> dict[str, str]:
-    values = {key: os.environ.get(key, "") for key in keys}
-    env_path = REPO_ROOT / ".env"
-    if env_path.is_file() and not all(values.values()):
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, _, value = stripped.partition("=")
-            key = key.strip()
-            if key in values and not values[key]:
-                values[key] = value.strip().strip("'\"")
-    return values
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1472,14 +2480,14 @@ def main(argv: list[str] | None = None) -> int:
     cli_parser.add_argument("--caption", required=True)
     cli_parser.add_argument("--expected-proof", required=True)
     cli_parser.add_argument("--acceptance-criterion", action="append", required=True)
-    cli_parser.add_argument("--anonymize-sensitive", action="store_true")
+    cli_parser.add_argument("--audio-path", type=Path)
+    cli_parser.add_argument("--audio-provider", default=DEFAULT_NARRATION_PROVIDER)
+    cli_parser.add_argument("--audio-model", default=DEFAULT_NARRATION_MODEL)
+    cli_parser.add_argument("--audio-voice", default=DEFAULT_NARRATION_VOICE)
+    cli_parser.add_argument("--audio-reused-from", default="")
     cli_parser.add_argument("argv", nargs=argparse.REMAINDER)
-    review_parser = subparsers.add_parser("record-review")
-    review_parser.add_argument("--run-dir", type=Path, required=True)
-    review_parser.add_argument("--claims-json", required=True)
     publish_parser = subparsers.add_parser("publish")
     publish_parser.add_argument("--run-dir", type=Path, required=True)
-    publish_parser.add_argument("--approved-artifact-link", default="")
     expire_parser = subparsers.add_parser("expire")
     expire_parser.add_argument("--run-dir", type=Path, required=True)
     sweep_parser = subparsers.add_parser("sweep-expired")
@@ -1505,45 +2513,42 @@ def main(argv: list[str] | None = None) -> int:
             caption_text=args.caption,
             expected_proof=args.expected_proof,
             acceptance_criteria=args.acceptance_criterion,
-            anonymize_sensitive=args.anonymize_sensitive,
+            narration_audio_path=args.audio_path,
+            narration_audio_provider=args.audio_provider,
+            narration_audio_model=args.audio_model,
+            narration_audio_voice=args.audio_voice,
+            narration_audio_reused_from=args.audio_reused_from,
         )
         print(json.dumps({"status": "review_ready", "manifest": str(args.run_dir / "manifest.json"), "privacy": result["privacy"]}, sort_keys=True))
         return 0
-    if args.command == "record-review":
-        claims = json.loads(args.claims_json)
-        if not isinstance(claims, list):
-            raise DemonstrationError("--claims-json must contain a JSON array")
-        result = record_review(args.run_dir, claims)
-        print(json.dumps({"status": result["review"]["status"], "attempt_count": result["review"]["attempt_count"]}, sort_keys=True))
-        return 0
     if args.command == "publish":
         manifest = json.loads((args.run_dir / "manifest.json").read_text(encoding="utf-8"))
-        env = _load_named_env(("DISCORD_WEBHOOK_SPEC_DEMOS", "SPEC_DEMO_APPROVED_ARTIFACT_LINK", "SPEC_DEMO_ARTIFACT_HOSTS"))
-        webhook = resolve_discord_webhook(env)
         result = publish_reviewed_video(
             args.run_dir,
             manifest,
-            webhook_url=webhook,
             now=datetime.now(timezone.utc),
-            approved_artifact_link=args.approved_artifact_link or env["SPEC_DEMO_APPROVED_ARTIFACT_LINK"],
-            approved_artifact_hosts=resolve_artifact_hosts(env["SPEC_DEMO_ARTIFACT_HOSTS"]),
         )
-        print(json.dumps({"status": result["publication"]["status"]}, sort_keys=True))
+        publication = result["publication"]
+        print(
+            json.dumps(
+                {
+                    "status": publication["status"],
+                    "markdown": publication.get("response_media_markdown", ""),
+                    "html": publication.get("response_media_html", ""),
+                },
+                sort_keys=True,
+            )
+        )
         return 0
     if args.command == "sweep-expired":
         print(json.dumps(sweep_expired_videos(args.root, now=datetime.now(timezone.utc)), sort_keys=True))
         return 0
     if args.command == "sweep-publications":
-        env = _load_named_env(("DISCORD_WEBHOOK_SPEC_DEMOS", "SPEC_DEMO_APPROVED_ARTIFACT_LINK", "SPEC_DEMO_ARTIFACT_HOSTS"))
-        webhook = resolve_discord_webhook(env)
         print(
             json.dumps(
                 sweep_publications(
                     args.root,
                     now=datetime.now(timezone.utc),
-                    webhook_url=webhook,
-                    approved_artifact_link=env["SPEC_DEMO_APPROVED_ARTIFACT_LINK"],
-                    approved_artifact_hosts=resolve_artifact_hosts(env["SPEC_DEMO_ARTIFACT_HOSTS"]),
                 ),
                 sort_keys=True,
             )

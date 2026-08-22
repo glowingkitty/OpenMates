@@ -63,6 +63,7 @@ def _set_trigger_next_run(repository: InMemoryWorkflowRepository, workflow_id: s
     return trigger["trigger_id"]
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_active_schedule_projects_exactly_one_future_todo_task() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -86,6 +87,7 @@ def test_active_schedule_projects_exactly_one_future_todo_task() -> None:
     assert future.read_only is True
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_deleting_future_schedule_projection_marks_run_skipped_and_advances_trigger() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -108,6 +110,7 @@ def test_deleting_future_schedule_projection_marks_run_skipped_and_advances_trig
     assert task_id not in {projection.task_id for projection in projection_service.list_projections("alice", now=NOW)}
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_active_scheduled_run_suppresses_duplicate_future_projection_for_same_occurrence() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -131,6 +134,7 @@ def test_active_scheduled_run_suppresses_duplicate_future_projection_for_same_oc
     assert running.status == "in_progress"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_running_scheduled_workflow_projects_current_run_and_next_todo() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -164,6 +168,7 @@ def test_running_scheduled_workflow_projects_current_run_and_next_todo() -> None
     assert todo.can_delete is True
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_tasks() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -188,6 +193,7 @@ def test_task_projections_are_owner_scoped_redacted_and_do_not_persist_user_task
     assert not hasattr(repository, "user_tasks")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_task_projections_limit_workflow_to_current_last_and_next_entries() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -216,6 +222,7 @@ def test_task_projections_limit_workflow_to_current_last_and_next_entries() -> N
     assert by_kind["next_run"].workflow_run_id is None
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 def test_failed_recent_past_run_projects_as_last_run_blocked() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -233,6 +240,7 @@ def test_failed_recent_past_run_projects_as_last_run_blocked() -> None:
     assert projection.blocked_message == "Workflow run failed."
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 @pytest.mark.anyio
 async def test_tasks_route_merges_workflow_run_projection_without_user_task_persistence(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.core.api.app.routes import user_tasks
@@ -268,6 +276,7 @@ async def test_tasks_route_merges_workflow_run_projection_without_user_task_pers
     assert [task["task_id"] for task in contextual_response["tasks"]] == ["user-task"]
 
 
+# contract-test: direct surface=rest_api assertions=tasks.workflow-projections.read-only
 @pytest.mark.anyio
 async def test_tasks_delete_route_skips_future_workflow_projection_without_user_task_delete(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.core.api.app.routes import user_tasks

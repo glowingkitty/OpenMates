@@ -36,6 +36,10 @@ _HTTP_IGNORE_HEADERS = {
     "x-request-id", "x-trace-id", "date", "user-agent",
 }
 
+_LLM_VOLATILE_TEXT_LINE_PREFIXES = (
+    "fetched_at:",
+)
+
 
 class MockCacheMiss(Exception):
     """Raised when no cached response exists and recording is disabled."""
@@ -270,7 +274,7 @@ class ApiResponseCache:
                         parts.append(part)
                 entry["content"] = parts
             else:
-                entry["content"] = content
+                entry["content"] = self._normalize_llm_text_for_match(content)
 
             # Include tool calls if present (important for multi-turn with function calling)
             if "tool_calls" in msg:
@@ -301,6 +305,23 @@ class ApiResponseCache:
         return normalized
 
     @staticmethod
+    def _normalize_llm_text_for_match(content: Any) -> Any:
+        """Strip volatile generated metadata from LLM prompt text before matching."""
+        if not isinstance(content, str):
+            return content
+
+        normalized_lines = []
+        changed = False
+        for line in content.splitlines():
+            stripped = line.lstrip()
+            if any(stripped.startswith(prefix) for prefix in _LLM_VOLATILE_TEXT_LINE_PREFIXES):
+                changed = True
+                continue
+            normalized_lines.append(line)
+
+        return "\n".join(normalized_lines) if changed else content
+
+    @staticmethod
     def _llm_request_summary_matches(expected: Dict[str, Any], candidate: Any) -> bool:
         if not isinstance(candidate, dict):
             return False
@@ -318,20 +339,35 @@ class ApiResponseCache:
             if candidate_value != expected_value:
                 return False
 
+        expected_tool_names = expected.get("tool_names")
+        candidate_tool_names = candidate.get("tool_names")
+        if expected_tool_names and candidate_tool_names and candidate_tool_names != expected_tool_names:
+            return False
+
         expected_last = expected.get("last_message_preview")
         candidate_last = candidate.get("last_message_preview")
         expected_last_hash = expected.get("last_message_hash")
         candidate_last_hash = candidate.get("last_message_hash")
-        if expected_last_hash and candidate_last_hash:
-            return expected_last_hash == candidate_last_hash
+        if expected_last_hash and candidate_last_hash and expected_last_hash == candidate_last_hash:
+            return True
         if expected_last is None and candidate_last is None:
             return True
         if not isinstance(expected_last, dict) or not isinstance(candidate_last, dict):
             return False
 
+        if candidate_last.get("role") != expected_last.get("role"):
+            return False
+
+        candidate_content = candidate_last.get("content")
+        expected_content = expected_last.get("content")
+        if candidate_content == expected_content:
+            return not (expected_last_hash and candidate_last_hash)
+
+        normalized_candidate = ApiResponseCache._normalize_llm_text_for_match(candidate_content)
+        normalized_expected = ApiResponseCache._normalize_llm_text_for_match(expected_content)
         return (
-            candidate_last.get("role") == expected_last.get("role")
-            and candidate_last.get("content") == expected_last.get("content")
+            normalized_candidate == normalized_expected
+            and (normalized_candidate != candidate_content or normalized_expected != expected_content)
         )
 
     @staticmethod
@@ -343,11 +379,12 @@ class ApiResponseCache:
             if normalized and normalized != model:
                 categories.append(f"llm/{normalized}")
 
-        if category.startswith("llm/"):
-            category_model = category.removeprefix("llm/")
-            normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
-            if normalized and normalized != category_model:
-                categories.append(f"llm/{normalized}")
+        for prefix in ("llm/", "llm_non_stream/"):
+            if category.startswith(prefix):
+                category_model = category.removeprefix(prefix)
+                normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
+                if normalized and normalized != category_model:
+                    categories.append(f"{prefix}{normalized}")
 
         return list(dict.fromkeys(categories))
 

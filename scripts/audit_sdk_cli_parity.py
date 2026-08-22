@@ -34,6 +34,7 @@ EXCLUSION_REASONS = {
     "e2e-provisioning": "Local test-account artifact tooling stays CLI-only.",
     "local-remote-access": "Local Project source bridge commands operate on user-approved local paths and stay CLI-only.",
     "local-connected-account-setup": "Local connected-account setup supervises user-machine processes and credential prompts, so setup stays CLI-only.",
+    "cli-active-context": "CLI active Personal/Team context is local convenience state; SDK callers pass explicit context instead.",
     "browser-high-risk": "Browser-only or high-risk account/security flow.",
 }
 
@@ -44,6 +45,8 @@ TOP_LEVEL_CLASSIFICATION = {
     "signup": "browser-high-risk",
     "logout": "cli-auth-session",
     "whoami": "account.info",
+    "switch-to": "teams.list + cli-active-context",
+    "credits": "billing.overview + teams.billing active-context convenience",
     "chat": "chats.send + plans.create goal attachment",
     "chats": "chats.*",
     "drafts": "drafts.*",

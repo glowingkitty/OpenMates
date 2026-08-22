@@ -425,7 +425,7 @@ class EmailTemplateService:
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
                 'openrouter_model_watch', 'free-testing-budget-exhausted',
-                'billing-processing-error',
+                'billing-processing-error', 'health-status-alert',
             }
             is_transactional = template in transactional_templates
             

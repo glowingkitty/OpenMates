@@ -19,6 +19,16 @@ INSTALL_SUBCOMMANDS = {"add", "install", "i"}
 GIT_OPTIONS_WITH_VALUES = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 ENV_OPTIONS_WITH_VALUES = {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}
 TIMEOUT_OPTIONS_WITH_VALUES = {"-k", "--kill-after", "-s", "--signal"}
+DOCKER_COMPOSE_MUTATIONS = {"build", "down", "kill", "restart", "rm", "start", "stop", "up"}
+COMPOSE_OPTIONS_WITH_VALUES = {
+    "-f",
+    "--file",
+    "--env-file",
+    "-p",
+    "--project-name",
+    "--profile",
+    "--project-directory",
+}
 
 
 def block(reason: str) -> int:
@@ -125,6 +135,15 @@ def skip_option(args: list[str], index: int, options_with_values: set[str]) -> i
 
 
 def check_invocation(command: str, args: list[str]) -> str | None:
+    compose_action = docker_compose_action(command, args)
+    if compose_action in DOCKER_COMPOSE_MUTATIONS:
+        return (
+            "BLOCKED: Direct Docker Compose lifecycle mutations bypass the registered "
+            "OpenMates source and service policy. Use openmates server start, stop, "
+            "restart, or update instead; for rebuilds use "
+            "openmates server restart --rebuild [--services <service>]."
+        )
+
     if command == "pnpm":
         subcommand = next_non_option(args)
         if subcommand in INSTALL_SUBCOMMANDS:
@@ -155,6 +174,34 @@ def check_invocation(command: str, args: list[str]) -> str | None:
     if subcommand == "add" and any(arg in {"-A", "--all", "."} for arg in subcommand_args):
         return "BLOCKED: git add -A / git add . stages everything. Add specific files by name instead."
     return None
+
+
+def docker_compose_action(command: str, args: list[str]) -> str:
+    if command == "docker-compose":
+        return compose_action_from_args(args, 0)
+    if command != "docker":
+        return ""
+    try:
+        compose_index = next(
+            index for index, arg in enumerate(args) if basename(arg) == "compose"
+        )
+    except StopIteration:
+        return ""
+    return compose_action_from_args(args, compose_index + 1)
+
+
+def compose_action_from_args(args: list[str], start_index: int) -> str:
+    index = start_index
+    while index < len(args):
+        arg = args[index]
+        if arg == "--":
+            index += 1
+            continue
+        if arg.startswith("-"):
+            index = skip_option(args, index, COMPOSE_OPTIONS_WITH_VALUES)
+            continue
+        return basename(arg)
+    return ""
 
 
 def git_subcommand(args: list[str]) -> tuple[str, list[str]]:

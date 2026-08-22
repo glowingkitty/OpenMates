@@ -12,6 +12,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -141,6 +142,9 @@ def sanitize_presence_record(raw: object, project_root: Path) -> dict:
         value = _safe_identifier(raw.get(field))
         if value:
             record[field] = value
+    hook_runtime_hash = _safe_identifier(raw.get("hook_runtime_hash"))
+    if re.fullmatch(r"[a-f0-9]{64}", hook_runtime_hash):
+        record["hook_runtime_hash"] = hook_runtime_hash
     heartbeat = _safe_identifier(raw.get("heartbeat_at"))
     if heartbeat:
         try:

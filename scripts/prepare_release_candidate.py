@@ -21,9 +21,35 @@ from pathlib import Path
 from typing import Sequence
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-COMPOSE_FILE = "backend/core/docker-compose.yml"
-CORE_SERVICES = ("api", "task-worker", "user-init-worker", "core-worker", "task-scheduler", "app-ai-worker")
+def resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the main checkout that owns the registered dev runtime."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=checkout_root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
+PROJECT_ROOT = resolve_control_plane_root(Path(__file__).resolve().parent.parent)
+CORE_SERVICES = (
+    "api",
+    "task-worker",
+    "user-init-worker",
+    "core-worker",
+    "user-tasks-worker",
+    "reminder-worker",
+    "task-scheduler",
+    "app-ai-worker",
+)
 BACKEND_RUNTIME_PATHS = ("backend", "shared", "frontend/packages/ui/src/i18n")
 RELEASE_STATUS_CONTEXT = "Dev Release Candidate / Prepared"
 API_HEALTH_URL = "https://api.dev.openmates.org/health"
@@ -94,20 +120,14 @@ def lock_command(session: str, *, acquire: bool) -> list[str]:
     ]
 
 
-def compose_prepare_command() -> list[str]:
+def managed_prepare_command() -> list[str]:
     return [
-        "docker",
-        "compose",
-        "--env-file",
-        ".env",
-        "-f",
-        COMPOSE_FILE,
-        "up",
-        "-d",
-        "--build",
-        "--force-recreate",
-        "--no-deps",
-        *CORE_SERVICES,
+        "openmates",
+        "server",
+        "restart",
+        "--rebuild",
+        "--services",
+        ",".join(CORE_SERVICES),
     ]
 
 
@@ -217,7 +237,7 @@ def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
         wait_for_exact_vercel(commit)
         run_command(lock_command(session, acquire=True))
         lock_acquired = True
-        run_command(compose_prepare_command())
+        run_command(managed_prepare_command())
         wait_for_health()
         verify_cloud_overlay()
         publish_status(commit, "success", "Exact frontend and core dev services are healthy")

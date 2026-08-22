@@ -82,12 +82,14 @@ function scheduleTrigger() {
   };
 }
 
+// contract-test: infrastructure
 test('internal authorization fails closed', () => {
   assert.equal(isAuthorized({}, undefined), false);
   assert.equal(isAuthorized({}, 'configured'), false);
   assert.equal(isAuthorized({ 'x-internal-service-token': 'configured' }, 'configured'), true);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('two concurrent due claims create one run and lease recovery reuses it', async () => {
   const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
   const body = { protocol_version: 1, trigger_id: 'trigger-1' };
@@ -128,6 +130,7 @@ test('two concurrent due claims create one run and lease recovery reuses it', as
   assert.equal(advanced.next_run_at, 1_783_929_600);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('due trigger listing returns enabled due schedule trigger ids only', async () => {
   const activeClaim = { ...scheduleTrigger(), trigger_id: 'trigger-active', claim_status: 'claimed', claim_expires_at: 1_783_843_260 };
   const dueSecond = { ...scheduleTrigger(), trigger_id: 'trigger-2', next_run_at: 1_783_843_150 };
@@ -141,6 +144,7 @@ test('due trigger listing returns enabled due schedule trigger ids only', async 
   assert.deepEqual(result, { trigger_ids: ['trigger-1', 'trigger-2'] });
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('due trigger listing and claim wait while an earlier scheduled run is active', async () => {
   const trigger = { ...scheduleTrigger(), next_run_at: 1_783_843_150 };
   const activeRun = {
@@ -162,6 +166,29 @@ test('due trigger listing and claim wait while an earlier scheduled run is activ
   assert.equal(database.rows.workflow_triggers[0].claim_status, undefined);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+test('advancing with zero completes a claimed one-time trigger without requeueing it', async () => {
+  const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
+
+  const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+  await executeOperation(database, 'start_claimed_run', {
+    protocol_version: 1, trigger_id: 'trigger-1', run_id: claim.run_id,
+    claim_generation: claim.claim_generation, claim_token: claim.claim_token,
+  }, NOW);
+  const advanced = await executeOperation(database, 'advance_claimed_trigger', {
+    protocol_version: 1, trigger_id: 'trigger-1', claim_generation: claim.claim_generation,
+    claim_token: claim.claim_token, next_run_at: 0,
+  }, NOW);
+  const due = await executeOperation(database, 'list_due_triggers', { protocol_version: 1, now: 1_783_929_600, limit: 10 }, NOW);
+
+  assert.deepEqual(advanced, { trigger_id: 'trigger-1', next_run_at: null, completed: true });
+  assert.equal(database.rows.workflow_triggers[0].enabled, false);
+  assert.equal(database.rows.workflow_triggers[0].next_run_at, null);
+  assert.equal(database.rows.workflow_triggers[0].claim_status, null);
+  assert.deepEqual(due, { trigger_ids: [] });
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.surface.semantic-parity
 test('due claim fails closed when the scheduler-only raw owner reference is missing', async () => {
   const trigger = scheduleTrigger();
   delete trigger.owner_user_id;
@@ -175,6 +202,7 @@ test('due claim fails closed when the scheduler-only raw owner reference is miss
   assert.equal(database.rows.workflow_triggers[0].claim_status, undefined);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('manual acceptance creates one queued run pinned to the locked current immutable version', async () => {
   const database = fakeDatabase({
     workflows: [{ workflow_id: 'workflow-1', hashed_user_id: OWNER, current_version_id: 'version-1', status: 'active' }],
@@ -210,6 +238,7 @@ test('manual acceptance creates one queued run pinned to the locked current immu
   assert.equal(database.rows.workflow_runs.length, 1);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('manual acceptance rejects a missing immutable version without creating a run', async () => {
   const database = fakeDatabase({
     workflows: [{ workflow_id: 'workflow-1', hashed_user_id: OWNER, current_version_id: 'version-missing', status: 'active' }],
@@ -226,6 +255,7 @@ test('manual acceptance rejects a missing immutable version without creating a r
   assert.equal(database.rows.workflow_runs.length, 0);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('only one worker can start an accepted manual run', async () => {
   const database = fakeDatabase({
     workflow_triggers: [], workflow_event_receipts: [],
@@ -248,6 +278,7 @@ test('only one worker can start an accepted manual run', async () => {
   assert.equal(database.rows.workflow_runs[0].started_at, 1_783_843_200);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('owner cancellation is durable and rejects terminal or cross-owner runs', async () => {
   const database = fakeDatabase({
     workflow_triggers: [], workflow_event_receipts: [],
@@ -272,6 +303,7 @@ test('owner cancellation is durable and rejects terminal or cross-owner runs', a
   );
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('cancelling a queued scheduled run releases its lease and advances the occurrence without execution', async () => {
   const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
   const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
@@ -301,6 +333,7 @@ test('cancelling a queued scheduled run releases its lease and advances the occu
   assert.equal(advanced.next_run_at, 1_783_929_600);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('missing scheduled run releases the stale claim so the occurrence can be reclaimed', async () => {
   const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
   const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
@@ -321,6 +354,7 @@ test('missing scheduled run releases the stale claim so the occurrence can be re
   assert.equal(database.rows.workflow_runs.length, 1);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained,workflows.surface.semantic-parity
 test('event acceptance stores one payload-free receipt and one run', async () => {
   const eventTrigger = {
     trigger_id: 'trigger-event', workflow_id: 'workflow-1', version_id: 'version-1', hashed_user_id: OWNER,
@@ -339,6 +373,7 @@ test('event acceptance stores one payload-free receipt and one run', async () =>
   assert.deepEqual(Object.keys(database.rows.workflow_event_receipts[0]).sort(), ['created_at', 'dispatch_status', 'event_id', 'event_type', 'hashed_user_id', 'id', 'run_id', 'source', 'trigger_id']);
 });
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 test('event acceptance rejects cross-owner and unknown operation requests', async () => {
   const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
   await assert.rejects(

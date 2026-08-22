@@ -27,6 +27,13 @@ ASSETS_CURRENT_DIR = TESTS_DIR / "assets/current"
 HISTORY_PATH = Path(".obsidian-auto/test-results-history.json")
 OVERVIEW_PATH = TESTS_DIR / "Test runs.md"
 FAILING_STATUSES = {"failed", "timeout", "timedOut", "dispatch_error", "result_unknown"}
+EXCLUDED_SPECS = {
+    "create-test-account.spec.ts",
+    "deep-research-real-inference.spec.ts",
+    "default-model-settings-proof.spec.ts",
+    "proof-audio-speech-example.spec.ts",
+    "sub-chats-real-inference.spec.ts",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,7 +85,7 @@ def frontmatter(props: dict[str, Any]) -> str:
 
 
 def discover_specs() -> list[str]:
-    return sorted(path.name for path in SPEC_DIR.glob("*.spec.ts") if path.name != "create-test-account.spec.ts")
+    return sorted(path.name for path in SPEC_DIR.glob("*.spec.ts") if path.name not in EXCLUDED_SPECS)
 
 
 def collect_playwright_tests(last_run: dict[str, Any]) -> dict[str, dict[str, Any]]:

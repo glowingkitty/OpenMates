@@ -2769,7 +2769,7 @@
             class="return-to-parent-button"
             data-testid="return-to-parent-button"
             title={$text('chats.chat.sub_chats.return_to_parent')}
-            style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            style="position: absolute; top: 12px; left: 118px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
             onclick={() => {
                 void navigateToChat(parentChatId);
             }}
@@ -3195,12 +3195,17 @@
     width: 100%;
     max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
+    box-sizing: border-box;
   }
 
   /* Only apply padding-top and min-height when there are messages */
   /* This prevents the first message from overlaying the button */
   .chat-history-content.has-messages {
     padding-top: 50px;
+    /* ActiveChat's action buttons float over both inline edges. Reserve those
+       lanes in the scrollable message column so auto-scroll cannot move a
+       bubble underneath them after the sidebar narrows the canvas. */
+    padding-inline: 90px;
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }
@@ -3213,6 +3218,12 @@
      the banner already occupies the top space. */
   .chat-history-content.has-messages.has-header {
     padding-top: var(--spacing-6);
+  }
+
+  @media (max-width: 730px) {
+    .chat-history-content.has-messages {
+      padding-inline: 55px;
+    }
   }
 
 

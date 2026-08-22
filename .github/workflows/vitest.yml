@@ -56,7 +56,7 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/packages/ui
           mapfile -t TEST_FILES < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_FILES_JSON") or "[]"); marker="frontend/packages/ui/"; print("\n".join(v.split(marker,1)[1] for v in values if marker in v), end="")')
-          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json; exit 0; fi
+          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"success":true,"testResults":[],"numTotalTests":0,"numFailedTests":0,"numFailedTestSuites":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json; exit 0; fi
           set +e
           npx vitest run --reporter=json \
             --testTimeout 30000 \
@@ -66,7 +66,7 @@ jobs:
           VITEST_EXIT=${PIPESTATUS[0]}
           set -e
           if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-ui.json ]; then
-            echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json
+            echo '{"success":true,"testResults":[],"numTotalTests":0,"numFailedTests":0,"numFailedTestSuites":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json
           fi
           if [ $VITEST_EXIT -ne 0 ]; then exit $VITEST_EXIT; fi
       - name: Run web app unit tests
@@ -79,7 +79,7 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           mapfile -t TEST_FILES < <(python3 -c 'import json, os; values=json.loads(os.environ.get("TEST_FILES_JSON") or "[]"); marker="frontend/apps/web_app/"; print("\n".join(v.split(marker,1)[1] for v in values if marker in v), end="")')
-          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json; exit 0; fi
+          if [ -n "$TEST_FILES_JSON" ] && [ ${#TEST_FILES[@]} -eq 0 ]; then echo '{"success":true,"testResults":[],"numTotalTests":0,"numFailedTests":0,"numFailedTestSuites":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json; exit 0; fi
           pnpm exec svelte-kit sync
           set +e
           npx vitest run --reporter=json \
@@ -88,7 +88,7 @@ jobs:
           VITEST_EXIT=${PIPESTATUS[0]}
           set -e
           if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-webapp.json ]; then
-            echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json
+            echo '{"success":true,"testResults":[],"numTotalTests":0,"numFailedTests":0,"numFailedTestSuites":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json
           fi
           if [ $VITEST_EXIT -ne 0 ]; then exit $VITEST_EXIT; fi
       - name: Run CLI account import SDK tests

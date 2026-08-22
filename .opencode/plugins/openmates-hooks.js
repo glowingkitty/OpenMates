@@ -5,8 +5,8 @@
 // with the small set of canonical Claude guards.
 
 import { spawn, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
@@ -24,7 +24,6 @@ const READ_ONLY_SUBAGENTS = new Set([
   "embed-rendering-investigator",
   "encryption-flow-tracer",
   "explore",
-  "general",
   "issue-forensics",
   "legal-compliance-auditor",
   "main-processor-guru",
@@ -33,6 +32,7 @@ const READ_ONLY_SUBAGENTS = new Set([
   "skill-integration-doctor",
   "test-failure-triager",
 ]);
+const WRITABLE_SUBAGENTS = new Set(["general"]);
 const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
@@ -42,6 +42,8 @@ const WORKTREE_ROOTS = [
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const PRESENCE_FILE = `${PROJECT_ROOT}/.opencode/presence.json`;
+const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py`;
+const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
@@ -52,7 +54,7 @@ const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
-const DOCKER_LOCK_MARKER = "[OpenMates Docker lock guard]";
+const DOCKER_LIFECYCLE_MARKER = "[OpenMates server lifecycle guard]";
 const DOCKER_COMPOSE_MUTATIONS = new Set(["build", "down", "kill", "restart", "rm", "start", "stop", "up"]);
 const COMPOSE_OPTIONS_WITH_VALUES = new Set(["-f", "--file", "--env-file", "-p", "--project-name", "--profile", "--project-directory"]);
 const CLI_AUTH_ERROR_PATTERNS = [
@@ -64,6 +66,17 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Email encryption key is missing\. Run [`']openmates login[`'] again/i,
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
+const HOOK_SOURCE_URL = new URL(import.meta.url);
+
+function hashHookSource() {
+  try {
+    return createHash("sha256").update(readFileSync(HOOK_SOURCE_URL)).digest("hex");
+  } catch {
+    return "unavailable";
+  }
+}
+
+const HOOK_RUNTIME_HASH = hashHookSource();
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
@@ -344,6 +357,33 @@ function initialPresenceForTest(sessionID, { questionCapability = "unsupported",
   };
 }
 
+function childRoleFromAgent(agent) {
+  if (REVIEWER_SUBAGENTS.has(agent)) return "reviewer";
+  if (READ_ONLY_SUBAGENTS.has(agent)) return "read_only";
+  if (WRITABLE_SUBAGENTS.has(agent)) return "writable";
+  return "unknown";
+}
+
+function hookRuntimeDiagnosticForTest(runtimeHash = HOOK_RUNTIME_HASH, sourceHash = hashHookSource()) {
+  const validHash = (value) => /^[a-f0-9]{64}$/.test(value);
+  return {
+    runtimeHash,
+    sourceHash,
+    status: !validHash(runtimeHash) || !validHash(sourceHash)
+      ? "unavailable"
+      : (runtimeHash === sourceHash ? "current" : "stale_runtime"),
+  };
+}
+
+function repeatedRoutingFailureMessageForTest(message, count, diagnostic = hookRuntimeDiagnosticForTest()) {
+  if (count < 2) return message;
+  const hashes = `hook runtime=${diagnostic.runtimeHash} source=${diagnostic.sourceHash} status=${diagnostic.status}`;
+  const next = ["stale_runtime", "unavailable"].includes(diagnostic.status)
+    ? "restart the OpenCode runtime once so it loads the current hook, then retry once."
+    : "run python3 scripts/sessions.py status --json and return the routing diagnostics to the parent.";
+  return `${message} Circuit breaker: Do not retry the same tool call. ${hashes}. Next: ${next}`;
+}
+
 function eventSessionID(event) {
   const properties = event?.properties || {};
   return properties.sessionID || properties.info?.sessionID || properties.info?.id || properties.part?.sessionID || "";
@@ -395,6 +435,7 @@ function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
     const assistantState = { ...state, turn_id: info.id, user_turn_id: info.parentID || state.user_turn_id };
     if (info.error?.name === "MessageAbortedError") return { ...assistantState, execution: "stopped", turn: "aborted" };
     if (info.error) return { ...assistantState, execution: "error", turn: "failed" };
+    if (info.time?.completed && info.finish === "unknown") return { ...assistantState, execution: "error", turn: "failed" };
     if (info.time?.completed) return { ...assistantState, turn: "completed" };
     return { ...assistantState, execution: "busy", turn: "streaming", heartbeat_at: now };
   }
@@ -419,7 +460,14 @@ function reducePresenceEventForTest(current, event, { now = isoNow() } = {}) {
   }
   if (["session.created", "session.updated"].includes(event.type)) {
     const parentID = properties.info?.parentID;
-    return parentID ? { ...state, parent_id: parentID, top_level_session_id: parentID } : state;
+    if (!parentID) return state;
+    const explicitRole = childRoleFromAgent(properties.info?.agent || "");
+    return {
+      ...state,
+      parent_id: parentID,
+      top_level_session_id: parentID,
+      child_role: explicitRole === "unknown" ? state.child_role : explicitRole,
+    };
   }
   if (event.type === "openmates.child.role") {
     const role = properties.role;
@@ -508,7 +556,27 @@ function collisionRelativePath(file, data) {
     if (!worktree) continue;
     const candidate = relative(resolve(worktree), absolute);
     if (candidate && candidate !== ".." && !candidate.startsWith(`..${sep}`) && !isAbsolute(candidate)) return candidate;
+    const repoRoot = session?.repo_root;
+    if (typeof repoRoot === "string" && repoRoot) {
+      const repoCandidate = relative(resolve(repoRoot), absolute);
+      if (repoCandidate && repoCandidate !== ".." && !repoCandidate.startsWith(`..${sep}`) && !isAbsolute(repoCandidate)) return repoCandidate;
+    }
   }
+  if (pathInProjectRoot(absolute)) return relative(PROJECT_ROOT, absolute);
+  return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
+}
+
+function relativePathWithinBase(file, basePath) {
+  if (!file || !basePath) return "";
+  const candidate = relative(resolve(basePath), resolve(file));
+  if (!candidate || candidate === ".." || candidate.startsWith(`..${sep}`) || isAbsolute(candidate)) return "";
+  return candidate;
+}
+
+function routedEditRelativePathForTest(file, worktreePath = "") {
+  if (!file) return "";
+  const absolute = isAbsolute(file) ? resolve(file) : resolve(worktreePath || PROJECT_ROOT, file);
+  if (worktreePath) return relativePathWithinBase(absolute, worktreePath);
   if (pathInProjectRoot(absolute)) return relative(PROJECT_ROOT, absolute);
   return isAbsolute(file) ? "" : file.replace(/^\.\//, "");
 }
@@ -541,20 +609,18 @@ function readConflictWarningForTest({ path = "", sessionID = "", data = {}, pres
   return `[OpenMates presence conflict] ${relativePath} currently has a live edit by repository session ${lease.session_id}. This read remains allowed; re-read after the lease releases before editing.`;
 }
 
-function routingDecisionForTest({ session = {} } = {}) {
-  if (session?.worktree?.status === "merged") {
-    return {
-      decision: "merged_worktree",
-      worktreePath: "",
-      message: actionable(
-        ROUTING_GUARD_MARKER,
-        `repository session worktree is already merged${session.worktree.merged_commit ? ` at ${String(session.worktree.merged_commit).slice(0, 9)}` : ""}`,
-        "start a new sessions.py session/worktree for follow-up edits or subject-commit-bound evidence; safe reads, searches, status, doctor, summary, context, worktree ensure, and worktree repair remain available.",
-      ),
-    };
+function routingDecisionForTest({ session = {}, pathExists = existsSync } = {}) {
+  const repoRoot = typeof session?.repo_root === "string" ? session.repo_root : "";
+  if (repoRoot && resolve(repoRoot) !== resolve(PROJECT_ROOT) && session?.mode !== "question") {
+    return { decision: "worktree_routed", worktreePath: repoRoot, repoRoot, repoName: session.repo_name || "external" };
   }
-  const worktreePath = ["active", "changes_pending"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
-  if (worktreePath && isDirectManagedWorktree(worktreePath)) return { decision: "worktree_routed", worktreePath };
+  const worktreePath = ["active", "changes_pending", "merged"].includes(session?.worktree?.status) ? session.worktree.path || "" : "";
+  if (
+    worktreePath
+    && isDirectManagedWorktree(worktreePath)
+    && pathExists(worktreePath)
+    && pathExists(resolve(worktreePath, ".git"))
+  ) return { decision: "worktree_routed", worktreePath };
   if (session?.mode === "question") return { decision: "read_only", worktreePath: "" };
   return { decision: "unresolved", worktreePath: "" };
 }
@@ -602,27 +668,31 @@ async function openCodeSession(client, sessionID) {
   }
 }
 
-async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession }) {
+async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = {}, getSession, pathExists = existsSync }) {
   let currentID = sessionID;
   let inheritedParentRoute = false;
+  let childRole = childRoles?.[sessionID]?.role || "unknown";
   const visited = new Set();
   for (let depth = 0; currentID && depth < 12 && !visited.has(currentID); depth += 1) {
     visited.add(currentID);
     const record = activeSessionRecord(currentID, data);
     if (record) {
-      const decision = routingDecisionForTest({ session: record.session });
+      const decision = routingDecisionForTest({ session: record.session, pathExists });
       return {
         ...decision,
         repositorySessionID: record.id,
         topLevelOpenCodeSessionID: currentID,
         requestingOpenCodeSessionID: sessionID,
         inheritedParentRoute,
-        childRole: childRoles?.[sessionID]?.role || "unknown",
+        childRole,
         session: record.session,
       };
     }
     const info = await getSession(currentID);
     const parentID = info?.parentID || "";
+    if (currentID === sessionID && parentID && childRole === "unknown") {
+      childRole = childRoleFromAgent(info?.agent || "");
+    }
     if (parentID) inheritedParentRoute = true;
     currentID = parentID;
   }
@@ -633,7 +703,7 @@ async function resolveWorktreeRouteForTest({ sessionID, data = {}, childRoles = 
     topLevelOpenCodeSessionID: currentID || sessionID || "",
     requestingOpenCodeSessionID: sessionID || "",
     inheritedParentRoute,
-    childRole: childRoles?.[sessionID]?.role || "unknown",
+    childRole,
     session: null,
   };
 }
@@ -684,7 +754,7 @@ function isReadOnlyChildBash(command) {
     return quote !== "";
   })();
   if (hasUnsafeExpansion || ["<(", ">("].some((token) => safeCommand.includes(token)) || extractWriteTargets(safeCommand).length > 0) return false;
-  const readOnlyCommands = new Set(["head", "jq", "pgrep", "ps", "pwd", "rg", "tail", "wc"]);
+  const readOnlyCommands = new Set(["cat", "cut", "head", "jq", "nl", "pgrep", "ps", "pwd", "rg", "tail", "uniq", "wc"]);
   const readOnlyGitCommands = new Set(["blame", "branch", "describe", "diff", "log", "ls-files", "ls-tree", "merge-base", "name-rev", "rev-parse", "show", "status"]);
   const readOnlyDockerCommands = new Set(["inspect", "logs", "ps", "stats", "top"]);
   const readOnlyDebugSpecs = {
@@ -742,9 +812,15 @@ function isReadOnlyChildBash(command) {
     const action = args[0];
     return argumentsMatch(args.slice(1), readOnlyIssueSpecs[action]);
   };
+  const sessionCommandIsReadOnly = (args) => {
+    if (args.length === 1 && ["-h", "--help"].includes(args[0])) return true;
+    if (args[0] !== "chat" || !["read", "search"].includes(args[1])) return false;
+    if (args[1] === "read") return args.length >= 3 && !args.slice(2).some((arg) => arg.startsWith("--out") || arg === "--write");
+    return args.length >= 4 && !args.slice(2).some((arg) => arg.startsWith("--out") || arg === "--write");
+  };
 
   return commandSegmentTokens(safeCommand.replace(/\\\s*\n/g, " ")).every((tokens) => {
-    if (tokens.some((token) => isAssignment(token)) || basename(unquote(tokens[0] || "")) === "env") return false;
+    if (isAssignment(tokens[0] || "") || basename(unquote(tokens[0] || "")) === "env") return false;
     const directScript = unquote(tokens[0] || "").replace(/^\.\//, "");
     if (directScript === "scripts/issues.py") return issueCommandIsReadOnly(tokens.slice(1));
     const invocation = normalizedInvocation(tokens);
@@ -753,6 +829,16 @@ function isReadOnlyChildBash(command) {
     if (commandName === "rg") {
       const executionOptions = ["--pre", "--pre-glob", "--hostname-bin", "--search-zip"];
       return !args.some((arg) => executionOptions.some((option) => arg === option || arg.startsWith(`${option}=`)));
+    }
+    if (commandName === "sort") {
+      const mutatingOrExecutingOption = args.some((arg) => (
+        /^-[^-]*o/.test(arg)
+        || arg === "--output"
+        || arg.startsWith("--output=")
+        || arg === "--compress-program"
+        || arg.startsWith("--compress-program=")
+      ));
+      return !mutatingOrExecutingOption;
     }
     if (readOnlyCommands.has(commandName)) return true;
     if (commandName === "git") {
@@ -774,7 +860,7 @@ function isReadOnlyChildBash(command) {
     if (["python", "python3"].includes(commandName)) {
       const script = unquote(args[0] || "").replace(/^\.\//, "");
       if (script === "scripts/issues.py") return issueCommandIsReadOnly(args.slice(1));
-      if (script === "scripts/sessions.py") return args.length === 2 && ["-h", "--help"].includes(args[1]);
+      if (script === "scripts/sessions.py") return sessionCommandIsReadOnly(args.slice(1));
       if (script === "scripts/tests.py") return argumentsMatch(args.slice(2), readOnlyTestSpecs[args[1]]);
       return false;
     }
@@ -782,40 +868,159 @@ function isReadOnlyChildBash(command) {
   });
 }
 
+function childRepositorySessionCommand(command) {
+  return commandSegmentTokens(String(command || "")).some((segment) => {
+    const tokens = segment.map(shellUnescape);
+    const moduleIndex = tokens.findIndex((token, index) => token === "scripts.sessions" && tokens[index - 1] === "-m");
+    const scriptIndex = tokens.findIndex((token) => {
+      const candidate = resolve(PROJECT_ROOT, token);
+      return [candidate, canonicalPath(candidate)]
+        .some((path) => path.replace(/\\/g, "/").endsWith("/scripts/sessions.py"));
+    });
+    const commandIndex = scriptIndex >= 0 ? scriptIndex + 1 : (moduleIndex >= 0 ? moduleIndex + 1 : -1);
+    return commandIndex > 0
+      && (tokens[commandIndex] === "start"
+        || (tokens[commandIndex] === "worktree" && tokens[commandIndex + 1] === "ensure"));
+  });
+}
+
 function childMutationDecisionForTest(route, tool, command = "") {
   if (!route?.inheritedParentRoute || (!EDIT_TOOLS.has(tool) && !BASH_TOOLS.has(tool))) {
     return { decision: "allow", message: "no inherited child mutation" };
+  }
+  if (route.childRole === "writable") {
+    if (BASH_TOOLS.has(tool) && childRepositorySessionCommand(command)) {
+      return {
+        decision: "block",
+        message: actionable(
+          "[OpenMates child ownership guard]",
+          "a writable child must reuse the parent repository session and worktree",
+          "continue the assigned mutation in the inherited parent worktree; do not start or ensure a child repository session.",
+        ),
+      };
+    }
+    return { decision: "allow", message: "writable child shares the parent worktree" };
   }
   if (BASH_TOOLS.has(tool) && isReadOnlyChildBash(command)) {
     return { decision: "allow", message: "read-only inherited child shell" };
   }
   const role = route.childRole || "unknown";
-  const reason = role === "writable"
-    ? "a writable child must own a separate repository session and disjoint worktree before mutating files"
-    : `child role ${role} may read the parent worktree but may not mutate it`;
-  const next = role === "writable"
-    ? "assign the child its own writable sessions.py worktree and disjoint file/task ownership."
-    : "finish the read-only investigation and return the finding to the parent; do not start another repository session.";
   return {
     decision: "block",
     message: actionable(
       "[OpenMates child ownership guard]",
-      reason,
-      next,
+      `child role ${role} may read the parent worktree but may not mutate it`,
+      "finish the read-only investigation and return the finding to the parent; do not start another repository session.",
     ),
   };
 }
 
 function routingRecoveryMessage(sessionID) {
-  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"brief description\". Safe reads, searches, status, summary, context, worktree ensure, and worktree repair remain available.`;
+  return `${ROUTING_GUARD_MARKER} Reason: no active sessions.py worktree could be resolved for OpenCode session ${sessionID || "<unknown>"}. Next: run python3 scripts/sessions.py start --mode <feature|bug|docs|testing|question> --task \"brief description\". Safe reads, searches, approved audits, status, summary, context, worktree ensure, and worktree repair remain available.`;
+}
+
+function directPythonScriptArgs(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return null;
+  const segments = commandSegmentTokens(String(command || ""));
+  if (segments.length !== 1) return null;
+  const tokens = segments[0].map(shellUnescape);
+  if (!["python", "python3"].includes(tokens[0] || "")) return null;
+  return tokens.slice(1);
+}
+
+function optionsMatch(args, { booleanOptions = new Set(), valueOptions = new Map() } = {}) {
+  const seen = new Set();
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (seen.has(option)) return false;
+    seen.add(option);
+    if (booleanOptions.has(option)) continue;
+    const validate = valueOptions.get(option);
+    if (!validate || index + 1 >= args.length || !validate(args[index + 1])) return false;
+    index += 1;
+  }
+  return true;
+}
+
+function isApprovedControlPlaneAuditCommand(command) {
+  const args = directPythonScriptArgs(command);
+  if (!args?.length) return false;
+  const [script, ...options] = args;
+  if (script === "scripts/audit_opencode_output_quality.py") {
+    return optionsMatch(options, {
+      booleanOptions: new Set(["--json"]),
+      valueOptions: new Map([["--telemetry-days", (value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 168]]),
+    });
+  }
+  if (script === "scripts/audit_agent_tooling_parity.py") {
+    return optionsMatch(options, { booleanOptions: new Set(["--json"]) });
+  }
+  if (script === "scripts/audit_opencode_spec_workflow.py") return options.length === 0;
+  if (script === "scripts/audit_opencode_automation_budget.py") {
+    return optionsMatch(options, { booleanOptions: new Set(["--all"]) });
+  }
+  return false;
+}
+
+function exactCommitDeployedTestForTest(command, expectedCommit = "") {
+  const args = directPythonScriptArgs(command);
+  if (!args || args[0] !== "scripts/tests.py" || args[1] !== "run") return null;
+  const options = args.slice(2);
+  const values = {};
+  const booleans = new Set();
+  const allowedBoolean = new Set(["--gate-deploy", "--require-exact-commit", "--detach"]);
+  const allowedValue = new Set(["--spec", "--expected-commit", "--proof-video-profile"]);
+  for (let index = 0; index < options.length; index += 1) {
+    const option = options[index];
+    if (allowedBoolean.has(option)) {
+      if (booleans.has(option)) return null;
+      booleans.add(option);
+      continue;
+    }
+    if (!allowedValue.has(option) || Object.hasOwn(values, option) || index + 1 >= options.length) return null;
+    values[option] = options[++index];
+  }
+  const commit = values["--expected-commit"] || "";
+  if (!booleans.has("--gate-deploy") || !booleans.has("--require-exact-commit")) return null;
+  if (!/^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._\/-]*\.spec\.ts$/.test(values["--spec"] || "")) return null;
+  if (!/^[0-9a-f]{40}$/i.test(commit)) return null;
+  if (expectedCommit && commit.toLowerCase() !== String(expectedCommit).toLowerCase()) return null;
+  if (values["--proof-video-profile"] && !["web-phone", "web-laptop"].includes(values["--proof-video-profile"])) return null;
+  return { commit, spec: values["--spec"] };
 }
 
 function isRecoveryBash(command) {
   if (isProdSshRecoveryCommand(command)) return true;
+  if (improvementReviewCommandIsSafe(command)) return true;
   return /python3\s+scripts\/sessions\.py\s+(?:start|status|summary|context|doctor|spawn-chat)\b/.test(command)
     || /python3\s+scripts\/sessions\.py\s+worktree\s+(?:ensure|repair)\b/.test(command)
-    || /^\s*python3\s+scripts\/audit_opencode_output_quality\.py\b/.test(command)
+    || /python3\s+scripts\/sessions\.py\s+end\b[^;&|\n]*\s--force\b/.test(command)
+    || isApprovedControlPlaneAuditCommand(command)
     || /^\s*(?:pwd|date|git\s+(?:status|log|diff|show)\b)/.test(command);
+}
+
+function improvementReviewCommandIsSafe(command) {
+  const segments = commandSegmentTokens(String(command || "").replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1 || hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const tokens = segments[0].map(shellUnescape);
+  if (!["python", "python3"].includes(tokens[0]) || tokens[1] !== "scripts/opencode_chat_improvement_review.py") return false;
+  const args = tokens.slice(2);
+  let dryRunSeen = false;
+  let hoursSeen = false;
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--dry-run-notify" && !dryRunSeen) {
+      dryRunSeen = true;
+      continue;
+    }
+    if (args[index] === "--hours" && /^\d+$/.test(args[index + 1] || "")) {
+      if (hoursSeen || Number(args[index + 1]) < 1 || Number(args[index + 1]) > 168) return false;
+      hoursSeen = true;
+      index += 1;
+      continue;
+    }
+    return false;
+  }
+  return dryRunSeen;
 }
 
 function isProdSshRecoveryCommand(command) {
@@ -834,9 +1039,12 @@ function isProdSshRecoveryCommand(command) {
   return helpers.has(executable) && args.length === 1 && ["close", "status"].includes(args[0]);
 }
 
-function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "" } = {}) {
+function routingFailureForTest({ tool = "", sessionID = "", command = "", routeMessage = "", routeDecision = "", mergedCommit = "" } = {}) {
   if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) return { decision: "allow_read", message: "" };
   if (BASH_TOOLS.has(tool) && (isRecoveryBash(command) || isReadOnlyChildBash(command))) return { decision: "allow_recovery", message: "" };
+  if (BASH_TOOLS.has(tool) && routeDecision === "merged_worktree" && exactCommitDeployedTestForTest(command, mergedCommit)) {
+    return { decision: "allow_merged_verification", message: "" };
+  }
   if (routeMessage) return { decision: "block", message: routeMessage };
   return { decision: "block", message: routingRecoveryMessage(sessionID) };
 }
@@ -944,6 +1152,23 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (staleCodeSegment >= 0 && !staleCodeReportControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: stale-code report generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/stale_code_daily.py --dry-run-notify with an optional numeric --limit.`);
     }
+    const improvementReviewSegment = commandSegments.findIndex((tokens) => (
+      ["python", "python3"].includes(shellUnescape(tokens[0]))
+      && shellUnescape(tokens[1]) === "scripts/opencode_chat_improvement_review.py"
+    ));
+    const improvementReviewControlPlane = improvementReviewCommandIsSafe(command);
+    if (improvementReviewSegment >= 0 && !improvementReviewControlPlane) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
+    }
+    const sessionsPySegment = commandSegments.findIndex((tokens) => (
+      ["python", "python3"].includes(shellUnescape(tokens[0]))
+      && shellUnescape(tokens[1]) === "scripts/sessions.py"
+    ));
+    const sessionsPyControlPlane = sessionsPySegment === 0
+      && commandSegments.length === 1
+      && !hasTopLevelSeparator
+      && !unsafeControlSyntax
+      && !existsSync(resolve(worktreePath, "scripts/sessions.py"));
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
@@ -966,7 +1191,7 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane) ? PROJECT_ROOT : worktreePath };
+    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };
@@ -1024,6 +1249,23 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
   }
   return rewriteEditArgsForTest(input, worktreePath);
+}
+
+function routeLocalToolArgsWithCircuitBreakerForTest(
+  tool,
+  args,
+  worktreePath,
+  { sessionID = "", counts = new Map() } = {},
+) {
+  try {
+    return routeLocalToolArgsForTest(tool, args, worktreePath);
+  } catch (error) {
+    const command = bashCommand(args);
+    const key = `isolation:${sessionID}:${tool}:${command}:${error.message}`;
+    const count = (counts.get(key) || 0) + 1;
+    counts.set(key, count);
+    throw new Error(repeatedRoutingFailureMessageForTest(error.message, count));
+  }
 }
 
 function recordWorktreeRouting(opencodeSessionID) {
@@ -1157,24 +1399,14 @@ function dockerComposeMutation(command) {
   return false;
 }
 
-function sessionHasDockerLock(sessionID, data = sessionsData()) {
-  const record = activeSessionRecord(sessionID, data);
-  const shortID = record?.id || sessionID || "";
-  const lock = data?.locks?.docker_rebuild || {};
-  return lock.status === "IN_PROGRESS" && lock.claimed_by === shortID;
-}
-
-function dockerMutationDecisionForTest({ command = "", sessionID = "", data = null } = {}) {
+function dockerMutationDecisionForTest({ command = "" } = {}) {
   if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
-  if (sessionHasDockerLock(sessionID, data || sessionsData())) return { decision: "allow", message: "Docker lock held by this session" };
-  const record = activeSessionRecord(sessionID, data || sessionsData());
-  const shortID = record?.id || "<id>";
   return {
     decision: "block",
     message: actionable(
-      DOCKER_LOCK_MARKER,
-      "Docker Compose mutations require the current sessions.py Docker lock.",
-      `run python3 scripts/sessions.py lock --session ${shortID} --type docker, retry once, then release immediately with python3 scripts/sessions.py unlock --session ${shortID} --type docker.`,
+      DOCKER_LIFECYCLE_MARKER,
+      "Direct Docker Compose lifecycle mutations bypass the registered OpenMates source and service policy.",
+      "use openmates server start, stop, restart, or update; use openmates server restart --rebuild [--services <service>] for rebuilds.",
     ),
   };
 }
@@ -1295,6 +1527,72 @@ function normalizedInvocation(tokens) {
   return { command: commandName, args };
 }
 
+function changesOpenCodeSessionEnvironment(tokens) {
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) {
+    if (shellUnescape(tokens[index]).startsWith("OPENCODE_SESSION_ID=")) return true;
+    index += 1;
+  }
+  let commandName = basename(tokens[index] || "");
+  if (["command", "builtin"].includes(commandName)) {
+    index += 1;
+    while (index < tokens.length && isAssignment(tokens[index])) {
+      if (shellUnescape(tokens[index]).startsWith("OPENCODE_SESSION_ID=")) return true;
+      index += 1;
+    }
+    commandName = basename(tokens[index] || "");
+  }
+  if (commandName !== "env") return false;
+  for (let envIndex = index + 1; envIndex < tokens.length; envIndex += 1) {
+    const token = shellUnescape(tokens[envIndex] || "");
+    if (token === "--") return false;
+    if (token.startsWith("OPENCODE_SESSION_ID=")) return true;
+    if (token === "-i" || token === "--ignore-environment") return true;
+    if (token === "-u" || token === "--unset") {
+      if (shellUnescape(tokens[envIndex + 1] || "") === "OPENCODE_SESSION_ID") return true;
+      envIndex += 1;
+      continue;
+    }
+    if (token.startsWith("--unset=") && token.slice("--unset=".length) === "OPENCODE_SESSION_ID") return true;
+    if (isAssignment(token) || isOption(token)) continue;
+    return false;
+  }
+  return false;
+}
+
+function hasOpenCodeSessionEnvironmentChange(tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = shellUnescape(tokens[index] || "");
+    if (token.startsWith("OPENCODE_SESSION_ID=")) return true;
+    if (token === "-i" || token === "--ignore-environment") return true;
+    if ((token === "-u" || token === "--unset") && shellUnescape(tokens[index + 1] || "") === "OPENCODE_SESSION_ID") return true;
+    if (token.startsWith("--unset=") && token.slice("--unset=".length) === "OPENCODE_SESSION_ID") return true;
+  }
+  return false;
+}
+
+function isTestsScriptToken(token) {
+  const script = shellUnescape(token || "").replace(/^\.\//, "");
+  return script === "scripts/tests.py" || script.endsWith("/scripts/tests.py");
+}
+
+function testsCampaignVerbFromTokens(tokens) {
+  for (let index = 0; index < tokens.length - 2; index += 1) {
+    if (isTestsScriptToken(tokens[index]) && shellUnescape(tokens[index + 1] || "") === "campaign") {
+      return shellUnescape(tokens[index + 2] || "");
+    }
+  }
+  return "";
+}
+
+function mutatingCampaignVerbFromText(command) {
+  const text = String(command || "");
+  const shellMatch = text.match(/(?:^|[\s"'`])(?:\.\/|[^\s"'`]+\/)?scripts\/tests\.py\s+campaign\s+([a-z-]+)/);
+  const codeMatch = text.match(/scripts\/tests\.py["']?\s*,\s*["']campaign["']?\s*,\s*["']([a-z-]+)/);
+  const verb = shellMatch?.[1] || codeMatch?.[1] || "";
+  return verb && !new Set(["status", "worker-state"]).has(verb) ? verb : "";
+}
+
 function skipOption(args, index, optionsWithValues) {
   const arg = args[index];
   if (optionsWithValues.has(arg)) return Math.min(index + 2, args.length);
@@ -1358,10 +1656,60 @@ function taskChildClassificationForTest(input, output) {
   const sessionID = String(metadata.sessionId || "");
   const subagentType = String((input?.args || {}).subagent_type || "");
   if (!parentID || parentID !== input?.sessionID || !sessionID) return null;
-  const role = REVIEWER_SUBAGENTS.has(subagentType)
-    ? "reviewer"
-    : (READ_ONLY_SUBAGENTS.has(subagentType) ? "read_only" : "");
-  return role ? { sessionID, parentID, role } : null;
+  const role = childRoleFromAgent(subagentType);
+  return role === "unknown" ? null : { sessionID, parentID, role };
+}
+
+function toolNameMatches(tool, expected) {
+  return String(tool || "").toLowerCase() === expected.toLowerCase();
+}
+
+function isTodoWriteTool(tool) {
+  return ["todowrite", "todo_write", "todo.write", "TodoWrite"].includes(String(tool || ""));
+}
+
+function presenceIsLive(state) {
+  return PRESENCE_LIVE_EXECUTION.has(state?.execution) || state?.turn === "streaming";
+}
+
+function todoListFromToolArgs(args) {
+  const input = toolInput(args);
+  return Array.isArray(input.todos) ? input.todos : [];
+}
+
+function completedAssistantMessageID(event) {
+  if (!["message.updated", "message.completed", "assistant.completed"].includes(event?.type)) return "";
+  const info = event?.properties?.info || {};
+  const role = info.role || event?.properties?.role || event?.properties?.message?.role || "";
+  const messageID = info.id || event?.properties?.messageID || event?.properties?.id || event?.properties?.message?.id || "";
+  const completed = info.time?.completed || info.timeCompleted || event?.properties?.time?.completed || event?.properties?.completed || event?.properties?.message?.time?.completed;
+  const error = info.error || event?.properties?.error || event?.properties?.message?.error;
+  if (role !== "assistant" || !completed || error) return "";
+  return String(messageID || "");
+}
+
+function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = "", todos = [] } = {}) {
+  if (!sessionID) return [];
+  if (eventType === "response-completed") {
+    return [OPENCODE_NOTIFIER, "--event", "response-completed", "--session-id", sessionID, "--message-id", messageID || ""];
+  }
+  return [];
+}
+
+function scheduleNotifierEvent(args) {
+  if (!args.length) return;
+  mkdirSync(`${PROJECT_ROOT}/logs`, { recursive: true });
+  const logFd = openSync(OPENCODE_NOTIFIER_LOG, "a");
+  const child = spawn("python3", args, {
+    cwd: PROJECT_ROOT,
+    env: process.env,
+    detached: true,
+    stdio: ["ignore", logFd, logFd],
+  });
+  child.on("error", (error) => {
+    console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
+  });
+  child.unref();
 }
 
 function recordTaskChildRole(input, output) {
@@ -1541,10 +1889,196 @@ function runEditLease(action, files, sessionID) {
   }
 }
 
-export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true } = {}) => {
+function workerEditGateDecisionForTest({ sessionID = "", files = [], run = spawnSync } = {}) {
+  const selectedFiles = (files || []).filter(Boolean);
+  if (!sessionID || selectedFiles.length === 0) return { decision: "allow", message: "no worker edit gate input" };
+  const args = ["scripts/tests.py", "campaign", "edit-gate", "--session", sessionID];
+  for (const file of selectedFiles) args.push("--file", file);
+  const result = run("python3", args, { cwd: PROJECT_ROOT, encoding: "utf8", timeout: 10000 });
+  if (result.status === 0) return { decision: "allow", message: "worker edit gate passed" };
+  const detail = (result.stderr || result.stdout || `worker edit gate exited ${result.status}`).trim();
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      detail,
+      "submit `campaign intent`, wait for coordinator `approve-intent`, then edit only files in the approved write set.",
+    ),
+  };
+}
+
+function workerEditPathDecisionForTest({ sessionID = "", files = [], relativePaths = [], run = spawnSync } = {}) {
+  if (!sessionID || !(files || []).length) return { decision: "allow", message: "no worker edit paths" };
+  if ((relativePaths || []).length === (files || []).length) return { decision: "allow", message: "all edit paths resolved" };
+  const state = workerSessionStateForTest({ sessionID, run });
+  if (!state?.active_worker) return { decision: "allow", message: "session is not an active debug worker" };
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      "active debug workers may edit only paths that resolve inside the repository or assigned worktree.",
+      "retry with repository-relative paths inside the approved write set.",
+    ),
+  };
+}
+
+function guardWorkerEditPaths(files, relativePaths, sessionID) {
+  const decision = workerEditPathDecisionForTest({ sessionID, files, relativePaths });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+function guardWorkerEditGate(files, sessionID) {
+  const decision = workerEditGateDecisionForTest({ sessionID, files });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+function workerCampaignCommandIsAllowed(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  if (changesOpenCodeSessionEnvironment(segments[0])) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  if (!["python", "python3"].includes(invocation.command)) return false;
+  const script = shellUnescape(invocation.args[0] || "").replace(/^\.\//, "");
+  if (script !== "scripts/tests.py") return false;
+  const args = invocation.args.slice(1).map(shellUnescape);
+  if (args[0] === "lease-required") return true;
+  if (args[0] !== "campaign") return false;
+  return new Set(["status", "prepare", "intent", "attempt", "boundary", "finish-worker", "worker-state"]).has(args[1]);
+}
+
+function workerCampaignCommandSpoofsSession(command) {
+  const commandText = String(command || "");
+  const mutatingVerb = mutatingCampaignVerbFromText(commandText);
+  if (mutatingVerb) {
+    if (hasUnsafeLocalShellExpansionOrRedirection(commandText)) return true;
+    if (/\bOPENCODE_SESSION_ID\b/.test(commandText)) return true;
+    if (/\b(?:bash|sh|python3?|node)\s+-c\b/.test(commandText)) return true;
+  }
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  let sessionEnvironmentChanged = false;
+  for (const segment of segments) {
+    if (hasOpenCodeSessionEnvironmentChange(segment)) sessionEnvironmentChanged = true;
+    const verb = testsCampaignVerbFromTokens(segment);
+    if (sessionEnvironmentChanged && verb && !new Set(["status", "worker-state"]).has(verb)) return true;
+  }
+  return false;
+}
+
+function interpreterEvaluationCommand(command) {
+  const segments = commandSegmentTokens(String(command || "").replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  const args = invocation.args.map(shellUnescape);
+  if (["bash", "sh"].includes(invocation.command)) return args.includes("-c") || args.includes("--command");
+  if (["python", "python3"].includes(invocation.command)) return args.includes("-c");
+  if (invocation.command === "node") return args.includes("-e") || args.includes("--eval") || args.includes("-p") || args.includes("--print");
+  return false;
+}
+
+function workerSessionStartCommandIsAllowed(command, sessionID = "") {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  if (changesOpenCodeSessionEnvironment(segments[0])) return false;
+  const invocation = normalizedInvocation(segments[0]);
+  if (!["python", "python3"].includes(invocation.command)) return false;
+  const script = shellUnescape(invocation.args[0] || "").replace(/^\.\//, "");
+  const args = invocation.args.slice(1).map(shellUnescape);
+  if (script !== "scripts/sessions.py" || args[0] !== "start") return false;
+  const sessionIndex = args.indexOf("--opencode-session");
+  if (sessionIndex < 0 || sessionIndex + 1 >= args.length) return false;
+  return new Set([sessionID, "$OPENCODE_SESSION_ID", "${OPENCODE_SESSION_ID}"]).has(args[sessionIndex + 1]);
+}
+
+function workerServerRecoveryCommandIsAllowed(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return false;
+  const segments = commandSegmentTokens(command.replace(/\\\s*\n/g, " "));
+  if (segments.length !== 1) return false;
+  const tokens = segments[0].map(shellUnescape);
+  if (basename(tokens[0] || "") !== "openmates") return false;
+  const args = tokens.slice(1);
+  if (args.length === 2 && args[0] === "server" && args[1] === "status") return true;
+  if (args.length === 4
+    && args[0] === "server"
+    && args[1] === "restart"
+    && args[2] === "--services"
+    && args[3] === "cms") return true;
+  if (args.length === 5
+    && args[0] === "server"
+    && args[1] === "restart"
+    && args[2] === "--rebuild"
+    && args[3] === "--services"
+    && args[4] === "cms") return true;
+  return args.length === 5
+    && args[0] === "server"
+    && args[1] === "start"
+    && args[2] === "--with-overrides"
+    && args[3] === "--services"
+    && args[4] === "cms";
+}
+
+function workerSessionStateForTest({ sessionID = "", run = spawnSync } = {}) {
+  if (!sessionID) return { active_worker: false };
+  const result = run("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID], { cwd: PROJECT_ROOT, encoding: "utf8" });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || `worker-state exited ${result.status}`).trim();
+    throw new Error(actionable("[OpenMates worker edit gate]", detail, "resolve the test-control-plane worker-state error, then retry."));
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    throw new Error(actionable("[OpenMates worker edit gate]", "worker-state returned invalid JSON", "run python3 scripts/tests.py campaign worker-state --session <id> manually and fix the reported issue."));
+  }
+}
+
+function workerBashGateDecisionForTest({ sessionID = "", command = "", run = spawnSync } = {}) {
+  if (!sessionID || !command) return { decision: "allow", message: "no worker bash gate input" };
+  if (workerCampaignCommandSpoofsSession(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates worker edit gate]",
+        "campaign worker lifecycle commands must not override OPENCODE_SESSION_ID.",
+        "run the campaign command directly from the worker chat so the hook-provided session identity is preserved.",
+      ),
+    };
+  }
+  if (interpreterEvaluationCommand(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates worker edit gate]",
+        "nested interpreter evaluation is blocked because it can synthesize campaign commands with forged session identity.",
+        "run direct scripts with explicit arguments instead of bash -c, sh -c, python -c, or node -e.",
+      ),
+    };
+  }
+  if (isReadOnlyChildBash(command) || workerCampaignCommandIsAllowed(command) || workerSessionStartCommandIsAllowed(command, sessionID)) return { decision: "allow", message: "worker bash command is read-only or campaign bookkeeping" };
+  if (workerServerRecoveryCommandIsAllowed(command)) return { decision: "allow", message: "worker bash command is an approved CMS control-plane recovery command" };
+  const state = workerSessionStateForTest({ sessionID, run });
+  if (!state?.active_worker) return { decision: "allow", message: "session is not an active debug worker" };
+  return {
+    decision: "block",
+    message: actionable(
+      "[OpenMates worker edit gate]",
+      "active debug workers may not run arbitrary mutating Bash commands because they bypass approved write-set checks.",
+      "use read-only Bash for investigation, `campaign intent`/`boundary`/`finish-worker` for bookkeeping, and apply_patch/Edit after coordinator approval for source changes.",
+    ),
+  };
+}
+
+function guardWorkerBashGate(command, sessionID) {
+  const decision = workerBashGateDecisionForTest({ sessionID, command });
+  if (decision.decision === "block") throw new Error(decision.message);
+}
+
+export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true, editLease = runEditLease } = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
   const presenceStates = new Map();
+  const notifierLiveSessions = new Set();
+  const routingBlockCounts = new Map();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
   let presenceSequence = 0;
@@ -1566,12 +2100,15 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const schedulePresence = (state) => {
     const record = {
       ...state,
+      hook_runtime_hash: HOOK_RUNTIME_HASH,
       source_id: presenceSourceID,
       generation: presenceGeneration,
       sequence: ++presenceSequence,
       updated_at: state.updated_at || isoNow(),
     };
     presenceStates.set(state.session_id, record);
+    const notifierSessionID = record.top_level_session_id || record.parent_id || record.session_id;
+    if (notifierSessionID && presenceIsLive(record)) notifierLiveSessions.add(notifierSessionID);
     presenceScheduler.schedule(record);
   };
   const currentPresence = (sessionID) => {
@@ -1625,6 +2162,16 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       recordLifecycleEvent(event);
       if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
+      const completedMessageID = completedAssistantMessageID(event);
+      if (completedMessageID) {
+        const completedSessionID = eventSessionID(event);
+        const current = currentPresence(completedSessionID);
+        const notifierSessionID = current.top_level_session_id || current.parent_id || completedSessionID;
+        if (notifierLiveSessions.has(notifierSessionID)) {
+          notifierLiveSessions.delete(notifierSessionID);
+          scheduleNotifierEvent(notifierEventArgsForTest({ eventType: "response-completed", sessionID: completedSessionID, messageID: completedMessageID }));
+        }
+      }
     },
     "shell.env": async (input, output) => {
       if (!input?.sessionID) return;
@@ -1642,8 +2189,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      if (BASH_TOOLS.has(tool)) guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
-      if (childMutation.decision === "block") throw new Error(childMutation.message);
+      if (childMutation.decision === "block") {
+        const key = `child:${input.sessionID}:${tool}:${bashCommand(output?.args || input?.args)}`;
+        const count = (routingBlockCounts.get(key) || 0) + 1;
+        routingBlockCounts.set(key, count);
+        throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
+      }
       if (
         recordRouting
         &&
@@ -1655,13 +2208,45 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
       if (route.decision !== "worktree_routed") {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (BASH_TOOLS.has(tool) && improvementReviewCommandIsSafe(command)) {
+          replaceToolArgs(output, currentArgs, { ...currentArgs, workdir: PROJECT_ROOT });
+        }
         const failure = routingFailureForTest({
           tool,
           sessionID: input.sessionID,
-          command: bashCommand(output?.args || input?.args),
+          command,
           routeMessage: route.message || "",
+          routeDecision: route.decision,
+          mergedCommit: route.session?.worktree?.merged_commit || "",
         });
-        if (failure.decision === "block") throw new Error(failure.message);
+        if (failure.decision === "block") {
+          const key = `route:${input.sessionID}:${tool}:${command}`;
+          const count = (routingBlockCounts.get(key) || 0) + 1;
+          routingBlockCounts.set(key, count);
+          throw new Error(repeatedRoutingFailureMessageForTest(failure.message, count));
+        }
+      }
+
+      if (BASH_TOOLS.has(tool) && !route.worktreePath) {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (
+          improvementReviewCommandIsSafe(command)
+          || isApprovedControlPlaneAuditCommand(command)
+          || exactCommitDeployedTestForTest(command, route.session?.worktree?.merged_commit || "")
+        ) {
+          replaceToolArgs(output, currentArgs, { ...toolInput(currentArgs), command, workdir: PROJECT_ROOT });
+        }
+      }
+
+      if (BASH_TOOLS.has(tool) && !route.worktreePath) {
+        const currentArgs = output?.args || input?.args;
+        const command = bashCommand(currentArgs);
+        if (isApprovedControlPlaneAuditCommand(command) || exactCommitDeployedTestForTest(command, route.session?.worktree?.merged_commit || "")) {
+          replaceToolArgs(output, currentArgs, { ...toolInput(currentArgs), command, workdir: PROJECT_ROOT });
+        }
       }
 
       if (TASK_TOOLS.has(tool)) {
@@ -1670,18 +2255,25 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       if (route.worktreePath) {
         const currentArgs = output?.args || input?.args;
-        const routedArgs = routeLocalToolArgsForTest(tool, currentArgs, route.worktreePath);
+        const routedArgs = routeLocalToolArgsWithCircuitBreakerForTest(
+          tool,
+          currentArgs,
+          route.worktreePath,
+          { sessionID: input.sessionID, counts: routingBlockCounts },
+        );
         replaceToolArgs(output, currentArgs, routedArgs);
       }
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
-        const relativePaths = files.map((file) => collisionRelativePath(file, routingData || sessionsData())).filter(Boolean);
+        const relativePaths = files.map((file) => routedEditRelativePathForTest(file, route.worktreePath || "")).filter(Boolean);
+        guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, relativePaths);
+        guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
         runStaleRead("check", files, routedOpenCodeSessionID);
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
         runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        runEditLease("acquire", files, routedOpenCodeSessionID);
+        editLease("acquire", files, routedOpenCodeSessionID);
         return;
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
@@ -1728,7 +2320,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
         runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
-        runEditLease("release", files, routedOpenCodeSessionID);
+        editLease("release", files, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, [], true);
       }
     },
@@ -1736,19 +2328,34 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 };
 
 OpenMatesHooks.test = Object.freeze({
+  childRoleFromAgent,
   childMutationDecisionForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
   editedFilesForTest,
+  hookRuntimeDiagnosticForTest,
   initialPresenceForTest,
+  exactCommitDeployedTestForTest,
+  isApprovedControlPlaneAuditCommand,
+  isReadOnlyChildBash,
+  isTodoWriteTool,
+  presenceIsLive,
   readConflictWarningForTest,
+  repeatedRoutingFailureMessageForTest,
+  completedAssistantMessageID,
+  notifierEventArgsForTest,
   reducePresenceEventForTest,
   resolveWorktreeRouteForTest,
+  routeLocalToolArgsWithCircuitBreakerForTest,
   rewriteEditArgsForTest,
   rootGuardDecisionForTest,
+  routedEditRelativePathForTest,
   routeLocalToolArgsForTest,
   routingDecisionForTest,
   routingFailureForTest,
   taskChildClassificationForTest,
+  workerBashGateDecisionForTest,
+  workerEditGateDecisionForTest,
+  workerEditPathDecisionForTest,
 });

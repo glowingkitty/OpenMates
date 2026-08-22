@@ -8,6 +8,8 @@
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=${OPENMATES_PROJECT_ROOT:-$(cd "$HOOK_DIR/../.." && pwd)}
 
 [ -z "$COMMAND" ] && exit 0
 
@@ -27,7 +29,7 @@ if echo "$COMMAND" | grep -qE 'openmates-marketing'; then
 fi
 
 # --- Block parsed unsafe command invocations without matching quoted data. ---
-if ! PARSED_GUARD_OUTPUT=$(python3 "/home/superdev/projects/OpenMates/scripts/safe_bash_guard.py" "$COMMAND" 2>&1); then
+if ! PARSED_GUARD_OUTPUT=$(python3 "$PROJECT_ROOT/scripts/safe_bash_guard.py" "$COMMAND" 2>&1); then
   printf '%s\n' "$PARSED_GUARD_OUTPUT" >&2
   exit 2
 fi
@@ -52,13 +54,13 @@ fi
 for script_path in $(echo "$COMMAND" | grep -oE '(^|[[:space:];&|])([^[:space:];&|]+\.(py|sh|js|mjs|ts))' | awk '{print $NF}' | sort -u); do
   case "$script_path" in
     /*) candidate="$script_path" ;;
-    *) candidate="/home/superdev/projects/OpenMates/$script_path" ;;
+    *) candidate="$PROJECT_ROOT/$script_path" ;;
   esac
   if [ ! -f "$candidate" ]; then
     continue
   fi
   case "$candidate" in
-    /home/superdev/projects/OpenMates/scripts/tests/*) continue ;;
+    "$PROJECT_ROOT"/scripts/tests/*) continue ;;
   esac
   if grep -qiE 'api\.vercel\.com/.*/projects|api\.vercel\.com/v[0-9]+/projects|\bvercel\s+project\b' "$candidate" \
     && grep -qiE 'buildMachine(Type|Selection)?|elasticConcurrency|buildMachineElastic|resourceConfig|Dynamic build' "$candidate" \

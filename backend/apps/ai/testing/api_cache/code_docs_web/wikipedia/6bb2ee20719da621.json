@@ -1,0 +1,39 @@
+{
+  "fingerprint": "6bb2ee20719da621",
+  "category": "wikipedia",
+  "group_id": "code_docs_web",
+  "recorded_at": "2026-08-14T10:57:39.927949+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=React_%28JavaScript_library%29%7CReact_%28JavaScript_library%29%23Hooks&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Fri, 14 Aug 2026 10:57:39 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-l9rb9",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "set-cookie": "WMF-Last-Access=14-Aug-2026;Path=/;HttpOnly;secure;Expires=Tue, 15 Sep 2026 00:00:00 GMT, WMF-Last-Access-Global=14-Aug-2026;Path=/;Domain=.wikipedia.org;HttpOnly;secure;Expires=Tue, 15 Sep 2026 00:00:00 GMT, GeoIP=FI:18:Helsinki:60.17:24.93:v4; Path=/; secure; Domain=.wikipedia.org, NetworkProbeLimit=0.001;Path=/;Secure;SameSite=None;Max-Age=3600, WMF-Uniq=yAb_YO9L1fGcknPTPBV0gAO8AAAAAFvddV9DW-_QiGuuoTXqkmjc7a4jFBBYKLQ2;Domain=.wikipedia.org;Path=/;HttpOnly;secure;SameSite=None;Expires=Sat, 14 Aug 2027 00:00:00 GMT",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "392",
+      "x-request-id": "576eb3a9-124d-444b-b4db-df3ea090e3d6",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"81267308\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"React_(JavaScript_library)\",\"to\":\"React (JavaScript library)\"},{\"fromencoded\":false,\"from\":\"React_(JavaScript_library)#Hooks\",\"to\":\"React (JavaScript library)\"}],\"redirects\":[{\"from\":\"React (JavaScript library)\",\"to\":\"React (software)\"}],\"pages\":[{\"pageid\":44926137,\"ns\":0,\"title\":\"React (software)\",\"pageprops\":{\"wikibase_item\":\"Q19399674\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/React_Logo_SVG.svg/330px-React_Logo_SVG.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":277},\"description\":\"JavaScript library for building user interfaces\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

@@ -168,6 +168,11 @@ Supports both saved payment methods and new payment form
         // Store the purchased credits so the confirmation screen can display them
         purchasedCreditsStore.set(payload.credits_purchased);
 
+        // Keep the settings header and confirmation balance in sync immediately.
+        if (typeof payload.current_credits === 'number') {
+            updateProfile({ credits: payload.current_credits });
+        }
+
         dispatch('openSettings', {
             settingsPath: 'billing/buy-credits/confirmation',
             direction: 'forward',
@@ -465,6 +470,7 @@ Supports both saved payment methods and new payment form
 
         <button
             class="add-payment-method-btn"
+            data-testid="add-payment-method"
             onclick={handleAddPaymentMethod}
         >
             {$text('settings.billing.add_payment_method')}

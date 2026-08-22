@@ -78,6 +78,10 @@ Usage:
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
         --slug <slug> --send --admin-email admin@openmates.org --resume
 
+    # OpenMates Events preview only (EN + DE to one admin, no subscriber fetch):
+    docker exec api python /app/backend/scripts/send_newsletter.py \\
+        --events-preview --admin-email admin@openmates.org
+
 Directus prerequisite:
     The ``email_deliveries`` collection must exist. It is defined in
     backend/core/directus/schemas/email_deliveries.yml and is required for
@@ -100,36 +104,31 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from zoneinfo import ZoneInfo
 
-import aiohttp
 import yaml
 
-sys.path.insert(0, "/app/backend")
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus.directus import DirectusService
+    from backend.core.api.app.services.email_template import EmailTemplateService
 
-from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus.directus import DirectusService
-from backend.core.api.app.services.email_delivery_guard import (
-    fetch_existing_recipient_ids,
-    send_email_once,
-)
-from backend.core.api.app.services.email_template import EmailTemplateService
-from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.utils.log_filters import SensitiveDataFilter
-from backend.core.api.app.utils.newsletter_utils import (
+SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_REPO_ROOT = Path(os.getenv("OPENMATES_REPO_ROOT", "/app"))
+if not DEFAULT_REPO_ROOT.exists():
+    DEFAULT_REPO_ROOT = SCRIPT_REPO_ROOT
+sys.path.insert(0, str(DEFAULT_REPO_ROOT))
+
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # noqa: E402
+from backend.core.api.app.utils.newsletter_utils import (  # noqa: E402
     check_ignored_email,
     is_subscriber_allowed_for_category,
 )
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-
-try:
-    # markdown-it-py is required for body rendering.
-    from markdown_it import MarkdownIt
-except ImportError as exc:  # pragma: no cover
-    raise SystemExit(
-        "markdown-it-py is required. Rebuild the api image (it is listed in requirements.txt)."
-    ) from exc
-
+from backend.shared.python_utils.events_newsletter_generator import (  # noqa: E402
+    build_events_email_html,
+    build_events_preview_manifest,
+)
+from backend.shared.python_utils.openmates_event_registry import load_openmates_events  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -138,7 +137,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.addFilter(SensitiveDataFilter())
 
-REPO_ROOT = Path("/app")
+REPO_ROOT = DEFAULT_REPO_ROOT
 ISSUES_DIR = REPO_ROOT / "backend" / "newsletters" / "issues"
 I18N_DIR = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources" / "demo_chats"
 AUDIT_LOG_DIR = Path("/app/logs/newsletters")
@@ -162,7 +161,10 @@ INTRO_THUMBNAIL_PATH_TEMPLATE = (
 HERO_IMAGE_MAX_BYTES = 2_000_000
 HERO_IMAGE_CACHE: Dict[str, Optional[str]] = {}
 HEADER_ICON_MAX_BYTES = 30_000
+HEADER_IMAGE_MAX_BYTES = 2_000_000
 NEWSLETTER_HEADING_COLOR = "#4867CD"
+EVENTS_CAMPAIGN_TYPE = "openmates_events"
+EVENTS_TIMEZONE = ZoneInfo("Europe/Berlin")
 
 
 # ── Status bar ──────────────────────────────────────────────────────────────
@@ -260,6 +262,12 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
     TranslationService) because the script only needs two languages and a
     raw-string pass; no variable interpolation, no fallback-to-EN logic.
     """
+    inline_body = manifest.get("body_markdown")
+    if isinstance(inline_body, dict):
+        value = inline_body.get(lang)
+        if isinstance(value, str) and value.strip():
+            return value
+
     # body_i18n_key = "demo_chats.<kind>_<snake_slug>.message"
     body_key = manifest["body_i18n_key"]
     m = re.match(r"^demo_chats\.([a-z0-9_]+)\.message$", body_key)
@@ -383,6 +391,62 @@ def _local_header_icon_data_uri(icon: Dict[str, Any]) -> Optional[str]:
     return f"data:{content_type};base64,{encoded}"
 
 
+def _is_events_campaign(manifest: Dict[str, Any]) -> bool:
+    return (manifest.get("metadata") or {}).get("campaign_type") == EVENTS_CAMPAIGN_TYPE
+
+
+def _local_header_image_data_uri(manifest: Dict[str, Any], lang: str, path_key: str = "path") -> Optional[str]:
+    assets = manifest.get("campaign_assets") or {}
+    header_assets = assets.get("header") if isinstance(assets, dict) else None
+    if not isinstance(header_assets, dict):
+        return None
+
+    header = header_assets.get(lang) or header_assets.get("en")
+    if not isinstance(header, dict):
+        return None
+
+    raw_path = str(header.get(path_key) or "").strip()
+    if not raw_path:
+        return None
+
+    relative_path = Path(raw_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ValueError(f"Newsletter header image path must be repo-relative: {raw_path}")
+    path = REPO_ROOT / relative_path
+    if path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+        raise ValueError(f"Newsletter header image must be PNG or JPEG: {raw_path}")
+    if not path.exists():
+        raise FileNotFoundError(f"Newsletter header image missing: {path}")
+
+    data = path.read_bytes()
+    if len(data) > HEADER_IMAGE_MAX_BYTES:
+        raise ValueError(f"Newsletter header image too large to embed: {raw_path}")
+    content_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{content_type};base64,{encoded}"
+
+
+def _local_header_image_alt(manifest: Dict[str, Any], lang: str) -> str:
+    assets = manifest.get("campaign_assets") or {}
+    header_assets = assets.get("header") if isinstance(assets, dict) else None
+    if isinstance(header_assets, dict):
+        header = header_assets.get(lang) or header_assets.get("en")
+        if isinstance(header, dict) and str(header.get("alt") or "").strip():
+            return str(header["alt"])
+    return "OpenMates events newsletter header"
+
+
+def _markdown_renderer():
+    try:
+        from markdown_it import MarkdownIt
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "markdown-it-py is required to render standard newsletter Markdown. "
+            "Rebuild the api image; it is listed in requirements.txt."
+        ) from exc
+    return MarkdownIt("commonmark", {"html": False, "linkify": True, "breaks": False})
+
+
 def render_body_html(
     body_md: str,
     video_url: str,
@@ -401,7 +465,7 @@ def render_body_html(
     any ``[video]`` marker is dropped. If the body doesn't contain
     ``[video]``, the thumbnail is prepended so recipients still see the hero.
     """
-    md = MarkdownIt("commonmark", {"html": False, "linkify": True, "breaks": False})
+    md = _markdown_renderer()
     body_html = md.render(body_md)
 
     video = meta.get("video") or {}
@@ -540,6 +604,8 @@ async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
 
 async def fetch_delivered_subscriber_ids(slug: str, directus: DirectusService) -> Set[str]:
     """Return subscriber IDs with existing protected delivery records for this slug."""
+    from backend.core.api.app.services.email_delivery_guard import fetch_existing_recipient_ids
+
     return await fetch_existing_recipient_ids(
         directus,
         email_type="newsletter",
@@ -622,6 +688,8 @@ async def check_landing_page_live(landing_url: str) -> bool:
     Prevents the "forgot to deploy / PR not merged" footgun — recipients
     would otherwise click the email thumbnail and hit a 404 on prod.
     """
+    import aiohttp
+
     timeout = aiohttp.ClientTimeout(total=10)
     try:
         async with aiohttp.ClientSession(
@@ -646,6 +714,36 @@ def build_context(
     is_registered: bool = False,
 ) -> Dict[str, Any]:
     """Assemble the Jinja2 context for the newsletter.mjml template."""
+    # Events campaigns keep the existing newsletter MJML, sender, footer,
+    # unsubscribe, plain-text, and Brevo path, but render the YAML registry as
+    # event cards instead of Markdown issue copy.
+    if _is_events_campaign(manifest):
+        selected_events = manifest.get("_events")
+        if not isinstance(selected_events, list) or not selected_events:
+            raise ValueError("Events newsletter manifest is missing selected events")
+        manage_settings_url = f"{base_url}/#settings/newsletter" if is_registered else None
+        return {
+            "newsletter_content": build_events_email_html(selected_events, lang, base_url=base_url),
+            "newsletter_title": (manifest.get("title") or {}).get(lang) or (manifest.get("title") or {}).get("en"),
+            "newsletter_subtitle": None,
+            "newsletter_header_image_src": _local_header_image_data_uri(manifest, lang),
+            "newsletter_header_mobile_image_src": _local_header_image_data_uri(manifest, lang, "mobile_path"),
+            "newsletter_header_image_alt": _local_header_image_alt(manifest, lang),
+            "newsletter_header_image_width": "600px",
+            "newsletter_header_mobile_image_width": "390px",
+            "newsletter_header_image_padding": "0 0 30px 0",
+            "newsletter_content_padding": "0 24px 20px 24px",
+            "cta_url": None,
+            "cta_text": None,
+            "show_social_media": False,
+            "is_events_newsletter": True,
+            "hide_email_brand_header": True,
+            "manage_settings_url": manage_settings_url,
+            "unsubscribe_url": unsubscribe_url if not is_registered else None,
+            "darkmode": darkmode,
+            "_base_url_override": base_url,
+        }
+
     video = manifest.get("video") or {}
     video_url = _video_link_for_manifest(manifest, base_url)
     thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
@@ -709,6 +807,8 @@ async def send_one(
     is_registered: bool = False,
     stage: Optional[str] = None,
 ) -> bool:
+    from backend.core.api.app.services.email_delivery_guard import send_email_once
+
     body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
     if body_md is None:
         logger.error("No body text found for en — cannot send.")
@@ -782,6 +882,15 @@ def _print_summary(
 
 
 async def run(args: argparse.Namespace) -> int:
+    if args.events_preview:
+        return await run_events_preview(args)
+
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus.directus import DirectusService
+    from backend.core.api.app.services.email_template import EmailTemplateService
+    from backend.core.api.app.utils.encryption import EncryptionService
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
     # ── Load manifest ────────────────────────────────────────────────────
     if not args.slug:
         logger.error("--slug is required (matches backend/newsletters/issues/<slug>.yml).")
@@ -1122,6 +1231,116 @@ async def run(args: argparse.Namespace) -> int:
     return 0 if stats["failed"] == 0 else 1
 
 
+def _parse_events_run_at(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.now(EVENTS_TIMEZONE)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        raise ValueError("--run-at must include a timezone offset, e.g. 2026-08-20T12:00:00+02:00")
+    return parsed.astimezone(EVENTS_TIMEZONE)
+
+
+def _render_output_path(render_to: str, lang: str, multiple_langs: bool) -> Path:
+    path = Path(render_to).expanduser().resolve()
+    if not multiple_langs:
+        return path
+    suffix = path.suffix or ".html"
+    return path.with_name(f"{path.stem}-{lang}{suffix}")
+
+
+async def run_events_preview(args: argparse.Namespace) -> int:
+    """Send or render EN/DE admin previews for the registry-backed events campaign only."""
+
+    forbidden_flags = []
+    if args.send:
+        forbidden_flags.append("--send")
+    if args.test_to:
+        forbidden_flags.append("--test-to")
+    if args.resume:
+        forbidden_flags.append("--resume")
+    if args.simulate:
+        forbidden_flags.append("--simulate")
+    if forbidden_flags:
+        logger.error("--events-preview refuses broadcast/test flags: %s", ", ".join(forbidden_flags))
+        return 2
+    if not args.admin_email and not (args.dry_run or args.render_to):
+        logger.error("--admin-email is required for --events-preview unless --dry-run/--render-to is used.")
+        return 2
+
+    run_at = _parse_events_run_at(args.run_at)
+    manifest = build_events_preview_manifest(load_openmates_events(), run_at)
+    base_url = resolve_base_url(override=args.base_url, for_test_send=True)
+    logger.info(
+        "Loaded events preview campaign: %s payload_hash=%s base_url=%s",
+        manifest["slug"],
+        (manifest.get("metadata") or {}).get("payload_hash"),
+        base_url,
+    )
+
+    if args.dry_run and not args.render_to and not args.admin_email:
+        logger.info(
+            "[EVENTS PREVIEW DRY RUN] Selected %s events. No template render or email send requested.",
+            len(manifest.get("_events") or []),
+        )
+        return 0
+
+    from backend.core.api.app.services.email_template import EmailTemplateService
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+    email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
+
+    render_langs = [args.lang] if args.lang else list(SUPPORTED_LANGS)
+    if args.dry_run or args.render_to:
+        for lang in render_langs:
+            context = build_context(
+                manifest,
+                lang,
+                load_body_text(manifest, lang) or "",
+                base_url,
+                f"{base_url}/#settings/newsletter/unsubscribe/DRY-RUN-TOKEN",
+                darkmode=False,
+                is_registered=True,
+            )
+            subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
+            html_out = email_template_service.render_template("newsletter", {**context, "_subject": subject}, lang)
+            if args.render_to:
+                out = _render_output_path(args.render_to, lang, multiple_langs=len(render_langs) > 1)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(html_out, encoding="utf-8")
+                logger.info("Wrote events preview HTML (%s, %s chars) to %s", lang, len(html_out), out)
+        if not args.admin_email:
+            logger.info("[EVENTS PREVIEW DRY RUN] No emails sent.")
+            return 0
+
+    from backend.core.api.app.services.directus.directus import DirectusService
+
+    directus = DirectusService()
+    logger.info("Sending events preview emails (EN + DE) to %s only.", _mask_email(args.admin_email or ""))
+    for lang in SUPPORTED_LANGS:
+        ok = await send_one(
+            directus=directus,
+            email_template_service=email_template_service,
+            manifest=manifest,
+            subscriber_id=f"events-preview:{args.admin_email}",
+            recipient_email=args.admin_email,
+            recipient_lang=lang,
+            darkmode=False,
+            base_url=base_url,
+            unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/PREVIEW-TOKEN",
+            is_registered=True,
+            stage=f"events-preview-{lang}-{int(time.time())}",
+        )
+        if not ok:
+            logger.error("Failed to send %s events preview email.", lang.upper())
+            return 1
+        logger.info("Events preview %s sent.", lang.upper())
+
+    logger.info("Events previews sent. No subscribers were fetched and no broadcast was attempted.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Send an OpenMates newsletter issue",
@@ -1131,8 +1350,19 @@ def main() -> int:
     parser.add_argument(
         "--slug",
         type=str,
-        required=True,
+        default=None,
         help="Issue slug — must match backend/newsletters/issues/<slug>.yml",
+    )
+    parser.add_argument(
+        "--events-preview",
+        action="store_true",
+        help="Render or send EN+DE admin previews for the registry-backed OpenMates events campaign only.",
+    )
+    parser.add_argument(
+        "--run-at",
+        type=str,
+        default=None,
+        help="Timezone-aware ISO timestamp for events-preview selection. Defaults to now in Europe/Berlin.",
     )
     parser.add_argument("--lang", type=str, default=None, choices=list(SUPPORTED_LANGS))
     parser.add_argument("--dry-run", action="store_true")

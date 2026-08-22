@@ -64,6 +64,10 @@ class FakeDirectusService:
 
         rows = list(self.wrapper_rows)
         for param_key, param_value in params.items():
+            if param_key == "filter[hashed_chat_id][_in]":
+                allowed_hashes = set(str(param_value).split(","))
+                rows = [row for row in rows if row.get("hashed_chat_id") in allowed_hashes]
+                continue
             if not param_key.startswith("filter[") or "][_eq]" not in param_key:
                 continue
             field = param_key.removeprefix("filter[").split("]", 1)[0]
@@ -83,6 +87,7 @@ class FakeDirectusService:
         return True, created
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_backfill_copies_chat_key_ciphertext_without_duplication(caplog):
     directus = FakeDirectusService()
@@ -113,6 +118,7 @@ async def test_backfill_copies_chat_key_ciphertext_without_duplication(caplog):
     assert all("encrypted_chat_key" not in message for message in caplog.messages)
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_backfill_dry_run_does_not_create_wrappers():
     directus = FakeDirectusService()
@@ -125,6 +131,7 @@ async def test_backfill_dry_run_does_not_create_wrappers():
     assert directus.wrapper_rows == []
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_list_authorized_wrappers_requires_chat_ownership():
     directus = FakeDirectusService()
@@ -146,3 +153,38 @@ async def test_list_authorized_wrappers_requires_chat_ownership():
     assert [row["id"] for row in authorized] == ["wrapper-1"]
     assert unauthorized == []
     assert len(directus.requests) == requests_after_authorized_read
+
+
+# contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_batch_wrapper_fetch_uses_team_scope_when_provided():
+    directus = FakeDirectusService()
+    directus.wrapper_rows = [
+        {
+            "id": "personal-wrapper",
+            "hashed_chat_id": _hash("chat-1"),
+            "hashed_user_id": _hash("user-1"),
+            "hashed_team_id": None,
+            "key_type": "master",
+            "encrypted_chat_key": "personal-cipher",
+        },
+        {
+            "id": "team-wrapper",
+            "hashed_chat_id": _hash("chat-1"),
+            "hashed_user_id": None,
+            "hashed_team_id": _hash("team-1"),
+            "key_type": "team",
+            "encrypted_chat_key": "team-cipher",
+        },
+    ]
+    methods = ChatKeyWrapperMethods(directus)
+
+    wrappers = await methods.get_wrappers_by_hashed_chat_ids_batch(
+        [_hash("chat-1")],
+        hashed_user_id=_hash("user-1"),
+        hashed_team_id=_hash("team-1"),
+    )
+
+    assert [wrapper["id"] for wrapper in wrappers] == ["team-wrapper"]
+    assert directus.requests[-1][1]["filter[hashed_team_id][_eq]"] == _hash("team-1")
+    assert "filter[hashed_user_id][_eq]" not in directus.requests[-1][1]

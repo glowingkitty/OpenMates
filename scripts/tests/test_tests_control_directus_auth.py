@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """
 Regression tests for host-side Directus auth used by scripts/tests.py.
 
@@ -15,6 +16,8 @@ import subprocess
 import sys
 import urllib.error
 from pathlib import Path
+
+# contract-test-file: tooling
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -37,6 +40,10 @@ def test_directus_store_mints_local_dev_token_when_env_token_missing(monkeypatch
     monkeypatch.delenv("CMS_URL", raising=False)
 
     def fake_run(command, check, capture_output, text, timeout):
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         assert command[:3] == ["docker", "exec", "api"]
         return subprocess.CompletedProcess(command, 0, stdout="short-lived-token\n", stderr="")
 
@@ -46,6 +53,64 @@ def test_directus_store_mints_local_dev_token_when_env_token_missing(monkeypatch
 
     assert store.base_url == "http://127.0.0.1:8055"
     assert store.token == "short-lived-token"
+
+
+def test_directus_store_mints_local_cms_admin_token_when_available(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.delenv("DIRECTUS_TOKEN", raising=False)
+    monkeypatch.delenv("CMS_URL", raising=False)
+
+    calls = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append(command)
+        if command[:3] == ["docker", "exec", "cms"]:
+            assert "ADMIN_EMAIL" in command[-1]
+            assert "ADMIN_PASSWORD" in command[-1]
+            return subprocess.CompletedProcess(command, 0, stdout="cms-admin-token\n", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+
+    store = tests_control.DirectusTestControlStore()
+
+    assert store.base_url == "http://127.0.0.1:8055"
+    assert store.token == "cms-admin-token"
+    assert calls[0][:5] == ["docker", "exec", "cms", "node", "-e"]
+    assert "auth/login" in calls[0][-1]
+
+
+def test_directus_store_falls_back_to_running_compose_api_container(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.delenv("DIRECTUS_TOKEN", raising=False)
+    monkeypatch.delenv("CMS_URL", raising=False)
+
+    calls = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        calls.append(command)
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"] and "label=com.docker.compose.service=cms" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:3] == ["docker", "exec", "api"]:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="container api is not running")
+        if command[:2] == ["docker", "ps"] and "label=com.docker.compose.service=api" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="opendates-api-1\n", stderr="")
+        if command[:3] == ["docker", "exec", "opendates-api-1"]:
+            assert "DIRECTUS_ADMIN_EMAIL" in command[-1]
+            assert "DATABASE_ADMIN_EMAIL" in command[-1]
+            return subprocess.CompletedProcess(command, 0, stdout="fallback-token\n", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+
+    store = tests_control.DirectusTestControlStore()
+
+    assert store.token == "fallback-token"
+    assert calls[2][:3] == ["docker", "exec", "api"]
+    assert calls[3][:2] == ["docker", "ps"]
+    assert calls[4][:3] == ["docker", "exec", "opendates-api-1"]
 
 
 def test_directus_request_refreshes_token_once_after_unauthorized(monkeypatch):
@@ -98,6 +163,10 @@ def test_command_run_invokes_runner_without_env_directus_token(monkeypatch, tmp_
     runner_calls = []
 
     def fake_run(command, check=False, capture_output=False, text=False, timeout=None, cwd=None, env=None):
+        if command[:3] == ["docker", "exec", "cms"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         if command[:3] == ["docker", "exec", "api"]:
             return subprocess.CompletedProcess(command, 0, stdout="short-lived-token\n", stderr="")
         runner_calls.append(command)
@@ -153,6 +222,56 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
     }]
 
 
+def test_bulk_import_records_in_progress_run_as_running(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    rows = store._bulk_run_rows(
+        {
+            "run_id": "daily-1",
+            "flags": {"daily": True, "in_progress": True},
+            "summary": {"total": 2, "passed": 1, "failed": 1},
+        },
+        {"updated_at": "2026-07-17T10:00:00Z", "summary": {"total": 2}},
+        [],
+        "daily_runner",
+        "",
+        "daily",
+        "daily-1",
+    )
+
+    assert rows[0]["run_key"] == "daily-1"
+    assert rows[0]["source"] == "daily_runner"
+    assert rows[0]["workflow"] == "daily"
+    assert rows[0]["status"] == "running"
+
+
+def test_bulk_import_records_final_run_as_completed(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    rows = store._bulk_run_rows(
+        {"run_id": "daily-1", "flags": {"daily": True}, "summary": {"total": 2, "passed": 2}},
+        {"updated_at": "2026-07-17T10:00:00Z", "summary": {"total": 2}},
+        [],
+        "daily_runner",
+        "",
+        "daily",
+        "daily-1",
+    )
+
+    assert rows[0]["status"] == "completed"
+
+
+def test_run_control_source_preserves_daily_artifact_metadata():
+    tests_control = load_tests_control()
+
+    assert tests_control.run_control_source({"flags": {"daily": True}}) == ("daily_runner", "daily")
+    assert tests_control.run_control_source({"flags": {"daily": False}}) == ("scripts_tests", "")
+
+
 def test_result_item_timestamp_fits_directus_integer(monkeypatch):
     tests_control = load_tests_control()
     monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
@@ -183,6 +302,35 @@ def test_directus_history_query_filters_to_requested_window(monkeypatch):
     cutoff = json.loads(captured_params["filter"])["created_at_unix"]["_gte"]
     assert before <= cutoff <= after
     assert captured_params["sort"] == "-created_at_unix"
+
+
+def test_directus_list_test_results_uses_local_postgres_fast_path(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+    rows = [{"test_key": "playwright::quote's.spec.ts", "status": "passed"}]
+    psql_commands = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        if command[:4] == ["docker", "exec", "cms-database", "true"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[:5] == ["docker", "exec", "cms-database", "sh", "-lc"]:
+            psql_commands.append(command[-1])
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(rows), stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    def fail_items(collection, params=None):
+        raise AssertionError("Directus REST fallback should not run when local Postgres returns rows")
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+    monkeypatch.setattr(store, "_items", fail_items)
+
+    result = store.list_test_results(["playwright::quote's.spec.ts"])
+
+    assert result == rows
+    assert len(psql_commands) == 1
+    assert "test_results" in psql_commands[0]
+    assert "quote''s.spec.ts" in psql_commands[0]
 
 
 def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):

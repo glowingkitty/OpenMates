@@ -32,6 +32,7 @@ from . import test_run_started_email_task  # Import test run started notificatio
 from . import cron_session_email_task  # Import cron job session notification task
 from . import webhook_chat_notification_email_task  # Import webhook offline notification task
 from . import ai_response_notification_email_task  # Import AI response offline notification task
+from . import team_member_mention_email_task  # Import Team member mention notification task
 from . import webhook_rate_limit_digest_email_task  # Import webhook rate-limit daily digest task
 from . import email_delivery_archive_task  # Import unified email delivery archive task
 from . import incomplete_signup_deletion_task  # Import incomplete signup deletion reminders task
@@ -39,6 +40,9 @@ from . import error_digest_task  # Import weekly error digest task
 from . import daily_issue_digest_task  # Import daily reliability digest task
 from . import referral_reward_email_task  # Import referral reward notification task
 from . import free_testing_budget_email_task  # Import Free testing credits budget alerts task
+from . import health_status_alert_email_task  # Import operational health status alerts task
+from . import bank_transfer_reminder_email_task
+from . import bank_transfer_amount_notice_email_task
 from . import bank_transfer_duplicate_reference_email_task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
@@ -73,6 +77,7 @@ __all__ = [
     'cron_session_email_task',
     'webhook_chat_notification_email_task',
     'ai_response_notification_email_task',
+    'team_member_mention_email_task',
     'webhook_rate_limit_digest_email_task',
     'email_delivery_archive_task',
     'incomplete_signup_deletion_task',
@@ -80,5 +85,8 @@ __all__ = [
     'daily_issue_digest_task',
     'referral_reward_email_task',
     'free_testing_budget_email_task',
+    'health_status_alert_email_task',
+    'bank_transfer_reminder_email_task',
+    'bank_transfer_amount_notice_email_task',
     'bank_transfer_duplicate_reference_email_task',
 ]

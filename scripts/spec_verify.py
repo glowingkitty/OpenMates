@@ -33,6 +33,7 @@ RED_EVIDENCE_STATUSES = {
 }
 FINAL_ACCEPTED_STATUSES = {"passed", "passed_after_deploy", "user_confirmed", "waived", "blocked"}
 EVIDENCE_REASON_STATUSES = {"missing_test", "skipped_with_reason", "waived", "blocked"}
+ACCEPTED_PROOF_PRIVACY_STATUSES = {"passed", "not_applicable"}
 UI_VISUAL_SMOKE_IDS = {"V-UI-VISUAL-SMOKE", "V-FIRECRAWL-VISUAL-SMOKE"}
 UI_VISUAL_SMOKE_REQUIRED_VIEWPORTS = {"laptop", "mobile"}
 VISUAL_SMOKE_REVIEW_RE = re.compile(r"\bscreenshot\w*\b.*\breview\w*\b|\breview\w*\b.*\bscreenshot\w*\b", re.IGNORECASE | re.DOTALL)
@@ -201,12 +202,22 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
         return ["demonstration: missing required passing evidence"]
 
     failures: list[str] = []
+    if evidence.get("status") == "waived":
+        for field in ("timestamp", "reason", "actor"):
+            if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+                failures.append(f"demonstration: waived evidence missing {field}")
+        return failures
+
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
-    if evidence.get("privacy_status") != "passed":
-        failures.append("demonstration: privacy review has not passed")
+    if evidence.get("privacy_status") not in ACCEPTED_PROOF_PRIVACY_STATUSES:
+        failures.append("demonstration: proof privacy state is not finalized")
+    if evidence.get("audio_status") not in {"passed", "not_required"}:
+        failures.append("demonstration: narration audio is neither passed nor intentionally disabled")
     if evidence.get("review_status") != "passed":
         failures.append("demonstration: frame-and-caption review has not passed")
+    if evidence.get("publication_status") != "delivered":
+        failures.append("demonstration: OpenCode response-media proof embed has not completed")
 
     review_attempts = evidence.get("review_attempts")
     if evidence.get("review_status") == "passed" and (not isinstance(review_attempts, int) or review_attempts < 1):
@@ -239,12 +250,21 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
                     failures.append("demonstration: manifest hash does not match the recorded artifact")
                 privacy = manifest.get("privacy") if isinstance(manifest.get("privacy"), dict) else {}
                 review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+                audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
+                publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+                if audio.get("status") == "passed":
+                    if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
+                        failures.append("demonstration: narration audio must use ElevenLabs eleven_flash_v2_5")
+                    if manifest.get("video_metadata", {}).get("has_audio") is not True:
+                        failures.append("demonstration: rendered video is missing requested narration audio")
                 expected = {
                     "subject_commit": manifest.get("subject_commit"),
                     "privacy_status": privacy.get("status"),
+                    "audio_status": audio.get("status"),
                     "review_status": review.get("status"),
                     "review_run_id": review.get("run_id"),
                     "review_attempts": review.get("attempt_count"),
+                    "publication_status": publication.get("status"),
                 }
                 for field, value in expected.items():
                     if field == "subject_commit":

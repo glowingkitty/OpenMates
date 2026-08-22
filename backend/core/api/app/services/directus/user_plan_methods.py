@@ -9,6 +9,12 @@ import logging
 import re
 from typing import Any
 
+from backend.shared.python_utils.encrypted_slug_metadata import (
+    DuplicateObjectSlugError,
+    is_slug_unique_violation,
+    validate_encrypted_slug_metadata,
+)
+
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
@@ -18,7 +24,7 @@ USER_PLAN_FIELDS = (
     "id,plan_id,hashed_user_id,hashed_team_id,status,primary_chat_id,hashed_primary_chat_id,"
     "linked_project_hashes,current_phase_id,current_step_id,current_task_id,"
     "continuation_state,approval_state,planner_focus_id,version,created_at,updated_at,completed_at,"
-    "encrypted_plan_key,encrypted_title,encrypted_summary,encrypted_goal,"
+    "encrypted_plan_key,encrypted_title,encrypted_slug,slug_lookup_hash,encrypted_summary,encrypted_goal,"
     "encrypted_scope_in,encrypted_scope_out,encrypted_linked_project_ids,encrypted_assumptions,"
     "encrypted_open_questions,encrypted_constraints,encrypted_decisions,encrypted_risks,"
     "encrypted_user_flows,encrypted_current_focus,encrypted_reference_patterns,"
@@ -105,6 +111,17 @@ def _coerce_hashes(value: Any) -> set[str]:
     if isinstance(value, str):
         return {value}
     return set()
+
+
+def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
+    terms: list[dict[str, Any]] = [
+        {"slug_lookup_hash": {"_eq": slug_lookup_hash}},
+        {"hashed_user_id": {"_eq": hash_id(user_id)}},
+        {"hashed_team_id": {"_null": True}},
+    ]
+    if exclude_row_id:
+        terms.append({"id": {"_neq": exclude_row_id}})
+    return {"_and": terms}
 
 
 def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -> bool:
@@ -292,6 +309,7 @@ class UserPlanMethods:
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         key_wrappers = payload.pop("key_wrappers", []) or []
         linked_project_ids = payload.pop("linked_project_ids", []) or []
+        validate_encrypted_slug_metadata(payload, record_label="Plan")
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
         record = {
@@ -310,8 +328,11 @@ class UserPlanMethods:
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
         ):
             return None
+        await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id)
         success, data = await self.directus_service.create_item("user_plans", record)
         if not success:
+            if is_slug_unique_violation(data):
+                raise DuplicateObjectSlugError("Plan slug already exists in this workspace")
             logger.error("Failed to create user plan: %s", data)
             return None
         created_wrappers: list[dict[str, Any]] = []
@@ -400,6 +421,8 @@ class UserPlanMethods:
         if not existing:
             return None
         update = dict(patch)
+        validate_encrypted_slug_metadata(update, record_label="Plan")
+        await self._ensure_slug_lookup_available(update.get("slug_lookup_hash"), user_id, exclude_row_id=existing.get("id"))
         key_wrappers = update.pop("key_wrappers", None)
         existing_wrappers: list[dict[str, Any]] = []
         created_wrappers: list[dict[str, Any]] = []
@@ -451,11 +474,25 @@ class UserPlanMethods:
         update["version"] = int(update.get("version") or existing.get("version") or 1)
         updated = await self.directus_service.update_item("user_plans", existing["id"], update)
         if not updated:
+            if is_slug_unique_violation(getattr(self.directus_service, "last_update_error", None)):
+                raise DuplicateObjectSlugError("Plan slug already exists in this workspace")
             await self._delete_key_wrappers(created_wrappers)
             return None
         if not await self._delete_key_wrappers(existing_wrappers):
             raise RuntimeError("Failed to delete old user plan key wrappers")
         return updated
+
+    async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None) -> None:
+        if not slug_lookup_hash:
+            return
+        params = {
+            "filter": _slug_lookup_filter(user_id, slug_lookup_hash, exclude_row_id=exclude_row_id),
+            "fields": "id",
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        if rows and isinstance(rows, list):
+            raise DuplicateObjectSlugError("Plan slug already exists in this workspace")
 
     async def _delete_key_wrappers(self, wrappers: list[dict[str, Any]]) -> bool:
         all_deleted = True

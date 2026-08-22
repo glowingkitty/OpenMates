@@ -743,10 +743,15 @@ struct OMSettingsFooter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing8) {
+            footerSection(LocalizationManager.shared.text("footer.sections.events")) {
+                footerLink(LocalizationManager.shared.text("settings.luma"), url: "https://luma.com/openmates")
+                footerLink(LocalizationManager.shared.text("settings.eventbrite"), url: "https://www.eventbrite.com/o/121655417243")
+                footerLink(LocalizationManager.shared.text("settings.meetup"), url: "https://www.meetup.com/openmates-meetup-group/")
+            }
+
             footerSection(LocalizationManager.shared.text("footer.sections.for_everyone")) {
                 footerLink(LocalizationManager.shared.text("settings.instagram"), url: "https://instagram.com/openmates")
                 footerLink(LocalizationManager.shared.text("common.discord"), url: "https://discord.gg/openmates")
-                footerLink(LocalizationManager.shared.text("settings.meetup"), url: "https://www.meetup.com/openmates")
                 footerLink(LocalizationManager.shared.text("settings.bluesky"), url: "https://bsky.app/profile/openmates.org")
                 footerLink(LocalizationManager.shared.text("settings.mastodon"), url: "https://mastodon.social/@openmates")
                 footerLink(LocalizationManager.shared.text("settings.pixelfed"), url: "https://pixelfed.social/openmates")

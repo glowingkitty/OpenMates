@@ -1,5 +1,5 @@
 schema_version: 1
-contract: feature.chats@1
+contract: feature.chats@2
 
 encryption_boundary:
   - id: private-chat-durable-row
@@ -67,3 +67,8 @@ key_gated_recovery:
   - id: cold-boot-initial-sync-wins-readiness
     input: {recovery_job_available_early: true, initial_sync_complete: false}
     expect: {job_dropped: false, claim_sent_after_sync_ready: true}
+
+conversation_fork:
+  - id: fork-through-first-assistant-message
+    input: {source_messages: [user-1, assistant-1, user-2, assistant-2], boundary_message_id: assistant-1}
+    expect: {fork_messages: [user-1, assistant-1], source_messages_unchanged: true, active_chat_replaced_automatically: false, open_action_available: true}

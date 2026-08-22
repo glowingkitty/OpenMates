@@ -34,7 +34,7 @@ export {};
  * - OPENMATES_TEST_ACCOUNT_EMAIL (or slot-based variant)
  * - OPENMATES_TEST_ACCOUNT_PASSWORD
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY
- * - Email client credentials (GMAIL_* or MAILOSAUR_*)
+ * - Gmail client credentials and GMAIL_TEST_ADDRESS
  *
  * SKIP CONDITIONS:
  * - Test account env vars are not set.
@@ -47,6 +47,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	expectVisibleSettingsMenu,
 	assertNoMissingTranslations,
 	checkEmailQuota,
 	createEmailClient,
@@ -103,11 +104,6 @@ async function expectPdfAttachment(
 	return matchingPdf.filename;
 }
 
-function isMailosaurPermissionError(error: unknown): boolean {
-	return error instanceof Error &&
-		/Mailosaur (?:API|attachment download) error \((?:401|403)\)/.test(error.message);
-}
-
 // ---------------------------------------------------------------------------
 // Test: Settings → Buy Credits → Stripe Managed Payments (Checkout Session)
 // ---------------------------------------------------------------------------
@@ -116,6 +112,7 @@ function isMailosaurPermissionError(error: unknown): boolean {
 // #checkout div. After payment, onComplete fires in-page — NO page redirect.
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable,billing.access.authenticated-first-party
 test('settings buy credits: completes Stripe Managed Payments (Checkout Session) flow without page reload', async ({
 	page
 }: {
@@ -137,7 +134,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const emailClient = createEmailClient(TEST_EMAIL);
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const quota = await checkEmailQuota(TEST_EMAIL);
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
@@ -146,7 +143,22 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-managed' });
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: false,
+				use_managed_payments: true,
+			}),
+		});
+	});
+
+	const { deleteAllMessages, waitForMessage } = emailClient!;
 
 	// ─── Login ────────────────────────────────────────────────────────────────────
 	await loginToTestAccount(page, log, screenshot);
@@ -157,11 +169,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
+	await expectVisibleSettingsMenu(page);
 
 	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
 	const billingItem = page
@@ -459,34 +467,26 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await screenshot(page, 'managed-payment-confirmation-row');
 	log('Managed payment confirmation row is visible.');
 
-	try {
-		const purchaseEmail = await waitForMailosaurMessage({
+	const purchaseEmail = await waitForMessage({
 			sentTo: TEST_EMAIL,
 			subjectContains: 'Purchase confirmation',
 			receivedAfter: purchaseEmailAfter,
 			timeoutMs: 240000,
 			pollIntervalMs: 10000
-		});
-		expect(purchaseEmail?.subject, 'Managed payment email subject must confirm purchase').toMatch(
+	});
+	expect(purchaseEmail?.subject, 'Managed payment email subject must confirm purchase').toMatch(
 			/purchase confirmation/i
-		);
-		const purchasePdfFilename = await expectPdfAttachment(
+	);
+	const purchasePdfFilename = await expectPdfAttachment(
 			emailClient,
 			purchaseEmail,
 			/^openmates_payment_confirmation_.*\.pdf$/i,
 			'Managed payment confirmation'
-		);
-		log('Managed payment confirmation email and PDF attachment verified.', {
+	);
+	log('Managed payment confirmation email and PDF attachment verified.', {
 			subject: purchaseEmail?.subject,
 			pdf: purchasePdfFilename
-		});
-	} catch (error) {
-		if (isMailosaurPermissionError(error)) {
-			log('Email assertions unavailable because Mailosaur credentials cannot read messages or attachments.');
-		} else {
-			throw error;
-		}
-	}
+	});
 
 	const latestManagedInvoice = page
 		.locator('[data-testid="invoice-item"]')
@@ -513,34 +513,26 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await screenshot(page, 'managed-refund-confirmation-row');
 	log('Managed refund flow updated the invoice row.');
 
-	try {
-		const refundEmail = await waitForMailosaurMessage({
+	const refundEmail = await waitForMessage({
 			sentTo: TEST_EMAIL,
 			subjectContains: 'Refund confirmation',
 			receivedAfter: refundEmailAfter,
 			timeoutMs: 240000,
 			pollIntervalMs: 10000
-		});
-		expect(refundEmail?.subject, 'Managed refund email subject must confirm refund').toMatch(
+	});
+	expect(refundEmail?.subject, 'Managed refund email subject must confirm refund').toMatch(
 			/refund confirmation/i
-		);
-		const refundPdfFilename = await expectPdfAttachment(
+	);
+	const refundPdfFilename = await expectPdfAttachment(
 			emailClient,
 			refundEmail,
 			/\.pdf$/i,
 			'Managed refund confirmation'
-		);
-		log('Managed refund confirmation email and PDF attachment verified.', {
+	);
+	log('Managed refund confirmation email and PDF attachment verified.', {
 			subject: refundEmail?.subject,
 			pdf: refundPdfFilename
-		});
-	} catch (error) {
-		if (isMailosaurPermissionError(error)) {
-			log('Refund email assertion unavailable because Mailosaur credentials cannot read messages or attachments.');
-		} else {
-			throw error;
-		}
-	}
+	});
 
 	await assertNoMissingTranslations(page);
 	log('Test complete.');

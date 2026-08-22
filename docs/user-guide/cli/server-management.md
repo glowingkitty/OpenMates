@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-08-06
+last_verified: 2026-08-14
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -77,7 +77,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.15.0
+openmates server install --image-tag v0.16.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -90,6 +90,15 @@ Default install mode creates a lightweight runtime directory, writes `.env`, sto
 The generated `.env` includes `PRODUCTION_URL="http://localhost:5173"` so the production-mode backend allows browser API calls from the default local web app origin. If you serve the web app from another HTTPS domain, update `PRODUCTION_URL` before restarting.
 
 Source mode is the contributor/fork path. Use `--from-source` to clone the official repository, or `--source-path <dir>` to clone from an existing local checkout. Source mode requires Git for clone-based installs and updates, and rebuilds Docker images locally.
+
+To manage an existing checkout in place without cloning, pulling, or changing its Git state, register it as a working-tree server:
+
+```bash
+openmates server register --path /path/to/OpenMates
+openmates server register --path /path/to/OpenMates --official-cloud --with-overrides --exclude webapp
+```
+
+Registration only records the runtime mode, Compose overlays, and default service set. An official-cloud registration automatically excludes the bundled web app; normal self-host registrations and installations continue to include it.
 
 Image-mode install defaults to `invite_only`. The install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`. Source-mode installs still use the repository setup script behavior.
 
@@ -199,11 +208,13 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.15.0
+openmates server update --image-tag v0.16.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
 openmates server update --exclude webapp
+openmates server update --skip-quick-test
+openmates server update --quick-test --confirm-spend-credits
 openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server update status
 openmates server update status --json
@@ -214,7 +225,18 @@ Image-mode installs refresh the runtime Compose template from the packaged CLI t
 
 For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
 
-Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. The `--force` flag only applies to source-mode Git updates.
+Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
+
+After the provider-free runtime checklist passes on an interactive core-server update, the CLI offers `Continue with quick server test?`. The optional test uses the CLI account logged into that self-hosted instance to create, reload, and remove one temporary encrypted AI chat, run `math.calculate`, and run a one-result `web.search`. These checks may consume account credits, so declining does not affect the successful deterministic update and `--yes` never authorizes them.
+
+If the CLI has no session for the updated instance, it prints the instance-scoped login command. Log in and rerun the same suite without updating:
+
+```bash
+openmates --api-url https://api.example.org login
+openmates --api-url https://api.example.org server test --quick
+```
+
+JSON, redirected-input, and continuous updates never prompt or spend by default. Automation must pass both `--quick-test` and `--confirm-spend-credits`; `--skip-quick-test` suppresses the interactive offer. An accepted quick-test failure marks update status degraded, leaves the updated containers running for diagnosis, and never triggers automatic rollback.
 
 The checklist has a 60-second global deadline. It verifies the required role services and HTTP health first, then runs dependency-safe checks for the role:
 
@@ -239,6 +261,8 @@ When a required check fails, the CLI:
 | `--channel stable|main|dev` | Image mode | Update using a mutable channel tag. `stable` maps to the published `main` tag. |
 | `--services <csv>` | Image mode | Update only selected role services |
 | `--exclude <csv>` | Image mode | Update all role services except selected services |
+| `--skip-quick-test` | Core updates | Suppress the optional authenticated quick-test offer |
+| `--quick-test --confirm-spend-credits` | Core updates | Explicitly run the bounded paid test in non-interactive automation |
 | `install-service --continuous` | Image mode | Install a host-level systemd timer that runs the CLI update path |
 | `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
 
@@ -259,9 +283,15 @@ Install or repair the periodic monitor and independent watchdog:
 sudo "$(command -v openmates)" server monitoring install-service --role core --path ~/openmates
 openmates server monitoring status --role core --path ~/openmates
 openmates server monitoring status --role core --path ~/openmates --json
+openmates server monitoring digest --role core --path ~/openmates --channel email,discord --test --json
+openmates server monitoring report-watchdog --role core --path ~/openmates --json
 ```
 
-The installation creates two systemd services and two persistent timers. Both run every five minutes. The application monitor executes the packaged verifier through Docker Compose; the separate host watchdog reads host-owned state and can detect a missing or stale verifier even when API or Celery notification code is unavailable.
+The installation always creates two five-minute runtime-health services and timers. When at least one verified report channel is configured, it also creates a daily 08:30 UTC operational digest and a five-minute report-freshness watchdog. Host systemd is the only digest scheduler, preventing duplicate Celery and host deliveries.
+
+The digest summarizes the preceding 24 hours of aggregate resource, activity, processing, and issue data in a compact graph. Official cloud reports also include aggregate billing readiness/outcomes. Self-host reports omit billing entirely and do not query billing collections or credentials. Email is enabled only after a bounded Brevo account probe; the generated service requests only channels that passed configuration checks.
+
+An accepted report updates host-owned freshness metrics and append-only redacted receipt history under `<install>/.openmates/runtime-health/`. A missing accepted report becomes an incident after 26 hours. Disabling all digest destinations removes the digest timers and freshness metrics rather than generating a false stale incident.
 
 Runtime state is stored at `<install>/.openmates/runtime-health/<role>.json`. The directory uses mode `0700`, the state file uses `0600`, and writes are atomic. It stores operational check IDs, timestamps, counters, and delivery status only, never notification destinations, provider responses, user data, chat content, payment data, or secrets.
 
@@ -273,6 +303,7 @@ Alert behavior:
 - One recovery event is sent when an open incident clears.
 - A healthy installation sends at most one green heartbeat per UTC day.
 - Email, Discord, and generic webhook delivery are attempted independently, with bounded retries.
+- API, host, disk, official-cloud billing-readiness, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
 
 ## Runtime Notifications
 

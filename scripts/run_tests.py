@@ -42,12 +42,14 @@ from __future__ import annotations
 import argparse
 import fcntl
 import asyncio
+import base64
 import hashlib
 import importlib.util
 import json
 import mimetypes
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -61,7 +63,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 try:
@@ -99,6 +101,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
+DAILY_ARTIFACT_RETENTION_DAYS = 7
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
@@ -117,6 +120,7 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
+PROOF_VIDEO_PROFILES = {"web-laptop", "web-phone"}
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 PROD_SMOKE_SUITE_FREE_HOURLY = "free-hourly"
@@ -127,16 +131,30 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
+E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
+E2E_GIFT_CARD_SEED_RETRIES = 5
+E2E_GIFT_CARD_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
+PREFLIGHT_RETRY_BATCH_SIZE = 3
 BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "api",
     "app-ai-worker",
     "workflow-worker",
     "task-worker",
+    "user-tasks-worker",
+    "reminder-worker",
     "app-images-worker",
     "app-videos-worker",
 )
+BACKEND_LIVE_MOCK_CONDITIONAL_CONTAINERS = frozenset({
+    "workflow-worker",
+    "user-tasks-worker",
+    "reminder-worker",
+    "app-images-worker",
+    "app-videos-worker",
+})
 BACKEND_LIVE_MOCK_PREFLIGHT_NAME = "backend-live-mock-preflight"
 BACKEND_LIVE_MOCK_PREFLIGHT_FILE = "scripts/run_tests.py"
 BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES = {"0", "false", "False", "no", "NO"}
@@ -293,6 +311,7 @@ class SpecResult:
     screenshot_paths: list[str] = field(default_factory=list)
     video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
+    proof_timeline_path: Optional[str] = None
     github_run_url: Optional[str] = None
     debug_artifacts: list[str] = field(default_factory=list)
     debug_output_summary: Optional[str] = None
@@ -321,11 +340,19 @@ class RunResult:
     flags: dict = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class SeededGiftCard:
+    spec: str
+    code: str
+    directus_id: str
+    credits_value: int
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "not_started"}
 
 
 def _is_problem_status(status: str) -> bool:
@@ -340,6 +367,7 @@ def _problem_count(summary: dict) -> int:
         + int(summary.get("dispatch_error", 0))
         + int(summary.get("timeout", 0))
         + int(summary.get("result_unknown", 0))
+        + int(summary.get("not_started", 0))
     )
 
 
@@ -355,6 +383,8 @@ def _problem_summary_label(summary: dict) -> str:
         parts.append(f"{summary['timeout']} timed out")
     if summary.get("result_unknown", 0):
         parts.append(f"{summary['result_unknown']} unknown")
+    if summary.get("not_started", 0):
+        parts.append(f"{summary['not_started']} not started")
     return ", ".join(parts) if parts else "all passed"
 
 
@@ -713,18 +743,120 @@ def record_flake_history(run_data: dict) -> None:
     _safe_write_json(history_path, history)
 
 
-def _record_unified_test_state(data: dict) -> None:
-    """Update scripts/tests.py state files without making this runner depend on it."""
+def _load_tests_control_module():
+    """Load scripts/tests.py lazily so this runner can reuse its control plane."""
     tests_script = PROJECT_ROOT / "scripts" / "tests.py"
     if not tests_script.is_file():
-        return
+        raise RuntimeError("scripts/tests.py is missing")
     spec = importlib.util.spec_from_file_location("openmates_tests_control", tests_script)
     if spec is None or spec.loader is None:
-        return
+        raise RuntimeError("Could not load scripts/tests.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    module.record_run_result(data)
+    return module
+
+
+def _record_unified_test_state(data: dict, *, source: str = "scripts_tests", workflow: str = "") -> None:
+    """Update scripts/tests.py state files without making this runner depend on it."""
+    try:
+        module = _load_tests_control_module()
+    except RuntimeError:
+        return
+    module.record_run_result(data, source=source, workflow=workflow)
+
+
+def _test_control_source_for_flags(flags: dict) -> tuple[str, str]:
+    """Return the test-control source/workflow tuple for a runner result."""
+    if flags.get("daily"):
+        return "daily_runner", "daily"
+    return "scripts_tests", ""
+
+
+def _generate_e2e_gift_card_code() -> str:
+    """Return a short, human-enterable gift-card code matching production rules."""
+    return "-".join(
+        "".join(secrets.choice(E2E_GIFT_CARD_CODE_CHARSET) for _ in range(4))
+        for _ in range(3)
+    )
+
+
+def _seed_e2e_gift_card(spec: str) -> SeededGiftCard:
+    """Create a disposable dev gift card in Directus for a real redemption spec."""
+    module = _load_tests_control_module()
+    store = module.DirectusTestControlStore()
+    last_error: Optional[Exception] = None
+    for _attempt in range(E2E_GIFT_CARD_SEED_RETRIES):
+        code = _generate_e2e_gift_card_code()
+        notes = (
+            f"E2E disposable gift-card redemption fixture for {spec}; "
+            f"seeded {datetime.now(timezone.utc).isoformat()} by scripts/run_tests.py."
+        )
+        try:
+            created = store._request(
+                "POST",
+                "/items/gift_cards",
+                data={
+                    "code": code,
+                    "credits_value": E2E_GIFT_CARD_REDEMPTION_CREDITS,
+                    "notes": notes,
+                },
+            )
+        except RuntimeError as exc:
+            last_error = exc
+            if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
+                continue
+            raise RuntimeError(f"Could not seed dev gift card for {spec}: {exc}") from exc
+
+        if not isinstance(created, dict) or not created.get("id"):
+            raise RuntimeError(f"Directus returned an invalid gift-card seed response for {spec}")
+
+        card = SeededGiftCard(
+            spec=spec,
+            code=code,
+            directus_id=str(created["id"]),
+            credits_value=E2E_GIFT_CARD_REDEMPTION_CREDITS,
+        )
+        _log(f"Seeded disposable dev gift card for {spec} (Directus ID {card.directus_id})")
+        return card
+
+    raise RuntimeError(f"Could not seed a unique dev gift card for {spec}: {last_error}")
+
+
+def _cleanup_e2e_gift_cards(cards: dict[str, SeededGiftCard]) -> None:
+    """Best-effort removal of unredeemed disposable dev gift cards."""
+    if not cards:
+        return
+    try:
+        module = _load_tests_control_module()
+        store = module.DirectusTestControlStore()
+    except RuntimeError as exc:
+        _log(f"Disposable gift-card cleanup skipped: {exc}", "WARN")
+        return
+
+    for card in cards.values():
+        try:
+            store._request("DELETE", f"/items/gift_cards/{urllib.parse.quote(card.directus_id)}")
+            _log(f"Deleted unredeemed disposable gift card for {card.spec} (Directus ID {card.directus_id})")
+        except RuntimeError as exc:
+            detail = str(exc)
+            if "404" in detail or "not found" in detail.lower():
+                continue
+            _log(f"Disposable gift-card cleanup failed for {card.spec}: {detail[:200]}", "WARN")
+
+
+def _seed_playwright_fixtures_for_specs(
+    specs: list[str],
+    environment: str,
+) -> dict[str, SeededGiftCard]:
+    """Seed per-run fixtures that must exist before a GitHub-hosted spec starts."""
+    if environment != "development":
+        return {}
+    if E2E_GIFT_CARD_REDEMPTION_SPEC not in specs:
+        return {}
+    return {
+        E2E_GIFT_CARD_REDEMPTION_SPEC: _seed_e2e_gift_card(E2E_GIFT_CARD_REDEMPTION_SPEC),
+    }
 
 
 def _log(msg: str, level: str = "INFO") -> None:
@@ -754,6 +886,44 @@ def _git_info() -> tuple[str, str]:
     except Exception:
         pass
     return sha, branch
+
+
+def _daily_git_info(current_git_sha: str, current_git_branch: str) -> tuple[str, str]:
+    """Use the latest remote dev commit for delayed cron runs."""
+    if os.environ.get("OPENMATES_TEST_SUBJECT_COMMIT", "").strip():
+        return current_git_sha, current_git_branch
+
+    remote_ref = f"origin/{GH_BRANCH}"
+    try:
+        subprocess.run(
+            [
+                "git", "-C", str(PROJECT_ROOT), "fetch", "--quiet", "origin",
+                f"+{GH_BRANCH}:refs/remotes/{remote_ref}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        remote_sha = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", remote_ref],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception as exc:
+        _log(f"Could not refresh {remote_ref} for daily subject commit: {exc}", "WARN")
+        return current_git_sha, current_git_branch
+
+    if not remote_sha:
+        return current_git_sha, current_git_branch
+
+    remote_short = remote_sha[:9]
+    if current_git_sha != remote_short:
+        _log(
+            f"Daily run using {remote_ref} {remote_short} instead of local {current_git_sha}@{current_git_branch}",
+            "WARN",
+        )
+    return remote_short, GH_BRANCH
 
 
 def _full_git_sha(git_ref: str) -> str:
@@ -815,6 +985,11 @@ def _docker_container_env(container: str, key: str) -> tuple[Optional[str], Opti
     return proc.stdout.strip(), None
 
 
+def _is_missing_docker_container_error(error: str) -> bool:
+    normalized = error.lower()
+    return "no such container" in normalized or "no container" in normalized
+
+
 def _development_backend_live_mock_preflight_error() -> Optional[str]:
     if os.getenv("OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "1") in BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES:
         _log("Backend live-mock preflight disabled via OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "WARN")
@@ -822,9 +997,29 @@ def _development_backend_live_mock_preflight_error() -> Optional[str]:
 
     problems: list[str] = []
     for container in BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS:
+        server_environment, server_error = _docker_container_env(container, "SERVER_ENVIRONMENT")
+        if server_error and _is_missing_docker_container_error(server_error):
+            if container in BACKEND_LIVE_MOCK_CONDITIONAL_CONTAINERS:
+                _log(
+                    f"Backend live-mock preflight skipped absent conditional worker {container}; "
+                    "specs that require its queue may still fail.",
+                    "WARN",
+                )
+                continue
+            problems.append(f"{container}: container is not running ({server_error})")
+            continue
+
         values: dict[str, str] = {}
         read_errors: set[str] = set()
+        if server_error:
+            problems.append(f"{container}: cannot read SERVER_ENVIRONMENT ({server_error})")
+            read_errors.add("SERVER_ENVIRONMENT")
+        else:
+            values["SERVER_ENVIRONMENT"] = server_environment or ""
+
         for key in ("SERVER_ENVIRONMENT", "MOCK_EXTERNAL_APIS"):
+            if key == "SERVER_ENVIRONMENT":
+                continue
             value, error = _docker_container_env(container, key)
             if error:
                 problems.append(f"{container}: cannot read {key} ({error})")
@@ -1405,6 +1600,8 @@ class GitHubActionsClient:
         record_live_fixtures: bool = False,
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
+        seeded_gift_card_code: Optional[str] = None,
+        proof_video_profile: str = "",
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -1430,6 +1627,10 @@ class GitHubActionsClient:
             command.extend(["-f", f"checkout_ref={self.git_sha}"])
         if create_account_slot is not None:
             command.extend(["-f", f"create_account_slot={create_account_slot}"])
+        if seeded_gift_card_code:
+            command.extend(["-f", f"seeded_gift_card_code={seeded_gift_card_code}"])
+        if proof_video_profile:
+            command.extend(["-f", f"proof_video_profile={proof_video_profile}"])
 
         rc = subprocess.run(
             command,
@@ -1760,6 +1961,9 @@ class BatchRunner:
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
         create_account_slot: Optional[int] = None,
         allow_credential_updates: bool = True,
+        seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
+        proof_video_profile: str = "",
+        progress_callback: Optional[Callable[[SuiteResult], None]] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1770,6 +1974,25 @@ class BatchRunner:
         self.normal_account_slots = normal_account_slots
         self.create_account_slot = create_account_slot
         self.allow_credential_updates = allow_credential_updates
+        self.seeded_gift_cards = seeded_gift_cards or {}
+        self.proof_video_profile = proof_video_profile
+        self.progress_callback = progress_callback
+
+    @staticmethod
+    def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
+        tests = [BatchRunner._spec_result_to_dict(r) for r in results]
+        has_failures = any(_is_problem_status(r.status) for r in results)
+        all_skipped = bool(results) and all(r.status == "skipped" for r in results)
+        return SuiteResult(
+            status="skipped" if all_skipped else "failed" if has_failures else "passed",
+            tests=tests,
+            duration_seconds=round(duration_seconds, 1),
+        )
+
+    def _emit_progress(self, all_results: list[SpecResult], suite_start: float) -> None:
+        if self.progress_callback is None:
+            return
+        self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1808,18 +2031,13 @@ class BatchRunner:
                         name=spec, file=spec, status="not_started",
                         error=f"Skipped: fail-fast after batch {batch_idx + 1}",
                     ))
+                self._emit_progress(all_results, suite_start)
                 break
 
-        duration = time.time() - suite_start
-        tests = [self._spec_result_to_dict(r) for r in all_results]
-        has_failures = any(_is_problem_status(r.status) for r in all_results)
-        all_skipped = bool(all_results) and all(r.status == "skipped" for r in all_results)
+            self._emit_progress(all_results, suite_start)
 
-        return SuiteResult(
-            status="skipped" if all_skipped else "failed" if has_failures else "passed",
-            tests=tests,
-            duration_seconds=round(duration, 1),
-        )
+        duration = time.time() - suite_start
+        return self._suite_from_results(all_results, duration)
 
     def _run_batch(
         self,
@@ -1845,6 +2063,7 @@ class BatchRunner:
             _log(f"  Dispatching {spec} (account {account})")
 
             create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            seeded_gift_card = self.seeded_gift_cards.get(spec)
             run_id = self.client.dispatch_spec(
                 spec,
                 account,
@@ -1852,6 +2071,8 @@ class BatchRunner:
                 self.record_live_fixtures,
                 create_account_slot=create_account_slot,
                 allow_credential_updates=self.allow_credential_updates,
+                seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                proof_video_profile=self.proof_video_profile,
             )
             if run_id is None:
                 # Retry once
@@ -1863,12 +2084,15 @@ class BatchRunner:
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
                     allow_credential_updates=self.allow_credential_updates,
+                    seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                    proof_video_profile=self.proof_video_profile,
                 )
 
             if run_id is None:
                 dispatch_errors.append(SpecResult(
                     name=spec, file=spec, status="dispatch_error",
                     error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
+                    account=account,
                 ))
             else:
                 dispatched.append((spec, account, run_id))
@@ -1914,6 +2138,7 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            proof_timeline_path: Optional[str] = None
             debug_artifacts: list[str] = []
             debug_output_summary: Optional[str] = None
             environment_blocker: Optional[str] = None
@@ -1964,7 +2189,7 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 self._persist_credential_update_artifacts(spec, art_path)
-                self._persist_recording_artifacts(spec, art_path)
+                proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
@@ -2001,6 +2226,7 @@ class BatchRunner:
                 screenshot_paths=screenshot_paths,
                 video_paths=video_paths,
                 video_artifact_name=art_name if video_paths else None,
+                proof_timeline_path=proof_timeline_path,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
                 debug_artifacts=debug_artifacts,
                 debug_output_summary=debug_output_summary,
@@ -2339,7 +2565,7 @@ class BatchRunner:
         return sorted(video_paths)
 
     @staticmethod
-    def _persist_recording_artifacts(spec: str, art_path: Path) -> None:
+    def _persist_recording_artifacts(spec: str, art_path: Path) -> Optional[str]:
         """Copy the latest video, screenshots, and raw metadata for /tests."""
         slug = _test_recording_slug(spec)
         dest = TEST_RECORDINGS_DIR / slug
@@ -2411,6 +2637,109 @@ class BatchRunner:
         if raw_json_sources:
             shutil.copy2(raw_json_sources[0], dest / "playwright.json")
 
+        proof_timeline_path: Optional[Path] = None
+        if raw_json_sources:
+            report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
+            proof_attachment_groups: list[list[dict[str, object]]] = []
+
+            def collect_timeline_attachments(value: object) -> None:
+                if isinstance(value, dict):
+                    attachments = value.get("attachments")
+                    if isinstance(attachments, list):
+                        group = [item for item in attachments if isinstance(item, dict)]
+                        if any(
+                            item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                            for item in group
+                        ):
+                            proof_attachment_groups.append(group)
+                    for key, child in value.items():
+                        if key == "attachments":
+                            continue
+                        collect_timeline_attachments(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        collect_timeline_attachments(child)
+
+            collect_timeline_attachments(report)
+            if len(proof_attachment_groups) > 1:
+                raise RuntimeError("Playwright report contains ambiguous proof timeline attachment groups")
+            proof_group = proof_attachment_groups[0] if proof_attachment_groups else []
+            timeline_attachments = [
+                item
+                for item in proof_group
+                if item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+            ]
+            if len(timeline_attachments) > 1:
+                raise RuntimeError("Playwright proof result contains multiple timeline attachments")
+            proof_frame_attachments: dict[str, dict[str, object]] = {}
+            for item in proof_group:
+                name = item.get("name")
+                if item.get("contentType") != "image/png" or not isinstance(name, str) or not name.startswith(
+                    "openmates-proof-frame-"
+                ):
+                    continue
+                if name in proof_frame_attachments:
+                    raise RuntimeError(f"Playwright proof result contains duplicate frame attachment: {name}")
+                proof_frame_attachments[name] = item
+            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
+            for attachment in timeline_attachments:
+                proof_timeline_path = dest / "proof-timeline.json"
+                body = attachment.get("body")
+                attachment_path = attachment.get("path")
+                if isinstance(body, str):
+                    proof_timeline_path.write_bytes(base64.b64decode(body, validate=True))
+                    break
+                if not isinstance(attachment_path, str):
+                    proof_timeline_path = None
+                    continue
+                attachment_name = Path(attachment_path).name
+                sources = [path for path in artifact_files if path.name == attachment_name]
+                if len(sources) != 1:
+                    proof_timeline_path = None
+                    continue
+                shutil.copy2(sources[0], proof_timeline_path)
+                break
+
+            if proof_timeline_path is not None:
+                timeline_payload = json.loads(proof_timeline_path.read_text(encoding="utf-8"))
+                checkpoint_frames = timeline_payload.get("checkpoint_frames")
+                if not isinstance(checkpoint_frames, list) or not checkpoint_frames:
+                    raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
+                frames_dest = dest / "proof-frames"
+                frames_dest.mkdir(parents=True, exist_ok=True)
+                for frame_record in checkpoint_frames:
+                    if not isinstance(frame_record, dict):
+                        raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
+                    checkpoint = str(frame_record.get("checkpoint") or "")
+                    attachment_name = str(frame_record.get("attachment_name") or "")
+                    if not re.fullmatch(r"[A-Za-z0-9._-]+", checkpoint):
+                        raise RuntimeError("Spec proof checkpoint frame has an invalid checkpoint id")
+                    attachment = proof_frame_attachments.get(attachment_name)
+                    if attachment is None:
+                        raise RuntimeError(f"Spec proof checkpoint frame attachment is missing: {checkpoint}")
+                    frame_body = attachment.get("body")
+                    frame_path = attachment.get("path")
+                    if isinstance(frame_body, str):
+                        frame_bytes = base64.b64decode(frame_body, validate=True)
+                    elif isinstance(frame_path, str):
+                        attachment_basename = Path(frame_path).name
+                        frame_sources = [path for path in artifact_files if path.name == attachment_basename]
+                        if len(frame_sources) != 1:
+                            raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
+                        frame_bytes = frame_sources[0].read_bytes()
+                    else:
+                        raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
+                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                    if actual_hash != frame_record.get("sha256"):
+                        raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
+                    target = frames_dest / f"{checkpoint}.png"
+                    target.write_bytes(frame_bytes)
+                    frame_record["path"] = str(target.resolve())
+                proof_timeline_path.write_text(
+                    json.dumps(timeline_payload, sort_keys=True, separators=(",", ":")) + "\n",
+                    encoding="utf-8",
+                )
+
         meta = {
             "spec": spec,
             "slug": slug,
@@ -2419,8 +2748,10 @@ class BatchRunner:
             "screenshot_files": copied_screenshots,
             "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
+            "proof_timeline_file": proof_timeline_path.name if proof_timeline_path else None,
         }
         (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        return str(proof_timeline_path) if proof_timeline_path else None
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -2454,6 +2785,8 @@ class BatchRunner:
             d["video_paths"] = r.video_paths
         if r.video_artifact_name:
             d["video_artifact_name"] = r.video_artifact_name
+        if r.proof_timeline_path:
+            d["proof_timeline_path"] = r.proof_timeline_path
         if r.github_run_url:
             d["github_run_url"] = r.github_run_url
         if r.debug_artifacts:
@@ -2471,6 +2804,19 @@ class BatchRunner:
 
 class ResultAggregator:
     """Merges results from all suites into the standard last-run.json format."""
+
+    @staticmethod
+    def to_dict(result: RunResult) -> dict:
+        return {
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "flags": result.flags,
+            "duration_seconds": result.duration_seconds,
+            "summary": result.summary,
+            "suites": result.suites,
+            "environment": result.environment,
+        }
 
     @staticmethod
     def build_run_result(
@@ -2538,17 +2884,7 @@ class ResultAggregator:
     def save(result: RunResult) -> None:
         """Save results to test-results/."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-        data = {
-            "run_id": result.run_id,
-            "git_sha": result.git_sha,
-            "git_branch": result.git_branch,
-            "flags": result.flags,
-            "duration_seconds": result.duration_seconds,
-            "summary": result.summary,
-            "suites": result.suites,
-            "environment": result.environment,
-        }
+        data = ResultAggregator.to_dict(result)
 
         # Write timestamped run file
         ts = result.run_id.replace(":", "").replace("-", "")
@@ -2557,13 +2893,30 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        (RESULTS_DIR / "last-run-progress.json").unlink(missing_ok=True)
         record_flake_history(data)
         try:
-            _record_unified_test_state(data)
+            source, workflow = _test_control_source_for_flags(result.flags)
+            _record_unified_test_state(data, source=source, workflow=workflow)
         except Exception as exc:
             _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
+
+    @staticmethod
+    def save_progress(result: RunResult) -> None:
+        """Persist a partial run snapshot without replacing the final last-run file."""
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        data = ResultAggregator.to_dict(result)
+        progress_flags = dict(data.get("flags") or {})
+        progress_flags["in_progress"] = True
+        data["flags"] = progress_flags
+        _safe_write_json(RESULTS_DIR / "last-run-progress.json", data)
+        try:
+            source, workflow = _test_control_source_for_flags(progress_flags)
+            _record_unified_test_state(data, source=source, workflow=workflow)
+        except Exception as exc:
+            _log(f"Could not update unified test progress: {exc}", "WARN")
 
     @staticmethod
     def load_failed_specs() -> list[str]:
@@ -5537,6 +5890,11 @@ class TestRecordingPublisher:
             _log(f"Test recording S3 upload skipped/failed: {e}", "WARN")
 
     async def _upload_latest_bundles_async(self) -> None:
+        # Direct script execution sets sys.path[0] to scripts/, not the repo
+        # root.  Keep the backend package importable in the nightly cron.
+        project_root_text = str(PROJECT_ROOT)
+        if project_root_text not in sys.path:
+            sys.path.insert(0, project_root_text)
         try:
             from backend.core.api.app.services.s3.service import S3UploadService
             from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -5550,21 +5908,90 @@ class TestRecordingPublisher:
         if not s3_service.client:
             raise RuntimeError("S3 service is unavailable")
 
-        uploaded = 0
-        for path in TEST_RECORDINGS_DIR.rglob("*"):
-            if not path.is_file():
-                continue
-            rel_path = path.relative_to(TEST_RECORDINGS_DIR).as_posix()
-            object_key = f"{TEST_RECORDINGS_S3_PREFIX}/{rel_path}"
-            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-            await s3_service.upload_file(
-                TEST_RECORDINGS_BUCKET_KEY,
-                object_key,
-                path.read_bytes(),
-                content_type,
-            )
-            uploaded += 1
+        uploaded, deleted = await _upload_recording_files(TEST_RECORDINGS_DIR, s3_service)
         _log(f"Uploaded {uploaded} test recording artifact(s) to S3")
+        _log(f"Removed {deleted} confirmed-upload local recording bundle(s)")
+
+
+async def _upload_recording_files(root: Path, s3_service: object) -> tuple[int, int]:
+    """Upload a complete snapshot, then delete its local bundle directories.
+
+    Any upload exception exits before cleanup, preserving the entire local
+    snapshot for the scheduled retry. This ordering is the deletion safety
+    boundary.
+    """
+    uploaded = 0
+    uploaded_keys: set[str] = set()
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        rel_path = path.relative_to(root).as_posix()
+        object_key = f"{TEST_RECORDINGS_S3_PREFIX}/{rel_path}"
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        await s3_service.upload_file(  # type: ignore[attr-defined]
+            TEST_RECORDINGS_BUCKET_KEY,
+            object_key,
+            path.read_bytes(),
+            content_type,
+        )
+        uploaded += 1
+        uploaded_keys.add(object_key)
+    await _prune_stale_recording_files(s3_service, uploaded_keys)
+    return uploaded, _delete_uploaded_recording_bundles(root)
+
+
+async def _prune_stale_recording_files(s3_service: object, desired_keys: set[str]) -> int:
+    """Delete remote latest/ recording objects that are not in the new snapshot."""
+
+    client = getattr(s3_service, "client", None)
+    if client is None:
+        raise RuntimeError("S3 service is unavailable")
+    try:
+        from backend.core.api.app.services.s3.config import get_bucket_name
+    except Exception as exc:
+        raise RuntimeError(f"could not import S3 bucket config: {exc}") from exc
+
+    environment = str(getattr(s3_service, "environment", "development"))
+    bucket_name = get_bucket_name(TEST_RECORDINGS_BUCKET_KEY, environment)
+    prefix = f"{TEST_RECORDINGS_S3_PREFIX}/"
+    stale_keys: list[str] = []
+    continuation_token = None
+    while True:
+        request = {"Bucket": bucket_name, "Prefix": prefix}
+        if continuation_token:
+            request["ContinuationToken"] = continuation_token
+        response = await asyncio.to_thread(client.list_objects_v2, **request)
+        for item in response.get("Contents", []) or []:
+            key = item.get("Key") if isinstance(item, dict) else None
+            if isinstance(key, str) and key not in desired_keys:
+                stale_keys.append(key)
+        if not response.get("IsTruncated"):
+            break
+        continuation_token = response.get("NextContinuationToken")
+        if not continuation_token:
+            break
+
+    for key in stale_keys:
+        await s3_service.delete_file(TEST_RECORDINGS_BUCKET_KEY, key)  # type: ignore[attr-defined]
+    return len(stale_keys)
+
+
+def _delete_uploaded_recording_bundles(root: Path) -> int:
+    """Remove only bundle directories after the complete upload loop succeeds.
+
+    The caller invokes this after every S3 upload has returned successfully.
+    The small index is retained for local diagnostics; source artifacts remain
+    available through GitHub Actions and uploaded bundles through S3.
+    """
+    if not root.is_dir():
+        return 0
+    deleted = 0
+    for path in root.iterdir():
+        if not path.is_dir():
+            continue
+        shutil.rmtree(path)
+        deleted += 1
+    return deleted
 
 
 def _seconds_between(first_iso: Optional[str], current_iso: Optional[str]) -> Optional[float]:
@@ -5822,6 +6249,7 @@ class TestOrchestrator:
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.record_live_fixtures = args.record_live_fixtures
+        self.proof_video_profile = args.proof_video_profile
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
         self.only_failed_synthetic_files: tuple[str, ...] = ()
@@ -5833,9 +6261,13 @@ class TestOrchestrator:
         self.campaign_test_labels = [str(label) for label in decoded_labels] if isinstance(decoded_labels, list) else []
 
         self.git_sha, self.git_branch = _git_info()
+        if self.daily and self.environment == "development":
+            self.git_sha, self.git_branch = _daily_git_info(self.git_sha, self.git_branch)
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
         self.current_phase = "starting"
+        self._progress_suites: dict[str, SuiteResult] = {}
+        self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
 
@@ -5879,6 +6311,44 @@ class TestOrchestrator:
         if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
             self._daily_status_thread.join(timeout=35)
 
+    def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
+        flags = {
+            "suite": self.suite,
+            "daily": self.daily,
+            "only_failed": self.only_failed,
+            "fail_fast": self.fail_fast,
+            "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
+        }
+        if in_progress:
+            flags["in_progress"] = True
+        if progress_phase:
+            flags["progress_phase"] = progress_phase
+        return flags
+
+    def _save_progress_snapshot(
+        self,
+        suites: dict[str, SuiteResult],
+        start_time: float,
+        phase: str,
+    ) -> None:
+        if self.dry_run or not suites:
+            return
+        result = ResultAggregator.build_run_result(
+            suites=suites,
+            run_id=self.run_id,
+            git_sha=self.git_sha,
+            git_branch=self.git_branch,
+            environment=self.environment,
+            duration=time.time() - start_time,
+            flags=self._result_flags(in_progress=True, progress_phase=phase),
+        )
+        ResultAggregator.save_progress(result)
+
+    def _save_playwright_progress_snapshot(self, playwright_result: SuiteResult) -> None:
+        progress_suites = {**self._progress_suites, "playwright": playwright_result}
+        self._save_progress_snapshot(progress_suites, self._progress_start_time, "Playwright")
+
     def run(self) -> int:
         """Execute the test run and always stop the daily status heartbeat."""
         try:
@@ -5915,6 +6385,8 @@ class TestOrchestrator:
         if self.daily:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
+        self._progress_suites = suites
+        self._progress_start_time = start_time
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -5933,35 +6405,34 @@ class TestOrchestrator:
         if not self.spec and self.suite in ("all", "vitest"):
             self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            self._save_progress_snapshot(suites, start_time, "vitest")
 
         if not self.spec and self.suite in ("all", "pytest"):
             self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            self._save_progress_snapshot(suites, start_time, "pytest")
 
         if not self.spec and self.suite in ("all", "cli"):
             self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
+            self._save_progress_snapshot(suites, start_time, "CLI integration")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
+            self._save_progress_snapshot(suites, start_time, "Playwright")
 
         # Run native Apple checks only for nightly cron or explicit --suite apple.
         if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
             self.current_phase = "Apple remote"
             suites["apple_remote"] = self._run_apple_remote_nightly()
+            self._save_progress_snapshot(suites, start_time, "Apple remote")
 
         # Aggregate results
         self.current_phase = "finalizing results"
         duration = time.time() - start_time
-        flags = {
-            "suite": self.suite,
-            "only_failed": self.only_failed,
-            "fail_fast": self.fail_fast,
-            "use_mocks": self.use_mocks,
-            "record_live_fixtures": self.record_live_fixtures,
-        }
+        flags = self._result_flags()
 
         result = ResultAggregator.build_run_result(
             suites=suites,
@@ -6423,10 +6894,17 @@ class TestOrchestrator:
                     duration_seconds=preflight.duration_seconds,
                     reason=(preflight_reason or "No available normal Playwright account slots"),
                 )
+            if preflight.status == "failed" and all(
+                result.status == "passed" for result in preflight_results if result.account is not None
+            ):
+                return preflight
             if preflight_reason:
                 _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
-        elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
-            return self._run_account_preflight(client, accounts=[self.account])
+        elif self.spec == ACCOUNT_PREFLIGHT_SPEC:
+            return self._run_account_preflight(
+                client,
+                accounts=[self.account] if self.account is not None else None,
+            )
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
             reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
             if self.account is not None and reserved_account is not None and self.account != reserved_account:
@@ -6473,6 +6951,25 @@ class TestOrchestrator:
             else:
                 normal_account_slots = (account,)
 
+        try:
+            seeded_gift_cards = _seed_playwright_fixtures_for_specs(specs, self.environment)
+        except RuntimeError as exc:
+            fixture_error = str(exc)
+            return SuiteResult(
+                status="failed",
+                tests=[
+                    {
+                        "name": "playwright-fixture-seed",
+                        "file": "scripts/run_tests.py",
+                        "status": "failed",
+                        "duration_seconds": 0,
+                        "error": fixture_error,
+                    },
+                    *_not_started_playwright_specs(specs, fixture_error),
+                ],
+                reason=fixture_error,
+            )
+
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -6483,8 +6980,14 @@ class TestOrchestrator:
             normal_account_slots=normal_account_slots,
             create_account_slot=self.create_account_slot,
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
+            seeded_gift_cards=seeded_gift_cards,
+            proof_video_profile=self.proof_video_profile,
+            progress_callback=self._save_playwright_progress_snapshot,
         )
-        result = runner.run_all_batches()
+        try:
+            result = runner.run_all_batches()
+        finally:
+            _cleanup_e2e_gift_cards(seeded_gift_cards)
 
         if blocked_preflight_results:
             result.tests = [
@@ -6652,6 +7155,26 @@ class TestOrchestrator:
             0,
             account_overrides=target_accounts,
         )
+        failed_accounts = [result.account for result in results if result.status != "passed" and result.account]
+        if failed_accounts:
+            _log(
+                "Playwright account preflight: retrying failed slot(s) with reduced concurrency: "
+                + ", ".join(str(account) for account in failed_accounts),
+                "WARN",
+            )
+            results_by_account = {result.account: result for result in results if result.account}
+            for start in range(0, len(failed_accounts), PREFLIGHT_RETRY_BATCH_SIZE):
+                retry_accounts = failed_accounts[start:start + PREFLIGHT_RETRY_BATCH_SIZE]
+                retry_results = runner._run_batch(
+                    [ACCOUNT_PREFLIGHT_SPEC] * len(retry_accounts),
+                    0,
+                    account_overrides=retry_accounts,
+                )
+                results_by_account.update(
+                    (result.account, result) for result in retry_results if result.account
+                )
+            results = [results_by_account.get(account) for account in target_accounts]
+            results = [result for result in results if result is not None]
         if self._repair_missing_preflight_account_ids(results):
             _log("Playwright account preflight: rerunning repaired account slot(s)")
             results = runner._run_batch(
@@ -6676,12 +7199,72 @@ class TestOrchestrator:
                 reason=credit_guard_error,
             )
 
+        if getattr(self, "daily", False):
+            cleanup_error = self._cleanup_stale_signup_accounts(results)
+            if cleanup_error:
+                _log(f"E2E account cleanup failed: {cleanup_error}", "ERROR")
+                results.append(SpecResult(
+                    name="dev-stale-signup-cleanup",
+                    file="scripts/cleanup_dev_signup_accounts.py",
+                    status="failed",
+                    error=cleanup_error,
+                ))
+                failures.append(results[-1])
+
         return SuiteResult(
             status="failed" if failures else "passed",
             tests=[runner._spec_result_to_dict(r) for r in results],
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    def _cleanup_stale_signup_accounts(self, results: list[SpecResult]) -> Optional[str]:
+        """Delete only old incomplete zero-content dev signups after protecting all slots."""
+        if self.environment != "development":
+            return None
+
+        accounts_by_slot = {
+            result.account: result.account_email
+            for result in results
+            if result.account is not None and result.account_email
+        }
+        missing_slots = [slot for slot in range(1, MAX_ACCOUNTS + 1) if slot not in accounts_by_slot]
+        if missing_slots:
+            return "configured account email missing for slot(s): " + ", ".join(str(slot) for slot in missing_slots)
+
+        script_path = PROJECT_ROOT / "scripts" / "cleanup_dev_signup_accounts.py"
+        payload = [
+            {"slot": slot, "email": accounts_by_slot[slot]}
+            for slot in range(1, MAX_ACCOUNTS + 1)
+        ]
+        try:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--apply",
+                    "--auto-safe",
+                    "--automated-daily-cleanup",
+                    "--protected-accounts-json",
+                    "-",
+                    "--require-protected-count",
+                    str(MAX_ACCOUNTS),
+                ],
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return f"cleanup execution failed: {exc}"
+
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E account cleanup: {line}")
+        if proc.returncode != 0:
+            return (proc.stderr or output or "unknown cleanup error").strip()[:MAX_ERROR_SNIPPET]
+        return None
 
     def _repair_missing_preflight_account_ids(self, results: list[SpecResult]) -> bool:
         """Repair configured E2E accounts that fail preflight due to missing account_id."""
@@ -6822,8 +7405,12 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        "deep-research-real-inference.spec.ts",
         PROVISION_AUTH_ACCOUNTS_SPEC,
+        "default-model-settings-proof.spec.ts",
+        "proof-audio-speech-example.spec.ts",
         "selfhost-smoke.spec.ts",
+        "sub-chats-real-inference.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
 
@@ -6866,7 +7453,10 @@ class TestOrchestrator:
         if not self.force:
             try:
                 commits = subprocess.check_output(
-                    ["git", "-C", str(PROJECT_ROOT), "log", "--oneline", "--since=24 hours ago"],
+                    [
+                        "git", "-C", str(PROJECT_ROOT), "log", "--oneline",
+                        "--since=24 hours ago", self.git_sha if self.git_sha != "unknown" else "HEAD",
+                    ],
                     stderr=subprocess.DEVNULL, text=True,
                 ).strip()
                 count = len(commits.splitlines()) if commits else 0
@@ -6902,12 +7492,13 @@ class TestOrchestrator:
             shutil.copy2(str(last_run), str(archive))
             _log(f"Archived to {archive.name}")
 
-        # Prune old archives (keep last 30)
+        # Bound daily JSON and screenshot growth to one week. The canonical
+        # latest results remain separate from these dated archives.
         archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
-        for old in archives[30:]:
+        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
             old.unlink(missing_ok=True)
 
-        # Prune old screenshot archives (keep last 30 days)
+        # Prune old screenshot archives (keep last 7 daily snapshots).
         screenshots_dir = RESULTS_DIR / "screenshots"
         if screenshots_dir.is_dir():
             date_dirs = sorted(
@@ -6915,7 +7506,7 @@ class TestOrchestrator:
                  if d.is_dir() and d.name != "current" and len(d.name) == 10],
                 reverse=True,
             )
-            for old_dir in date_dirs[30:]:
+            for old_dir in date_dirs[DAILY_ARTIFACT_RETENTION_DAYS:]:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
@@ -7032,6 +7623,8 @@ def main() -> int:
                         help="Run with real LLM calls instead of mocks")
     parser.add_argument("--record-live-fixtures", action="store_true",
                         help="Dispatch Playwright with TEST_LIVE_RECORD markers instead of replaying live-mock fixtures")
+    parser.add_argument("--proof-video-profile", choices=sorted(PROOF_VIDEO_PROFILES), default="",
+                        help="Capture Playwright video at an exact proof-video device profile size")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would run without executing")
     parser.add_argument("--flaky-report", action="store_true",

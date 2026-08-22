@@ -43,6 +43,14 @@ REMINDER_MESSAGE_TEMPLATE = """🔔 **Reminder**
 # Wraps the user's task prompt with clear context so the LLM knows it was scheduled
 # to execute a task — not that a user just typed a message.
 REMINDER_TASK_TEMPLATE = "[Scheduled Reminder — Task Triggered]\n\nTask: {prompt}\n\nCarry out this task now. Do not explain that a reminder fired unless the user explicitly asks."
+REMINDER_NOTIFICATION_PROFILE_FIELDS = [
+    "email_notifications_enabled",
+    "email_notification_preferences",
+    "encrypted_notification_email",
+    "vault_key_id",
+    "language",
+    "darkmode",
+]
 
 
 # =========================================================================
@@ -664,8 +672,8 @@ async def _dispatch_reminder_ai_request(
     }
 
     # OPE-342: dispatch via in-process SkillRegistry (no HTTP to app-ai container,
-    # which no longer exists). The reminder task runs inside task-worker, which
-    # builds its own registry in init_worker_process().
+    # which no longer exists). The reminder worker builds its own registry in
+    # init_worker_process().
     from backend.core.api.app.services.skill_registry import get_global_registry
 
     response_data = await get_global_registry().dispatch_skill("ai", "ask", ask_request)
@@ -699,22 +707,34 @@ async def _send_reminder_email_notification(
     vault-encrypted notification email, then dispatches a Celery email task.
     """
     try:
-        user_profile_result = await directus_service.get_user_profile(user_id)
+        user_profile = await directus_service.get_user_fields_direct(
+            user_id,
+            REMINDER_NOTIFICATION_PROFILE_FIELDS,
+        )
 
-        if not user_profile_result or not user_profile_result[0]:
-            logger.debug(f"Could not fetch user profile for email notification (user_id={user_id})")
+        if not user_profile:
+            logger.info(f"Reminder email skipped: could not fetch fresh notification profile for user {user_id[:8]}...")
             return False
-
-        user_profile = user_profile_result[1]
 
         email_notifications_enabled = user_profile.get("email_notifications_enabled", False)
         if not email_notifications_enabled:
-            logger.debug(f"User {user_id[:8]}... does not have email notifications enabled")
+            logger.info(f"Reminder email skipped: email notifications disabled for user {user_id[:8]}...")
+            return False
+
+        preferences = user_profile.get("email_notification_preferences") or {}
+        if isinstance(preferences, str):
+            try:
+                preferences = json.loads(preferences)
+            except json.JSONDecodeError:
+                logger.warning(f"Reminder email skipped: invalid notification preferences for user {user_id[:8]}...")
+                return False
+        if isinstance(preferences, dict) and preferences.get("backupReminder") is False:
+            logger.info(f"Reminder email skipped: backup reminder email preference disabled for user {user_id[:8]}...")
             return False
 
         encrypted_notification_email = user_profile.get("encrypted_notification_email")
         if not encrypted_notification_email:
-            logger.debug(f"User {user_id[:8]}... has no encrypted_notification_email configured")
+            logger.info(f"Reminder email skipped: no encrypted notification email for user {user_id[:8]}...")
             return False
 
         vault_key_id = user_profile.get("vault_key_id")

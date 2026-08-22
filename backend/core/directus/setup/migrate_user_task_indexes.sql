@@ -8,6 +8,14 @@ CREATE INDEX IF NOT EXISTS user_tasks_owner_status_position_idx
 CREATE INDEX IF NOT EXISTS user_tasks_owner_priority_idx
     ON user_tasks (hashed_user_id, priority DESC, position, created_at);
 
+CREATE INDEX IF NOT EXISTS user_tasks_team_admission_idx
+    ON user_tasks (hashed_team_id, status, assignee_type, priority DESC, position, created_at)
+    WHERE hashed_team_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS user_tasks_ai_admission_idx
+    ON user_tasks (status, assignee_type, due_at, priority DESC, position, created_at)
+    WHERE assignee_type = 'ai' AND status IN ('todo', 'in_progress', 'blocked');
+
 CREATE INDEX IF NOT EXISTS user_tasks_owner_completed_idx
     ON user_tasks (hashed_user_id, completed_at)
     WHERE completed_at IS NOT NULL;

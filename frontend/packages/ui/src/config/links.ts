@@ -55,6 +55,8 @@ export const externalLinks = {
   meetup:
     sharedUrls?.urls?.contact?.meetup ||
     "https://www.meetup.com/openmates-meetup-group/",
+  luma: "https://luma.com/openmates",
+  eventbrite: "https://www.eventbrite.com/o/121655417243",
   pixelfed:
     sharedUrls?.urls?.contact?.pixelfed || "https://pixelfed.social/@openmates",
   signal:

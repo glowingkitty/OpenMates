@@ -1,0 +1,38 @@
+{
+  "fingerprint": "912aeeb2fdc986b8",
+  "category": "wikipedia",
+  "group_id": "electronics_search_web",
+  "recorded_at": "2026-08-15T12:18:11.311278+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Switched-mode_power_supply%7CVoltage_regulator%7CNoise_%28electronics%29&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Sat, 15 Aug 2026 12:18:11 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-fwjlx",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "553",
+      "x-request-id": "5d90c415-b3ee-403b-80ad-1252cd80e0ba",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"107377350\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Switched-mode_power_supply\",\"to\":\"Switched-mode power supply\"},{\"fromencoded\":false,\"from\":\"Voltage_regulator\",\"to\":\"Voltage regulator\"},{\"fromencoded\":false,\"from\":\"Noise_(electronics)\",\"to\":\"Noise (electronics)\"}],\"pages\":[{\"pageid\":223407,\"ns\":0,\"title\":\"Switched-mode power supply\",\"pageprops\":{\"wikibase_item\":\"Q587008\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Mean_Well_HRP-100_smps.jpg/330px-Mean_Well_HRP-100_smps.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":200},\"description\":\"Power supply with switching regulator\",\"descriptionsource\":\"local\"},{\"pageid\":624231,\"ns\":0,\"title\":\"Voltage regulator\",\"pageprops\":{\"wikibase_item\":\"Q851210\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/7812_voltage_regulator.jpg/330px-7812_voltage_regulator.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":460},\"description\":\"System designed to maintain a constant voltage\",\"descriptionsource\":\"local\"},{\"pageid\":3966982,\"ns\":0,\"title\":\"Noise (electronics)\",\"pageprops\":{\"wikibase_item\":\"Q11306265\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Pink.noise.png/330px-Pink.noise.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":223},\"description\":\"Random fluctuation in an electrical signal\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

@@ -13,18 +13,14 @@ Architecture: Part of the hourly prod smoke suite (OPE-76). This is the ONLY
               covering signup, login, and chat-history decryption in one run
               gives us a cleaner single failure signature for alerting, and
               removes the need for a persistent prod test account.
-              Relies on the reusable + allowed_email_domain extension to
-              gift_cards — the card is locked to our specific Mailosaur server
-              subdomain so no other Mailosaur user can redeem it.
+               Relies on a reusable gift card locked to the exact dedicated
+               Gmail smoke-test identity rather than the shared gmail.com domain.
 Tests: N/A (this file is the Playwright E2E test entrypoint).
 
 Required env vars:
 - PLAYWRIGHT_TEST_BASE_URL         — prod base URL
-- SIGNUP_TEST_EMAIL_DOMAINS        — comma-separated; first entry is used
-                                     (must exactly match the card's
-                                     allowed_email_domain — e.g.
-                                     xyz9abc1.mailosaur.net)
-- GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN (preferred) or MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID (fallback)
+- SIGNUP_TEST_EMAIL_DOMAINS        — configured Gmail test domain
+- GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN / GMAIL_TEST_ADDRESS
 - PROD_SMOKE_GIFT_CARD_CODE        — the reusable card seeded once via the
                                      admin generate-gift-cards endpoint
 */
@@ -80,6 +76,7 @@ test.beforeAll(() => {
 	}
 });
 
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,auth.session.lifecycle,billing.purchase.provider-routing,billing.access.authenticated-first-party
 test('prod signup + gift card redemption + first chat + account delete', async ({
 	page,
 	context
@@ -98,7 +95,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	});
 
 	test.slow();
-	// End-to-end signup + Mailosaur polling + gift card + first chat — plenty
+	// End-to-end signup + Gmail polling + gift card + first chat — plenty
 	// of margin without being a timeout sink.
 	test.setTimeout(600000);
 
@@ -112,7 +109,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 
 	const emailQuota = await checkEmailQuota();
 	test.skip(!emailQuota.available, `Email quota reached (${emailQuota.current}/${emailQuota.limit}).`);
@@ -122,7 +119,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 		throw new Error('Missing required env vars after skip guards.');
 	}
 
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
+	const { waitForMessage, extractSixDigitCode } = emailClient!;
 
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
@@ -170,9 +167,9 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
 	await expect(openMailLink).toBeVisible({ timeout: 20000 });
 
-	// Poll Mailosaur for the verification message. This is the slowest part of
+	// Poll Gmail for the verification message. This is the slowest part of
 	// the flow — budget up to 90s.
-	const confirmEmailMessage = await waitForMailosaurMessage({
+	const confirmEmailMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: emailRequestedAt
 	});
@@ -330,7 +327,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 		const deleteOtpInput = emailOtpSection.locator('input.tfa-input');
 		await expect(deleteOtpInput).toBeVisible({ timeout: 30000 });
 
-		const deleteVerificationMessage = await waitForMailosaurMessage({
+		const deleteVerificationMessage = await waitForMessage({
 			sentTo: signupEmail,
 			receivedAfter: deleteEmailRequestedAt
 		});

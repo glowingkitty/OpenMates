@@ -9,7 +9,7 @@
   import { page } from '$app/state';
   import {
     Header,
-    Notification,
+    NotificationStack,
     Settings,
     TasksPage,
     TaskDetailPage,
@@ -17,7 +17,6 @@
     featureAvailabilityStore,
     initialize,
     initializeFeatureAvailability,
-    notificationStore,
     panelState,
   } from '@repo/ui';
 
@@ -63,11 +62,7 @@
     <p>Please log in to plan private tasks for yourself and your AI mates.</p>
   </main>
 {/if}
-<div class="notification-container">
-  {#each $notificationStore.notifications as notification (notification.id)}
-    <Notification {notification} />
-  {/each}
-</div>
+<NotificationStack />
 
 <style>
   .tasks-route-state {
@@ -131,10 +126,15 @@
       z-index: 20;
     }
 
+    .main-content.menu-closed {
+      inset-inline-start: 0;
+    }
+
     .tasks-container {
-      height: calc(100vh - 75px);
-      height: calc(100dvh - 75px);
+      height: calc(100vh - 66px);
+      height: calc(100dvh - 66px);
       padding-inline-end: 10px;
+      box-sizing: border-box;
     }
   }
 
@@ -148,21 +148,4 @@
     color: var(--color-font-secondary);
   }
 
-  .notification-container {
-    position: fixed;
-    top: 0;
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 10000;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 20px;
-    gap: 10px;
-  }
-
-  .notification-container :global(.notification) {
-    pointer-events: auto;
-  }
 </style>

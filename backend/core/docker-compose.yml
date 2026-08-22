@@ -117,10 +117,11 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "/usr/local/bin/openmates-directus-health"]
+      test: ["CMD", "su-exec", "node:node", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
       timeout: 8s
-      start_period: 60s
+      # cms-setup creates the indexes validated by this health script; cold CI runners can take several minutes.
+      start_period: 10m
       retries: 12
     depends_on:
       cms-database:
@@ -164,6 +165,7 @@ services:
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
+      ENCRYPTED_SLUG_MIGRATION_PATH: "/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
       SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
@@ -172,6 +174,7 @@ services:
       - ./directus/setup/migrate_user_task_indexes.sql:/usr/src/app/migrations/migrate_user_task_indexes.sql:ro
       - ./directus/setup/migrate_usage_overview_indexes.sql:/usr/src/app/migrations/migrate_usage_overview_indexes.sql:ro
       - ./directus/setup/migrate_project_owner_context.sql:/usr/src/app/migrations/migrate_project_owner_context.sql:ro
+      - ./directus/setup/migrate_encrypted_slug_indexes.sql:/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql:ro
       - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
     networks:
       - openmates
@@ -289,7 +292,7 @@ services:
       service: task-worker
     container_name: core-worker
     environment:
-      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,push"
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
       CELERY_METRICS_PORT: "9109"
@@ -302,8 +305,56 @@ services:
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --queues=persistence,health_check,server_stats,demo,e2e_tests,push \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+
+  user-tasks-worker:
+    extends:
+      service: task-worker
+    container_name: user-tasks-worker
+    environment:
+      CELERY_QUEUES: "user_tasks"
+      CELERY_AUTOSCALE_MAX: "${USER_TASKS_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9112"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=user_tasks \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+
+  reminder-worker:
+    extends:
+      service: task-worker
+    container_name: reminder-worker
+    environment:
+      CELERY_QUEUES: "reminder"
+      CELERY_AUTOSCALE_MAX: "${REMINDER_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9111"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=reminder \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1"
@@ -581,6 +632,7 @@ services:
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
     networks:
       - openmates
     depends_on:
@@ -1016,6 +1068,7 @@ services:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
     restart: unless-stopped
+    env_file: ../../.env
     deploy:
       resources:
         limits:
@@ -1024,11 +1077,11 @@ services:
     volumes:
       - ./monitoring/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - |
+        sed "s|\$${SERVER_ENVIRONMENT}|$${SERVER_ENVIRONMENT:-development}|g" /etc/prometheus/prometheus.yml > /tmp/prometheus.runtime.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.runtime.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
     networks:
       - openmates
     healthcheck:
@@ -1057,7 +1110,17 @@ services:
           echo "FATAL: INTERNAL_API_SHARED_TOKEN is empty — alertmanager cannot authenticate to the internal webhook. Set it in .env." >&2
           exit 1
         fi
+        case "$${SERVER_ENVIRONMENT:-development}" in
+          production) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_PRODUCTION:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION:-}}" ;;
+          self_host) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL:-}}}" ;;
+          *) urgent_webhook="$${DISCORD_WEBHOOK_URGENT_DEVELOPMENT:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT:-}}" ;;
+        esac
         sed "s|\$${INTERNAL_API_SHARED_TOKEN}|$$INTERNAL_API_SHARED_TOKEN|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if [ -n "$$urgent_webhook" ]; then
+          sed -i "s|\$${DISCORD_WEBHOOK_URGENT_SCOPED}|$$urgent_webhook|g" /tmp/alertmanager.runtime.yml
+        else
+          sed -i '/URGENT_DISCORD_ROUTE_START/,/URGENT_DISCORD_ROUTE_END/d; /URGENT_DISCORD_RECEIVER_START/,/URGENT_DISCORD_RECEIVER_END/d' /tmp/alertmanager.runtime.yml
+        fi
         if grep -q '\$${' /tmp/alertmanager.runtime.yml; then
           echo "FATAL: unresolved \$${...} placeholder remains in /tmp/alertmanager.runtime.yml after substitution." >&2
           grep -n '\$${' /tmp/alertmanager.runtime.yml >&2
@@ -1086,8 +1149,9 @@ services:
     command:
       - "--housekeeping_interval=30s"
       - "--docker_only=true"
-      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
       - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project"
+      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -1101,6 +1165,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.textfile.directory=/textfile"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/.+)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+      - ${GIT_WORK_DIR:-../..}/.openmates/runtime-health/metrics:/textfile:ro
+    networks:
+      - openmates
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
 
   promtail:
     container_name: promtail

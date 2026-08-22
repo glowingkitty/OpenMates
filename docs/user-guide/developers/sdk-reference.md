@@ -109,7 +109,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.chats.retry()` | `om.chats.retry()` | `id, dry_run, confirmed` | `id, dry_run, confirmed` | `object` |
 | `om.chats.rewind()` | `om.chats.rewind()` | `id, to_message_id, send, dry_run, confirmed` | `id, to_message_id, send, dry_run, confirmed` | `object` |
 | `om.chats.search()` | `om.chats.search()` | `input, limit, offset` | `input, limit, offset` | `list` |
-| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, title, goal, goal_title, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs` | `message, history, save_to_account, focus_mode, memory_ids, model, id, title, goal, goal_title, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
+| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, slug, title, goal, goal_title, team_id, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs, sender_name, team_member_mentions` | `message, history, save_to_account, focus_mode, memory_ids, model, id, slug, title, goal, goal_title, team_id, sender_name, team_member_mentions, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
 | `om.chats.share()` | `om.chats.share()` | `id, expires, password` | `id, expires, password` | `object` |
 
 ## `connected_accounts`
@@ -269,11 +269,11 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | --- | --- | --- | --- | --- |
 | `om.projects.archive()` | `om.projects.archive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.ask()` | `om.projects.ask()` | `instruction, create, update, updates, exact_delete, exact_deletes` | `instruction, create, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.projects.create()` | `om.projects.create()` | `name, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
+| `om.projects.create()` | `om.projects.create()` | `name, slug, description, icon, color, pinned, archived, context` | `input, personal, team_id` | `object` |
 | `om.projects.delete()` | `om.projects.delete()` | `id, confirmed` | `id, confirmed, personal, team_id` | `object` |
-| `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit` | `list` |
+| `om.projects.history()` | `om.projects.history()` | `id, limit` | `id, limit, personal, team_id` | `list` |
 | `om.projects.list()` | `om.projects.list()` | `include_archived` | `personal, team_id, include_archived` | `list` |
-| `om.projects.restore()` | `om.projects.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
+| `om.projects.restore()` | `om.projects.restore()` | `id, entry_id, state` | `id, entry_id, state, personal, team_id` | `object` |
 | `om.projects.show()` | `om.projects.show()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.unarchive()` | `om.projects.unarchive()` | `id, context` | `id, personal, team_id` | `object` |
 | `om.projects.update()` | `om.projects.update()` | `id, input, context` | `id, input, personal, team_id` | `object` |
@@ -303,25 +303,25 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | --- | --- | --- | --- | --- |
 | `om.tasks.addToProject()` | `om.tasks.add_to_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
 | `om.tasks.ask()` | `om.tasks.ask()` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.tasks.block()` | `om.tasks.block()` | `id, reason, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, reason, input` | `object` |
-| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.block()` | `om.tasks.block()` | `id, reason, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, reason, input` | `object` |
+| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
 | `om.tasks.create()` | `om.tasks.create()` | `input` | `input` | `object` |
-| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, project_id, plan_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, project_id, plan_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input, input` | `object` |
-| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
-| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, project_id, plan_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, priority` | `list` |
-| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
+| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, priority, team_id` | `list` |
+| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
-| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.restore()` | `om.tasks.restore()` | `id, entry_id, state, input` | `id, entry_id, state, input` | `object` |
-| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
 
 ## `teams`
 
@@ -334,9 +334,11 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.billing()` | `om.teams.billing()` | `id` | `id` | `object` |
 | `om.teams.create()` | `om.teams.create()` | `input` | `input` | `object` |
 | `om.teams.createBankTransferOrder()` | `om.teams.create_bank_transfer_order()` | `id, credits, email_encryption_key` | `id, credits, email_encryption_key` | `object` |
+| `om.teams.createPlain()` | `om.teams.create_plain()` | `name, description, slug, id, profile, created_at` | `input, id, input` | `object` |
 | `om.teams.declineInvite()` | `om.teams.decline_invite()` | `invite_id, input` | `invite_id, input` | `object` |
 | `om.teams.export()` | `om.teams.export()` | `id, input` | `id, input` | `object` |
 | `om.teams.get()` | `om.teams.get()` | `id` | `id` | `object` |
+| `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | `id` | `id` | `object` |
 | `om.teams.import()` | `om.teams.import_team()` | `input` | `input` | `object` |
 | `om.teams.invite()` | `om.teams.invite()` | `id, input` | `id, input` | `object` |
 | `om.teams.list()` | `om.teams.list()` | `none` | `none` | `list` |
@@ -345,6 +347,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.rejectAccess()` | `om.teams.reject_access()` | `id, access_request_id, input` | `id, access_request_id, input` | `object` |
 | `om.teams.removeMember()` | `om.teams.remove_member()` | `id, member_user_id, input` | `id, member_user_id, input` | `object` |
 | `om.teams.update()` | `om.teams.update()` | `id, input` | `id, input` | `object` |
+| `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |
 
 ## `workflows`
@@ -356,7 +359,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.cancelRun()` | `om.workflows.cancel_run()` | `id, run_id` | `id, run_id` | `object` |
 | `om.workflows.capabilities()` | `om.workflows.capabilities()` | `none` | `none` | `list` |
 | `om.workflows.completeImportedBinding()` | `om.workflows.complete_imported_binding()` | `id, input` | `id, binding_type, node_id` | `object` |
-| `om.workflows.create()` | `om.workflows.create()` | `title, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `title, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `object` |
+| `om.workflows.create()` | `om.workflows.create()` | `title, slug, description, graph, enabled, run_content_retention, lifecycle, source, source_chat_id, created_by_assistant, auto_delete_at` | `title, description, graph, enabled, run_content_retention, lifecycle, source, slug, source_chat_id, created_by_assistant, auto_delete_at` | `object` |
 | `om.workflows.createFromYaml()` | `om.workflows.create_from_yaml()` | `source` | `source` | `object` |
 | `om.workflows.createTemplateShortUrl()` | `om.workflows.create_template_short_url()` | `input` | `token, encrypted_url, template_id, ttl_seconds, password_protected` | `object` |
 | `om.workflows.delete()` | `om.workflows.delete()` | `id, confirmed` | `id, confirmed` | `object` |
@@ -385,7 +388,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.temporary()` | `om.workflows.temporary()` | `none` | `none` | `list` |
 | `om.workflows.undoInput()` | `om.workflows.undo_input()` | `session_id` | `session_id` | `object` |
 | `om.workflows.unrevokeTemplateProjection()` | `om.workflows.unrevoke_template_projection()` | `id` | `id` | `object` |
-| `om.workflows.update()` | `om.workflows.update()` | `id, title, description, graph, enabled, run_content_retention` | `id, title, description, graph, enabled, run_content_retention` | `object` |
+| `om.workflows.update()` | `om.workflows.update()` | `id, title, slug, description, graph, enabled, run_content_retention` | `id, title, description, graph, enabled, run_content_retention, slug` | `object` |
 | `om.workflows.updateFromYaml()` | `om.workflows.update_from_yaml()` | `id, source` | `id, source` | `object` |
 | `om.workflows.upsertTemplateProjection()` | `om.workflows.upsert_template_projection()` | `id, input` | `id, template_id, source_version, ciphertext, ciphertext_checksum, owner_wrapped_key, projection_schema_version` | `object` |
 | `om.workflows.validateYaml()` | `om.workflows.validate_yaml()` | `source` | `source` | `object` |

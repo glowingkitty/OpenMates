@@ -28,6 +28,7 @@ const {
 } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+// contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls,chat-share-settings.shared-link-open
 test('shared recipient starts an isolated application preview session', async ({ browser, page }: { browser: any; page: any }) => {
 	test.slow();
 	test.setTimeout(540_000);
@@ -70,9 +71,12 @@ test('shared recipient starts an isolated application preview session', async ({
 
 	const shortLinkSection = page.getByTestId('share-short-link-section');
 	await expect(shortLinkSection).toBeVisible({ timeout: 10_000 });
-	const shortLinkCopy = page.getByTestId('share-short-link-copy');
-	await expect(shortLinkCopy).toBeVisible({ timeout: 30_000 });
-	const shareUrl = (await shortLinkCopy.getByTestId('share-short-link-url').innerText()).trim();
+	await expect(page.getByTestId('share-short-link-copy')).toHaveCount(0);
+	await page.getByTestId('chat-settings-share-show-url').click();
+	const shareUrlBlock = page.getByTestId('chat-settings-share-url');
+	await expect(shareUrlBlock).toBeVisible({ timeout: 30_000 });
+	await expect(shareUrlBlock).toHaveCSS('user-select', 'text');
+	const shareUrl = (await shareUrlBlock.innerText()).trim();
 	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
 
 	const recipientContext = await browser.newContext();

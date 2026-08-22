@@ -49,7 +49,46 @@ The script reads the TOTP from stdin when no TTY is available (which is the case
 
 **Important:** TOTP codes expire in ~30 seconds. Run the command immediately after the user pastes the code — don't do other work in between.
 
-### 3. Run commands freely
+### 3. Use OpenMates CLI for OpenMates runtime management
+
+For the OpenMates production runtime, SSH is only the transport. The managed
+control plane is the OpenMates CLI. Always use `openmates server ...` commands
+for server lifecycle, runtime config, overlays, verification, backups,
+restores, Caddy integration, monitoring, and updates.
+
+Required examples:
+
+```bash
+./scripts/prod-ssh.sh "openmates server status --path /home/superdev/openmates --json"
+./scripts/prod-ssh.sh "openmates server env set OPENMATES_CLOUD_OVERLAY_PATH --path /home/superdev/openmates --value /home/superdev/OpenMatesCloud --json"
+./scripts/prod-ssh.sh "openmates server start --path /home/superdev/openmates --services api,task-worker,task-scheduler --json"
+./scripts/prod-ssh.sh "openmates server verify --path /home/superdev/openmates --json"
+```
+
+Do not use raw `docker compose`, direct `.env` edits, or direct service restarts
+for OpenMates runtime management unless all of these are true:
+
+- The CLI has no equivalent command after checking `openmates server --help`.
+- You state the missing CLI command and the exact fallback command to the user.
+- The user explicitly approves that fallback for this production operation.
+
+Raw `docker` is acceptable for read-only diagnostics such as `docker ps`,
+`docker inspect`, and `docker logs`, and for non-OpenMates system checks. If a
+diagnostic finds that a mutation is needed, switch back to `openmates server ...`
+before changing production runtime state.
+
+For OpenMatesCloud official-cloud overlay work, clone or update the private
+checkout as needed, but enable and restart the runtime through the CLI by setting
+`OPENMATES_DEPLOYMENT_MODE`, `OPENMATES_CLOUD_OVERLAY_ENABLED`,
+`OPENMATES_CLOUD_OVERLAY_PACKAGE`, and `OPENMATES_CLOUD_OVERLAY_PATH` with
+`openmates server env set`. Regular self-hosting intentionally starts the
+bundled `webapp`; official-cloud mode must stay backend-only because the web app
+is deployed separately. In official-cloud mode the CLI should compose the
+OpenMatesCloud overlay plus `backend/core/docker-compose.no-webapp.yml`; if a
+planned command would start `webapp`, stop and fix the CLI/overlay plan before
+mutating prod.
+
+### 4. Run non-runtime diagnostic commands freely
 
 Once the master is open, Claude can run any remote command with no further prompts:
 
@@ -66,7 +105,7 @@ Check status any time:
 ./scripts/prod-ssh.sh status
 ```
 
-### 4. Close when done
+### 5. Close when done
 
 ```bash
 ./scripts/prod-ssh.sh close

@@ -50,6 +50,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: var(--spacing-8);
         padding: 0.5rem 0;
         border-bottom: 0.0625rem solid var(--color-grey-20);
     }
@@ -63,6 +64,9 @@
     }
 
     .detail-label {
+        flex: 0 1 40%;
+        min-width: 0;
+        overflow-wrap: anywhere;
         font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: var(--font-size-p, 0.875rem);
         color: var(--color-font-secondary);
@@ -70,8 +74,13 @@
 
     .detail-value {
         display: flex;
+        flex: 1 1 60%;
+        min-width: 0;
         align-items: center;
+        justify-content: flex-end;
         gap: 0.375rem;
+        overflow-wrap: anywhere;
+        text-align: right;
         font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: var(--font-size-p, 0.875rem);
         font-weight: 500;

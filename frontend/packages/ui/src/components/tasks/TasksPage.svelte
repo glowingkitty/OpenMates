@@ -75,10 +75,14 @@
   let extractedProposals = $state<UserTaskProposal[]>([]);
   let tasksPageWidth = $state(900);
   let searchTerm = $state('');
+  let showTaskSearch = $state(false);
+  let showDesktopTaskTags = $state(true);
+  let showMobileTaskTags = $state(false);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
   let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
+  let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
@@ -577,60 +581,58 @@
 
   {#if isCentralTasksWorkspace}
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
-      <div class="tasks-shell-frame">
-        <WorkspaceHomeShell
+      <WorkspaceHomeShell
           surface="tasks"
           testId="tasks-workspace-home"
           centerTestId="task-greeting"
+          contentSlotVisible
+          contentSlotTestId="tasks-board-scroll-content"
           heading={`Hey ${greetingName}!`}
           subtitle="What task is next?"
           showReportIssue
           onStartInspiration={handleStartTaskInspiration}
         >
-          <svelte:fragment slot="composer">
-            <WorkspacePromptComposer
-              surface="tasks"
-              bind:value={taskPromptValue}
-              placeholder="Click to add or update tasks"
-              submitLabel="Send"
-              submittingLabel="Saving..."
-              disabled={!tasksEnabled || isSaving}
-              submitting={isSaving}
-              testId="task-workspace-composer"
-              inputTestId="task-workspace-input"
-              submitTestId="task-workspace-submit"
-              micTestId="task-workspace-mic"
-              onSubmit={handleTaskPromptSubmit}
-              onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
-            />
-            {#if pendingTaskDelete}
-              <div class="task-confirmation" data-testid="task-delete-confirmation">
-                <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
-                <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
-                <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
-              </div>
-            {/if}
-          </svelte:fragment>
-        </WorkspaceHomeShell>
-      </div>
-
       <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
         <div class="task-workspace-toolbar">
-          <div class="task-board-summary">
-            <p class="eyebrow">Tasks</p>
-            <h1>Task board</h1>
-            <p>{totalCount} total, {activeCount} active, {doneCount} done</p>
-          </div>
           <div class="task-search-cluster" aria-label="Task search and filters">
-            <label class="task-search-field" for="task-search">
-              <span class="search-icon" aria-hidden="true"></span>
-              <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
-            </label>
-            <div class="task-filter-chips" aria-label="Task filters">
-              {#each taskFilterChips as chip}
-                <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
-              {/each}
+            <div class="task-search-stack">
+              {#if !isNarrowTasksWorkspace}
+                {#if showTaskSearch}
+                  <label class="task-search-field" for="task-search">
+                    <span class="search-icon" aria-hidden="true"></span>
+                    <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
+                  </label>
+                {:else}
+                  <button type="button" class="task-search-link" data-testid="task-search-link" onclick={() => { showTaskSearch = true; }}>Search</button>
+                {/if}
+                {#if showDesktopTaskTags}
+                  <div class="task-filter-chips" data-testid="task-filter-tags" aria-label="Task filters">
+                    {#each taskFilterChips as chip}
+                      <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+                    {/each}
+                  </div>
+                {/if}
+              {/if}
             </div>
+            <button
+              type="button"
+              class="task-filter-button"
+              class:active={isNarrowTasksWorkspace ? showMobileTaskTags : showDesktopTaskTags}
+              data-testid="task-filter-button"
+              aria-label="Toggle task filters"
+              aria-expanded={isNarrowTasksWorkspace ? showMobileTaskTags : showDesktopTaskTags}
+              onclick={() => {
+                if (isNarrowTasksWorkspace) showMobileTaskTags = !showMobileTaskTags;
+                else showDesktopTaskTags = !showDesktopTaskTags;
+              }}
+            ><span aria-hidden="true"></span></button>
+            {#if isNarrowTasksWorkspace && showMobileTaskTags}
+              <div class="task-filter-chips mobile" data-testid="task-filter-tags" aria-label="Task filters">
+                {#each taskFilterChips as chip}
+                  <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+                {/each}
+              </div>
+            {/if}
           </div>
         </div>
 
@@ -659,6 +661,31 @@
           </div>
         {/if}
       </section>
+      <svelte:fragment slot="composer">
+        <WorkspacePromptComposer
+          surface="tasks"
+          bind:value={taskPromptValue}
+          placeholder="Click to add or update tasks"
+          submitLabel="Send"
+          submittingLabel="Saving..."
+          disabled={!tasksEnabled || isSaving}
+          submitting={isSaving}
+          testId="task-workspace-composer"
+          inputTestId="task-workspace-input"
+          submitTestId="task-workspace-submit"
+          micTestId="task-workspace-mic"
+          onSubmit={handleTaskPromptSubmit}
+          onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
+        />
+        {#if pendingTaskDelete}
+          <div class="task-confirmation" data-testid="task-delete-confirmation">
+            <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
+            <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
+            <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
+          </div>
+        {/if}
+      </svelte:fragment>
+      </WorkspaceHomeShell>
     </section>
   {:else}
   {#if plansEnabled}
@@ -827,14 +854,21 @@
     color: var(--color-font-primary);
   }
 
+  .tasks-page > .tasks-figma-workspace,
+  .tasks-page > .tasks-figma-workspace :global(.workspace-home-shell) {
+    flex: 1;
+    min-height: 0;
+  }
+
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
   }
 
   .tasks-page.figma-layout {
-    background: var(--color-grey-0);
-    padding: clamp(12px, 2.6vw, 30px);
+    background: var(--color-grey-20);
+    overflow: hidden;
+    padding: 0;
   }
 
   .tasks-hero,
@@ -868,39 +902,15 @@
   .tasks-figma-workspace {
     position: relative;
     display: flex;
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     min-width: 0;
     flex-direction: column;
     gap: 18px;
-    overflow: auto;
-    border-radius: 28px;
-    border: 1px solid var(--color-grey-20);
-    background: var(--color-grey-0);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
-    padding: clamp(12px, 2.4vw, 28px);
-  }
-
-  .tasks-shell-frame {
-    min-height: clamp(330px, 42vh, 470px);
-    flex-shrink: 0;
-    position: relative;
     overflow: hidden;
     border-radius: 17px;
-    background: var(--color-grey-0);
-  }
-
-  .tasks-shell-frame :global(.daily-inspiration-banner) {
-    --daily-inspiration-regular-height: clamp(112px, 14vh, 135px);
-    min-height: 0;
-  }
-
-  .tasks-shell-frame :global(.workspace-center-content.center-content) {
-    top: calc(50% + 8vh);
-  }
-
-  .tasks-shell-frame :global(.workspace-composer-slot) {
-    bottom: 10px;
-    z-index: var(--z-index-dropdown);
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
 
   .task-board-panel {
@@ -908,7 +918,7 @@
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--spacing-8);
   }
 
   .task-workspace-toolbar {
@@ -916,32 +926,36 @@
     z-index: 2;
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 18px;
-  }
-
-  .task-board-summary h1,
-  .task-board-summary p {
-    margin: 0;
-  }
-
-  .task-board-summary h1 {
-    font-size: clamp(1.5rem, 3vw, 2.2rem);
-    letter-spacing: -0.04em;
-  }
-
-  .task-board-summary p:not(.eyebrow) {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
   }
 
   .task-search-cluster {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
-    gap: 8px;
-    min-width: min(100%, 620px);
+    gap: 12px;
+  }
+
+  .task-search-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .task-search-link {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: var(--color-font-secondary);
+    font: inherit;
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    box-shadow: none;
   }
 
   .task-search-field {
@@ -1015,6 +1029,33 @@
     background: var(--color-button-primary);
   }
 
+  .task-filter-button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: 0;
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  .task-filter-button span {
+    width: 20px;
+    height: 20px;
+    background: var(--color-font-primary);
+    -webkit-mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
+  }
+
+  .task-filter-button.active {
+    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-grey-10));
+  }
+
   .task-board-stage {
     position: relative;
     z-index: 1;
@@ -1026,7 +1067,7 @@
     gap: 14px;
     width: 100%;
     min-width: 0;
-    max-height: min(62vh, 720px);
+    max-height: none;
     overflow: auto;
     padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
@@ -1378,27 +1419,29 @@
 
     .tasks-figma-workspace {
       min-height: 0;
-      padding: 18px;
     }
 
     .task-workspace-toolbar {
-      flex-direction: column;
+      align-items: flex-start;
     }
 
     .task-search-cluster {
-      align-items: center;
-      justify-content: flex-start;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       width: 100%;
       min-width: 0;
     }
 
-    .task-filter-chips {
-      justify-content: flex-start;
+    .task-search-stack {
+      display: none;
+    }
+
+    .task-filter-chips.mobile {
+      width: 100%;
     }
 
     .task-board-stage :global(.task-board) {
       grid-template-columns: repeat(5, minmax(252px, 270px));
-      max-height: 58vh;
     }
 
     .task-board-stage :global(.task-column) {

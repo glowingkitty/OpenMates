@@ -1,0 +1,19 @@
+# Privacy-safe aggregate events needed after source records are deleted.
+#
+# Rows contain no user, chat, message, payment, ciphertext, or provider identity.
+operational_monitoring_events:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    event_type:
+      type: string
+      length: 64
+      required: true
+    count:
+      type: integer
+      required: true
+    occurred_at:
+      type: datetime
+      required: true

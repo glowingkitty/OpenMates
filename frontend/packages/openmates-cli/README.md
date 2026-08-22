@@ -195,6 +195,18 @@ openmates server install --path /opt/openmates
 openmates server start --path /opt/openmates
 ```
 
+Contributors and backend-only official servers can adopt an existing checkout
+without cloning or changing its Git state:
+
+```bash
+openmates server register --path /path/to/OpenMates
+openmates server register --path /path/to/OpenMates --official-cloud --with-overrides --exclude webapp
+```
+
+Registered working-tree servers build the current checkout and persist their
+service selection. Official-cloud registrations omit the bundled web app;
+regular self-host installs continue to include it.
+
 Default installs use prebuilt GHCR images and do not require Git, a source
 checkout, or cloud-only deployment flags. The installer writes a runtime
 directory, creates `.env`, generates local secrets, saves the self-host API
@@ -315,12 +327,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.15`, in the web app.
+OpenMates shows the short product line, for example `v0.16`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.15.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.16.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.15.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.16.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

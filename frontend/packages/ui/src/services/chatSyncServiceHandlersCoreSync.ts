@@ -19,6 +19,8 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
+import { unwrapTeamChatKey } from "./teamService";
+import { isActiveTeamContext } from "../stores/teamStore";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
   InitialSyncResponsePayload,
@@ -411,8 +413,25 @@ export async function handlePhase1LastChatImpl(
     const buildChat = async (
       details: Partial<Chat> & { id: string },
     ): Promise<Chat | null> => {
+      details.team_id = payload.team_id ?? null;
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
+        return null;
+      }
       const existingChat = await chatDB.getChat(details.id);
       if (!hasUsableChatKey(details, existingChat, details.id)) {
+        return null;
+      }
+      if (details.team_id && details.encrypted_chat_key) {
+        const chatKey = await unwrapTeamChatKey(
+          details.team_id,
+          details.encrypted_chat_key,
+        );
+        if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
+          return null;
+        }
+        chatKeyManager.injectKey(details.id, chatKey, "server_sync");
+      }
+      if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
         return null;
       }
       const keyMismatch = await hasEncryptedChatKeyMismatch(details, existingChat);

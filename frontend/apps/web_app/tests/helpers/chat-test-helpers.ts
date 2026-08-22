@@ -29,12 +29,23 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
 const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
 const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
+const CHAT_PREFLIGHT_ACK_TIMEOUT_MS = 60_000;
+const SEND_ACCEPTED_TIMEOUT_MS = CHAT_PREFLIGHT_ACK_TIMEOUT_MS + 15_000;
 
 type LoginResponseDiagnostic = {
 	status: number;
 	ok: boolean;
 	method: string;
 	path: string;
+	success?: boolean;
+	tfaRequired?: boolean;
+	message?: string;
+	bodyText?: string;
+};
+
+type LoginRejectedSignal = {
+	type: 'login-rejected';
+	diagnostic: LoginResponseDiagnostic;
 };
 
 type LastSendState = {
@@ -43,7 +54,37 @@ type LastSendState = {
 	assistantLastText: string;
 };
 
+type TestStateDeclaration = {
+	auth: string;
+	browserStorage: 'fresh';
+	account: string;
+	chat: string;
+	notifications: string;
+	securityReminders: string;
+};
+
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
+
+export function declareTestState(declaration: TestStateDeclaration): Readonly<TestStateDeclaration> {
+	for (const [field, value] of Object.entries(declaration)) {
+		if (!value) throw new Error(`Test state declaration requires ${field}`);
+	}
+	return Object.freeze({ ...declaration });
+}
+
+export async function createIsolatedBrowserContext(
+	browser: any,
+	declaration: Readonly<TestStateDeclaration>,
+	options: Record<string, unknown> = {}
+): Promise<any> {
+	if (declaration.browserStorage !== 'fresh') {
+		throw new Error('Isolated browser contexts require fresh browser storage');
+	}
+	return browser.newContext({
+		...options,
+		storageState: { cookies: [], origins: [] }
+	});
+}
 
 async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
@@ -160,10 +201,11 @@ async function waitForUserMessageAcceptedByServer(
 					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
 					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
 				},
-				{ timeout: 45_000 }
+				{ timeout: SEND_ACCEPTED_TIMEOUT_MS }
 			)
 			.toBeTruthy();
 	} catch (error) {
+		const lastSendDebug = await page.evaluate(() => (window as any).__lastSendDebug ?? null).catch(() => null);
 		const diagnostics = await page.evaluate(() => {
 			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
 			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
@@ -174,7 +216,7 @@ async function waitForUserMessageAcceptedByServer(
 				lastUserText: lastUser?.innerText ?? null
 			};
 		});
-		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify(diagnostics)}`);
+		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify({ diagnostics, lastSendDebug })}`);
 		throw error;
 	}
 }
@@ -211,6 +253,67 @@ async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 2000
 		.catch(() => false);
 
 	return Promise.race([authDom, editorVisible]);
+}
+
+async function readLoginResponseDiagnostic(response: any): Promise<LoginResponseDiagnostic> {
+	const request = response.request();
+	const url = new URL(response.url());
+	const diagnostic: LoginResponseDiagnostic = {
+		status: response.status(),
+		ok: response.ok(),
+		method: request.method(),
+		path: url.pathname
+	};
+
+	try {
+		const data = await response.json();
+		if (typeof data?.success === 'boolean') diagnostic.success = data.success;
+		if (typeof data?.tfa_required === 'boolean') diagnostic.tfaRequired = data.tfa_required;
+		if (typeof data?.message === 'string') diagnostic.message = data.message;
+	} catch {
+		try {
+			diagnostic.bodyText = (await response.text()).slice(0, 300);
+		} catch {
+			// Ignore unreadable bodies; status and path still identify the failed request.
+		}
+	}
+
+	return diagnostic;
+}
+
+function isRejectedLoginDiagnostic(diagnostic: LoginResponseDiagnostic): boolean {
+	return !diagnostic.ok || diagnostic.success === false;
+}
+
+function isLoginRejectedSignal(signal: unknown): signal is LoginRejectedSignal {
+	return Boolean(signal && typeof signal === 'object' && (signal as LoginRejectedSignal).type === 'login-rejected');
+}
+
+async function waitForRejectedLoginResponse(
+	page: any,
+	options: { ignoreStatuses?: number[] } = {}
+): Promise<LoginRejectedSignal | null> {
+	const response = await page.waitForResponse(
+		async (candidate: any) => {
+			try {
+				const request = candidate.request();
+				const url = new URL(candidate.url());
+				if (request.method() !== 'POST' || !url.pathname.endsWith('/v1/auth/login')) return false;
+				const diagnostic = await readLoginResponseDiagnostic(candidate);
+				if (options.ignoreStatuses?.includes(diagnostic.status)) return false;
+				return isRejectedLoginDiagnostic(diagnostic);
+			} catch {
+				return false;
+			}
+		},
+		{ timeout: PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS }
+	).catch(() => null);
+
+	if (!response) return null;
+	return {
+		type: 'login-rejected',
+		diagnostic: await readLoginResponseDiagnostic(response)
+	};
 }
 
 async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promise<boolean> {
@@ -263,12 +366,14 @@ async function waitForOtpOrAuthenticated(
 	otpInput: any,
 	authSignal: any,
 	timeout = PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS,
-	loginRateLimited?: Promise<'rate-limited'>
-): Promise<'otp' | 'auth' | 'rate-limited' | null> {
+	loginRateLimited?: Promise<'rate-limited'>,
+	loginRejected?: Promise<LoginRejectedSignal | null>
+): Promise<'otp' | 'auth' | 'rate-limited' | LoginRejectedSignal | null> {
 	return Promise.race([
 		otpInput.waitFor({ state: 'visible', timeout }).then(() => 'otp' as const).catch(() => null),
 		authSignal.waitFor({ state: 'visible', timeout }).then(() => 'auth' as const).catch(() => null),
 		...(loginRateLimited ? [loginRateLimited] : []),
+		...(loginRejected ? [loginRejected] : []),
 		page.waitForTimeout(timeout).then(() => null)
 	]);
 }
@@ -277,17 +382,12 @@ function captureLoginResponseDiagnostics(
 	page: any,
 	loginResponses: LoginResponseDiagnostic[]
 ): () => void {
-	const onResponse = (response: any) => {
+	const onResponse = async (response: any) => {
 		try {
 			const request = response.request();
 			const url = new URL(response.url());
 			if (request.method() !== 'POST' || !url.pathname.endsWith('/v1/auth/login')) return;
-			loginResponses.push({
-				status: response.status(),
-				ok: response.ok(),
-				method: request.method(),
-				path: url.pathname
-			});
+			loginResponses.push(await readLoginResponseDiagnostic(response));
 			if (loginResponses.length > 5) loginResponses.shift();
 		} catch {
 			// Ignore malformed diagnostic events; the login flow itself owns failures.
@@ -520,6 +620,7 @@ async function loginToTestAccount(
 	const loginResponses: LoginResponseDiagnostic[] = [];
 	const stopCapturingLoginResponses = captureLoginResponseDiagnostics(page, loginResponses);
 	try {
+		const loginRejected = waitForRejectedLoginResponse(page, { ignoreStatuses: [429] });
 		await submitLoginButton.click();
 		logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
 
@@ -533,7 +634,22 @@ async function loginToTestAccount(
 		// Race: either OTP field appears (2FA required) or login succeeds immediately
 		// (2FA not configured for this account). Some test accounts may have lost their
 		// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
-		const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal, PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS, loginRateLimited);
+		const otpOrAuth = await waitForOtpOrAuthenticated(
+			page,
+			otpInput,
+			authSignal,
+			PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS,
+			loginRateLimited,
+			loginRejected
+		);
+		if (isLoginRejectedSignal(otpOrAuth)) {
+			const diagnostics = await getLoginSubmitDiagnostics(page, [
+				...loginResponses,
+				otpOrAuth.diagnostic
+			]);
+			logCheckpoint('Password login rejected by backend.', diagnostics);
+			throw new Error(`Password login rejected by /v1/auth/login: ${JSON.stringify(otpOrAuth.diagnostic)}`);
+		}
 		if (otpOrAuth === 'rate-limited') {
 			const retryCount = options.rateLimitRetryCount ?? 0;
 			if (retryCount >= MAX_LOGIN_RATE_LIMIT_RETRIES) {
@@ -662,13 +778,29 @@ async function submitPasswordAndHandleOtp(
 	try {
 		const submitBtn = page.getByTestId('login-submit-button');
 		await expect(submitBtn).toBeVisible();
+		const loginRejected = waitForRejectedLoginResponse(page);
 		await submitBtn.click();
 		log('Submitted password — waiting for 2FA prompt or direct login.');
 
 		const authSignal = page.locator('[data-authenticated="true"]');
 		const otpInput = page.getByTestId('login-otp-input');
 
-		const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
+		const otpOrAuth = await waitForOtpOrAuthenticated(
+			page,
+			otpInput,
+			authSignal,
+			PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS,
+			undefined,
+			loginRejected
+		);
+		if (isLoginRejectedSignal(otpOrAuth)) {
+			const diagnostics = await getLoginSubmitDiagnostics(page, [
+				...loginResponses,
+				otpOrAuth.diagnostic
+			]);
+			log(`Password login rejected by backend; diagnostics=${JSON.stringify(diagnostics)}`);
+			throw new Error(`Password login rejected by /v1/auth/login: ${JSON.stringify(otpOrAuth.diagnostic)}`);
+		}
 		if (!otpOrAuth) {
 			const diagnostics = await getLoginSubmitDiagnostics(page, loginResponses);
 			log(
@@ -1290,6 +1422,18 @@ async function waitForChatReady(
 	logCheckpoint('Chat UI ready: authenticated + editor + hash router + transport ready.', lastConnectionState ?? undefined);
 }
 
+async function dismissSecurityReminderIfPresent(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
+): Promise<void> {
+	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
+	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
+
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	await expect(reminder).not.toBeVisible({ timeout: 10000 });
+	logCheckpoint('Dismissed security reminder.');
+}
+
 /**
  * Robust wait for an assistant message. Replaces the fragile pattern
  *   `await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 45000 })`
@@ -1449,6 +1593,8 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 }
 
 module.exports = {
+	declareTestState,
+	createIsolatedBrowserContext,
 	fillMessageEditor,
 	focusMessageEditor,
 	loginToTestAccount,
@@ -1460,5 +1606,6 @@ module.exports = {
 	deleteActiveChat,
 	waitForAssistantResponse,
 	waitForChatReady,
+	dismissSecurityReminderIfPresent,
 	waitForAssistantMessage
 };

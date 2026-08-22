@@ -1,0 +1,983 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-20'
+generated_at: '2026-08-21T00:20:03+00:00'
+range:
+  since: '2026-08-20T00:00:00+00:00'
+  until: '2026-08-21T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 18
+  section_counts:
+    features: 0
+    bug_fixes: 10
+    improvements: 0
+    docs: 0
+    tests: 8
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 8
+  dev_only_items: 18
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: clean up failed passkey sessions'
+    section: bug_fixes
+    commits:
+    - 6250a6877
+    authored_at: '2026-08-20T13:18:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat loading state below header'
+    section: bug_fixes
+    commits:
+    - a4d9d9cbc
+    authored_at: '2026-08-20T13:11:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear late passkey sessions on cancellation'
+    section: bug_fixes
+    commits:
+    - 9d860aa73
+    authored_at: '2026-08-20T13:01:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: abort full passkey login before switching'
+    section: bug_fixes
+    commits:
+    - 56fbec429
+    authored_at: '2026-08-20T12:32:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep active settings controls clickable'
+    section: bug_fixes
+    commits:
+    - 8491cea48
+    authored_at: '2026-08-20T12:11:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist encrypted Team CLI attachments'
+    section: bug_fixes
+    commits:
+    - 21337021d
+    authored_at: '2026-08-20T11:43:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_teams_chat_ai.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep login alternatives available during passkey'
+    section: bug_fixes
+    commits:
+    - a0c6999b5
+    authored_at: '2026-08-20T11:30:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix persistence queue backlog regression
+    section: bug_fixes
+    commits:
+    - 54b315176
+    authored_at: '2026-08-20T11:08:22+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_reminder_mixin.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_pending_embed_cache.py
+    - backend/tests/test_persistence_tasks.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: send encrypted Team CLI turns'
+    section: bug_fixes
+    commits:
+    - 1e256a694
+    authored_at: '2026-08-20T10:54:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_teams_chat_ai.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - scripts/verify_teams_sdk_billing.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore half-bound OpenCode sessions'
+    section: bug_fixes
+    commits:
+    - 43526df12
+    authored_at: '2026-08-20T09:58:06+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: guard progressive loading layout'
+    section: tests
+    commits:
+    - fb4acba7f
+    authored_at: '2026-08-20T12:51:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture passkey alternatives responsively'
+    section: tests
+    commits:
+    - 3a8becf98
+    authored_at: '2026-08-20T11:54:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: combine progressive chat proof flow'
+    section: tests
+    commits:
+    - 036a9dc3d
+    authored_at: '2026-08-20T11:27:41+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enter login before passkey assertion'
+    section: tests
+    commits:
+    - 07c7fe2f3
+    authored_at: '2026-08-20T11:11:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat settings campaign group'
+    section: tests
+    commits:
+    - 1f4deb275
+    authored_at: '2026-08-20T10:43:07+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate passkey login alternatives'
+    section: tests
+    commits:
+    - e955494e4
+    authored_at: '2026-08-20T10:35:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover passkey login alternatives'
+    section: tests
+    commits:
+    - 4f9e260c4
+    authored_at: '2026-08-20T09:55:06+00:00'
+    changed_paths:
+    - contracts/features/auth/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize fork notification flow'
+    section: tests
+    commits:
+    - 0ebc4c8be
+    authored_at: '2026-08-20T09:33:56+00:00'
+    changed_paths:
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: clean up failed passkey sessions'
+    commits:
+    - 6250a6877
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep chat loading state below header'
+    commits:
+    - a4d9d9cbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clear late passkey sessions on cancellation'
+    commits:
+    - 9d860aa73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: guard progressive loading layout'
+    commits:
+    - fb4acba7f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: abort full passkey login before switching'
+    commits:
+    - 56fbec429
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep active settings controls clickable'
+    commits:
+    - 8491cea48
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: capture passkey alternatives responsively'
+    commits:
+    - 3a8becf98
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist encrypted Team CLI attachments'
+    commits:
+    - 21337021d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep login alternatives available during passkey'
+    commits:
+    - a0c6999b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: combine progressive chat proof flow'
+    commits:
+    - 036a9dc3d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: enter login before passkey assertion'
+    commits:
+    - 07c7fe2f3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix persistence queue backlog regression
+    commits:
+    - 54b315176
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: send encrypted Team CLI turns'
+    commits:
+    - 1e256a694
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize chat settings campaign group'
+    commits:
+    - 1f4deb275
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate passkey login alternatives'
+    commits:
+    - e955494e4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore half-bound OpenCode sessions'
+    commits:
+    - 43526df12
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover passkey login alternatives'
+    commits:
+    - 4f9e260c4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize fork notification flow'
+    commits:
+    - 0ebc4c8be
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: clean up failed passkey sessions'
+    commits:
+    - 6250a6877
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep chat loading state below header'
+    commits:
+    - a4d9d9cbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clear late passkey sessions on cancellation'
+    commits:
+    - 9d860aa73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: abort full passkey login before switching'
+    commits:
+    - 56fbec429
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep active settings controls clickable'
+    commits:
+    - 8491cea48
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist encrypted Team CLI attachments'
+    commits:
+    - 21337021d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep login alternatives available during passkey'
+    commits:
+    - a0c6999b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: send encrypted Team CLI turns'
+    commits:
+    - 1e256a694
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6250a6877e10787f4ca59e110430e7d4b1c88563
+    short_sha: 6250a6877
+    authored_at: '2026-08-20T13:18:48+00:00'
+    subject: 'fix: clean up failed passkey sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    related_feature_ids: []
+  - sha: a4d9d9cbc63443702e92cf1c96fc4bda10c27bc8
+    short_sha: a4d9d9cbc
+    authored_at: '2026-08-20T13:11:22+00:00'
+    subject: 'fix: keep chat loading state below header'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9d860aa7310c4a3b50937ef7b47dac1bf1ad5fe0
+    short_sha: 9d860aa73
+    authored_at: '2026-08-20T13:01:30+00:00'
+    subject: 'fix: clear late passkey sessions on cancellation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    related_feature_ids: []
+  - sha: fb4acba7ff0fc65e5178b7cb876e53e8f0c3bb8a
+    short_sha: fb4acba7f
+    authored_at: '2026-08-20T12:51:40+00:00'
+    subject: 'test: guard progressive loading layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 56fbec429d442ab51c6b00ba60dc8b61a6ee6144
+    short_sha: 56fbec429
+    authored_at: '2026-08-20T12:32:23+00:00'
+    subject: 'fix: abort full passkey login before switching'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    related_feature_ids: []
+  - sha: 8491cea48358673678c0fbb79e2548b015e8e31a
+    short_sha: 8491cea48
+    authored_at: '2026-08-20T12:11:45+00:00'
+    subject: 'fix: keep active settings controls clickable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 3a8becf98acc0ecc573909b9f3cedb7dcfd4918a
+    short_sha: 3a8becf98
+    authored_at: '2026-08-20T11:54:32+00:00'
+    subject: 'test: capture passkey alternatives responsively'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    related_feature_ids: []
+  - sha: 21337021d44fe2ef2374cd1028d80759a6b6a89b
+    short_sha: 21337021d
+    authored_at: '2026-08-20T11:43:34+00:00'
+    subject: 'fix: persist encrypted Team CLI attachments'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_teams_chat_ai.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: a0c6999b508e8903e5437515e823e8ad263d6656
+    short_sha: a0c6999b5
+    authored_at: '2026-08-20T11:30:50+00:00'
+    subject: 'fix: keep login alternatives available during passkey'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    related_feature_ids: []
+  - sha: 036a9dc3de0d19a3f7464945c75977762655bc54
+    short_sha: 036a9dc3d
+    authored_at: '2026-08-20T11:27:41+00:00'
+    subject: 'test: combine progressive chat proof flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 07c7fe2f37e9667432f536d6d806679191894d28
+    short_sha: 07c7fe2f3
+    authored_at: '2026-08-20T11:11:29+00:00'
+    subject: 'test: enter login before passkey assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    related_feature_ids: []
+  - sha: 54b31517691da8b36e111a4fa1bf35705c592f5a
+    short_sha: 54b315176
+    authored_at: '2026-08-20T11:08:22+00:00'
+    subject: Fix persistence queue backlog regression
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_reminder_mixin.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_pending_embed_cache.py
+    - backend/tests/test_persistence_tasks.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1e256a694b8cec6d61d039fe20f63e650c19dd51
+    short_sha: 1e256a694
+    authored_at: '2026-08-20T10:54:43+00:00'
+    subject: 'fix: send encrypted Team CLI turns'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_teams_chat_ai.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - scripts/verify_teams_sdk_billing.py
+    related_feature_ids: []
+  - sha: 1f4deb275a87b2874db39c0a58527ba7c0773654
+    short_sha: 1f4deb275
+    authored_at: '2026-08-20T10:43:07+00:00'
+    subject: 'test: stabilize chat settings campaign group'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    related_feature_ids: []
+  - sha: e955494e441a8d8bb6ee443c65ee15d9f2dd0eba
+    short_sha: e955494e4
+    authored_at: '2026-08-20T10:35:40+00:00'
+    subject: 'test: isolate passkey login alternatives'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 43526df127d8ca0ba8327de10b676d47f01f36f1
+    short_sha: 43526df12
+    authored_at: '2026-08-20T09:58:06+00:00'
+    subject: 'fix: restore half-bound OpenCode sessions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 4f9e260c4579bdc0c4857307d5fb4cc0f43abca0
+    short_sha: 4f9e260c4
+    authored_at: '2026-08-20T09:55:06+00:00'
+    subject: 'test: cover passkey login alternatives'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/auth/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 0ebc4c8be05ba90707f777a9758a6fd0604c224d
+    short_sha: 0ebc4c8be
+    authored_at: '2026-08-20T09:33:56+00:00'
+    subject: 'test: stabilize fork notification flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the authentication experience and improving the Team CLI interface. Key updates
+    include several fixes for passkey login sessions and UI adjustments to the chat interface, alongside backend persistence
+    improvements. All changes are currently in development.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The passkey login flow is being refined to better handle session cleanup, cancellations, and the availability of
+      alternative login methods.
+    evidence:
+      commits:
+      - 6250a6877
+      - 9d860aa73
+      - 56fbec429
+      - a0c6999b5
+    release_status: dev_only
+  - text: The chat interface is receiving updates to ensure loading states remain correctly positioned and settings controls
+      remain clickable during active sessions.
+    evidence:
+      commits:
+      - a4d9d9cbc
+      - 8491cea48
+    release_status: dev_only
+  - text: Work is progressing on the Team CLI to support encrypted message turns and persistent attachments.
+    evidence:
+      commits:
+      - 21337021d
+      - 1e256a694
+    release_status: dev_only
+  internal_progress:
+  - text: Internal backend work addressed a persistence queue backlog regression and restored half-bound OpenCode sessions.
+    evidence:
+      commits:
+      - 54b315176
+      - 43526df12
+    release_status: dev_only
+  - text: Testing coverage was expanded for passkey login alternatives, chat settings stability, and conversation fork notification
+      flows.
+    evidence:
+      commits:
+      - fb4acba7f
+      - 3a8becf98
+      - 036a9dc3d
+      - 07c7fe2f3
+      - 1f4deb275
+      - e955494e4
+      - 4f9e260c4
+      - 0ebc4c8be
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Passkey login flow refinements.
+      evidence:
+        commits:
+        - 6250a6877
+        - 9d860aa73
+        - 56fbec429
+        - a0c6999b5
+      reason: Authentication improvements are currently in development and not yet released to the main branch.
+    - text: Team CLI encryption and persistence updates.
+      evidence:
+        commits:
+        - 21337021d
+        - 1e256a694
+      reason: Teams functionality is currently a disabled feature and these updates are dev-only.
+    rationale: All updates from this period are currently in development (dev_only) and have not been merged into the main
+      release branch. Additionally, work related to Teams is currently disabled.
+  social_video_recommendations: []
+  quality_notes:
+  - Significant focus on the reliability of the passkey authentication flow, specifically handling session cancellations and
+    transitions.
+  - Security-focused updates for the Team CLI ensure encrypted turns and attachments are correctly persisted.
+  validation_warnings: []

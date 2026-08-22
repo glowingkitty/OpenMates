@@ -9,7 +9,7 @@
     import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, onMount, tick } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -25,7 +25,6 @@
         isGuestEnabled = $bindable(false),
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
-        sliderElement = null,
         isMenuVisible = false,
         paymentEnabled = true,
         isSelfHosted = false,
@@ -49,7 +48,6 @@
         isGuestEnabled?: boolean;
         isOfflineEnabled?: boolean;
         menuItemsCount?: number;
-        sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
         isSelfHosted?: boolean;
@@ -138,19 +136,14 @@
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
-    /**
-     * Simple slide-in transition for settings views.
-     * Only the incoming view is animated - the old view is immediately hidden.
-     * This avoids all visual glitches from overlapping views.
-     */
-    function slideIn(node: Element, { dir }: { dir: string }) {
+    /** Fade in the incoming view without moving content outside the settings panel. */
+    function fadeIn(_node: Element, _params: { dir: string }) {
         const duration = 200; // Fast, snappy animation
-        const x = dir === 'forward' ? 250 : -250;
-        
+
         return {
             duration,
             easing: cubicOut,
-            css: (t: number) => `transform: translateX(${(1 - t) * x}px);`
+            css: (t: number) => `opacity: ${t};`
         };
     }
 
@@ -167,6 +160,7 @@
     const SETTINGS_VIEW_ICON_OVERRIDES: Record<string, string> = {
         'learning-mode/setup': 'study',
         'projects': 'project',
+        'teams': 'team',
     };
 
     function showSettingsView(viewName, event) {
@@ -197,8 +191,13 @@
     }
 
     function isSettingsViewFeatureEnabled(key: string): boolean {
-        if (key !== 'projects') return true;
-        return disabledFeatures !== null && disabledFeatures['platform:projects'] !== true;
+        if (key === 'projects') {
+            return disabledFeatures !== null && disabledFeatures['platform:projects'] !== true;
+        }
+        if (key === 'teams') {
+            return disabledFeatures !== null && disabledFeatures['platform:teams'] !== true;
+        }
+        return true;
     }
 
     function isVisibleTopLevelView(key: string): boolean {
@@ -212,102 +211,19 @@
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
     let isAdminUser = $derived($userProfile.is_admin === true);
-    
-    /**
-     * Track measured content height for submenu views.
-     * This is updated by a ResizeObserver that watches the active content element.
-     */
-    let measuredContentHeight = $state<number | null>(null);
-    
-    /**
-     * Measure the active content height using ResizeObserver.
-     * This ensures the slider adapts to the actual content height for all submenu views.
-     */
-    $effect(() => {
-        if (!sliderElement || activeSettingsView === 'main') {
-            measuredContentHeight = null;
-            return;
-        }
 
-        let resizeObserver: ResizeObserver | null = null;
-        let isActive = true; // Track if this effect instance is still active
-        // Capture element ref before async boundary — during page teardown,
-        // the bind:this prop may become null before the tick() microtask resolves.
-        const slider = sliderElement;
-
-        // Wait for DOM to update
-        tick().then(() => {
-            // Check if effect is still active (not cleaned up)
-            if (!isActive || !slider?.isConnected) {
-                return;
-            }
-
-            const activeContent = slider.querySelector('.settings-items.active, .settings-submenu-content.active');
-            if (!activeContent) {
-                measuredContentHeight = null;
-                return;
-            }
-            
-            // Measure initial height
-            measuredContentHeight = activeContent.scrollHeight;
-            
-            // Use ResizeObserver to track height changes
-            resizeObserver = new ResizeObserver((entries) => {
-                // Only update if this effect instance is still active
-                if (isActive) {
-                    for (const entry of entries) {
-                        measuredContentHeight = entry.target.scrollHeight;
-                    }
-                }
-            });
-            
-            resizeObserver.observe(activeContent);
-        });
-        
-        // Cleanup on unmount or view change
-        return () => {
-            isActive = false; // Mark as inactive
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        };
-    });
-    
-    /**
-     * Calculate min-height for settings-content-slider based on active view.
-     * 
-     * **Main menu**: Uses calculated height based on menu items count.
-     * **Submenu views**: Uses measured content height to adapt to actual content
-     * (e.g., Apps, interface, language settings).
-     * 
-     * **Why measure content height?**
-     * Submenu content is absolutely positioned for slide animations, so it doesn't
-     * contribute to the parent's height. By measuring the actual content height,
-     * we ensure the slider is exactly tall enough without creating excessive gaps.
-     * 
-     * This prevents content cutoff and excessive spacing when viewing submenus.
-     */
-    let sliderMinHeight = $derived.by(() => {
-        // For main menu, use calculated height based on menu items
-        if (activeSettingsView === 'main') {
-            return `${menuItemsCount * 50 + 140}px`;
-        }
-        // For submenu views, use measured content height if available
-        // Fallback to a reasonable default if measurement hasn't completed yet
-        if (measuredContentHeight !== null && measuredContentHeight > 0) {
-            return `${measuredContentHeight}px`;
-        }
-        // Temporary fallback while measuring (prevents layout shift)
-        return '500px';
-    });
 </script>
 
-<div class="settings-content-slider" style="min-height: {sliderMinHeight};" bind:this={sliderElement}>
+<div
+    class="settings-content-slider"
+    data-testid="settings-content-slider"
+>
 	<!-- Main settings menu - shown only when active -->
 	{#if activeSettingsView === 'main'}
         <div 
             class="settings-items active"
-            in:slideIn={{ dir: direction }}
+            data-testid="settings-page-content"
+            in:fadeIn={{ dir: direction }}
         >
             <!-- Profile header: docked avatar + username + credits.
                  Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
@@ -443,8 +359,9 @@
             {#each Object.entries(settingsViews).filter(([key]) => isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem
                     type="submenu"
-                    icon={key === 'logs' ? 'server' : key}
+                    icon={SETTINGS_VIEW_ICON_OVERRIDES[key] ?? (key === 'logs' ? 'server' : key)}
                     title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
+                    data-testid={key === 'teams' ? 'settings-teams-item' : undefined}
                     onClick={() => showSettingsView(key, null)}
                 />
             {/each}
@@ -467,7 +384,8 @@
         {#if activeSettingsView === key && isSettingsViewFeatureEnabled(key)}
             <div 
                 class="settings-submenu-content active"
-                in:slideIn={{ dir: direction }}
+                data-testid="settings-page-content"
+                in:fadeIn={{ dir: direction }}
             >
                 <Component 
                     activeSettingsView={key}
@@ -605,30 +523,14 @@
     }
 
     .settings-content-slider {
-        position: relative;
         width: 100%;
-        overflow: hidden;
-        padding-top: var(--spacing-0); /* Removed padding to eliminate top gap */
-        /* min-height now set dynamically via style attribute based on content height */
+        padding-top: var(--spacing-0);
     }
     
     .settings-items, 
     .settings-submenu-content {
-        position: absolute;
-        left: 0;
         width: 100%;
-        pointer-events: none;
-        /* 
-         * Background ensures content behind doesn't show through during transitions.
-         * The custom flyFade Svelte transition handles opacity and transform animations.
-         * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
-         */
         background-color: var(--color-grey-20);
-    }
-    
-    .settings-items.active,
-    .settings-submenu-content.active {
-        pointer-events: auto;
     }
 
 </style>

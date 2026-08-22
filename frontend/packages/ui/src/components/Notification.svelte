@@ -9,7 +9,6 @@
     let startY = $state(0);
     let currentY = $state(0);
     let dragOffset = $state(0);
-    let isExiting = $state(false);
     let notificationElement: HTMLDivElement | null = $state(null);
     
     // Threshold for swipe dismissal (pixels)
@@ -48,15 +47,11 @@
     }
     
     /**
-     * Handle notification dismissal with exit animation
-     * Triggers exit animation then removes the notification from the store
+     * Handle notification dismissal.
+     * The shared stack keeps the keyed item mounted for its exit transition.
      */
     function handleDismiss(): void {
-        isExiting = true;
-        // Wait for exit animation to complete before removing
-        setTimeout(() => {
-            notificationStore.removeNotification(notification.id);
-        }, 200);
+        notificationStore.removeNotification(notification.id);
     }
     
     /**
@@ -107,11 +102,7 @@
         
         // Dismiss if swiped far enough OR fast enough (upward only)
         if (dragOffset < -SWIPE_THRESHOLD || (dragOffset < 0 && velocity > VELOCITY_THRESHOLD)) {
-            // Animate out and dismiss
-            isExiting = true;
-            setTimeout(() => {
-                notificationStore.removeNotification(notification.id);
-            }, 200);
+            notificationStore.removeNotification(notification.id);
         } else {
             // Snap back
             dragOffset = 0;
@@ -139,6 +130,8 @@
             ? `transform: translateY(${dragOffset}px); opacity: ${Math.max(0.3, 1 - Math.abs(dragOffset) / 150)};`
             : ''
     );
+
+    let progressStyle = $derived(`--notification-duration: ${notification.duration ?? 0}ms`);
 </script>
 
 <!-- 
@@ -159,7 +152,6 @@
     class:notification-error={notification.type === 'error'}
     class:notification-info={notification.type === 'info'}
     class:notification-chat-message={notification.type === 'chat_message'}
-    class:notification-exiting={isExiting}
     class:notification-dragging={isDragging}
     style={dragStyle}
     role="alert"
@@ -221,6 +213,25 @@
             {/if}
         </div>
     </div>
+    {#if notification.duration && notification.duration > 0}
+        <div
+            class="notification-progress"
+            data-testid="notification-progress"
+            data-duration-ms={notification.duration}
+            style={progressStyle}
+            aria-hidden="true"
+        >
+            <div class="notification-progress-fill"></div>
+        </div>
+    {:else if notification.isProcessing}
+        <div
+            class="notification-activity"
+            data-testid="notification-activity"
+            aria-hidden="true"
+        >
+            <div class="notification-activity-fill"></div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -231,6 +242,7 @@
         /* Figma design: 430px or 100% viewport width, with 5px margin on smaller screens */
         width: 430px;
         max-width: calc(100vw - 40px);
+        box-sizing: border-box;
         overflow: hidden;
         
         /* Base styling */
@@ -238,9 +250,6 @@
         border-radius: var(--radius-5);
         background-color: var(--color-grey-30);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-        
-        /* Animation for slide-in from outside viewport with opacity */
-        animation: slideInFromTop 0.2s ease-out forwards;
         
         /* Smooth transition for drag gestures when not actively dragging */
         transition: transform var(--duration-normal), opacity var(--duration-normal);
@@ -257,35 +266,6 @@
     .notification-dragging {
         transition: none;
         cursor: grabbing;
-    }
-    
-    /* Exit animation - slide out to top with opacity fade */
-    .notification-exiting {
-        animation: slideOutToTop 0.2s ease-in forwards;
-    }
-    
-    @keyframes slideInFromTop {
-        from {
-            /* Start from outside viewport (above) */
-            transform: translateY(calc(-100% - 20px));
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutToTop {
-        from {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        to {
-            /* Exit to outside viewport (above) */
-            transform: translateY(calc(-100% - 20px));
-            opacity: 0;
-        }
     }
     
     /* Header row */
@@ -494,6 +474,57 @@
         filter: none;
         opacity: 1;
     }
+
+    .notification-progress,
+    .notification-activity {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 4px;
+        pointer-events: none;
+    }
+
+    .notification-activity {
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .notification-progress-fill {
+        width: 100%;
+        height: 100%;
+        background: var(--color-grey-50);
+        transform: scaleX(0);
+        transform-origin: left center;
+        animation: notificationProgressFill var(--notification-duration) linear forwards;
+    }
+
+    .notification-activity-fill {
+        width: 38%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+        animation: notificationActivityFill 1.35s ease-in-out infinite;
+    }
+
+    @keyframes notificationProgressFill {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+    }
+
+    @keyframes notificationActivityFill {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(280%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .notification-progress-fill {
+            animation-timing-function: steps(20, end);
+        }
+
+        .notification-activity-fill {
+            animation-duration: 2.4s;
+        }
+    }
     
     /* Type-specific icon background colors */
     .notification-auto-logout .notification-icon,
@@ -518,7 +549,6 @@
     /* Mobile responsiveness - ensure notification fits within viewport */
     @media (max-width: 450px) {
         .notification {
-            /* Use 100% of container width minus safe margins */
             width: calc(100vw - 20px);
             max-width: calc(100vw - 20px);
             /* Reduce padding slightly on very small screens */

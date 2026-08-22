@@ -9,12 +9,16 @@
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
+import io
+import os
 from pathlib import Path
 import time
 from typing import TYPE_CHECKING, Any, Literal
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 import yaml
 
@@ -26,6 +30,7 @@ from backend.core.api.app.services.project_remote_access_service import ProjectR
 from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLES, TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
 from backend.core.api.app.services.team_invite_email_service import TeamInviteEmailService
+from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 if TYPE_CHECKING:
@@ -43,6 +48,7 @@ CLIENT_CIPHERTEXT_HEADER_BYTES = 6
 TEAM_ENCRYPTED_FIELDS = {
     "encrypted_name",
     "encrypted_description",
+    "encrypted_profile_image_metadata",
     "encrypted_billing_profile",
     "encrypted_balance",
     "encrypted_metadata",
@@ -71,6 +77,7 @@ class TeamCreateRequest(BaseModel):
     slug: str | None = None
     encrypted_name: str = Field(min_length=1)
     encrypted_description: str | None = None
+    encrypted_profile_image_metadata: str = Field(min_length=1)
     encrypted_billing_profile: str | None = None
     encrypted_team_key: str = Field(min_length=1)
     encrypted_zero_balance: str | None = None
@@ -82,6 +89,7 @@ class TeamUpdateRequest(BaseModel):
     slug: str | None = None
     encrypted_name: str | None = None
     encrypted_description: str | None = None
+    encrypted_profile_image_metadata: str | None = None
     encrypted_billing_profile: str | None = None
     updated_at: int
 
@@ -211,6 +219,18 @@ def get_cache_service(request: Request) -> Any:
     if not hasattr(request.app.state, "cache_service"):
         raise HTTPException(status_code=500, detail="Internal configuration error")
     return request.app.state.cache_service
+
+
+def get_encryption_service(request: Request) -> Any:
+    if not hasattr(request.app.state, "encryption_service"):
+        raise HTTPException(status_code=500, detail="Internal configuration error")
+    return request.app.state.encryption_service
+
+
+def get_s3_service(request: Request) -> Any:
+    if not hasattr(request.app.state, "s3_service"):
+        raise HTTPException(status_code=500, detail="Internal configuration error")
+    return request.app.state.s3_service
 
 
 def get_payment_service(request: Request) -> Any:
@@ -367,6 +387,49 @@ async def update_team(
     if not updated:
         raise HTTPException(status_code=404, detail="Team not found")
     return {"team": updated}
+
+
+@router.get("/{team_id}/profile-image")
+@limiter.limit("120/minute")
+async def get_team_profile_image(
+    request: Request,
+    response: Response,
+    team_id: str,
+    current_user: User = Depends(_current_user),
+    directus_service: "DirectusService" = Depends(get_directus_service),
+    encryption_service: Any = Depends(get_encryption_service),
+    s3_service: Any = Depends(get_s3_service),
+) -> StreamingResponse:
+    del request, response
+    try:
+        image_record = await directus_service.team.get_team_profile_image_private_record(team_id, current_user.id)
+    except Exception as exc:  # noqa: BLE001 - converted by typed handler
+        _handle_team_error(exc)
+    if not image_record or not image_record.get("profile_image_s3_key"):
+        raise HTTPException(status_code=404, detail="Team profile image not found")
+    wrapped_aes_key = image_record.get("encrypted_profile_image_aes_key")
+    nonce_b64 = image_record.get("profile_image_aes_nonce")
+    vault_key_id = image_record.get("profile_image_vault_key_id")
+    if not wrapped_aes_key or not nonce_b64 or not vault_key_id:
+        raise HTTPException(status_code=500, detail="Team profile image encryption data incomplete")
+
+    aes_key_b64 = await encryption_service.decrypt_with_user_key(wrapped_aes_key, vault_key_id)
+    if not aes_key_b64:
+        raise HTTPException(status_code=500, detail="Failed to unwrap team profile image key")
+    bucket_name = get_bucket_name("profile_images_private", os.getenv("SERVER_ENVIRONMENT", "development"))
+    encrypted_data = await s3_service.get_file(bucket_name=bucket_name, object_key=image_record["profile_image_s3_key"])
+    if not encrypted_data:
+        raise HTTPException(status_code=404, detail="Team profile image not found in storage")
+    try:
+        aesgcm = AESGCM(base64.b64decode(aes_key_b64))
+        image_bytes = aesgcm.decrypt(base64.b64decode(nonce_b64), encrypted_data, None)
+    except Exception as exc:  # noqa: BLE001 - avoid leaking crypto details
+        raise HTTPException(status_code=500, detail="Failed to decrypt team profile image") from exc
+    return StreamingResponse(
+        io.BytesIO(image_bytes),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
 
 
 @router.delete("/{team_id}")

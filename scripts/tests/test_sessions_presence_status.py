@@ -6,6 +6,8 @@ Merged worktrees stay available in all-history output but never become live.
 Run: python3 -m pytest scripts/tests/test_sessions_presence_status.py.
 """
 
+# contract-test-file: tooling
+
 from scripts import sessions
 
 
@@ -21,9 +23,9 @@ def fixtures():
     }
     presence = {
         "sessions": {
-            "ses-stream": {"session_id": "ses-stream", "execution": "busy", "turn": "streaming", "attention": "none"},
-            "ses-wait": {"session_id": "ses-wait", "execution": "idle", "turn": "streaming", "attention": "required_question"},
-            "ses-idle": {"session_id": "ses-idle", "execution": "idle", "turn": "completed", "attention": "optional"},
+            "ses-stream": {"session_id": "ses-stream", "execution": "busy", "turn": "streaming", "attention": "none", "updated_at": sessions._now_iso()},
+            "ses-wait": {"session_id": "ses-wait", "execution": "idle", "turn": "streaming", "attention": "required_question", "updated_at": sessions._now_iso()},
+            "ses-idle": {"session_id": "ses-idle", "execution": "idle", "turn": "completed", "attention": "optional", "updated_at": sessions._now_iso()},
         },
         "task_claims": {},
     }
@@ -94,3 +96,42 @@ def test_infrastructure_view_exposes_active_and_recent_docker_operations():
     assert view["infrastructure"]["active_docker_operation"]["id"] == "docker-live"
     assert view["infrastructure"]["test_leases"][0]["lease_id"] == "run-1"
     assert view["infrastructure"]["recent_docker_operations"][0]["id"] == "docker-old"
+
+
+def test_coordination_section_lists_current_sessions_without_merged_history(monkeypatch):
+    durable, presence = fixtures()
+    durable["locks"] = {"docker_rebuild": {"status": "IN_PROGRESS", "claimed_by": "a111", "since": "2026-08-11T00:00:00Z"}}
+    durable["edit_leases"] = {"scripts/sessions.py": {"session_id": "a111", "since": "2026-08-11T00:00:00Z"}}
+    view = sessions.presence_status_view(durable, presence)
+    monkeypatch.setattr(sessions, "_opencode_session_titles", lambda _ids: {"ses-idle": "Completed title"})
+    monkeypatch.setattr(sessions, "_opencode_current_activity_label", lambda _session_id: "tool bash running")
+
+    text = sessions._format_coordination_section("a111", durable, view)
+
+    assert "COORDINATION" in text
+    assert "Working now (1):" in text
+    assert "a111  ses-stream  busy/streaming  stream" in text
+    assert "Active task: tool bash running" in text
+    assert "Waiting for user (1):" in text
+    assert "c333  ses-wait  idle/streaming  wait" in text
+    assert "Completed in last 1h (1):" in text
+    assert "unbound  ses-idle  idle/completed  Completed title" in text
+    assert "docker_rebuild: held by a111" in text
+    assert "a111 holds 1 file" in text
+    assert "ses-merged" not in text
+
+
+def test_status_session_card_is_human_readable(monkeypatch):
+    durable, presence = fixtures()
+    view = sessions.presence_status_view(durable, presence, session_filter="a111")
+    monkeypatch.setattr(sessions, "_opencode_session_titles", lambda _ids: {})
+    monkeypatch.setattr(sessions, "_opencode_current_activity_label", lambda _session_id: "tool bash running")
+
+    text = sessions._format_status_session_card(view["session"], {}, {})
+
+    assert "Session a111" in text
+    assert "State: busy/streaming" in text
+    assert "Task: stream" in text
+    assert "OpenCode: ses-stream" in text
+    assert "Current activity: tool bash running" in text
+    assert "{" not in text

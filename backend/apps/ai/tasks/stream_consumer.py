@@ -565,9 +565,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
         continuation_message_id=original_request.continuation_message_id,
-        recovery_inference_task_id=(
-            original_request.recovery_task_id or original_request.recovery_inference_task_id
-        ),
+        recovery_inference_task_id=None,
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
@@ -1663,8 +1661,18 @@ async def _fix_bad_embed_display_text(
     ]
     grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
     grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
+    standalone_ref_matches = list(re.finditer(
+        rf"(?<![A-Za-z0-9._~:/-]){_EMBED_REF_TOKEN_PATTERN}(?![A-Za-z0-9._~:/-])",
+        aggregated_response,
+    ))
 
-    if not all_matches and not bare_matches and not grouped_cite_matches and not grouped_bare_matches:
+    if (
+        not all_matches
+        and not bare_matches
+        and not grouped_cite_matches
+        and not grouped_bare_matches
+        and not standalone_ref_matches
+    ):
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -1826,10 +1834,49 @@ async def _fix_bad_embed_display_text(
             f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
         )
 
+    # Expand legacy grouped citations when refs resolve to child embeds from
+    # this response. Unresolved tokens are removed so pseudo-links do not leak
+    # into the persisted assistant response.
+    if (grouped_cite_matches or grouped_bare_matches) and embed_ref_to_title:
+        current_grouped_matches = [
+            (match, match.group(1))
+            for match in _GROUPED_CITE_REFS_PATTERN.finditer(modified)
+        ] + [
+            (match, match.group(1))
+            for match in _GROUPED_BARE_EMBED_REFS_PATTERN.finditer(modified)
+        ]
+        current_grouped_matches.sort(key=lambda item: item[0].start(), reverse=True)
+        grouped_fixed = 0
+        for match, refs_text in current_grouped_matches:
+            if _is_markdown_literal_position(modified, match.start()):
+                continue
+            embed_refs = [
+                _resolve_embed_ref_token(ref, embed_ref_to_title, embed_ref_suffix_index)
+                for ref in refs_text.split(",")
+                if ref.strip()
+            ]
+            resolved_embed_refs = [ref for ref in embed_refs if ref]
+            if not resolved_embed_refs:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                grouped_fixed += 1
+                continue
+
+            links = ", ".join(
+                f"[{_escape_markdown_link_label(embed_ref_to_title[embed_ref])}](embed:{embed_ref})"
+                for embed_ref in resolved_embed_refs
+            )
+            modified = modified[:match.start()] + links + modified[match.end():]
+            grouped_fixed += 1
+
+        if grouped_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Expanded {grouped_fixed} grouped citation(s)"
+            )
+
     # --- Bare embed ref fix ---
     # Handle [embed_ref_slug] brackets where the LLM omitted the (embed:...) parenthetical.
     # Only convert if the bracketed content is a known embed_ref from this response.
-    # Process in reverse order to preserve match positions after in-place replacements.
+    # Process after grouped citations so [cite: ref, ref] is expanded atomically.
     if bare_matches and embed_ref_to_title:
         # Re-scan on the (possibly already modified) text so positions are accurate.
         current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
@@ -1868,43 +1915,27 @@ async def _fix_bad_embed_display_text(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
             )
 
-    # Expand legacy grouped citations when refs resolve to child embeds from
-    # this response. Unresolved tokens are removed so pseudo-links do not leak
-    # into the persisted assistant response.
-    if (grouped_cite_matches or grouped_bare_matches) and embed_ref_to_title:
-        current_grouped_matches = [
-            (match, match.group(1))
-            for match in _GROUPED_CITE_REFS_PATTERN.finditer(modified)
-        ] + [
-            (match, match.group(1))
-            for match in _GROUPED_BARE_EMBED_REFS_PATTERN.finditer(modified)
-        ]
-        current_grouped_matches.sort(key=lambda item: item[0].start(), reverse=True)
-        grouped_fixed = 0
-        for match, refs_text in current_grouped_matches:
-            if _is_markdown_literal_position(modified, match.start()):
-                continue
-            embed_refs = [
-                _resolve_embed_ref_token(ref, embed_ref_to_title, embed_ref_suffix_index)
-                for ref in refs_text.split(",")
-                if ref.strip()
-            ]
-            resolved_embed_refs = [ref for ref in embed_refs if ref]
-            if not resolved_embed_refs:
-                modified = modified[:match.start()] + "" + modified[match.end():]
-                grouped_fixed += 1
-                continue
-
-            links = ", ".join(
-                f"[{_escape_markdown_link_label(embed_ref_to_title[embed_ref])}](embed:{embed_ref})"
-                for embed_ref in resolved_embed_refs
+    # Handle raw known embed refs where the model omitted both markdown brackets
+    # and the (embed:...) parenthetical, e.g. `Source: example.com-abc`.
+    if embed_ref_to_title:
+        standalone_fixed = 0
+        for embed_ref in sorted(embed_ref_to_title, key=len, reverse=True):
+            pattern = re.compile(
+                rf"(?<![A-Za-z0-9._~:/-])({re.escape(embed_ref)})(?![A-Za-z0-9._~:/-])"
             )
-            modified = modified[:match.start()] + links + modified[match.end():]
-            grouped_fixed += 1
+            for match in reversed(list(pattern.finditer(modified))):
+                if _is_markdown_literal_position(modified, match.start()):
+                    continue
+                if modified[max(0, match.start() - len("embed:")):match.start()] == "embed:":
+                    continue
+                display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
+                new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
+                modified = modified[:match.start()] + new_link + modified[match.end():]
+                standalone_fixed += 1
 
-        if grouped_fixed > 0:
+        if standalone_fixed > 0:
             logger.info(
-                f"{log_prefix} [EMBED_DISPLAY_FIX] Expanded {grouped_fixed} grouped citation(s)"
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {standalone_fixed} standalone embed ref(s)"
             )
 
     return modified

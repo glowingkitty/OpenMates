@@ -16,9 +16,13 @@ import { join } from "node:path";
 
 import { OpenMatesClient, type WorkflowGraph } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
+import { buildEncryptedObjectSlugMetadata } from "../src/objectSlugs.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown; headers: IncomingMessage["headers"] };
+
+const CHAT_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 
 function testSession(): OpenMatesSession {
   return {
@@ -59,6 +63,12 @@ function templateImportPayload() {
   };
 }
 
+function assertPublicWorkflowSlug(workflow: Record<string, unknown>, slug: string): void {
+  assert.equal(workflow.slug, slug);
+  assert.equal("encrypted_slug" in workflow, false);
+  assert.equal("slug_lookup_hash" in workflow, false);
+}
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -88,6 +98,7 @@ async function withServer(
 }
 
 describe("OpenMatesClient workflows", () => {
+  // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity,cli.output.actionable-readable,cli.surface.semantic-parity
   it("formats workflow child embeds for CLI output", () => {
     const lines = formatEmbedPreviewLines({
       embedId: "workflow-embed-12345678",
@@ -109,28 +120,44 @@ describe("OpenMatesClient workflows", () => {
     ]);
   });
 
+  // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,cli.slugs.encrypted-stable,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
   it("creates, lists, and updates workflows through typed endpoints", async () => {
     const graph = minimalGraph();
+    const masterKey = Buffer.alloc(32);
+    const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: "Morning", encryptionKey: masterKey, lookupKey: masterKey });
+    const encryptedSlugFields = {
+      encrypted_slug: slugMetadata.encrypted_slug,
+      slug_lookup_hash: slugMetadata.slug_lookup_hash,
+    };
     await withServer(
       (request) => {
         if (request.method === "GET") {
           return {
             workflows: [
-              { id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 },
+              { id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields },
             ],
           };
         }
         return {
-          workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph },
+          workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields },
         };
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.listWorkflows())[0]?.id, "wf-1");
-        assert.equal((await client.listTemporaryWorkflows())[0]?.id, "wf-1");
-        assert.equal((await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: "chat-1", createdByAssistant: true })).enabled, true);
-        assert.equal((await client.updateWorkflow("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
-        assert.equal((await client.keepWorkflow("wf-1")).id, "wf-1");
+        const listedWorkflow = (await client.listWorkflows())[0];
+        const temporaryWorkflow = (await client.listTemporaryWorkflows())[0];
+        const createdWorkflow = await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true });
+        const updatedWorkflow = await client.updateWorkflow("wf-1", { enabled: false, runContentRetention: "last_5" });
+        const keptWorkflow = await client.keepWorkflow("wf-1");
+
+        assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(temporaryWorkflow?.id, "wf-1");
+        assert.equal(createdWorkflow.enabled, true);
+        assert.equal(updatedWorkflow.id, "wf-1");
+        assert.equal(keptWorkflow.id, "wf-1");
+        for (const workflow of [listedWorkflow, temporaryWorkflow, createdWorkflow, updatedWorkflow, keptWorkflow]) {
+          assertPublicWorkflowSlug(workflow as Record<string, unknown>, "morning");
+        }
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/workflows"],
@@ -139,12 +166,18 @@ describe("OpenMatesClient workflows", () => {
           ["PATCH", "/v1/workflows/wf-1"],
           ["POST", "/v1/workflows/wf-1/keep"],
         ]);
-        assert.deepEqual(seen[2]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none", lifecycle: "temporary", source: "chat", source_chat_id: "chat-1", created_by_assistant: true });
+        const createBody = seen[2]?.body as Record<string, unknown>;
+        assert.equal(createBody.title, "Morning");
+        assert.equal(createBody.source_chat_id, CHAT_ID);
+        assert.equal(typeof createBody.encrypted_slug, "string");
+        assert.equal(typeof createBody.slug_lookup_hash, "string");
+        assert.equal("slug" in createBody, false);
         assert.deepEqual(seen[3]?.body, { enabled: false, run_content_retention: "last_5" });
       },
     );
   });
 
+  // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("runs workflows and reads run history", async () => {
     await withServer(
       (request) => {
@@ -175,6 +208,7 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("validates, creates, updates YAML, step-tests, and responds to waiting runs", async () => {
     const graph = minimalGraph();
     await withServer(
@@ -220,6 +254,7 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=workflows.content.encrypted-retained,workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("manages client-encrypted workflow template projection and sharing contracts", async () => {
     const payload = templateImportPayload();
     await withServer(
@@ -279,6 +314,7 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=workflows.content.encrypted-retained,workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("retrieves, revokes, restores, and completes workflow template sharing bindings", async () => {
     await withServer(
       (request, body) => {
@@ -315,11 +351,12 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
   it("manages durable workflow input sessions", async () => {
     await withServer(
       (request, body) => {
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
-          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_project_id: "project-1" });
+          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_project_id: PROJECT_ID });
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
         }
         if (request.url === "/v1/workflows/input/session-1" && request.method === "GET") {
@@ -342,7 +379,7 @@ describe("OpenMatesClient workflows", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.startWorkflowInput({ text: "alert me if it rains", selectedProjectId: "project-1" })).session_id, "session-1");
+        assert.equal((await client.startWorkflowInput({ text: "alert me if it rains", selectedProjectId: PROJECT_ID })).session_id, "session-1");
         assert.equal((await client.getWorkflowInputSession("session-1")).status, "executed");
         assert.equal((await client.listWorkflowInputEvents("session-1", 2))[0]?.type, "validation_passed");
         assert.equal((await client.followUpWorkflowInput("session-1", "weekdays only")).event_cursor, 7);
@@ -361,6 +398,7 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("requires a CLI session before workflow calls", async () => {
     const originalHome = process.env.HOME;
     const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-workflows-no-session-"));

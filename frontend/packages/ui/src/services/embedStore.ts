@@ -12,6 +12,7 @@
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import {
+  EMBED_CHILD_TYPE_MAP,
   EMBED_FULLSCREEN_COMPONENTS,
   normalizeEmbedType as registryNormalizeEmbedType,
 } from "../data/embedRegistry.generated";
@@ -737,9 +738,7 @@ export class EmbedStore {
     let directParentId: string | null = null;
     try {
       const rawEntry = await this.getRawEntry(`embed:${normalizedEmbedId}`);
-      const directRegistryKey = typeof rawEntry?.type === "string"
-        ? registryNormalizeEmbedType(rawEntry.type)
-        : null;
+      const directRegistryKey = this.resolveRawEntryFullscreenRegistryKey(rawEntry);
       if (directRegistryKey && directRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
         return { targetEmbedId: normalizedEmbedId };
       }
@@ -773,6 +772,25 @@ export class EmbedStore {
     }
 
     return { targetEmbedId: normalizedEmbedId };
+  }
+
+  private resolveRawEntryFullscreenRegistryKey(
+    rawEntry: Awaited<ReturnType<EmbedStore["getRawEntry"]>>,
+  ): string | null {
+    if (!rawEntry) return null;
+
+    if (
+      rawEntry.app_id &&
+      rawEntry.skill_id &&
+      rawEntry.parent_embed_id &&
+      (!rawEntry.type || registryNormalizeEmbedType(rawEntry.type) === "app-skill-use")
+    ) {
+      return EMBED_CHILD_TYPE_MAP[`${rawEntry.app_id}:${rawEntry.skill_id}`] ?? null;
+    }
+
+    return typeof rawEntry.type === "string"
+      ? registryNormalizeEmbedType(rawEntry.type)
+      : null;
   }
 
   private normalizeEmbedType(type: string): EmbedType {
@@ -1111,12 +1129,16 @@ export class EmbedStore {
               const refEmbedId =
                 (encryptedData.embed_id as string) ||
                 contentRef.replace("embed:", "");
+              const decodedType =
+                typeof decoded.type === "string" ? decoded.type : normalizedType;
               this.registerEmbedRef(
                 embedRefPlain,
                 refEmbedId,
                 appMetadata.app_id ?? null,
-                normalizedType,
-                appMetadata.skill_id ?? null,
+                decodedType,
+                decodedType !== "app_skill_use" && decodedType !== "app-skill-use"
+                  ? decodedType
+                  : appMetadata.skill_id ?? null,
               );
             }
             if (options?.deferChildEmbedRefRegistration) {
@@ -1168,12 +1190,16 @@ export class EmbedStore {
                   typeof embedRefEnc === "string" &&
                   embedRefEnc
                 ) {
+                  const decodedType =
+                    typeof decoded.type === "string" ? decoded.type : normalizedType;
                   this.registerEmbedRef(
                     embedRefEnc,
                     embedId,
                     appMetadata.app_id ?? null,
-                    normalizedType,
-                    appMetadata.skill_id ?? null,
+                    decodedType,
+                    decodedType !== "app_skill_use" && decodedType !== "app-skill-use"
+                      ? decodedType
+                      : appMetadata.skill_id ?? null,
                   );
                 }
                 if (options?.deferChildEmbedRefRegistration) {
@@ -1432,13 +1458,16 @@ export class EmbedStore {
               if (decoded && typeof decoded === "object") {
                 const ref = (decoded as Record<string, unknown>).embed_ref;
                 const appId = (decoded as Record<string, unknown>).app_id;
+                const decodedType = (decoded as Record<string, unknown>).type;
                 if (typeof ref === "string" && ref) {
                   this.registerEmbedRef(
                     ref,
                     embedId,
                     typeof appId === "string" ? appId : null,
-                    entry.type,
-                    entry.skill_id ?? null,
+                    typeof decodedType === "string" ? decodedType : entry.type,
+                    typeof decodedType === "string" && decodedType !== "app_skill_use" && decodedType !== "app-skill-use"
+                      ? decodedType
+                      : entry.skill_id ?? null,
                   );
                 }
                 await this.indexChildEmbedRefs(decoded);
@@ -1514,6 +1543,7 @@ export class EmbedStore {
               if (decoded && typeof decoded === "object") {
                 const ref = (decoded as Record<string, unknown>).embed_ref;
                 const appId = (decoded as Record<string, unknown>).app_id;
+                const decodedType = (decoded as Record<string, unknown>).type;
                 const embedId =
                   entry.embed_id || contentRef.replace("embed:", "");
                 if (typeof ref === "string" && ref && embedId) {
@@ -1521,8 +1551,10 @@ export class EmbedStore {
                     ref,
                     embedId,
                     typeof appId === "string" ? appId : null,
-                    entry.type,
-                    entry.skill_id ?? null,
+                    typeof decodedType === "string" ? decodedType : entry.type,
+                    typeof decodedType === "string" && decodedType !== "app_skill_use" && decodedType !== "app-skill-use"
+                      ? decodedType
+                      : entry.skill_id ?? null,
                   );
                 }
                 await this.indexChildEmbedRefs(decoded);
@@ -2334,6 +2366,8 @@ export class EmbedStore {
     parent_embed_id?: string;
     embed_ids?: string[];
     type?: string;
+    app_id?: string;
+    skill_id?: string;
     status?: EmbedStoreEntry["status"];
   } | null> {
     // Check memory cache first
@@ -2376,6 +2410,8 @@ export class EmbedStore {
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined,
         type: entry.type,
+        app_id: entry.app_id,
+        skill_id: entry.skill_id,
         status: entry.status,
       };
     }
@@ -2399,6 +2435,9 @@ export class EmbedStore {
             embed_ids: Array.isArray(parsed.embed_ids)
               ? parsed.embed_ids
               : undefined,
+            type: parsed.type,
+            app_id: parsed.app_id,
+            skill_id: parsed.skill_id,
             status: parsed.status,
           };
         }
@@ -2410,6 +2449,9 @@ export class EmbedStore {
           embed_ids: Array.isArray(parsed.embed_ids)
             ? parsed.embed_ids as string[]
             : undefined,
+          type: parsed.type as string | undefined,
+          app_id: parsed.app_id as string | undefined,
+          skill_id: parsed.skill_id as string | undefined,
           status: parsed.status as EmbedStoreEntry["status"] | undefined,
         };
       }

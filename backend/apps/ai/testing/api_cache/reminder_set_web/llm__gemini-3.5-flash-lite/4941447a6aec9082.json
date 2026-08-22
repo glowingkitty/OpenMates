@@ -1,0 +1,54 @@
+{
+  "fingerprint": "4941447a6aec9082",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "reminder_set_web",
+  "recorded_at": "2026-08-15T12:15:02.735513+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 4,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "8eae0178b8567bd3",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "success: true\nreminder_id: d3038e36-6221-4956-b6f7-c4705bff0f0f\ntrigger_at: 1786870800\ntrigger_at_formatted: \"Aug 16, 2026 at 09:00 AM\"\ntarget_type: existing_chat\nis_repeating: false\nprompt: Check my ..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "I've set a reminder for you to check your email tomorrow, August 16, 2026, at 9:00 AM. \n\nWould you like help setting up email notifications or organizing your inbox before then?",
+    "chunk_count": 5,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "I'"
+      },
+      {
+        "kind": "text",
+        "value": "ve set a reminder for you to check your email tomorrow, August 16, "
+      },
+      {
+        "kind": "text",
+        "value": "2026, at 9:00 AM. \n\nWould you like help setting up email notifications or"
+      },
+      {
+        "kind": "text",
+        "value": " organizing your inbox before then?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15707,
+          "candidates_token_count": 50,
+          "total_token_count": 15757,
+          "user_input_tokens": 194,
+          "system_prompt_tokens": 14352
+        }
+      }
+    ]
+  }
+}

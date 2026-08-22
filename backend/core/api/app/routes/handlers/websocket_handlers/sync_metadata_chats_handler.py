@@ -79,8 +79,22 @@ async def handle_sync_metadata_chats(
     try:
         try:
             existing_chat_ids = set(payload.get("existing_chat_ids", []))
+            raw_team_id = payload.get("team_id")
+            team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
+            context_epoch = payload.get("context_epoch")
+            if team_id:
+                await directus_service.team.require_team_role(
+                    team_id,
+                    user_id,
+                    {"owner", "admin", "member", "viewer"},
+                )
 
-            total_count = await _get_total_chat_count(cache_service, user_id, directus_service)
+            total_count = await _get_total_chat_count(
+                cache_service,
+                user_id,
+                directus_service,
+                team_id=team_id,
+            )
             metadata_chat_count = min(total_count - 100, MAX_METADATA_CHATS) if total_count > 100 else 0
 
             if metadata_chat_count <= 0:
@@ -94,6 +108,8 @@ async def handle_sync_metadata_chats(
                         "payload": {
                             "chats": [],
                             "total_count": total_count,
+                            "team_id": team_id,
+                            "context_epoch": context_epoch,
                         }
                     },
                     user_id,
@@ -108,7 +124,7 @@ async def handle_sync_metadata_chats(
 
             # Fetch chat IDs from Redis sorted set (positions 100..100+metadata_chat_count-1)
             end_index = 100 + metadata_chat_count - 1
-            cached_chat_ids = await cache_service.get_chat_ids_versions(
+            cached_chat_ids = [] if team_id else await cache_service.get_chat_ids_versions(
                 user_id, start=100, end=end_index, with_scores=False
             )
 
@@ -158,7 +174,11 @@ async def handle_sync_metadata_chats(
                     f"Metadata sync: No cached chat IDs, falling back to Directus for user {user_id[:8]}..."
                 )
                 chats_to_send = await _fetch_chats_from_directus_paginated(
-                    directus_service, user_id, 100, metadata_chat_count
+                    directus_service,
+                    user_id,
+                    100,
+                    metadata_chat_count,
+                    team_id=team_id,
                 )
 
                 # Filter out chats the client already has
@@ -179,6 +199,8 @@ async def handle_sync_metadata_chats(
                     "payload": {
                         "chats": chats_to_send,
                         "total_count": total_count,
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
                     }
                 },
                 user_id,
@@ -194,6 +216,8 @@ async def handle_sync_metadata_chats(
                         "chats": [],
                         "total_count": 0,
                         "error": "Failed to sync metadata chats",
+                        "team_id": payload.get("team_id"),
+                        "context_epoch": payload.get("context_epoch"),
                     }
                 },
                 user_id,

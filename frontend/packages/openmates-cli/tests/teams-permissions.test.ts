@@ -8,14 +8,36 @@
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/teams-permissions.test.ts
  */
 
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { OpenMatesClient } from "../src/client.ts";
-import type { OpenMatesSession } from "../src/storage.ts";
+import { OpenMatesClient, type ProjectRecord, type UserPlanRecord, type UserTaskRecord, type WorkflowDetail } from "../src/client.ts";
+import { buildCreateUserPlanInput } from "../src/plansCli.ts";
+import { saveLocalTeamKey, saveSyncCache, type OpenMatesSession } from "../src/storage.ts";
+import { buildCreateUserTaskInput } from "../src/tasksCli.ts";
+import { bytesToBase64, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../src/crypto.ts";
+import { buildEncryptedObjectSlugMetadata } from "../src/objectSlugs.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
+
+const originalHome = process.env.HOME;
+const tempHome = mkdtempSync(join(tmpdir(), "openmates-teams-permissions-"));
+process.env.HOME = tempHome;
+
+before(() => {
+  process.env.HOME = tempHome;
+});
+
+after(() => {
+  if (originalHome === undefined) delete process.env.HOME;
+  else process.env.HOME = originalHome;
+  rmSync(tempHome, { recursive: true, force: true });
+});
 
 function testSession(activeTeamId: string | null = null): OpenMatesSession {
   return {
@@ -60,7 +82,38 @@ async function withServer(
   }
 }
 
+async function buildProjectRecord(masterKey: Uint8Array, projectId: string, slug: string): Promise<ProjectRecord> {
+  const projectKey = randomBytes(32);
+  const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: slug, encryptionKey: projectKey, lookupKey: masterKey });
+  return {
+    project_id: projectId,
+    encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_slug: slugMetadata.encrypted_slug,
+    slug_lookup_hash: slugMetadata.slug_lookup_hash,
+    encrypted_name: await encryptWithAesGcmCombined(slug, projectKey),
+    version: 1,
+  };
+}
+
+async function buildWorkflowRecord(masterKey: Uint8Array, workflowId: string, slug: string): Promise<WorkflowDetail> {
+  const slugMetadata = await buildEncryptedObjectSlugMetadata({ value: slug, encryptionKey: masterKey, lookupKey: masterKey });
+  return {
+    id: workflowId,
+    slug,
+    encrypted_slug: slugMetadata.encrypted_slug,
+    slug_lookup_hash: slugMetadata.slug_lookup_hash,
+    title: slug,
+    status: "draft",
+    enabled: false,
+    current_version_id: "version-1",
+    created_at: 1,
+    updated_at: 1,
+    graph: { version: 1, trigger_node_id: "trigger", nodes: [{ id: "trigger", type: "manual_trigger" }] },
+  };
+}
+
 describe("OpenMatesClient Teams V1", () => {
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("resolves active, override, and personal team context", () => {
     const client = new OpenMatesClient({ apiUrl: "http://127.0.0.1", session: testSession("team-active") });
 
@@ -69,6 +122,7 @@ describe("OpenMatesClient Teams V1", () => {
     assert.equal(client.resolveTeamContext({ personal: true }), null);
   });
 
+  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity
   it("adds team context to team-aware resource list routes", async () => {
     await withServer(
       () => ({ tasks: [], workflows: [] }),
@@ -88,6 +142,7 @@ describe("OpenMatesClient Teams V1", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity
   it("calls team lifecycle, membership, and billing endpoints", async () => {
     await withServer(
       (request, body) => {
@@ -156,6 +211,7 @@ describe("OpenMatesClient Teams V1", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=cli.surface.semantic-parity
   it("encrypts invite team keys and uploads recipient wrappers on accept", async () => {
     let encryptedInviteTeamKey = "";
     let inviteKeyKdfContext: Record<string, unknown> | undefined;
@@ -202,27 +258,78 @@ describe("OpenMatesClient Teams V1", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=cli.slugs.encrypted-stable,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
   it("moves supported workspace resources to a team with confirmation metadata", async () => {
-    await withServer(
-      (_request, body) => ({ moved: true, ...(body as Record<string, unknown>) }),
-      async (apiUrl, seen) => {
-        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+    const session = testSession();
+    const masterKey = Buffer.from(session.masterKeyExportedB64, "base64");
+    const teamKey = randomBytes(32);
+    const chatKey = randomBytes(32);
+    const chatSlugMetadata = await buildEncryptedObjectSlugMetadata({ value: "chat slug", encryptionKey: chatKey, lookupKey: masterKey });
+    const project = await buildProjectRecord(masterKey, "project-canonical", "project slug");
+    const task = await buildCreateUserTaskInput(masterKey, { title: "Task title", slug: "task slug" }) as UserTaskRecord;
+    task.task_id = "task-canonical";
+    const plan = await buildCreateUserPlanInput(masterKey, { title: "Plan title", slug: "plan slug" }) as UserPlanRecord;
+    plan.plan_id = "plan-canonical";
+    const workflow = await buildWorkflowRecord(masterKey, "workflow-canonical", "workflow slug");
+    saveLocalTeamKey(session.hashedEmail, "team-1", bytesToBase64(teamKey));
+    saveSyncCache({
+      syncedAt: Date.now(),
+      totalChatCount: 1,
+      loadedChatCount: 1,
+      chats: [{
+        details: {
+          id: "chat-canonical",
+          encrypted_chat_key: await encryptBytesWithAesGcm(chatKey, masterKey),
+          encrypted_slug: chatSlugMetadata.encrypted_slug,
+          title_v: 1,
+          draft_v: 1,
+          messages_v: 0,
+        },
+        messages: [],
+      }],
+      embeds: [],
+      embedKeys: [],
+    });
 
-        await client.moveWorkspaceToTeam("chat", "chat-1", "team-1");
-        await client.moveWorkspaceToTeam("project", "project-1", "team-1");
-        await client.moveWorkspaceToTeam("task", "task-1", "team-1");
-        await client.moveWorkspaceToTeam("plan", "plan-1", "team-1");
-        const workflowResult = await client.moveWorkspaceToTeam("workflow", "workflow-1", "team-1");
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/projects?include_archived=true") return { projects: [project] };
+        if (request.url === "/v1/projects/project-canonical") return { project, folders: [], items: [] };
+        if (request.url === "/v1/user-tasks?limit=1000") return { tasks: [task] };
+        if (request.url === "/v1/user-plans?active_only=false") return { plans: [plan] };
+        if (request.url === "/v1/workflows") return { workflows: [workflow] };
+        if (request.url === "/v1/workflows/workflow-canonical") return { workflow };
+        return { moved: true, ...(body as Record<string, unknown>) };
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session });
+
+        await client.moveWorkspaceToTeam("chat", "chat slug", "team-1");
+        await client.moveWorkspaceToTeam("project", "project slug", "team-1");
+        await client.moveWorkspaceToTeam("task", "task slug", "team-1");
+        await client.moveWorkspaceToTeam("plan", "plan slug", "team-1");
+        const workflowResult = await client.moveWorkspaceToTeam("workflow", "workflow slug", "team-1");
 
         assert.equal(workflowResult.team_id, "team-1");
         assert.equal(workflowResult.confirmed, true);
-        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["POST", "/v1/chats/chat-1/move"],
-          ["POST", "/v1/projects/project-1/move"],
-          ["POST", "/v1/user-tasks/task-1/move"],
-          ["POST", "/v1/user-plans/plan-1/move"],
-          ["POST", "/v1/workflows/workflow-1/move"],
+        const moveRequests = seen.filter((request) => request.method === "POST" && request.url?.endsWith("/move"));
+        assert.deepEqual(moveRequests.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/chats/chat-canonical/move"],
+          ["POST", "/v1/projects/project-canonical/move"],
+          ["POST", "/v1/user-tasks/task-canonical/move"],
+          ["POST", "/v1/user-plans/plan-canonical/move"],
+          ["POST", "/v1/workflows/workflow-canonical/move"],
         ]);
+        for (const request of moveRequests) {
+          const payload = request.body as Record<string, unknown>;
+          assert.equal(payload.team_id, "team-1");
+          assert.equal(payload.confirmed, true);
+          assert.equal(typeof payload.moved_at, "number");
+          assert.equal(typeof payload.encrypted_slug, "string");
+          assert.equal(typeof payload.slug_lookup_hash, "string");
+          assert.equal("slug" in payload, false);
+        }
+        assert.equal(typeof (moveRequests[1]?.body as Record<string, unknown>).team_project_key_wrapper, "object");
       },
     );
   });

@@ -19,6 +19,7 @@ const {
 	getSignupTestDomain,
 	getTestAccount,
 	setToggleChecked,
+	expectVisibleSettingsMenu,
 	cleanupFailedSignupAccount,
 	validateSignupInviteIfRequired
 } = require('./signup-flow-helpers');
@@ -45,7 +46,7 @@ test.afterEach(async ({}, testInfo: any) => {
 
 async function getReferralCodeFromSettings(page: any): Promise<string> {
 	await page.getByTestId('profile-container').click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
+	await expectVisibleSettingsMenu(page);
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	const referralItem = page.getByRole('menuitem', { name: /referral code/i });
 	await expect(referralItem).toBeVisible({ timeout: 15000 });
@@ -58,13 +59,27 @@ async function getReferralCodeFromSettings(page: any): Promise<string> {
 }
 
 async function completeSignupAndPurchase(page: any, context: any, emailClient: any, signupEmail: string, referralCode: string, log: any, screenshot: any): Promise<string> {
-	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient;
+	const { waitForMessage, extractSixDigitCode } = emailClient;
 	const signupPassword = 'SignupTest!234';
 	const emailLocalPart = signupEmail.split('@')[0].replace(/[^a-z0-9_.]/gi, '_');
 	const signupUsername = `ref_${emailLocalPart.slice(-12)}`.slice(0, 20);
 
 	page.setDefaultTimeout(30000);
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.route('**/v1/payments/config**', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'stripe',
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
+				is_eu: false,
+				use_managed_payments: true,
+			}),
+		});
+	});
 	await page.goto(getE2EDebugUrl(`/#ref=${referralCode}`));
 	await page.waitForLoadState('load');
 	await expect(page).not.toHaveURL(/#.*ref=/, { timeout: 10000 });
@@ -102,7 +117,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	log('Submitted referred signup basics.', { signupEmail });
 
 	await expect(page.getByRole('link', { name: /open mail app/i })).toBeVisible({ timeout: 10000 });
-	const confirmEmailMessage = await waitForMailosaurMessage({ sentTo: signupEmail, receivedAfter: emailRequestedAt });
+	const confirmEmailMessage = await waitForMessage({ sentTo: signupEmail, receivedAfter: emailRequestedAt });
 	const emailCode = extractSixDigitCode(confirmEmailMessage);
 	expect(emailCode).toBeTruthy();
 	await page.locator('input[inputmode="numeric"][maxlength="6"]').fill(emailCode);
@@ -117,7 +132,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	const settingsMenuButton = page.locator('#settings-menu-toggle');
 	await expect(settingsMenuButton).toBeVisible({ timeout: 10000 });
 	await settingsMenuButton.click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await expectVisibleSettingsMenu(page);
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
@@ -163,6 +178,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	return paymentSubmittedAt;
 }
 
+// contract-test: direct surface=gui.web assertions=auth.signup.current-flow,auth.signup.access-gates,billing.purchase.provider-routing,billing.access.authenticated-first-party
 test('referral signup purchase awards credits and notifies both users', async ({ page, context, browser }: { page: any; context: any; browser: any }) => {
 	test.slow();
 	test.setTimeout(900000);
@@ -175,7 +191,7 @@ test('referral signup purchase awards credits and notifies both users', async ({
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+	test.skip(!emailClient, 'Gmail credentials are required.');
 	const quota = await checkEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
@@ -200,7 +216,7 @@ test('referral signup purchase awards credits and notifies both users', async ({
 		log('Referred user completed signup and purchase.', { referredEmail });
 
 		try {
-			const referralEmail = await emailClient.waitForMailosaurMessage({
+			const referralEmail = await emailClient.waitForMessage({
 				sentTo: TEST_EMAIL,
 				subjectContains: 'Someone used your referral code',
 				receivedAfter: paymentSubmittedAt,

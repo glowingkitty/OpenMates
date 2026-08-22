@@ -4,6 +4,8 @@ Projects protect referenced embeds from chat/message deletion. These tests use
 mocked Directus services so they run quickly without a live CMS.
 """
 
+# contract-test-file: infrastructure
+
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -281,6 +283,8 @@ async def test_project_move_route_persists_valid_wrapper_with_context() -> None:
         "user-1",
         "team-1",
         body.team_project_key_wrapper.model_dump(),
+        encrypted_slug=None,
+        slug_lookup_hash=None,
         moved_at=10,
     )
 

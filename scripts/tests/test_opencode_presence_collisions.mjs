@@ -6,7 +6,12 @@
  * Run: node --test scripts/tests/test_opencode_presence_collisions.mjs.
  */
 
+// contract-test-file: tooling
+
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
@@ -51,15 +56,45 @@ test("collision calculation has no prompt or command side effects", () => {
   assert.equal(calls, 0);
 });
 
-test("children cannot mutate through an inherited parent route", () => {
-  for (const role of ["unknown", "read_only", "reviewer", "writable"]) {
+test("only writable children can mutate through an inherited parent route", () => {
+  for (const role of ["unknown", "read_only", "reviewer"]) {
     const decision = childMutationDecisionForTest({ inheritedParentRoute: true, childRole: role }, "apply_patch");
     assert.equal(decision.decision, "block");
     assert.match(decision.message, /Reason:/);
     assert.match(decision.message, /Next:/);
   }
+  assert.equal(childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "writable" }, "apply_patch").decision, "allow");
+  assert.equal(childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "writable" }, "bash", "npm run format").decision, "allow");
+  for (const command of [
+    "python3 scripts/sessions.py start --mode bug --task test",
+    "python scripts/sessions.py start --mode bug --task test",
+    "./scripts/sessions.py start --mode bug --task test",
+    "env python3 scripts/sessions.py start --mode bug --task test",
+    "python3 -u scripts/../scripts/sessions.py start --mode bug --task test",
+    `python3 ${process.cwd()}/scripts/sessions.py start --mode bug --task test`,
+    "python3 -m scripts.sessions start --mode bug --task test",
+    "date && python3 scripts/sessions.py worktree ensure --session child",
+  ]) {
+    assert.equal(childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "writable" }, "bash", command).decision, "block");
+  }
   assert.equal(childMutationDecisionForTest({ inheritedParentRoute: true, childRole: "reviewer" }, "read").decision, "allow");
   assert.equal(childMutationDecisionForTest({ inheritedParentRoute: false, childRole: "writable" }, "apply_patch").decision, "allow");
+});
+
+test("writable children cannot alias sessions.py to create a child worktree", () => {
+  const directory = mkdtempSync(join(tmpdir(), "openmates-child-session-"));
+  const alias = join(directory, "child.py");
+  try {
+    symlinkSync(new URL("../../scripts/sessions.py", import.meta.url), alias);
+    const decision = childMutationDecisionForTest(
+      { inheritedParentRoute: true, childRole: "writable" },
+      "bash",
+      `python3 ${alias} start --mode bug --task test`,
+    );
+    assert.equal(decision.decision, "block");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("inherited children can run known read-only shell diagnostics", () => {
@@ -84,10 +119,15 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "python3 scripts/sessions.py --help",
     "python3 scripts/tests.py status --json && python3 scripts/tests.py triage --json",
     "git blame -L 807,1052 -- frontend/packages/openmates-cli/src/ws.ts | rg awaitingSubChatsCompletion",
+    "rg -o -i \"[a-zA-Z0-9_.-]*(journey|occupancy|coach|ris|disruption)[a-zA-Z0-9_.-]*\" /tmp/bundle.js | sort -u",
+    "wc -c /tmp/stop.js /tmp/main.js && rg -o -i \"[a-zA-Z0-9_.-]*(journey|occupancy)[a-zA-Z0-9_.-]*\" /tmp/stop.js | sort -u",
+    "rg -o -P '.{0,500}zM=fi\\(`/details/\\$train/j/\\$journeyId`\\).{0,1500}' /tmp/bundle.js",
+    "rg -o \"BM=fi\" /tmp/bundle.js | wc -l",
+    "git show HEAD:scripts/sessions.py | nl -ba | head -n 20",
     "docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{\"stream\":\"client_console\",\"filters\":[],\"since_minutes\":1440,\"limit\":100}' && docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{\"stream\":\"default\",\"filters\":[],\"since_minutes\":1440,\"limit\":100}' && docker exec api python /app/backend/scripts/debug.py trace errors --last 24h",
   ];
   for (const command of commands) {
-    assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "allow");
+    assert.equal(childMutationDecisionForTest(route, "bash", command).decision, "allow", command);
   }
   assert.equal(
     childMutationDecisionForTest(route, "bash", "python3 scripts/sessions.py start --mode bug --task test").decision,
@@ -96,6 +136,7 @@ test("inherited children can run known read-only shell diagnostics", () => {
   for (const command of [
     "git status --short && touch scripts/child-write.py",
     "git status --short $(touch scripts/child-write.py)",
+    "rg -o -P \".{0,500}zM=fi\\(`/details/\\$train/j/\\$journeyId`\\).{0,1500}\" /tmp/bundle.js",
     "git status --short <(touch scripts/child-write.py)",
     "git diff --output=scripts/child-write.py",
     "git diff $(touch scripts/child-write.py)",
@@ -109,6 +150,8 @@ test("inherited children can run known read-only shell diagnostics", () => {
     "rg --hostname-bin ./scripts/mutate.sh needle .",
     "rg --search-zip needle .",
     "sort -o scripts/child-write.py package.json",
+    "sort --output=scripts/child-write.py package.json",
+    "sort --compress-program=./scripts/mutate.sh package.json",
     "docker exec api python /app/backend/scripts/debug.py issue synthetic-id --delete --yes",
     "docker exec api python /app/backend/scripts/debug.py logs --upload-update",
     "docker exec api python /app/backend/scripts/debug.py logs --preview-update",

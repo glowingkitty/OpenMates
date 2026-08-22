@@ -33,6 +33,7 @@ EAGER_LONG_INSTRUCTIONS = {
     "docs/contributing/guides/spec-driven-development.md",
 }
 MAX_ALWAYS_LOADED_INSTRUCTIONS = 2
+MAX_TOP_LEVEL_EMPTY_UNKNOWN_COMPLETIONS = 0
 MIN_DUPLICATE_LINE_LENGTH = 40
 REQUIRED_CORE_TERMS = {
     "lazy-load guidance": ("lazy-load", "lazy load"),
@@ -77,14 +78,31 @@ REQUIRED_CLARIFYING_GUIDANCE = (
     "task-specific",
     "safest reversible default",
 )
+REQUIRED_SCAN_FIRST_GUIDANCE = (
+    "scan-first layout",
+    "## ✅ Done",
+    "## 🚧 Blocked",
+    "## ❓ Decision Needed",
+    "## 🧠 Investigation",
+    "compact tables",
+    "Use icons semantically and sparingly",
+    "Do not paste large YAML, JSON, contracts, or logs",
+)
 REQUIRED_RETROSPECTIVE_PHRASES = (
     "task-closing",
     "agentic process",
     "observed preventable process problems",
+    "inefficiencies",
     "not about the request's product results",
     "research",
     "delegated agents",
     "sub-chats",
+    "unnecessary retries",
+    "avoidable context growth",
+    "wasted subagent runs",
+    "agent cycles",
+    "inference tokens",
+    "focused audits/tests",
     "Do not repeat implementation results",
     "test outcomes",
     "Ordinary task difficulty is not a workflow issue",
@@ -95,6 +113,8 @@ REQUIRED_RETROSPECTIVE_PHRASES = (
     "deterministic audits/tests",
     "smallest concrete workflow improvement",
     "Do not recommend new prompt prose",
+    "Ground efficiency claims in observable actions only",
+    "do not estimate token counts or durations",
     "no change is warranted",
     "None observed",
     "Do not invent problems",
@@ -105,6 +125,37 @@ REQUIRED_RETROSPECTIVE_PHRASES = (
     "Simple requests",
     "clarification-only turns",
     "progress updates",
+)
+PROOF_MEDIA_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    "docs/contributing/guides/spec-driven-development.md",
+    ".claude/skills/create-demo-video/SKILL.md",
+    ".agents/skills/create-demo-video/SKILL.md",
+    ".claude/skills/plan-from-spec/SKILL.md",
+    ".agents/skills/plan-from-spec/SKILL.md",
+    ".claude/skills/tasks-from-spec/SKILL.md",
+    ".agents/skills/tasks-from-spec/SKILL.md",
+    ".claude/skills/verify-spec/SKILL.md",
+    ".agents/skills/verify-spec/SKILL.md",
+    ".claude/skills/deploy/SKILL.md",
+    ".agents/skills/deploy/SKILL.md",
+)
+FORBIDDEN_PROOF_DISCORD_PHRASES = (
+    "confirmed Discord delivery is a hard completion gate",
+    "require confirmed Discord delivery",
+    "configured Discord delivery",
+    "configured Discord publication",
+    "Discord publication attempt",
+    "proof-video publish` path when Discord is configured",
+    "Publish a passed proof to dev-smoke Discord",
+)
+REQUIRED_PROOF_MEDIA_TERMS = (
+    "opencode_response_media.py",
+    "final OpenCode response",
+    "Do not send proof media to Discord unless the user explicitly asks",
+    "actual `openmates` CLI",
+    "generic smoke scripts",
 )
 FORBIDDEN_RETROSPECTIVE_CLAUSE = re.compile(
     r"^(?:(?:this (?:section|retrospective)|agents?)\s+(?:must|should)\s+)?"
@@ -145,6 +196,12 @@ FIRECRAWL_TOOL_PERMISSIONS = {
     "firecrawl_firecrawl_search_feedback",
 }
 FIRECRAWL_SAFE_PERMISSION_ACTIONS = {"ask", "deny"}
+MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY = 80
+MAX_STANDALONE_TODO_TURNS_PER_DAY = 80
+MAX_ROUTING_ERROR_TURNS_PER_DAY = 20
+MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY = 5
+MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY = 20
+MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY = 10
 
 
 @dataclass(frozen=True)
@@ -211,6 +268,35 @@ def _audit_clarifying_question_guidance(path: str, text: str) -> list[AuditIssue
     if not missing:
         return []
     return [AuditIssue(path, f"clarifying-question guidance missing: {missing[0]}")]
+
+
+def _audit_scan_first_guidance(path: str, text: str) -> list[AuditIssue]:
+    normalized = " ".join(text.split())
+    missing = [phrase for phrase in REQUIRED_SCAN_FIRST_GUIDANCE if phrase not in normalized]
+    if not missing:
+        return []
+    return [AuditIssue(path, f"scan-first final-answer guidance missing: {missing[0]}")]
+
+
+def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
+    if not (root / ".claude/skills/create-demo-video/SKILL.md").exists():
+        return []
+    issues: list[AuditIssue] = []
+    combined: list[str] = []
+    for rel_path in PROOF_MEDIA_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        combined.append(text)
+        for phrase in FORBIDDEN_PROOF_DISCORD_PHRASES:
+            if phrase in text:
+                issues.append(AuditIssue(rel_path, f"proof media guidance still requires Discord delivery: {phrase}"))
+    all_text = "\n".join(combined)
+    for term in REQUIRED_PROOF_MEDIA_TERMS:
+        if term not in all_text:
+            issues.append(AuditIssue("proof-media-guidance", f"proof media guidance missing: {term}"))
+    return issues
 
 
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
@@ -305,6 +391,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
                 issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}: {missing[0]}"))
         if not (_contains_any(core, ("final response", "final responses")) and "evidence" in core.lower()):
             issues.append(AuditIssue(CORE_INSTRUCTION, "core instruction missing final-answer evidence guidance"))
+        issues.extend(_audit_scan_first_guidance(CORE_INSTRUCTION, core))
         issues.extend(_audit_retrospective_guidance(CORE_INSTRUCTION, core))
         if body := _retrospective_body(core):
             retrospective_bodies[CORE_INSTRUCTION] = body
@@ -316,6 +403,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         text = path.read_text(encoding="utf-8", errors="replace")
         issues.extend(_audit_retrospective_guidance(rel_path, text))
         issues.extend(_audit_clarifying_question_guidance(rel_path, text))
+        issues.extend(_audit_scan_first_guidance(rel_path, text))
         if body := _retrospective_body(text):
             retrospective_bodies[rel_path] = body
     for rel_path in sorted(CLARIFYING_GUIDANCE_PATHS - set(RUNTIME_INSTRUCTIONS)):
@@ -331,15 +419,17 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         )
     if len(set(retrospective_bodies.values())) > 1:
         issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
+    issues.extend(_audit_proof_media_guidance(root))
     return issues
 
 
 def _percentiles(values: list[int]) -> dict[str, int]:
     if not values:
-        return {"p50": 0, "p90": 0, "max": 0}
+        return {"count": 0, "p50": 0, "p90": 0, "max": 0}
     ordered = sorted(values)
     p90_index = round((len(ordered) - 1) * 0.9)
     return {
+        "count": len(ordered),
         "p50": int(statistics.median(ordered)),
         "p90": int(ordered[p90_index]),
         "max": int(ordered[-1]),
@@ -438,7 +528,7 @@ def _batchable_pair(first: dict[str, Any], second: dict[str, Any]) -> bool:
     return False
 
 
-def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize_tool_turns(turns: list[dict[str, Any]], *, include_breakdowns: bool = True) -> dict[str, Any]:
     """Summarize privacy-safe round-trip metrics from assistant tool turns."""
 
     ordered = sorted(turns, key=lambda turn: (str(turn.get("session_id") or ""), int(turn.get("time_created") or 0)))
@@ -477,15 +567,17 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
             if tool.get("status") != "error":
                 continue
             error = str(tool.get("error") or "")
-            if "child ownership guard" in error:
-                category = "child_role"
+            if "child ownership guard" in error and "child role unknown" in error:
+                category = "child_role_unknown"
+            elif "child ownership guard" in error:
+                category = "child_mutation_block"
             elif "explicitly references the root checkout" in error:
                 category = "root_path_routing"
             elif "no active sessions.py worktree" in error:
                 category = "missing_session"
             elif "Ripgrep JSON record exceeded" in error:
                 category = "grep_output_too_large"
-            elif "File not found" in error or "BadResource" in error:
+            elif tool.get("name") == "read" and "File not found" in error:
                 category = "missing_runtime_artifact"
             elif "stale-read guard" in error:
                 category = "stale_read"
@@ -493,7 +585,7 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
                 category = "other"
             error_counts[category] += 1
 
-    return {
+    report = {
         "assistant_tool_turns": len(tool_turns),
         "tool_calls": tool_calls,
         "singleton_tool_turns": singleton_turns,
@@ -506,6 +598,128 @@ def summarize_tool_turns(turns: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "tool_error_counts": dict(sorted(error_counts.items())),
     }
+    if not include_breakdowns:
+        return report
+
+    by_agent: dict[str, dict[str, Any]] = {}
+    for agent in sorted({str(turn.get("agent") or "<none>") for turn in ordered}):
+        agent_turns = [turn for turn in ordered if str(turn.get("agent") or "<none>") == agent]
+        by_agent[agent] = summarize_tool_turns(agent_turns, include_breakdowns=False)
+    session_reports = [
+        summarize_tool_turns(session_turns, include_breakdowns=False)
+        for session_turns in turns_by_session.values()
+    ]
+    report["by_agent"] = by_agent
+    report["per_session"] = {
+        key: _percentiles([int(session_report[key]) for session_report in session_reports])
+        for key in ("assistant_tool_turns", "conservative_batchable_turns", "standalone_todo_turns")
+    }
+    return report
+
+
+def summarize_child_completions(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return aggregate-only delegated-session completion quality metrics."""
+
+    completed = [record for record in records if record.get("terminal")]
+    empty = [record for record in completed if not record.get("usable_output")]
+    agents = sorted({str(record.get("agent") or "<none>") for record in completed})
+    return {
+        "completed": len(completed),
+        "empty": len(empty),
+        "empty_rate": round(len(empty) / len(completed), 4) if completed else 0.0,
+        "by_agent": {
+            agent: {
+                "completed": sum(str(record.get("agent") or "<none>") == agent for record in completed),
+                "empty": sum(str(record.get("agent") or "<none>") == agent for record in empty),
+            }
+            for agent in agents
+        },
+    }
+
+
+def summarize_top_level_completions(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return aggregate-only completion health for top-level chats."""
+
+    completed = [record for record in records if record.get("terminal")]
+    empty_unknown = [
+        record
+        for record in completed
+        if record.get("finish") == "unknown" and not record.get("usable_output")
+    ]
+    agents = sorted({str(record.get("agent") or "<none>") for record in completed})
+    return {
+        "completed": len(completed),
+        "empty_unknown": len(empty_unknown),
+        "by_agent": {
+            agent: {
+                "completed": sum(str(record.get("agent") or "<none>") == agent for record in completed),
+                "empty_unknown": sum(str(record.get("agent") or "<none>") == agent for record in empty_unknown),
+            }
+            for agent in agents
+        },
+    }
+
+
+def audit_tool_turn_telemetry(telemetry: dict[str, Any], *, days: int) -> list[AuditIssue]:
+    """Flag conservative workflow-efficiency regressions from aggregate telemetry."""
+
+    if days <= 0:
+        return []
+    issues: list[AuditIssue] = []
+    batchable = int(telemetry.get("conservative_batchable_turns") or 0)
+    standalone_todos = int(telemetry.get("standalone_todo_turns") or 0)
+    error_counts = telemetry.get("tool_error_counts") if isinstance(telemetry.get("tool_error_counts"), dict) else {}
+    routing_errors = sum(int(error_counts.get(key) or 0) for key in ("child_role_unknown", "missing_session", "root_path_routing"))
+    top_level_completion = telemetry.get("top_level_completion")
+    if not isinstance(top_level_completion, dict):
+        top_level_completion = {}
+    empty_unknown = int(top_level_completion.get("empty_unknown") or 0)
+
+    batchable_budget = MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY * days
+    if batchable > batchable_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"conservative batchable tool turns {batchable} exceed {days}d budget {batchable_budget}; batch independent reads/searches/status calls in one turn",
+        ))
+    todo_budget = MAX_STANDALONE_TODO_TURNS_PER_DAY * days
+    if standalone_todos > todo_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"standalone todo turns {standalone_todos} exceed {days}d budget {todo_budget}; coalesce todowrite with the next independent tool call",
+        ))
+    routing_budget = MAX_ROUTING_ERROR_TURNS_PER_DAY * days
+    if routing_errors > routing_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"session/worktree routing errors {routing_errors} exceed {days}d budget {routing_budget}; inspect child_role_unknown/missing_session/root_path_routing categories",
+        ))
+    grep_errors = int(error_counts.get("grep_output_too_large") or 0)
+    grep_budget = MAX_GREP_OUTPUT_TOO_LARGE_ERRORS_PER_DAY * days
+    if grep_errors > grep_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"oversized grep errors {grep_errors} exceed {days}d budget {grep_budget}; narrow the pattern and file scope or read long matching records directly",
+        ))
+    missing_artifacts = int(error_counts.get("missing_runtime_artifact") or 0)
+    missing_artifact_budget = MAX_MISSING_RUNTIME_ARTIFACT_ERRORS_PER_DAY * days
+    if missing_artifacts > missing_artifact_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"missing runtime artifact errors {missing_artifacts} exceed {days}d budget {missing_artifact_budget}; discover generated paths before reading them",
+        ))
+    child_mutation_blocks = int(error_counts.get("child_mutation_block") or 0)
+    child_mutation_budget = MAX_CHILD_MUTATION_BLOCK_ERRORS_PER_DAY * days
+    if child_mutation_blocks > child_mutation_budget:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"child mutation blocks {child_mutation_blocks} exceed {days}d budget {child_mutation_budget}; keep session, lease, dispatch, and deploy mutations parent-owned",
+        ))
+    if empty_unknown > MAX_TOP_LEVEL_EMPTY_UNKNOWN_COMPLETIONS:
+        issues.append(AuditIssue(
+            "opencode-telemetry",
+            f"empty top-level finish=unknown completions detected: {empty_unknown}; inspect provider timeout and transport logs",
+        ))
+    return issues
 
 
 def _opencode_project_directory() -> Path:
@@ -545,6 +759,7 @@ def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[d
             message_id,
             {
                 "session_id": session_id,
+                "agent": str(message.get("agent") or "<none>"),
                 "time_created": time_created,
                 "tokens_input": int(tokens.get("input") or 0),
                 "tokens_cache_read": int((tokens.get("cache") or {}).get("read") or 0),
@@ -566,6 +781,129 @@ def collect_tool_turns(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[d
     return list(turns.values())
 
 
+def collect_child_completion_records(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[dict[str, Any]]:
+    """Collect only terminal/output booleans for delegated assistant sessions."""
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
+    project = _opencode_project_directory()
+    connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    try:
+        rows = connection.execute(
+            """
+            SELECT session.id, message.id, message.time_created, message.data, part.data
+            FROM session
+            JOIN message ON message.session_id = session.id
+            LEFT JOIN part ON part.message_id = message.id
+            WHERE COALESCE(session.parent_id, '') != ''
+              AND (session.directory = ? OR session.directory LIKE ?)
+              AND session.time_updated >= ?
+            ORDER BY session.id, message.time_created, part.time_created
+            """,
+            (str(project), f"{project}/.openmates-agent-worktrees/%", since_ms),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    messages: dict[tuple[str, str], dict[str, Any]] = {}
+    for session_id, message_id, time_created, raw_message, raw_part in rows:
+        try:
+            message = json.loads(raw_message)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        record = messages.setdefault(
+            (str(session_id), str(message_id)),
+            {
+                "session_id": str(session_id),
+                "time_created": int(time_created),
+                "agent": str(message.get("agent") or "<none>"),
+                "terminal": str(message.get("finish") or "") == "stop",
+                "usable_output": False,
+            },
+        )
+        if not raw_part:
+            continue
+        try:
+            part = json.loads(raw_part)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if part.get("type") == "text" and str(part.get("text") or "").strip():
+            record["usable_output"] = True
+        if part.get("type") == "tool":
+            state = part.get("state") if isinstance(part.get("state"), dict) else {}
+            if state.get("status") == "completed" and str(state.get("output") or "").strip():
+                record["usable_output"] = True
+
+    latest: dict[str, dict[str, Any]] = {}
+    for record in messages.values():
+        current = latest.get(record["session_id"])
+        if current is None or record["time_created"] >= current["time_created"]:
+            latest[record["session_id"]] = record
+    return [
+        {key: value for key, value in record.items() if key != "session_id"}
+        for record in latest.values()
+    ]
+
+
+def collect_top_level_completion_records(*, days: int, db_path: Path = OPENCODE_DB_PATH) -> list[dict[str, Any]]:
+    """Collect privacy-safe completion state for top-level assistant messages."""
+
+    since_ms = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000)
+    project = _opencode_project_directory()
+    connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    try:
+        rows = connection.execute(
+            """
+            SELECT message.id, message.data, part.data
+            FROM session
+            JOIN message ON message.session_id = session.id
+            LEFT JOIN part ON part.message_id = message.id
+            WHERE COALESCE(session.parent_id, '') = ''
+              AND (session.directory = ? OR session.directory LIKE ?)
+              AND message.time_created >= ?
+            ORDER BY message.id, part.time_created
+            """,
+            (str(project), f"{project}/.openmates-agent-worktrees/%", since_ms),
+        ).fetchall()
+    finally:
+        connection.close()
+
+    messages: dict[str, dict[str, Any]] = {}
+    for message_id, raw_message, raw_part in rows:
+        try:
+            message = json.loads(raw_message)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        time_data = message.get("time") if isinstance(message.get("time"), dict) else {}
+        record = messages.setdefault(
+            str(message_id),
+            {
+                "agent": str(message.get("agent") or "<none>"),
+                "terminal": bool(time_data.get("completed")),
+                "finish": str(message.get("finish") or ""),
+                "usable_output": False,
+            },
+        )
+        if not raw_part:
+            continue
+        try:
+            part = json.loads(raw_part)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if part.get("type") == "text" and str(part.get("text") or "").strip():
+            record["usable_output"] = True
+        if part.get("type") == "tool":
+            state = part.get("state") if isinstance(part.get("state"), dict) else {}
+            if state.get("status") == "completed" and str(state.get("output") or "").strip():
+                record["usable_output"] = True
+    return list(messages.values())
+
+
 def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
     return audit_instruction_surface(root)
 
@@ -578,6 +916,14 @@ def main(argv: list[str] | None = None) -> int:
 
     issues = audit(REPO_ROOT)
     telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 else None
+    if telemetry is not None:
+        telemetry["child_completion"] = summarize_child_completions(
+            collect_child_completion_records(days=args.telemetry_days)
+        )
+        telemetry["top_level_completion"] = summarize_top_level_completions(
+            collect_top_level_completion_records(days=args.telemetry_days)
+        )
+        issues.extend(audit_tool_turn_telemetry(telemetry, days=args.telemetry_days))
     if args.json:
         payload: Any = [issue.__dict__ for issue in issues]
         if telemetry is not None:

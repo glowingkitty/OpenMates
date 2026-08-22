@@ -15,6 +15,7 @@ const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers
 
 const SHARED_CHAT_WITH_LEGACY_SEARCH_PARENTS = 'https://app.dev.openmates.org/s/J0XO58G8#n4oYu6';
 const SHARED_CHAT_WITH_RELOAD_REGRESSION = 'https://app.dev.openmates.org/s/pznF7EHJ#s28GVG';
+const SHARED_CHAT_WITH_IMAGE_CAROUSEL = 'https://app.dev.openmates.org/s/jwSihZe3#YegicRhmrtLe8jSyUtM37y';
 
 async function expectWebPreviewDoesNotClaimZeroResults(webPreview: any) {
 	await expect(webPreview.getByTestId('search-no-results-message')).toHaveCount(0);
@@ -68,5 +69,93 @@ test.describe('Legacy search parent previews', () => {
 		await expect(reloadedWebPreview).toBeVisible({ timeout: 30_000 });
 		await expect(reloadedWebPreview.getByTestId('search-preview-metadata-missing-message')).toHaveCount(0, { timeout: 10_000 });
 		await expect(reloadedWebPreview.getByTestId('search-no-results-message')).toHaveCount(0);
+	});
+
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+	test('shared image search keeps its six referenced images in a stable large carousel after reload', async ({ page }: { page: any }) => {
+		test.setTimeout(180_000);
+		const openAndAssertCarousel = async () => {
+			const assistantMessage = page
+				.getByTestId('message-assistant')
+				.filter({ hasText: 'Here are some incredible captures' })
+				.last();
+			await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
+
+			const searchParents = assistantMessage.locator(
+				'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"]'
+			);
+			await expect(searchParents).toHaveCount(1, { timeout: 30_000 });
+			await expect(searchParents.first().getByTestId('images-search-preview-metadata-missing-message')).toHaveCount(0);
+
+			const carousel = assistantMessage.getByTestId('embed-preview-large').first();
+			await expect(carousel).toBeVisible({ timeout: 45_000 });
+			await expect(carousel.getByRole('tab')).toHaveCount(6);
+
+			const firstImage = carousel.getByTestId('image-result-preview-image');
+			await expect(firstImage).toBeVisible({ timeout: 30_000 });
+			const before = await carousel.boundingBox();
+			expect(before).not.toBeNull();
+			expect(before.width).toBeGreaterThan(700);
+			expect(before.height).toBeLessThan(500);
+
+			await carousel.getByRole('button', { name: 'Next' }).click();
+			await expect(carousel.getByRole('tab', { name: 'Go to slide 2 of 6' })).toHaveAttribute('aria-selected', 'true');
+			await expect(assistantMessage.getByTestId('image-result-preview-image').nth(1)).toBeVisible({ timeout: 30_000 });
+
+			const after = await carousel.boundingBox();
+			expect(after).not.toBeNull();
+			expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+			expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(40);
+		};
+
+		const response = await page.goto(SHARED_CHAT_WITH_IMAGE_CAROUSEL, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+		await openAndAssertCarousel();
+
+		await page.reload({ waitUntil: 'networkidle' });
+		await openAndAssertCarousel();
+	});
+
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,chats.surface.semantic-parity
+	test('shared image carousel fills mobile messages with visible navigation controls', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		const response = await page.goto(SHARED_CHAT_WITH_IMAGE_CAROUSEL, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'Here are some incredible captures' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
+
+		const messageContent = assistantMessage.getByTestId('mate-message-content');
+		const carousel = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(carousel).toBeVisible({ timeout: 45_000 });
+		await expect(carousel.getByRole('tab')).toHaveCount(6);
+
+		const previous = carousel.getByRole('button', { name: 'Previous' });
+		const next = carousel.getByRole('button', { name: 'Next' });
+		await expect(previous).toBeVisible();
+		await expect(next).toBeVisible();
+		expect(await previous.evaluate((element: HTMLElement) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+		expect(await next.evaluate((element: HTMLElement) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
+		const messageBox = await messageContent.boundingBox();
+		const carouselBox = await carousel.boundingBox();
+		expect(messageBox).not.toBeNull();
+		expect(carouselBox).not.toBeNull();
+		const leftInset = carouselBox.x - messageBox.x;
+		const rightInset = messageBox.x + messageBox.width - carouselBox.x - carouselBox.width;
+		expect(Math.abs(leftInset - rightInset)).toBeLessThanOrEqual(2);
+		expect(carouselBox.width).toBeGreaterThan(messageBox.width - 32);
+
+		for (const control of [previous, next]) {
+			const controlBox = await control.boundingBox();
+			expect(controlBox).not.toBeNull();
+			expect(controlBox.x).toBeGreaterThanOrEqual(carouselBox.x);
+			expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(carouselBox.x + carouselBox.width);
+		}
 	});
 });

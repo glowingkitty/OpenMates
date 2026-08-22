@@ -5,7 +5,7 @@
 // preview metadata when keys are available, and preserves explicit batch order.
 // The UI can use it from legacy message-shell placement or inline render nodes.
 
-import type { Chat } from "../types/chat";
+import type { Chat, Message } from "../types/chat";
 import { chatDB } from "./db";
 import { getSubChatsForParent } from "./db/chatCrudOperations";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -24,6 +24,7 @@ const INTERNAL_PROTOCOL_FENCE_PATTERN =
   /```(?:json)?\s*[\r\n]+[\s\S]*?"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)"[\s\S]*?```/gi;
 const INTERNAL_PROTOCOL_MARKER_PATTERN =
   /(?:```json|"type"\s*:\s*"(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)")/i;
+const DERIVED_PREVIEW_SUMMARY_MAX_LENGTH = 180;
 
 export function sanitizeSubChatPreviewText(value: string | null | undefined): string | null {
   const sanitized = (value || "")
@@ -32,6 +33,46 @@ export function sanitizeSubChatPreviewText(value: string | null | undefined): st
     .trim();
   if (!sanitized || INTERNAL_PROTOCOL_MARKER_PATTERN.test(sanitized)) return null;
   return sanitized;
+}
+
+function getMessageContentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  if (Array.isArray(value)) return value.map(getMessageContentText).filter(Boolean).join(" ");
+
+  const node = value as { text?: unknown; content?: unknown };
+  const ownText = typeof node.text === "string" ? node.text : "";
+  const childText = getMessageContentText(node.content);
+  return [ownText, childText].filter(Boolean).join(" ");
+}
+
+function truncateDerivedPreviewSummary(summary: string): string {
+  if (summary.length <= DERIVED_PREVIEW_SUMMARY_MAX_LENGTH) return summary;
+  return `${summary.slice(0, DERIVED_PREVIEW_SUMMARY_MAX_LENGTH).trimEnd()}...`;
+}
+
+function canUseAssistantMessageForPreview(message: Message, allowUnsyncedAssistantSummary: boolean): boolean {
+  if (message.role !== "assistant") return false;
+  if (message.status === "failed" || message.status === "waiting_for_user") return false;
+  return message.status === "synced" || allowUnsyncedAssistantSummary;
+}
+
+async function derivePreviewSummaryFromCompletedMessage(
+  chatId: string,
+  allowUnsyncedAssistantSummary: boolean,
+): Promise<string | null> {
+  try {
+    const messages = await chatDB.getMessagesForChat(chatId);
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (!canUseAssistantMessageForPreview(message, allowUnsyncedAssistantSummary)) continue;
+      const summary = sanitizeSubChatPreviewText(getMessageContentText(message.content));
+      if (summary) return truncateDerivedPreviewSummary(summary);
+    }
+  } catch (error) {
+    console.error(`[SubChatPreviewService] Failed to derive completed sub-chat summary for ${chatId}:`, error);
+  }
+  return null;
 }
 
 export function clearSubChatsForParentCache(parentChatId: string): void {
@@ -80,6 +121,8 @@ export async function loadSubChatPreviews(
     messageCreatedAt?: number;
     subChatIds?: string[];
     forceRefresh?: boolean;
+    allowUnsyncedAssistantSummary?: boolean;
+    terminalSubChatIds?: Iterable<string>;
   } = {},
 ): Promise<SubChatPreview[]> {
   const all = await getSubChatsForParentChat(parentChatId, options.forceRefresh);
@@ -96,6 +139,7 @@ export async function loadSubChatPreviews(
 
   const previews: SubChatPreview[] = [];
   const fallbackKey = await chatKeyManager.getKey(parentChatId);
+  const terminalSubChatIds = new Set(options.terminalSubChatIds ?? []);
 
   for (const chat of matchingSubChats) {
     const chatKey = (await chatKeyManager.getKey(chat.chat_id)) || fallbackKey;
@@ -133,7 +177,10 @@ export async function loadSubChatPreviews(
     preview.previewSummary =
       sanitizeSubChatPreviewText(preview.previewSummary) ||
       sanitizeSubChatPreviewText(chat.chat_summary) ||
-      null;
+      await derivePreviewSummaryFromCompletedMessage(
+        chat.chat_id,
+        options.allowUnsyncedAssistantSummary === true || terminalSubChatIds.has(chat.chat_id),
+      );
     preview.previewCategory ||= chat.category || "general_knowledge";
     preview.previewIcon = getValidIconName(
       preview.previewIcon || "",

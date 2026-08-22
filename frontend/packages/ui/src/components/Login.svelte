@@ -99,6 +99,7 @@
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
     let isPasskeyLoading = $state(false); // Track if passkey login is in progress
     let passkeyLoginAbortController: AbortController | null = null; // For cancelling passkey login
+    let passkeyLoginSessionEstablished = false;
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
@@ -550,6 +551,7 @@
 
         // Show loading screen
         isPasskeyLoading = true;
+        passkeyLoginSessionEstablished = false;
         passkeyLoginAbortController = new AbortController();
 
         // Wait a tick for the UI to update, then start passkey login flow
@@ -560,7 +562,14 @@
     /**
      * Cancel passkey login and return to email login
      */
-    function cancelPasskeyLogin() {
+    async function clearEstablishedPasskeySession() {
+        if (!passkeyLoginSessionEstablished) return;
+
+        passkeyLoginSessionEstablished = false;
+        await logout();
+    }
+
+    async function cancelPasskeyLogin() {
         // Abort any ongoing passkey operations
         if (passkeyLoginAbortController) {
             passkeyLoginAbortController.abort();
@@ -571,13 +580,20 @@
         isPasskeyLoading = false;
         isLoading = false;
         loginFailedWarning = false;
+
+        await clearEstablishedPasskeySession();
     }
     
     /**
      * Perform passkey login flow
      */
     async function performPasskeyLogin() {
-        if (!isPasskeyLoading) return; // Check if still in passkey mode
+        const activePasskeyLoginAbortController = passkeyLoginAbortController;
+        if (!isPasskeyLoading || !activePasskeyLoginAbortController) return;
+
+        const passkeyLoginWasCancelled = () =>
+            activePasskeyLoginAbortController.signal.aborted ||
+            passkeyLoginAbortController !== activePasskeyLoginAbortController;
         
         try {
             isLoading = true;
@@ -595,7 +611,7 @@
                 },
                 body: JSON.stringify({}),
                 credentials: 'include',
-                signal: passkeyLoginAbortController?.signal
+                signal: activePasskeyLoginAbortController.signal
             });
             
             if (!initiateResponse.ok) {
@@ -664,7 +680,7 @@
             try {
                 assertion = await navigator.credentials.get({
                     publicKey: publicKeyCredentialRequestOptions,
-                    signal: passkeyLoginAbortController?.signal
+                    signal: activePasskeyLoginAbortController.signal
                 }) as PublicKeyCredential;
             } catch (error: unknown) {
                 // Handle expected cancellations first (don't log as errors)
@@ -826,7 +842,7 @@
                     session_id: getSessionId()
                 }),
                 credentials: 'include',
-                signal: passkeyLoginAbortController?.signal
+                signal: activePasskeyLoginAbortController.signal
             });
             
             if (!verifyResponse.ok) {
@@ -849,6 +865,10 @@
                 isLoading = false;
                 return;
             }
+
+            if (verifyData.auth_session) {
+                passkeyLoginSessionEstablished = true;
+            }
             
             // Step 7: Get email salt from backend response
             let emailSalt = cryptoService.getEmailSalt();
@@ -863,6 +883,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -892,6 +913,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -902,12 +924,17 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
+            if (passkeyLoginWasCancelled()) return;
+
             // Step 10: Save master key to storage (needed for decrypting email)
             // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
             await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+
+            if (passkeyLoginWasCancelled()) return;
             
             // Step 11: Decrypt email using master key (for passwordless login)
             // The server returns encrypted_email encrypted with master key (encrypted_email_with_master_key)
@@ -924,6 +951,7 @@
                     loginFailedWarning = true;
                     isPasskeyLoading = false;
                     isLoading = false;
+                    await clearEstablishedPasskeySession();
                     return;
                 }
             }
@@ -933,6 +961,7 @@
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;
+                await clearEstablishedPasskeySession();
                 return;
             }
             
@@ -955,6 +984,7 @@
                 // Authenticate using the regular login endpoint with lookup_hash
                 const { getApiEndpoint, apiEndpoints } = await import('../config/api');
                 const { getSessionId } = await import('../utils/sessionId');
+                if (passkeyLoginWasCancelled()) return;
                 const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                     method: 'POST',
                     headers: {
@@ -969,7 +999,8 @@
                         stay_logged_in: stayLoggedIn,
                         session_id: getSessionId()
                     }),
-                    credentials: 'include'
+                    credentials: 'include',
+                    signal: activePasskeyLoginAbortController.signal
                 });
                 
                 if (!authResponse.ok) {
@@ -982,6 +1013,8 @@
                 }
                 
                 const authData = await authResponse.json();
+
+                if (passkeyLoginWasCancelled()) return;
                 
                 if (!authData.success) {
                     console.error('Passkey authentication failed:', authData.message);
@@ -997,6 +1030,7 @@
                     user: authData.user,
                     ws_token: authData.ws_token
                 };
+                passkeyLoginSessionEstablished = true;
                 console.log('[Login] Authentication successful via login endpoint');
             }
 
@@ -1007,16 +1041,20 @@
             // generation check and POST /auth/logout with the new session's cookies,
             // destroying the freshly-established session.
             const { bumpLoginSessionGeneration } = await import('../stores/authLoginLogoutActions');
+            if (passkeyLoginWasCancelled()) return;
             bumpLoginSessionGeneration();
 
             // Step 15: Store email encrypted with master key for client use
             await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+
+            if (passkeyLoginWasCancelled()) return;
 
             // Step 16: Store WebSocket token if provided (CRITICAL for WebSocket connection)
             // Check both verifyData.auth_session.ws_token and direct authData.ws_token for compatibility
             const wsToken = verifyData.auth_session?.ws_token;
             if (wsToken) {
                 const { setWebSocketToken } = await import('../utils/cookies');
+                if (passkeyLoginWasCancelled()) return;
                 setWebSocketToken(wsToken);
                 console.debug('[Login] WebSocket token stored from login response');
             } else {
@@ -1052,6 +1090,7 @@
                     // (setting these flags to true) but the user then successfully logs in with passkey.
                     // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
                     const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
+                    if (passkeyLoginWasCancelled()) return;
                     if (get(forcedLogoutInProgress)) {
                         console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
                         resetForcedLogoutInProgress();
@@ -1067,9 +1106,13 @@
 
                     // Save to IndexedDB first
                     const { userDB } = await import('../services/userDB');
+                    if (passkeyLoginWasCancelled()) return;
                     await userDB.saveUserData(userData);
 
+                    if (passkeyLoginWasCancelled()) return;
+
                     const { updateProfile } = await import('../stores/userProfile');
+                    if (passkeyLoginWasCancelled()) return;
                     const userProfileData = {
                         user_id: userData.id || null,
                         username: userData.username || '',
@@ -1112,6 +1155,8 @@
                 } catch { /* localStorage write failed — ignore */ }
             }
 
+            if (passkeyLoginWasCancelled()) return;
+
             // Step 18: Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
@@ -1121,6 +1166,7 @@
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
+            passkeyLoginSessionEstablished = false;
             setLastAuthMethod('passkey');
             dispatch('loginSuccess', {
                 user: userData,
@@ -1129,6 +1175,12 @@
             });
 
         } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                return;
+            }
+
+            await clearEstablishedPasskeySession();
+
             console.error('Error during passkey login:', error);
             // Persist error for admin debugging (clientLogForwarder isn't active during login)
             try {
@@ -1141,11 +1193,6 @@
                     }));
                 }
             } catch { /* localStorage write failed — ignore */ }
-
-            if (error instanceof Error && error.name === 'AbortError') {
-                // User cancelled - already handled
-                return;
-            }
 
             // Check for chunk loading errors (stale cache after deployment)
             if (isChunkLoadError(error)) {
@@ -2413,12 +2460,35 @@
                                     {#if currentLoginStep === 'email'}
                                         {#if isPasskeyLoading}
                                             <!-- Passkey loading screen - replaces form elements -->
-                                            <div class="passkey-loading-screen">
-                                                <div class="passkey-loading-icon">
-                                                    <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
-                                                </div>
-                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey')}</p>
-                                            </div>
+                                             <div class="passkey-loading-screen">
+                                                 <div class="passkey-loading-icon">
+                                                     <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
+                                                 </div>
+                                                 <p class="passkey-loading-text">{$text('login.logging_in_with_passkey')}</p>
+                                                 <div class="passkey-loading-actions">
+                                                     <button
+                                                         type="button"
+                                                         class="passkey-alternative-button"
+                                                         data-testid="login-use-email-button"
+                                                         onclick={cancelPasskeyLogin}
+                                                     >
+                                                         <span class="clickable-icon icon_mail" data-testid="login-use-email-icon"></span>
+                                                         {$text('login.login_with_email_and_password')}
+                                                     </button>
+                                                     <button
+                                                         type="button"
+                                                         class="passkey-alternative-button"
+                                                         data-testid="login-pair-button"
+                                                         onclick={async () => {
+                                                             await cancelPasskeyLogin();
+                                                             setLoginStep('pair-initiate');
+                                                         }}
+                                                     >
+                                                         <span class="clickable-icon icon_phone"></span>
+                                                         {$text('login.login_with_phone_or_pc')}
+                                                     </button>
+                                                 </div>
+                                             </div>
                                         {:else}
                                             <!-- Use EmailLookup component for email input -->
                                             <EmailLookup
@@ -2754,6 +2824,36 @@
         -webkit-background-clip: text;
         color: transparent;
         animation: passkey-shimmer 1.5s infinite linear;
+    }
+
+    .passkey-loading-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: var(--spacing-10);
+    }
+
+    .passkey-alternative-button {
+        all: unset;
+        width: 100%;
+        padding: var(--spacing-4) var(--spacing-0);
+        margin: var(--spacing-4) 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-4);
+        background: var(--color-primary);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: var(--font-size-p);
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .passkey-alternative-button .clickable-icon {
+        margin-right: 0;
     }
 
     @keyframes passkey-shimmer {

@@ -15,9 +15,10 @@ def process_brand_name(content: str, dark_mode: bool = False) -> str:
     Returns:
         Processed HTML content
     """
-    # IMPORTANT: Do not inject raw HTML into <mj-head> (e.g. <mj-title>).
-    # MJML head tags expect plain text and will fail to parse if we insert <a> there.
-    head_pattern = re.compile(r'(<mj-head\b[^>]*>.*?</mj-head>)', flags=re.DOTALL | re.IGNORECASE)
+    # IMPORTANT: Do not inject raw HTML into MJML or rendered HTML head tags
+    # (e.g. <mj-title>/<title>). Those tags expect plain text and must not
+    # receive anchors/spans from brand-name styling.
+    head_pattern = re.compile(r'(<(?:mj-head|head)\b[^>]*>.*?</(?:mj-head|head)>)', flags=re.DOTALL | re.IGNORECASE)
     head_match = head_pattern.search(content)
     if head_match:
         before_head = content[:head_match.start(1)]

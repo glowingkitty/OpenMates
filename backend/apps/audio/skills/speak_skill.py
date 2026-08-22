@@ -1,54 +1,40 @@
 # backend/apps/audio/skills/speak_skill.py
 #
 # audio.speak app skill for explicit text-to-speech generation requests.
-# The skill accepts only OpenMates voice presets, runs deterministic checks and
-# the GPT OSS safeguard before ElevenLabs, and returns direct playable audio only
-# after the safeguard explicitly approves the text.
+# The skill accepts only OpenMates voice presets, validates dispatch requests,
+# and sends provider/safeguard work to Celery so generated speech is stored as
+# encrypted generated assets instead of inline audio bytes.
 
 from __future__ import annotations
 
-import base64
 import logging
+import uuid
 from dataclasses import dataclass
 from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.apps.base_skill import BaseSkill
-from backend.shared.providers.elevenlabs import ElevenLabsClient
+from backend.apps.audio.pricing import (
+    DEFAULT_SPEECH_MODEL,
+    PREMIUM_SPEECH_MODEL,
+)
 from backend.shared.providers.groq.safeguard import get_safeguard_client
-from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROVIDER = "elevenlabs"
-DEFAULT_MODEL = "eleven_flash_v2_5"
-PREMIUM_MODEL = "eleven_multilingual_v2"
+DEFAULT_MODEL = DEFAULT_SPEECH_MODEL
+PREMIUM_MODEL = PREMIUM_SPEECH_MODEL
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
-SPEECH_MODEL_PRICING = {
-    DEFAULT_MODEL: {"per_minute": {"credits": 50, "unit_name": "speech_minute"}},
-    PREMIUM_MODEL: {"per_minute": {"credits": 100, "unit_name": "speech_minute"}},
-}
-SECONDS_PER_MINUTE = 60
-ELEVENLABS_APPROX_CHARS_PER_MINUTE = 1000
 VOICE_PRESET_TO_ELEVENLABS_ID = {
     "warm_neutral": "21m00Tcm4TlvDq8ikWAM",
     "bright_neutral": "EXAVITQu4vr4xnSDxMaL",
     "calm_narrator": "pNInz6obpgDQGcFmaJgB",
 }
 IGNORE_FIELDS_FOR_INFERENCE = ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"]
-
-
-def _estimate_speech_duration_seconds(text: str) -> float:
-    return max(0.1, (len(text) / ELEVENLABS_APPROX_CHARS_PER_MINUTE) * SECONDS_PER_MINUTE)
-
-
-def _calculate_speech_credits(*, model: str, duration_seconds: float) -> int:
-    return calculate_total_credits(
-        pricing_config=SPEECH_MODEL_PRICING[model],
-        duration_minutes=duration_seconds / SECONDS_PER_MINUTE,
-    )
 
 
 @dataclass(frozen=True)
@@ -81,7 +67,7 @@ class AudioSpeakRequestItem(BaseModel):
         "mp3_44100_128",
         "mp3_44100_192",
     ] = DEFAULT_OUTPUT_FORMAT
-    model: Literal["eleven_flash_v2_5", "eleven_multilingual_v2"] = DEFAULT_MODEL
+    model: Literal["eleven_multilingual_v2", "eleven_flash_v2_5"] = DEFAULT_MODEL
 
     @field_validator("text")
     @classmethod
@@ -104,7 +90,7 @@ class AudioSpeakResult(BaseModel):
     """Result for one text-to-speech request."""
 
     id: Any
-    status: Literal["finished", "error"]
+    status: Literal["processing", "finished", "error"]
     text_preview: str
     generation_type: Literal["speech"] = "speech"
     voice: str
@@ -114,7 +100,9 @@ class AudioSpeakResult(BaseModel):
     model: str = DEFAULT_MODEL
     mime_type: str = "audio/mpeg"
     duration_seconds: Optional[float] = None
-    byte_length: int
+    byte_length: Optional[int] = None
+    task_id: Optional[str] = None
+    embed_id: Optional[str] = None
     audio_base64: Optional[str] = None
     files: Optional[dict[str, Any]] = None
     s3_base_url: Optional[str] = None
@@ -128,6 +116,11 @@ class AudioSpeakResult(BaseModel):
 class AudioSpeakResponse(BaseModel):
     """Response model for audio.speak."""
 
+    status: Literal["processing", "finished", "error"] = "processing"
+    task_id: Optional[str] = None
+    embed_id: Optional[str] = None
+    task_ids: Optional[List[str]] = None
+    embed_ids: Optional[List[str]] = None
     results: List[AudioSpeakResult] = Field(default_factory=list)
     provider: str = "ElevenLabs"
     error: Optional[str] = None
@@ -184,98 +177,85 @@ class SpeakSkill(BaseSkill):
     async def execute(
         self,
         request: AudioSpeakRequest,
-        secrets_manager=None,
-        **_kwargs: Any,
-    ) -> AudioSpeakResponse:
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        if not self.celery_producer:
+            logger.error("Celery producer not available in audio.SpeakSkill")
+            return AudioSpeakResponse(
+                status="error",
+                error="Speech generation service is temporarily unavailable.",
+            ).model_dump(exclude_none=True)
+
         batch_decision = validate_media_generation_request(
             media_type="speech",
             prompt="",
             request_count=len(request.requests),
         )
         if not batch_decision.allowed:
-            return AudioSpeakResponse(error=batch_decision.user_facing_message)
+            return AudioSpeakResponse(
+                status="error",
+                error=batch_decision.user_facing_message,
+            ).model_dump(exclude_none=True)
 
-        client = ElevenLabsClient(secrets_manager=secrets_manager)
         results: list[AudioSpeakResult] = []
+        task_ids: list[str] = []
+        embed_ids: list[str] = []
+        placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
+        user_id = kwargs.get("user_id")
         for index, item in enumerate(request.requests, start=1):
             item_id = item.id if item.id is not None else index
             text_preview = _text_preview(item.text)
 
-            safety = await classify_audio_speech_safety(
-                text=item.text,
-                voice=item.voice,
-                accent=item.accent,
-                style=item.style,
-                secrets_manager=secrets_manager,
+            embed_id = (
+                placeholder_embed_ids[index - 1]
+                if index - 1 < len(placeholder_embed_ids) and placeholder_embed_ids[index - 1]
+                else str(uuid.uuid4())
             )
-            if not safety.approved:
-                logger.info("audio.speak rejected before provider call: %s", safety.category)
-                results.append(
-                    AudioSpeakResult(
-                        id=item_id,
-                        status="error",
-                        text_preview=text_preview,
-                        voice=item.voice,
-                        accent=item.accent,
-                        style=item.style,
-                        model=item.model,
-                        byte_length=0,
-                        credits_charged=None,
-                        error=safety.user_facing_message,
-                    )
-                )
-                continue
-
+            task_args = {
+                "request_id": item_id,
+                "text": item.text,
+                "text_preview": text_preview,
+                "voice": item.voice,
+                "accent": item.accent,
+                "style": item.style,
+                "speed": item.speed,
+                "output_format": item.output_format,
+                "model": item.model,
+                "full_model_reference": f"elevenlabs/{item.model}",
+                "user_id": user_id,
+                "user_vault_key_id": kwargs.get("user_vault_key_id"),
+                "chat_id": kwargs.get("chat_id") or self._current_chat_id,
+                "message_id": kwargs.get("message_id") or self._current_message_id,
+                "external_request": kwargs.get("external_request", False),
+                "api_key_hash": kwargs.get("api_key_hash"),
+                "device_hash": kwargs.get("device_hash"),
+                "api_key_name": kwargs.get("api_key_name"),
+                "embed_id": embed_id,
+            }
             try:
-                voice_id = VOICE_PRESET_TO_ELEVENLABS_ID[item.voice]
-                generated = await client.text_to_speech(
-                    text=item.text,
-                    voice_id=voice_id,
-                    model=item.model,
-                    output_format=item.output_format,
-                    speed=item.speed,
+                task_id = await execute_skill_via_celery(
+                    app_id=self.app_id,
+                    skill_id=self.skill_id,
+                    arguments=task_args,
+                    celery_producer=self.celery_producer,
                 )
-                duration_seconds = generated.duration_seconds
-                if duration_seconds is None:
-                    duration_seconds = _estimate_speech_duration_seconds(item.text)
-                    logger.warning(
-                        "audio.speak could not derive provider audio duration; using ElevenLabs pricing-page estimate"
-                    )
-                credits = _calculate_speech_credits(model=item.model, duration_seconds=duration_seconds)
+                task_ids.append(task_id)
+                embed_ids.append(embed_id)
                 results.append(
                     AudioSpeakResult(
                         id=item_id,
-                        status="finished",
-                        text_preview=text_preview,
-                        voice=item.voice,
-                        accent=item.accent,
-                        style=item.style,
-                        model=generated.model,
-                        mime_type=generated.mime_type or "audio/mpeg",
-                        duration_seconds=duration_seconds,
-                        byte_length=generated.byte_length,
-                        audio_base64=base64.b64encode(generated.audio_bytes).decode("ascii"),
-                        credits_charged=credits,
-                        error=None,
-                    )
-                )
-            except KeyError:
-                results.append(
-                    AudioSpeakResult(
-                        id=item_id,
-                        status="error",
+                        status="processing",
                         text_preview=text_preview,
                         voice=item.voice,
                         accent=item.accent,
                         style=item.style,
                         model=item.model,
-                        byte_length=0,
-                        credits_charged=None,
-                        error="Selected voice preset is temporarily unavailable.",
+                        task_id=task_id,
+                        embed_id=embed_id,
                     )
                 )
             except Exception as exc:
-                logger.error("audio.speak provider error: %s", exc, exc_info=True)
+                logger.error("audio.speak task dispatch error: %s", exc, exc_info=True)
                 results.append(
                     AudioSpeakResult(
                         id=item_id,
@@ -291,4 +271,18 @@ class SpeakSkill(BaseSkill):
                     )
                 )
 
-        return AudioSpeakResponse(results=results)
+        if not task_ids:
+            return AudioSpeakResponse(
+                status="error",
+                results=results,
+                error="No speech generation tasks could be started.",
+            ).model_dump(exclude_none=True)
+
+        return AudioSpeakResponse(
+            status="processing",
+            task_id=task_ids[0] if len(task_ids) == 1 else None,
+            embed_id=embed_ids[0] if len(embed_ids) == 1 else None,
+            task_ids=task_ids,
+            embed_ids=embed_ids,
+            results=results,
+        ).model_dump(exclude_none=True)

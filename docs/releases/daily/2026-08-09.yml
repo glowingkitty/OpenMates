@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-08-09'
-generated_at: '2026-08-09T15:09:15+00:00'
+generated_at: '2026-08-10T00:20:07+00:00'
 range:
-  since: 24 hours ago
-  until: null
+  since: '2026-08-09T00:00:00+00:00'
+  until: '2026-08-10T00:00:00+00:00'
   from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 5
+  total_commits: 65
   section_counts:
-    features: 0
-    bug_fixes: 4
+    features: 2
+    bug_fixes: 25
     improvements: 0
-    docs: 1
-    tests: 0
-    infrastructure: 0
+    docs: 5
+    tests: 29
+    infrastructure: 1
     internal: 0
-    other: 0
+    other: 3
   newsletter_ready_items: 0
-  user_facing_items: 4
-  dev_only_items: 5
+  user_facing_items: 20
+  dev_only_items: 65
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -161,120 +161,723 @@ feature_availability:
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
-  features: []
-  bug_fixes:
-  - title: 'fix: repair grouped bare embed source links'
-    section: bug_fixes
+  features:
+  - title: 'feat: add premium ElevenLabs speech model'
+    section: features
     commits:
-    - 0689e579d
-    authored_at: '2026-08-08T17:34:16+00:00'
+    - 3f0d2adb0
+    authored_at: '2026-08-09T23:27:32+00:00'
     changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/tests/test_grouped_bare_embed_refs.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/providers/elevenlabs.yml
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
     - contracts/generated/assertion-index.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/generate_audio_sample_artifacts.py
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
     user_facing: true
     related_features:
-    - id: app:ai
+    - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
       override: null
       parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: speed Phase 2 draft metadata sync'
-    section: bug_fixes
-    commits:
-    - e20ee6e17
-    authored_at: '2026-08-08T17:31:25+00:00'
-    changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
-    - backend/tests/test_phased_sync_handler.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: isolate user init worker'
-    section: bug_fixes
-    commits:
-    - 0c7782005
-    authored_at: '2026-08-08T17:05:17+00:00'
-    changed_paths:
-    - backend/core/docker-compose.selfhost.yml
-    - backend/core/docker-compose.yml
-    - backend/core/monitoring/prometheus/prometheus.yml
-    - backend/tests/test_billing_worker_compose.py
-    - docs/architecture/core/servers.md
-    - frontend/packages/openmates-cli/src/serverPlanning.ts
-    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
-    - scripts/api_tests/test_cloud_overlay_boot.py
-    - scripts/prepare_release_candidate.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: keep recovery continuations distinct'
-    section: bug_fixes
-    commits:
-    - 03293502a
-    authored_at: '2026-08-08T15:49:45+00:00'
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/tests/test_chat_completion_recovery_jobs.py
-    - backend/tests/test_stream_consumer_recovery.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
     rationale:
-    - classified as bug fixes from commit subject/path rules
+    - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
+    - 'matches feature availability gates: app:audio, embed:audio:speak, skill:audio:speak'
     - commit is not reachable from main, so it is not newsletter-ready
-  improvements: []
-  docs:
-  - title: 'docs: add chat sync startup contract'
-    section: docs
+  - title: 'feat: add ElevenLabs audio skills'
+    section: features
     commits:
-    - d7c536d01
-    authored_at: '2026-08-08T16:16:38+00:00'
+    - a1d6d0829
+    authored_at: '2026-08-09T15:40:53+00:00'
     changed_paths:
-    - contracts/architecture/sync/contract.yml
-    - contracts/architecture/sync/examples.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/__init__.py
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/providers/elevenlabs/models.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/media_generation_safety/pipeline.py
+    - backend/tests/test_media_generation_safety.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
     - contracts/generated/assertion-index.yml
     - contracts/generated/coverage.yml
     - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioEmbedText.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/sessions.py
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:generate, embed:audio:speak, skill:audio:generate, skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: preserve restored draft-only chats during cleanup'
+    section: bug_fixes
+    commits:
+    - 1d53aa180
+    authored_at: '2026-08-09T23:37:06+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep active draft chat visible in sidebar'
+    section: bug_fixes
+    commits:
+    - ad223d5b3
+    authored_at: '2026-08-09T23:01:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip declared audio binary fields in output scanning'
+    section: bug_fixes
+    commits:
+    - bb2569bc5
+    authored_at: '2026-08-09T22:01:33+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry audio speech safeguard parse failures'
+    section: bug_fixes
+    commits:
+    - b59f1d229
+    authored_at: '2026-08-09T21:42:37+00:00'
+    changed_paths:
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render audio generation embeds'
+    section: bug_fixes
+    commits:
+    - 6fce08a30
+    authored_at: '2026-08-09T17:26:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioGeneratedEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:music:generate'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix shared interactive question embed refs
+    section: bug_fixes
+    commits:
+    - 8501800a1
+    authored_at: '2026-08-09T17:11:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: classify remaining workflow capabilities'
+    section: bug_fixes
+    commits:
+    - 14dfdf50b
+    authored_at: '2026-08-09T16:53:33+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_capabilities.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair pytest regression contracts'
+    section: bug_fixes
+    commits:
+    - b303489de
+    authored_at: '2026-08-09T16:33:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_settings_account_delete_force_logout.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - scripts/auto_fix_failed_tests.py
+    - scripts/sessions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve shared interactive question payloads'
+    section: bug_fixes
+    commits:
+    - b482d11a8
+    authored_at: '2026-08-09T16:32:35+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: strip REST skill context for strict requests'
+    section: bug_fixes
+    commits:
+    - 5dd8890f5
+    authored_at: '2026-08-09T16:05:43+00:00'
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair shared chat embed protocol rendering'
+    section: bug_fixes
+    commits:
+    - ecc98e97d
+    authored_at: '2026-08-09T15:50:42+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: generate embed registry before deploy lint'
+    section: bug_fixes
+    commits:
+    - 434aa22d2
+    authored_at: '2026-08-09T15:07:55+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cap env backup artifacts'
+    section: bug_fixes
+    commits:
+    - 8892b5b8e
+    authored_at: '2026-08-09T14:18:24+00:00'
+    changed_paths:
+    - .gitignore
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use global draft receipt timers'
+    section: bug_fixes
+    commits:
+    - daf751271
+    authored_at: '2026-08-09T14:00:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide generic shared embeds from files'
+    section: bug_fixes
+    commits:
+    - 55edd9a39
+    authored_at: '2026-08-09T13:51:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard draft deletes during chat switches'
+    section: bug_fixes
+    commits:
+    - 0bb4f7b83
+    authored_at: '2026-08-09T13:49:20+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: handle draft receipt reconnects'
+    section: bug_fixes
+    commits:
+    - 32859de12
+    authored_at: '2026-08-09T13:37:30+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore checkpoint lock artifacts'
+    section: bug_fixes
+    commits:
+    - f12cbc458
+    authored_at: '2026-08-09T13:30:49+00:00'
+    changed_paths:
+    - .gitignore
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair single suffix-only embed refs'
+    section: bug_fixes
+    commits:
+    - a4a32b406
+    authored_at: '2026-08-09T13:07:15+00:00'
+    changed_paths:
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: invalidate stale chat loads on new chat'
+    section: bug_fixes
+    commits:
+    - ce7f1accb
+    authored_at: '2026-08-09T12:56:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair suffix-only embed refs'
+    section: bug_fixes
+    commits:
+    - 43f97a298
+    authored_at: '2026-08-09T12:40:28+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep authenticated daily inspirations visible'
+    section: bug_fixes
+    commits:
+    - c82b647b5
+    authored_at: '2026-08-09T12:35:34+00:00'
+    changed_paths:
+    - contracts/features/daily-inspiration/contract.yml
+    - contracts/features/daily-inspiration/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry stale pair authorization'
+    section: bug_fixes
+    commits:
+    - 743c2dd43
+    authored_at: '2026-08-09T12:17:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remount chat history for new chat'
+    section: bug_fixes
+    commits:
+    - 64424fea0
+    authored_at: '2026-08-09T10:42:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align chat header navigation order'
+    section: bug_fixes
+    commits:
+    - 17ccacb72
+    authored_at: '2026-08-09T10:08:47+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - contracts/features/chat-navigation/contract.yml
+    - contracts/features/chat-navigation/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: preserve ElevenLabs audio sample artifacts'
+    section: docs
+    commits:
+    - 0f395a5e1
+    authored_at: '2026-08-09T23:46:31+00:00'
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-assistant-voice-sample-flash.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-assistant-voice-sample-premium.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-assistant-message-complete.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-assistant-needs-user-input.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-authenticated-ready.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-full-plan-completed.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-gentle-alert.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-message-sent-processing-started.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-success-chime.mp3
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - scripts/generate_audio_sample_artifacts.py
     release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
@@ -284,50 +887,768 @@ sections:
     rationale:
     - classified as documentation from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  tests: []
-  infrastructure: []
-  internal: []
-  other: []
-unreleased_progress:
-  dev_only:
-  - title: 'fix: repair grouped bare embed source links'
+  - title: 'docs: record ElevenLabs audio sample evidence'
+    section: docs
     commits:
-    - 0689e579d
-    section: bug_fixes
+    - 32edaa708
+    authored_at: '2026-08-09T22:29:15+00:00'
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
     release_status: dev_only
-    communication_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Refresh release intelligence for PR prep
+    section: docs
+    commits:
+    - aba373e86
+    authored_at: '2026-08-09T15:19:39+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-08-09.md
+    - docs/releases/daily/2026-08-09.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: clarify spawn chat modes'
+    section: docs
+    commits:
+    - 195d48dee
+    authored_at: '2026-08-09T15:12:14+00:00'
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: sync opencode skill mirrors'
+    section: docs
+    commits:
+    - 3ea52caf0
+    authored_at: '2026-08-09T11:04:58+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/spawn-chat/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'ci: validate Vitest artifacts in final gate'
+    section: tests
+    commits:
+    - 36c021332
+    authored_at: '2026-08-09T18:37:39+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: attach transaction timeout rejection handler'
+    section: tests
+    commits:
+    - ce213f246
+    authored_at: '2026-08-09T18:30:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: mock recovery prerequisites in stale-frame test'
+    section: tests
+    commits:
+    - a3f0d223b
+    authored_at: '2026-08-09T18:15:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize recovery stale-frame retry'
+    section: tests
+    commits:
+    - e7d0434e2
+    authored_at: '2026-08-09T18:05:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: flush recovery retry timer loop'
+    section: tests
+    commits:
+    - 24f8f10bd
+    authored_at: '2026-08-09T17:53:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize recovery retry timer wait'
+    section: tests
+    commits:
+    - 3d3581e1c
+    authored_at: '2026-08-09T17:46:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover audio generation web embeds'
+    section: tests
+    commits:
+    - 3da39512c
+    authored_at: '2026-08-09T17:39:44+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clear final UI Vitest failures'
+    section: tests
+    commits:
+    - 717f4a852
+    authored_at: '2026-08-09T17:36:52+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize remaining UI Vitest regressions'
+    section: tests
+    commits:
+    - d76963149
+    authored_at: '2026-08-09T17:23:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/__tests__/test-setup.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate SvelteKit Vitest mocks'
+    section: tests
+    commits:
+    - 3bb16202a
+    authored_at: '2026-08-09T16:42:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/test-mocks/app-forms.ts
+    - frontend/packages/ui/src/test-mocks/app-navigation.ts
+    - frontend/packages/ui/src/test-mocks/app-paths.ts
+    - frontend/packages/ui/src/test-mocks/app-runtime.ts
+    - frontend/packages/ui/src/test-mocks/app-state.ts
+    - frontend/packages/ui/src/test-mocks/app-stores.ts
+    - frontend/packages/ui/src/test-mocks/sveltekit-app.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - frontend/packages/ui/vitest.config.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize UI Vitest environment'
+    section: tests
+    commits:
+    - a68f749bc
+    authored_at: '2026-08-09T16:30:15+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/test-mocks/sveltekit-app.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - frontend/packages/ui/vitest.config.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
     related_features:
-    - id: app:ai
+    - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
       override: null
       parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: speed Phase 2 draft metadata sync'
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Vitest runner configuration'
+    section: tests
     commits:
-    - e20ee6e17
-    section: bug_fixes
+    - 35eae4610
+    authored_at: '2026-08-09T15:56:27+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/types.ts
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/utils.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.d.ts
+    - frontend/packages/ui/src/i18n/translations.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/vitest.config.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Vitest infrastructure'
+    section: tests
+    commits:
+    - 81918f46b
+    authored_at: '2026-08-09T15:23:21+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/data/providerIcons.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/i18n/translations.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus message editor before draft cleanup'
+    section: tests
+    commits:
+    - 78eeaf3d7
+    authored_at: '2026-08-09T14:14:19+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: traverse draft rows in chat header navigation'
+    section: tests
+    commits:
+    - 942ab84c6
+    authored_at: '2026-08-09T12:25:02+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix billing usage API unit fixture'
+    section: tests
+    commits:
+    - 6e4717bf2
+    authored_at: '2026-08-09T12:24:01+00:00'
+    changed_paths:
+    - backend/tests/test_apps_api.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provide recovery handler window timers'
+    section: tests
+    commits:
+    - cc0346d1e
+    authored_at: '2026-08-09T12:03:29+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: select chat adjacent to draft in header navigation'
+    section: tests
+    commits:
+    - 8ca11df9a
+    authored_at: '2026-08-09T11:55:51+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize billing usage spec'
+    section: tests
+    commits:
+    - e517aeee2
+    authored_at: '2026-08-09T11:54:45+00:00'
+    changed_paths:
+    - contracts/features/billing/contract.yml
+    - contracts/features/billing/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: correct app settings handler mocks'
+    section: tests
+    commits:
+    - '401556812'
+    authored_at: '2026-08-09T11:52:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: mock fullscreen controller in handler spec'
+    section: tests
+    commits:
+    - 20e81c43a
+    authored_at: '2026-08-09T11:38:45+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat header draft cleanup'
+    section: tests
+    commits:
+    - 7e38f847c
+    authored_at: '2026-08-09T11:33:12+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: complete app settings websocket mock'
+    section: tests
+    commits:
+    - d9c68fa51
+    authored_at: '2026-08-09T11:16:08+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: backfill chat and workflow contracts for handler specs'
+    section: tests
+    commits:
+    - a941e231f
+    authored_at: '2026-08-09T11:04:16+00:00'
+    changed_paths:
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/features/workflows/contract.yml
+    - contracts/features/workflows/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize draft header navigation setup'
+    section: tests
+    commits:
+    - 52aca7fd9
+    authored_at: '2026-08-09T10:32:17+00:00'
+    changed_paths:
+    - contracts/architecture/drafts/contract.yml
+    - contracts/architecture/drafts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/new-chat-draft-lifecycle/spec.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait longer for shared login auth'
+    section: tests
+    commits:
+    - 5579f6541
+    authored_at: '2026-08-09T09:14:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stub document in UI Vitest setup'
+    section: tests
+    commits:
+    - 90c876bdb
+    authored_at: '2026-08-09T09:02:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: expose storage globals in UI Vitest setup'
+    section: tests
+    commits:
+    - 617c5aa21
+    authored_at: '2026-08-09T08:56:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: mock SvelteKit app modules for UI Vitest'
+    section: tests
+    commits:
+    - 0df241610
+    authored_at: '2026-08-09T08:51:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: tighten opencode workflow diagnostics'
+    section: infrastructure
+    commits:
+    - 65271b60c
+    authored_at: '2026-08-09T10:59:27+00:00'
+    changed_paths:
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/server-restart.sh
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other:
+  - title: Preserve preprocessed code fence payloads
+    section: other
+    commits:
+    - a6b8901e6
+    authored_at: '2026-08-09T18:17:33+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/tiptapContentProcessor.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
     release_status: dev_only
     communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
     related_features: []
-  - title: 'fix: isolate user init worker'
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve grouped interactive question code
+    section: other
     commits:
-    - 0c7782005
-    section: bug_fixes
+    - 7465ddd23
+    authored_at: '2026-08-09T17:48:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
     release_status: dev_only
-    communication_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
     related_features: []
-  - title: 'docs: add chat sync startup contract'
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve shared interactive question payloads
+    section: other
     commits:
-    - d7c536d01
+    - 6e8763e13
+    authored_at: '2026-08-09T17:33:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'docs: preserve ElevenLabs audio sample artifacts'
+    commits:
+    - 0f395a5e1
     section: docs
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'fix: keep recovery continuations distinct'
+  - title: 'fix: preserve restored draft-only chats during cleanup'
     commits:
-    - 03293502a
+    - 1d53aa180
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add premium ElevenLabs speech model'
+    commits:
+    - 3f0d2adb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'fix: keep active draft chat visible in sidebar'
+    commits:
+    - ad223d5b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record ElevenLabs audio sample evidence'
+    commits:
+    - 32edaa708
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip declared audio binary fields in output scanning'
+    commits:
+    - bb2569bc5
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -339,14 +1660,654 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+  - title: 'fix: retry audio speech safeguard parse failures'
+    commits:
+    - b59f1d229
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: validate Vitest artifacts in final gate'
+    commits:
+    - 36c021332
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: attach transaction timeout rejection handler'
+    commits:
+    - ce213f246
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve preprocessed code fence payloads
+    commits:
+    - a6b8901e6
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: mock recovery prerequisites in stale-frame test'
+    commits:
+    - a3f0d223b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize recovery stale-frame retry'
+    commits:
+    - e7d0434e2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: flush recovery retry timer loop'
+    commits:
+    - 24f8f10bd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve grouped interactive question code
+    commits:
+    - 7465ddd23
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize recovery retry timer wait'
+    commits:
+    - 3d3581e1c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover audio generation web embeds'
+    commits:
+    - 3da39512c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clear final UI Vitest failures'
+    commits:
+    - 717f4a852
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve shared interactive question payloads
+    commits:
+    - 6e8763e13
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render audio generation embeds'
+    commits:
+    - 6fce08a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+  - title: 'test: stabilize remaining UI Vitest regressions'
+    commits:
+    - d76963149
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix shared interactive question embed refs
+    commits:
+    - 8501800a1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: classify remaining workflow capabilities'
+    commits:
+    - 14dfdf50b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: isolate SvelteKit Vitest mocks'
+    commits:
+    - 3bb16202a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair pytest regression contracts'
+    commits:
+    - b303489de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve shared interactive question payloads'
+    commits:
+    - b482d11a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize UI Vitest environment'
+    commits:
+    - a68f749bc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'fix: strip REST skill context for strict requests'
+    commits:
+    - 5dd8890f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize Vitest runner configuration'
+    commits:
+    - 35eae4610
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair shared chat embed protocol rendering'
+    commits:
+    - ecc98e97d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add ElevenLabs audio skills'
+    commits:
+    - a1d6d0829
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: stabilize Vitest infrastructure'
+    commits:
+    - 81918f46b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Refresh release intelligence for PR prep
+    commits:
+    - aba373e86
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: clarify spawn chat modes'
+    commits:
+    - 195d48dee
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: generate embed registry before deploy lint'
+    commits:
+    - 434aa22d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: cap env backup artifacts'
+    commits:
+    - 8892b5b8e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: focus message editor before draft cleanup'
+    commits:
+    - 78eeaf3d7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use global draft receipt timers'
+    commits:
+    - daf751271
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hide generic shared embeds from files'
+    commits:
+    - 55edd9a39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: guard draft deletes during chat switches'
+    commits:
+    - 0bb4f7b83
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: handle draft receipt reconnects'
+    commits:
+    - 32859de12
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore checkpoint lock artifacts'
+    commits:
+    - f12cbc458
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair single suffix-only embed refs'
+    commits:
+    - a4a32b406
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: invalidate stale chat loads on new chat'
+    commits:
+    - ce7f1accb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair suffix-only embed refs'
+    commits:
+    - 43f97a298
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep authenticated daily inspirations visible'
+    commits:
+    - c82b647b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: traverse draft rows in chat header navigation'
+    commits:
+    - 942ab84c6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix billing usage API unit fixture'
+    commits:
+    - 6e4717bf2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retry stale pair authorization'
+    commits:
+    - 743c2dd43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: provide recovery handler window timers'
+    commits:
+    - cc0346d1e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: select chat adjacent to draft in header navigation'
+    commits:
+    - 8ca11df9a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize billing usage spec'
+    commits:
+    - e517aeee2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: correct app settings handler mocks'
+    commits:
+    - '401556812'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: mock fullscreen controller in handler spec'
+    commits:
+    - 20e81c43a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize chat header draft cleanup'
+    commits:
+    - 7e38f847c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: complete app settings websocket mock'
+    commits:
+    - d9c68fa51
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: sync opencode skill mirrors'
+    commits:
+    - 3ea52caf0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: backfill chat and workflow contracts for handler specs'
+    commits:
+    - a941e231f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: tighten opencode workflow diagnostics'
+    commits:
+    - 65271b60c
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remount chat history for new chat'
+    commits:
+    - 64424fea0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize draft header navigation setup'
+    commits:
+    - 52aca7fd9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align chat header navigation order'
+    commits:
+    - 17ccacb72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: wait longer for shared login auth'
+    commits:
+    - 5579f6541
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stub document in UI Vitest setup'
+    commits:
+    - 90c876bdb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: expose storage globals in UI Vitest setup'
+    commits:
+    - 617c5aa21
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: mock SvelteKit app modules for UI Vitest'
+    commits:
+    - 0df241610
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
   unknown_release_status: []
-  feature_metadata_changed: []
+  feature_metadata_changed:
+  - title: 'feat: add premium ElevenLabs speech model'
+    commits:
+    - 3f0d2adb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: stabilize UI Vitest environment'
+    commits:
+    - a68f749bc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'feat: add ElevenLabs audio skills'
+    commits:
+    - a1d6d0829
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: stabilize Vitest infrastructure'
+    commits:
+    - 81918f46b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: guard draft deletes during chat switches'
+    commits:
+    - 0bb4f7b83
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
 marketing_candidates:
   newsletter: []
   social_or_video:
-  - title: 'fix: repair grouped bare embed source links'
+  - title: 'fix: preserve restored draft-only chats during cleanup'
     commits:
-    - 0689e579d
+    - 1d53aa180
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add premium ElevenLabs speech model'
+    commits:
+    - 3f0d2adb0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep active draft chat visible in sidebar'
+    commits:
+    - ad223d5b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: skip declared audio binary fields in output scanning'
+    commits:
+    - bb2569bc5
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -359,25 +2320,146 @@ marketing_candidates:
       parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
-  - title: 'fix: speed Phase 2 draft metadata sync'
+  - title: Preserve preprocessed code fence payloads
     commits:
-    - e20ee6e17
+    - a6b8901e6
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render audio generation embeds'
+    commits:
+    - 6fce08a30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    newsletter_ready: false
+  - title: Fix shared interactive question embed refs
+    commits:
+    - 8501800a1
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
     related_features: []
     newsletter_ready: false
-  - title: 'fix: isolate user init worker'
+  - title: 'fix: repair pytest regression contracts'
     commits:
-    - 0c7782005
+    - b303489de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve shared interactive question payloads'
+    commits:
+    - b482d11a8
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
     related_features: []
     newsletter_ready: false
-  - title: 'fix: keep recovery continuations distinct'
+  - title: 'fix: strip REST skill context for strict requests'
     commits:
-    - 03293502a
+    - 5dd8890f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair shared chat embed protocol rendering'
+    commits:
+    - ecc98e97d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add ElevenLabs audio skills'
+    commits:
+    - a1d6d0829
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: cap env backup artifacts'
+    commits:
+    - 8892b5b8e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide generic shared embeds from files'
+    commits:
+    - 55edd9a39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: invalidate stale chat loads on new chat'
+    commits:
+    - ce7f1accb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair suffix-only embed refs'
+    commits:
+    - 43f97a298
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -389,6 +2471,52 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep authenticated daily inspirations visible'
+    commits:
+    - c82b647b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retry stale pair authorization'
+    commits:
+    - 743c2dd43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remount chat history for new chat'
+    commits:
+    - 64424fea0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align chat header navigation order'
+    commits:
+    - 17ccacb72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
     newsletter_ready: false
 risks:
   communication:
@@ -397,124 +2525,993 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
-  - sha: 0689e579db9f52c045ff7650ceefd2b30d2179f0
-    short_sha: 0689e579d
-    authored_at: '2026-08-08T17:34:16+00:00'
-    subject: 'fix: repair grouped bare embed source links'
+  - sha: 0f395a5e152cace627190d3d8bbac64e6f397e16
+    short_sha: 0f395a5e1
+    authored_at: '2026-08-09T23:46:31+00:00'
+    subject: 'docs: preserve ElevenLabs audio sample artifacts'
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/tests/test_grouped_bare_embed_refs.py
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/manifest.json
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-assistant-voice-sample-flash.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-assistant-voice-sample-premium.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-assistant-message-complete.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-assistant-needs-user-input.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-authenticated-ready.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-full-plan-completed.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-gentle-alert.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-message-sent-processing-started.mp3
+    - docs/specs/elevenlabs-audio-skills/artifacts/2026-08-09/openmates-sfx-success-chime.mp3
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - scripts/generate_audio_sample_artifacts.py
+    related_feature_ids: []
+  - sha: 1d53aa1809c34957246475eb309cf58565e364d8
+    short_sha: 1d53aa180
+    authored_at: '2026-08-09T23:37:06+00:00'
+    subject: 'fix: preserve restored draft-only chats during cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
     - contracts/generated/assertion-index.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
-    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+  - sha: 3f0d2adb039758a59f3a2f258422982b560cd3ac
+    short_sha: 3f0d2adb0
+    authored_at: '2026-08-09T23:27:32+00:00'
+    subject: 'feat: add premium ElevenLabs speech model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/providers/elevenlabs.yml
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/generate_audio_sample_artifacts.py
+    related_feature_ids:
+    - app:audio
+    - embed:audio:speak
+    - skill:audio:speak
+  - sha: ad223d5b332fddc2a417950f4b863d59e0bc8ea8
+    short_sha: ad223d5b3
+    authored_at: '2026-08-09T23:01:38+00:00'
+    subject: 'fix: keep active draft chat visible in sidebar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 32edaa708d79213e83bc9d6f66ff2bb91326e136
+    short_sha: 32edaa708
+    authored_at: '2026-08-09T22:29:15+00:00'
+    subject: 'docs: record ElevenLabs audio sample evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    related_feature_ids: []
+  - sha: bb2569bc5bffe9438aadd6aa9d60e2596c09e5a9
+    short_sha: bb2569bc5
+    authored_at: '2026-08-09T22:01:33+00:00'
+    subject: 'fix: skip declared audio binary fields in output scanning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/generated/assertion-index.yml
     related_feature_ids:
     - app:ai
-  - sha: e20ee6e17f9e1debc383153a29dd01834f471e2d
-    short_sha: e20ee6e17
-    authored_at: '2026-08-08T17:31:25+00:00'
-    subject: 'fix: speed Phase 2 draft metadata sync'
+  - sha: b59f1d2297c4c07a3c8adf8ac7900143214e292f
+    short_sha: b59f1d229
+    authored_at: '2026-08-09T21:42:37+00:00'
+    subject: 'fix: retry audio speech safeguard parse failures'
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
-    - backend/tests/test_phased_sync_handler.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/tests/test_groq_safeguard_structured_output.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
     related_feature_ids: []
-  - sha: 0c77820050dd4d75166307fd3cba5ab67cd1024b
-    short_sha: 0c7782005
-    authored_at: '2026-08-08T17:05:17+00:00'
-    subject: 'fix: isolate user init worker'
+  - sha: 36c021332dea2c2a55a109d612513234483ccb2f
+    short_sha: 36c021332
+    authored_at: '2026-08-09T18:37:39+00:00'
+    subject: 'ci: validate Vitest artifacts in final gate'
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/core/docker-compose.selfhost.yml
-    - backend/core/docker-compose.yml
-    - backend/core/monitoring/prometheus/prometheus.yml
-    - backend/tests/test_billing_worker_compose.py
-    - docs/architecture/core/servers.md
-    - frontend/packages/openmates-cli/src/serverPlanning.ts
-    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
-    - scripts/api_tests/test_cloud_overlay_boot.py
-    - scripts/prepare_release_candidate.py
+    - .github/workflows/vitest.yml
     related_feature_ids: []
-  - sha: d7c536d011e88c58ea9de6a1ad5b9027160439ae
-    short_sha: d7c536d01
-    authored_at: '2026-08-08T16:16:38+00:00'
-    subject: 'docs: add chat sync startup contract'
+  - sha: ce213f2462a8c3006cc4de9486e21d0ca237f95a
+    short_sha: ce213f246
+    authored_at: '2026-08-09T18:30:43+00:00'
+    subject: 'test: attach transaction timeout rejection handler'
     in_main: false
     in_dev: true
     changed_paths:
-    - contracts/architecture/sync/contract.yml
-    - contracts/architecture/sync/examples.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    related_feature_ids: []
+  - sha: a6b8901e6ddffacc0299229a70f215905d8bcd18
+    short_sha: a6b8901e6
+    authored_at: '2026-08-09T18:17:33+00:00'
+    subject: Preserve preprocessed code fence payloads
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/tiptapContentProcessor.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
+    related_feature_ids: []
+  - sha: a3f0d223b6d5450bbd80182569cf1c9ac6204ad6
+    short_sha: a3f0d223b
+    authored_at: '2026-08-09T18:15:07+00:00'
+    subject: 'test: mock recovery prerequisites in stale-frame test'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: e7d0434e244039de6155ebf01aa4165dc5a4ae23
+    short_sha: e7d0434e2
+    authored_at: '2026-08-09T18:05:46+00:00'
+    subject: 'test: stabilize recovery stale-frame retry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 24f8f10bd47ee97c699e007f28f7368b84c933a6
+    short_sha: 24f8f10bd
+    authored_at: '2026-08-09T17:53:26+00:00'
+    subject: 'test: flush recovery retry timer loop'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 7465ddd2342570da36f42d0cc157fce04a426a42
+    short_sha: 7465ddd23
+    authored_at: '2026-08-09T17:48:43+00:00'
+    subject: Preserve grouped interactive question code
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    related_feature_ids: []
+  - sha: 3d3581e1c622eac8792536fbb54b61a191e33083
+    short_sha: 3d3581e1c
+    authored_at: '2026-08-09T17:46:01+00:00'
+    subject: 'test: stabilize recovery retry timer wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 3da39512c8f26e607cf779259fec35001a444df9
+    short_sha: 3da39512c
+    authored_at: '2026-08-09T17:39:44+00:00'
+    subject: 'test: cover audio generation web embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+    related_feature_ids: []
+  - sha: 717f4a8523728041a0d860a4606b978c7409c050
+    short_sha: 717f4a852
+    authored_at: '2026-08-09T17:36:52+00:00'
+    subject: 'test: clear final UI Vitest failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    related_feature_ids: []
+  - sha: 6e8763e1383e37483f440252f953e25f4f0a7754
+    short_sha: 6e8763e13
+    authored_at: '2026-08-09T17:33:04+00:00'
+    subject: Preserve shared interactive question payloads
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    related_feature_ids: []
+  - sha: 6fce08a308cb5254ef0919e94c0ab150f7a7c418
+    short_sha: 6fce08a30
+    authored_at: '2026-08-09T17:26:15+00:00'
+    subject: 'fix: render audio generation embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/audioGeneratedEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids:
+    - embed:music:generate
+  - sha: d76963149e896c8cc4e04144a605f8b0ec415316
+    short_sha: d76963149
+    authored_at: '2026-08-09T17:23:15+00:00'
+    subject: 'test: stabilize remaining UI Vitest regressions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/__tests__/test-setup.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/test-setup.ts
+    related_feature_ids: []
+  - sha: 8501800a1d0fd698e8e1d66fada42aea2dce8432
+    short_sha: 8501800a1
+    authored_at: '2026-08-09T17:11:49+00:00'
+    subject: Fix shared interactive question embed refs
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids: []
+  - sha: 14dfdf50b7bb533c723bd5565f06a7f7c5f1131d
+    short_sha: 14dfdf50b
+    authored_at: '2026-08-09T16:53:33+00:00'
+    subject: 'fix: classify remaining workflow capabilities'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_capabilities.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 3bb16202ad354b672ee591c1c2f21ed99c4efc5d
+    short_sha: 3bb16202a
+    authored_at: '2026-08-09T16:42:08+00:00'
+    subject: 'test: isolate SvelteKit Vitest mocks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/test-mocks/app-forms.ts
+    - frontend/packages/ui/src/test-mocks/app-navigation.ts
+    - frontend/packages/ui/src/test-mocks/app-paths.ts
+    - frontend/packages/ui/src/test-mocks/app-runtime.ts
+    - frontend/packages/ui/src/test-mocks/app-state.ts
+    - frontend/packages/ui/src/test-mocks/app-stores.ts
+    - frontend/packages/ui/src/test-mocks/sveltekit-app.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - frontend/packages/ui/vitest.config.ts
+    related_feature_ids: []
+  - sha: b303489de2964409629186a0a5ba947b6133c1d9
+    short_sha: b303489de
+    authored_at: '2026-08-09T16:33:14+00:00'
+    subject: 'fix: repair pytest regression contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_settings_account_delete_force_logout.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - scripts/auto_fix_failed_tests.py
+    - scripts/sessions.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: b482d11a87efeb1510adef06a170a11413c7e4ea
+    short_sha: b482d11a8
+    authored_at: '2026-08-09T16:32:35+00:00'
+    subject: 'fix: preserve shared interactive question payloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    related_feature_ids: []
+  - sha: a68f749bcbd810cc3633aea764dc5f45fda2d477
+    short_sha: a68f749bc
+    authored_at: '2026-08-09T16:30:15+00:00'
+    subject: 'test: stabilize UI Vitest environment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/test-mocks/sveltekit-app.ts
+    - frontend/packages/ui/src/test-setup.ts
+    - frontend/packages/ui/vitest.config.ts
+    related_feature_ids:
+    - app:audio
+  - sha: 5dd8890f54f97399922f99699e779499efca0f1d
+    short_sha: 5dd8890f5
+    authored_at: '2026-08-09T16:05:43+00:00'
+    subject: 'fix: strip REST skill context for strict requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 35eae461017e45946527944038551cec9e771d67
+    short_sha: 35eae4610
+    authored_at: '2026-08-09T15:56:27+00:00'
+    subject: 'test: stabilize Vitest runner configuration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/types.ts
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/utils.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.d.ts
+    - frontend/packages/ui/src/i18n/translations.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/vitest.config.ts
+    related_feature_ids: []
+  - sha: ecc98e97d14564aadaf5e5bfd493e9d9e5809573
+    short_sha: ecc98e97d
+    authored_at: '2026-08-09T15:50:42+00:00'
+    subject: 'fix: repair shared chat embed protocol rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    related_feature_ids: []
+  - sha: a1d6d0829593c598714afff797db3f3eb26368db
+    short_sha: a1d6d0829
+    authored_at: '2026-08-09T15:40:53+00:00'
+    subject: 'feat: add ElevenLabs audio skills'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/generate_skill.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/__init__.py
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/providers/elevenlabs/models.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/media_generation_safety/pipeline.py
+    - backend/tests/test_media_generation_safety.py
+    - backend/tests/test_rest_api_audio.py
+    - contracts/features/app-skills/audio-generate/contract.yml
+    - contracts/features/app-skills/audio-generate/examples.yml
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
     - contracts/generated/assertion-index.yml
     - contracts/generated/coverage.yml
     - contracts/generated/registry.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioEmbedText.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/sessions.py
+    - shared/docs/privacy_policy.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:generate
+    - embed:audio:speak
+    - skill:audio:generate
+    - skill:audio:speak
+  - sha: 81918f46b2d77ba46d90b411cfae154dec85ec81
+    short_sha: 81918f46b
+    authored_at: '2026-08-09T15:23:21+00:00'
+    subject: 'test: stabilize Vitest infrastructure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/data/providerIcons.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/i18n/translations.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/test-setup.ts
     related_feature_ids: []
-  - sha: 03293502abff2e37a74eb1628faa23148a07a52a
-    short_sha: 03293502a
-    authored_at: '2026-08-08T15:49:45+00:00'
-    subject: 'fix: keep recovery continuations distinct'
+  - sha: aba373e86c24b11bef53b4e700c29732ec20246f
+    short_sha: aba373e86
+    authored_at: '2026-08-09T15:19:39+00:00'
+    subject: Refresh release intelligence for PR prep
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-08-09.md
+    - docs/releases/daily/2026-08-09.yml
+    related_feature_ids: []
+  - sha: 195d48dee9e7480a970b88680054e973bb7b9b7b
+    short_sha: 195d48dee
+    authored_at: '2026-08-09T15:12:14+00:00'
+    subject: 'docs: clarify spawn chat modes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/spawn-chat/SKILL.md
+    - .claude/skills/spawn-chat/SKILL.md
+    related_feature_ids: []
+  - sha: 434aa22d2981cc6eaa6ab1a7f5415a24e38c2fe3
+    short_sha: 434aa22d2
+    authored_at: '2026-08-09T15:07:55+00:00'
+    subject: 'fix: generate embed registry before deploy lint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    related_feature_ids: []
+  - sha: 8892b5b8eea05557b1666632dadb4000f36dcb44
+    short_sha: 8892b5b8e
+    authored_at: '2026-08-09T14:18:24+00:00'
+    subject: 'fix: cap env backup artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 78eeaf3d76954d8d8ea469fd73440008065bfa77
+    short_sha: 78eeaf3d7
+    authored_at: '2026-08-09T14:14:19+00:00'
+    subject: 'test: focus message editor before draft cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: daf751271365db4b853c944736e0840d5b8b3bb8
+    short_sha: daf751271
+    authored_at: '2026-08-09T14:00:09+00:00'
+    subject: 'fix: use global draft receipt timers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    related_feature_ids: []
+  - sha: 55edd9a398c946eaae0ee2db30b951caa6ef5e4a
+    short_sha: 55edd9a39
+    authored_at: '2026-08-09T13:51:43+00:00'
+    subject: 'fix: hide generic shared embeds from files'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 0bb4f7b83a20ccc1fbc79100aae71bbe53781278
+    short_sha: 0bb4f7b83
+    authored_at: '2026-08-09T13:49:20+00:00'
+    subject: 'fix: guard draft deletes during chat switches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+  - sha: 32859de12c8ad8378f5edd7ddd39cbb6c8e3b336
+    short_sha: 32859de12
+    authored_at: '2026-08-09T13:37:30+00:00'
+    subject: 'fix: handle draft receipt reconnects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: f12cbc458944d5efcd49725debf6fd0abb85d52c
+    short_sha: f12cbc458
+    authored_at: '2026-08-09T13:30:49+00:00'
+    subject: 'fix: ignore checkpoint lock artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    related_feature_ids: []
+  - sha: a4a32b406157463c41689a1a09e3d5776f49df9b
+    short_sha: a4a32b406
+    authored_at: '2026-08-09T13:07:15+00:00'
+    subject: 'fix: repair single suffix-only embed refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/embedRefIndex.test.ts
+    related_feature_ids: []
+  - sha: ce7f1accb00f01d56a6266f53c8edc777adb6533
+    short_sha: ce7f1accb
+    authored_at: '2026-08-09T12:56:35+00:00'
+    subject: 'fix: invalidate stale chat loads on new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 43f97a298ac1dcf58a0216f5bf0032b94cf2de6d
+    short_sha: 43f97a298
+    authored_at: '2026-08-09T12:40:28+00:00'
+    subject: 'fix: repair suffix-only embed refs'
     in_main: false
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stream_consumer.py
-    - backend/tests/test_chat_completion_recovery_jobs.py
-    - backend/tests/test_stream_consumer_recovery.py
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
     related_feature_ids:
     - app:ai
+  - sha: c82b647b56f97b870f2469a5a41eb11edb7bbafd
+    short_sha: c82b647b5
+    authored_at: '2026-08-09T12:35:34+00:00'
+    subject: 'fix: keep authenticated daily inspirations visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/daily-inspiration/contract.yml
+    - contracts/features/daily-inspiration/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: 942ab84c6c108492b0b1b7458ee625994ab2de86
+    short_sha: 942ab84c6
+    authored_at: '2026-08-09T12:25:02+00:00'
+    subject: 'test: traverse draft rows in chat header navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 6e4717bf2cd4d97b4804df184da935dc078d081a
+    short_sha: 6e4717bf2
+    authored_at: '2026-08-09T12:24:01+00:00'
+    subject: 'test: fix billing usage API unit fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apps_api.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 743c2dd437ac766c75d4ea68f8838f445b69c098
+    short_sha: 743c2dd43
+    authored_at: '2026-08-09T12:17:24+00:00'
+    subject: 'fix: retry stale pair authorization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+    related_feature_ids: []
+  - sha: cc0346d1ec2ef5a5f3069414323ab458ab9cc874
+    short_sha: cc0346d1e
+    authored_at: '2026-08-09T12:03:29+00:00'
+    subject: 'test: provide recovery handler window timers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 8ca11df9a10d32bc13bd4b5de9df4da33efca6fe
+    short_sha: 8ca11df9a
+    authored_at: '2026-08-09T11:55:51+00:00'
+    subject: 'test: select chat adjacent to draft in header navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: e517aeee268b099f97d70d6884e747cd4b08003b
+    short_sha: e517aeee2
+    authored_at: '2026-08-09T11:54:45+00:00'
+    subject: 'test: stabilize billing usage spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/billing/contract.yml
+    - contracts/features/billing/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    related_feature_ids: []
+  - sha: 4015568124702c5f7b3de46f3f4fdde1a0ab39c7
+    short_sha: '401556812'
+    authored_at: '2026-08-09T11:52:09+00:00'
+    subject: 'test: correct app settings handler mocks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 20e81c43a8238aa0271dbc56f8c1d6fe8c6e2dad
+    short_sha: 20e81c43a
+    authored_at: '2026-08-09T11:38:45+00:00'
+    subject: 'test: mock fullscreen controller in handler spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 7e38f847c4d1cfd07470c9f82f2176267a31d6bd
+    short_sha: 7e38f847c
+    authored_at: '2026-08-09T11:33:12+00:00'
+    subject: 'test: stabilize chat header draft cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: d9c68fa51a880431342b61a8fb54a1a591560201
+    short_sha: d9c68fa51
+    authored_at: '2026-08-09T11:16:08+00:00'
+    subject: 'test: complete app settings websocket mock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 3ea52caf0dd616b2030ab6278989f5a8445129bc
+    short_sha: 3ea52caf0
+    authored_at: '2026-08-09T11:04:58+00:00'
+    subject: 'chore: sync opencode skill mirrors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/spawn-chat/SKILL.md
+    related_feature_ids: []
+  - sha: a941e231f18ec2f8ce61c1d733388bf756787592
+    short_sha: a941e231f
+    authored_at: '2026-08-09T11:04:16+00:00'
+    subject: 'test: backfill chat and workflow contracts for handler specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/features/workflows/contract.yml
+    - contracts/features/workflows/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    related_feature_ids: []
+  - sha: 65271b60c0044ec162b4f9f168acc595c3fe1a48
+    short_sha: 65271b60c
+    authored_at: '2026-08-09T10:59:27+00:00'
+    subject: 'chore: tighten opencode workflow diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/server-restart.sh
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    related_feature_ids: []
+  - sha: 64424fea0d32c31a5070e1e442a084608e1cfffa
+    short_sha: 64424fea0
+    authored_at: '2026-08-09T10:42:03+00:00'
+    subject: 'fix: remount chat history for new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 52aca7fd96c116064339d1114af5a43ae5992a99
+    short_sha: 52aca7fd9
+    authored_at: '2026-08-09T10:32:17+00:00'
+    subject: 'test: stabilize draft header navigation setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/architecture/drafts/contract.yml
+    - contracts/architecture/drafts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/new-chat-draft-lifecycle/spec.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 17ccacb727120157626242394272f8404b9c3818
+    short_sha: 17ccacb72
+    authored_at: '2026-08-09T10:08:47+00:00'
+    subject: 'fix: align chat header navigation order'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - contracts/features/chat-navigation/contract.yml
+    - contracts/features/chat-navigation/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5579f6541999138e6cc9d81b1635edd804672afb
+    short_sha: 5579f6541
+    authored_at: '2026-08-09T09:14:21+00:00'
+    subject: 'test: wait longer for shared login auth'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 90c876bdb77a3eb9cb96ee339b0c76457e782849
+    short_sha: 90c876bdb
+    authored_at: '2026-08-09T09:02:06+00:00'
+    subject: 'test: stub document in UI Vitest setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    related_feature_ids: []
+  - sha: 617c5aa2190560b753af8bbb691d73449c905835
+    short_sha: 617c5aa21
+    authored_at: '2026-08-09T08:56:33+00:00'
+    subject: 'test: expose storage globals in UI Vitest setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    related_feature_ids: []
+  - sha: 0df241610f91126ea3cde28f43adb47a98e18134
+    short_sha: 0df241610
+    authored_at: '2026-08-09T08:51:07+00:00'
+    subject: 'test: mock SvelteKit app modules for UI Vitest'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    related_feature_ids: []
 llm_summary:
-  overview: Development focused on refining AI stream handling, optimizing synchronization performance, and improving infrastructure
-    isolation for self-hosted environments. These updates are currently in the development pipeline.
+  overview: OpenMates focused on the integration of ElevenLabs audio capabilities and a significant stabilization of the chat
+    draft lifecycle. The update also included a massive overhaul of the UI test infrastructure to improve development reliability.
   released_changes: []
-  bug_fixes: []
+  bug_fixes:
+  - text: The chat draft lifecycle was stabilized with fixes for preserving restored draft-only chats during cleanup, maintaining
+      draft visibility in the sidebar, and handling draft receipt reconnections.
+    evidence:
+      commits:
+      - 1d53aa180
+      - ad223d5b3
+      - 0bb4f7b83
+      - 32859de12
+      - daf751271
+    release_status: dev_only
+  - text: Message parsing and embed rendering were improved to correctly handle shared interactive question payloads, suffix-only
+      embed references, and preprocessed code fence payloads.
+    evidence:
+      commits:
+      - 8501800a1
+      - b482d11a8
+      - ecc98e97d
+      - a4a32b406
+      - 43f97a298
+      - a6b8901e6
+      - 7465ddd23
+      - 6e8763e13
+    release_status: dev_only
+  - text: UI refinements include invalidating stale chat loads when starting new chats, ensuring daily inspirations remain
+      visible for authenticated users, and adding retries for stale pair authorizations.
+    evidence:
+      commits:
+      - ce7f1accb
+      - 64424fea0
+      - c82b647b5
+      - 743c2dd43
+      - 55edd9a39
+    release_status: dev_only
+  - text: AI and audio processing safety was enhanced by skipping declared binary fields during output scanning and adding
+      retries for safeguard parse failures.
+    evidence:
+      commits:
+      - bb2569bc5
+      - b59f1d229
+      - 6fce08a30
+      - 5dd8890f5
+    release_status: dev_only
   unreleased_progress:
-  - text: OpenMates is improving AI reliability by repairing grouped bare embed source links and ensuring recovery continuations
-      remain distinct during stream consumption.
+  - text: Integration of ElevenLabs audio skills is underway, including support for premium speech models and automated generation
+      of audio sample artifacts for documentation.
     evidence:
       commits:
-      - 0689e579d
-      - 03293502a
+      - 3f0d2adb0
+      - a1d6d0829
+      - 0f395a5e1
+      - 32edaa708
     release_status: dev_only
-  - text: The project is optimizing synchronization speed for Phase 2 draft metadata.
+  - text: Work continues on cross-platform navigation parity, specifically aligning chat header navigation order for the unreleased
+      iOS and macOS platforms.
     evidence:
       commits:
-      - e20ee6e17
+      - 17ccacb72
     release_status: dev_only
-  - text: Work is underway to isolate the user initialization worker within Docker configurations to improve system modularity.
+  - text: The workflows platform received updates to capability classifications and repairs to regression contracts.
     evidence:
       commits:
-      - 0c7782005
+      - 14dfdf50b
+      - b303489de
     release_status: dev_only
   internal_progress:
-  - text: Documentation was added for the chat sync startup contract.
+  - text: A comprehensive stabilization of the Vitest infrastructure was completed, including mock isolation for SvelteKit
+      modules, improved runner configurations, and expanded coverage for audio generation embeds.
     evidence:
       commits:
-      - d7c536d01
+      - 36c021332
+      - ce213f246
+      - a3f0d223b
+      - e7d0434e2
+      - 24f8f10bd
+      - 3d3581e1c
+      - 3da39512c
+      - 717f4a852
+      - d76963149
+      - 3bb16202a
+      - a68f749bc
+      - 35eae4610
+      - 81918f46b
+      - 78eeaf3d7
+      - 942ab84c6
+      - 6e4717bf2
+      - cc0346d1e
+      - 8ca11df9a
+      - e517aeee2
+      - '401556812'
+      - 20e81c43a
+      - 7e38f847c
+      - d9c68fa51
+      - a941e231f
+      - 52aca7fd9
+      - 5579f6541
+      - 90c876bdb
+      - 617c5aa21
+      - 0df241610
+    release_status: dev_only
+  - text: Internal tooling and documentation were updated, including tighter workflow diagnostics, environment backup capping,
+      and refreshed release intelligence.
+    evidence:
+      commits:
+      - 65271b60c
+      - 8892b5b8e
+      - 434aa22d2
+      - f12cbc458
+      - 3ea52caf0
+      - 195d48dee
+      - aba373e86
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: AI stream recovery and embed link repairs.
+    - text: ElevenLabs audio integration and premium speech models.
       evidence:
         commits:
-        - 0689e579d
-        - 03293502a
-      reason: These AI-related fixes are currently in development and not yet released to the main branch.
-    - text: Phase 2 draft metadata sync optimizations.
+        - 3f0d2adb0
+        - a1d6d0829
+      reason: These features are currently in dev_only status and not yet merged to the main branch.
+    - text: Cross-platform chat header navigation parity for iOS and macOS.
       evidence:
         commits:
-        - e20ee6e17
-      reason: Sync performance improvements are currently in development.
-    - text: User initialization worker isolation.
+        - 17ccacb72
+      reason: iOS and macOS platforms are currently listed as disabled features.
+    - text: Workflow capability classifications and regression contract repairs.
       evidence:
         commits:
-        - 0c7782005
-      reason: Infrastructure changes for worker isolation are not yet in the main release.
-    rationale: All updates from this period are currently in the development branch and have not yet reached the main release
-      or met the criteria for public communication.
-  social_video_recommendations: []
+        - 14dfdf50b
+        - b303489de
+      reason: The workflows platform is currently a disabled feature.
+    rationale: No user-facing changes were released to the main branch with a status ready for public communication during
+      this period. Work focused on unreleased audio features and internal test stabilization.
+  social_video_recommendations:
+  - idea: Demonstrate the new ElevenLabs audio generation and premium speech skills within the chat interface.
+    priority: High
+    reason: Audio generation is a high-impact, audible feature that provides a strong visual and auditory product story.
+    evidence:
+      commits:
+      - 3f0d2adb0
+      - a1d6d0829
   quality_notes:
-  - New tests were introduced to validate grouped bare embed references and stream consumer recovery logic.
-  - Sync performance optimizations target Phase 2 draft metadata handling.
+  - Extensive Vitest stabilization across the frontend packages suggests a push for higher CI reliability.
+  - ElevenLabs integration covers both text-to-speech (speak) and general audio generation skills.
+  - Draft lifecycle fixes address critical edge cases in chat switching and session reconnection.
   validation_warnings: []

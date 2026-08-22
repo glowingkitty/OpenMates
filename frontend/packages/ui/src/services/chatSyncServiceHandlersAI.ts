@@ -269,6 +269,7 @@ async function storeVolatileFinalizedEmbedInMemory(
     new CustomEvent("embedUpdated", {
       detail: {
         embed_id: embedData.embed_id,
+        type: embedData.type,
         chat_id: embedData.chat_id,
         message_id: embedData.message_id,
         status: embedData.status,
@@ -3730,10 +3731,10 @@ export async function handleSendEmbedDataImpl(
         new CustomEvent("embedUpdated", {
           detail: {
             embed_id: embedData.embed_id,
+            type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
             status: embedData.status,
-            type: embedData.type,
             content: embedData.content, // Plaintext TOON for in-memory rendering
             text_preview: embedData.text_preview,
             task_id: embedData.task_id,
@@ -3793,6 +3794,7 @@ export async function handleSendEmbedDataImpl(
           new CustomEvent("embedUpdated", {
             detail: {
               embed_id: embedData.embed_id,
+              type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
@@ -3901,6 +3903,7 @@ export async function handleSendEmbedDataImpl(
           new CustomEvent("embedUpdated", {
             detail: {
               embed_id: embedData.embed_id,
+              type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
@@ -4017,6 +4020,7 @@ export async function handleSendEmbedDataImpl(
           new CustomEvent("embedUpdated", {
             detail: {
               embed_id: embedData.embed_id,
+              type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
@@ -4673,6 +4677,7 @@ export async function handleSendEmbedDataImpl(
         new CustomEvent("embedUpdated", {
           detail: {
             embed_id: embedData.embed_id,
+            type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
             status: embedData.status,
@@ -4712,6 +4717,7 @@ export async function handleSendEmbedDataImpl(
         new CustomEvent("embedUpdated", {
           detail: {
             embed_id: embedData.embed_id,
+            type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
             status: embedData.status,

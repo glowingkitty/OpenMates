@@ -86,6 +86,11 @@ export function getSettingsPathFromHash(hash: string): string | null {
   return settingsPath ? normalizeSettingsPath(settingsPath) : null;
 }
 
+export function getHashParam(hash: string, key: string): string | null {
+  if (!hash || !key) return null;
+  return parseHashParams(hash).get(key);
+}
+
 export function buildSettingsHash(settingsPath: string): string {
   const normalizedPath = normalizeSettingsPath(settingsPath);
   return normalizedPath === 'main' ? SETTINGS_HASH_PREFIX : `${SETTINGS_HASH_PREFIX}/${normalizedPath}`;

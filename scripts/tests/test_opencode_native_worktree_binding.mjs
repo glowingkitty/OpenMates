@@ -16,7 +16,10 @@ import test from "node:test";
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
 const {
+  exactCommitDeployedTestForTest,
+  isApprovedControlPlaneAuditCommand,
   routeLocalToolArgsForTest,
+  routeLocalToolArgsWithCircuitBreakerForTest,
   routingDecisionForTest,
   routingFailureForTest,
   resolveWorktreeRouteForTest,
@@ -31,30 +34,73 @@ const routedSession = (bindingMode = "pending") => ({
   binding_mode: bindingMode,
   worktree: { path: WORKTREE, status: "active", bootstrap: { status: "ready" } },
 });
+const routedDecision = (session) => routingDecisionForTest({ session, pathExists: () => true });
 
 test("active worktree routes regardless of obsolete binding label", () => {
   for (const mode of ["pending", "native", "pilot_fallback", "worktree_routed"]) {
-    assert.deepEqual(routingDecisionForTest({ session: routedSession(mode) }), {
+    assert.deepEqual(routedDecision(routedSession(mode)), {
       decision: "worktree_routed",
       worktreePath: WORKTREE,
     });
   }
 });
 
-test("merged worktree blocks post-deploy mutation routing", () => {
-  const decision = routingDecisionForTest({
-    session: { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged", merged_commit: "abc123456789" } },
-  });
-  assert.equal(decision.decision, "merged_worktree");
-  assert.equal(decision.worktreePath, "");
-  assert.match(decision.message, /already merged at abc123456/);
-  assert.match(decision.message, /start a new sessions\.py session/);
+test("merged worktree remains routed for post-deploy continuation", () => {
+  const decision = routedDecision(
+    { ...routedSession("worktree_routed"), worktree: { path: WORKTREE, status: "merged", merged_commit: "abc123456789" } },
+  );
+  assert.deepEqual(decision, { decision: "worktree_routed", worktreePath: WORKTREE });
 });
 
 test("question sessions remain read-only without a worktree", () => {
   assert.deepEqual(
     routingDecisionForTest({ session: { mode: "question", binding_mode: "legacy_grandfathered" } }),
     { decision: "read_only", worktreePath: "" },
+  );
+});
+
+test("approved control-plane audits are narrowly parsed", () => {
+  for (const command of [
+    "python3 scripts/audit_opencode_output_quality.py",
+    "python3 scripts/audit_opencode_output_quality.py --json --telemetry-days 7",
+    "python3 scripts/audit_agent_tooling_parity.py --json",
+    "python3 scripts/audit_opencode_spec_workflow.py",
+    "python3 scripts/audit_opencode_automation_budget.py --all",
+  ]) assert.equal(isApprovedControlPlaneAuditCommand(command), true);
+
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify",
+    "python3 scripts/audit_opencode_output_quality.py --telemetry-days 999",
+    "python3 scripts/audit_agent_tooling_parity.py --write",
+    "python3 scripts/audit_opencode_spec_workflow.py && true",
+    "python3 scripts/audit_opencode_automation_budget.py --all > report.txt",
+  ]) assert.equal(isApprovedControlPlaneAuditCommand(command), false);
+});
+
+test("merged verification requires one exact gated spec command", () => {
+  const commit = "a".repeat(40);
+  const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
+  assert.deepEqual(exactCommitDeployedTestForTest(command, commit), { commit, spec: "chat-flow.spec.ts" });
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(`${command} --proof-video-profile web-phone --detach`, commit),
+    { commit, spec: "chat-flow.spec.ts" },
+  );
+  for (const rejected of [
+    `python3 scripts/tests.py run --spec chat-flow.spec.ts --expected-commit ${commit}`,
+    `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
+    "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit abc1234",
+    `python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit ${commit}`,
+    `${command} --proof-video-profile desktop`,
+    `${command} && true`,
+    `${command} > report.txt`,
+  ]) assert.equal(exactCommitDeployedTestForTest(rejected, commit), null);
+  assert.equal(exactCommitDeployedTestForTest(command, "b".repeat(40)), null);
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(
+      `python3 scripts/tests.py run --spec dev-smoke/reachability.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`,
+      commit,
+    ),
+    { commit, spec: "dev-smoke/reachability.spec.ts" },
   );
 });
 
@@ -180,6 +226,32 @@ test("stale-code report generation uses the current root control plane", () => {
   }
 });
 
+test("OpenCode improvement review generation uses the current root control plane", () => {
+  assert.equal(existsSync(join(ROOT, "scripts", "opencode_chat_improvement_review.py")), true);
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --hours 168",
+  ]) {
+    assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, ROOT);
+  }
+  for (const command of [
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --output /tmp/report.json",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify > report.json",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify && true",
+    'python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify "$(touch injected)"',
+    "python3 scripts/opencode_chat_improvement_review.py --hours 0 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 169 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --hours 48 --hours 72 --dry-run-notify",
+    "python3 scripts/opencode_chat_improvement_review.py --dry-run-notify --dry-run-notify",
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command }, WORKTREE),
+      /only the report-only dry-run form is allowed/,
+    );
+  }
+});
+
 test("root absolute paths in shell commands are rejected with an actionable alternative", () => {
   assert.throws(
     () => routeLocalToolArgsForTest("bash", { command: `git -C ${ROOT} status` }, WORKTREE),
@@ -189,6 +261,19 @@ test("root absolute paths in shell commands are rejected with an actionable alte
       assert.match(error.message, /relative paths/);
       return true;
     },
+  );
+});
+
+test("repeated isolation blocks stop identical retries", () => {
+  const counts = new Map();
+  const args = { command: `git -C ${ROOT} status` };
+  assert.throws(
+    () => routeLocalToolArgsWithCircuitBreakerForTest("bash", args, WORKTREE, { sessionID: "ses-a", counts }),
+    (error) => !error.message.includes("Do not retry the same tool call"),
+  );
+  assert.throws(
+    () => routeLocalToolArgsWithCircuitBreakerForTest("bash", args, WORKTREE, { sessionID: "ses-a", counts }),
+    /Do not retry the same tool call/,
   );
 });
 
@@ -330,6 +415,7 @@ test("child session resolves the top-level repository worktree", async () => {
     sessionID: "ses_child",
     data,
     getSession: async (sessionID) => sessions[sessionID],
+    pathExists: () => true,
   });
   assert.equal(result.repositorySessionID, "abcd");
   assert.equal(result.topLevelOpenCodeSessionID, "ses_parent");
@@ -353,8 +439,8 @@ test("restart recovery reconstructs the same route without plugin-local state", 
       abcd: { ...routedSession("native"), opencode_session_id: "ses_parent" },
     },
   };
-  const first = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
-  const afterRestart = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null });
+  const first = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null, pathExists: () => true });
+  const afterRestart = await resolveWorktreeRouteForTest({ sessionID: "ses_parent", data, getSession: async () => null, pathExists: () => true });
   assert.deepEqual(afterRestart, first);
   assert.equal(afterRestart.worktreePath, WORKTREE);
 });
@@ -386,6 +472,20 @@ test("unresolved sessions can run the bounded OpenCode workflow audit", () => {
     command: "python3 scripts/audit_opencode_output_quality.py --telemetry-days 1 --json",
   });
   assert.equal(audit.decision, "allow_recovery");
+});
+
+test("unresolved sessions can run the bounded report-only OpenCode review", () => {
+  const review = routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_missing",
+    command: "python3 scripts/opencode_chat_improvement_review.py --hours 48 --dry-run-notify",
+  });
+  assert.equal(review.decision, "allow_recovery");
+  assert.equal(routingFailureForTest({
+    tool: "bash",
+    sessionID: "ses_missing",
+    command: "python scripts/opencode_chat_improvement_review.py --dry-run-notify",
+  }).decision, "allow_recovery");
 });
 
 test("question sessions can run bounded observational shell commands without a worktree", () => {

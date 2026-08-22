@@ -1,124 +1,108 @@
 ---
 name: create-demo-video
-description: Create narrated review videos of OpenMates CLI interactions or deployed Playwright feature flows and publish passed examples to Discord dev-smoke. Use when asked for a CLI video, feature demo, proof video, narrated spec recording, or Discord example video.
+description: Create captioned engineering proof videos from real CLI, deployed Playwright, or Apple evidence with bounded media processing and frame-only review.
 user-invocable: true
-argument-hint: "<CLI command | Playwright spec.ts> [feature or claim to demonstrate]"
+argument-hint: "<spec.ts | CLI command> [visible claim]"
 ---
 
 # Create Demo Video
 
-Use this skill for engineering demonstrations made from real CLI or deployed
-Playwright evidence. Do not use the marketing `create-video` workflow or public
-temporary uploads.
-
-## Contract
-
-- Start or reuse a `sessions.py` session before producing artifacts.
-- Use a real dev CLI command or a passing deployed Playwright test result.
-- Never narrate a failed, skipped, timed-out, mocked, or fixture-only result as a successful feature.
-- Use controlled dev/test accounts and do not intentionally capture production data, secrets, unrelated chats, or personal account content.
-- The canonical scanner checks commands, transcripts, captions, metadata, filenames, and publication text. Frame OCR is intentionally not part of this workflow.
-- Keep the full video out of model context. Review the bounded frame bundle only.
-- Publish only after every claim receives a supported frame-review verdict.
-- Confirm Discord delivery before deleting generated video and frame files. Retain sanitized transcripts, captions, manifests, review evidence, and publication status.
-
-## Narration
-
-Write three to five tutorial-style sentences that:
-
-1. Explain the feature and why the viewer would use it.
-2. Describe the action currently shown.
-3. Name the visible result that proves success.
-4. Mention an important follow-up or reversible action when visible.
-
-Narration must help the reviewer detect mismatches. Do not use generic captions
-such as "the feature works" or claims not visible in the recording.
-
-## CLI Source
-
-Run the current CLI against `https://api.dev.openmates.org`. Put configuration
-such as `OPENMATES_API_URL` in the environment when it does not need to appear in
-the tutorial command. Produce the video with:
+Use this skill for engineering proof, not marketing video production. Start with
+one command:
 
 ```bash
-python3 scripts/sessions.py proof-video produce \
-  --session <session> \
-  --run-dir test-results/proof-videos/<session>/<slug> \
-  --proof-id <proof-id> \
-  --subject-commit <commit> \
-  --run-id <run-id> \
-  --target-environment https://api.dev.openmates.org \
-  --caption "<tutorial narration>" \
-  --expected-proof "<visible success contract>" \
-  --acceptance-criterion <AC-ID> \
-  -- openmates <command...>
+python3 scripts/proof_video_workflow.py start --current --spec <name>.spec.ts
 ```
 
-CLI videos use readable 1280x720 terminal composition, visible command typing,
-captured PTY response delays, sentence-level captions, and command/output only in
-the visible terminal. Exit status and provenance remain in evidence metadata.
+The command resolves the current sessions.py session, subject commit, and matching
+passing run. If evidence is missing or ambiguous, follow its single reported next
+action instead of searching artifacts manually.
 
-## Playwright Source
+## Approval Boundary
 
-1. Resolve the exact deployed subject commit and run:
+If `start --current --spec ...` returns `status: contract_approved` with
+`approval_source: spec_timeline`, the deployed spec already emitted its checked-in
+proof contract and passed every declared assertion. Do not ask for a second chat
+approval; continue directly to render/review/publish.
+
+Only for legacy proofs without a spec-owned timeline, draft and show the user the
+complete proof contract before capture:
+
+- Three to five short tutorial-style caption sentences.
+- One to five assertions describing what must be visibly or terminally true.
+- Required device profiles.
+- Every caption sentence and assertion lists the exact device profiles where it applies.
+
+For legacy proofs, save the canonical contract only after explicit approval, then
+persist the approval record before rendering:
 
 ```bash
-python3 scripts/tests.py run --spec <name>.spec.ts \
-  --gate-deploy --expected-commit <commit>
+python3 scripts/proof_video_workflow.py approve --session <short-session> --spec <name>.spec.ts --contract <contract.json>
 ```
 
-2. Use the video attached to one passing test result. An overall workflow may
-   contain other failures, but the selected source record itself must be passed.
-3. Record the exact spec, test run/case ID, deployed target, deployment reference,
-   subject commit, artifact path, and controlled-account provenance.
-4. Produce the narrated copy:
+An unchanged already-approved contract may be reused. The spec-owned or approved
+transcript is canonical; audio is off by default and `--audio-path` is an explicit
+opt-in.
+
+## Capture And Render
+
+- Use a real passing deployed Playwright result, Apple run, or real OpenMates CLI command.
+- Use CLI proof only when the actual `openmates` CLI is the product surface being
+  demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
+  helpers, Node scripts, or shell wrappers that do not visibly execute the
+  OpenMates CLI.
+- Browser/native capture must record an explicit ready timestamp after required UI
+  is visible. Trim only to that marker minus the fixed lead; do not scan or crop
+  until a product defect disappears.
+- Exact profiles remain mandatory: web phone `390x844`, web laptop `1440x900`,
+  iPhone portrait `393x852`, iPad landscape `1366x1024`, CLI `1280x720`.
+- Captions are sentence-level WebVTT cues delivered through the video player's toggleable captions track. Never burn captions into video pixels or shrink, pad, border, or otherwise reserve frame area for captions. Pacing may use only whole-video
+  slowdown to `0.75x` and a final hold, with a 35-second output cap.
+- Process one device at a time. Do not use OCR or place the full video in model
+  context. Sample periodically every five seconds, prioritize event boundaries,
+  deduplicate nearby timestamps, and cap the immutable index at twelve frames per
+  device.
+
+## Review And Repair
+
+Run the canonical review command rather than manually selecting frames or writing
+claim verdicts:
 
 ```bash
-python3 scripts/sessions.py proof-video produce-playwright \
-  --session <session> \
-  --run-dir test-results/proof-videos/<session>/<slug> \
-  --source-video <passing-video.webm> \
-  --proof-id <proof-id> \
-  --subject-commit <deployed-commit> \
-  --run-id <test-case-run-id> \
-  --spec-name <name>.spec.ts \
-  --source-status passed \
-  --target-environment https://app.dev.openmates.org \
-  --deployment-reference <deployment-id> \
-  --test-account-provenance "<controlled account description>" \
-  --caption "<tutorial narration>" \
-  --expected-proof "<visible success contract>" \
-  --acceptance-criterion <AC-ID>
+python3 scripts/proof_video_workflow.py review --run-dir <path> --correction-round 0 --correction-kind none
 ```
 
-## Review And Publish
+Review every clean frame in the immutable one-to-twelve-frame device index plus the
+complete device-applicable WebVTT cue text, approved device-applicable assertions, and deterministic metadata. Return exactly one status:
 
-Read `review-request.json`, inspect every referenced frame, and compare each
-caption and expected claim with the visible state and timing. Record one verdict
-per claim:
+- `passed`
+- `capture_defect`
+- `render_defect`
+- `product_defect`
+- `uncertain`
 
-```bash
-python3 scripts/sessions.py proof-video review \
-  --session <session> \
-  --run-dir <run-dir> \
-  --claims-json '[{"claim_id":"CLAIM-1","verdict":"supported","observation":"<frame-grounded observation>"}]'
-```
+Every verdict needs frame-grounded observations. Blank opening frames may be corrected mechanically once. Caption syntax, ordering, and bounds are deterministic checks rather than visual-review concerns. Unexplained scroll state returns to
+capture. Clipping, broken headers, wrong UI state, raw implementation text, stale
+loading, and broken navigation are product defects: add or strengthen a failing
+test, fix the product, deploy, and recapture. Never hide them through trimming,
+cropping, caption edits, or transcript edits.
 
-Fix composition, timing, narration, recording, or implementation defects and
-repeat review when needed. Obvious product/rendering defects in reviewed frames
-must auto-trigger product work rather than an accepted difference: add or
-strengthen a failing test, fix the code or web app, deploy, rerun the real source
-proof, and create a replacement video. This includes clipping, premature text
-truncation, wrong icons/gradients/metadata, raw protocol or implementation text,
-missing active-processing animation, stale loading/error states, and broken
-navigation. Never approve or publish a video that merely hides, documents, or
-narrates around such a defect. After a passed review:
+The entire proof contract is limited to six AI review calls and forty-eight cumulative submitted frames.
+It permits one initial review plus at most two
+automatic correction rounds, including at most one product-code correction round.
+Re-review only changed device hashes. Uncertain findings, repeated defect
+fingerprints, or exhausted budgets require immediate user input.
 
-```bash
-python3 scripts/sessions.py proof-video publish \
-  --session <session> \
-  --run-dir <run-dir>
-```
+If review returns any blocker status (`capture_defect`, `render_defect`,
+`product_defect`, or `uncertain`), inspect the returned `blocker_media` metadata
+before responding. Run its `upload_command` and paste the returned `<video>` HTML
+in the blocker response so the user can see the exact failed recording. If
+`blocker_media.media_status` is `missing`, state that as a workflow defect and
+include the missing `video_path`; do not report the blocker with text alone.
 
-Report the source run, subject commit, duration, review result, Discord delivery
-status, retained evidence path, tests, and any accepted differences.
+After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
+proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt
+"..."` and paste the returned image Markdown or `<video>` HTML in the final
+OpenCode response. Do not send proof media to Discord unless the user explicitly
+asks for a separate Discord mirror. Retain transcripts, captions,
+manifests, hashes, review evidence, and response-media publication state.

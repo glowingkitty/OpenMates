@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-08-06'
-generated_at: '2026-08-06T13:06:33+00:00'
+generated_at: '2026-08-07T00:20:07+00:00'
 range:
-  since: 24 hours ago
-  until: null
+  since: '2026-08-06T00:00:00+00:00'
+  until: '2026-08-07T00:00:00+00:00'
   from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 112
+  total_commits: 99
   section_counts:
-    features: 6
-    bug_fixes: 54
+    features: 10
+    bug_fixes: 47
     improvements: 3
-    docs: 7
-    tests: 31
-    infrastructure: 1
-    internal: 4
-    other: 6
+    docs: 14
+    tests: 21
+    infrastructure: 3
+    internal: 1
+    other: 0
   newsletter_ready_items: 0
-  user_facing_items: 31
-  dev_only_items: 112
+  user_facing_items: 22
+  dev_only_items: 99
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -162,6 +162,101 @@ feature_availability:
     recommendations.
 sections:
   features:
+  - title: 'feat: preserve and integrate idle session work'
+    section: features
+    commits:
+    - a3af5937b
+    authored_at: '2026-08-06T19:15:10+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: require workflow retrospectives'
+    section: features
+    commits:
+    - bfe2a09a2
+    authored_at: '2026-08-06T18:46:02+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add daily OpenCode improvement research'
+    section: features
+    commits:
+    - 447789aee
+    authored_at: '2026-08-06T18:23:10+00:00'
+    changed_paths:
+    - .agents/skills/implement-opencode-improvements/SKILL.md
+    - .agents/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/implement-opencode-improvements/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/opencode-chat-improvement-review/spec.yml
+    - opencode.json
+    - scripts/_opencode_utils.py
+    - scripts/_workflow_review_helper.py
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/prompts/opencode-improvement-research.md
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: clarify pull request readiness decisions'
+    section: features
+    commits:
+    - caa4f2c8f
+    authored_at: '2026-08-06T17:20:58+00:00'
+    changed_paths:
+    - .claude/skills/create-pr/SKILL.md
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'feat: verify runtime health notification channels'
     section: features
     commits:
@@ -338,6 +433,512 @@ sections:
     - classified as new features from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
   bug_fixes:
+  - title: 'fix: stop deep research redelegation loop'
+    section: bug_fixes
+    commits:
+    - 768789f3a
+    authored_at: '2026-08-06T19:27:42+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep legacy reconciliation report-only'
+    section: bug_fixes
+    commits:
+    - dc00bab5a
+    authored_at: '2026-08-06T19:23:42+00:00'
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: install reconciliation from control plane'
+    section: bug_fixes
+    commits:
+    - 737cbd232
+    authored_at: '2026-08-06T19:19:49+00:00'
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require deep research delegation'
+    section: bug_fixes
+    commits:
+    - 38645504a
+    authored_at: '2026-08-06T19:03:30+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve focus continuation recovery identity'
+    section: bug_fixes
+    commits:
+    - 7f1862daa
+    authored_at: '2026-08-06T18:52:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make pull request skill invocable in OpenCode'
+    section: bug_fixes
+    commits:
+    - b80a750c7
+    authored_at: '2026-08-06T18:31:51+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .gitignore
+    - .opencode/commands/pullrequest.md
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: migrate automation spawns to OpenCode'
+    section: bug_fixes
+    commits:
+    - 00e70ab68
+    authored_at: '2026-08-06T17:56:40+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/linear-enricher.py
+    - scripts/linear-poller.py
+    - scripts/server-restart.sh
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve explicit focus activation contract'
+    section: bug_fixes
+    commits:
+    - eab5ba265
+    authored_at: '2026-08-06T17:47:57+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep focus context menu under Svelte ownership'
+    section: bug_fixes
+    commits:
+    - de5377177
+    authored_at: '2026-08-06T15:54:07+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/packages/ui/src/components/embeds/FocusModeContextMenu.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve focus rejection countdown in mock replay'
+    section: bug_fixes
+    commits:
+    - 4cf06c15f
+    authored_at: '2026-08-06T15:01:08+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enable explicit Deep research delegation'
+    section: bug_fixes
+    commits:
+    - d5188e14f
+    authored_at: '2026-08-06T14:40:05+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair focus mode processing reliability'
+    section: bug_fixes
+    commits:
+    - 2531d3803
+    authored_at: '2026-08-06T14:26:03+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/tests/test_architecture_behavioral_claims.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore readable release intelligence summaries'
+    section: bug_fixes
+    commits:
+    - 09662581d
+    authored_at: '2026-08-06T14:18:14+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - docs/releases/daily/2026-04-13.md
+    - docs/releases/daily/2026-04-14.md
+    - docs/releases/daily/2026-04-15.md
+    - docs/releases/daily/2026-04-16.md
+    - docs/releases/daily/2026-04-17.md
+    - docs/releases/daily/2026-04-18.md
+    - docs/releases/daily/2026-04-19.md
+    - docs/releases/daily/2026-04-20.md
+    - docs/releases/daily/2026-04-21.md
+    - docs/releases/daily/2026-04-22.md
+    - docs/releases/daily/2026-04-23.md
+    - docs/releases/daily/2026-04-24.md
+    - docs/releases/daily/2026-04-25.md
+    - docs/releases/daily/2026-04-26.md
+    - docs/releases/daily/2026-04-27.md
+    - docs/releases/daily/2026-04-28.md
+    - docs/releases/daily/2026-04-29.md
+    - docs/releases/daily/2026-04-30.md
+    - docs/releases/daily/2026-05-01.md
+    - docs/releases/daily/2026-05-02.md
+    - docs/releases/daily/2026-05-03.md
+    - docs/releases/daily/2026-05-04.md
+    - docs/releases/daily/2026-05-05.md
+    - docs/releases/daily/2026-05-06.md
+    - docs/releases/daily/2026-05-07.md
+    - docs/releases/daily/2026-05-08.md
+    - docs/releases/daily/2026-05-09.md
+    - docs/releases/daily/2026-05-10.md
+    - docs/releases/daily/2026-05-11.md
+    - docs/releases/daily/2026-05-12.md
+    - docs/releases/daily/2026-05-13.md
+    - docs/releases/daily/2026-05-14.md
+    - docs/releases/daily/2026-05-15.md
+    - docs/releases/daily/2026-05-16.md
+    - docs/releases/daily/2026-05-17.md
+    - docs/releases/daily/2026-05-18.md
+    - docs/releases/daily/2026-05-19.md
+    - docs/releases/daily/2026-05-20.md
+    - docs/releases/daily/2026-05-21.md
+    - docs/releases/daily/2026-05-22.md
+    - docs/releases/daily/2026-05-23.md
+    - docs/releases/daily/2026-05-24.md
+    - docs/releases/daily/2026-05-25.md
+    - docs/releases/daily/2026-05-26.md
+    - docs/releases/daily/2026-05-27.md
+    - docs/releases/daily/2026-05-28.md
+    - docs/releases/daily/2026-05-29.md
+    - docs/releases/daily/2026-05-30.md
+    - docs/releases/daily/2026-05-31.md
+    - docs/releases/daily/2026-06-01.md
+    - docs/releases/daily/2026-06-02.md
+    - docs/releases/daily/2026-06-03.md
+    - docs/releases/daily/2026-06-04.md
+    - docs/releases/daily/2026-06-05.md
+    - docs/releases/daily/2026-06-06.md
+    - docs/releases/daily/2026-06-07.md
+    - docs/releases/daily/2026-06-08.md
+    - docs/releases/daily/2026-06-09.md
+    - docs/releases/daily/2026-06-10.md
+    - docs/releases/daily/2026-06-11.md
+    - docs/releases/daily/2026-06-12.md
+    - docs/releases/daily/2026-06-13.md
+    - docs/releases/daily/2026-06-14.md
+    - docs/releases/daily/2026-06-15.md
+    - docs/releases/daily/2026-06-16.md
+    - docs/releases/daily/2026-06-17.md
+    - docs/releases/daily/2026-06-18.md
+    - docs/releases/daily/2026-06-19.md
+    - docs/releases/daily/2026-06-20.md
+    - docs/releases/daily/2026-06-21.md
+    - docs/releases/daily/2026-06-22.md
+    - docs/releases/daily/2026-06-23.md
+    - docs/releases/daily/2026-06-24.md
+    - docs/releases/daily/2026-06-25.md
+    - docs/releases/daily/2026-06-30.md
+    - docs/releases/daily/2026-07-01.md
+    - docs/releases/daily/2026-07-02.md
+    - docs/releases/daily/2026-07-03.md
+    - docs/releases/daily/2026-07-04.md
+    - docs/releases/daily/2026-07-05.md
+    - docs/releases/daily/2026-07-06.md
+    - docs/releases/daily/2026-07-07.md
+    - docs/releases/daily/2026-07-08.md
+    - docs/releases/daily/2026-07-09.md
+    - docs/releases/daily/2026-07-10.md
+    - docs/releases/daily/2026-07-11.md
+    - docs/releases/daily/2026-07-12.md
+    - docs/releases/daily/2026-07-13.md
+    - docs/releases/daily/2026-07-14.md
+    - docs/releases/daily/2026-07-15.md
+    - docs/releases/daily/2026-07-16.md
+    - docs/releases/daily/2026-07-17.md
+    - docs/releases/daily/2026-07-18.md
+    - docs/releases/daily/2026-07-19.md
+    - docs/releases/daily/2026-07-20.md
+    - docs/releases/daily/2026-07-21.md
+    - docs/releases/daily/2026-07-21.yml
+    - docs/releases/daily/2026-07-22.md
+    - docs/releases/daily/2026-07-22.yml
+    - docs/releases/daily/2026-07-23.md
+    - docs/releases/daily/2026-07-23.yml
+    - docs/releases/daily/2026-07-24.md
+    - docs/releases/daily/2026-07-24.yml
+    - docs/releases/daily/2026-07-25.md
+    - docs/releases/daily/2026-07-25.yml
+    - docs/releases/daily/2026-07-26.md
+    - docs/releases/daily/2026-07-26.yml
+    - docs/releases/daily/2026-07-27.md
+    - docs/releases/daily/2026-07-27.yml
+    - docs/releases/daily/2026-07-28.md
+    - docs/releases/daily/2026-07-28.yml
+    - docs/releases/daily/2026-07-29.md
+    - docs/releases/daily/2026-07-29.yml
+    - docs/releases/daily/2026-07-30.md
+    - docs/releases/daily/2026-07-30.yml
+    - docs/releases/daily/2026-07-31.md
+    - docs/releases/daily/2026-07-31.yml
+    - docs/releases/daily/2026-08-01.md
+    - docs/releases/daily/2026-08-01.yml
+    - docs/releases/daily/2026-08-02.md
+    - docs/releases/daily/2026-08-02.yml
+    - docs/releases/daily/2026-08-03.md
+    - docs/releases/daily/2026-08-03.yml
+    - docs/releases/daily/2026-08-04.md
+    - docs/releases/daily/2026-08-04.yml
+    - docs/releases/daily/2026-08-05.md
+    - docs/releases/daily/2026-08-05.yml
+    - docs/releases/daily/2026-08-06.md
+    - docs/releases/daily/2026-08-06.yml
+    - docs/releases/weekly/2026-W16.md
+    - docs/releases/weekly/2026-W17.md
+    - docs/releases/weekly/2026-W18.md
+    - docs/releases/weekly/2026-W19.md
+    - docs/releases/weekly/2026-W20.md
+    - docs/releases/weekly/2026-W21.md
+    - docs/releases/weekly/2026-W22.md
+    - docs/releases/weekly/2026-W23.md
+    - docs/releases/weekly/2026-W24.md
+    - docs/releases/weekly/2026-W25.md
+    - docs/releases/weekly/2026-W26.md
+    - docs/releases/weekly/2026-W27.md
+    - docs/releases/weekly/2026-W28.md
+    - docs/releases/weekly/2026-W29.md
+    - docs/releases/weekly/2026-W30.md
+    - docs/releases/weekly/2026-W30.yml
+    - docs/releases/weekly/2026-W31.md
+    - docs/releases/weekly/2026-W31.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fail missing notification channel tests'
+    section: bug_fixes
+    commits:
+    - 0234d717c
+    authored_at: '2026-08-06T13:07:30+00:00'
+    changed_paths:
+    - scripts/verify_post_update_notifications.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: reset logout landing and settings UI'
     section: bug_fixes
     commits:
@@ -999,393 +1600,6 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:health'
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: scale mobile inspiration previews'
-    section: bug_fixes
-    commits:
-    - a56797e33
-    authored_at: '2026-08-05T19:04:04+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: shrink mobile inspiration embed previews'
-    section: bug_fixes
-    commits:
-    - 7772ac81c
-    authored_at: '2026-08-05T18:49:20+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: allow read-only child diagnostics'
-    section: bug_fixes
-    commits:
-    - c2effd8a7
-    authored_at: '2026-08-05T18:15:37+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Fix streaming tail commit
-    section: bug_fixes
-    commits:
-    - 6fd74ffec
-    authored_at: '2026-08-05T17:41:49+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: make guest inspiration restore atomic'
-    section: bug_fixes
-    commits:
-    - ade91973d
-    authored_at: '2026-08-05T17:07:49+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: restore coordinated test dispatch'
-    section: bug_fixes
-    commits:
-    - dbe66758f
-    authored_at: '2026-08-05T16:53:34+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    - scripts/sessions.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: restore guest inspirations on forced logout'
-    section: bug_fixes
-    commits:
-    - 55693253d
-    authored_at: '2026-08-05T16:21:03+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: route stale-code reports through current control plane'
-    section: bug_fixes
-    commits:
-    - 0d6550588
-    authored_at: '2026-08-05T16:04:05+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_hooks_contract.mjs
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: share runtime resources with agent worktrees'
-    section: bug_fixes
-    commits:
-    - 4598b4aad
-    authored_at: '2026-08-05T15:58:05+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/sessions.py
-    - scripts/tests/test_opencode_hooks_contract.mjs
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    - scripts/tests/test_sessions_native_worktree_lifecycle.py
-    - scripts/tests/test_sessions_worktree_bootstrap.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Fix streaming message render convergence
-    section: bug_fixes
-    commits:
-    - a4669d44e
-    authored_at: '2026-08-05T15:43:32+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: route production SSH through root control plane'
-    section: bug_fixes
-    commits:
-    - f8e556147
-    authored_at: '2026-08-05T15:33:53+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: preserve previews at stream completion'
-    section: bug_fixes
-    commits:
-    - 8d2ea1031
-    authored_at: '2026-08-05T15:22:36+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: preserve streaming state attribute'
-    section: bug_fixes
-    commits:
-    - 892f4c43e
-    authored_at: '2026-08-05T15:03:09+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: restore routed production SSH access'
-    section: bug_fixes
-    commits:
-    - 5f656b148
-    authored_at: '2026-08-05T14:59:18+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/prod-ssh.sh
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: recover inspirations after login'
-    section: bug_fixes
-    commits:
-    - d5d8fba03
-    authored_at: '2026-08-05T14:47:18+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: allow safe forensic child diagnostics'
-    section: bug_fixes
-    commits:
-    - d79e41c03
-    authored_at: '2026-08-05T14:31:56+00:00'
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: fix streaming state deploy regression
-    section: bug_fixes
-    commits:
-    - 1faef6005
-    authored_at: '2026-08-05T14:08:19+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: fix anonymous navigation interactions
-    section: bug_fixes
-    commits:
-    - ded398825
-    authored_at: '2026-08-05T14:02:55+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: dispatch integrated test subject'
-    section: bug_fixes
-    commits:
-    - f1e2ba56a
-    authored_at: '2026-08-05T13:45:22+00:00'
-    changed_paths:
-    - scripts/run_tests.py
-    - scripts/tests.py
-    - scripts/tests/test_run_tests_account_policy.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: gate deployed session commits'
-    section: bug_fixes
-    commits:
-    - 7842f0c08
-    authored_at: '2026-08-05T13:33:43+00:00'
-    changed_paths:
-    - scripts/tests.py
-    - scripts/tests/test_tests_control.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: converge streamed message rendering'
-    section: bug_fixes
-    commits:
-    - bc3dd79a9
-    authored_at: '2026-08-05T13:15:26+00:00'
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
-    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
-    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
-    - frontend/packages/ui/src/utils/contentCache.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
   improvements:
   - title: 'perf: remove proof video OCR scanning'
     section: improvements
@@ -1449,6 +1663,138 @@ sections:
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
   docs:
+  - title: 'docs: record focus verification blocker'
+    section: docs
+    commits:
+    - 2c4a0ae78
+    authored_at: '2026-08-06T19:44:17+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: finalize worktree lifecycle evidence'
+    section: docs
+    commits:
+    - 0817fa7fa
+    authored_at: '2026-08-06T19:18:48+00:00'
+    changed_paths:
+    - docs/specs/agent-worktree-deploy/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: finalize workflow retrospective spec'
+    section: docs
+    commits:
+    - 9283f19e7
+    authored_at: '2026-08-06T18:48:06+00:00'
+    changed_paths:
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: draft self-host worker readiness contract'
+    section: docs
+    commits:
+    - 58f677399
+    authored_at: '2026-08-06T14:24:47+00:00'
+    changed_paths:
+    - docs/specs/selfhost-worker-update-readiness/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record code notebook visual evidence'
+    section: docs
+    commits:
+    - 62f8b8208
+    authored_at: '2026-08-06T14:23:47+00:00'
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: refresh browser storage inventory'
+    section: docs
+    commits:
+    - dabd87596
+    authored_at: '2026-08-06T14:22:53+00:00'
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: document CLI runtime health management'
+    section: docs
+    commits:
+    - 2026dd673
+    authored_at: '2026-08-06T13:21:32+00:00'
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record runtime health operator blockers'
+    section: docs
+    commits:
+    - 5ef7cd51e
+    authored_at: '2026-08-06T13:09:15+00:00'
+    changed_paths:
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'docs: record runtime health dev evidence'
     section: docs
     commits:
@@ -1545,13 +1891,15 @@ sections:
     rationale:
     - classified as documentation from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: Record streaming convergence evidence
-    section: docs
+  tests:
+  - title: 'test: stabilize focus menu readiness'
+    section: tests
     commits:
-    - 4694a1b2a
-    authored_at: '2026-08-05T20:16:34+00:00'
+    - 6dbb70beb
+    authored_at: '2026-08-06T23:48:40+00:00'
     changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
     release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
@@ -1559,9 +1907,57 @@ sections:
     related_features: []
     feature_metadata_changed: false
     rationale:
-    - classified as documentation from commit subject/path rules
+    - classified as tests from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  tests:
+  - title: 'test: keep focus menu open during capture'
+    section: tests
+    commits:
+    - c30bf0956
+    authored_at: '2026-08-06T23:26:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use canonical recovery request fixtures'
+    section: tests
+    commits:
+    - 8877a871b
+    authored_at: '2026-08-06T21:35:00+00:00'
+    changed_paths:
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize focus context menu interaction'
+    section: tests
+    commits:
+    - 4150b031d
+    authored_at: '2026-08-06T15:32:11+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'test: cover passkey deletion logout UI'
     section: tests
     commits:
@@ -1872,241 +2268,66 @@ sections:
     rationale:
     - classified as tests from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: Reproduce bare inline embed refs
-    section: tests
-    commits:
-    - c786a3828
-    authored_at: '2026-08-05T20:38:09+00:00'
-    changed_paths:
-    - backend/tests/test_embed_link_fixes.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Review mobile app skill group
-    section: tests
-    commits:
-    - 4c7b2f2ec
-    authored_at: '2026-08-05T20:04:23+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Capture mobile app skill convergence
-    section: tests
-    commits:
-    - 3adf04386
-    authored_at: '2026-08-05T19:53:24+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Test append-only streaming contracts
-    section: tests
-    commits:
-    - cb25da77b
-    authored_at: '2026-08-05T17:12:45+00:00'
-    changed_paths:
-    - backend/tests/test_stream_paragraph_contract.py
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: require guest carousel after forced logout'
-    section: tests
-    commits:
-    - 5d97dbdf4
-    authored_at: '2026-08-05T16:25:41+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: reject every authenticated guest card'
-    section: tests
-    commits:
-    - bb546f1d0
-    authored_at: '2026-08-05T15:00:42+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: scope streamed loading state'
-    section: tests
-    commits:
-    - b1de428d4
-    authored_at: '2026-08-05T14:45:15+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: await streamed result rows'
-    section: tests
-    commits:
-    - a06ff5c1d
-    authored_at: '2026-08-05T14:26:35+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: preserve message streaming state'
-    section: tests
-    commits:
-    - 6ddbd0200
-    authored_at: '2026-08-05T13:59:58+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: scope streaming network assertion'
-    section: tests
-    commits:
-    - 829b5bdd5
-    authored_at: '2026-08-05T13:57:38+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: remove invalid final streaming assertion'
-    section: tests
-    commits:
-    - a52674bf7
-    authored_at: '2026-08-05T13:44:37+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: clarify final event view state'
-    section: tests
-    commits:
-    - f7a55b204
-    authored_at: '2026-08-05T13:43:03+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: isolate streaming compiler metadata'
-    section: tests
-    commits:
-    - a68843ba8
-    authored_at: '2026-08-05T13:28:39+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'test: verify event streaming transition'
-    section: tests
-    commits:
-    - 68ad3498d
-    authored_at: '2026-08-05T13:12:20+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
   infrastructure:
+  - title: 'chore: enforce deployed UI visual smoke'
+    section: infrastructure
+    commits:
+    - 224c5e1f9
+    authored_at: '2026-08-06T14:21:57+00:00'
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-embed-type/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/add-api/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-embed-type/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/add-api.md
+    - docs/contributing/guides/debugging.md
+    - docs/contributing/guides/planning.md
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: remove obsolete Claude task state'
+    section: infrastructure
+    commits:
+    - 17c505c63
+    authored_at: '2026-08-06T14:20:15+00:00'
+    changed_paths:
+    - .claude/tasks/.meta.json
+    - .claude/tasks/t001-add-persistent-task-implementation-plan.yml
+    - .claude/tasks/t004-status-page-redesign-services-apps-funct.yml
+    - .gitignore
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'chore: gate unreleased product workspaces'
     section: infrastructure
     commits:
@@ -2156,201 +2377,296 @@ sections:
     - classified as internal work from commit subject/path rules
     - 'matches feature availability gates: app:ai'
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: Verify large embed preview spacing
-    section: internal
-    commits:
-    - abf817deb
-    authored_at: '2026-08-05T20:58:26+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Verify app skill groups after reload
-    section: internal
-    commits:
-    - 6d4a27b62
-    authored_at: '2026-08-05T19:42:20+00:00'
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as internal work from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Preserve app skill groups at completion
-    section: internal
-    commits:
-    - 9aa522632
-    authored_at: '2026-08-05T19:01:14+00:00'
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/apps/ai/utils/app_skill_json_cleanup.py
-    - backend/tests/test_app_skill_json_cleanup.py
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as internal work from commit subject/path rules
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  other:
-  - title: Render bare inline embed refs
-    section: other
-    commits:
-    - 399f36331
-    authored_at: '2026-08-05T20:41:52+00:00'
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Flush complete streaming blocks
-    section: other
-    commits:
-    - e4ac674ba
-    authored_at: '2026-08-05T18:31:54+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Preserve streamed result views
-    section: other
-    commits:
-    - c3df0d470
-    authored_at: '2026-08-05T18:11:43+00:00'
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Implement committed streaming blocks
-    section: other
-    commits:
-    - 4613bbad1
-    authored_at: '2026-08-05T17:37:17+00:00'
-    changed_paths:
-    - backend/apps/ai/utils/stream_utils.py
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: Preserve embeds on metadata refresh
-    section: other
-    commits:
-    - f2e556f1f
-    authored_at: '2026-08-05T16:00:41+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: stabilize anonymous welcome navigation
-    section: other
-    commits:
-    - 1ed3c95fd
-    authored_at: '2026-08-05T13:09:10+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
 unreleased_progress:
   dev_only:
+  - title: 'test: stabilize focus menu readiness'
+    commits:
+    - 6dbb70beb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep focus menu open during capture'
+    commits:
+    - c30bf0956
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use canonical recovery request fixtures'
+    commits:
+    - 8877a871b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record focus verification blocker'
+    commits:
+    - 2c4a0ae78
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stop deep research redelegation loop'
+    commits:
+    - 768789f3a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep legacy reconciliation report-only'
+    commits:
+    - dc00bab5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: install reconciliation from control plane'
+    commits:
+    - 737cbd232
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: finalize worktree lifecycle evidence'
+    commits:
+    - 0817fa7fa
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: preserve and integrate idle session work'
+    commits:
+    - a3af5937b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: require deep research delegation'
+    commits:
+    - 38645504a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve focus continuation recovery identity'
+    commits:
+    - 7f1862daa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'docs: finalize workflow retrospective spec'
+    commits:
+    - 9283f19e7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: require workflow retrospectives'
+    commits:
+    - bfe2a09a2
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make pull request skill invocable in OpenCode'
+    commits:
+    - b80a750c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add daily OpenCode improvement research'
+    commits:
+    - 447789aee
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: migrate automation spawns to OpenCode'
+    commits:
+    - 00e70ab68
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve explicit focus activation contract'
+    commits:
+    - eab5ba265
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: clarify pull request readiness decisions'
+    commits:
+    - caa4f2c8f
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep focus context menu under Svelte ownership'
+    commits:
+    - de5377177
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize focus context menu interaction'
+    commits:
+    - 4150b031d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve focus rejection countdown in mock replay'
+    commits:
+    - 4cf06c15f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: enable explicit Deep research delegation'
+    commits:
+    - d5188e14f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: repair focus mode processing reliability'
+    commits:
+    - 2531d3803
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'docs: draft self-host worker readiness contract'
+    commits:
+    - 58f677399
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record code notebook visual evidence'
+    commits:
+    - 62f8b8208
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: refresh browser storage inventory'
+    commits:
+    - dabd87596
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: enforce deployed UI visual smoke'
+    commits:
+    - 224c5e1f9
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: remove obsolete Claude task state'
+    commits:
+    - 17c505c63
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore readable release intelligence summaries'
+    commits:
+    - 09662581d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: document CLI runtime health management'
+    commits:
+    - 2026dd673
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record runtime health operator blockers'
+    commits:
+    - 5ef7cd51e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fail missing notification channel tests'
+    commits:
+    - 0234d717c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
   - title: 'feat: verify runtime health notification channels'
     commits:
     - 2680a4b50
@@ -2897,342 +3213,6 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/health/app.yml
-  - title: Verify large embed preview spacing
-    commits:
-    - abf817deb
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Render bare inline embed refs
-    commits:
-    - 399f36331
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: Reproduce bare inline embed refs
-    commits:
-    - c786a3828
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Record streaming convergence evidence
-    commits:
-    - 4694a1b2a
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Review mobile app skill group
-    commits:
-    - 4c7b2f2ec
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Capture mobile app skill convergence
-    commits:
-    - 3adf04386
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Verify app skill groups after reload
-    commits:
-    - 6d4a27b62
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: scale mobile inspiration previews'
-    commits:
-    - a56797e33
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Preserve app skill groups at completion
-    commits:
-    - 9aa522632
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: shrink mobile inspiration embed previews'
-    commits:
-    - 7772ac81c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: Flush complete streaming blocks
-    commits:
-    - e4ac674ba
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: allow read-only child diagnostics'
-    commits:
-    - c2effd8a7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Preserve streamed result views
-    commits:
-    - c3df0d470
-    section: other
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix streaming tail commit
-    commits:
-    - 6fd74ffec
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Implement committed streaming blocks
-    commits:
-    - 4613bbad1
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: Test append-only streaming contracts
-    commits:
-    - cb25da77b
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: make guest inspiration restore atomic'
-    commits:
-    - ade91973d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: restore coordinated test dispatch'
-    commits:
-    - dbe66758f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: require guest carousel after forced logout'
-    commits:
-    - 5d97dbdf4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore guest inspirations on forced logout'
-    commits:
-    - 55693253d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: route stale-code reports through current control plane'
-    commits:
-    - 0d6550588
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Preserve embeds on metadata refresh
-    commits:
-    - f2e556f1f
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: share runtime resources with agent worktrees'
-    commits:
-    - 4598b4aad
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix streaming message render convergence
-    commits:
-    - a4669d44e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: route production SSH through root control plane'
-    commits:
-    - f8e556147
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve previews at stream completion'
-    commits:
-    - 8d2ea1031
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve streaming state attribute'
-    commits:
-    - 892f4c43e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: reject every authenticated guest card'
-    commits:
-    - bb546f1d0
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore routed production SSH access'
-    commits:
-    - 5f656b148
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: recover inspirations after login'
-    commits:
-    - d5d8fba03
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: scope streamed loading state'
-    commits:
-    - b1de428d4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: allow safe forensic child diagnostics'
-    commits:
-    - d79e41c03
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: await streamed result rows'
-    commits:
-    - a06ff5c1d
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: fix streaming state deploy regression
-    commits:
-    - 1faef6005
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: fix anonymous navigation interactions
-    commits:
-    - ded398825
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: preserve message streaming state'
-    commits:
-    - 6ddbd0200
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: scope streaming network assertion'
-    commits:
-    - 829b5bdd5
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: dispatch integrated test subject'
-    commits:
-    - f1e2ba56a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: remove invalid final streaming assertion'
-    commits:
-    - a52674bf7
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: clarify final event view state'
-    commits:
-    - f7a55b204
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: gate deployed session commits'
-    commits:
-    - 7842f0c08
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: isolate streaming compiler metadata'
-    commits:
-    - a68843ba8
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: converge streamed message rendering'
-    commits:
-    - bc3dd79a9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: verify event streaming transition'
-    commits:
-    - 68ad3498d
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: stabilize anonymous welcome navigation
-    commits:
-    - 1ed3c95fd
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'chore: gate unreleased product workspaces'
@@ -3259,6 +3239,133 @@ unreleased_progress:
 marketing_candidates:
   newsletter: []
   social_or_video:
+  - title: 'fix: stop deep research redelegation loop'
+    commits:
+    - 768789f3a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: require deep research delegation'
+    commits:
+    - 38645504a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve focus continuation recovery identity'
+    commits:
+    - 7f1862daa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve explicit focus activation contract'
+    commits:
+    - eab5ba265
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep focus context menu under Svelte ownership'
+    commits:
+    - de5377177
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve focus rejection countdown in mock replay'
+    commits:
+    - 4cf06c15f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: enable explicit Deep research delegation'
+    commits:
+    - d5188e14f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: repair focus mode processing reliability'
+    commits:
+    - 2531d3803
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
   - title: 'feat: verify runtime health notification channels'
     commits:
     - 2680a4b50
@@ -3406,156 +3513,6 @@ marketing_candidates:
       parent_id: null
       source: backend/apps/health/app.yml
     newsletter_ready: false
-  - title: Render bare inline embed refs
-    commits:
-    - 399f36331
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: scale mobile inspiration previews'
-    commits:
-    - a56797e33
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: shrink mobile inspiration embed previews'
-    commits:
-    - 7772ac81c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: Flush complete streaming blocks
-    commits:
-    - e4ac674ba
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: Implement committed streaming blocks
-    commits:
-    - 4613bbad1
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: make guest inspiration restore atomic'
-    commits:
-    - ade91973d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: restore coordinated test dispatch'
-    commits:
-    - dbe66758f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: restore guest inspirations on forced logout'
-    commits:
-    - 55693253d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: Preserve embeds on metadata refresh
-    commits:
-    - f2e556f1f
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: Fix streaming message render convergence
-    commits:
-    - a4669d44e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: preserve previews at stream completion'
-    commits:
-    - 8d2ea1031
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: preserve streaming state attribute'
-    commits:
-    - 892f4c43e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: recover inspirations after login'
-    commits:
-    - d5d8fba03
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: fix streaming state deploy regression
-    commits:
-    - 1faef6005
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: fix anonymous navigation interactions
-    commits:
-    - ded398825
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: converge streamed message rendering'
-    commits:
-    - bc3dd79a9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: stabilize anonymous welcome navigation
-    commits:
-    - 1ed3c95fd
-    section: other
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3563,6 +3520,571 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: 6dbb70beb6f7399c1625d0008c15dc5daef0c146
+    short_sha: 6dbb70beb
+    authored_at: '2026-08-06T23:48:40+00:00'
+    subject: 'test: stabilize focus menu readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    related_feature_ids: []
+  - sha: c30bf09561b86a99ee46b0ec0cae57a308161bd9
+    short_sha: c30bf0956
+    authored_at: '2026-08-06T23:26:30+00:00'
+    subject: 'test: keep focus menu open during capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 8877a871b7c481a1da039f1e22648d2ed8e1e9b8
+    short_sha: 8877a871b
+    authored_at: '2026-08-06T21:35:00+00:00'
+    subject: 'test: use canonical recovery request fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids: []
+  - sha: 2c4a0ae788fc5b93e4f86a6e13c5f047e1ef3740
+    short_sha: 2c4a0ae78
+    authored_at: '2026-08-06T19:44:17+00:00'
+    subject: 'docs: record focus verification blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids: []
+  - sha: 768789f3af145033aafbce3b1191767be14bd008
+    short_sha: 768789f3a
+    authored_at: '2026-08-06T19:27:42+00:00'
+    subject: 'fix: stop deep research redelegation loop'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: dc00bab5a88448ccf54757cfd519e2e3305e724e
+    short_sha: dc00bab5a
+    authored_at: '2026-08-06T19:23:42+00:00'
+    subject: 'fix: keep legacy reconciliation report-only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: 737cbd2328d1dac0f2fbb56c68c8099c7a273603
+    short_sha: 737cbd232
+    authored_at: '2026-08-06T19:19:49+00:00'
+    subject: 'fix: install reconciliation from control plane'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: 0817fa7fa3a6009943f8776fa2d2a53d8dfa32b0
+    short_sha: 0817fa7fa
+    authored_at: '2026-08-06T19:18:48+00:00'
+    subject: 'docs: finalize worktree lifecycle evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/agent-worktree-deploy/spec.yml
+    related_feature_ids: []
+  - sha: a3af5937bf939784fe744971bcd69e07f506ed79
+    short_sha: a3af5937b
+    authored_at: '2026-08-06T19:15:10+00:00'
+    subject: 'feat: preserve and integrate idle session work'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .opencode/plugins/openmates-hooks.js
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/agent-worktree-deploy/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_native_worktree_binding.mjs
+    - scripts/tests/test_opencode_presence_collisions.mjs
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    - scripts/tests/test_sessions_presence_status.py
+    - scripts/tests/test_sessions_worktree_checkpoints.py
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: 38645504a1da951bb59971e84bb5678e388bcf75
+    short_sha: 38645504a
+    authored_at: '2026-08-06T19:03:30+00:00'
+    subject: 'fix: require deep research delegation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 7f1862daa4c8cc1ae57b6db489f1dc17405921e3
+    short_sha: 7f1862daa
+    authored_at: '2026-08-06T18:52:13+00:00'
+    subject: 'fix: preserve focus continuation recovery identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: 9283f19e7f0e89409caa5222d0fbb2d9d8ee57a3
+    short_sha: 9283f19e7
+    authored_at: '2026-08-06T18:48:06+00:00'
+    subject: 'docs: finalize workflow retrospective spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    related_feature_ids: []
+  - sha: bfe2a09a2cbf0dbd05431c49dd0e59bc35fc9ae7
+    short_sha: bfe2a09a2
+    authored_at: '2026-08-06T18:46:02+00:00'
+    subject: 'feat: require workflow retrospectives'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - scripts/audit_opencode_output_quality.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    related_feature_ids: []
+  - sha: b80a750c7719d7af0a1f872f3ac4056e1ca0a86f
+    short_sha: b80a750c7
+    authored_at: '2026-08-06T18:31:51+00:00'
+    subject: 'fix: make pull request skill invocable in OpenCode'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .gitignore
+    - .opencode/commands/pullrequest.md
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: 447789aeed5b803da4718cfc8e2d82416060172c
+    short_sha: 447789aee
+    authored_at: '2026-08-06T18:23:10+00:00'
+    subject: 'feat: add daily OpenCode improvement research'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/implement-opencode-improvements/SKILL.md
+    - .agents/skills/opencode-improvement-research/SKILL.md
+    - .claude/skills/implement-opencode-improvements/SKILL.md
+    - .claude/skills/opencode-improvement-research/SKILL.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/opencode-chat-improvement-review/spec.yml
+    - opencode.json
+    - scripts/_opencode_utils.py
+    - scripts/_workflow_review_helper.py
+    - scripts/opencode_chat_improvement_review.py
+    - scripts/prompts/opencode-improvement-research.md
+    - scripts/tests/test_opencode_chat_improvement_review.py
+    related_feature_ids: []
+  - sha: 00e70ab68f8f089f2a6894569d7884f31a7703d3
+    short_sha: 00e70ab68
+    authored_at: '2026-08-06T17:56:40+00:00'
+    subject: 'fix: migrate automation spawns to OpenCode'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/linear-auto-processing.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/_zellij_utils.py
+    - scripts/linear-enricher.py
+    - scripts/linear-poller.py
+    - scripts/server-restart.sh
+    - scripts/session-cleanup.py
+    - scripts/sessions.py
+    - scripts/tests/test_spawn_chat_opencode.py
+    related_feature_ids: []
+  - sha: eab5ba265a560575ae1bc62022f758d76e594be7
+    short_sha: eab5ba265
+    authored_at: '2026-08-06T17:47:57+00:00'
+    subject: 'fix: preserve explicit focus activation contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: caa4f2c8fd31c76102612ede38da53cc0bc93a4d
+    short_sha: caa4f2c8f
+    authored_at: '2026-08-06T17:20:58+00:00'
+    subject: 'feat: clarify pull request readiness decisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-pr/SKILL.md
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: de5377177d7c0ce825c592111533514700ddeea3
+    short_sha: de5377177
+    authored_at: '2026-08-06T15:54:07+00:00'
+    subject: 'fix: keep focus context menu under Svelte ownership'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/packages/ui/src/components/embeds/FocusModeContextMenu.svelte
+    related_feature_ids: []
+  - sha: 4150b031d07a310f8bc41c64ac295e8845761280
+    short_sha: 4150b031d
+    authored_at: '2026-08-06T15:32:11+00:00'
+    subject: 'test: stabilize focus context menu interaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 4cf06c15fc3be698e75b659318a8b10d1085d77c
+    short_sha: 4cf06c15f
+    authored_at: '2026-08-06T15:01:08+00:00'
+    subject: 'fix: preserve focus rejection countdown in mock replay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: d5188e14fd9202650e5ce12b4339ebda44101a7d
+    short_sha: d5188e14f
+    authored_at: '2026-08-06T14:40:05+00:00'
+    subject: 'fix: enable explicit Deep research delegation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/tests/test_focus_mode_routing.py
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 2531d380381a2fe60351944935c81cde375cb212
+    short_sha: 2531d3803
+    authored_at: '2026-08-06T14:26:03+00:00'
+    subject: 'fix: repair focus mode processing reliability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/specs/focus-mode-processing-reliability/spec.yml
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/tests/test_architecture_behavioral_claims.py
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: 58f677399c94693a73fd7a03d44f3e105ce5cd96
+    short_sha: 58f677399
+    authored_at: '2026-08-06T14:24:47+00:00'
+    subject: 'docs: draft self-host worker readiness contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/selfhost-worker-update-readiness/spec.yml
+    related_feature_ids: []
+  - sha: 62f8b820823d9a34138d504e1889a237360bfbdc
+    short_sha: 62f8b8208
+    authored_at: '2026-08-06T14:23:47+00:00'
+    subject: 'docs: record code notebook visual evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/code-notebook-embed/spec.yml
+    related_feature_ids: []
+  - sha: dabd87596cb110dd9022cdd02e1233a9be922727
+    short_sha: dabd87596
+    authored_at: '2026-08-06T14:22:53+00:00'
+    subject: 'chore: refresh browser storage inventory'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: 224c5e1f96d52bc26e8c414c52ff36eca01a3022
+    short_sha: 224c5e1f9
+    authored_at: '2026-08-06T14:21:57+00:00'
+    subject: 'chore: enforce deployed UI visual smoke'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-embed-type/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/add-api/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-embed-type/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/add-api.md
+    - docs/contributing/guides/debugging.md
+    - docs/contributing/guides/planning.md
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    related_feature_ids: []
+  - sha: 17c505c63d09a3a1e527f9b54ec6c3fb8ed386fa
+    short_sha: 17c505c63
+    authored_at: '2026-08-06T14:20:15+00:00'
+    subject: 'chore: remove obsolete Claude task state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/tasks/.meta.json
+    - .claude/tasks/t001-add-persistent-task-implementation-plan.yml
+    - .claude/tasks/t004-status-page-redesign-services-apps-funct.yml
+    - .gitignore
+    related_feature_ids: []
+  - sha: 09662581d742a90e76c5bf215d5f011958b32fd5
+    short_sha: 09662581d
+    authored_at: '2026-08-06T14:18:14+00:00'
+    subject: 'fix: restore readable release intelligence summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - docs/releases/daily/2026-04-13.md
+    - docs/releases/daily/2026-04-14.md
+    - docs/releases/daily/2026-04-15.md
+    - docs/releases/daily/2026-04-16.md
+    - docs/releases/daily/2026-04-17.md
+    - docs/releases/daily/2026-04-18.md
+    - docs/releases/daily/2026-04-19.md
+    - docs/releases/daily/2026-04-20.md
+    - docs/releases/daily/2026-04-21.md
+    - docs/releases/daily/2026-04-22.md
+    - docs/releases/daily/2026-04-23.md
+    - docs/releases/daily/2026-04-24.md
+    - docs/releases/daily/2026-04-25.md
+    - docs/releases/daily/2026-04-26.md
+    - docs/releases/daily/2026-04-27.md
+    - docs/releases/daily/2026-04-28.md
+    - docs/releases/daily/2026-04-29.md
+    - docs/releases/daily/2026-04-30.md
+    - docs/releases/daily/2026-05-01.md
+    - docs/releases/daily/2026-05-02.md
+    - docs/releases/daily/2026-05-03.md
+    - docs/releases/daily/2026-05-04.md
+    - docs/releases/daily/2026-05-05.md
+    - docs/releases/daily/2026-05-06.md
+    - docs/releases/daily/2026-05-07.md
+    - docs/releases/daily/2026-05-08.md
+    - docs/releases/daily/2026-05-09.md
+    - docs/releases/daily/2026-05-10.md
+    - docs/releases/daily/2026-05-11.md
+    - docs/releases/daily/2026-05-12.md
+    - docs/releases/daily/2026-05-13.md
+    - docs/releases/daily/2026-05-14.md
+    - docs/releases/daily/2026-05-15.md
+    - docs/releases/daily/2026-05-16.md
+    - docs/releases/daily/2026-05-17.md
+    - docs/releases/daily/2026-05-18.md
+    - docs/releases/daily/2026-05-19.md
+    - docs/releases/daily/2026-05-20.md
+    - docs/releases/daily/2026-05-21.md
+    - docs/releases/daily/2026-05-22.md
+    - docs/releases/daily/2026-05-23.md
+    - docs/releases/daily/2026-05-24.md
+    - docs/releases/daily/2026-05-25.md
+    - docs/releases/daily/2026-05-26.md
+    - docs/releases/daily/2026-05-27.md
+    - docs/releases/daily/2026-05-28.md
+    - docs/releases/daily/2026-05-29.md
+    - docs/releases/daily/2026-05-30.md
+    - docs/releases/daily/2026-05-31.md
+    - docs/releases/daily/2026-06-01.md
+    - docs/releases/daily/2026-06-02.md
+    - docs/releases/daily/2026-06-03.md
+    - docs/releases/daily/2026-06-04.md
+    - docs/releases/daily/2026-06-05.md
+    - docs/releases/daily/2026-06-06.md
+    - docs/releases/daily/2026-06-07.md
+    - docs/releases/daily/2026-06-08.md
+    - docs/releases/daily/2026-06-09.md
+    - docs/releases/daily/2026-06-10.md
+    - docs/releases/daily/2026-06-11.md
+    - docs/releases/daily/2026-06-12.md
+    - docs/releases/daily/2026-06-13.md
+    - docs/releases/daily/2026-06-14.md
+    - docs/releases/daily/2026-06-15.md
+    - docs/releases/daily/2026-06-16.md
+    - docs/releases/daily/2026-06-17.md
+    - docs/releases/daily/2026-06-18.md
+    - docs/releases/daily/2026-06-19.md
+    - docs/releases/daily/2026-06-20.md
+    - docs/releases/daily/2026-06-21.md
+    - docs/releases/daily/2026-06-22.md
+    - docs/releases/daily/2026-06-23.md
+    - docs/releases/daily/2026-06-24.md
+    - docs/releases/daily/2026-06-25.md
+    - docs/releases/daily/2026-06-30.md
+    - docs/releases/daily/2026-07-01.md
+    - docs/releases/daily/2026-07-02.md
+    - docs/releases/daily/2026-07-03.md
+    - docs/releases/daily/2026-07-04.md
+    - docs/releases/daily/2026-07-05.md
+    - docs/releases/daily/2026-07-06.md
+    - docs/releases/daily/2026-07-07.md
+    - docs/releases/daily/2026-07-08.md
+    - docs/releases/daily/2026-07-09.md
+    - docs/releases/daily/2026-07-10.md
+    - docs/releases/daily/2026-07-11.md
+    - docs/releases/daily/2026-07-12.md
+    - docs/releases/daily/2026-07-13.md
+    - docs/releases/daily/2026-07-14.md
+    - docs/releases/daily/2026-07-15.md
+    - docs/releases/daily/2026-07-16.md
+    - docs/releases/daily/2026-07-17.md
+    - docs/releases/daily/2026-07-18.md
+    - docs/releases/daily/2026-07-19.md
+    - docs/releases/daily/2026-07-20.md
+    - docs/releases/daily/2026-07-21.md
+    - docs/releases/daily/2026-07-21.yml
+    - docs/releases/daily/2026-07-22.md
+    - docs/releases/daily/2026-07-22.yml
+    - docs/releases/daily/2026-07-23.md
+    - docs/releases/daily/2026-07-23.yml
+    - docs/releases/daily/2026-07-24.md
+    - docs/releases/daily/2026-07-24.yml
+    - docs/releases/daily/2026-07-25.md
+    - docs/releases/daily/2026-07-25.yml
+    - docs/releases/daily/2026-07-26.md
+    - docs/releases/daily/2026-07-26.yml
+    - docs/releases/daily/2026-07-27.md
+    - docs/releases/daily/2026-07-27.yml
+    - docs/releases/daily/2026-07-28.md
+    - docs/releases/daily/2026-07-28.yml
+    - docs/releases/daily/2026-07-29.md
+    - docs/releases/daily/2026-07-29.yml
+    - docs/releases/daily/2026-07-30.md
+    - docs/releases/daily/2026-07-30.yml
+    - docs/releases/daily/2026-07-31.md
+    - docs/releases/daily/2026-07-31.yml
+    - docs/releases/daily/2026-08-01.md
+    - docs/releases/daily/2026-08-01.yml
+    - docs/releases/daily/2026-08-02.md
+    - docs/releases/daily/2026-08-02.yml
+    - docs/releases/daily/2026-08-03.md
+    - docs/releases/daily/2026-08-03.yml
+    - docs/releases/daily/2026-08-04.md
+    - docs/releases/daily/2026-08-04.yml
+    - docs/releases/daily/2026-08-05.md
+    - docs/releases/daily/2026-08-05.yml
+    - docs/releases/daily/2026-08-06.md
+    - docs/releases/daily/2026-08-06.yml
+    - docs/releases/weekly/2026-W16.md
+    - docs/releases/weekly/2026-W17.md
+    - docs/releases/weekly/2026-W18.md
+    - docs/releases/weekly/2026-W19.md
+    - docs/releases/weekly/2026-W20.md
+    - docs/releases/weekly/2026-W21.md
+    - docs/releases/weekly/2026-W22.md
+    - docs/releases/weekly/2026-W23.md
+    - docs/releases/weekly/2026-W24.md
+    - docs/releases/weekly/2026-W25.md
+    - docs/releases/weekly/2026-W26.md
+    - docs/releases/weekly/2026-W27.md
+    - docs/releases/weekly/2026-W28.md
+    - docs/releases/weekly/2026-W29.md
+    - docs/releases/weekly/2026-W30.md
+    - docs/releases/weekly/2026-W30.yml
+    - docs/releases/weekly/2026-W31.md
+    - docs/releases/weekly/2026-W31.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: 2026dd673403539c9365d4fcc33523d47f445fd4
+    short_sha: 2026dd673
+    authored_at: '2026-08-06T13:21:32+00:00'
+    subject: 'docs: document CLI runtime health management'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: 5ef7cd51e05c98a4a8bae8b852cc77c022544a2c
+    short_sha: 5ef7cd51e
+    authored_at: '2026-08-06T13:09:15+00:00'
+    subject: 'docs: record runtime health operator blockers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/post-update-runtime-health-alerting/spec.yml
+    related_feature_ids: []
+  - sha: 0234d717caca75835ec8c9f424b013f62c370b43
+    short_sha: 0234d717c
+    authored_at: '2026-08-06T13:07:30+00:00'
+    subject: 'fix: fail missing notification channel tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/verify_post_update_notifications.py
+    related_feature_ids: []
   - sha: 2680a4b5076754026fec21706bb3da019e388fc1
     short_sha: 2680a4b50
     authored_at: '2026-08-06T13:02:44+00:00'
@@ -4354,598 +4876,115 @@ sources:
     - scripts/tests/test_sessions_worktree_bootstrap.py
     related_feature_ids:
     - app:health
-  - sha: abf817debb93432f2223d0931535d064539922aa
-    short_sha: abf817deb
-    authored_at: '2026-08-05T20:58:26+00:00'
-    subject: Verify large embed preview spacing
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    related_feature_ids: []
-  - sha: 399f363311764b168f58fd401a7b35359a28a1b2
-    short_sha: 399f36331
-    authored_at: '2026-08-05T20:41:52+00:00'
-    subject: Render bare inline embed refs
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    related_feature_ids:
-    - app:ai
-  - sha: c786a3828fff0033aea8c16b934ec54fa13509b1
-    short_sha: c786a3828
-    authored_at: '2026-08-05T20:38:09+00:00'
-    subject: Reproduce bare inline embed refs
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/tests/test_embed_link_fixes.py
-    related_feature_ids: []
-  - sha: 4694a1b2acf29f2f4db541eee75aad3e07d213e1
-    short_sha: 4694a1b2a
-    authored_at: '2026-08-05T20:16:34+00:00'
-    subject: Record streaming convergence evidence
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    related_feature_ids: []
-  - sha: 4c7b2f2ecc28f091ddf628e22bd80a28d90d6781
-    short_sha: 4c7b2f2ec
-    authored_at: '2026-08-05T20:04:23+00:00'
-    subject: Review mobile app skill group
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: 3adf043862f7ff2299199ea0bf9583719e705898
-    short_sha: 3adf04386
-    authored_at: '2026-08-05T19:53:24+00:00'
-    subject: Capture mobile app skill convergence
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: 6d4a27b628abb708620e35f76d23b66f468f304b
-    short_sha: 6d4a27b62
-    authored_at: '2026-08-05T19:42:20+00:00'
-    subject: Verify app skill groups after reload
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: a56797e33ccfe6da0c463f16bd820a7a96ca09f5
-    short_sha: a56797e33
-    authored_at: '2026-08-05T19:04:04+00:00'
-    subject: 'fix: scale mobile inspiration previews'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    related_feature_ids: []
-  - sha: 9aa52263287713cabe88f88fcb27d84383e3232e
-    short_sha: 9aa522632
-    authored_at: '2026-08-05T19:01:14+00:00'
-    subject: Preserve app skill groups at completion
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/apps/ai/utils/app_skill_json_cleanup.py
-    - backend/tests/test_app_skill_json_cleanup.py
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    related_feature_ids:
-    - app:ai
-  - sha: 7772ac81c5f6e7d0846289cd759a0679324aeb4b
-    short_sha: 7772ac81c
-    authored_at: '2026-08-05T18:49:20+00:00'
-    subject: 'fix: shrink mobile inspiration embed previews'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    related_feature_ids: []
-  - sha: e4ac674bae5af248c444c398f037220ef48f7e07
-    short_sha: e4ac674ba
-    authored_at: '2026-08-05T18:31:54+00:00'
-    subject: Flush complete streaming blocks
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderScheduler.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
-    related_feature_ids: []
-  - sha: c2effd8a7219fe8348aac6c564607dd679a6eb39
-    short_sha: c2effd8a7
-    authored_at: '2026-08-05T18:15:37+00:00'
-    subject: 'fix: allow read-only child diagnostics'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    related_feature_ids: []
-  - sha: c3df0d470e498b955c025b0a99953b280d0d85d1
-    short_sha: c3df0d470
-    authored_at: '2026-08-05T18:11:43+00:00'
-    subject: Preserve streamed result views
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    related_feature_ids: []
-  - sha: 6fd74ffec8bde935f437da8d467da2cdb93324bc
-    short_sha: 6fd74ffec
-    authored_at: '2026-08-05T17:41:49+00:00'
-    subject: Fix streaming tail commit
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    related_feature_ids: []
-  - sha: 4613bbad1fcc7277e69a71a83c4b7fdc8bef7e5a
-    short_sha: 4613bbad1
-    authored_at: '2026-08-05T17:37:17+00:00'
-    subject: Implement committed streaming blocks
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/utils/stream_utils.py
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    related_feature_ids:
-    - app:ai
-  - sha: cb25da77b1cc48b7793aa8cb76a91056a979d3cf
-    short_sha: cb25da77b
-    authored_at: '2026-08-05T17:12:45+00:00'
-    subject: Test append-only streaming contracts
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/tests/test_stream_paragraph_contract.py
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    related_feature_ids: []
-  - sha: ade91973dd1a0245b98b32b173580cb3d8424613
-    short_sha: ade91973d
-    authored_at: '2026-08-05T17:07:49+00:00'
-    subject: 'fix: make guest inspiration restore atomic'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
-    related_feature_ids: []
-  - sha: dbe66758fc08e50d698019a5db03c8e813064c41
-    short_sha: dbe66758f
-    authored_at: '2026-08-05T16:53:34+00:00'
-    subject: 'fix: restore coordinated test dispatch'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    - scripts/sessions.py
-    related_feature_ids: []
-  - sha: 5d97dbdf4748f8da5c4792958798659daded6a40
-    short_sha: 5d97dbdf4
-    authored_at: '2026-08-05T16:25:41+00:00'
-    subject: 'test: require guest carousel after forced logout'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-    related_feature_ids: []
-  - sha: 55693253ddb0e44e0dc5e0ca54f703e3a883da79
-    short_sha: 55693253d
-    authored_at: '2026-08-05T16:21:03+00:00'
-    subject: 'fix: restore guest inspirations on forced logout'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
-    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
-    related_feature_ids: []
-  - sha: 0d65505887186a5cd1087260873650f124831281
-    short_sha: 0d6550588
-    authored_at: '2026-08-05T16:04:05+00:00'
-    subject: 'fix: route stale-code reports through current control plane'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_hooks_contract.mjs
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    related_feature_ids: []
-  - sha: f2e556f1f3c8a5854a46cb5ea372b2530025e62c
-    short_sha: f2e556f1f
-    authored_at: '2026-08-05T16:00:41+00:00'
-    subject: Preserve embeds on metadata refresh
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: 4598b4aadcb40f33a766060e56e5ee675148d331
-    short_sha: 4598b4aad
-    authored_at: '2026-08-05T15:58:05+00:00'
-    subject: 'fix: share runtime resources with agent worktrees'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/sessions.py
-    - scripts/tests/test_opencode_hooks_contract.mjs
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    - scripts/tests/test_sessions_native_worktree_lifecycle.py
-    - scripts/tests/test_sessions_worktree_bootstrap.py
-    related_feature_ids: []
-  - sha: a4669d44e1c718345ada34ec4c6d3ba9258ef316
-    short_sha: a4669d44e
-    authored_at: '2026-08-05T15:43:32+00:00'
-    subject: Fix streaming message render convergence
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: f8e556147ffbe798135851772cf80d133016e290
-    short_sha: f8e556147
-    authored_at: '2026-08-05T15:33:53+00:00'
-    subject: 'fix: route production SSH through root control plane'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    related_feature_ids: []
-  - sha: 8d2ea1031b30726376ac139d1d5712423eac7c32
-    short_sha: 8d2ea1031
-    authored_at: '2026-08-05T15:22:36+00:00'
-    subject: 'fix: preserve previews at stream completion'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: 892f4c43efb8009ba70e5ed4b821d35a0f031225
-    short_sha: 892f4c43e
-    authored_at: '2026-08-05T15:03:09+00:00'
-    subject: 'fix: preserve streaming state attribute'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: bb546f1d0aa65db49fd7aa60af12454daf81ae7f
-    short_sha: bb546f1d0
-    authored_at: '2026-08-05T15:00:42+00:00'
-    subject: 'test: reject every authenticated guest card'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
-    related_feature_ids: []
-  - sha: 5f656b14857d9f672df2bce43c40e1542372277c
-    short_sha: 5f656b148
-    authored_at: '2026-08-05T14:59:18+00:00'
-    subject: 'fix: restore routed production SSH access'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/prod-ssh.sh
-    - scripts/tests/test_opencode_native_worktree_binding.mjs
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    related_feature_ids: []
-  - sha: d5d8fba037204cd252a796bb37d8e9f05400b2cd
-    short_sha: d5d8fba03
-    authored_at: '2026-08-05T14:47:18+00:00'
-    subject: 'fix: recover inspirations after login'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    related_feature_ids: []
-  - sha: b1de428d447b19b38d3f5df10aff7c17d8c057b2
-    short_sha: b1de428d4
-    authored_at: '2026-08-05T14:45:15+00:00'
-    subject: 'test: scope streamed loading state'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: d79e41c035dffc10c4b6a149723dcd9301453643
-    short_sha: d79e41c03
-    authored_at: '2026-08-05T14:31:56+00:00'
-    subject: 'fix: allow safe forensic child diagnostics'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - .opencode/plugins/openmates-hooks.js
-    - scripts/tests/test_opencode_presence_collisions.mjs
-    related_feature_ids: []
-  - sha: a06ff5c1d39edda7279de2dad42d3cbcfa724122
-    short_sha: a06ff5c1d
-    authored_at: '2026-08-05T14:26:35+00:00'
-    subject: 'test: await streamed result rows'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: 1faef60056998281e397f8873b9a824c91fce3fd
-    short_sha: 1faef6005
-    authored_at: '2026-08-05T14:08:19+00:00'
-    subject: fix streaming state deploy regression
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: ded3988255eae873fc8f741166d723fa8083a206
-    short_sha: ded398825
-    authored_at: '2026-08-05T14:02:55+00:00'
-    subject: fix anonymous navigation interactions
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
-    related_feature_ids: []
-  - sha: 6ddbd02003dc617dc9588b57af525b1328ed7d50
-    short_sha: 6ddbd0200
-    authored_at: '2026-08-05T13:59:58+00:00'
-    subject: 'test: preserve message streaming state'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
-  - sha: 829b5bdd556a879dc0da0d48c811628ba41363e8
-    short_sha: 829b5bdd5
-    authored_at: '2026-08-05T13:57:38+00:00'
-    subject: 'test: scope streaming network assertion'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: f1e2ba56a51883e7719d18e9661174b5de215ee5
-    short_sha: f1e2ba56a
-    authored_at: '2026-08-05T13:45:22+00:00'
-    subject: 'fix: dispatch integrated test subject'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - scripts/run_tests.py
-    - scripts/tests.py
-    - scripts/tests/test_run_tests_account_policy.py
-    related_feature_ids: []
-  - sha: a52674bf74fdab6ff63a1db2325d33b435b03c4e
-    short_sha: a52674bf7
-    authored_at: '2026-08-05T13:44:37+00:00'
-    subject: 'test: remove invalid final streaming assertion'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: f7a55b20489736895c229731f34c81684f1965e4
-    short_sha: f7a55b204
-    authored_at: '2026-08-05T13:43:03+00:00'
-    subject: 'test: clarify final event view state'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: 7842f0c0843a2a70a767f9ccf1f00da65d30dc42
-    short_sha: 7842f0c08
-    authored_at: '2026-08-05T13:33:43+00:00'
-    subject: 'fix: gate deployed session commits'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - scripts/tests.py
-    - scripts/tests/test_tests_control.py
-    related_feature_ids: []
-  - sha: a68843ba859c41a1af6d16dbf11b3416472ee26c
-    short_sha: a68843ba8
-    authored_at: '2026-08-05T13:28:39+00:00'
-    subject: 'test: isolate streaming compiler metadata'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
-    related_feature_ids: []
-  - sha: bc3dd79a910813ad8f9ef055799185deb6a73878
-    short_sha: bc3dd79a9
-    authored_at: '2026-08-05T13:15:26+00:00'
-    subject: 'fix: converge streamed message rendering'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/specs/streaming-message-render-convergence/spec.yml
-    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
-    - frontend/packages/ui/src/components/ChatHistory.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.preview.ts
-    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
-    - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
-    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
-    - frontend/packages/ui/src/message_parsing/streamingMessageCompiler.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderMetrics.ts
-    - frontend/packages/ui/src/message_parsing/streamingRenderScheduler.ts
-    - frontend/packages/ui/src/utils/contentCache.ts
-    related_feature_ids: []
-  - sha: 68ad3498db13ccc7159b1a056b138c5ef45c9e5b
-    short_sha: 68ad3498d
-    authored_at: '2026-08-05T13:12:20+00:00'
-    subject: 'test: verify event streaming transition'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/skill-events-search.spec.ts
-    related_feature_ids: []
-  - sha: 1ed3c95fdfb157f2c9e8c01eda1e19789048ba56
-    short_sha: 1ed3c95fd
-    authored_at: '2026-08-05T13:09:10+00:00'
-    subject: stabilize anonymous welcome navigation
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
-    related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on the reliability of real-time AI message streaming and the stability of user sessions. Significant
-    effort was directed toward ensuring UI convergence during streaming and refining the guest experience during authentication
-    transitions.
+  overview: OpenMates focused on enhancing AI processing reliability, particularly for focus modes and deep research delegation.
+    Significant work was also completed on runtime health verification for self-hosted environments and refining the chat
+    interface's responsiveness to agent thinking states.
   released_changes: []
   bug_fixes:
-  - text: OpenMates resolved several issues with streaming message convergence, ensuring that embeds, previews, and message
-      attributes remain stable as content is generated.
+  - text: OpenMates addressed several reliability issues in AI focus modes, including preventing deep research redelegation
+      loops and preserving recovery identities during session continuations.
     evidence:
       commits:
-      - bc3dd79a9
-      - a4669d44e
-      - 8d2ea1031
-      - 892f4c43e
-      - f2e556f1f
+      - 768789f3a
+      - 38645504a
+      - 7f1862daa
+      - 2531d3803
     release_status: dev_only
-  - text: AI citation handling was hardened to preserve inline examples and ensure generated embed links are correctly formatted.
+  - text: The chat interface now correctly resets tab titles for new conversations and provides more responsive updates for
+      progressive thinking states and task initiation.
+    evidence:
+      commits:
+      - e4ddec7e0
+      - 438ebc479
+      - a65ec0fe8
+      - e11d5346b
+    release_status: dev_only
+  - text: Citation link generation was hardened to ensure stable embed links and consistent inline examples.
     evidence:
       commits:
       - 73e3ffb4a
       - 17bf9500e
-      - 399f36331
     release_status: dev_only
-  - text: The logout process was refined to reset the UI correctly and ensure guest inspirations are restored atomically after
-      a session ends.
+  - text: The project refined the logout landing UI and disabled specific health memory fields to align with current privacy
+      metadata.
     evidence:
       commits:
       - 70b41fb64
-      - ade91973d
-      - 55693253d
-      - d5d8fba03
-    release_status: dev_only
-  - text: Navigation for anonymous users was stabilized, including fixes for welcome interactions and tab title resets on
-      new chats.
-    evidence:
-      commits:
-      - ded398825
-      - 1ed3c95fd
-      - e4ddec7e0
+      - 2976f1ab1
     release_status: dev_only
   unreleased_progress:
-  - text: Managed runtime health verification and notification channels are being developed to monitor server status post-update.
+  - text: Managed runtime health verification and notification channel checks were added to the CLI to support self-hosted
+      server management.
     evidence:
       commits:
       - 0078e7e0d
       - 2680a4b50
+      - 1616ef4e6
+      - 2026dd673
     release_status: dev_only
-  - text: Support for progressive thinking states in the chat interface is in progress to improve the feedback loop during
-      AI generation.
+  - text: The unreleased workflows platform received updates to improve trigger draining and requeue logic for cancelled tasks.
     evidence:
       commits:
-      - 438ebc479
-      - a65ec0fe8
-      - ddfe85935
+      - 7ad43c91d
+      - b9d6b1d9d
+      - 30e7115fb
     release_status: dev_only
-  - text: New infrastructure was added to gate unreleased product workspaces more strictly.
+  - text: New infrastructure was added to gate unreleased product workspaces and manage feature availability more granularly.
     evidence:
       commits:
       - 41464e83a
     release_status: dev_only
-  - text: The health application metadata was updated to disable specific memory fields.
-    evidence:
-      commits:
-      - 2976f1ab1
-    release_status: dev_only
-  - text: Internal work continued on workflows and team billing routes, which remain disabled in production.
-    evidence:
-      commits:
-      - 7ad43c91d
-      - 30e7115fb
-      - 0e50038d9
-    release_status: dev_only_disabled_features
   internal_progress:
-  - text: OpenCode orchestration was improved with parallel test debugging, more reliable plugin startup, and better worker
-      attachment.
+  - text: OpenCode workflow orchestration was hardened, including improved session lifecycle management and plugin startup
+      stability.
     evidence:
       commits:
-      - dc68f4e27
       - 4d8a3b745
+      - a3af5937b
       - 269ea6267
-      - 1b88ec50a
     release_status: dev_only
-  - text: New internal skills were added to generate narrated implementation demonstrations and CLI proof videos.
+  - text: Agent tooling was expanded with new skills for creating demonstration videos and a requirement for workflow retrospectives
+      to ensure output quality.
     evidence:
       commits:
+      - bfe2a09a2
       - 1b6bedc49
       - 04c160c3f
       - 230653fe9
     release_status: dev_only
-  - text: The secret scanner was updated to ignore false positives like commit hashes and media durations.
-    evidence:
-      commits:
-      - e0d3738d7
-      - 2b2965917
-    release_status: dev_only_secret_scanner
   newsletter_recommendation:
     include: []
     exclude:
-    - text: All changes from 2026-08-06.
+    - text: Focus mode processing reliability improvements.
       evidence:
         commits:
-        - bc3dd79a9
-        - 70b41fb64
+        - 2531d3803
+      reason: Feature is currently in development and not yet merged to the main branch.
+    - text: Managed runtime health verification for self-hosted environments.
+      evidence:
+        commits:
         - 0078e7e0d
-      reason: All current updates are in development branches and have not been merged to main for public release.
-    rationale: There are no items marked as ready for public communication or released to the main branch in this period.
+      reason: Feature is currently in development and not yet merged to the main branch.
+    - text: Progressive thinking state UI updates.
+      evidence:
+        commits:
+        - 438ebc479
+      reason: UI refinements are part of an unreleased development cycle.
+    rationale: All changes from this period are currently in the development branch and have not yet reached the main release
+      branch. While significant improvements were made to AI reliability and runtime health, they are not yet ready for public
+      communication.
   social_video_recommendations:
-  - idea: Visualizing AI Reasoning
-    priority: Medium
-    reason: The progressive thinking state and streaming convergence work provide a smooth visual story of how the AI processes
-      and renders complex responses.
+  - idea: Demonstrate the new progressive thinking UI, showing how the agent's reasoning process is visible to the user in
+      real-time.
+    priority: medium
+    reason: Provides a concrete visual update to the chat experience that highlights transparency in AI processing.
     evidence:
       commits:
       - 438ebc479
-      - bc3dd79a9
+      - a65ec0fe8
+      - e11d5346b
   quality_notes:
-  - Extensive testing (31 commits) accompanied the streaming and session management fixes.
-  - Documentation was updated to record evidence for runtime health and streaming convergence specs.
+  - Heavy emphasis on automated verification for runtime health and notification channels.
+  - Hardening of agent workflow contracts through mandatory retrospectives and demonstration proofs.
   validation_warnings: []

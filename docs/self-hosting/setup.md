@@ -68,6 +68,23 @@ openmates server env doctor
 
 Copy selected keys into `.env` manually, or prefer `openmates server env set <KEY>` so the CLI backs up `.env`, writes restricted permissions, and redacts secret values in output. Provider setup guidance should come from provider metadata rather than extra env files.
 
+### Task processing capacity
+
+Self-hosted instances can tune concurrent AI-assigned user Tasks independently
+for personal and Team workspaces:
+
+```env
+OPENMATES_PERSONAL_TASK_CONCURRENCY=5
+OPENMATES_PERSONAL_TASK_URGENT_RESERVE=2
+OPENMATES_TEAM_TASK_CONCURRENCY=8
+OPENMATES_TEAM_TASK_URGENT_RESERVE=2
+```
+
+The hard maximum is the normal capacity plus the urgent reserve. Normal Tasks
+cannot consume reserved slots, while urgent Tasks may use any available slot.
+These limits apply only to user Tasks; Workflow runs use separate execution and
+are not counted. Invalid or negative values fail visibly during Task admission.
+
 ## Quick Start
 
 Install the CLI:

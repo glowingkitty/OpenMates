@@ -14,6 +14,7 @@ from datetime import datetime
 
 from toon_format import encode, decode
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.cache_reminder_mixin import EMBED_CACHE_EXTENDED_TTL
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.python_schemas.embed_status import (
@@ -37,6 +38,7 @@ from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
 
 logger = logging.getLogger(__name__)
 
+EMBED_CACHE_TTL_SECONDS = 259200
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
 IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
 WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
@@ -6277,15 +6279,19 @@ class EmbedService:
             import json as json_lib
             embed_json = json_lib.dumps(embed_data)
             
-            # Cache with 72h TTL (same as message cache - CHAT_MESSAGES_TTL)
+            cache_ttl = (
+                EMBED_CACHE_EXTENDED_TTL
+                if embed_data.get("status") == "finished"
+                else EMBED_CACHE_TTL_SECONDS
+            )
             client = await self.cache_service.client
             if client:
-                await client.set(cache_key, embed_json, ex=259200)  # 72 hours
+                await client.set(cache_key, embed_json, ex=cache_ttl)
 
                 # Add to chat index for eviction tracking
                 chat_embed_index_key = f"chat:{chat_id}:embed_ids"
                 await client.sadd(chat_embed_index_key, embed_id)
-                await client.expire(chat_embed_index_key, 259200)  # 72 hours
+                await client.expire(chat_embed_index_key, EMBED_CACHE_TTL_SECONDS)
                 
                 logger.debug(f"Cached embed {embed_id} at {cache_key}")
             else:

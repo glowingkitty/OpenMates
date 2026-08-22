@@ -134,6 +134,22 @@ from backend.core.api.app.services.payment.revolut_business_service import (
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 
+@pytest.fixture(autouse=True)
+def _stub_purchase_settlement_ledger(monkeypatch):
+    async def begin(*_args, **_kwargs):
+        return {"id": "settlement-test", "state": "pending", "_created": True}
+
+    async def complete(_service, settlement, **_kwargs):
+        return {**settlement, "state": "completed"}
+
+    async def cancel(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(payments, "begin_purchase_settlement", begin)
+    monkeypatch.setattr(payments, "complete_purchase_settlement", complete)
+    monkeypatch.setattr(payments, "cancel_purchase_settlement", cancel)
+
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -141,6 +157,7 @@ from backend.core.api.app.utils.bank_transfer_references import generate_bank_tr
 SIGNING_SECRET = "wsk_test_secret_for_unit_tests_only"
 
 
+# contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
 def test_generated_bank_transfer_reference_segments_avoid_zero_and_o():
     reference = generate_bank_transfer_reference("OM", "93D2OGN", middle_length=7)
 
@@ -269,6 +286,7 @@ class TestWebhookSignatureVerification:
         return svc
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_valid_signature_accepted(self, service):
         """A correctly signed webhook should be parsed and returned."""
         event = _make_transaction_created_event()
@@ -285,6 +303,7 @@ class TestWebhookSignatureVerification:
         assert result["data"]["id"] == "txn-uuid-123"
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_invalid_signature_rejected(self, service):
         """A webhook with a wrong signature should return None."""
         event = _make_transaction_created_event()
@@ -299,6 +318,7 @@ class TestWebhookSignatureVerification:
         assert result is None
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_tampered_payload_rejected(self, service):
         """Signature over original payload should fail if payload was modified."""
         event = _make_transaction_created_event()
@@ -316,6 +336,7 @@ class TestWebhookSignatureVerification:
         assert result is None
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_stale_timestamp_rejected(self, service):
         """A webhook with a timestamp older than 5 minutes should be rejected."""
         event = _make_transaction_created_event()
@@ -331,6 +352,7 @@ class TestWebhookSignatureVerification:
         assert result is None
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_multiple_signatures_rotation(self, service):
         """During secret rotation, multiple signatures may be present (comma-separated)."""
         event = _make_transaction_created_event()
@@ -353,6 +375,7 @@ class TestWebhookSignatureVerification:
         assert result["event"] == "TransactionCreated"
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_missing_headers_rejected(self, service):
         """Missing timestamp or signature headers should return None."""
         event = _make_transaction_created_event()
@@ -374,6 +397,7 @@ class TestWebhookSignatureVerification:
 class TestTransferParsing:
     """Test parsing of Revolut Business webhook events."""
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_incoming_transfer_parsed(self):
         """TransactionCreated with positive amount should be parsed as incoming."""
         event = _make_transaction_created_event(amount=100.0, currency="EUR")
@@ -386,6 +410,7 @@ class TestTransferParsing:
         assert result["reference"] == "OM-ABC12345-bt_abcd1234"
         assert result["transaction_id"] == "txn-uuid-123"
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_outgoing_transfer_ignored(self):
         """TransactionCreated with negative amount (outgoing) should return None."""
         event = _make_transaction_created_event(amount=-50.0)
@@ -393,6 +418,7 @@ class TestTransferParsing:
 
         assert result is None
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_state_changed_parsed(self):
         """TransactionStateChanged should be parsed with old and new states."""
         event = _make_state_changed_event(old_state="pending", new_state="completed")
@@ -403,6 +429,7 @@ class TestTransferParsing:
         assert result["old_state"] == "pending"
         assert result["new_state"] == "completed"
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_irrelevant_event_ignored(self):
         """Unknown event types should return None."""
         event = {"event": "PayoutLinkCreated", "data": {"id": "payout-123"}}
@@ -410,6 +437,7 @@ class TestTransferParsing:
 
         assert result is None
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_no_legs_ignored(self):
         """TransactionCreated with empty legs should return None."""
         event = _make_transaction_created_event()
@@ -418,6 +446,7 @@ class TestTransferParsing:
 
         assert result is None
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_fractional_amount_rounded(self):
         """Amounts like 20.50 should be correctly converted to 2050 cents."""
         event = _make_transaction_created_event(amount=20.50)
@@ -426,6 +455,7 @@ class TestTransferParsing:
         assert result is not None
         assert result["amount_cents"] == 2050
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     def test_small_amount_parsed(self):
         """Small amounts like 2.00 (€2 tier) should work."""
         event = _make_transaction_created_event(amount=2.0)
@@ -442,36 +472,44 @@ class TestTransferParsing:
 class TestAmountTolerance:
     """Test the ±€0.50 amount tolerance for SEPA fee absorption."""
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_exact_match(self):
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 10000) is True
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_within_positive_tolerance(self):
         """Received slightly more than expected (rare but possible)."""
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 10050) is True
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_within_negative_tolerance(self):
         """Received slightly less due to intermediary bank fees."""
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 9950) is True
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_at_tolerance_boundary(self):
         """Exactly at the boundary should pass."""
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 9950) is True
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 10050) is True
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_outside_tolerance(self):
         """Amounts outside ±€0.50 should fail."""
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 9900) is False
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 10100) is False
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_small_tier_tolerance(self):
         """The €2 tier (200 cents) should still use 50 cents tolerance."""
         assert RevolutBusinessService.is_amount_within_tolerance(200, 150) is True
         assert RevolutBusinessService.is_amount_within_tolerance(200, 100) is False
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_zero_amount_rejected(self):
         """Zero received should fail tolerance for any positive expected amount."""
         assert RevolutBusinessService.is_amount_within_tolerance(10000, 0) is False
 
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible
     def test_custom_tolerance(self):
         """Custom tolerance parameter should be respected."""
         # 100 cents tolerance (€1.00)
@@ -486,6 +524,7 @@ class TestAmountTolerance:
 class TestBankDetails:
     """Test bank details accessor."""
 
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible
     def test_returns_configured_details(self):
         svc = RevolutBusinessService.__new__(RevolutBusinessService)
         svc._iban = "DE89370400440532013000"
@@ -508,6 +547,7 @@ class TestBankDetails:
         assert details["account_holder_city"] == "Berlin"
         assert details["account_holder_country"] == "Germany"
 
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible
     def test_defaults_when_unconfigured(self):
         svc = RevolutBusinessService.__new__(RevolutBusinessService)
         svc._iban = None
@@ -609,6 +649,7 @@ class TestRevolutBusinessTransactionConfirmation:
         monkeypatch.setattr(revolut_business_service_module, "RevolutBusinessClient", FakeRevolutClient)
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_transaction_confirmation_refreshes_from_vault_and_persists_rotated_token(self, monkeypatch):
         secrets = self.FakeSecrets()
         svc = self._service(secrets)
@@ -637,6 +678,7 @@ class TestRevolutBusinessTransactionConfirmation:
         ]
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_rotated_token_persistence_failure_does_not_block_confirmed_transfer(self, monkeypatch, caplog):
         secrets = self.FakeSecrets(store_ok=False)
         svc = self._service(secrets)
@@ -719,6 +761,9 @@ class TestPersonalBankTransferWebhook:
         async def increment_stat(self, name, value=None):
             self.stats.append(("increment_stat", name, value))
 
+        async def record_credit_purchase(self, credits):
+            self.stats.append(("record_credit_purchase", credits))
+
         async def increment_json_stat(self, name, key):
             self.stats.append(("increment_json_stat", name, key))
 
@@ -727,6 +772,28 @@ class TestPersonalBankTransferWebhook:
 
         async def publish_event(self, channel, event_data):
             self.events.append((channel, event_data))
+
+    class DedupeRedis:
+        def __init__(self):
+            self.keys = set()
+
+        async def set(self, key, value, nx=False, ex=None):
+            assert nx is True
+            assert value == "1"
+            assert ex == payments.BANK_TRANSFER_PROCESSING_ALERT_TTL_SECONDS
+            if key in self.keys:
+                return False
+            self.keys.add(key)
+            return True
+
+    class AlertDedupeCache(FakeCache):
+        def __init__(self, order):
+            super().__init__(order)
+            self.redis = TestPersonalBankTransferWebhook.DedupeRedis()
+
+        @property
+        async def client(self):
+            return self.redis
 
     class FakeDirectus:
         def __init__(self, order):
@@ -767,6 +834,7 @@ class TestPersonalBankTransferWebhook:
         return order
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_transaction_created_uses_signed_webhook_reference_when_api_reference_missing(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -810,6 +878,7 @@ class TestPersonalBankTransferWebhook:
         assert sent_tasks[0]["name"] == payments.BANK_TRANSFER_AMOUNT_NOTICE_TASK
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_state_changed_without_any_reference_waits_for_created_event(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -856,6 +925,7 @@ class TestPersonalBankTransferWebhook:
             ("gift_card_purchase", 45.0, "5.00"),
         ],
     )
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing,notifications.delivery.email-enabled
     async def test_underpaid_transfer_stays_pending_extends_expiry_and_emails(
         self,
         monkeypatch,
@@ -908,6 +978,7 @@ class TestPersonalBankTransferWebhook:
         assert sent_tasks[0]["kwargs"]["remaining_amount_eur"] == remaining_amount_eur
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.credits.idempotent-charge,billing.bank-transfer.pending-visible
     async def test_second_partial_completes_selected_pack_once_total_is_enough(self, monkeypatch):
         order = self._order(
             received_amount_cents=4500,
@@ -967,6 +1038,7 @@ class TestPersonalBankTransferWebhook:
         assert compliance_events[0]["details"]["received_amount_cents"] == 5000
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_uppercase_bank_reference_matches_legacy_mixed_case_order(self, monkeypatch):
         order = self._order(reference="OM-USER-btcase01")
 
@@ -1018,6 +1090,7 @@ class TestPersonalBankTransferWebhook:
         assert directus.updated_items[0][2]["status"] == "completed"
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.bank-transfer.pending-visible,notifications.delivery.email-enabled
     async def test_overpaid_transfer_credits_selected_pack_and_queues_surplus_notice(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -1059,6 +1132,7 @@ class TestPersonalBankTransferWebhook:
         assert sent_tasks[1]["kwargs"]["overpaid_amount_eur"] == "20.00"
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,billing.bank-transfer.pending-visible
     async def test_duplicate_revolut_transaction_id_is_ignored(self, monkeypatch):
         order = self._order(
             received_amount_cents=4500,
@@ -1103,6 +1177,7 @@ class TestPersonalBankTransferWebhook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("cache_returns_completed", [True, False])
+    # contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,billing.bank-transfer.pending-visible,notifications.delivery.email-enabled
     async def test_distinct_transaction_for_completed_reference_emails_user_without_recredit(
         self,
         monkeypatch,
@@ -1188,6 +1263,7 @@ class TestPersonalBankTransferWebhook:
         assert order["reference"] in sent_tasks[1]["kwargs"]["description"]
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,notifications.delivery.email-enabled
     async def test_api_confirmation_failure_alerts_admin_and_does_not_settle(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -1225,6 +1301,7 @@ class TestPersonalBankTransferWebhook:
         assert order["reference"] in sent_tasks[0]["kwargs"]["description"]
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_api_pending_transaction_waits_without_admin_alert(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -1263,6 +1340,7 @@ class TestPersonalBankTransferWebhook:
         assert sent_tasks == []
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.bank-transfer.pending-visible,billing.purchase.provider-routing
     async def test_missing_api_credentials_do_not_alert_admin(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
@@ -1298,11 +1376,67 @@ class TestPersonalBankTransferWebhook:
         assert cache.status_updates == []
         assert sent_tasks == []
 
+    @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,notifications.delivery.email-enabled,notifications.delivery.idempotent
+    async def test_credit_settlement_processing_error_alerts_admin_once(self, monkeypatch):
+        order = self._order()
+        cache = self.AlertDedupeCache(order)
+
+        class FailingDirectus(self.FakeDirectus):
+            async def update_user(self, user_id, payload):
+                self.updated_users.append((user_id, payload))
+                return False
+
+        directus = FailingDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        created_event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-processing-error",
+        )
+        confirmed_transfer = RevolutBusinessService.parse_incoming_transfer(created_event)
+
+        class ConfirmedTransaction:
+            async def fetch_confirmed_incoming_transfer(self, transaction_id):
+                assert transaction_id == "txn-processing-error"
+                return dict(confirmed_transfer)
+
+        deliveries = [
+            (created_event, "TransactionCreated"),
+            (_make_state_changed_event(transaction_id="txn-processing-error"), "TransactionStateChanged"),
+        ]
+        for event_payload, event_type in deliveries:
+            result = await payments._handle_revolut_business_webhook(
+                event_payload=event_payload,
+                event_type=event_type,
+                payment_service=types.SimpleNamespace(revolut_business=ConfirmedTransaction()),
+                cache_service=cache,
+                directus_service=directus,
+                encryption_service=self.FakeEncryption(),
+                secrets_manager=self.FakeSecrets(),
+                tier_service=self.FakeTier(),
+            )
+            assert result == {"status": "processing_error"}
+
+        assert cache.status_updates == []
+        assert [task["name"] for task in sent_tasks] == [
+            "app.tasks.email_tasks.alert_notification_email_task.send_alert_notification"
+        ]
+        alert_kwargs = sent_tasks[0]["kwargs"]
+        assert "Bank transfer processing error" in alert_kwargs["summary"]
+        assert order["order_id"] in alert_kwargs["description"]
+        assert order["reference"] in alert_kwargs["description"]
+        assert "txn-processing-error" in alert_kwargs["description"]
+        assert "Exception" in alert_kwargs["description"]
+
 
 class TestGiftCardBankTransferWebhook:
     """Regression coverage for purchased gift cards paid by SEPA transfer."""
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.documents.visible-downloadable
     async def test_confirmed_gift_card_transfer_creates_card_and_email_not_credits(self, monkeypatch):
         reference = "OM-TEST-btgift01"
         order_id = "bt_gift01"
@@ -1339,6 +1473,9 @@ class TestGiftCardBankTransferWebhook:
 
             async def increment_stat(self, name):
                 self.stats.append(("increment_stat", name))
+
+            async def record_credit_purchase(self, credits):
+                self.stats.append(("record_credit_purchase", credits))
 
             async def increment_json_stat(self, name, key):
                 self.stats.append(("increment_json_stat", name, key))
@@ -1440,6 +1577,7 @@ class TestTeamBankTransferWebhook:
     """Regression coverage for team credits paid by SEPA transfer."""
 
     @pytest.mark.asyncio
+    # contract-test: supporting surface=rest_api assertions=billing.purchase.provider-routing,billing.credits.idempotent-charge,billing.surface.semantic-parity
     async def test_confirmed_team_transfer_grants_team_credits_not_personal_credits(self, monkeypatch):
         reference = "OMT-team01-bt01"
         order_id = "bt_team01"
@@ -1488,6 +1626,9 @@ class TestTeamBankTransferWebhook:
 
             async def increment_stat(self, name, value=None):
                 self.stats.append(("increment_stat", name, value))
+
+            async def record_credit_purchase(self, credits):
+                self.stats.append(("record_credit_purchase", credits))
 
             async def increment_json_stat(self, name, key):
                 self.stats.append(("increment_json_stat", name, key))
@@ -1587,6 +1728,7 @@ class TestTeamBankTransferWebhook:
         assert cache.user["credits"] == 500
         assert cache.set_user_calls == []
         assert cache.status_updates[0]["order_id"] == order_id
+        assert ("record_credit_purchase", 110000) in cache.stats
         assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer") in cache.stats
         assert compliance_events[0]["transaction_type"] == "team_credit_purchase"
         assert compliance_events[0]["details"]["team_id"] == team_id

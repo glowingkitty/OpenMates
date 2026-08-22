@@ -86,6 +86,44 @@ describe("parse_message grouped bare embed refs", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+  it("repairs an unbracketed source domain ref before the encrypted ref index is warm", () => {
+    const doc = parseAssistant("Source: techcrunch.com-70I explains the news.");
+    const inlineEmbeds = findInlineEmbeds(doc.content || []);
+
+    expect(inlineEmbeds).toHaveLength(1);
+    expect(inlineEmbeds[0].attrs).toMatchObject({
+      embedRef: "techcrunch.com-70I",
+      embedId: null,
+      displayText: "Source: techcrunch.com",
+    });
+    expect(JSON.stringify(doc)).not.toContain("techcrunch.com-70I explains");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+  it("repairs inline domain refs in existing shared-chat prose", () => {
+    const doc = parseAssistant(
+      "OpenAI expects to become a public company by 2027 or sooner cnbc.com-37P. " +
+        "The enterprise market share gap narrowed in Q3 techcrunch.com-70I.",
+    );
+    const inlineEmbeds = findInlineEmbeds(doc.content || []);
+    const serialized = JSON.stringify(doc);
+
+    expect(inlineEmbeds).toHaveLength(2);
+    expect(inlineEmbeds[0].attrs).toMatchObject({
+      embedRef: "cnbc.com-37P",
+      embedId: null,
+      displayText: "Source: cnbc.com",
+    });
+    expect(inlineEmbeds[1].attrs).toMatchObject({
+      embedRef: "techcrunch.com-70I",
+      embedId: null,
+      displayText: "Source: techcrunch.com",
+    });
+    expect(serialized).not.toContain("sooner cnbc.com-37P");
+    expect(serialized).not.toContain("Q3 techcrunch.com-70I");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=web-search.surface-parity
   it("repairs persisted grouped suffix-only embed refs into canonical inline embed nodes", () => {
     registerEmbedRefIndex("mashable.com-7fJ", {
       embedId: "embed-1",

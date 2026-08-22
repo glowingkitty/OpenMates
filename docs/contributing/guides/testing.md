@@ -277,7 +277,7 @@ docker compose --env-file .env -f docker-compose.playwright.yml run --rm playwri
 
 # Signup flows:
 docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
-  -e SIGNUP_TEST_EMAIL_DOMAINS -e MAILOSAUR_API_KEY \
+  -e SIGNUP_TEST_EMAIL_DOMAINS -e GMAIL_TEST_ADDRESS \
   -e PLAYWRIGHT_TEST_BASE_URL="${E2E_DEV_TEST_BASE_URL:-https://app.dev.openmates.org}" \
   -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" playwright 2>&1 | tail -200
 ```
@@ -365,6 +365,10 @@ python3 scripts/tests.py run --daily --dry-run-notify
 Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly-prod/run-*.json`, `test-results/prod-paid-chat/run-*.json`, and `test-results/prod-app-skill/run-*.json` (rotated to last 7 days).
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
+
+Run `python3 scripts/tests.py run --spec test-account-preflight.spec.ts` to validate all 27 configured slots. Pass `--account N` to isolate one slot. Failed slots receive one reduced-concurrency retry before they are quarantined; this prevents a transient login-lookup burst from blocking otherwise healthy accounts.
+
+Daily development runs also perform an automatic stale-signup cleanup after preflight. Cleanup fails closed unless all 27 configured slot emails were discovered and protected, and it only deletes non-admin, incomplete accounts with no chats, messages, or embeds that have been inactive for at least seven days. Manual broader cleanup remains dry-run-first through `python3 scripts/cleanup_dev_signup_accounts.py`.
 
 Slots 21-27 are stored together in the encrypted `OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON` repository secret because GitHub caps the repository-level namespace at 100 entries. The JSON object is keyed by slot and each value contains `email`, `password`, and `otpKey`; the workflow selects and masks only the requested slot. Test account secrets must never be copied into source, logs, or artifacts.
 

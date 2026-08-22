@@ -24,6 +24,7 @@ from backend.core.api.app.services.user_plan_service import (
 )
 from backend.core.api.app.services.user_task_service import UserTaskService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
 router = APIRouter(prefix="/v1/user-plans", tags=["User Plans"], dependencies=[Depends(ensure_plans_enabled)])
@@ -60,6 +61,8 @@ class UserPlanCreateRequest(BaseModel):
     plan_id: str = Field(min_length=1)
     encrypted_plan_key: str | None = None
     encrypted_title: str = Field(min_length=1)
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_summary: str | None = None
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
@@ -92,6 +95,8 @@ class UserPlanCreateRequest(BaseModel):
 class UserPlanUpdateRequest(BaseModel):
     encrypted_plan_key: str | None = None
     encrypted_title: str | None = None
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     encrypted_summary: str | None = None
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
@@ -124,6 +129,8 @@ class UserPlanUpdateRequest(BaseModel):
 class UserPlanMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
+    encrypted_slug: str | None = Field(default=None, min_length=1)
+    slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
 
 
@@ -439,6 +446,8 @@ def _handle_plan_error(exc: Exception) -> None:
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     if isinstance(exc, UserPlanConflictError):
         raise HTTPException(status_code=409, detail="PLAN_VERSION_CONFLICT") from exc
+    if isinstance(exc, DuplicateObjectSlugError):
+        raise HTTPException(status_code=409, detail="PLAN_SLUG_CONFLICT") from exc
     if isinstance(exc, UserPlanNotFoundError):
         raise HTTPException(status_code=404, detail="Plan not found") from exc
     if isinstance(exc, ValueError):
@@ -704,6 +713,8 @@ async def move_user_plan_to_team(
             workspace_type="plan",
             object_id=plan_id,
             confirmed=body.confirmed,
+            encrypted_slug=body.encrypted_slug,
+            slug_lookup_hash=body.slug_lookup_hash,
             moved_at=body.moved_at,
         )
         return {"plan": plan}
@@ -793,6 +804,25 @@ async def get_active_plan_context(
         import time
 
         return await service.active_context(current_user.id, chat_id, now or int(time.time()))
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}")
+@limiter.limit("60/minute")
+async def get_user_plan(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    team_id: str | None = None,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        plan = await service.get_plan(plan_id, current_user.id, team_id=team_id)
+        return {"plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
 

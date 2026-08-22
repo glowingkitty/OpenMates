@@ -1,0 +1,1434 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-12'
+generated_at: '2026-08-13T00:20:04+00:00'
+range:
+  since: '2026-08-12T00:00:00+00:00'
+  until: '2026-08-13T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 1
+    bug_fixes: 14
+    improvements: 0
+    docs: 2
+    tests: 9
+    infrastructure: 0
+    internal: 1
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 7
+  dev_only_items: 27
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: harden proof-video device rendering'
+    section: features
+    commits:
+    - b33d5d234
+    authored_at: '2026-08-12T01:38:54+00:00'
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: keep proof captions below web evidence'
+    section: bug_fixes
+    commits:
+    - 392e41bf9
+    authored_at: '2026-08-12T15:45:42+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve shared chat key storage'
+    section: bug_fixes
+    commits:
+    - 609e676b2
+    authored_at: '2026-08-12T14:50:42+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve processing PDF draft embeds'
+    section: bug_fixes
+    commits:
+    - 189afb18c
+    authored_at: '2026-08-12T14:20:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore maps search fullscreen layout'
+    section: bug_fixes
+    commits:
+    - 0b9bde320
+    authored_at: '2026-08-12T14:15:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route shared maps child fullscreens directly'
+    section: bug_fixes
+    commits:
+    - 2f4656dc7
+    authored_at: '2026-08-12T13:42:21+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/embedStoreFullscreenTarget.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: index one-time workflow schedule due times'
+    section: bug_fixes
+    commits:
+    - 9977e0ce8
+    authored_at: '2026-08-12T13:09:55+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_trigger_persistence.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tighten maps fullscreen mobile map-view layout'
+    section: bug_fixes
+    commits:
+    - b8f6f6b20
+    authored_at: '2026-08-12T12:23:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete one-time workflow schedules'
+    section: bug_fixes
+    commits:
+    - 5a27aa6f4
+    authored_at: '2026-08-12T12:20:36+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_scheduler_contract.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render maps search fullscreen with map view'
+    section: bug_fixes
+    commits:
+    - d3eea190d
+    authored_at: '2026-08-12T12:06:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:maps:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route scheduled workflows to workflow queue'
+    section: bug_fixes
+    commits:
+    - 9fe22cb07
+    authored_at: '2026-08-12T11:52:52+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_celery_config.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard chat metadata key rotation'
+    section: bug_fixes
+    commits:
+    - 66efc0f98
+    authored_at: '2026-08-12T11:34:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep welcome chat cards clickable'
+    section: bug_fixes
+    commits:
+    - 8f0768ca5
+    authored_at: '2026-08-12T11:07:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve out-of-order assistant sync messages'
+    section: bug_fixes
+    commits:
+    - da82557c0
+    authored_at: '2026-08-12T10:46:25+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent payment provider switch race'
+    section: bug_fixes
+    commits:
+    - 876ecd243
+    authored_at: '2026-08-12T09:50:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: Sync fix-tests skill mirror
+    section: docs
+    commits:
+    - 9298549f5
+    authored_at: '2026-08-12T10:53:07+00:00'
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: sync proof-video skill mirror'
+    section: docs
+    commits:
+    - 790efef03
+    authored_at: '2026-08-12T01:41:53+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: bound default model proof profiles'
+    section: tests
+    commits:
+    - 4493f9aeb
+    authored_at: '2026-08-12T15:44:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve key state in default model proof source'
+    section: tests
+    commits:
+    - a26d506f0
+    authored_at: '2026-08-12T15:01:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add default model proof source'
+    section: tests
+    commits:
+    - a554c5127
+    authored_at: '2026-08-12T14:38:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    - scripts/ci/get_spec_batch.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover maps search map-view fullscreen'
+    section: tests
+    commits:
+    - b59b418e9
+    authored_at: '2026-08-12T11:42:35+00:00'
+    changed_paths:
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Add failed-test campaign discovery
+    section: tests
+    commits:
+    - 78477730f
+    authored_at: '2026-08-12T10:48:38+00:00'
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add gift card redemption e2e'
+    section: tests
+    commits:
+    - 56ba09003
+    authored_at: '2026-08-12T10:13:49+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-gift-card-redemption.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/GiftCardRedeem.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsRedeemed.svelte
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep audio proof control visible'
+    section: tests
+    commits:
+    - 5d7eee1f9
+    authored_at: '2026-08-12T02:47:48+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: improve audio speech proof video framing'
+    section: tests
+    commits:
+    - 940bd1cba
+    authored_at: '2026-08-12T02:27:56+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add audio speech proof source spec'
+    section: tests
+    commits:
+    - f781f796c
+    authored_at: '2026-08-12T01:55:48+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: Add failed-test campaign handoff
+    section: internal
+    commits:
+    - 5a8561058
+    authored_at: '2026-08-12T11:21:21+00:00'
+    changed_paths:
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: keep proof captions below web evidence'
+    commits:
+    - 392e41bf9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bound default model proof profiles'
+    commits:
+    - 4493f9aeb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: preserve key state in default model proof source'
+    commits:
+    - a26d506f0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve shared chat key storage'
+    commits:
+    - 609e676b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add default model proof source'
+    commits:
+    - a554c5127
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve processing PDF draft embeds'
+    commits:
+    - 189afb18c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore maps search fullscreen layout'
+    commits:
+    - 0b9bde320
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: route shared maps child fullscreens directly'
+    commits:
+    - 2f4656dc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: index one-time workflow schedule due times'
+    commits:
+    - 9977e0ce8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: tighten maps fullscreen mobile map-view layout'
+    commits:
+    - b8f6f6b20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: complete one-time workflow schedules'
+    commits:
+    - 5a27aa6f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: render maps search fullscreen with map view'
+    commits:
+    - d3eea190d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+  - title: 'fix: route scheduled workflows to workflow queue'
+    commits:
+    - 9fe22cb07
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover maps search map-view fullscreen'
+    commits:
+    - b59b418e9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: guard chat metadata key rotation'
+    commits:
+    - 66efc0f98
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Add failed-test campaign handoff
+    commits:
+    - 5a8561058
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep welcome chat cards clickable'
+    commits:
+    - 8f0768ca5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Sync fix-tests skill mirror
+    commits:
+    - 9298549f5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Add failed-test campaign discovery
+    commits:
+    - 78477730f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve out-of-order assistant sync messages'
+    commits:
+    - da82557c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add gift card redemption e2e'
+    commits:
+    - 56ba09003
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent payment provider switch race'
+    commits:
+    - 876ecd243
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: keep audio proof control visible'
+    commits:
+    - 5d7eee1f9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: improve audio speech proof video framing'
+    commits:
+    - 940bd1cba
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add audio speech proof source spec'
+    commits:
+    - f781f796c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: sync proof-video skill mirror'
+    commits:
+    - 790efef03
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: harden proof-video device rendering'
+    commits:
+    - b33d5d234
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: guard chat metadata key rotation'
+    commits:
+    - 66efc0f98
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: preserve processing PDF draft embeds'
+    commits:
+    - 189afb18c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore maps search fullscreen layout'
+    commits:
+    - 0b9bde320
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: tighten maps fullscreen mobile map-view layout'
+    commits:
+    - b8f6f6b20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: render maps search fullscreen with map view'
+    commits:
+    - d3eea190d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    newsletter_ready: false
+  - title: 'fix: guard chat metadata key rotation'
+    commits:
+    - 66efc0f98
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep welcome chat cards clickable'
+    commits:
+    - 8f0768ca5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent payment provider switch race'
+    commits:
+    - 876ecd243
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 392e41bf931cb9b235c471a42f118674e06f1f57
+    short_sha: 392e41bf9
+    authored_at: '2026-08-12T15:45:42+00:00'
+    subject: 'fix: keep proof captions below web evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 4493f9aeb168e8f5d3c9e2262ec0d16f3d8a11ea
+    short_sha: 4493f9aeb
+    authored_at: '2026-08-12T15:44:53+00:00'
+    subject: 'test: bound default model proof profiles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    related_feature_ids: []
+  - sha: a26d506f081eb619c90db9fbe648c36961a316e4
+    short_sha: a26d506f0
+    authored_at: '2026-08-12T15:01:46+00:00'
+    subject: 'test: preserve key state in default model proof source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    related_feature_ids: []
+  - sha: 609e676b2cd8c3a49050cb234c53bcd99b31e42e
+    short_sha: 609e676b2
+    authored_at: '2026-08-12T14:50:42+00:00'
+    subject: 'fix: preserve shared chat key storage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: a554c5127381ab37c361d44a5575bb4005ef7880
+    short_sha: a554c5127
+    authored_at: '2026-08-12T14:38:27+00:00'
+    subject: 'test: add default model proof source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings-proof.spec.ts
+    - scripts/ci/get_spec_batch.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    related_feature_ids: []
+  - sha: 189afb18ccb744ed263e10c9877139d5f76f3ceb
+    short_sha: 189afb18c
+    authored_at: '2026-08-12T14:20:41+00:00'
+    subject: 'fix: preserve processing PDF draft embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 0b9bde32057e1654d27675632e3287c88a045beb
+    short_sha: 0b9bde320
+    authored_at: '2026-08-12T14:15:42+00:00'
+    subject: 'fix: restore maps search fullscreen layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:maps:search
+  - sha: 2f4656dc7267ef8f9347e9ded817b504741f8c1e
+    short_sha: 2f4656dc7
+    authored_at: '2026-08-12T13:42:21+00:00'
+    subject: 'fix: route shared maps child fullscreens directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/embedStoreFullscreenTarget.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 9977e0ce83d77790a1abae1f26e79c388841c586
+    short_sha: 9977e0ce8
+    authored_at: '2026-08-12T13:09:55+00:00'
+    subject: 'fix: index one-time workflow schedule due times'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_trigger_persistence.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: b8f6f6b20107bc3df1d5018dd3a48fbb7f299c12
+    short_sha: b8f6f6b20
+    authored_at: '2026-08-12T12:23:35+00:00'
+    subject: 'fix: tighten maps fullscreen mobile map-view layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:maps:search
+  - sha: 5a27aa6f4a71c946a78b33eaed2c53cb7febc49e
+    short_sha: 5a27aa6f4
+    authored_at: '2026-08-12T12:20:36+00:00'
+    subject: 'fix: complete one-time workflow schedules'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_scheduler_contract.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: d3eea190dfd3f3da1d4a362c98d31eea24e4c4fc
+    short_sha: d3eea190d
+    authored_at: '2026-08-12T12:06:39+00:00'
+    subject: 'fix: render maps search fullscreen with map view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    related_feature_ids:
+    - embed:maps:search
+  - sha: 9fe22cb0756fc70eaad3a0ba0eacc85da30d7707
+    short_sha: 9fe22cb07
+    authored_at: '2026-08-12T11:52:52+00:00'
+    subject: 'fix: route scheduled workflows to workflow queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_celery_config.py
+    related_feature_ids: []
+  - sha: b59b418e99892365aefad0e7e41c6333c00c4bf3
+    short_sha: b59b418e9
+    authored_at: '2026-08-12T11:42:35+00:00'
+    subject: 'test: cover maps search map-view fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: 66efc0f9844ba103afddc9957b0c844bc1a42bfd
+    short_sha: 66efc0f98
+    authored_at: '2026-08-12T11:34:53+00:00'
+    subject: 'fix: guard chat metadata key rotation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 5a85610587687da5d9dc6fbe52fdd02c2bb604ad
+    short_sha: 5a8561058
+    authored_at: '2026-08-12T11:21:21+00:00'
+    subject: Add failed-test campaign handoff
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: 8f0768ca5ded4dc9eb632f4149374f4e97104e89
+    short_sha: 8f0768ca5
+    authored_at: '2026-08-12T11:07:10+00:00'
+    subject: 'fix: keep welcome chat cards clickable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9298549f5071ab49c3dfece521903b802658e994
+    short_sha: 9298549f5
+    authored_at: '2026-08-12T10:53:07+00:00'
+    subject: Sync fix-tests skill mirror
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/fix-tests/SKILL.md
+    related_feature_ids: []
+  - sha: 78477730f584079ee06a6330922835aa5e840822
+    short_sha: 78477730f
+    authored_at: '2026-08-12T10:48:38+00:00'
+    subject: Add failed-test campaign discovery
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/specs/test-debug-campaigns/spec.yml
+    - scripts/tests.py
+    - scripts/tests/test_test_debug_campaign_workflow.py
+    - scripts/tests/test_tests_control_campaigns.py
+    related_feature_ids: []
+  - sha: da82557c0072c4d73b3220cd61b99ca625ca82dd
+    short_sha: da82557c0
+    authored_at: '2026-08-12T10:46:25+00:00'
+    subject: 'fix: preserve out-of-order assistant sync messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 56ba09003d10b26ff55adc8f5962cd7f02c7e7f3
+    short_sha: 56ba09003
+    authored_at: '2026-08-12T10:13:49+00:00'
+    subject: 'test: add gift card redemption e2e'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-gift-card-redemption.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/GiftCardRedeem.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsRedeemed.svelte
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 876ecd2438267279355c065a8a474066596e034f
+    short_sha: 876ecd243
+    authored_at: '2026-08-12T09:50:10+00:00'
+    subject: 'fix: prevent payment provider switch race'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 5d7eee1f9a51d8c8df18e8c95591f276f9762263
+    short_sha: 5d7eee1f9
+    authored_at: '2026-08-12T02:47:48+00:00'
+    subject: 'test: keep audio proof control visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    related_feature_ids: []
+  - sha: 940bd1cba943f06d074f354d8896d911e5b9f89c
+    short_sha: 940bd1cba
+    authored_at: '2026-08-12T02:27:56+00:00'
+    subject: 'test: improve audio speech proof video framing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: f781f796ca527197709c85727415bc63cf72dc20
+    short_sha: f781f796c
+    authored_at: '2026-08-12T01:55:48+00:00'
+    subject: 'test: add audio speech proof source spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    related_feature_ids: []
+  - sha: 790efef030ca76229b7e7b25da431375b0f7f95b
+    short_sha: 790efef03
+    authored_at: '2026-08-12T01:41:53+00:00'
+    subject: 'docs: sync proof-video skill mirror'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    related_feature_ids: []
+  - sha: b33d5d234e63c5a3a5a9502af94720d9ef341529
+    short_sha: b33d5d234
+    authored_at: '2026-08-12T01:38:54+00:00'
+    subject: 'feat: harden proof-video device rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/narrated-spec-demonstration-videos/spec.yml
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the Maps search interface and hardening internal testing and proof-video infrastructure.
+    Significant work was also completed on unreleased workflow scheduling and chat security protocols.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates refined the Maps search fullscreen experience, restoring the layout, tightening mobile map-view constraints,
+      and ensuring the map view renders correctly in fullscreen mode.
+    evidence:
+      commits:
+      - 0b9bde320
+      - b8f6f6b20
+      - d3eea190d
+    release_status: dev_only
+  - text: The project fixed an issue where welcome chat cards were not clickable.
+    evidence:
+      commits:
+      - 8f0768ca5
+    release_status: dev_only
+  - text: A fix was implemented to preserve PDF draft embeds during message processing.
+    evidence:
+      commits:
+      - 189afb18c
+    release_status: dev_only
+  - text: A race condition occurring during payment provider switches was resolved.
+    evidence:
+      commits:
+      - 876ecd243
+    release_status: dev_only
+  - text: Security was improved by adding guards for chat metadata key rotation.
+    evidence:
+      commits:
+      - 66efc0f98
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development continued on the unreleased workflows platform, including indexing for one-time schedules and routing
+      tasks to the workflow queue.
+    evidence:
+      commits:
+      - 9977e0ce8
+      - 5a27aa6f4
+      - 9fe22cb07
+    release_status: dev_only
+  - text: The project advanced its proof-video and audio-speech demonstration pipeline, hardening device rendering and improving
+      video framing for automated specs.
+    evidence:
+      commits:
+      - b33d5d234
+      - 392e41bf9
+      - 790efef03
+      - 5d7eee1f9
+      - 940bd1cba
+      - f781f796c
+    release_status: dev_only
+  - text: Backend improvements were made to shared chat key storage and the handling of out-of-order assistant synchronization
+      messages.
+    evidence:
+      commits:
+      - 609e676b2
+      - da82557c0
+      - 2f4656dc7
+    release_status: dev_only
+  internal_progress:
+  - text: Internal testing infrastructure was expanded with new failed-test campaign discovery and handoff workflows, alongside
+      documentation updates for test-fixing skills.
+    evidence:
+      commits:
+      - 5a8561058
+      - 78477730f
+      - 9298549f5
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: UI refinements for Maps, chat cards, and payment processing.
+      evidence:
+        commits:
+        - 0b9bde320
+        - b8f6f6b20
+        - d3eea190d
+        - 8f0768ca5
+        - 189afb18c
+        - 876ecd243
+        - 66efc0f98
+      reason: These items are currently in development and have not reached the main release branch.
+    - text: Workflow scheduling and queue management updates.
+      evidence:
+        commits:
+        - 9977e0ce8
+        - 5a27aa6f4
+        - 9fe22cb07
+      reason: Workflows are a disabled feature.
+    rationale: No items from this period have reached the main branch with a status ready for public communication. All user-facing
+      improvements are currently in dev_only status.
+  social_video_recommendations:
+  - idea: Demonstrate the improved Maps search fullscreen experience on mobile and desktop.
+    priority: medium
+    reason: The UI refinements for Maps embeds provide a clear visual improvement to the search workflow.
+    evidence:
+      commits:
+      - 0b9bde320
+      - b8f6f6b20
+      - d3eea190d
+  quality_notes:
+  - Extensive end-to-end testing was added for gift card redemptions and Maps fullscreen scenarios.
+  - Multiple fixes addressed edge cases in chat synchronization and encrypted storage.
+  validation_warnings: []

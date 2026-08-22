@@ -24,13 +24,15 @@ from backend.apps.ai.processing.task_queue_continuation import (
 from backend.apps.ai.processing.task_tool_context import TaskToolContext, build_task_context_prompt, refresh_task_tool_context
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_post_turn_guard_starts_next_task_before_plan_continuation() -> None:
     methods = AsyncMock()
-    methods.list_tasks.return_value = [
-        {"task_id": "task-ai", "assignee_type": "ai", "status": "todo", "version": 2, "position": 20, "created_at": 100},
-    ]
-    methods.update_task_if_version.return_value = {"task_id": "task-ai", "status": "in_progress", "queue_state": "active"}
+    next_task = {"id": "row-ai", "task_id": "task-ai", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "ai", "status": "todo", "version": 2, "position": 20, "created_at": 100}
+    methods.list_tasks.return_value = [next_task]
+    methods.list_open_tasks_for_admission.return_value = [next_task]
+    methods.acquire_admission_lock.return_value = "scope-lock"
+    methods.claim_ai_task.return_value = {**next_task, "status": "in_progress", "queue_state": "active"}
     directus = SimpleNamespace(user_task=methods)
 
     result = await evaluate_task_queue_post_turn(
@@ -48,11 +50,10 @@ async def test_post_turn_guard_starts_next_task_before_plan_continuation() -> No
         "requires_model_retry": True,
         "task_queue_blocks_plan": True,
     }
-    patch = methods.update_task_if_version.await_args.args[2]
-    assert patch["status"] == "in_progress"
-    assert patch["ai_execution_state"] == "queued"
+    methods.claim_ai_task.assert_awaited_once_with(next_task, 1500)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.execution.order-preserved,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_post_turn_guard_retries_active_task_without_mutating_metadata() -> None:
     methods = AsyncMock()
@@ -80,6 +81,7 @@ async def test_post_turn_guard_retries_active_task_without_mutating_metadata() -
     assert "Use explicit task tools" in task_queue_post_turn_prompt(result)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.execution.order-preserved,tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_post_turn_guard_blocks_plan_on_human_gate_without_retry() -> None:
     methods = AsyncMock()
@@ -116,6 +118,7 @@ async def test_post_turn_guard_blocks_plan_on_human_gate_without_retry() -> None
     methods.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.execution.order-preserved
 def test_task_context_blocks_plan_creation_for_open_chat_tasks() -> None:
     context = SimpleNamespace(
         visible_tasks=[
@@ -134,6 +137,7 @@ def test_task_context_blocks_plan_creation_for_open_chat_tasks() -> None:
     assert removed == {"plans-create", "plans-search"}
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.execution.order-preserved
 def test_task_context_allows_plan_creation_when_tasks_are_closed() -> None:
     context = SimpleNamespace(
         visible_tasks=[
@@ -148,6 +152,7 @@ def test_task_context_allows_plan_creation_when_tasks_are_closed() -> None:
     assert removed == set()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.content.client-encrypted
 def test_task_queue_continuation_event_is_turn_scoped_and_safe() -> None:
     result = {
         "state": "started_next_ai_task",
@@ -170,6 +175,7 @@ def test_task_queue_continuation_event_is_turn_scoped_and_safe() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 def test_task_queue_continuation_system_content_detects_synthetic_user_history() -> None:
     prompt = task_queue_post_turn_prompt({"state": "active_ai_task", "task_id": "TASK-42"})
 
@@ -177,6 +183,7 @@ def test_task_queue_continuation_system_content_detects_synthetic_user_history()
     assert is_task_queue_continuation_system_content("TASK-42 created") is False
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 def test_task_activity_system_content_detects_client_persisted_task_events() -> None:
     assert is_task_activity_system_content("TASK-42 completed") is True
     assert is_task_activity_system_content("TASK-42 continuing (in_progress)") is True
@@ -187,6 +194,7 @@ def test_task_activity_system_content_detects_client_persisted_task_events() -> 
     assert is_task_activity_system_content("Something else completed") is False
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 def test_llm_history_maps_persisted_task_queue_system_notice_to_user() -> None:
     prompt = task_queue_post_turn_prompt({"state": "active_ai_task", "task_id": "TASK-42"})
 
@@ -197,6 +205,7 @@ def test_llm_history_maps_persisted_task_queue_system_notice_to_user() -> None:
     assert task_queue_llm_history_role("system", "Something else completed") == "system"
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 def test_task_queue_post_turn_prompt_prefers_short_id() -> None:
     prompt = task_queue_post_turn_prompt({"state": "started_next_ai_task", "task_id": "uuid-task", "short_id": "TASK-42"})
 
@@ -204,6 +213,7 @@ def test_task_queue_post_turn_prompt_prefers_short_id() -> None:
     assert "uuid-task" not in prompt
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state() -> None:
     existing = TaskToolContext(

@@ -8,6 +8,7 @@
 //     - The example chat listing index page (/example/)
 //     - Each individual example chat SEO page (/example/{slug})
 //     - Intro chat SEO pages (/intro/{slug})
+//     - The public events index page (/events)
 //     - Public event pages (/events/{slug})
 //
 //   Documentation pages are mostly excluded for now. Add /docs back to the
@@ -69,6 +70,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		// Example chat listing page
 		`  <url>
     <loc>${siteOrigin}/example</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`,
+		`  <url>
+    <loc>${siteOrigin}/events</loc>
+    <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`,

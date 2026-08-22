@@ -48,6 +48,7 @@ DEFAULT_STREAM_SPEED = "instant"
 CHARS_PER_CHUNK = 20
 
 MIXED_STREAM_RESPONSE_TYPE = "mixed_stream"
+NON_STREAM_RESPONSE_TYPE = "non_stream"
 STREAM_CHUNK_FORMAT_VERSION = 1
 
 _EMBED_REF_TOKEN = r"[A-Za-z0-9][A-Za-z0-9._-]*"
@@ -171,9 +172,42 @@ def wrap_provider_with_cache(
         if not is_mock_active():
             return await provider_fn(**kwargs)
 
-        # Mock/record mode with stream=False: not supported yet, fall through to real provider
-        logger.debug("[LiveMock] Non-streaming mock not implemented, calling real provider")
-        return await provider_fn(**kwargs)
+        group_id = get_mock_group()
+        model = _model_from_kwargs(kwargs)
+        category = f"llm_non_stream/{model}"
+        messages = kwargs.get("messages", [])
+        fingerprint = cache.fingerprint_llm_call(
+            model=model,
+            messages=messages,
+            tools=kwargs.get("tools"),
+            temperature=kwargs.get("temperature"),
+            tool_choice=kwargs.get("tool_choice"),
+        )
+        request_summary = _build_llm_request_summary(kwargs, model)
+
+        cached = cache.load(group_id, category, fingerprint)
+        if cached is None and not is_record_mode():
+            compatible_loader = getattr(cache, "load_compatible_llm_response", None)
+            if callable(compatible_loader):
+                cached = compatible_loader(
+                    group_id,
+                    category,
+                    request_summary,
+                    excluded_fingerprint=fingerprint,
+                )
+        if cached is not None:
+            return _deserialize_non_stream_response(cached.get("response", {}))
+
+        if not is_record_mode():
+            raise MockCacheMiss(
+                category=category,
+                fingerprint=fingerprint,
+                details=f"model={model}, messages={len(messages)}",
+            )
+
+        response = await provider_fn(**kwargs)
+        _save_non_stream_to_cache(cache, group_id, category, fingerprint, response, kwargs)
+        return response
 
     # Dispatcher: provider clients are awaited by llm_utils. Streaming calls must
     # therefore resolve to an async iterator after the await, not return one directly.
@@ -182,6 +216,8 @@ def wrap_provider_with_cache(
             return _cached_stream(**kwargs)
         return await _cached_non_stream(**kwargs)
 
+    setattr(cached_provider, "_live_mock_cache_wrapped", True)
+    setattr(cached_provider, "_live_mock_original_provider", provider_fn)
     return cached_provider
 
 
@@ -355,6 +391,34 @@ def _save_to_cache(
     )
 
 
+def _save_non_stream_to_cache(
+    cache: ApiResponseCache,
+    group_id: str,
+    category: str,
+    fingerprint: str,
+    response: Any,
+    kwargs: dict,
+) -> None:
+    request_summary = _build_llm_request_summary(kwargs, _model_from_kwargs(kwargs))
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary=request_summary,
+        response_data={
+            "type": NON_STREAM_RESPONSE_TYPE,
+            "value": _serialize_stream_chunk(response),
+        },
+    )
+
+
+def _deserialize_non_stream_response(response_data: Any) -> Any:
+    if not isinstance(response_data, dict) or response_data.get("type") != NON_STREAM_RESPONSE_TYPE:
+        logger.warning("[LiveMock] Non-streaming LLM cache entry has unsupported response data")
+        return None
+    return _deserialize_stream_chunk(response_data.get("value"))
+
+
 def _split_into_chunks(text: str, chunk_size: int) -> List[str]:
     """
     Split text into chunks for stream simulation.
@@ -482,14 +546,36 @@ def _deserialize_portable_provider_chunk(class_name: Any, value: dict[str, Any])
 
     try:
         from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
+        from pydantic import BaseModel
 
         class PortableParsedToolCall(ParsedOpenAIToolCall):
             thought_signature: str | None = None
+
+        class PortableUnifiedProviderResponse(BaseModel):
+            task_id: str = ""
+            model_id: str = ""
+            success: bool = False
+            error_message: str | None = None
+            direct_message_content: str | None = None
+            tool_calls_made: list[PortableParsedToolCall] | None = None
+            usage: Any | None = None
+            raw_response: Any | None = None
 
         if class_name.startswith("Parsed") and class_name.endswith("ToolCall"):
             required = {"tool_call_id", "function_name", "function_arguments_raw", "function_arguments_parsed"}
             if required.issubset(value):
                 return PortableParsedToolCall.model_validate(value)
+
+        if class_name.startswith("Unified") and class_name.endswith("Response"):
+            response_value = dict(value)
+            tool_calls = response_value.get("tool_calls_made")
+            if isinstance(tool_calls, list):
+                response_value["tool_calls_made"] = [
+                    PortableParsedToolCall.model_validate(tool_call)
+                    for tool_call in tool_calls
+                    if isinstance(tool_call, dict)
+                ]
+            return PortableUnifiedProviderResponse.model_validate(response_value)
 
         if class_name == "GoogleUsageMetadata":
             return OpenAIUsageMetadata(
@@ -552,11 +638,15 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
         "temperature": kwargs.get("temperature"),
         "tool_choice": kwargs.get("tool_choice"),
     }
+    tool_names = _tool_function_names(tools)
+    if tool_names:
+        request_summary["tool_names"] = tool_names
     if messages:
         last_msg = messages[-1]
         content = last_msg.get("content", "")
+        canonical_content = ApiResponseCache._normalize_llm_text_for_match(content)
         canonical_last_message = json.dumps(
-            {"role": last_msg.get("role", ""), "content": content},
+            {"role": last_msg.get("role", ""), "content": canonical_content},
             sort_keys=True,
             ensure_ascii=False,
             default=str,
@@ -564,6 +654,8 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
         request_summary["last_message_hash"] = hashlib.sha256(
             canonical_last_message.encode("utf-8")
         ).hexdigest()[:16]
+        if isinstance(canonical_content, str):
+            content = canonical_content
         if isinstance(content, str) and len(content) > 200:
             content = content[:200] + "..."
         request_summary["last_message_preview"] = {
@@ -571,3 +663,20 @@ def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, 
             "content": content,
         }
     return request_summary
+
+
+def _tool_function_names(tools: Any) -> list[str]:
+    """Return stable function names for cache compatibility matching."""
+    if not isinstance(tools, list):
+        return []
+    names: list[str] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        function_def = tool.get("function")
+        if not isinstance(function_def, dict):
+            continue
+        name = function_def.get("name")
+        if isinstance(name, str) and name:
+            names.append(name)
+    return names

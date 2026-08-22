@@ -1,0 +1,130 @@
+{
+  "fingerprint": "b409037d727fad27",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "travel_stays_web",
+  "recorded_at": "2026-08-15T12:17:36.546208+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 5,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_hash": "c5a164add472ffd8",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]:\n  - type: stay\n    name: Titanic Comfort Kurfürstendamm\n    property_type: hotel\n    currency: EUR\n    link: \"https://www.titanic.com.tr/titanic-comfort-kurfurstendamm?utm_source=google&u..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are some hotel options in [Berlin](wiki:Berlin) for next week (August 19 – August 22):\n\n```embeds_results_view\ntitle: Hotels in Berlin\nembeds: titanic-comfort-kurf-WEP, the-mandala-hotel-FNv, berlin-marriott-hotel-o9j, the-ritz-carlton-wWq, hotel-nh-collection-z4e, courtyard-by-marriott-0CK, park-inn-by-xDZ, the-westin-grand-UZY, arte-luise-arthotel-dv5, locke-at-east-Tmn\n```\n\n- [Titanic Comfort Kurfürstendamm](embed:titanic-comfort-kurf-WEP) – A budget-friendly option starting around €58/night.\n- [The Mandala Hotel](embed:the-mandala-hotel-FNv) – A 5-star hotel featuring a rooftop spa and refined dining starting around €124/night.\n- [Berlin Marriott Hotel](embed:berlin-marriott-hotel-o9j) – Centrally located near Potsdamer Platz, priced around €131/night.\n- [The Ritz-Carlton, Berlin](embed:the-ritz-carlton-wWq) – Upscale luxury accommodation starting around €285/night.\n- [Hotel NH Collection Berlin Mitte am Checkpoint Charlie](embed:hotel-nh-collection-z4e) – Popular 4-star option at around €84/night.\n- [Courtyard by Marriott Berlin City Center](embed:courtyard-by-marriott-0CK) – Modern quarters starting at €107/night.\n- [Park Inn by Radisson Berlin Alexanderplatz](embed:park-inn-by-xDZ) – Landmark hotel right at Alexanderplatz with views, around €91/night.\n- [The Westin Grand Berlin](embed:the-westin-grand-UZY) – Elegant high-end hotel starting around €141/night.\n- [Arte Luise Arthotel](embed:arte-luise-arthotel-dv5) – Distinctive artsy lodging near the Spree river, around €77/night.\n- [Locke at East Side Gallery](embed:locke-at-east-Tmn) – Aparthotel style lodging near Friedrichshain, around €112/night.\n\nWould you like to narrow down these options by neighborhood, amenities, or price range?",
+    "chunk_count": 24,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " some hotel options in [Berlin](wiki:Berlin) for next week (August"
+      },
+      {
+        "kind": "text",
+        "value": " 19 – August 22):\n\n```embeds_results_view\ntitle: Hotels in Berlin\n"
+      },
+      {
+        "kind": "text",
+        "value": "embeds: titanic-comfort-kurf-WEP, the-mandala-hotel-FNv, berlin-marriott-hotel"
+      },
+      {
+        "kind": "text",
+        "value": "-o9j, the-ritz-carlton-wWq, hotel-nh-collection-z4e,"
+      },
+      {
+        "kind": "text",
+        "value": " courtyard-by-marriott-0CK, park-inn-by-xDZ, the-westin-"
+      },
+      {
+        "kind": "text",
+        "value": "grand-UZY, arte-luise-arthotel-dv5, locke-at-east-Tmn\n"
+      },
+      {
+        "kind": "text",
+        "value": "```\n\n- [Titanic Comfort Kurfürstendamm](embed:titanic-comfort-kurf-WEP) –"
+      },
+      {
+        "kind": "text",
+        "value": " A budget-friendly option starting around €58/night.\n- [The Mandala Hotel](embed:the-"
+      },
+      {
+        "kind": "text",
+        "value": "mandala-hotel-FNv) – A 5-star hotel featuring a rooftop spa and refined dining starting around €12"
+      },
+      {
+        "kind": "text",
+        "value": "4/night.\n- [Berlin Marriott Hotel](embed:berlin-marriott-hotel-o9j) – Cent"
+      },
+      {
+        "kind": "text",
+        "value": "rally located near Potsdamer Platz, priced around €131/night.\n- [The Ritz-Carlton, Berlin]("
+      },
+      {
+        "kind": "text",
+        "value": "embed:the-ritz-carlton-wWq) – Upscale luxury accommodation starting around €285/"
+      },
+      {
+        "kind": "text",
+        "value": "night.\n- [Hotel NH Collection Berlin Mitte am Checkpoint Charlie](embed:hotel-nh-collection-z4e) –"
+      },
+      {
+        "kind": "text",
+        "value": " Popular 4-star option at around €84/night.\n- [Courtyard by Marriott Berlin City Center](embed:cour"
+      },
+      {
+        "kind": "text",
+        "value": "tyard-by-marriott-0CK) – Modern quarters starting at €107/night.\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [Park Inn by Radisson Berlin Alexanderplatz](embed:park-inn-by-xDZ) – Landmark hotel right at Alexanderplatz with views"
+      },
+      {
+        "kind": "text",
+        "value": ", around €91/night.\n- [The Westin Grand Berlin](embed:the-westin-grand-UZ"
+      },
+      {
+        "kind": "text",
+        "value": "Y) – Elegant high-end hotel starting around €141/night.\n- [Arte Luise Arthotel]("
+      },
+      {
+        "kind": "text",
+        "value": "embed:arte-luise-arthotel-dv5) – Distinctive artsy lodging near the Spree river"
+      },
+      {
+        "kind": "text",
+        "value": ", around €77/night.\n- [Locke at East Side Gallery](embed:locke-at"
+      },
+      {
+        "kind": "text",
+        "value": "-east-Tmn) – Aparthotel style lodging near Friedrichshain, around €112/night"
+      },
+      {
+        "kind": "text",
+        "value": ".\n\nWould you like to narrow down these options by neighborhood, amenities, or price range?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 18838,
+          "candidates_token_count": 558,
+          "total_token_count": 19396,
+          "user_input_tokens": 2593,
+          "system_prompt_tokens": 14544
+        }
+      }
+    ]
+  }
+}

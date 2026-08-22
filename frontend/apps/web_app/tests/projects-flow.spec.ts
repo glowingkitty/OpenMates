@@ -19,15 +19,16 @@ test.describe('Projects v1 flow', () => {
     skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await loginToTestAccount(page);
-  });
+	});
 
-  test('creates and deletes a project', async ({ page }) => {
+	// contract-test: supporting surface=gui.web assertions=projects.lifecycle.encrypted-crud,projects.surface.semantic-parity,workspace-shell.nav.released-surfaces-visible,workspace-shell.start.shared-affordances
+	test('creates and deletes a project', async ({ page }) => {
     await page.goto('/projects');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('projects-load-error')).toHaveCount(0);
     await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
+    await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('projects-start-screen')).toBeVisible();
     await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await expect(page.getByTestId('project-input-composer')).toBeVisible();

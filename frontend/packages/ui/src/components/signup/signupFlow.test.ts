@@ -18,6 +18,7 @@ const LEGACY_SIGNUP_PAYMENT_IMPORTS = [
 ];
 
 describe('getSignupStepSequence', () => {
+  // contract-test: direct surface=gui.web assertions=auth.signup.current-flow
   it('omits legacy payment steps from password signup', () => {
     const steps = getSignupStepSequence({ loginMethod: 'password' });
 
@@ -32,6 +33,7 @@ describe('getSignupStepSequence', () => {
     expect(steps).not.toEqual(expect.arrayContaining(LEGACY_PAYMENT_STEPS));
   });
 
+  // contract-test: direct surface=gui.web assertions=auth.signup.current-flow
   it('omits legacy payment steps from passkey signup', () => {
     const steps = getSignupStepSequence({ loginMethod: 'passkey' });
 
@@ -45,6 +47,7 @@ describe('getSignupStepSequence', () => {
     expect(steps).not.toEqual(expect.arrayContaining(LEGACY_PAYMENT_STEPS));
   });
 
+  // contract-test: direct surface=gui.web assertions=auth.signup.current-flow
   it('only removes email confirmation for self-hosted signup', () => {
     const steps = getSignupStepSequence({ loginMethod: 'password', isSelfHosted: true });
 
@@ -59,6 +62,7 @@ describe('getSignupStepSequence', () => {
     expect(steps).not.toEqual(expect.arrayContaining(LEGACY_PAYMENT_STEPS));
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.signup.current-flow
   it('does not import legacy signup credits or payment render components', () => {
     const signupSource = readFileSync(new URL('./Signup.svelte', import.meta.url), 'utf8');
 

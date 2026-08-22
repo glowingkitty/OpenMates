@@ -1,0 +1,47 @@
+{
+  "fingerprint": "f21bcd9e5103b0e9",
+  "category": "wikipedia",
+  "group_id": "videos_search_web",
+  "recorded_at": "2026-08-15T12:15:18.217116+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/api/rest_v1/page/summary/Continuous_integration"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-webkit-csp": "default-src 'none'; frame-ancestors 'none'",
+      "cache-control": "s-maxage=1209600, max-age=300",
+      "content-language": "en",
+      "content-type": "application/json; charset=utf-8; profile=\"https://www.mediawiki.org/wiki/Specs/Summary/1.5.0\"",
+      "date": "Sat, 15 Aug 2026 11:51:09 GMT",
+      "server": "production-tls",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,HEAD",
+      "access-control-allow-headers": "accept, content-type, content-length, cache-control, accept-language, api-user-agent, if-match, if-modified-since, if-none-match, dnt, accept-encoding",
+      "access-control-expose-headers": "etag",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "referrer-policy": "origin-when-cross-origin",
+      "x-xss-protection": "1; mode=block",
+      "etag": "W/\"1362340323/38067990-9629-11f1-ba60-5153c7e5e834\"",
+      "content-encoding": "gzip",
+      "age": "1448",
+      "accept-ranges": "bytes",
+      "vary": "Accept-Language, x-restbase-compat, Accept-Encoding",
+      "x-cache": "cp3067 miss, cp3067 hit/1",
+      "x-cache-status": "hit-front",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "content-length": "906",
+      "x-request-id": "1dba392f-bd0f-4cff-9331-2dd80ffcafff",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"hit-front\", host;desc=\"cp3067\",co_id;desc=\"1212896946\""
+    },
+    "body": "{\"type\":\"standard\",\"title\":\"Continuous integration\",\"displaytitle\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Continuous integration</span></span>\",\"namespace\":{\"id\":0,\"text\":\"\"},\"wikibase_item\":\"Q965769\",\"titles\":{\"canonical\":\"Continuous_integration\",\"normalized\":\"Continuous integration\",\"display\":\"<span lang=\\\"en\\\" dir=\\\"ltr\\\"><span class=\\\"mw-page-title-main\\\">Continuous integration</span></span>\"},\"pageid\":1774081,\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Continuous_Integration.jpg/330px-Continuous_Integration.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":330,\"height\":174},\"originalimage\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/9/9c/Continuous_Integration.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled\",\"width\":834,\"height\":440},\"lang\":\"en\",\"dir\":\"ltr\",\"revision\":\"1362340323\",\"tid\":\"2877cec2-76be-11f1-abd2-a59b92bf1fc0\",\"timestamp\":\"2026-07-03T09:04:12Z\",\"description\":\"Software development practice\",\"description_source\":\"local\",\"content_urls\":{\"desktop\":{\"page\":\"https://en.wikipedia.org/wiki/Continuous_integration\",\"revisions\":\"https://en.wikipedia.org/wiki/Continuous_integration?action=history\",\"edit\":\"https://en.wikipedia.org/wiki/Continuous_integration?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Continuous_integration\"},\"mobile\":{\"page\":\"https://en.wikipedia.org/wiki/Continuous_integration\",\"revisions\":\"https://en.wikipedia.org/wiki/Special:History/Continuous_integration\",\"edit\":\"https://en.wikipedia.org/wiki/Continuous_integration?action=edit\",\"talk\":\"https://en.wikipedia.org/wiki/Talk:Continuous_integration\"}},\"extract\":\"Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. \\nOften, the automated process runs on each commit or runs on a schedule such as once a day. Grady Booch first proposed the term CI in 1991, although he did not advocate integrating multiple times a day, but later, CI came to include that aspect.\",\"extract_html\":\"<p><b>Continuous integration</b> (<b>CI</b>) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. \\nOften, the automated process runs on each commit or runs on a schedule such as once a day. Grady Booch first proposed the term CI in 1991, although he did not advocate integrating multiple times a day, but later, CI came to include that aspect.</p>\"}"
+  }
+}

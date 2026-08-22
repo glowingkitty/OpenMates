@@ -30,7 +30,7 @@ export const openMeteoWeatherNotebookChat: ExampleChat = {
         "created_at": 1785511171,
         "user_message_id": "63743ff0-7c67-405d-966b-14848bc641ef",
         "category": "software_development",
-        "model_name": "Gemini 3.6 Flash"
+        "model_name": "Gemini 3.7 Flash"
     }
 ],
   embeds: [

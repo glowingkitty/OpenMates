@@ -5,8 +5,7 @@
 		ActiveChat,
 		Header,
 		Settings,
-		Notification,
-		ChatMessageNotification,
+		NotificationStack,
 		// stores
 		isInSignupProcess,
 		authStore,
@@ -105,6 +104,7 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let pendingAuthenticatedDeepLinkCleanup: (() => void) | null = null;
 	let isReplayingPendingDeepLink = false;
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
@@ -632,6 +632,8 @@
 		embedId?: string | null,
 		autoplayVideo?: boolean
 	) {
+		pendingAuthenticatedDeepLinkCleanup?.();
+		pendingAuthenticatedDeepLinkCleanup = null;
 		console.debug(
 			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}${autoplayVideo ? ' (autoplay-video)' : ''}`
 		);
@@ -1060,13 +1062,30 @@
 				// a bounded fallback can safely load chats that already exist locally once
 				// cryptoReady has loaded IndexedDB keys.
 				let authDeepLinkFallbackTimeout: number | null = null;
+				let authDeepLinkLoadStarted = false;
+				let authDeepLinkCancelled = false;
 				const clearDeepLinkWaiters = () => {
+					authDeepLinkCancelled = true;
 					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
 					if (authDeepLinkFallbackTimeout !== null) {
 						window.clearTimeout(authDeepLinkFallbackTimeout);
 						authDeepLinkFallbackTimeout = null;
 					}
+					if (pendingAuthenticatedDeepLinkCleanup === clearDeepLinkWaiters) {
+						pendingAuthenticatedDeepLinkCleanup = null;
+					}
 				};
+				const loadAuthDeepLinkOnce = async (source: string) => {
+					if (authDeepLinkCancelled || authDeepLinkLoadStarted) return;
+					authDeepLinkLoadStarted = true;
+					console.debug(`[+page.svelte] Loading authenticated deep-linked chat from ${source}: ${chatId}`);
+					try {
+						await loadChatFromIndexedDB();
+					} finally {
+						clearDeepLinkWaiters();
+					}
+				};
+				pendingAuthenticatedDeepLinkCleanup = clearDeepLinkWaiters;
 				const handlePhasedSyncComplete = async () => {
 					if (skipStaleChatNavigationTarget(chatId, 'phased-sync deep-link load')) {
 						clearDeepLinkWaiters();
@@ -1084,17 +1103,33 @@
 						clearDeepLinkWaiters();
 						return;
 					}
-					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
-					await loadChatFromIndexedDB();
-					clearDeepLinkWaiters();
+					await loadAuthDeepLinkOnce('completed phased sync');
 				};
 				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+
+				void (async () => {
+					try {
+						await cryptoReady;
+						if (authDeepLinkCancelled) return;
+						if (activeChatStore.getChatIdFromHash() !== chatId) {
+							clearDeepLinkWaiters();
+							return;
+						}
+						await chatDB.init();
+						const localChat =
+							mergeCachedDraftFields(await chatDB.getRawChat(chatId).catch(() => null), chatId) ??
+							(await chatDB.getChat(chatId));
+						if (localChat) await loadAuthDeepLinkOnce('local encrypted cache');
+					} catch (error) {
+						console.warn(`[+page.svelte] Immediate local auth deep-link load failed for ${chatId}:`, error);
+					}
+				})();
 
 				authDeepLinkFallbackTimeout = window.setTimeout(() => {
 					void (async () => {
 						try {
 							await cryptoReady;
-							if (window.location.hash !== `#chat-id=${chatId}`) {
+							if (activeChatStore.getChatIdFromHash() !== chatId) {
 								console.debug(
 									`[+page.svelte] Auth deep-link fallback skipped because hash changed for: ${chatId}`
 								);
@@ -1114,13 +1149,9 @@
 								return;
 							}
 
-							console.debug(
-								`[+page.svelte] Auth deep-link fallback loading local chat after sync wait: ${chatId}`
-							);
-							await loadChatFromIndexedDB();
+							await loadAuthDeepLinkOnce('bounded sync-wait fallback');
 						} catch (error) {
 							console.warn(`[+page.svelte] Auth deep-link fallback failed for ${chatId}:`, error);
-						} finally {
 							clearDeepLinkWaiters();
 						}
 					})();
@@ -2263,7 +2294,7 @@
 		}
 
 		// One-time language suggestion: if the visitor's browser language differs from English
-		// and they have no stored preference, show a persistent notification in English letting
+		// and they have no stored preference, show a notification in English letting
 		// them switch. Marked shown immediately so a page refresh doesn't re-show it.
 		if (browser) {
 			const hasPreference = !!localStorage.getItem("preferredLanguage");
@@ -2278,7 +2309,7 @@
 						const notificationId = notificationStore.addNotificationWithOptions("info", {
 							title: "Language Detected",
 							message: `Your browser language is ${language.nativeName}.`,
-							duration: 0,
+							duration: 7000,
 							dismissible: true,
 							actionLabel: `Switch to ${language.nativeName}`,
 							onAction: async () => {
@@ -3051,6 +3082,8 @@
 
 	// Cleanup function for onDestroy
 	onDestroy(() => {
+		pendingAuthenticatedDeepLinkCleanup?.();
+		pendingAuthenticatedDeepLinkCleanup = null;
 		window.removeEventListener('hashchange', handleHashChange);
 		document.documentElement.removeAttribute('data-hash-router-ready');
 		if (handleWebSocketAuthError) {
@@ -3567,15 +3600,7 @@
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
 
 <!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
-<div class="notification-container">
-	{#each $notificationStore.notifications as notification (notification.id)}
-		{#if notification.type === 'chat_message'}
-			<ChatMessageNotification {notification} />
-		{:else}
-			<Notification {notification} />
-		{/if}
-	{/each}
-</div>
+<NotificationStack />
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
 	{#if $panelState.isActivityHistoryOpen}
@@ -3702,6 +3727,10 @@
 		transition:
 			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
+	}
+
+	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
+		z-index: 10001;
 	}
 
 	/* Add new scrollable mode styles */
@@ -3887,26 +3916,6 @@
 		transition: none;
 	}
 
-	/* Notification container - full-width banner at top of viewport */
-	.notification-container {
-		position: fixed;
-		top: 0;
-		inset-inline-start: 0;
-		inset-inline-end: 0;
-		z-index: 10000; /* High z-index to appear above all content */
-		pointer-events: none; /* Allow clicks to pass through container */
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding-top: 20px;
-		gap: 10px; /* Space between multiple notifications */
-	}
-
-	/* Enable pointer events on notifications themselves */
-	.notification-container :global(.notification) {
-		pointer-events: auto;
-	}
-
 	/* ------------------------------------------------------------------ */
 	/* Developer console wrapper                                            */
 	/* Sits at the bottom of .main-content (in normal flow), so it pushes  */
@@ -3937,7 +3946,7 @@
 	/* ── Media mode (?media=1) — superset of og-mode ──────────────────── */
 	/* Hide all non-essential UI for pixel-perfect screenshot capture.
 	   The real app renders inside iframes in /dev/media device mockups. */
-	:global(body.media-mode .notification-container) {
+	:global(body.media-mode .notification-stack) {
 		display: none !important;
 	}
 	:global(body.media-mode .cookie-banner) {

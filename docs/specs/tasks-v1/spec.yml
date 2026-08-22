@@ -35,6 +35,10 @@ scope:
     - Shared chat exports include chat-primary tasks by default as read-only shared task records; task decrypt authority is carried in the share URL fragment payload, matching the existing chat/embed share-link pattern.
     - AI and user assignees, including AI execution when assigned or scheduled.
     - AI sequentially working through a chat's AI-assigned tasks, marking blocked when user input or permissions are required.
+    - Capacity-scoped AI task admission with official-cloud personal capacity of five normal plus two reserved urgent slots and Team capacity of eight normal plus two reserved urgent slots.
+    - Self-hosted personal and Team task capacity configurable through environment variables, with invalid values rejected visibly.
+    - Execution lanes that preserve user-editable chat order and Plan order before applying priority or capacity.
+    - Automatic admission of waiting AI-assigned todo tasks whenever capacity is released, plus periodic restart-safe reconciliation.
     - Due-date scheduling for AI-assigned tasks that survives server restarts.
     - Retention and cleanup policies for completed/archived tasks, key wrappers, and expired execution contexts so stale task data does not grow indefinitely.
     - CLI, npm SDK, and pip SDK task-management contracts before web E2E verification.
@@ -58,6 +62,7 @@ scope:
     - Native Apple implementation in the first web/API slice, although the spec records expected parity.
     - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
     - Complex dependency graphs between tasks in V1.
+    - Applying user Task concurrency limits to Workflow runs or read-only Workflow task projections.
     - Archived-task restore/list UI in the first label/priority hardening slice; archived encrypted bundles are write-only cold storage until a later retrieval surface is specified.
     - A separate skipped Kanban column; skipped tasks use backlog plus queue metadata.
 
@@ -194,12 +199,45 @@ clarification:
         and board. The CLI TUI must add a Tasks workspace with keyboard-navigable
         Kanban, task detail pages, and full parity for those actions. Real
         dev-server CLI/TUI smoke evidence is required before web work.
+    - question: How should concurrent AI task capacity interact with chat, Plan, Team, and Workflow ordering?
+      answer: >
+        Personal Tasks use five normal slots plus two urgent-only overflow slots.
+        Team Tasks use eight normal slots plus two urgent-only overflow slots with
+        a hard maximum of ten. Personal and Team pools are independent, Workflow
+        runs are not limited, and self-hosters may configure both normal and
+        urgent-reserve counts. Capacity applies only after lane eligibility:
+        chats retain user-editable task order, Plans retain user-editable Plan
+        order and Plan-owned readiness, urgent priority cannot skip a predecessor,
+        and no running task is preempted when the user reorders remaining work.
   vision_summary: >
     Tasks V1 is a separate privacy-preserving product model that sits beside
     chats, projects, and workflows. Tasks appear in chat task lists, project
     filters, and the central /tasks Kanban board; users and assistants can both
     edit them, and AI-assigned tasks can start immediately or at a due time.
   approved_by_user: true
+
+contract_refs:
+  - id: feature.tasks
+    version: 1
+    role: primary
+    fingerprint: c64e1eb6f71c6f4b2648609738d84c102cfb51d1987dbe24a486080a72b61fe9
+    path: contracts/features/tasks/contract.yml
+    assertions:
+      - tasks.content.client-encrypted
+      - tasks.lifecycle.visible
+      - tasks.project-links.encrypted
+      - tasks.key-wrappers.context-scoped
+      - tasks.workflow-projections.read-only
+      - tasks.surface.semantic-parity
+      - tasks.execution.capacity-scoped
+      - tasks.execution.order-preserved
+    evidence_locations:
+      - backend/tests/test_user_tasks_api.py
+      - backend/tests/test_user_task_runtime_tools.py
+      - backend/tests/test_workflow_task_projections.py
+      - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/tests/test_tasks.py
 
 scenarios:
   - id: S-1
@@ -470,6 +508,34 @@ scenarios:
       - The import restores tasks so CLI, SDK, and web task lists decrypt the same titles, descriptions, labels, statuses, priorities, and project/chat links.
       - The import is idempotent and does not duplicate tasks when the same export bundle is applied twice.
 
+  - id: S-21
+    title: Personal and Team AI task capacity preserves urgent headroom
+    given:
+      - Alice has five normal personal Tasks running and belongs to a Team with eight normal Tasks running.
+      - Two urgent Tasks and one normal Task are waiting in each scope.
+      - Several Workflow runs are also active.
+    when:
+      - The admission controller evaluates personal and Team capacity.
+    then:
+      - Two urgent personal Tasks start for a personal total of seven while the normal personal Task remains todo with waiting_for_capacity.
+      - Two urgent Team Tasks start for a Team total of ten while the normal Team Task remains todo with waiting_for_capacity.
+      - Personal Tasks do not consume Team slots and Team Tasks do not consume personal slots.
+      - Workflow runs and Workflow projections do not consume user Task capacity.
+
+  - id: S-22
+    title: Capacity admission preserves user-controlled chat and Plan order
+    given:
+      - Alice has reordered remaining Tasks in one chat and one linked Plan.
+      - A later urgent Task has an unfinished predecessor in each execution lane.
+      - Capacity is currently full.
+    when:
+      - A running Task completes and releases one slot.
+    then:
+      - The allocator considers only the user-selected head of each eligible lane.
+      - The later urgent Task cannot skip its chat or Plan predecessor.
+      - Plan readiness comes from Plan current-task state rather than inferred task priority.
+      - The released slot is refilled automatically, without starting two AI Tasks in one chat or preempting running work.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -576,6 +642,12 @@ acceptance_criteria:
   - id: AC-35
     scenario: S-20
     text: Account import restores exported tasks idempotently across CLI, npm SDK, pip SDK, and web account flows so local task decryption and filtering still work after import.
+  - id: AC-36
+    scenario: S-21
+    text: Official cloud independently enforces personal capacity of five normal plus two urgent overflow Tasks and Team capacity of eight normal plus two urgent overflow Tasks, while self-host deployments can configure both pools and Workflow runs remain unlimited by this policy.
+  - id: AC-37
+    scenario: S-22
+    text: Admission applies only to eligible execution-lane heads, preserves user-controlled chat and Plan ordering, never lets urgent priority skip a predecessor, automatically refills released capacity, and never runs two AI Tasks concurrently in one chat.
 
 contracts:
   api:
@@ -630,10 +702,12 @@ contracts:
         - Project/chat relinks update linked_project_hashes, encrypted_linked_project_ids, and replacement key wrappers together so access contexts do not drift.
         - Label edits update encrypted_labels/encrypted_tags and label_hashes together; add/remove convenience fields are client-side helpers, not durable plaintext storage.
     - route: POST /v1/user-tasks/{task_id}/start-ai
-      auth: session_or_api_key
+      auth: session_or_first_party_sdk_api_key
       request: "{ chat_id?, project_ids?, encrypted_instruction_context?, vault_execution_context? }"
       response: "{ task_id, status: in_progress, chat_id, ai_run_id }"
       notes:
+        - Access model is first-party client surface only. API-key calls require x-openmates-sdk npm|pip plus tasks task:write scope; unclassified developer API-key calls receive 403.
+        - Plaintext instruction fields are accepted only transiently for AI execution, staged in a short-lived Vault-encrypted context, and never persisted in the task row.
         - Creates or reuses a working chat and sends the task execution instruction.
         - Stores a short-lived Vault-encrypted execution context when AI work is queued, then deletes it on completion/cancel/expiry.
     - route: POST /v1/user-tasks/extract
@@ -849,6 +923,19 @@ contracts:
       ai_immediate_status: in_progress
       skipped_status: backlog
       completed_hot_retention_days: 30
+    execution_admission:
+      official_cloud:
+        personal: {normal: 5, urgent_reserve: 2, hard_maximum: 7}
+        team: {normal: 8, urgent_reserve: 2, hard_maximum: 10}
+      self_host_environment:
+        personal_normal: OPENMATES_PERSONAL_TASK_CONCURRENCY
+        personal_urgent_reserve: OPENMATES_PERSONAL_TASK_URGENT_RESERVE
+        team_normal: OPENMATES_TEAM_TASK_CONCURRENCY
+        team_urgent_reserve: OPENMATES_TEAM_TASK_URGENT_RESERVE
+      workflow_runs_count_toward_capacity: false
+      waiting_capacity_state: waiting_for_capacity
+      lane_precedence: [plan_id, primary_chat_id, standalone_task_id]
+      user_reorder_preempts_running_task: false
     priorities:
       none: 0
       low: 1
@@ -929,6 +1016,9 @@ contracts:
       - If an assistant response ends in task mode while eligible todo tasks remain and no blocker is recorded, the runtime injects an internal continuation instruction to keep working.
       - Internal continuation renders to users as a system/activity entry such as OpenMates continued to the next task, not as a fake user-authored message.
       - A blocked task pauses the chat queue until explicit user or assistant action resolves, skips, completes, or requeues it.
+      - Priority and capacity are evaluated only for the current user-ordered head of each chat or Plan execution lane.
+      - Plan-linked Tasks are eligible only when their task_id matches the Plan's server-visible current_task_id; the generic Task allocator does not infer Plan dependencies.
+      - Completion, block, skip, cancellation, or failure triggers scope admission, and a periodic sweep repairs missed admission events after restart.
   websocket:
     - event: user_task_updated
       direction: server_to_client
@@ -1102,6 +1192,47 @@ tests:
         status: passed
         run_id: "local-pytest-2026-06-26"
         timestamp: "2026-06-26"
+
+  - id: T-PYTEST-TASK-ADMISSION
+    type: pytest
+    file: backend/tests/test_user_task_admission.py
+    command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py backend/tests/test_billing_worker_compose.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-36
+      - AC-37
+    assertions:
+      - official-cloud personal admission allows five normal Tasks plus two urgent overflow Tasks and no more.
+      - official-cloud Team admission allows eight normal Tasks plus two urgent overflow Tasks and no more.
+      - self-host environment values configure personal and Team normal and urgent-reserve capacities and invalid values fail visibly.
+      - Workflow runs and projections are never queried or counted by user Task admission.
+      - only one user-ordered head per chat or Plan lane is eligible, and urgent Tasks cannot skip predecessors.
+      - Plan-linked Tasks require matching Plan current_task_id before admission.
+      - completing, blocking, skipping, cancelling, or failing an active Task automatically admits waiting eligible work under a scope lock.
+      - a recovery sweep admits eligible waiting Tasks after missed callbacks or restart.
+      - queued dispatches that exceed the worker lease are blocked and free capacity, while delayed workers must win the queued-to-running fence before inference.
+      - periodic reconciliation uses a dedicated user_tasks worker queue so unrelated persistence backlog cannot starve capacity repair.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-task-admission-red-2026-08-15
+        timestamp: "2026-08-15"
+        command: python3 -m pytest backend/tests/test_user_task_admission.py
+        reason: user_task_admission_service did not exist before this implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-task-admission-recovery-green-2026-08-15
+        subject_commit: 4230b9500f63dd22a24035d43b0f05ea64c979a0-working-tree
+        timestamp: "2026-08-15"
+        command: PYTHONPATH=. pytest -q backend/tests/test_user_task_admission.py backend/tests/test_user_task_runtime_tools.py backend/tests/test_user_tasks_api.py backend/tests/test_user_tasks_scheduler.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_update_jobs.py backend/tests/test_workspace_ask_routes.py backend/tests/test_billing_worker_compose.py
+        result: 142 passed
 
   - id: T-PYTEST-TASK-SHARE-BUNDLE
     type: pytest
@@ -1602,6 +1733,9 @@ implementation_plan:
     - The CLI TUI loads decrypted task view models, renders a keyboard-navigable Kanban workspace, and commits task actions through the same task command/service layer.
     - AI assignment with due_at is claimed by a restart-safe scheduler at due time.
     - AI completion, blockage, unblock, skip, continuation, or user edits update task status/queue_state through explicit task tools and append encrypted activity entries.
+    - A scope admission controller derives personal or Team capacity, selects only eligible chat/Plan/standalone lane heads, atomically claims available work, and leaves excess Tasks todo with waiting_for_capacity.
+    - User reordering changes future lane-head selection immediately but never preempts an already running Task.
+    - Workflow runs remain owned by Workflow scheduling and never enter user Task capacity queries.
   affected_files:
     - path: backend/core/directus/schemas/user_tasks.yml
       reason: Durable task, activity, wrapper, label-index, and archive-index collections/fields.
@@ -1621,6 +1755,8 @@ implementation_plan:
       reason: Authorization, metadata filtering, conflict checks, and AI start orchestration.
     - path: backend/core/api/app/services/user_task_queue_service.py
       reason: Atomic queue claims, blocker pauses, skip/unblock/done continuation, and standalone task working-chat creation.
+    - path: backend/core/api/app/services/user_task_admission_service.py
+      reason: Personal and Team capacity policy, lane-head eligibility, scope locking, and automatic capacity refill.
     - path: backend/apps/ai/processing/task_tools.py
       reason: Explicit assistant task tools for task state transitions and continuation enforcement.
     - path: backend/core/api/app/services/task_view_service.py
@@ -1719,6 +1855,9 @@ implementation_plan:
     - Naming confusion between Celery tasks and product user tasks.
     - Accidentally storing plaintext private task content in server logs, Directus, Redis, or activity rows.
     - Duplicate AI execution after scheduler restart or websocket retry.
+    - A per-task lock without a personal or Team scope lock can oversubscribe capacity under concurrent start requests.
+    - Treating urgent priority as lane ordering can skip user-selected chat or Plan predecessors.
+    - Counting Workflow projections or Workflow runs as user Tasks can incorrectly throttle independent automation.
     - Conflicts between user edits and assistant task updates.
     - Drag/drop accessibility and touch reliability.
     - Divergence between /tasks, project task boards, and chat task lists if shared components/classes are not enforced.
@@ -1797,6 +1936,42 @@ tasks:
       - T-PYTEST-SCHED
       - T-PYTEST-TASK-RUNTIME-TOOLS
     independently_deployable: false
+
+  - id: TASK-2A
+    title: Add scoped AI task admission and ordered execution lanes
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-18
+        - S-21
+        - S-22
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-29
+        - AC-36
+        - AC-37
+    expected_files:
+      - backend/core/api/app/services/user_task_admission_service.py
+      - backend/core/api/app/services/user_task_service.py
+      - backend/core/api/app/services/user_task_queue_service.py
+      - backend/core/api/app/services/user_task_scheduler_service.py
+      - backend/core/api/app/services/directus/user_task_methods.py
+      - backend/core/api/app/tasks/user_task_scheduler.py
+      - backend/tests/test_user_task_admission.py
+      - backend/tests/test_user_tasks_api.py
+      - backend/tests/test_user_tasks_scheduler.py
+      - backend/core/docker-compose.yml
+      - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+      - .env.example
+    verification:
+      - T-PYTEST-TASK-ADMISSION
+      - T-PYTEST-SCHED
+      - T-CLI-DEV-TASK-SMOKE
+    independently_deployable: true
 
   - id: TASK-3
     title: Add CLI and SDK user task contracts

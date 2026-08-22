@@ -74,7 +74,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
     <div class="loading-message">{$text('common.loading')}</div>
 {:else if errorMessage}
     <div class="error-message">{errorMessage}</div>
-    <button class="retry-button" onclick={fetchRedeemedCards}>
+    <button class="retry-button" data-testid="gift-cards-retry" onclick={fetchRedeemedCards}>
         {$text('common.retry')}
     </button>
 {:else if redeemedCards.length === 0}
@@ -89,6 +89,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
             icon="subsetting_icon coins"
             title={card.gift_card_code}
             subtitle={`${formatCredits(card.credits_value)} ${$text('common.credits')} - ${formatDate(card.redeemed_at)}`}
+            data-testid="redeemed-gift-card-row"
         />
     {/each}
 {/if}

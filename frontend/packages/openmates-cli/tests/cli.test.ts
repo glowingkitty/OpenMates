@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 /**
  * Unit tests for CLI argument parsing, blocked paths, URL derivation,
  * suggestion parsing, and new chat suggestion rendering.
@@ -34,6 +35,7 @@ import { buildTravelConnectionsRequest, requireExactConfirmation, resolveProject
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+const CLI_PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version as string;
 
 function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
@@ -704,6 +706,75 @@ async function withUsageMockApi<T>(
   } finally {
     server.closeAllConnections();
     server.close();
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withTeamsContextMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-teams-context-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url) requests.push({ method: request.method ?? "GET", url: request.url });
+      if (request.method === "GET" && request.url === "/v1/teams") {
+        writeJson(response, {
+          teams: [
+            { team_id: "team-design", slug: "design", role: "admin", status: "active" },
+            { team_id: "team-engineering", slug: "engineering", role: "member", status: "active" },
+          ],
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/teams/team-design/billing") {
+        writeJson(response, { billing: { balance_credits: 1200, payment_tier: "team" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/billing") {
+        writeJson(response, { credits: 75, payment_tier: "free" });
+        return;
+      }
+      writeJsonStatus(response, 404, { detail: "not found" });
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+    activeTeamId: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(tempHome, { recursive: true, force: true });
   }
 }
@@ -2551,15 +2622,15 @@ describe("CLI self-update commands", () => {
   it("skips self-update when the installed version already matches the latest version", () => {
     const output = runCli(["update", "--dry-run"], {
       npm_config_user_agent: "",
-      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION,
     });
     assert.match(output, /OpenMates CLI is already up to date\./);
     assert.doesNotMatch(output, /Would run:/);
   });
 
   it("supports upgrade as the same dry-run command with a selected package manager", () => {
-    const output = runCli(["upgrade", "--version", "0.15.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
-      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
+    const output = runCli(["upgrade", "--version", CLI_PACKAGE_VERSION, "--package-manager", "pnpm", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION,
     });
     const parsed = JSON.parse(output) as {
       command: string;
@@ -2572,21 +2643,21 @@ describe("CLI self-update commands", () => {
     };
     assert.equal(parsed.command, "upgrade");
     assert.equal(parsed.package_manager, "pnpm");
-    assert.equal(parsed.package, "openmates@0.15.0");
-    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.15.0"]);
+    assert.equal(parsed.package, `openmates@${CLI_PACKAGE_VERSION}`);
+    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", `openmates@${CLI_PACKAGE_VERSION}`]);
     assert.equal(parsed.dry_run, true);
-    assert.equal(parsed.latest_version, "0.15.0");
+    assert.equal(parsed.latest_version, CLI_PACKAGE_VERSION);
     assert.equal(parsed.update_available, false);
   });
 
   it("prints version and update guidance through command and top-level flag", () => {
     const commandOutput = runCli(["version"], { OPENMATES_CLI_LATEST_VERSION: "99.0.0" });
-    assert.match(commandOutput, /OpenMates CLI 0\.15\.0/);
+    assert.match(commandOutput, new RegExp(`OpenMates CLI ${CLI_PACKAGE_VERSION.replace(/\./g, "\\.")}`));
     assert.match(commandOutput, /Update available: 99\.0\.0/);
     assert.match(commandOutput, /Run: openmates upgrade/);
 
-    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.15.0" });
-    assert.match(flagOutput, /OpenMates CLI 0\.15\.0/);
+    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION });
+    assert.match(flagOutput, new RegExp(`OpenMates CLI ${CLI_PACKAGE_VERSION.replace(/\./g, "\\.")}`));
     assert.match(flagOutput, /OpenMates CLI is up to date\./);
   });
 });
@@ -2743,6 +2814,7 @@ describe("apps code run command variants", () => {
 });
 
 describe("apps travel search_connections typed request", () => {
+  // contract-test: supporting surface=cli assertions=travel-search.departure-window.upstream,travel-search.surface-parity
   it("maps pass-aware train flags into the app-skill request", () => {
     const request = buildTravelConnectionsRequest([], {
       origin: "Potsdam Hbf",
@@ -2754,6 +2826,8 @@ describe("apps travel search_connections typed request", () => {
       "pass-only": true,
       "rail-products": "regional,s_bahn",
       "min-transfer-minutes": "15",
+      "min-departure-time": "16:20",
+      "max-departure-time": "16:45",
       "max-results": "8",
     });
 
@@ -2765,6 +2839,8 @@ describe("apps travel search_connections typed request", () => {
       rail_products: ["regional", "s_bahn"],
       pass_only: true,
       min_transfer_minutes: 15,
+      min_departure_time: "16:20",
+      max_departure_time: "16:45",
       max_results: 8,
     });
   });
@@ -3660,6 +3736,98 @@ describe("getExtForLang", () => {
 // ---------------------------------------------------------------------------
 
 describe("settings command surface", () => {
+  it("lists and switches Teams contexts with the top-level switch-to command", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const targetsOutput = await runCliAsync(["switch-to", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(targetsOutput, /Available Contexts/);
+      assert.match(targetsOutput, /personal/);
+      assert.match(targetsOutput, /design \(team-design\)/);
+      assert.match(targetsOutput, /engineering \(team-engineering\)/);
+
+      const switchOutput = await runCliAsync(["switch-to", "design", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(switchOutput, /Active team: design/);
+
+      const jsonOutput = await runCliAsync(["switch-to", "--json", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const parsed = JSON.parse(jsonOutput) as { active_team_id?: string; targets?: Array<{ target?: string; active?: boolean }> };
+      assert.equal(parsed.active_team_id, "team-design");
+      assert.equal(parsed.targets?.find((target) => target.target === "design")?.active, true);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/teams",
+        "GET /v1/teams",
+        "GET /v1/teams",
+      ]);
+    });
+  });
+
+  it("supports the team-slug switch-to alias under teams", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(["teams", "design", "switch-to", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(output, /Active team: design/);
+
+      const personalOutput = await runCliAsync(["switch-to", "personal", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(personalOutput, /Active context: personal/);
+
+      const jsonOutput = await runCliAsync(["switch-to", "--json", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.equal((JSON.parse(jsonOutput) as { active_team_id?: string | null }).active_team_id, null);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/teams",
+        "GET /v1/teams",
+      ]);
+    });
+  });
+
+  it("prints credits for the active personal or team context", async () => {
+    await withTeamsContextMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const personalCredits = await runCliAsync(["credits", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(personalCredits, /Context/);
+      assert.match(personalCredits, /personal/);
+      assert.match(personalCredits, /Available/);
+      assert.match(personalCredits, /75 credits/);
+
+      await runCliAsync(["switch-to", "design", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const teamCredits = await runCliAsync(["credits", "--api-url", apiUrl], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.match(teamCredits, /Context/);
+      assert.match(teamCredits, /team team-design/);
+      assert.match(teamCredits, /Available/);
+      assert.match(teamCredits, /1200 credits/);
+
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/billing",
+        "GET /v1/teams",
+        "GET /v1/teams/team-design/billing",
+      ]);
+    });
+  });
+
   it("lists predefined settings commands instead of raw passthrough", () => {
     const output = runCli(["settings", "--help"]);
     docAssert("cli-settings-lists-predefined-commands", () => {
@@ -3866,6 +4034,21 @@ describe("learning-mode command surface", () => {
 });
 
 describe("workspace ask fallback chat", () => {
+  it("lets regular chats opt out of task update jobs", async () => {
+    await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, chatMessages, clientCapabilities }) => {
+      const output = await runCliAsync(
+        ["chats", "new", "Create a deterministic test chat", "--json", "--no-task-update-jobs", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { status?: string; chatId?: string };
+
+      assert.equal(parsed.status, "completed");
+      assert.equal(typeof parsed.chatId, "string");
+      assert.deepEqual(chatMessages, ["Create a deterministic test chat"]);
+      assert.deepEqual(clientCapabilities, [[]]);
+    });
+  });
+
   it("starts a saved chat with the original instruction when workflow ask falls back", async () => {
     await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities }) => {
       const instruction = "add a Discord notification to all my workflows once they are done";
@@ -3933,6 +4116,35 @@ describe("unauthenticated example chats", () => {
     assert.ok(output.includes("EXAMPLE CHAT"));
     assert.ok(output.includes("Gigantic airplanes for transporting rocket and airplane parts"));
     assert.ok(output.includes("This is a public example chat"));
+  });
+
+  it("lists files for a public generated-audio example chat without a session", () => {
+    const output = runCliWithoutSession([
+      "chats",
+      "files",
+      "example-audio-speak-friendly-welcome-message",
+      "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      source?: string;
+      count?: number;
+      files?: Array<{ title?: string; type?: string; url?: string; metadata?: string }>;
+    };
+
+    assert.equal(parsed.source, "example");
+    assert.equal(parsed.count, 1);
+    assert.equal(parsed.files?.[0]?.title, "audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.type, "audio");
+    assert.equal(parsed.files?.[0]?.url, "/store-examples/audio-speak-friendly-welcome-message.mp3");
+    assert.match(parsed.files?.[0]?.metadata ?? "", /Audio/);
+  });
+
+  it("lists code files for public example chats without a session", () => {
+    const output = runCliWithoutSession(["chats", "files", "example-python-squares-code-run", "--json"]);
+    const parsed = JSON.parse(output) as { files?: Array<{ title?: string; type?: string; node_type?: string }> };
+
+    assert.ok(parsed.files?.some((file) => file.title === "square_parity.py" && file.type === "code"));
+    assert.ok(parsed.files?.every((file) => file.node_type));
   });
 
   it("returns signup_required before reading anonymous file references", () => {

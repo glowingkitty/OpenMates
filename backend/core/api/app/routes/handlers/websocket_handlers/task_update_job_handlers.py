@@ -228,19 +228,32 @@ async def handle_task_update_job_persist(
 
         operation = str(job.get("operation") or "update")
         task_id = str(job["task_id"])
+        team_id = str(job.get("team_id") or "") or None
         if operation == "create":
+            if team_id:
+                raise TaskUpdateJobConflictError("Creating Team tasks through task update jobs is not supported")
             if await directus_service.user_task.get_task(task_id, user_id):
                 raise TaskUpdateJobConflictError("Task already exists")
             durable = await directus_service.user_task.create_task(user_id, {**encrypted_payload, "task_id": task_id})
         else:
-            durable = await directus_service.user_task.update_task_if_version(
-                task_id,
-                user_id,
-                encrypted_payload,
-                int(expected_task_version),
+            durable = (
+                await directus_service.user_task.update_task_if_version(
+                    task_id,
+                    user_id,
+                    encrypted_payload,
+                    int(expected_task_version),
+                    team_id=team_id,
+                )
+                if team_id
+                else await directus_service.user_task.update_task_if_version(
+                    task_id,
+                    user_id,
+                    encrypted_payload,
+                    int(expected_task_version),
+                )
             )
             if not durable:
-                current = await directus_service.user_task.get_task(task_id, user_id)
+                current = await directus_service.user_task.get_task(task_id, user_id, team_id) if team_id else await directus_service.user_task.get_task(task_id, user_id)
                 if not current:
                     raise TaskUpdateJobNotFoundError("Task not found")
                 if _task_already_matches_encrypted_payload(current, encrypted_payload, int(expected_task_version)):

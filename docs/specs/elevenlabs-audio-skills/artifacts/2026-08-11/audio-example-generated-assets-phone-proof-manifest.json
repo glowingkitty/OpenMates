@@ -1,0 +1,143 @@
+{
+  "captions": [
+    {
+      "claim_ids": [
+        "CLAIM-1"
+      ],
+      "end": 5.04,
+      "id": "CAP-1",
+      "narration_id": "NARR-1",
+      "start": 0.0,
+      "text": "Mobile audio shows preview and fullscreen controls."
+    }
+  ],
+  "disposable_artifacts": [
+    {
+      "kind": "derived_video",
+      "path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/demo.mp4",
+      "sha256": "sha256:90416a83296e4690bd643997309c1ce96ba13309be9ba71f68c747e97edf7028"
+    },
+    {
+      "kind": "review_frame",
+      "path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/frames/frame-0000.png",
+      "sha256": "sha256:c05645efb20080799b63934e5b36f8f6d86395fa646c69df1ccdec03b54d4d9c"
+    },
+    {
+      "kind": "review_frame",
+      "path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/frames/frame-0001.png",
+      "sha256": "sha256:54561b777558134e9833c7024bb7b0837cf59171aec6c47810332d4f2f780e12"
+    },
+    {
+      "kind": "review_frame",
+      "path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/frames/frame-0002.png",
+      "sha256": "sha256:2ca72d98921ff1f35eb49f88dc7b1da4b908bd25cda6a4eaaad37b34bd60668a"
+    }
+  ],
+  "expected_proof": [
+    {
+      "acceptance_criteria": [
+        "AC-8"
+      ],
+      "claim_id": "CLAIM-1",
+      "evidence_intervals": [
+        [
+          0.0,
+          5.04
+        ]
+      ],
+      "text": "Mobile viewport shows the audio.speak generated-audio example with preview playback controls and fullscreen playback controls from a passed deployed Playwright test."
+    }
+  ],
+  "narration_audio": {
+    "duration_seconds": 3.422,
+    "mime_type": "audio/mpeg",
+    "model": "eleven_flash_v2_5",
+    "path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/narration-audio.mp3",
+    "provider": "elevenlabs",
+    "reused_from": "",
+    "sha256": "sha256:c26e200209cd44c52feffc03d297685765fda3a9f7d06f7d6bd9271cd28ed722",
+    "status": "passed",
+    "voice": "warm_neutral"
+  },
+  "privacy": {
+    "findings": [],
+    "status": "passed",
+    "text_scan": {
+      "findings": [],
+      "status": "passed"
+    }
+  },
+  "publication": {
+    "attachment_id": "1536862968187199498",
+    "delivered_at": "2026-08-11T22:24:44Z",
+    "first_attempt_at": "2026-08-11T22:24:44Z",
+    "last_attempt_at": "2026-08-11T22:24:44Z",
+    "message_id": "1536862968518672475",
+    "retry_until": "2026-08-12T22:24:44Z",
+    "status": "delivered",
+    "video_deleted_at": "2026-08-11T22:24:44Z"
+  },
+  "retained_paths": [
+    "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/transcript.txt",
+    "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/captions.srt",
+    "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/narration-audio.mp3"
+  ],
+  "review": {
+    "additional_frame_requests": [],
+    "attempt_count": 1,
+    "attempts": [
+      {
+        "attempt_number": 1,
+        "claims": [
+          {
+            "claim_id": "CLAIM-1",
+            "observation": "Frames at 3.0s and 4.96s show the mobile OpenMates audio.speak example with the preview play control and the fullscreen audio player controls visible; no private generated-asset markers or raw file metadata are visible.",
+            "verdict": "supported"
+          }
+        ],
+        "failed_claim_ids": [],
+        "invalidate_implementation_evidence": false,
+        "requires_user_input": false,
+        "return_stages": [],
+        "status": "passed"
+      }
+    ],
+    "requires_user_input": false,
+    "run_id": "review-audio-example-generated-assets-phone",
+    "status": "passed"
+  },
+  "schema_version": 1,
+  "source": {
+    "artifact_hash": "sha256:ec5ae45a512f662f72603c2b26c4ad660cdddcd82d5b6c03add268fd5a82b6a3",
+    "artifact_path": "test-results/recordings/latest/example-chats-load/videos/example-chats-load-Example-d8452-rs-mobile-playback-controls.webm",
+    "command_or_spec": "example-chats-load.spec.ts",
+    "deployment_reference": "dpl_3gbyNpsufYhp8gqLmkQnDx1QEqV2",
+    "kind": "playwright",
+    "run_id": "gha-playwright-31541393278-mobile-audio-speak",
+    "status": "passed",
+    "subject_commit": "21ebe73ea1f28bfb057a596b0c504afaa674fa5e",
+    "target": "https://app.dev.openmates.org",
+    "test_account_provenance": "GitHub Actions Playwright controlled account slot 1; public example-chat route; no production user data"
+  },
+  "spec_id": "audio-example-generated-assets-phone",
+  "subject_commit": "21ebe73ea1f28bfb057a596b0c504afaa674fa5e",
+  "video_metadata": {
+    "audio_codec": "aac",
+    "codec": "h264",
+    "duration_seconds": 5.04,
+    "has_audio": true,
+    "height": 450,
+    "sha256": "sha256:90416a83296e4690bd643997309c1ce96ba13309be9ba71f68c747e97edf7028",
+    "tags": {
+      "compatible_brands": "isomiso2avc1mp41",
+      "encoder": "Lavf60.16.100",
+      "handler_name": "VideoHandler",
+      "language": "und",
+      "major_brand": "isom",
+      "minor_version": "512",
+      "vendor_id": "[0][0][0][0]"
+    },
+    "width": 800
+  },
+  "video_path": "test-results/proof-videos/f6c1/audio-example-generated-assets-phone/demo.mp4"
+}

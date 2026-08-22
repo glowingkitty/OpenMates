@@ -54,7 +54,7 @@ claims:
 ## Why This Exists
 
 - One `api` container hosts all app skills in-process (OPE-342) — every `backend/apps/{name}/` folder is loaded via `importlib` at startup, no per-app containers
-- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `user-init-worker`, `core-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
+- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `user-init-worker`, `user-tasks-worker`, `core-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
 - Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification.
@@ -88,6 +88,7 @@ Defined in [docker-compose.yml](../../backend/core/docker-compose.yml):
 | `api` | Custom (FastAPI) | Core REST API, WebSocket server |
 | `task-worker` | Custom (Celery) | Latency-sensitive authentication and billing email tasks |
 | `user-init-worker` | Custom (Celery) | Startup cache warming and account-deletion bootstrap tasks isolated from persistence backlog |
+| `user-tasks-worker` | Custom (Celery) | AI Task admission and stale-dispatch reconciliation isolated from persistence backlog |
 | `core-worker` | Custom (Celery) | Persistence, deletion, health, and reminder tasks |
 | `task-scheduler` | Custom (Celery Beat) | Scheduled/periodic task dispatch |
 | `cms` | `directus/directus:11.5` | Directus CMS for data management |
@@ -113,6 +114,7 @@ Only the Celery worker containers remain — they have real, queue-driven worklo
 | `app-pdf-worker` | `app_pdf` | PDF rendering with `pymupdf`/`reportlab` |
 | `task-worker` | `email` | Authentication, billing, and notification email delivery isolated from backlog-prone tasks |
 | `user-init-worker` | `user_init` | Cache warming isolated so long-running persistence tasks cannot block startup sync |
+| `user-tasks-worker` | `user_tasks` | AI Task capacity refill and stale-dispatch reconciliation isolated from persistence backlog |
 | `core-worker` | `persistence`, `health_check`, … | Infrastructure and persistence tasks |
 | `workflow-worker` | `workflow` | Manual workflow runs isolated from persistence and scheduled-trigger backlog |
 | `task-scheduler` | (Celery beat) | Periodic task dispatch |

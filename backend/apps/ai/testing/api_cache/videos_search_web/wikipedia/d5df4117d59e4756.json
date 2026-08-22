@@ -1,0 +1,38 @@
+{
+  "fingerprint": "d5df4117d59e4756",
+  "category": "wikipedia",
+  "group_id": "videos_search_web",
+  "recorded_at": "2026-08-15T12:15:17.558451+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=Test-driven_development%7CContinuous_integration%7CSoftware_verification_and_validation&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Sat, 15 Aug 2026 12:15:17 GMT",
+      "server": "mw-api-ext.eqiad.main-6787dc66b6-cn6cr",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "493",
+      "x-request-id": "4449d61f-0e4a-46a9-a5ad-524554b5951f",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"2427187814\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"Test-driven_development\",\"to\":\"Test-driven development\"},{\"fromencoded\":false,\"from\":\"Continuous_integration\",\"to\":\"Continuous integration\"},{\"fromencoded\":false,\"from\":\"Software_verification_and_validation\",\"to\":\"Software verification and validation\"}],\"pages\":[{\"pageid\":357881,\"ns\":0,\"title\":\"Test-driven development\",\"pageprops\":{\"wikibase_item\":\"Q950250\"},\"description\":\"Method of writing code\",\"descriptionsource\":\"local\"},{\"pageid\":699718,\"ns\":0,\"title\":\"Software verification and validation\",\"pageprops\":{\"wikibase_item\":\"Q7921330\"},\"description\":\"Process in software project management, software testing, and software engineering\",\"descriptionsource\":\"local\"},{\"pageid\":1774081,\"ns\":0,\"title\":\"Continuous integration\",\"pageprops\":{\"wikibase_item\":\"Q965769\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Continuous_Integration.jpg/330px-Continuous_Integration.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail\",\"width\":300,\"height\":158},\"description\":\"Software development practice\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

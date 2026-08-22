@@ -26,6 +26,10 @@ from backend.apps.ai.processing.preprocessor import (
     IMAGE_CHAT_SAFE_MODEL_NAME,
     PreprocessingResult,
 )
+from backend.apps.ai.processing.search_skill_reliability import (
+    expand_companion_skills,
+    normalize_string_query_request_items,
+)
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
@@ -568,6 +572,8 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "get-posts"),
 }
 ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
+    ("audio", "generate"),
+    ("audio", "speak"),
     ("code", "image_to_html"),
     ("images", "generate"),
     ("images", "generate_draft"),
@@ -576,6 +582,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("music", "generate"),
     ("videos", "generate"),
 }
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
 
 
 def _is_async_skill_blocked_in_orchestration(
@@ -1423,6 +1430,47 @@ async def _resolve_skill_billing_config(
     return skill_def, pricing_config
 
 
+def _get_variable_preflight_reserved_credits(
+    app_id: str,
+    skill_id: str,
+    parsed_args: Dict[str, Any],
+) -> Optional[List[int]]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return None
+    requests = parsed_args.get("requests")
+    items = requests if isinstance(requests, list) else [parsed_args]
+    if app_id == "audio" and skill_id == "generate":
+        from backend.apps.audio.pricing import DEFAULT_SOUND_EFFECT_DURATION_SECONDS, calculate_sound_effect_credits
+
+        quotes: List[int] = []
+        for item in items:
+            item_data = item if isinstance(item, dict) else {}
+            duration_seconds = item_data.get("duration_seconds")
+            if not isinstance(duration_seconds, (int, float)) or isinstance(duration_seconds, bool) or duration_seconds <= 0:
+                duration_seconds = DEFAULT_SOUND_EFFECT_DURATION_SECONDS
+            quotes.append(calculate_sound_effect_credits(duration_seconds=float(duration_seconds)))
+        return quotes
+    if app_id == "audio" and skill_id == "speak":
+        from backend.apps.audio.pricing import (
+            DEFAULT_SPEECH_MODEL,
+            SPEECH_MODEL_CREDITS_PER_SECOND,
+            calculate_speech_credits,
+            estimate_speech_duration_seconds,
+        )
+
+        quotes: List[int] = []
+        for item in items:
+            item_data = item if isinstance(item, dict) else {}
+            raw_text = item_data.get("text") if isinstance(item_data.get("text"), str) else ""
+            text = raw_text.strip()
+            model = item_data.get("model") if isinstance(item_data.get("model"), str) else DEFAULT_SPEECH_MODEL
+            if model not in SPEECH_MODEL_CREDITS_PER_SECOND:
+                model = DEFAULT_SPEECH_MODEL
+            quotes.append(calculate_speech_credits(model=model, duration_seconds=estimate_speech_duration_seconds(text)))
+        return quotes
+    return None
+
+
 async def _reserve_skill_credits(
     *,
     task_id: str,
@@ -1444,21 +1492,26 @@ async def _reserve_skill_credits(
         log_prefix=log_prefix,
     )
     units = len(parsed_args.get("requests", [])) if isinstance(parsed_args.get("requests"), list) else 1
-    quoted_credits = (
-        calculate_total_credits(pricing_config=pricing_config, units_processed=units)
-        if pricing_config
-        else MINIMUM_CREDITS_CHARGED
-    )
+    variable_quotes = _get_variable_preflight_reserved_credits(app_id, skill_id, parsed_args)
+    if variable_quotes is not None:
+        quotes = variable_quotes
+        quoted_credits = sum(quotes)
+    else:
+        quoted_credits = (
+            calculate_total_credits(pricing_config=pricing_config, units_processed=units)
+            if pricing_config
+            else MINIMUM_CREDITS_CHARGED
+        )
+        per_unit = quoted_credits // units
+        remainder = quoted_credits - (per_unit * units)
+        quotes = [per_unit + (remainder if index == units - 1 else 0) for index in range(units)]
     if quoted_credits <= 0:
         return []
 
-    per_unit = quoted_credits // units
-    remainder = quoted_credits - (per_unit * units)
     service = SubChatOrchestrationService(directus_service)
     reserved: list[str] = []
     try:
-        for index in range(units):
-            quote = per_unit + (remainder if index == units - 1 else 0)
+        for index, quote in enumerate(quotes):
             if quote <= 0:
                 continue
             operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, index)
@@ -1692,6 +1745,89 @@ async def _fail_reserved_operation(
     })
 
 
+def _dict_value(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump()
+        return dumped if isinstance(dumped, dict) else {}
+    return {}
+
+
+def _coerce_nonnegative_credits(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        credits = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(0, credits)
+
+
+def _get_result_declared_charge_items(
+    app_id: str,
+    skill_id: str,
+    results: List[Dict[str, Any]],
+) -> Optional[List[Tuple[int, int, Dict[str, Any]]]]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return None
+
+    charge_items: List[Tuple[int, int, Dict[str, Any]]] = []
+    found_result_declared_billing = False
+    for result_index, result in enumerate(results):
+        item = _dict_value(result)
+        direct_credits = _coerce_nonnegative_credits(item.get("credits_charged"))
+        if item.get("status") == "finished" and direct_credits is not None:
+            found_result_declared_billing = True
+            if direct_credits > 0:
+                charge_items.append((result_index, direct_credits, item))
+            continue
+
+        usage = _dict_value(item.get("usage"))
+        usage_credits = _coerce_nonnegative_credits(usage.get("credits_charged"))
+        if usage_credits is not None:
+            found_result_declared_billing = True
+            if usage_credits > 0:
+                charge_items.append((result_index, usage_credits, item))
+
+    return charge_items if found_result_declared_billing else None
+
+
+def _get_result_declared_usage_details(
+    app_id: str,
+    skill_id: str,
+    result: Dict[str, Any],
+) -> Dict[str, Any]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return {}
+
+    details: Dict[str, Any] = {}
+    if app_id == "audio":
+        model = result.get("model")
+        if isinstance(model, str) and model.strip():
+            details["model_used"] = model if "/" in model else f"elevenlabs/{model}"
+        duration_seconds = result.get("duration_seconds")
+        if isinstance(duration_seconds, (int, float)) and not isinstance(duration_seconds, bool):
+            details["duration_second"] = float(duration_seconds)
+        return details
+
+    usage = _dict_value(result.get("usage"))
+    if not usage:
+        return details
+    details.update({f"image_to_html_{key}": value for key, value in usage.items()})
+    if usage.get("model"):
+        details["model_used"] = usage["model"]
+    if usage.get("input_tokens") is not None:
+        details["input_tokens"] = usage["input_tokens"]
+    if usage.get("output_tokens") is not None:
+        details["output_tokens"] = usage["output_tokens"]
+    if usage.get("duration_second") is not None:
+        details["duration_second"] = usage["duration_second"]
+    elif usage.get("e2b_render_seconds") is not None:
+        details["duration_second"] = usage["e2b_render_seconds"]
+    return details
+
+
 async def _charge_skill_credits(
     task_id: str,
     execution_id: str,
@@ -1790,15 +1926,37 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no successful requests, skipping billing entirely.")
             return
         
-        # Calculate credits
-        if pricing_config:
+        result_declared_charge_items = _get_result_declared_charge_items(app_id, skill_id, results)
+        if result_declared_charge_items is not None:
+            if not result_declared_charge_items:
+                logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no result-declared successful charges, skipping billing.")
+                return
+            charge_items = result_declared_charge_items
+            units_processed = len(charge_items)
+            credits_charged = sum(item_credits for _, item_credits, _ in charge_items)
+            logger.info(
+                f"{log_prefix} Using result-declared credits for skill '{app_id}.{skill_id}': "
+                f"{credits_charged} across {units_processed} successful result(s)."
+            )
+        elif pricing_config:
             credits_charged = calculate_total_credits(
                 pricing_config=pricing_config,
                 units_processed=units_processed
             )
+            per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+            credits_remainder = credits_charged - (per_request_credits * units_processed)
+            charge_items = [
+                (
+                    i,
+                    per_request_credits + (credits_remainder if i == units_processed - 1 else 0),
+                    {},
+                )
+                for i in range(units_processed)
+            ]
         else:
             # Default to minimum charge if no pricing config
             credits_charged = MINIMUM_CREDITS_CHARGED
+            charge_items = [(0, credits_charged, {})]
             logger.info(f"{log_prefix} No pricing config for skill '{app_id}.{skill_id}', using minimum charge: {credits_charged}")
         
         if credits_charged <= 0:
@@ -1857,30 +2015,24 @@ async def _charge_skill_credits(
         }
         _apply_benchmark_usage_details(request_data, usage_details)
         
-        # Charge credits via internal API — one call per successful request.
-        # This creates one usage entry per request instead of one combined entry,
-        # so users can see individual search/map/news requests in the usage detail view.
-        # credits_charged is the TOTAL for all requests; per_request_credits is the
-        # per-unit cost computed by dividing total credits by units_processed.
-        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
-        # Use ceiling division to handle rounding: the last request gets any remainder.
-        credits_remainder = credits_charged - (per_request_credits * units_processed)
-        
         headers = {"Content-Type": "application/json"}
         if INTERNAL_API_SHARED_TOKEN:
             headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
         
         async with httpx.AsyncClient() as client:
             url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-            for i in range(units_processed):
-                # Add any remainder credits to the last request
-                request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+            charge_count = len(charge_items)
+            for charge_position, (operation_index, request_credits, result_item) in enumerate(charge_items):
                 if request_credits <= 0:
                     continue
                 
                 # Each individual request gets units_processed=1 to reflect one request
-                request_usage_details = {**usage_details, "units_processed": 1}
-                operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, i)
+                request_usage_details = {
+                    **usage_details,
+                    **_get_result_declared_usage_details(app_id, skill_id, result_item),
+                    "units_processed": 1,
+                }
+                operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, operation_index)
                 request_usage_details["operation_id"] = operation_id
                 
                 team_id = getattr(request_data, "team_id", None)
@@ -1911,11 +2063,11 @@ async def _charge_skill_credits(
                         "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
                     }
                     url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-                logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {i + 1}/{units_processed}).")
+                logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {charge_position + 1}/{charge_count}).")
                 response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
                 response.raise_for_status()
                 charged_operation_ids.add(operation_id)
-                logger.debug(f"{log_prefix} Charged request {i + 1}/{units_processed} for '{app_id}.{skill_id}': {response.json()}")
+                logger.debug(f"{log_prefix} Charged request {charge_position + 1}/{charge_count} for '{app_id}.{skill_id}': {response.json()}")
             
             logger.info(f"{log_prefix} Successfully charged {credits_charged} total credits for skill '{app_id}.{skill_id}' across {units_processed} request(s).")
             
@@ -2446,23 +2598,15 @@ async def handle_main_processing(
     # LLM to consider a companion skill, it must also be in the allowed tool set.
     # Without this the LLM follows the instruction, calls the companion, and the
     # hallucination guard rejects it → zero response.
-    COMPANION_SKILLS: dict[str, list[str]] = {
-        "web-search": ["images-search"],
-        "news-search": ["images-search"],
-    }
     if preselected_skills:
-        companions_to_add: set[str] = set()
-        for trigger, companions in COMPANION_SKILLS.items():
-            if trigger in preselected_skills:
-                for c in companions:
-                    if c not in preselected_skills:
-                        companions_to_add.add(c)
+        expanded_preselected_skills = expand_companion_skills(preselected_skills)
+        companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(
                 f"{log_prefix} [COMPANION_SKILLS] Auto-including companion skills: "
                 f"{sorted(companions_to_add)} (triggered by preselected skills)"
             )
-            preselected_skills = preselected_skills | companions_to_add
+            preselected_skills = expanded_preselected_skills
 
     task_tool_context = None
     task_context_prompt = ""
@@ -2485,6 +2629,7 @@ async def handle_main_processing(
                     user_id=request_data.user_id,
                     chat_id=request_data.chat_id,
                     message_text=request_data.current_user_content,
+                    team_id=getattr(request_data, "team_id", None),
                 )
                 task_context_prompt = build_task_context_prompt(task_tool_context)
                 logger.info(
@@ -3891,6 +4036,15 @@ async def handle_main_processing(
                         hallucinated_rejections_this_turn += 1
                         continue
 
+                    parsed_args = _normalize_skill_arguments(
+                        arguments=parsed_args,
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        task_id=task_id,
+                        message_history=current_message_history,
+                    )
+
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif is_legacy_task_runtime_tool_name(tool_name):
@@ -4320,6 +4474,7 @@ async def handle_main_processing(
                             user_id=request_data.user_id,
                             chat_id=request_data.chat_id,
                             message_text=request_data.current_user_content,
+                            team_id=getattr(request_data, "team_id", None),
                         )
                         retry_task_context_prompt = build_task_context_prompt(task_tool_context)
                         if task_tools_enabled and not suppress_task_runtime_tools:
@@ -5770,6 +5925,7 @@ async def handle_main_processing(
                             skill_task_id=skill_task_id,
                             cache_service=cache_service,
                             encryption_service=encryption_service,
+                            secrets_manager=secrets_manager,
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
@@ -7551,7 +7707,23 @@ def _normalize_skill_arguments(
     if "requests" in arguments:
         # The LLM sent a "requests" key.
         if schema_expects_requests:
-            # Schema also wants "requests" — no normalization needed.
+            items_schema = schema_properties["requests"].get("items", {})
+            items_required = items_schema.get("required", [])
+
+            normalized, normalized_string_items = normalize_string_query_request_items(
+                arguments=arguments,
+                item_required_fields=items_required,
+            )
+            if normalized_string_items:
+                logger.warning(
+                    f"{log_prefix} [NORMALIZE] LLM sent {normalized_string_items} string item(s) "
+                    f"inside 'requests' for '{app_id}.{skill_id}'. Converted each string "
+                    "to a request object with a 'query' field so placeholder metadata "
+                    "and skill execution stay correlated."
+                )
+                return normalized
+
+            # Schema also wants "requests" and item shape is already compatible.
             return arguments
         else:
             # Schema does NOT have "requests" (flat-schema skill like pdf.read/view/search).

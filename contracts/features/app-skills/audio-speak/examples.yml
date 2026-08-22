@@ -11,14 +11,14 @@ valid_inputs:
           accent: en_us
           style: friendly
           speed: 1.0
-    expect: {groups: 1, generation_type: speech, voice_preset: warm_neutral, semantic_safeguard: allowed}
+    expect: {groups: 1, generation_type: speech, voice_preset: warm_neutral, model: eleven_multilingual_v2, semantic_safeguard: allowed, initial_status: processing}
   - id: correlated-speech-batch
     input:
       requests:
         - {id: english, text: The upload is complete., provider: elevenlabs, voice: bright_neutral, accent: en_us}
         - {id: german, text: Der Upload ist abgeschlossen., provider: elevenlabs, voice: calm_narrator, accent: de_de}
     expect: {group_ids: [english, german], semantic_safeguard: allowed_for_each_request}
-  - id: premium-high-quality-speech
+  - id: explicit-low-cost-speech
     input:
       requests:
         - text: OpenMates is ready. I found the next step and can help you move it forward.
@@ -26,8 +26,8 @@ valid_inputs:
           voice: warm_neutral
           accent: en_us
           style: friendly
-          model: eleven_multilingual_v2
-    expect: {groups: 1, generation_type: speech, model: eleven_multilingual_v2, semantic_safeguard: allowed}
+          model: eleven_flash_v2_5
+    expect: {groups: 1, generation_type: speech, model: eleven_flash_v2_5, semantic_safeguard: allowed, explicit_low_cost_model: true}
 
 invalid_inputs:
   - id: missing-requests
@@ -58,28 +58,13 @@ invalid_inputs:
     expect_error: {constraint: AudioSpeakRequestItem.model.enum}
 
 successful_outputs:
-  - id: playable-direct-speech
+  - id: async-dispatch-speech
     output:
-      results:
-        - id: 1
-          status: finished
-          text_preview: Welcome back. Your message has been sent.
-          generation_type: speech
-          voice: warm_neutral
-          accent: en_us
-          style: friendly
-          provider: ElevenLabs
-          model: eleven_flash_v2_5
-          mime_type: audio/mpeg
-          duration_seconds: 2.1
-          byte_length: 12345
-          audio_base64: <BASE64_AUDIO_OMITTED>
-          credits_charged: 1
-          error: null
-      provider: ElevenLabs
+      task_id: task-audio-speak-1
+      embed_id: <GENERATED_AUDIO_EMBED_ID>
+      status: processing
       error: null
-      ignore_fields_for_inference: [audio_base64, aes_key, aes_nonce, vault_wrapped_aes_key]
-    expect: {playable: true, llm_payload_omits_audio_base64: true}
+    expect: {audio_base64_absent: true, final_result_requires_generated_asset: true, poll_until_terminal_when_present: true}
   - id: encrypted-generated-audio-embed
     output:
       results:
@@ -91,7 +76,7 @@ successful_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_flash_v2_5
+          model: eleven_multilingual_v2
           mime_type: audio/mpeg
           duration_seconds: 1.6
           byte_length: 9800
@@ -102,13 +87,16 @@ successful_outputs:
               format: mp3
               mime_type: audio/mpeg
               duration_seconds: 1.6
+              encryption: aes-gcm-nonce-prefixed-v1
+              download_url: https://api.dev.openmates.org/v1/generated-assets/<GENERATED_AUDIO_EMBED_ID>/files/original/download?token=<SIGNED_DOWNLOAD_TOKEN>
+              download_expires_at: 1786383600
           s3_base_url: https://<CHATFILES_BUCKET>
           aes_key: <BASE64_AES_KEY>
-          aes_nonce: <BASE64_AES_NONCE>
+          aes_nonce: ""
           vault_wrapped_aes_key: <VAULT_WRAPPED_AES_KEY>
-          credits_charged: 1
+          credits_charged: 7
           error: null
-    expect: {embed_type: app_skill_use, app_id: audio, skill_id: speak, audio_player_visible: true}
+    expect: {embed_type: app_skill_use, app_id: audio, skill_id: speak, audio_player_visible: true, upload_files_indexed: true, audio_base64_absent: true, default_model_used: eleven_multilingual_v2}
 
 error_outputs:
   - id: missing-voice-mapping
@@ -122,10 +110,12 @@ error_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_flash_v2_5
+          model: eleven_multilingual_v2
           mime_type: audio/mpeg
           duration_seconds: null
           byte_length: 0
+          files: null
+          s3_base_url: null
           error: Selected voice preset is temporarily unavailable.
       provider: ElevenLabs
       error: null
@@ -149,7 +139,7 @@ error_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_flash_v2_5
+          model: eleven_multilingual_v2
           mime_type: audio/mpeg
           duration_seconds: null
           byte_length: 0
@@ -167,9 +157,9 @@ boundary_cases:
   - id: maximum-text
     input: {requests: [{text: <TEXT_EXACTLY_2000_CHARACTERS>, provider: elevenlabs}]}
     expect: accepted
-  - id: direct-latency-probe
+  - id: async-generated-asset-required
     input: {requests: [{text: Welcome back. Your message has been sent., provider: elevenlabs, voice: warm_neutral, accent: en_us}]}
-    expect: {p95_latency_seconds_target: 6, if_exceeded: switch_to_task_flow_before_release}
+    expect: {initial_status: processing, default_model: eleven_multilingual_v2, audio_base64_absent: true, completed_result_has_encrypted_files: true, upload_files_indexed: true}
 
 safety_rejections:
   - id: public-figure-voice

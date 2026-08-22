@@ -66,17 +66,37 @@ per message; the recommendation and examples are supporting context, not extra
 questions. If evidence is incomplete, recommend the safest reversible default
 and state the uncertainty.
 
+## Scan-First Final Answers
+
+When a final answer needs more than one sentence, use a scan-first layout. Start
+with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
+`## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
+and next actions; use short bullets only when a table would be awkward. Keep
+narrative paragraphs under three lines. Use icons semantically and sparingly:
+`📁` files, `🧪` verification, `⚠️` risk or uncertainty, `➡️` next action, and
+`🔧` fix. Do not paste large YAML, JSON, contracts, or logs into blocker
+summaries unless the user asks; reference the path or hash and provide one
+copy-paste action when useful.
+
 ## Agent Workflow Retrospective
 
-For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
+For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems and inefficiencies from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, unnecessary retries, avoidable context growth, wasted subagent runs, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Include only inefficiencies that wasted agent cycles, context, tool calls, subagent runs, retries, or inference tokens and could plausibly have been prevented by better deterministic scripts, hooks, focused audits/tests, skills, agent/subagent definitions, or runtime instructions. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
 
-For each observed preventable process problem, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
+For each observed preventable process problem or inefficiency, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. Ground efficiency claims in observable actions only; do not estimate token counts or durations. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
 
 ## Obsidian Vault
 
 - The Obsidian vault lives at `/home/superdev/projects/OpenMates/vaults/memory/` (`vaults/memory/` from the repo root).
 - Create user-requested notes in that vault, using existing folders such as `Resources/research/`, `Areas/`, or `Projects/` when appropriate.
 - Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
+
+## OpenCode Response Media
+
+- To embed generated images or videos in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.
+- The helper uploads plaintext media to a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL; treat the URL as a temporary bearer token.
+- Use this only for intentionally shareable screenshots, diagrams, synthetic test media, or demo clips. Do not upload secrets, private user data, raw logs, production evidence, or anything that must remain available after 48 hours.
+- External video playback in OpenCode Web requires the `code.dev.openmates.org` CSP to allow `media-src https:`; if video controls render but playback fails, verify Caddy applied `deployment/dev_server/Caddyfile`.
+- When a screenshot or short clip materially helps explain a visual UI state, bug fix, visual-smoke result, proof-video, or implementation defect, include the uploaded media directly in the chat response instead of only naming an artifact path.
 
 ---
 

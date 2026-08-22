@@ -53,6 +53,7 @@ def team_payload(**overrides):
         "slug": "acme",
         "encrypted_name": "cipher-name",
         "encrypted_description": "cipher-description",
+        "encrypted_profile_image_metadata": "cipher-profile-image-metadata",
         "encrypted_team_key": "cipher-team-key-for-owner",
         "encrypted_zero_balance": "cipher-zero-balance",
         "created_at": 100,
@@ -63,6 +64,7 @@ def team_payload(**overrides):
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
@@ -91,6 +93,7 @@ async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.invites.fragment-key-web-flow,teams.membership.role-gated,teams.lifecycle.encrypted-profiled
 async def test_invite_accept_creates_member_and_team_key_wrapper_epoch_one() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
@@ -117,6 +120,7 @@ async def test_invite_accept_creates_member_and_team_key_wrapper_epoch_one() -> 
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
 async def test_require_team_role_fails_closed_for_viewer_write_action() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
@@ -130,6 +134,7 @@ async def test_require_team_role_fails_closed_for_viewer_write_action() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
 async def test_remove_member_revokes_membership_and_key_without_epoch_rotation() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
@@ -152,6 +157,7 @@ async def test_remove_member_revokes_membership_and_key_without_epoch_rotation()
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
 async def test_remove_member_stays_fail_closed_if_wrapper_revocation_fails() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
@@ -182,6 +188,7 @@ async def test_remove_member_stays_fail_closed_if_wrapper_revocation_fails() -> 
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
 async def test_deleted_team_rejects_existing_member_role_checks() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)
