@@ -1098,6 +1098,39 @@ def assign_ordered_caption_claims(
     return [{**caption, "claim_ids": claim_ids} for caption in captions]
 
 
+def align_ordered_caption_boundaries_to_claim_anchors(
+    segments: list[dict[str, Any]],
+    *,
+    claim_ids: list[str],
+    claim_anchor_times: dict[str, float],
+    duration_seconds: float,
+) -> list[dict[str, Any]]:
+    if len(segments) != len(claim_ids):
+        return segments
+    starts = [round(float(segments[0]["start"]), MEDIA_TIMESTAMP_DECIMALS)]
+    for index, claim_id in enumerate(claim_ids[1:], start=1):
+        fallback = round(float(segments[index]["start"]), MEDIA_TIMESTAMP_DECIMALS)
+        anchor = claim_anchor_times.get(claim_id, fallback)
+        try:
+            boundary = round(float(anchor), MEDIA_TIMESTAMP_DECIMALS)
+        except (TypeError, ValueError):
+            boundary = fallback
+        previous = starts[-1]
+        if not previous < boundary < duration_seconds:
+            boundary = fallback
+        if not previous < boundary < duration_seconds:
+            return segments
+        starts.append(boundary)
+    aligned: list[dict[str, Any]] = []
+    for index, segment in enumerate(segments):
+        start = starts[index]
+        end = starts[index + 1] if index + 1 < len(starts) else round(duration_seconds, MEDIA_TIMESTAMP_DECIMALS)
+        if not start < end:
+            return segments
+        aligned.append({**segment, "start": start, "end": end})
+    return aligned
+
+
 def evidence_intervals_for_claim(captions: list[dict[str, Any]], claim_id: str, duration_seconds: float) -> list[list[float]]:
     intervals = [
         [round(float(caption["start"]), MEDIA_TIMESTAMP_DECIMALS), round(float(caption["end"]), MEDIA_TIMESTAMP_DECIMALS)]
@@ -1483,6 +1516,24 @@ def produce_playwright_demonstration(
         playback_rate=playback_rate,
         output_duration_seconds=output_duration,
     )
+    state_change_times_by_id = scale_source_event_time_map(
+        selected.get("state_change_timestamps_by_id", {}) if isinstance(selected.get("state_change_timestamps_by_id"), dict) else {},
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
+    claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
+    caption_segments = align_ordered_caption_boundaries_to_claim_anchors(
+        caption_segments,
+        claim_ids=claim_ids,
+        claim_anchor_times=state_change_times_by_id,
+        duration_seconds=output_duration,
+    )
+    caption_segments = align_final_caption_to_first_action(
+        caption_segments,
+        action_times=action_times,
+        duration_seconds=output_duration,
+    )
     return prepare_review_artifacts(
         run_dir=run_dir,
         video_path=video_path,
@@ -1507,7 +1558,7 @@ def produce_playwright_demonstration(
             "demo_audio_mixed": demo_audio_path is not None,
         },
         scene_times=scene_times,
-        action_times=action_times,
+        action_times=[],
         state_change_times=state_change_times,
     )
 
@@ -1529,6 +1580,26 @@ def scale_source_event_times(
             continue
         if 0 <= adjusted <= output_duration_seconds:
             scaled.append(round(adjusted, MEDIA_TIMESTAMP_DECIMALS))
+    return scaled
+
+
+def scale_source_event_time_map(
+    values: dict[str, Any],
+    *,
+    trim_start_seconds: float,
+    playback_rate: float,
+    output_duration_seconds: float,
+) -> dict[str, float]:
+    scaled: dict[str, float] = {}
+    for key, value in values.items():
+        result = scale_source_event_times(
+            [value],
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration_seconds,
+        )
+        if result:
+            scaled[str(key)] = result[0]
     return scaled
 
 
