@@ -514,6 +514,31 @@ export function appendSelectedServices(args: string[], selectedServices: string[
   return filterRequested ? [...args, ...selectedServices] : args;
 }
 
+export function planServerLogRangeArgs(flags: Record<string, string | boolean>): string[] {
+  const args: string[] = [];
+  const since = flags.since;
+  const tail = flags.tail;
+
+  if (since === true) throw new Error("Provide a since value: --since <duration|timestamp>.");
+  if (tail === true) throw new Error("Provide a tail value: --tail <n>.");
+
+  if (typeof since === "string") {
+    const trimmedSince = since.trim();
+    if (!trimmedSince) throw new Error("--since cannot be empty.");
+    args.push("--since", trimmedSince);
+  }
+
+  if (typeof tail === "string") {
+    const trimmedTail = tail.trim();
+    if (!trimmedTail) throw new Error("--tail cannot be empty.");
+    args.push("--tail", trimmedTail);
+  } else if (typeof since !== "string") {
+    args.push("--tail", "100");
+  }
+
+  return args;
+}
+
 export function shouldCheckWebHealth(input: {
   role?: ServerRole | string;
   deploymentMode?: ServerDeploymentMode;

@@ -44,6 +44,7 @@ import {
   planRuntimeVerification,
   planDockerComposeArgs,
   planRestore,
+  planServerLogRangeArgs,
   planServerRuntime,
   planUpdate as planServerUpdate,
   parseEnvEntries,
@@ -1901,12 +1902,7 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
     args.push("--follow");
   }
 
-  const tail = flags.tail;
-  if (typeof tail === "string") {
-    args.push("--tail", tail);
-  } else {
-    args.push("--tail", "100");
-  }
+  args.push(...planServerLogRangeArgs(flags));
 
   const container = flags.container;
   if (typeof container === "string" && !hasServiceFilter(flags)) {
@@ -3832,6 +3828,7 @@ Command Options:
     --exclude <csv>     Filter logs to all role services except selected services
     --follow, -f        Stream logs in real time
     --tail <n>          Number of lines to show (default: 100)
+    --since <value>     Show logs since a duration or timestamp (e.g. 10m, 2026-08-22T10:00:00Z)
 
   update:
     --dry-run           Show update plan without changing files or containers

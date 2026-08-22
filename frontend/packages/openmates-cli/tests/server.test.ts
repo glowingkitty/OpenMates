@@ -56,6 +56,7 @@ import {
   planServerRuntime,
   planUpdate,
   parseSecretEnvKey,
+  planServerLogRangeArgs,
   resolveServiceSelection,
   resolveTemplateSource,
   findMissingRequiredSecrets,
@@ -916,6 +917,27 @@ describe("role-based server planning", () => {
       path: "templates/core/docker-compose.selfhost.yml",
     });
     assert.equal(resolveTemplateSource({ role: "core", packagedTemplateExists: false, templateRef: "dev" }).type, "github-raw");
+  });
+});
+
+describe("server log args", () => {
+  it("keeps the existing default tail for unbounded log reads", () => {
+    assert.deepEqual(planServerLogRangeArgs({}), ["--tail", "100"]);
+  });
+
+  it("passes --since through without applying the default tail cap", () => {
+    assert.deepEqual(planServerLogRangeArgs({ since: "10m" }), ["--since", "10m"]);
+  });
+
+  it("combines explicit --since and --tail filters", () => {
+    assert.deepEqual(planServerLogRangeArgs({ since: "2026-08-22T10:00:00Z", tail: "200" }), [
+      "--since", "2026-08-22T10:00:00Z", "--tail", "200",
+    ]);
+  });
+
+  it("rejects missing --since and --tail values", () => {
+    assert.throws(() => planServerLogRangeArgs({ since: true }), /Provide a since value/);
+    assert.throws(() => planServerLogRangeArgs({ tail: true }), /Provide a tail value/);
   });
 });
 
