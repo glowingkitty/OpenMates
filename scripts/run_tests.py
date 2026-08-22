@@ -5879,6 +5879,7 @@ async def _upload_recording_files(root: Path, s3_service: object) -> tuple[int, 
     boundary.
     """
     uploaded = 0
+    uploaded_keys: set[str] = set()
     for path in root.rglob("*"):
         if not path.is_file():
             continue
@@ -5892,7 +5893,45 @@ async def _upload_recording_files(root: Path, s3_service: object) -> tuple[int, 
             content_type,
         )
         uploaded += 1
+        uploaded_keys.add(object_key)
+    await _prune_stale_recording_files(s3_service, uploaded_keys)
     return uploaded, _delete_uploaded_recording_bundles(root)
+
+
+async def _prune_stale_recording_files(s3_service: object, desired_keys: set[str]) -> int:
+    """Delete remote latest/ recording objects that are not in the new snapshot."""
+
+    client = getattr(s3_service, "client", None)
+    if client is None:
+        raise RuntimeError("S3 service is unavailable")
+    try:
+        from backend.core.api.app.services.s3.config import get_bucket_name
+    except Exception as exc:
+        raise RuntimeError(f"could not import S3 bucket config: {exc}") from exc
+
+    environment = str(getattr(s3_service, "environment", "development"))
+    bucket_name = get_bucket_name(TEST_RECORDINGS_BUCKET_KEY, environment)
+    prefix = f"{TEST_RECORDINGS_S3_PREFIX}/"
+    stale_keys: list[str] = []
+    continuation_token = None
+    while True:
+        request = {"Bucket": bucket_name, "Prefix": prefix}
+        if continuation_token:
+            request["ContinuationToken"] = continuation_token
+        response = await asyncio.to_thread(client.list_objects_v2, **request)
+        for item in response.get("Contents", []) or []:
+            key = item.get("Key") if isinstance(item, dict) else None
+            if isinstance(key, str) and key not in desired_keys:
+                stale_keys.append(key)
+        if not response.get("IsTruncated"):
+            break
+        continuation_token = response.get("NextContinuationToken")
+        if not continuation_token:
+            break
+
+    for key in stale_keys:
+        await s3_service.delete_file(TEST_RECORDINGS_BUCKET_KEY, key)  # type: ignore[attr-defined]
+    return len(stale_keys)
 
 
 def _delete_uploaded_recording_bundles(root: Path) -> int:
@@ -7196,10 +7235,12 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        "deep-research-real-inference.spec.ts",
         PROVISION_AUTH_ACCOUNTS_SPEC,
         "default-model-settings-proof.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "selfhost-smoke.spec.ts",
+        "sub-chats-real-inference.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
 
