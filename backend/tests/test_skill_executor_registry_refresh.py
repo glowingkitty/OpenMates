@@ -7,14 +7,23 @@
 #
 # Architecture: docs/architecture/apps/app-skills.md
 
+import sys
+import types
+
 import pytest
 
-pytest.importorskip("redis.asyncio", reason="skill_executor imports backend service dependencies")
-pytest.importorskip("celery", reason="skill_registry imports backend app dependencies")
+from tests.runtime_import_stubs import install_code_route_import_stubs
 
-from backend.apps.ai.processing import skill_executor
-from backend.apps.ai.processing.skill_executor import execute_skill
-from backend.core.api.app.services import skill_registry as skill_registry_module
+install_code_route_import_stubs()
+
+skill_registry_module = types.ModuleType("backend.core.api.app.services.skill_registry")
+skill_registry_module.get_global_registry = lambda: None
+skill_registry_module.build_skill_registry = lambda **_kwargs: (None, {})
+skill_registry_module.set_global_registry = lambda _registry: None
+sys.modules["backend.core.api.app.services.skill_registry"] = skill_registry_module
+
+from backend.apps.ai.processing import skill_executor  # noqa: E402
+from backend.apps.ai.processing.skill_executor import execute_skill  # noqa: E402
 
 
 class FakeRegistry:
@@ -105,3 +114,25 @@ async def test_execute_skill_passes_secrets_manager_only_as_server_context(monke
     assert captured_contexts[0].request_body == {"location": "Berlin"}
     assert captured_contexts[0].cache_service is cache_service
     assert captured_contexts[0].secrets_manager is secrets_manager
+
+
+@pytest.mark.anyio
+async def test_execute_skill_does_not_redispatch_after_output_safety_failure(monkeypatch) -> None:
+    registry = FakeRegistry(skill_available=True)
+
+    async def fake_sanitize_app_skill_output(_result, _context):
+        raise RuntimeError("Prompt-injection protection failed for app-skill output")
+
+    monkeypatch.setattr(skill_registry_module, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(skill_executor, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
+
+    with pytest.raises(RuntimeError, match="Prompt-injection protection failed"):
+        await execute_skill("weather", "rain_radar", {"location": "Berlin"}, max_retries=1)
+
+    assert registry.dispatch_calls == [
+        (
+            "weather",
+            "rain_radar",
+            {"location": "Berlin"},
+        )
+    ]
