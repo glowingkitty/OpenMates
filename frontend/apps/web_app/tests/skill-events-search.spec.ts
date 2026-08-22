@@ -65,6 +65,7 @@ const EVENT_SEARCH_CARD_SELECTOR = '[data-testid="embed-preview"][data-app-id="e
 const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
 const EVENT_SEARCH_MAX_DURATION_MS = 10_000;
+const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -183,11 +184,9 @@ test.describe('App: Events / Skill: search', () => {
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
 
-		const message = withLiveMockMarker(
-			'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.',
-			'events_search_web'
-		);
-		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search');
+		const message = 'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.';
+		const testMockMarker = withLiveMockMarker('', 'events_search_web').trim();
+		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search', { testMockMarker });
 
 		logCheckpoint('Waiting for events search embeds to appear during streaming...');
 		const streamingEmbeds = page.locator(EVENT_SEARCH_CARD_SELECTOR);
@@ -275,6 +274,8 @@ test.describe('App: Events / Skill: search', () => {
 		await page.setViewportSize({ width: 1280, height: 720 });
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
 
-		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
+		if (!IS_PROOF_CAPTURE) {
+			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
+		}
 	});
 });

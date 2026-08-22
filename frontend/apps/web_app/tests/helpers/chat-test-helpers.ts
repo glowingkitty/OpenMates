@@ -63,6 +63,10 @@ type TestStateDeclaration = {
 	securityReminders: string;
 };
 
+type SendMessageOptions = {
+	testMockMarker?: string;
+};
+
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
 
 export function declareTestState(declaration: TestStateDeclaration): Readonly<TestStateDeclaration> {
@@ -971,7 +975,8 @@ async function sendMessage(
 	message: string,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
-	stepLabel: string = 'msg'
+	stepLabel: string = 'msg',
+	options: SendMessageOptions = {}
 ): Promise<void> {
 	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 	const startedFromNewChat = !currentChatId;
@@ -1066,9 +1071,14 @@ async function sendMessage(
 		});
 	};
 	const dispatchSyntheticSend = async (reason: string) => {
-		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-		});
+		const testMockMarker = options.testMockMarker;
+		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement, marker?: string) => {
+			return editor.dispatchEvent(new CustomEvent('custom-send-message', {
+				bubbles: true,
+				cancelable: true,
+				detail: marker ? { testMockMarker: marker } : undefined
+			}));
+		}, testMockMarker);
 		logCheckpoint(`Dispatched synthetic custom-send-message ${reason}; diagnostics=${JSON.stringify({
 			syntheticDispatchResult,
 			lastSendDebug: await readLastSendDebug(),
@@ -1117,8 +1127,12 @@ async function sendMessage(
 	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
-		await sendButton.click({ timeout: 5000 });
-		logCheckpoint('Clicked send button.');
+		if (options.testMockMarker) {
+			await dispatchSyntheticSend('with E2E server content override');
+		} else {
+			await sendButton.click({ timeout: 5000 });
+			logCheckpoint('Clicked send button.');
+		}
 	} catch (clickError) {
 		const diagnosticsBeforeFallback = await captureSendDiagnostics();
 		const lastSendDebugAfterClickAttempt = await readLastSendDebug();

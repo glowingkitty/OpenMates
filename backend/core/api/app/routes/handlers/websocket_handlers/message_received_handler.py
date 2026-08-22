@@ -39,6 +39,8 @@ from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii
 logger = logging.getLogger(__name__)
 
 TEST_MOCK_MARKER_PREFIX = "<<<TEST_MOCK:"
+TEST_LIVE_MOCK_MARKER_PREFIX = "<<<TEST_LIVE_MOCK:"
+TEST_LIVE_RECORD_MARKER_PREFIX = "<<<TEST_LIVE_RECORD:"
 TEST_MOCK_MARKER_SUFFIX = ">>>"
 
 
@@ -49,7 +51,12 @@ def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
     if not isinstance(value, str):
         return None
     marker = value.strip()
-    if not marker.startswith(TEST_MOCK_MARKER_PREFIX) or not marker.endswith(TEST_MOCK_MARKER_SUFFIX):
+    allowed_prefixes = (
+        TEST_MOCK_MARKER_PREFIX,
+        TEST_LIVE_MOCK_MARKER_PREFIX,
+        TEST_LIVE_RECORD_MARKER_PREFIX,
+    )
+    if not marker.startswith(allowed_prefixes) or not marker.endswith(TEST_MOCK_MARKER_SUFFIX):
         return None
     if "\n" in marker or "\r" in marker or len(marker) > 160:
         return None
