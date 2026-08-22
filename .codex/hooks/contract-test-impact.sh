@@ -10,10 +10,15 @@ FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePa
 [ -n "$FILE" ] || exit 0
 
 case "$FILE" in
-  "$PROJECT_ROOT"/*) REL="${FILE#$PROJECT_ROOT/}" ;;
-  */.openmates-agent-worktrees/*)
-    REL="${FILE#*/.openmates-agent-worktrees/*/}"
+  */.openmates-agent-worktrees/*/*)
+    REL="${FILE#*/.openmates-agent-worktrees/}"
+    REL="${REL#*/}"
     ;;
+  */.openmates-agent-worktrees/*)
+    REL="${FILE#*/.openmates-agent-worktrees/}"
+    REL="${REL#*/}"
+    ;;
+  "$PROJECT_ROOT"/*) REL="${FILE#$PROJECT_ROOT/}" ;;
   *) exit 0 ;;
 esac
 
@@ -34,6 +39,14 @@ case "$REL" in
     ;;
   *.spec.ts|*.test.ts|*.spec.tsx|*.test.tsx|*.spec.js|*.test.js|test_*.py|*_test.py|*Tests.swift)
     HOOK_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+    case "$REL" in
+      frontend/apps/web_app/tests/*.spec.ts)
+        if ! PROOF_OUTPUT=$(python3 "$HOOK_ROOT/scripts/audit_playwright_proof_metadata.py" "$FILE" 2>&1); then
+          MESSAGE="[OpenMates proof-video backfill] Changed Playwright spec is missing proof-video metadata or an explicit not-required classification: ${REL}. Add defineVideoProof(...) with transcript/assertions/checkpoints/devices when the spec proves visible user behavior, or add a top-of-file comment like // proof-video: not_required reason=non_visual_setup. ${PROOF_OUTPUT}"
+          emit_context "$MESSAGE"
+        fi
+        ;;
+    esac
     FILE_ROOT=$(git -C "$(dirname "$FILE")" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PROJECT_ROOT")
     if ! OUTPUT=$(python3 "$HOOK_ROOT/scripts/contracts.py" check-test "$FILE" --contracts-root "$FILE_ROOT/contracts" 2>&1); then
       MESSAGE="[OpenMates contract backfill] Changed test has unresolved contract metadata: ${REL}. Run: python3 scripts/contracts.py check-test ${REL}. First search existing contracts and link applicable assertions. If none defines the intended behavior, invoke the define-contract skill, quote the required contract content, and wait for explicit approval. The edit is allowed now, but deploy will block while this changed test remains unresolved. ${OUTPUT}"
