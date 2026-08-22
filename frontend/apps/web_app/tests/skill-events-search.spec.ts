@@ -262,7 +262,7 @@ test.describe('App: Events / Skill: search', () => {
 		await startNewChat(page, logCheckpoint);
 		await dismissVisibleNotifications(page);
 
-		const message = 'Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date 2026-06-27T00:00:00+02:00 and end_date 2026-06-28T23:59:59+02:00. Show both event search cards before answering.';
+		const message = 'I am planning two Berlin weekends: June 20-21, 2026 and June 27-28, 2026. Find tech events for each weekend and compare the options with event cards and a map.';
 		const testMockMarker = withLiveMockMarker('', 'events_search_web').trim();
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search', { testMockMarker });
 		await dismissVisibleNotifications(page);
@@ -372,6 +372,14 @@ test.describe('App: Events / Skill: search', () => {
 
 		const reloadAndAwaitResults = async () => {
 			await page.reload({ waitUntil: 'domcontentloaded' });
+			if (proof) {
+				await page
+					.getByText(/Loading referenced embeds|Map loading when visible/i)
+					.first()
+					.waitFor({ state: 'visible', timeout: 5_000 })
+					.catch(() => undefined);
+				await proof.checkpoint('reload-loading-state');
+			}
 			const view = page.getByTestId('embeds-map-view').last();
 			await expect(view).toBeVisible({ timeout: 60_000 });
 			await expect(view.getByTestId('embeds-map-view-card').first()).toBeVisible({
