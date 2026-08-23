@@ -27,10 +27,14 @@ const leafletMocks = vi.hoisted(() => {
     mapInstance,
     markerInstances,
     tileClassToggle,
-    tileLayer: vi.fn(() => ({
-      addTo: vi.fn(),
-      getContainer: vi.fn(() => ({ classList: { toggle: tileClassToggle } })),
-    })),
+    tileLayer: vi.fn(() => {
+      const layer = {
+        addTo: vi.fn(() => layer),
+        getContainer: vi.fn(() => ({ classList: { toggle: tileClassToggle } })),
+        on: vi.fn(() => layer),
+      };
+      return layer;
+    }),
     map: vi.fn(() => mapInstance),
     control: {
       zoom: vi.fn(() => ({ addTo: vi.fn() })),
@@ -95,6 +99,7 @@ describe("EmbedLeafletMap theme selection", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("uses manual light theme for tiles when the OS is dark", async () => {
     mockOsDarkMode(true);
     document.documentElement.setAttribute("data-theme", "light");
@@ -120,6 +125,7 @@ describe("EmbedLeafletMap theme selection", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("passes marker and path opacity to Leaflet while fitting geometry once on mount", async () => {
     mockOsDarkMode(false);
     const target = document.createElement("div");
