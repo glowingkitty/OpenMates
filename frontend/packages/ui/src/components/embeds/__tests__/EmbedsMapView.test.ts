@@ -58,6 +58,7 @@ describe("EmbedsMapView", () => {
         "travel-search-routes": "travel-source-id",
         "event-one-111111": "event-one-id",
         "event-two-222222": "event-two-id",
+        "event-online-333333": "event-online-id",
         "place-two-222222": "place-two-id",
         "train-one-111111": "train-one-id",
         "train-two-222222": "train-two-id",
@@ -104,6 +105,16 @@ describe("EmbedsMapView", () => {
           type: "events-event",
           status: "finished",
           content: "event-two-content",
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
+      if (embedId === "event-online-id") {
+        return {
+          embed_id: embedId,
+          type: "events-event",
+          status: "finished",
+          content: "event-online-content",
           createdAt: 1,
           updatedAt: 1,
         };
@@ -164,6 +175,18 @@ describe("EmbedsMapView", () => {
           venue_lat: 52.5004,
           venue_lon: 13.4252,
           venue: { address: "Berlin" },
+        };
+      }
+      if (content === "event-online-content") {
+        return {
+          app_id: "events",
+          skill_id: "event",
+          title: "Global AI Livestream",
+          date_start: "2026-08-01T21:00:00Z",
+          event_type: "ONLINE",
+          venue_name: "Online event",
+          venue_lat: -8.521147,
+          venue_lon: 179.1962,
         };
       }
       if (content === "place-content") {
@@ -421,6 +444,33 @@ describe("EmbedsMapView", () => {
     expect(filterMenu?.textContent).toContain("Time");
     expect(filterMenu?.textContent).not.toContain("Departure time");
     expect(filterMenu?.textContent).not.toContain("Arrival time");
+
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("does not map online event placeholder coordinates", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-online-events",
+        title: "Berlin AI events",
+        embedRefs: ["event-one-111111", "event-online-333333"],
+        sourceRefs: [],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+    expect(target.textContent).toContain("Global AI Livestream");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-marker-count")).toBe("1");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 
     unmount(component);
     target.remove();

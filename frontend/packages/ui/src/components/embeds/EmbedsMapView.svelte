@@ -50,6 +50,11 @@
     facets: EntryFacets;
   }
 
+  interface CoordinatePair {
+    lat: number;
+    lon: number;
+  }
+
   interface EntryFacets {
     category: string;
     dateOrdinal?: number;
@@ -251,6 +256,22 @@
   function getNestedRecord(record: Record<string, unknown> | null | undefined, key: string): Record<string, unknown> | null {
     const value = record?.[key];
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  }
+
+  function coordinatePair(latValue: unknown, lonValue: unknown): CoordinatePair | null {
+    const lat = firstNumber(latValue);
+    const lon = firstNumber(lonValue);
+    if (lat == null || lon == null) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    return { lat, lon };
+  }
+
+  function firstCoordinatePair(...pairs: Array<[unknown, unknown]>): CoordinatePair | null {
+    for (const [latValue, lonValue] of pairs) {
+      const point = coordinatePair(latValue, lonValue);
+      if (point) return point;
+    }
+    return null;
   }
 
   function emptyFacets(category = 'loading'): EntryFacets {
@@ -736,51 +757,37 @@
     const venue = getNestedRecord(content, 'venue');
     const coordinates = getNestedRecord(content, 'coordinates');
     const gpsCoordinates = getNestedRecord(content, 'gps_coordinates');
-    return {
-      lat: firstNumber(
-        content?.lat,
-        content?.latitude,
-        content?.gps_coordinates_latitude,
-        content?.location_lat,
-        content?.location_latitude,
-        content?.venue_lat,
-        content?.venue_latitude,
-        location?.lat,
-        location?.latitude,
-        venue?.lat,
-        venue?.latitude,
-        coordinates?.lat,
-        coordinates?.latitude,
-        gpsCoordinates?.lat,
-        gpsCoordinates?.latitude,
-      ),
-      lon: firstNumber(
-        content?.lon,
-        content?.lng,
-        content?.longitude,
-        content?.gps_coordinates_lon,
-        content?.gps_coordinates_lng,
-        content?.gps_coordinates_longitude,
-        content?.location_lon,
-        content?.location_lng,
-        content?.location_longitude,
-        content?.venue_lon,
-        content?.venue_lng,
-        content?.venue_longitude,
-        location?.lon,
-        location?.lng,
-        location?.longitude,
-        venue?.lon,
-        venue?.lng,
-        venue?.longitude,
-        coordinates?.lon,
-        coordinates?.lng,
-        coordinates?.longitude,
-        gpsCoordinates?.lon,
-        gpsCoordinates?.lng,
-        gpsCoordinates?.longitude,
-      ),
-    };
+    const onlineEventType = firstString(content?.event_type, content?.eventType).toLowerCase() === 'online';
+    const onlineVenue = firstString(content?.venue_name, venue?.name).toLowerCase() === 'online event';
+    if (onlineEventType || onlineVenue) return {};
+
+    const point = firstCoordinatePair(
+      [content?.venue_lat, content?.venue_lon],
+      [content?.venue_lat, content?.venue_lng],
+      [content?.venue_latitude, content?.venue_longitude],
+      [venue?.lat, venue?.lon],
+      [venue?.lat, venue?.lng],
+      [venue?.latitude, venue?.longitude],
+      [content?.location_lat, content?.location_lon],
+      [content?.location_lat, content?.location_lng],
+      [content?.location_latitude, content?.location_longitude],
+      [location?.lat, location?.lon],
+      [location?.lat, location?.lng],
+      [location?.latitude, location?.longitude],
+      [content?.gps_coordinates_latitude, content?.gps_coordinates_longitude],
+      [content?.gps_coordinates_latitude, content?.gps_coordinates_lon],
+      [content?.gps_coordinates_latitude, content?.gps_coordinates_lng],
+      [gpsCoordinates?.latitude, gpsCoordinates?.longitude],
+      [gpsCoordinates?.lat, gpsCoordinates?.lon],
+      [gpsCoordinates?.lat, gpsCoordinates?.lng],
+      [coordinates?.latitude, coordinates?.longitude],
+      [coordinates?.lat, coordinates?.lon],
+      [coordinates?.lat, coordinates?.lng],
+      [content?.latitude, content?.longitude],
+      [content?.lat, content?.lon],
+      [content?.lat, content?.lng],
+    );
+    return point ?? {};
   }
 
   function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined): void {
@@ -1337,6 +1344,7 @@
         <div
           class="map-view-map"
           data-testid="embeds-map-view-map"
+          data-marker-count={mapMarkers.length}
           data-route-count={routePaths.length}
           data-map-hydrated={shouldHydrateMap ? 'true' : 'false'}
           id="embeds-results-view-panel-map"
