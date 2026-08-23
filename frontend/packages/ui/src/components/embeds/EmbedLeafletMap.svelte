@@ -130,6 +130,7 @@
   let resizeAnimationFrame: number | null = null;
   let appliedCenterPanX = 0;
   let leafletReady = $state(false);
+  let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
 
@@ -299,6 +300,12 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: isDarkMode ? 'dark-tiles' : '',
       });
+      tileLayer.on('loading', () => {
+        tilesLoaded = false;
+      });
+      tileLayer.on('load', () => {
+        tilesLoaded = true;
+      });
       tileLayer.addTo(leafletMap);
       stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
       renderLeafletLayers({ fitBoundsToGeometry: true });
@@ -348,6 +355,7 @@
     tileLayer = null;
     leafletModule = null;
     leafletReady = false;
+    tilesLoaded = false;
     lastFitGeometrySignature = '';
     lastLayerSignature = '';
   });
@@ -370,6 +378,7 @@
 <div
   class="embed-leaflet-map"
   data-testid="embed-leaflet-map"
+  data-tiles-loaded={tilesLoaded ? 'true' : 'false'}
   style="height: {height}; min-height: {minHeight};"
   bind:this={mapContainer}
 ></div>

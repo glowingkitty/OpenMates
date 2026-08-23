@@ -308,6 +308,7 @@ test.describe('App: Events / Skill: search', () => {
 			const map = view.getByTestId('embeds-map-view-map');
 			await expect(map).toBeVisible({ timeout: 30_000 });
 			await expect(map).toHaveAttribute('data-map-hydrated', 'true', { timeout: 30_000 });
+			await expect(map.getByTestId('embed-leaflet-map')).toHaveAttribute('data-tiles-loaded', 'true', { timeout: 30_000 });
 			await expect(map.getByText('Map loading when visible...', { exact: true })).toHaveCount(0);
 		};
 		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
