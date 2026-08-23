@@ -15,6 +15,16 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const SETTINGS_TIMEOUT = 15_000;
 const INACTIVE_APP_IDS = ['plans', 'projects', 'tasks', 'workflows'];
+const INACTIVE_APP_FEATURE_IDS = INACTIVE_APP_IDS.flatMap((appId) => [`platform:${appId}`, `app:${appId}`]);
+
+async function mockInactiveWorkspaceApps(page: any): Promise<void> {
+	await page.route('**/v1/features/availability', async (route: any) => {
+		await route.fulfill({
+			contentType: 'application/json',
+			body: JSON.stringify({ disabled: INACTIVE_APP_FEATURE_IDS })
+		});
+	});
+}
 
 async function openSettings(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -68,6 +78,7 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	page: any;
 }) => {
 	test.setTimeout(120_000);
+	await mockInactiveWorkspaceApps(page);
 
 	const settingsMenu = await openSettings(page);
 
