@@ -385,9 +385,12 @@ test.describe('App: Events / Skill: search', () => {
 			});
 			return view;
 		};
-		const reloadedGroupedView = proof
-			? await proof.action('reload-chat-page', reloadAndAwaitResults)
-			: await reloadAndAwaitResults();
+		if (proof) {
+			await proof.attach();
+			return;
+		}
+
+		const reloadedGroupedView = await reloadAndAwaitResults();
 		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
 		if (proof) {
@@ -416,9 +419,6 @@ test.describe('App: Events / Skill: search', () => {
 			await page.setViewportSize({ width: 1280, height: 720 });
 		}
 		logCheckpoint('Completed app-skill group retained populated cards after reload.');
-		if (proof) {
-			await proof.attach();
-		}
 
 		if (!IS_PROOF_CAPTURE) {
 			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
