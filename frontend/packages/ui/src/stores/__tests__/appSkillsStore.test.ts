@@ -20,6 +20,17 @@ describe("appSkillsStore", () => {
     resetUserAvailableSkills();
   });
 
+  // contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability,workspace-shell.nav.released-surfaces-visible
+  it("keeps unreleased workspace apps hidden until feature availability confirms they are enabled", () => {
+    const apps = appSkillsStore.getState().apps;
+
+    expect(apps.plans).toBeUndefined();
+    expect(apps.projects).toBeUndefined();
+    expect(apps.tasks).toBeUndefined();
+    expect(apps.workflows).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("omits deactivated Diagrams app metadata", () => {
     userAvailableSkillsStore.set({
       initialized: true,
@@ -35,6 +46,7 @@ describe("appSkillsStore", () => {
     expect(apps.diagrams).toBeUndefined();
   });
 
+  // contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("omits apps disabled by effective feature availability", () => {
     featureAvailabilityStore.set({
       initialized: true,
@@ -47,6 +59,7 @@ describe("appSkillsStore", () => {
     expect(apps.videos).toBeUndefined();
   });
 
+  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("filters disabled skills and recomputes providers", () => {
     featureAvailabilityStore.set({
       initialized: true,
@@ -60,6 +73,7 @@ describe("appSkillsStore", () => {
     expect(web.providers ?? []).not.toContain("Brave");
   });
 
+  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("filters disabled settings and memory fields", () => {
     featureAvailabilityStore.set({
       initialized: true,
@@ -72,6 +86,7 @@ describe("appSkillsStore", () => {
     expect(ai.settings_and_memories.some((memory) => memory.id === "communication_style")).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("overlays runtime provider and model availability from app metadata", () => {
     userAvailableSkillsStore.set({
       initialized: true,

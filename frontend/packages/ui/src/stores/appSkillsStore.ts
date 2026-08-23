@@ -34,8 +34,25 @@ interface FeatureAvailabilityState {
     loading: boolean;
 }
 
+const CLIENT_DEFAULT_DISABLED_FEATURE_IDS = [
+    'platform:projects',
+    'platform:plans',
+    'platform:tasks',
+    'platform:workflows',
+    'app:projects',
+    'app:plans',
+    'app:tasks',
+    'app:workflows',
+    'app:life_coaching',
+    'app:plants',
+];
+
+function defaultDisabledFeatures(): Record<string, true> {
+    return Object.fromEntries(CLIENT_DEFAULT_DISABLED_FEATURE_IDS.map(featureId => [featureId, true]));
+}
+
 const initialFeatureAvailabilityState: FeatureAvailabilityState = {
-    disabledById: null,
+    disabledById: defaultDisabledFeatures(),
     initialized: false,
     loading: false,
 };
@@ -55,7 +72,7 @@ export async function initializeFeatureAvailability(force: boolean = false): Pro
 
         if (!response.ok) {
             console.warn(`[AppSkillsStore] /v1/features/availability returned ${response.status}, skipping feature availability filtering`);
-            featureAvailabilityStore.set({ disabledById: null, initialized: true, loading: false });
+            featureAvailabilityStore.set({ disabledById: defaultDisabledFeatures(), initialized: true, loading: false });
             return;
         }
 
@@ -69,9 +86,9 @@ export async function initializeFeatureAvailability(force: boolean = false): Pro
 
         featureAvailabilityStore.set({ disabledById, initialized: true, loading: false });
     } catch (e) {
-        // Fail open for app metadata so offline/static catalog browsing still works.
+        // Keep known unreleased entry points hidden even when the availability API is unreachable.
         console.warn('[AppSkillsStore] Failed to fetch feature availability, skipping filtering:', e);
-        featureAvailabilityStore.set({ disabledById: null, initialized: true, loading: false });
+        featureAvailabilityStore.set({ disabledById: defaultDisabledFeatures(), initialized: true, loading: false });
     }
 }
 
@@ -226,7 +243,7 @@ class AppSkillsStore {
 
         const annotatedApps: Record<string, AppMetadata> = {};
         const featureAvailability = get(featureAvailabilityStore);
-        const disabledById = featureAvailability.initialized ? featureAvailability.disabledById : null;
+        const disabledById = featureAvailability.disabledById;
         const featureEnabled = (featureId: string): boolean => disabledById ? disabledById[featureId] !== true : true;
 
         for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
