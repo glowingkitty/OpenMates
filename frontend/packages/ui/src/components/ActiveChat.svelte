@@ -16035,12 +16035,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-history-state {
         position: absolute;
         z-index: var(--z-index-raised-1);
-        top: 50%;
+        top: max(calc(35vh + var(--spacing-8)), 280px);
         left: 50%;
         display: flex;
         align-items: center;
         gap: var(--spacing-3);
-        transform: translate(-50%, -50%);
+        transform: translateX(-50%);
         color: var(--color-grey-70);
         font-size: var(--font-size-sm);
     }
