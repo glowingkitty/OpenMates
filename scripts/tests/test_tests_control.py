@@ -1216,7 +1216,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
             {"kind": "checkpoint", "id": "ready", "at_ms": 100},
             {"kind": "action", "id": "reload-page", "start_ms": 2500, "end_ms": 4100},
         ],
-        "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
+        "assertion_results": [{"id": "welcome.visible", "status": "passed", "at_ms": 180}],
         "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
     }), encoding="utf-8")
     record_path = tests_control.PROOF_SOURCE_DIR / "record.json"
@@ -1271,7 +1271,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     produce_kwargs = calls["produce"]
     assert produce_kwargs["source"]["browser_domain"] == "app.dev.openmates.org"
     assert produce_kwargs["source"]["state_change_timestamps"] == [0.1]
-    assert produce_kwargs["source"]["state_change_timestamps_by_id"] == {"ready": 0.1}
+    assert produce_kwargs["source"]["state_change_timestamps_by_id"] == {"ready": 0.1, "welcome.visible": 0.18}
     assert produce_kwargs["source"]["action_timestamps"] == [2.5, 4.1]
     assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert produce_kwargs["playback_rate"] > 1.0

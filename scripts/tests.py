@@ -1678,6 +1678,11 @@ def auto_finalize_proof_video_sources(
             for item in timeline_events
             if item.get("kind") == "checkpoint" and item.get("id") and item.get("at_ms") is not None
         }
+        assertion_times_by_id = {
+            str(item.get("id")): float(item.get("at_ms") or 0) / 1000
+            for item in assertion_events
+            if item.get("id") and item.get("at_ms") is not None
+        }
         action_times: list[float] = []
         for item in timeline_events:
             if item.get("kind") != "action":
@@ -1707,7 +1712,7 @@ def auto_finalize_proof_video_sources(
             "browser_domain": str(claims.get("domain") or contract.get("domain") or ""),
             "action_timestamps": action_times,
             "state_change_timestamps": checkpoint_times,
-            "state_change_timestamps_by_id": checkpoint_times_by_id,
+            "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_times_by_id},
         }
         manifest = active_produce_hook(
             run_dir=run_dir,
