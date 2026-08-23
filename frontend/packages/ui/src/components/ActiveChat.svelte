@@ -3466,11 +3466,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
+        const sanitizeVisibleDraftPreview = (value: string | null): string | null => {
+            const sanitized = value?.replace(/\s*<<<TEST_LIVE_MOCK:[^>]+>>>\s*/g, ' ').replace(/\s+/g, ' ').trim() || null;
+            return sanitized;
+        };
+
         if (isDraftOnly) {
             try {
                 const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
                 if (toDecrypt) {
-                    draftPreview = await decryptWithMasterKey(toDecrypt);
+                    draftPreview = sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
                 }
             } catch {
                 draftPreview = null;
@@ -3485,7 +3490,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
+            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }

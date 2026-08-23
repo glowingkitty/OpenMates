@@ -1330,8 +1330,9 @@
     untrack(() => updateMessages(incomingMessages));
   });
 
+  const COMPOSER_CLEARANCE_PX = 24;
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight - 30)}px`);
+  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight + COMPOSER_CLEARANCE_PX)}px`);
 
   // PII visibility: derive whether PII is revealed for the current chat.
   // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
