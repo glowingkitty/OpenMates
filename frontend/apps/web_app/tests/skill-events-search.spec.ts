@@ -70,6 +70,15 @@ const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.e
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const SHOULD_CAPTURE_MOBILE_RELOAD = !IS_PROOF_CAPTURE || PROOF_VIDEO_WIDTH === 390;
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_CLEAN_CHROME_STYLE = `
+html[data-events-proof-clean='true'] .top-buttons,
+html[data-events-proof-clean='true'] [data-testid='message-input-wrapper'] {
+	display: none !important;
+}
+html[data-events-proof-clean='true'] [data-testid='active-chat-container'] {
+	padding-bottom: 0 !important;
+}
+`;
 const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 	id: 'events-search-map-response',
 	title: 'Events search map response proof',
@@ -257,8 +266,16 @@ test.describe('App: Events / Skill: search', () => {
 				captureFrame: () => page.screenshot({ type: 'png' })
 			})
 			: null;
+		const applyProofCleanChrome = async () => {
+			if (!proof) return;
+			await page.addStyleTag({ content: PROOF_CLEAN_CHROME_STYLE });
+			await page.evaluate(() => {
+				document.documentElement.dataset.eventsProofClean = 'true';
+			});
+		};
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await applyProofCleanChrome();
 		await startNewChat(page, logCheckpoint);
 		await dismissVisibleNotifications(page);
 
@@ -372,6 +389,7 @@ test.describe('App: Events / Skill: search', () => {
 
 		const reloadAndAwaitResults = async () => {
 			await page.reload({ waitUntil: 'domcontentloaded' });
+			await applyProofCleanChrome();
 			const view = page.getByTestId('embeds-map-view').last();
 			await expect(view).toBeVisible({ timeout: 60_000 });
 			await expect(view.getByTestId('embeds-map-view-card').first()).toBeVisible({
