@@ -26,7 +26,11 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
+const {
+	submitPasswordAndHandleOtp,
+	waitForChatReady,
+	deleteActiveChat: deleteActiveChatBestEffort
+} = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -69,23 +73,6 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await page.waitForTimeout(5000);
 }
 
-async function deleteActiveChat(page: any, log: any): Promise<void> {
-	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
-	}
-	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
-	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.getByTestId('chat-context-delete');
-	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
-	await deleteBtn.click();
-	await deleteBtn.click(); // second click confirms
-	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-	log('Chat deleted.');
-}
-
 /**
  * Get a date/time string ~1 minute from now in the local timezone,
  * suitable for filling date and time input fields.
@@ -102,6 +89,7 @@ function getOneMinuteFromNow(): { date: string; time: string } {
 // Test
 // ---------------------------------------------------------------------------
 
+// contract-test: infrastructure
 test('reminder — settings page: create reminder via top-bar button and verify it fires', async ({
 	page
 }: {
@@ -229,6 +217,6 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await screenshot(page, 'test-complete');
 
 	// ── Cleanup ──
-	await deleteActiveChat(page, log);
+	await deleteActiveChatBestEffort(page, log, screenshot, 'reminder-settings-cleanup');
 	log('PASSED.');
 });
