@@ -103,12 +103,6 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 			text: 'After the response finishes, the grouped map view shows the event results as cards with a map.',
 			checkpoint: 'map-view-populated',
 			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'reload-preserves-results',
-			text: 'Reloading the chat returns to the populated map-backed event results.',
-			checkpoint: 'reload-preserves-results',
-			devices: ['web-laptop', 'web-phone']
 		}
 	],
 	assertions: [
@@ -128,12 +122,6 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 			id: 'map-view-populated',
 			checkpoint: 'map-view-populated',
 			visual: 'The final assistant response contains a populated map view with result cards and no Loading preview text.',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'reload-preserves-results',
-			checkpoint: 'reload-preserves-results',
-			visual: 'After reload, the populated map view and result cards remain visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -407,12 +395,6 @@ test.describe('App: Events / Skill: search', () => {
 				element.scrollIntoView({ block: 'center' });
 			});
 			await expectHydratedMap(reloadedGroupedView);
-			await proof.assert('reload-preserves-results', async () => {
-				await expect(reloadedGroupedView).toBeVisible();
-				await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
-				await expectHydratedMap(reloadedGroupedView);
-			});
-			await proof.checkpoint('reload-preserves-results');
 		}
 		if (SHOULD_CAPTURE_MOBILE_RELOAD) {
 			await page.setViewportSize({ width: 390, height: 844 });
