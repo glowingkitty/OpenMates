@@ -257,7 +257,7 @@ describe("EmbedsMapView", () => {
         id: "map-view-1",
         title: "Berlin AI events",
         embedRefs: [],
-        sourceRefs: ["events-search-abcdef"],
+        sourceRefs: ["embed:events-search-abcdef"],
         highlightRefs: ["place-two-222222"],
       },
     });

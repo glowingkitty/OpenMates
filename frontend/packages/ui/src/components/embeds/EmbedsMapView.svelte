@@ -207,14 +207,21 @@
   });
   const showVisualTabs = $derived(visualTabs.length > 1);
 
+  function normalizeMapViewRef(ref: string): string {
+    const trimmed = ref.trim();
+    return trimmed.startsWith('embed:') ? trimmed.slice('embed:'.length) : trimmed;
+  }
+
   function uniqueRefs(refs: string[]): string[] {
     const seen = new Set<string>();
-    return refs.filter((ref) => {
-      const trimmed = ref.trim();
-      if (!trimmed || seen.has(trimmed)) return false;
+    const output: string[] = [];
+    for (const ref of refs) {
+      const trimmed = normalizeMapViewRef(ref);
+      if (!trimmed || seen.has(trimmed)) continue;
       seen.add(trimmed);
-      return true;
-    });
+      output.push(trimmed);
+    }
+    return output;
   }
 
   function firstString(...values: unknown[]): string {
