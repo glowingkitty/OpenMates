@@ -376,7 +376,7 @@ describe("EmbedsMapView", () => {
 
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Map");
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Calendar");
-    expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).not.toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).toBeNull();
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')).not.toBeNull();
 
