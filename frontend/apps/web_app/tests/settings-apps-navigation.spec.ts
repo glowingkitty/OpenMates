@@ -14,6 +14,7 @@ const { test, expect } = require('./console-monitor');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const SETTINGS_TIMEOUT = 15_000;
+const INACTIVE_APP_IDS = ['plans', 'projects', 'tasks', 'workflows'];
 
 async function openSettings(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -55,8 +56,12 @@ async function expectAppsCatalogLoaded(settingsMenu: any): Promise<void> {
 	await expect(settingsMenu.getByTestId('app-store-card').first()).toBeVisible({
 		timeout: SETTINGS_TIMEOUT
 	});
+	for (const appId of INACTIVE_APP_IDS) {
+		await expect(settingsMenu.locator(`[data-testid="app-store-card"][data-app-id="${appId}"]`)).toHaveCount(0);
+	}
 }
 
+// contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability,workspace-shell.nav.released-surfaces-visible
 test('guest Apps catalog survives settings navigation and opens app details', async ({
 	page
 }: {
@@ -90,6 +95,7 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	});
 });
 
+// contract-test: supporting surface=gui.web assertions=settings-ui.shell.lifecycle-and-routing
 test('combined chat settings deep link hydrates chat context after reload', async ({
 	page
 }: {
