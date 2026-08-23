@@ -275,13 +275,13 @@ test.describe('App: Events / Skill: search', () => {
 		};
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await applyProofCleanChrome();
 		await startNewChat(page, logCheckpoint);
 		await dismissVisibleNotifications(page);
 
 		const message = 'I am planning two Berlin weekends: June 20-21, 2026 and June 27-28, 2026. Find tech events for each weekend and compare the options with event cards and a map.';
 		const testMockMarker = withLiveMockMarker('', 'events_search_web').trim();
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'events-search', { testMockMarker });
+		await applyProofCleanChrome();
 		await dismissVisibleNotifications(page);
 		if (proof) {
 			await proof.assert('request-visible', async () => {
