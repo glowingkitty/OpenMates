@@ -46,6 +46,8 @@ except ModuleNotFoundError:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
+PROOF_CAPTURE_END_BUFFER_SECONDS = 4.0
+PROOF_CAPTURE_DURATION_PADDING_SECONDS = 0.5
 STATE_FILE = RESULTS_DIR / "tests-state.json"
 HISTORY_FILE = RESULTS_DIR / "tests-history.jsonl"
 LEASES_FILE = RESULTS_DIR / "failed-test-leases.json"
@@ -1693,9 +1695,23 @@ def auto_finalize_proof_video_sources(
         assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
         ready_times = [value for value in [*checkpoint_times, *action_times, *assertion_times] if value >= 0]
         ready_timestamp_seconds = min(ready_times) if ready_times else None
-        source_duration_seconds = float(active_source_duration_hook(source_video))
+        source_media_duration_seconds = float(active_source_duration_hook(source_video))
+        proof_end_times = [value for value in [*checkpoint_times, *assertion_times] if value >= 0]
+        source_end_timestamp_seconds = (
+            min(source_media_duration_seconds, max(proof_end_times) + PROOF_CAPTURE_END_BUFFER_SECONDS)
+            if proof_end_times
+            else None
+        )
+        source_duration_seconds = source_media_duration_seconds
         if ready_timestamp_seconds is not None:
-            source_duration_seconds = max(0.001, source_duration_seconds - marker_trim_start(ready_timestamp_seconds=ready_timestamp_seconds))
+            trim_start_seconds = marker_trim_start(ready_timestamp_seconds=ready_timestamp_seconds)
+            if source_end_timestamp_seconds is not None:
+                source_duration_seconds = max(
+                    0.001,
+                    source_end_timestamp_seconds - trim_start_seconds + PROOF_CAPTURE_DURATION_PADDING_SECONDS,
+                )
+            else:
+                source_duration_seconds = max(0.001, source_media_duration_seconds - trim_start_seconds)
         transcript_words = len(re.findall(r"\S+", str(claims.get("caption_text") or "")))
         pacing = calculate_pacing(source_duration_seconds=source_duration_seconds, transcript_words=transcript_words)
         source = {
@@ -1714,6 +1730,8 @@ def auto_finalize_proof_video_sources(
             "state_change_timestamps": checkpoint_times,
             "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_times_by_id},
         }
+        if source_end_timestamp_seconds is not None:
+            source["source_end_timestamp_seconds"] = round(source_end_timestamp_seconds, 3)
         manifest = active_produce_hook(
             run_dir=run_dir,
             source_video=source_video,

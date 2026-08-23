@@ -834,6 +834,7 @@ def trim_source_to_ready_marker(
     output_path: Path,
     *,
     ready_timestamp_seconds: float,
+    end_timestamp_seconds: float | None = None,
     lead_seconds: float = CAPTURE_READY_TRIM_LEAD_SECONDS,
 ) -> dict[str, Any]:
     """Accurately trim loading/setup frames using an explicit capture marker."""
@@ -845,15 +846,25 @@ def trim_source_to_ready_marker(
     duration = media_duration_seconds(source_path)
     if trim_start >= duration:
         raise DemonstrationError("Capture-ready marker is outside the source video")
+    trim_end = duration
+    if end_timestamp_seconds is not None:
+        if end_timestamp_seconds <= trim_start:
+            raise DemonstrationError("Capture end marker must be after the trim start")
+        trim_end = round(min(duration, end_timestamp_seconds), 3)
+    trim_duration = round(trim_end - trim_start, 3)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(source_path),
+        "-ss",
+        str(trim_start),
+    ]
+    if trim_duration < duration - trim_start:
+        command.extend(["-t", str(trim_duration)])
+    command.extend(
         [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(source_path),
-            "-ss",
-            str(trim_start),
             "-c:v",
             "libx264",
             "-preset",
@@ -867,7 +878,10 @@ def trim_source_to_ready_marker(
             "-map_chapters",
             "-1",
             str(output_path),
-        ],
+        ]
+    )
+    result = subprocess.run(
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -877,6 +891,8 @@ def trim_source_to_ready_marker(
     return {
         "ready_timestamp_seconds": round(ready_timestamp_seconds, 3),
         "trim_start_seconds": trim_start,
+        "trim_end_seconds": trim_end,
+        "source_end_timestamp_seconds": round(end_timestamp_seconds, 3) if end_timestamp_seconds is not None else None,
         "source_duration_seconds": duration,
         "trimmed_duration_seconds": video_metadata(output_path)["duration_seconds"],
     }
@@ -1456,6 +1472,9 @@ def produce_playwright_demonstration(
             source_video,
             render_source_video,
             ready_timestamp_seconds=ready_timestamp_seconds,
+            end_timestamp_seconds=float(selected["source_end_timestamp_seconds"])
+            if selected.get("source_end_timestamp_seconds") is not None
+            else None,
         )
         trim_start_seconds = float(trim_metadata.get("trim_start_seconds") or 0.0)
     source_metadata = video_metadata(render_source_video)

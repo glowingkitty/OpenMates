@@ -1272,9 +1272,10 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     assert produce_kwargs["source"]["browser_domain"] == "app.dev.openmates.org"
     assert produce_kwargs["source"]["state_change_timestamps"] == [0.1]
     assert produce_kwargs["source"]["state_change_timestamps_by_id"] == {"ready": 0.1, "welcome.visible": 0.18}
+    assert produce_kwargs["source"]["source_end_timestamp_seconds"] == 4.18
     assert produce_kwargs["source"]["action_timestamps"] == [2.5, 4.1]
     assert produce_kwargs["ready_timestamp_seconds"] == 0.1
-    assert produce_kwargs["playback_rate"] > 1.0
+    assert produce_kwargs["playback_rate"] == 1.0
     assert produce_kwargs["hold_last_frame_seconds"] == 0.0
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."

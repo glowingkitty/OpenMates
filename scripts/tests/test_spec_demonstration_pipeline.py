@@ -803,6 +803,42 @@ def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> 
     assert green < 50
 
 
+def test_ready_marker_trim_can_exclude_cleanup_tail(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "trimmed.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=320x240:r=10:d=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:s=320x240:r=10:d=1",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1:a=0",
+            str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    metadata = module.trim_source_to_ready_marker(
+        source,
+        output,
+        ready_timestamp_seconds=0,
+        end_timestamp_seconds=1.0,
+        lead_seconds=0,
+    )
+
+    assert metadata["trim_end_seconds"] == 1.0
+    assert metadata["trimmed_duration_seconds"] < 1.2
+
+
 def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
