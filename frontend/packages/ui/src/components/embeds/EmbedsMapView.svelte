@@ -925,8 +925,9 @@
   }
 
   async function resolveRefToId(ref: string): Promise<string | null> {
-    const indexed = await embedStore.resolveByRefDeep(ref);
-    return indexed || ref;
+    const normalizedRef = normalizeMapViewRef(ref);
+    const indexed = await embedStore.resolveByRefDeep(normalizedRef);
+    return indexed || normalizedRef;
   }
 
   async function resolveEntry(ref: string): Promise<MapViewEntry> {
