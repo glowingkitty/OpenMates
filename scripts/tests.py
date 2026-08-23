@@ -5340,6 +5340,11 @@ def main(argv: list[str] | None = None) -> int:
         runner_args = raw_argv[1:]
         if runner_args and runner_args[0] == "--":
             runner_args = runner_args[1:]
+        if any(arg in {"-h", "--help"} for arg in runner_args):
+            return subprocess.run(
+                [sys.executable, str(RUN_TESTS_SCRIPT), *runner_args],
+                cwd=PROJECT_ROOT,
+            ).returncode
         return command_run(runner_args)
 
     parser = argparse.ArgumentParser(description="OpenMates unified test control plane")

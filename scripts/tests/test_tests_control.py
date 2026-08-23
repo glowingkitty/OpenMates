@@ -627,6 +627,29 @@ def test_main_strips_run_passthrough_sentinel(tmp_path, monkeypatch):
     assert seen_args == [["--suite", "vitest"]]
 
 
+def test_main_delegates_run_help_without_recording_started_run(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen_commands = []
+
+    def fail_command_run(_args):
+        raise AssertionError("run --help must not enter command_run")
+
+    def fake_subprocess_run(command, cwd=None):
+        seen_commands.append((command, cwd))
+        return tests_control.subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(tests_control, "command_run", fail_command_run)
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_subprocess_run)
+
+    assert tests_control.main(["run", "--help"]) == 0
+    assert seen_commands == [
+        (
+            [sys.executable, str(tests_control.RUN_TESTS_SCRIPT), "--help"],
+            tests_control.PROJECT_ROOT,
+        )
+    ]
+
+
 def test_commit_prefix_matching_accepts_short_or_long_sha(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
