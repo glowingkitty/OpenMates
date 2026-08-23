@@ -3401,8 +3401,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         priorityContinueItems = [];
         recentChatTiltStates = [];
         recentChatsScrolledByUser = false;
+        welcomeContinueContextTeamId = undefined;
     }
 
+    let welcomeContinueContextTeamId = $state<string | null | undefined>(undefined);
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
     let priorityContinueChatIds = $derived.by(() => new Set(
@@ -3588,7 +3590,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
-            priorityContinueItems = [];
         }
     }
 
@@ -3741,14 +3742,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         if (isAuth) {
+            const contextChanged = welcomeContinueContextTeamId !== contextTeamId;
+            welcomeContinueContextTeamId = contextTeamId;
             nonAuthRecentChatsRequestId++;
             nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             guestAllExamplesVisible = false;
-            recentChatsScrolledByUser = false;
-            recentChatTiltStates = [];
-            recentChats = [];
-            priorityContinueItems = [];
+            if (contextChanged) {
+                recentChatsScrolledByUser = false;
+                recentChatTiltStates = [];
+                recentChats = [];
+                priorityContinueItems = [];
+            }
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
