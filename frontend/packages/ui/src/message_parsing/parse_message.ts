@@ -108,6 +108,10 @@ function createInlineEmbedNodeFromRawRef(
   };
 }
 
+function normalizeBareEmbedRef(rawRef: string): string {
+  return rawRef.startsWith("embed:") ? rawRef.slice("embed:".length) : rawRef;
+}
+
 function convertBareEmbedRefGroupsInTextNode(
   node: any,
   fallbackAppId: string | null,
@@ -130,12 +134,13 @@ function convertBareEmbedRefGroupsInTextNode(
       .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
     const resolvedRefs = refs
       .map((ref) => {
-        const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef;
+        const normalizedRef = normalizeBareEmbedRef(ref);
+        const resolvedRef = resolveEmbedRefIndexReference(normalizedRef)?.embedRef;
         if (resolvedRef) return resolvedRef;
         // Cold shared-chat loads may parse messages before encrypted child embeds
         // warm the in-memory ref index. Domain-shaped refs are already specific
         // enough to render as inline links and self-repair through EmbedInlineLink.
-        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(ref) ? ref : null;
+        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(normalizedRef) ? normalizedRef : null;
       })
       .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
 

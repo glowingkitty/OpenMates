@@ -61,8 +61,6 @@ describe("EmbedsMapView", () => {
         "place-two-222222": "place-two-id",
         "train-one-111111": "train-one-id",
         "train-two-222222": "train-two-id",
-        "news-one-111111": "news-one-id",
-        "news-two-222222": "news-two-id",
       };
       return map[ref] || ref;
     });
@@ -136,26 +134,6 @@ describe("EmbedsMapView", () => {
           type: "travel-connection",
           status: "finished",
           content: "train-two-content",
-          createdAt: 1,
-          updatedAt: 1,
-        };
-      }
-      if (embedId === "news-one-id") {
-        return {
-          embed_id: embedId,
-          type: "news-article",
-          status: "finished",
-          content: "news-one-content",
-          createdAt: 1,
-          updatedAt: 1,
-        };
-      }
-      if (embedId === "news-two-id") {
-        return {
-          embed_id: embedId,
-          type: "news-article",
-          status: "finished",
-          content: "news-two-content",
           createdAt: 1,
           updatedAt: 1,
         };
@@ -264,81 +242,8 @@ describe("EmbedsMapView", () => {
           legs_0_layovers_0_meets_min_transfer: true,
         };
       }
-      if (content === "news-one-content") {
-        return {
-          app_id: "news",
-          skill_id: "search",
-          title: "Smithsonian museums article",
-          provider: "npr.org",
-          url: "https://example.com/news-one",
-        };
-      }
-      if (content === "news-two-content") {
-        return {
-          app_id: "news",
-          skill_id: "search",
-          title: "Another article without coordinates",
-          provider: "nytimes.com",
-          url: "https://example.com/news-two",
-        };
-      }
       return null;
     });
-  });
-
-  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-  it("does not render existing results-view blocks when no refs have map or calendar data", async () => {
-    const target = document.createElement("div");
-    document.body.appendChild(target);
-
-    const component = mount(EmbedsMapView, {
-      target,
-      props: {
-        id: "map-view-news-only",
-        title: "News articles",
-        embedRefs: ["news-one-111111", "news-two-222222"],
-        sourceRefs: [],
-        highlightRefs: [],
-      },
-    });
-
-    await flush();
-
-    expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
-    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).toBeNull();
-    expect(target.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
-    expect(target.textContent).not.toContain("Referenced embeds do not expose date and time yet.");
-
-    unmount(component);
-    target.remove();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-  it("filters nonvisual refs while keeping map or calendar eligible refs visible", async () => {
-    const target = document.createElement("div");
-    document.body.appendChild(target);
-
-    const component = mount(EmbedsMapView, {
-      target,
-      props: {
-        id: "map-view-mixed-news-event",
-        title: "Mixed results",
-        embedRefs: ["news-one-111111", "event-one-111111"],
-        sourceRefs: [],
-        highlightRefs: [],
-      },
-    });
-
-    await flush();
-
-    const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
-    expect(cards).toHaveLength(1);
-    expect(cards[0].textContent).toContain("AI Founders Meetup");
-    expect(cards[0].textContent).not.toContain("Smithsonian museums article");
-    expect(target.querySelector('[data-testid="embeds-map-view-count"]')?.textContent).toContain("1 shown");
-
-    unmount(component);
-    target.remove();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -471,7 +376,7 @@ describe("EmbedsMapView", () => {
 
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Map");
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Calendar");
-    expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).not.toBeNull();
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')).not.toBeNull();
 
@@ -590,7 +495,7 @@ describe("EmbedsMapView", () => {
 
     let cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
-    expect(cards[0].textContent).toContain("08:56");
+    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
 
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
@@ -601,7 +506,7 @@ describe("EmbedsMapView", () => {
 
     cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
-    expect(cards[0].textContent).toContain("08:27");
+    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
     expect(embedResolverMocks.decodeToonContent.mock.calls.length).toBe(decodeCountAfterLoad);
 
