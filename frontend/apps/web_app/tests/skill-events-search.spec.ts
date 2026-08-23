@@ -337,6 +337,16 @@ test.describe('App: Events / Skill: search', () => {
 				await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 			});
 			await proof.checkpoint('map-view-populated');
+			if (PROOF_DEVICE === 'web-phone') {
+				await finalGroupedView.evaluate((element: HTMLElement) => {
+					element.scrollIntoView({ block: 'start' });
+				});
+				await proof.assert('phone-layout-visible', async () => {
+					await expect(finalGroupedView).toBeVisible();
+					await expect(finalGroupedCards.first()).toBeVisible();
+				});
+				await proof.checkpoint('phone-layout-visible');
+			}
 		}
 
 		if (!IS_PROOF_CAPTURE) {
