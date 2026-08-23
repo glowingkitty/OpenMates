@@ -3222,7 +3222,12 @@
 
   @media (max-width: 730px) {
     .chat-history-content.has-messages {
-      padding-inline: 55px;
+      padding-top: 70px;
+      padding-inline: 0;
+    }
+
+    .chat-history-content.has-messages.has-header {
+      padding-top: var(--spacing-6);
     }
   }
 

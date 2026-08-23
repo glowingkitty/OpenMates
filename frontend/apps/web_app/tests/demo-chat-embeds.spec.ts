@@ -21,7 +21,12 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
+const MOBILE_CHAT_VIEWPORT = { width: 390, height: 844 };
+const MIN_MOBILE_TRANSCRIPT_WIDTH_RATIO = 0.88;
+const MAX_MOBILE_HORIZONTAL_OVERFLOW_PX = 8;
+
 test.describe('Demo chat embed rendering', () => {
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('embeds inside demo chats render for unauthenticated users', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -110,6 +115,7 @@ test.describe('Demo chat embed rendering', () => {
 		).toBeGreaterThan(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('uploaded demo image shows authentic Sightengine detection details', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -138,6 +144,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(authenticityBadge).toContainText('human judgment');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Urban Sports inline location link opens fitness result fullscreen', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -156,6 +163,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fitnessResultFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('flight inline links render with spaced large previews', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -171,6 +179,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(largePreview).toHaveCSS('margin-top', '8px');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Deutschlandticket app skill preview stays compact in the public example chat', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -193,6 +202,7 @@ test.describe('Demo chat embed rendering', () => {
 		expect(await largeAppSkillNodes.count()).toBe(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('Berlin Mitte app skill previews stay compact in one horizontal group', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -215,6 +225,43 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(appSkillGroup.getByTestId('app-skill-embed-group-scroll')).toHaveCSS('overflow-x', /auto|scroll/);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+	test('mobile public example chat transcript uses the full active chat width', async ({ page }) => {
+		test.setTimeout(90000);
+		await page.setViewportSize(MOBILE_CHAT_VIEWPORT);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-berlin-mitte-work-friendly'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('chat-history-content')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 30000 });
+
+		const metrics = await page.evaluate(() => {
+			const container = document.querySelector<HTMLElement>('[data-testid="chat-history-container"]');
+			const content = document.querySelector<HTMLElement>('[data-testid="chat-history-content"]');
+			if (!container || !content) {
+				throw new Error('Missing chat history layout elements');
+			}
+
+			const containerRect = container.getBoundingClientRect();
+			const contentRect = content.getBoundingClientRect();
+			return {
+				containerWidth: containerRect.width,
+				contentWidth: contentRect.width,
+				viewportWidth: window.innerWidth,
+				horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth
+			};
+		});
+
+		expect(
+			metrics.contentWidth / metrics.containerWidth,
+			`Mobile transcript should not be squeezed into side gutters: ${JSON.stringify(metrics)}`
+		).toBeGreaterThanOrEqual(MIN_MOBILE_TRANSCRIPT_WIDTH_RATIO);
+		expect(metrics.horizontalOverflow, `Mobile transcript should not create page overflow: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(MAX_MOBILE_HORIZONTAL_OVERFLOW_PX);
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -245,6 +292,7 @@ test.describe('Demo chat embed rendering', () => {
 		expect(await previewStartAttempt).toBe('not-started');
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('generated video example opens generated-video fullscreen instead of YouTube fullscreen', async ({ page }) => {
 		test.setTimeout(90000);
 
@@ -286,6 +334,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fullscreenOverlay.getByRole('link', { name: /open on youtube/i })).toHaveCount(0);
 	});
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('public screenshot-to-html example opens generated code fullscreen from app skill card', async ({ page }) => {
 		test.setTimeout(90000);
 
