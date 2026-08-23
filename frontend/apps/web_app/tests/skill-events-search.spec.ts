@@ -94,13 +94,13 @@ const EVENTS_SEARCH_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'events-embed-visible',
-			text: 'The assistant runs the Events search skill and streams event result cards into the response.',
+			text: 'The assistant runs the Events search skill, streams event cards, and continues updating results until the response finishes.',
 			checkpoint: 'events-embed-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'map-view-populated',
-			text: 'After the response finishes, the grouped map view shows the event results as cards with a map.',
+			text: 'The populated map view is visible.',
 			checkpoint: 'map-view-populated',
 			devices: ['web-laptop', 'web-phone']
 		}
