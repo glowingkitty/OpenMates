@@ -1469,6 +1469,10 @@ async def stream_code_run_status(
             await websocket.send_json(payload)
             update_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
             if update_payload.get("status") in TERMINAL_RUN_STATUSES:
+                raw = await client.get(_execution_key(execution_id))
+                if raw:
+                    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+                    await websocket.send_json({"type": "code_run_snapshot", "payload": data})
                 break
     except WebSocketDisconnect:
         logger.debug("Code Run stream disconnected for execution %s", execution_id)

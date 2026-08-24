@@ -143,6 +143,7 @@ from backend.core.api.app.routes.code_execution import (
     _safe_filename,
     _validate_dependency_manifest,
     cancel_code_run,
+    stream_code_run_status,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.code_run_output_handlers import (
     _impl_upsert,
@@ -196,6 +197,77 @@ class FakeCache:
 
     async def publish_event(self, channel: str, payload: dict):
         return None
+
+
+class FakeCodeRunStreamCache:
+    def __init__(self, execution_id: str):
+        self.execution_id = execution_id
+        self.redis = FakeRedis({})
+        self.redis.values[_execution_key(execution_id)] = json.dumps({
+            "execution_id": execution_id,
+            "user_id_hash": USER_HASH,
+            "status": "running",
+            "events": [],
+        }).encode()
+
+    @property
+    def client(self):
+        async def _client():
+            return self.redis
+
+        return _client()
+
+    async def subscribe_to_channel(self, _channel: str):
+        finished = {
+            "execution_id": self.execution_id,
+            "user_id_hash": USER_HASH,
+            "status": "finished",
+            "events": [
+                {"kind": "stdout", "text": "Hello, World!\n", "timestamp": 1.0},
+                {"kind": "status", "text": "Exited with code 0\n", "timestamp": 2.0},
+            ],
+        }
+        self.redis.values[_execution_key(self.execution_id)] = json.dumps(finished).encode()
+        yield {"data": {"type": "code_run_update", "payload": {"status": "finished"}}}
+
+
+class FakeCodeRunWebSocket:
+    def __init__(self, cache_service: FakeCodeRunStreamCache):
+        self.app = SimpleNamespace(state=SimpleNamespace(cache_service=cache_service))
+        self.sent: list[dict] = []
+        self.accepted = False
+
+    async def accept(self):
+        self.accepted = True
+
+    async def send_json(self, payload: dict):
+        self.sent.append(payload)
+
+    async def close(self, **_kwargs):
+        return None
+
+
+# contract-test: direct surface=rest_api assertions=code-run.execution.stream-status-visible
+@pytest.mark.asyncio
+async def test_code_run_stream_sends_authoritative_terminal_snapshot():
+    execution_id = "execution-fast"
+    cache = FakeCodeRunStreamCache(execution_id)
+    websocket = FakeCodeRunWebSocket(cache)
+
+    await stream_code_run_status(websocket, execution_id, {"user_id": USER_ID})
+
+    assert websocket.accepted is True
+    assert [message["type"] for message in websocket.sent] == [
+        "code_run_snapshot",
+        "code_run_update",
+        "code_run_snapshot",
+    ]
+    final_snapshot = websocket.sent[-1]["payload"]
+    assert final_snapshot["status"] == "finished"
+    assert [event["text"] for event in final_snapshot["events"]] == [
+        "Hello, World!\n",
+        "Exited with code 0\n",
+    ]
 
 
 class FakeDirectusEmbed:
