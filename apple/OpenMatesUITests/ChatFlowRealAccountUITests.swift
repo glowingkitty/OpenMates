@@ -39,7 +39,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(
             disableAuthCache: true,
-            extraArguments: ["--ui-test-open-login"]
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"]
         )
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
