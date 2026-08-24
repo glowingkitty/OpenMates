@@ -154,6 +154,7 @@ async function selectInsideMessage(
 					if (!selection) return { selected: false, rect: null };
 					selection.removeAllRanges();
 					selection.addRange(range);
+					document.dispatchEvent(new Event('selectionchange'));
 					const r = range.getBoundingClientRect();
 					return { selected: true, rect: { x: r.x, y: r.y, width: r.width, height: r.height } };
 				}
@@ -214,6 +215,7 @@ function createProofRuntime(page: any, testInfo: any) {
 // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.open.local-first-coherent,notifications.web.stacked-deck
 test('explains selected assistant text in a background new chat', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
+	test.skip(IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone', 'Laptop proof is captured separately.');
 	test.setTimeout(300_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const proof = PROOF_DEVICE === 'web-laptop' ? createProofRuntime(page, testInfo) : null;
@@ -343,6 +345,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 // contract-test: supporting surface=gui.web assertions=message-input.actions.visibility
 test('selection toolbar wraps within a mobile viewport', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
+	test.skip(IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-laptop', 'Phone proof is captured separately.');
 	test.setTimeout(300_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const proof = PROOF_DEVICE === 'web-phone' ? createProofRuntime(page, testInfo) : null;
