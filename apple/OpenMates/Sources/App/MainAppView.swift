@@ -1003,7 +1003,7 @@ struct MainAppView: View {
         let shouldOpenLoginForUITest = false
         #endif
 
-        if shouldOpenLoginForUITest {
+        if shouldOpenLoginForUITest && !isAuthenticated {
             authFlowState.reset()
             authFlowState.authMode = .login
             showAuthSheet = true
