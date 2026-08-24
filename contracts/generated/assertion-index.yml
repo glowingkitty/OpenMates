@@ -9391,8 +9391,8 @@ assertions:
     supporting_tests:
     - &id1055
       path: frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
-      line: 58
-      name: appends code-file embeds without replacing the existing selection
+      line: 62
+      name: appends code-file embeds at the document end without using the selection
       surface: gui.web
     tests:
     - *id1054
@@ -9431,17 +9431,17 @@ assertions:
       surface: gui.web
     - &id1060
       path: frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
-      line: 58
-      name: appends code-file embeds without replacing the existing selection
+      line: 62
+      name: appends code-file embeds at the document end without using the selection
       surface: gui.web
     - &id1061
       path: frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
-      line: 73
+      line: 77
       name: inserts a local PDF placeholder for anonymous uploads
       surface: gui.web
     - &id1062
       path: frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
-      line: 93
+      line: 97
       name: skips anonymous mind map uploads because they need authenticated embed
         storage
       surface: gui.web

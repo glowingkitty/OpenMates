@@ -29,13 +29,17 @@ function createEditorStub() {
     isEmpty: false,
     state: {
       doc: {
+        content: { size: 1 },
         firstChild: {},
         descendants: vi.fn(),
       },
     },
     commands: {
       focus: vi.fn(),
-      insertContentAt: vi.fn(),
+      insertContentAt: vi.fn((_position: number, content: unknown) => {
+        inserted.push(content);
+        return true;
+      }),
       insertContent: vi.fn((content: unknown) => {
         inserted.push(content);
         return true;
@@ -55,7 +59,7 @@ function flattenInsertedEmbeds(inserted: unknown[]): InsertedEmbed[] {
 
 describe("processFiles", () => {
   // contract-test: supporting surface=gui.web assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
-  it("appends code-file embeds without replacing the existing selection", async () => {
+  it("appends code-file embeds at the document end without using the selection", async () => {
     const editor = createEditorStub();
     const file = new File(["print('preserve prompt')\n"], "preserve-prompt.py", {
       type: "text/x-python",
@@ -63,9 +67,9 @@ describe("processFiles", () => {
 
     await processFiles([file], editor as unknown as Parameters<typeof processFiles>[1], false);
 
-    expect(editor.chain).toHaveBeenCalledOnce();
-    const chain = editor.chain.mock.results[0]?.value;
-    expect(chain.focus).toHaveBeenCalledWith("end");
+    expect(editor.chain).not.toHaveBeenCalled();
+    expect(editor.commands.insertContentAt).toHaveBeenNthCalledWith(1, 1, expect.objectContaining({ type: "embed" }));
+    expect(editor.commands.insertContentAt).toHaveBeenNthCalledWith(2, 1, " ");
     expect(flattenInsertedEmbeds(editor.inserted)).toHaveLength(1);
   });
 
