@@ -3115,10 +3115,6 @@ enum ChatMessageAccessibilityPolicy {
 }
 
 enum ChatMessageStreamingRenderPolicy {
-    static func usesTransientPlainText(streamingContent: String?) -> Bool {
-        streamingContent != nil
-    }
-
     static func visibleContent(_ content: String) -> String {
         let lines = content.components(separatedBy: "\n")
         var visibleLines: [String] = []
@@ -3257,23 +3253,18 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var assistantMarkdownContent: some View {
-        if ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: streamingContent) {
-            Text(displayContent)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            RichMarkdownView(
-                content: displayContent,
-                renderDocument: stableRenderDocument,
-                isUserMessage: false,
-                onOpenPublicChat: onOpenPublicChat,
-                embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
-                allEmbedRecords: allEmbedRecords,
-                hiddenEmbedIds: hiddenInlineEmbedIds,
-                onEmbedTap: onEmbedTap,
-                onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
-                searchHighlightQuery: searchHighlightQuery
-            )
-        }
+        RichMarkdownView(
+            content: displayContent,
+            renderDocument: stableRenderDocument,
+            isUserMessage: false,
+            onOpenPublicChat: onOpenPublicChat,
+            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
+            allEmbedRecords: allEmbedRecords,
+            hiddenEmbedIds: hiddenInlineEmbedIds,
+            onEmbedTap: onEmbedTap,
+            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+            searchHighlightQuery: searchHighlightQuery
+        )
     }
 
     private var stableRenderDocument: ChatHistoryRenderDocument? {

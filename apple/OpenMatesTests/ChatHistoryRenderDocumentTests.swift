@@ -245,9 +245,10 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
-    func testStreamingRenderPolicyUsesTransientPlainTextOnlyForActiveStream() {
-        XCTAssertTrue(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: "partial answer"))
-        XCTAssertFalse(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: nil))
+    func testStreamingRenderPolicyPreservesVisibleMarkdownForRichRendering() {
+        let content = "Comparing **[Kyoto](wiki:Kyoto)** and [Osaka](wiki:Osaka)."
+
+        XCTAssertEqual(ChatMessageStreamingRenderPolicy.visibleContent(content), content)
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity

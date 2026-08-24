@@ -8343,11 +8343,11 @@ assertions:
     - &id945
       path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
       line: 248
-      name: testStreamingRenderPolicyUsesTransientPlainTextOnlyForActiveStream
+      name: testStreamingRenderPolicyPreservesVisibleMarkdownForRichRendering
       surface: gui.apple
     - &id946
       path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
-      line: 254
+      line: 255
       name: testStreamingRenderPolicyHidesInternalProtocolFences
       surface: gui.apple
     - &id948
