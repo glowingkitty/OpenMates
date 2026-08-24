@@ -32,6 +32,18 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
         let credentials = try RealAccountTestCredentials.fromReservedSlot(14)
+        let proofDeviceProfile = try String(contentsOfFile: "/tmp/openmates-proof-device-profile", encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        switch proofDeviceProfile {
+        case "apple-iphone-portrait":
+            XCUIDevice.shared.orientation = .portrait
+        case "apple-ipad-landscape":
+            XCUIDevice.shared.orientation = .landscapeLeft
+        default:
+            XCTFail("Apple proof device profile is invalid")
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         let captureEpochValue = try String(
             contentsOfFile: "/tmp/openmates-recording-started-unix-ms",
             encoding: .utf8

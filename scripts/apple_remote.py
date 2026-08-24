@@ -280,6 +280,7 @@ attachments = run_dir / "attachments"
 manifest_path = run_dir / "artifact-manifest.json"
 archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
 recording_epoch_file = pathlib.Path("/tmp/openmates-recording-started-unix-ms")
+proof_profile_file = pathlib.Path("/tmp/openmates-proof-device-profile")
 recorder = None
 log_stream = None
 log_handle = None
@@ -314,8 +315,6 @@ try:
     udid = simulator_udid()
     subprocess.run(["xcrun", "simctl", "boot", udid], capture_output=True, text=True, check=False)
     subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], capture_output=True, text=True, check=True, timeout=180)
-    if profile == "apple-ipad-landscape":
-        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=True)
     recorder = subprocess.Popen(
         ["xcrun", "simctl", "io", udid, "recordVideo", "--codec=h264", "--force", str(raw_video)],
         stdout=subprocess.DEVNULL,
@@ -334,6 +333,7 @@ try:
     )
     recording_started_unix_ms = str(int(time.time() * 1000))
     recording_epoch_file.write_text(recording_started_unix_ms, encoding="utf-8")
+    proof_profile_file.write_text(profile, encoding="utf-8")
     command = [
         "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
         "-scheme", scheme, "-destination", f"platform=iOS Simulator,id={udid}",
@@ -365,6 +365,7 @@ finally:
             recorder.terminate()
             recorder.wait(timeout=10)
     recording_epoch_file.unlink(missing_ok=True)
+    proof_profile_file.unlink(missing_ok=True)
     lock_file.close()
 
 attachments.mkdir(exist_ok=True)

@@ -96,6 +96,18 @@ def test_recording_epoch_uses_explicit_xctest_handoff_without_fallback() -> None
     assert "?? Date().timeIntervalSince1970 * 1000" not in ui_test_source
 
 
+def test_ipad_proof_orientation_is_owned_by_xctest_not_removed_simctl_io_command() -> None:
+    module = load_module()
+    ui_test_source = module_source("apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift")
+
+    assert "rotateLeft" not in module.RECORDED_IOS_TEST_SCRIPT
+    assert 'proof_profile_file = pathlib.Path("/tmp/openmates-proof-device-profile")' in module.RECORDED_IOS_TEST_SCRIPT
+    assert "proof_profile_file.write_text(profile" in module.RECORDED_IOS_TEST_SCRIPT
+    assert "proof_profile_file.unlink(missing_ok=True)" in module.RECORDED_IOS_TEST_SCRIPT
+    assert 'contentsOfFile: "/tmp/openmates-proof-device-profile"' in ui_test_source
+    assert "XCUIDevice.shared.orientation = .landscapeLeft" in ui_test_source
+
+
 def test_real_account_message_lookup_tolerates_keyboard_case_changes() -> None:
     support_source = module_source("apple/OpenMatesUITests/RealAccountUITestSupport.swift")
 
