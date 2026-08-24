@@ -227,6 +227,21 @@ def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
     assert captured["timeout"] == 30
 
 
+def test_all_problem_statuses_fail_the_runner():
+    run_tests = load_run_tests_module()
+    empty = {
+        "failed": 0,
+        "dispatch_error": 0,
+        "timeout": 0,
+        "result_unknown": 0,
+        "not_started": 0,
+    }
+
+    assert run_tests._exit_code_for_summary(empty) == 0
+    for status in empty:
+        assert run_tests._exit_code_for_summary({**empty, status: 1}) == 1
+
+
 def test_daily_skip_notification_reports_no_commit_skip(monkeypatch):
     run_tests = load_run_tests_module()
     captured = {}

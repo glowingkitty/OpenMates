@@ -118,3 +118,52 @@ def test_batch_runner_progress_callback_receives_cumulative_fail_fast_results():
     assert len(callbacks) == 1
     statuses = {test["file"]: test["status"] for test in callbacks[0].tests}
     assert statuses == {"a.spec.ts": "failed", "b.spec.ts": "passed", "c.spec.ts": "not_started"}
+
+
+def test_daily_runner_exception_persists_and_notifies_terminal_failure(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(run_tests, "record_flake_history", lambda _data: None)
+    monkeypatch.setattr(run_tests, "_record_unified_test_state", lambda *_args, **_kwargs: None)
+    notifications = []
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.daily = True
+    orchestrator.dry_run = False
+    orchestrator.suite = "all"
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = False
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.run_id = "2026-08-24T03:00:03Z"
+    orchestrator.git_sha = "abc123def"
+    orchestrator.git_branch = "dev"
+    orchestrator.environment = "development"
+    orchestrator._progress_suites = {
+        "vitest": run_tests.SuiteResult(
+            status="passed",
+            tests=[{"name": "unit", "status": "passed"}],
+            duration_seconds=1,
+        )
+    }
+    orchestrator._progress_start_time = 100.0
+    orchestrator._daily_status_stop = run_tests.threading.Event()
+    orchestrator._daily_status_thread = None
+    orchestrator.notification = type(
+        "FakeNotification",
+        (),
+        {"send_summary_email": lambda _self, result: notifications.append(result)},
+    )()
+    monkeypatch.setattr(orchestrator, "_run", lambda: (_ for _ in ()).throw(RuntimeError("artifact collection exploded")))
+    monkeypatch.setattr(run_tests.time, "time", lambda: 130.0)
+
+    assert orchestrator.run() == 1
+
+    result = json.loads((tmp_path / "last-run.json").read_text(encoding="utf-8"))
+    assert result["flags"]["runner_crashed"] is True
+    assert result["flags"]["notifications_complete"] is False
+    assert result["summary"]["failed"] == 1
+    assert result["suites"]["vitest"]["tests"][0]["status"] == "passed"
+    assert result["suites"]["orchestration"]["tests"][0]["status"] == "failed"
+    assert "artifact collection exploded" in result["suites"]["orchestration"]["tests"][0]["error"]
+    assert len(notifications) == 1

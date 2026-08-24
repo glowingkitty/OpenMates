@@ -63,13 +63,15 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 try:
     from scripts import sessions as session_control
+    from scripts.spec_demo import sweep_publications as _sweep_spec_demo_publications
 except ModuleNotFoundError:
     import sessions as session_control
+    from spec_demo import sweep_publications as _sweep_spec_demo_publications
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -368,6 +370,11 @@ def _problem_count(summary: dict) -> int:
         + int(summary.get("result_unknown", 0))
         + int(summary.get("not_started", 0))
     )
+
+
+def _exit_code_for_summary(summary: dict) -> int:
+    """Fail the runner for every status that requires operator attention."""
+    return 1 if _problem_count(summary) > 0 else 0
 
 
 def _problem_summary_label(summary: dict) -> str:
@@ -756,13 +763,25 @@ def _load_tests_control_module():
     return module
 
 
-def _record_unified_test_state(data: dict) -> None:
+def _record_unified_test_state(
+    data: dict,
+    *,
+    source: str = "scripts_tests",
+    workflow: str = "",
+) -> None:
     """Update scripts/tests.py state files without making this runner depend on it."""
     try:
         module = _load_tests_control_module()
     except RuntimeError:
         return
-    module.record_run_result(data)
+    module.record_run_result(data, source=source, workflow=workflow)
+
+
+def _test_control_source_for_flags(flags: dict) -> tuple[str, str]:
+    """Return the canonical control-plane source for one runner result."""
+    if flags.get("daily"):
+        return "daily_runner", "daily"
+    return "scripts_tests", ""
 
 
 def _generate_e2e_gift_card_code() -> str:
@@ -1955,6 +1974,7 @@ class BatchRunner:
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
+        progress_callback: Optional[Callable[[SuiteResult], None]] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1967,6 +1987,22 @@ class BatchRunner:
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
+        self.progress_callback = progress_callback
+
+    @staticmethod
+    def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
+        tests = [BatchRunner._spec_result_to_dict(result) for result in results]
+        has_failures = any(_is_problem_status(result.status) for result in results)
+        all_skipped = bool(results) and all(result.status == "skipped" for result in results)
+        return SuiteResult(
+            status="skipped" if all_skipped else "failed" if has_failures else "passed",
+            tests=tests,
+            duration_seconds=round(duration_seconds, 1),
+        )
+
+    def _emit_progress(self, all_results: list[SpecResult], suite_start: float) -> None:
+        if self.progress_callback is not None:
+            self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -2005,18 +2041,12 @@ class BatchRunner:
                         name=spec, file=spec, status="not_started",
                         error=f"Skipped: fail-fast after batch {batch_idx + 1}",
                     ))
+                self._emit_progress(all_results, suite_start)
                 break
 
-        duration = time.time() - suite_start
-        tests = [self._spec_result_to_dict(r) for r in all_results]
-        has_failures = any(_is_problem_status(r.status) for r in all_results)
-        all_skipped = bool(all_results) and all(r.status == "skipped" for r in all_results)
+            self._emit_progress(all_results, suite_start)
 
-        return SuiteResult(
-            status="skipped" if all_skipped else "failed" if has_failures else "passed",
-            tests=tests,
-            duration_seconds=round(duration, 1),
-        )
+        return self._suite_from_results(all_results, time.time() - suite_start)
 
     def _run_batch(
         self,
@@ -2798,6 +2828,19 @@ class ResultAggregator:
     """Merges results from all suites into the standard last-run.json format."""
 
     @staticmethod
+    def to_dict(result: RunResult) -> dict:
+        return {
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "flags": result.flags,
+            "duration_seconds": result.duration_seconds,
+            "summary": result.summary,
+            "suites": result.suites,
+            "environment": result.environment,
+        }
+
+    @staticmethod
     def build_run_result(
         suites: dict[str, SuiteResult],
         run_id: str,
@@ -2864,16 +2907,7 @@ class ResultAggregator:
         """Save results to test-results/."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        data = {
-            "run_id": result.run_id,
-            "git_sha": result.git_sha,
-            "git_branch": result.git_branch,
-            "flags": result.flags,
-            "duration_seconds": result.duration_seconds,
-            "summary": result.summary,
-            "suites": result.suites,
-            "environment": result.environment,
-        }
+        data = ResultAggregator.to_dict(result)
 
         # Write timestamped run file
         ts = result.run_id.replace(":", "").replace("-", "")
@@ -2882,13 +2916,28 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        (RESULTS_DIR / "last-run-progress.json").unlink(missing_ok=True)
         record_flake_history(data)
         try:
-            _record_unified_test_state(data)
+            source, workflow = _test_control_source_for_flags(result.flags)
+            _record_unified_test_state(data, source=source, workflow=workflow)
         except Exception as exc:
             _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
+
+    @staticmethod
+    def save_progress(result: RunResult) -> None:
+        """Persist partial results without replacing the final run artifact."""
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        data = ResultAggregator.to_dict(result)
+        data["flags"] = {**dict(data.get("flags") or {}), "in_progress": True}
+        _safe_write_json(RESULTS_DIR / "last-run-progress.json", data)
+        try:
+            source, workflow = _test_control_source_for_flags(data["flags"])
+            _record_unified_test_state(data, source=source, workflow=workflow)
+        except Exception as exc:
+            _log(f"Could not update unified test progress: {exc}", "WARN")
 
     @staticmethod
     def load_failed_specs() -> list[str]:
@@ -3039,7 +3088,53 @@ class NotificationService:
         except Exception as error:
             _log(f"Daily Discord status POST failed: {error}", "ERROR")
 
-    def send_summary_email(self, result: RunResult) -> None:
+    def send_daily_skip_notification(
+        self,
+        git_sha: str,
+        git_branch: str,
+        environment: str,
+        run_id: str,
+        reason: str,
+    ) -> None:
+        """Post a visible terminal status when no daily tests are dispatched."""
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping daily skip notification", "DEBUG")
+            return
+
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [{
+                "title": f"⏭️ {environment} nightly — skipped",
+                "description": (
+                    f"**Reason:** {reason}\n"
+                    "**Tests dispatched:** none\n"
+                    f"**Run ID:** `{run_id}`\n"
+                    f"**Git:** `{git_sha[:8]}@{git_branch}`"
+                ),
+                "color": 0xF59E0B,
+            }],
+        }
+        try:
+            request = urllib.request.Request(
+                self.discord_webhook_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+            _log("Daily Discord skip notification posted")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace") if error.fp else ""
+            _log(f"Daily Discord skip notification POST failed: HTTP {error.code} — {body[:300]}", "ERROR")
+        except Exception as error:
+            _log(f"Daily Discord skip notification POST failed: {error}", "ERROR")
+
+    def send_summary_email(self, result: RunResult) -> bool:
         """Send test summary email after run completes, plus Discord fallback.
 
         The email and Discord sends are INDEPENDENT: neither awaits the other
@@ -3071,9 +3166,10 @@ class NotificationService:
         # --- Discord fallback (OPE-76) ---
         # Fires for EVERY run — nightly success gives a visible heartbeat so we
         # notice if the whole pipeline goes quiet. Failures get a louder ping.
-        self._send_summary_to_discord(result)
+        discord_delivered = self._send_summary_to_discord(result)
 
         self.send_urgent_essential_failure_email(result)
+        return discord_delivered
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3251,7 +3347,7 @@ class NotificationService:
         screenshots: Optional[list[Path]] = None,
         state_file: Optional[Path] = None,
         suite_name_for_dedup: Optional[str] = None,
-    ) -> None:
+    ) -> bool:
         """Post a test run summary to a Discord webhook.
 
         Independent of the email path — catches and logs all errors rather than
@@ -3278,7 +3374,7 @@ class NotificationService:
 
         if not webhook_url:
             _log(f"{env_var_name} not set — skipping Discord summary", "DEBUG")
-            return
+            return False
 
         s = result.summary
         problem_count = _problem_count(s)
@@ -3287,7 +3383,7 @@ class NotificationService:
         # Hourly modes silence green runs to avoid channel flooding.
         if all_passed and not post_on_success:
             _log(f"Discord ({mode_label}): green run, suppressed (post_on_success=False)")
-            return
+            return True
 
         # Dedup: skip the summary entirely on a repeat tick where the
         # exact same set of tests is failing with the exact same root
@@ -3337,7 +3433,7 @@ class NotificationService:
                         f"({new_summary_hash}) — summary suppressed "
                         f"({new_suppressed}/{RENOTIFY_AFTER_TICKS - 1})"
                     )
-                    return
+                    return True
                 else:
                     # Quiet window exhausted — let the post through as a
                     # "still failing" reminder and reset the counter.
@@ -3472,11 +3568,13 @@ class NotificationService:
                     _save_discord_state(state_file, persisted)
                 except Exception as state_err:
                     _log(f"Discord summary state write failed: {state_err}", "WARN")
+            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Discord summary POST failed: {e}", "ERROR")
+        return False
 
     def post_dry_run_notify(
         self,
@@ -4246,6 +4344,25 @@ class NotificationService:
         """Build payload for /internal/dispatch-test-summary-email."""
         payload = self._build_openobserve_payload(result)
         payload["recipient_email"] = self.admin_email
+        problem_count = _problem_count(result.summary)
+        problem_label = _problem_summary_label(result.summary)
+        status_label = "All tests passed" if problem_count == 0 else problem_label
+        payload["subject_override"] = f"[OpenMates] {status_label} ({result.environment})"
+        payload["summary_copy"] = {
+            "header_failure": problem_label,
+            "status_failure": problem_label.upper(),
+        }
+        payload["failure_groups"] = [
+            {
+                "title": str(group["title"]),
+                "description": _plain_notification_text(str(group["description"])),
+            }
+            for group in _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=True,
+            )
+        ]
         return payload
 
     def _build_openobserve_payload(self, result: RunResult) -> dict:
@@ -6238,6 +6355,8 @@ class TestOrchestrator:
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
         self.current_phase = "starting"
+        self._progress_suites: dict[str, SuiteResult] = {}
+        self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
 
@@ -6282,11 +6401,90 @@ class TestOrchestrator:
             self._daily_status_thread.join(timeout=35)
 
     def run(self) -> int:
-        """Execute the test run and always stop the daily status heartbeat."""
+        """Execute the run and turn fatal daily errors into terminal results."""
         try:
             return self._run()
+        except Exception as exc:
+            if not self.daily or self.dry_run:
+                raise
+            phase = getattr(self, "current_phase", "unknown")
+            _log(f"Daily runner crashed during {phase}: {type(exc).__name__}: {exc}", "ERROR")
+            return self._finalize_daily_runner_failure(exc)
         finally:
             self._stop_daily_status_updates()
+
+    def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
+        flags = {
+            "suite": self.suite,
+            "daily": self.daily,
+            "only_failed": self.only_failed,
+            "fail_fast": self.fail_fast,
+            "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
+        }
+        if in_progress:
+            flags["in_progress"] = True
+        if progress_phase:
+            flags["progress_phase"] = progress_phase
+        return flags
+
+    def _save_progress_snapshot(
+        self,
+        suites: dict[str, SuiteResult],
+        start_time: float,
+        phase: str,
+    ) -> None:
+        if self.dry_run or not suites:
+            return
+        result = ResultAggregator.build_run_result(
+            suites=suites,
+            run_id=self.run_id,
+            git_sha=self.git_sha,
+            git_branch=self.git_branch,
+            environment=self.environment,
+            duration=time.time() - start_time,
+            flags=self._result_flags(in_progress=True, progress_phase=phase),
+        )
+        ResultAggregator.save_progress(result)
+
+    def _save_playwright_progress_snapshot(self, playwright_result: SuiteResult) -> None:
+        self._save_progress_snapshot(
+            {**self._progress_suites, "playwright": playwright_result},
+            self._progress_start_time,
+            "Playwright",
+        )
+
+    def _finalize_daily_runner_failure(self, exc: Exception) -> int:
+        """Persist and notify an orchestration failure instead of going silent."""
+        suites = dict(self._progress_suites)
+        suites["orchestration"] = SuiteResult(
+            status="failed",
+            tests=[{
+                "name": "daily-runner",
+                "file": "scripts/run_tests.py",
+                "status": "failed",
+                "duration_seconds": 0,
+                "error": f"{type(exc).__name__}: {exc}"[:MAX_ERROR_SNIPPET],
+            }],
+            duration_seconds=0,
+            reason=f"Runner crashed during {getattr(self, 'current_phase', 'unknown')}",
+        )
+        flags = self._result_flags()
+        flags["runner_crashed"] = True
+        result = ResultAggregator.build_run_result(
+            suites=suites,
+            run_id=self.run_id,
+            git_sha=self.git_sha,
+            git_branch=self.git_branch,
+            environment=self.environment,
+            duration=max(0, time.time() - self._progress_start_time),
+            flags=flags,
+        )
+        ResultAggregator.save(result)
+        self._stop_daily_status_updates()
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
+        return 1
 
     def _run(self) -> int:
         """Execute the test run. Returns exit code (0=pass, 1=fail)."""
@@ -6317,6 +6515,8 @@ class TestOrchestrator:
         if self.daily:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
+        self._progress_suites = suites
+        self._progress_start_time = start_time
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -6335,36 +6535,34 @@ class TestOrchestrator:
         if not self.spec and self.suite in ("all", "vitest"):
             self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            self._save_progress_snapshot(suites, start_time, "vitest")
 
         if not self.spec and self.suite in ("all", "pytest"):
             self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            self._save_progress_snapshot(suites, start_time, "pytest")
 
         if not self.spec and self.suite in ("all", "cli"):
             self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
+            self._save_progress_snapshot(suites, start_time, "CLI integration")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
+            self._save_progress_snapshot(suites, start_time, "Playwright")
 
         # Run native Apple checks only for nightly cron or explicit --suite apple.
         if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
             self.current_phase = "Apple remote"
             suites["apple_remote"] = self._run_apple_remote_nightly()
+            self._save_progress_snapshot(suites, start_time, "Apple remote")
 
         # Aggregate results
         self.current_phase = "finalizing results"
         duration = time.time() - start_time
-        flags = {
-            "suite": self.suite,
-            "daily": self.daily,
-            "only_failed": self.only_failed,
-            "fail_fast": self.fail_fast,
-            "use_mocks": self.use_mocks,
-            "record_live_fixtures": self.record_live_fixtures,
-        }
+        flags = self._result_flags()
 
         result = ResultAggregator.build_run_result(
             suites=suites,
@@ -6392,7 +6590,7 @@ class TestOrchestrator:
             self._stop_daily_status_updates()
             self._daily_post_run(result)
 
-        return 1 if result.summary["failed"] > 0 else 0
+        return _exit_code_for_summary(result.summary)
 
     def _sync_obsidian_test_results(self) -> None:
         """Best-effort sync of latest test status into the local Obsidian vault."""
@@ -6907,6 +7105,7 @@ class TestOrchestrator:
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
+            progress_callback=self._save_playwright_progress_snapshot,
         )
         try:
             result = runner.run_all_batches()
@@ -7289,6 +7488,13 @@ class TestOrchestrator:
         if _get_env("E2E_DAILY_RUN_ENABLED", self.notification.dot_env) != "true":
             _log("E2E_DAILY_RUN_ENABLED is not set — skipping test run")
             _log("Set E2E_DAILY_RUN_ENABLED=true on the dev server to enable tests")
+            self.notification.send_daily_skip_notification(
+                self.git_sha,
+                self.git_branch,
+                self.environment,
+                self.run_id,
+                "E2E_DAILY_RUN_ENABLED is disabled.",
+            )
             return False
 
         # Commit-activity gate
@@ -7308,6 +7514,13 @@ class TestOrchestrator:
             if count == 0:
                 _log("No git commits in the last 24 hours — skipping test run")
                 _log("Use --force to run regardless")
+                self.notification.send_daily_skip_notification(
+                    self.git_sha,
+                    self.git_branch,
+                    self.environment,
+                    self.run_id,
+                    "No git commits in the last 24 hours.",
+                )
                 return False
             _log(f"Found {count} commit(s) in last 24 hours — proceeding")
 
@@ -7355,7 +7568,8 @@ class TestOrchestrator:
         # Keep daily runs notification-only. Follow-up fixing must be started
         # separately so one day's remediation can never hold tomorrow's lock.
         _log("Sending summary email...")
-        self.notification.send_summary_email(result)
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
 
@@ -7416,6 +7630,28 @@ def _run_with_dev_stack_lease(args, callback):
         return callback()
     finally:
         session_control.release_test_resource_lease(lease_id)
+
+
+def _maintain_spec_demo_publications(now: datetime | None = None) -> dict[str, int]:
+    """Retry or expire pending demo publications in every managed worktree."""
+    totals = {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
+    roots = [CONTROL_PLANE_ROOT / "test-results/spec-demos"]
+    worktree_root = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
+    if worktree_root.is_dir():
+        roots.extend(path / "test-results/spec-demos" for path in worktree_root.iterdir() if path.is_dir())
+    for root in roots:
+        try:
+            result = _sweep_spec_demo_publications(
+                root,
+                now=now or datetime.now(timezone.utc),
+            )
+        except Exception as exc:
+            _log(f"Spec demonstration publication maintenance failed for {root}: {exc}", "WARN")
+            continue
+        for key in totals:
+            totals[key] += result[key]
+    return totals
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -7530,6 +7766,11 @@ def main() -> int:
         if k not in os.environ:
             os.environ[k] = v
 
+    if args.hourly_dev or args.daily:
+        maintenance = _maintain_spec_demo_publications()
+        if maintenance["retried"] or maintenance["expired_deleted"]:
+            _log(f"Spec demonstration publication maintenance: {maintenance}")
+
     # --dry-run-notify: short-circuit before any spec dispatch.
     if args.dry_run_notify:
         notification = NotificationService()
@@ -7618,6 +7859,14 @@ def main() -> int:
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (IOError, OSError):
             _log("Another instance is already running — exiting")
+            git_sha, git_branch = _git_info()
+            NotificationService().send_daily_skip_notification(
+                git_sha,
+                git_branch,
+                args.environment,
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "Another daily test instance still holds the runner lock.",
+            )
             return 0
 
     try:
