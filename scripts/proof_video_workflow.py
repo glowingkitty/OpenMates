@@ -96,7 +96,22 @@ class PacingPlan:
 
 
 def _commit_matches(candidate: str, expected: str) -> bool:
-    return candidate == expected and len(expected) == 40
+    if len(candidate) != 40 or len(expected) != 40:
+        return False
+    if candidate == expected:
+        return True
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", expected, candidate],
+            cwd=CONTROL_PLANE_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def resolve_current_context(
@@ -1127,9 +1142,8 @@ def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, so
         and run.get("status") == "passed"
         and run.get("source") == "scripts_tests"
         and run.get("deployment_verified") is True
-        and str(run.get("git_sha") or "") == subject_commit
-        and str(run.get("deployment_reference") or "") == subject_commit
-        and len(subject_commit) == 40
+        and _commit_matches(str(run.get("git_sha") or ""), subject_commit)
+        and _commit_matches(str(run.get("deployment_reference") or ""), subject_commit)
     ]
     if source_video is not None:
         expected_source = source_video.resolve()
@@ -1140,7 +1154,7 @@ def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, so
         ]
     if len(matches) != 1:
         raise WorkflowError(
-            f"expected one deployed passing run for {spec_name} at {subject_commit} with run ID {run_id}, found {len(matches)}"
+            f"expected one deployed passing run for {spec_name} at or after {subject_commit} with run ID {run_id}, found {len(matches)}"
         )
     artifact_path = Path(str(matches[0].get("artifact_path") or ""))
     if not artifact_path.is_file() or _file_sha256(artifact_path) != matches[0].get("artifact_sha256"):

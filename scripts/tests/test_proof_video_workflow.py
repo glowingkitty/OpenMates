@@ -60,6 +60,24 @@ def test_resolve_current_context_matches_session_commit_and_passing_spec() -> No
     assert context.source_run_id == "run-current"
 
 
+def test_commit_matches_deployed_descendant(monkeypatch: pytest.MonkeyPatch) -> None:
+    subject_commit = "a" * 40
+    deployed_commit = "b" * 40
+
+    def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["git", "merge-base", "--is-ancestor", subject_commit, deployed_commit],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(workflow.subprocess, "run", fake_run)
+
+    assert workflow._commit_matches(deployed_commit, subject_commit) is True
+    assert workflow._commit_matches("short", subject_commit) is False
+
+
 def test_control_plane_root_resolves_shared_session_registry_from_worktree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -512,6 +530,31 @@ def test_deployed_run_can_select_exact_source_video_from_multi_video_run(tmp_pat
     )
 
     assert selected["artifact_path"] == str(laptop_video)
+
+
+def test_deployed_run_accepts_descendant_attestation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    subject_commit = "a" * 40
+    deployed_commit = "b" * 40
+    video = tmp_path / "video.webm"
+    video.write_bytes(b"verified descendant")
+    monkeypatch.setattr(
+        workflow,
+        "_commit_matches",
+        lambda candidate, expected: (candidate, expected) == (deployed_commit, subject_commit),
+    )
+    monkeypatch.setattr(workflow, "_local_test_runs", lambda: [{
+        "run_id": "run-one", "git_sha": deployed_commit, "deployment_reference": deployed_commit,
+        "status": "passed", "spec": "example.spec.ts", "source": "scripts_tests",
+        "deployment_verified": True, "artifact_path": str(video), "artifact_sha256": workflow._file_sha256(video),
+    }])
+
+    selected = workflow.resolve_deployed_run(
+        subject_commit=subject_commit,
+        spec_name="example.spec.ts",
+        run_id="run-one",
+    )
+
+    assert selected["git_sha"] == deployed_commit
 
 
 def test_deployed_run_requires_exact_full_commit(monkeypatch: pytest.MonkeyPatch) -> None:

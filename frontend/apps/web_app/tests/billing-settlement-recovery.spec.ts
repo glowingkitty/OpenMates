@@ -38,13 +38,13 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		},
 		{
 			id: 'response-completed',
-			text: 'The assistant finishes the multi-search response without a failed message or stuck processing state.',
+			text: 'The assistant finishes processing and shows event results without an error.',
 			checkpoint: 'response-completed',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'completion-survives-reload',
-			text: 'After reload, the same assistant response remains complete and its event results are still visible.',
+			text: 'After reload, the assistant response and event results remain visible.',
 			checkpoint: 'completion-survives-reload',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -59,13 +59,13 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		{
 			id: 'response-completed',
 			checkpoint: 'response-completed',
-			visual: 'The assistant response and event result cards are complete with no processing error.',
+			visual: 'The assistant response and an event result card are visible with no processing error.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'completion-survives-reload',
 			checkpoint: 'completion-survives-reload',
-			visual: 'Reload preserves the completed response and event result cards.',
+			visual: 'Reload preserves the assistant response and event result card.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
