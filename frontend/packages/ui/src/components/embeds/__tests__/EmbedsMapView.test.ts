@@ -598,6 +598,52 @@ describe("EmbedsMapView", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.credits.retryable-completion-safe
+  it("retries source refs when the ref index changes during the initial load", async () => {
+    const defaultResolveEmbed = embedResolverMocks.resolveEmbed.getMockImplementation();
+    let releaseFirstSourceResolution: () => void = () => undefined;
+    const firstSourceResolution = new Promise<void>((resolve) => {
+      releaseFirstSourceResolution = resolve;
+    });
+    let sourceAttempts = 0;
+    embedResolverMocks.resolveEmbed.mockImplementation(async (embedId: string) => {
+      if (embedId === "source-embed-id" && sourceAttempts++ === 0) {
+        await firstSourceResolution;
+        return null;
+      }
+      return defaultResolveEmbed?.(embedId) ?? null;
+    });
+
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-initial-ref-index-race",
+        title: "Berlin AI events",
+        embedRefs: [],
+        sourceRefs: ["events-search-abcdef"],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+    const emitRefIndex = (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
+    expect(emitRefIndex).toBeTypeOf("function");
+
+    emitRefIndex?.(1);
+    releaseFirstSourceResolution();
+    await flush();
+
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+    expect(target.querySelector('[data-testid="embeds-map-view-count"]')?.textContent).toContain("2 shown");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
+    expect(target.textContent).not.toContain("Loading referenced embeds...");
+
+    unmount(component);
+    target.remove();
+  });
+
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("cancels one scheduled idle map hydration when unmounted", async () => {
     const originalRequestIdleCallback = globalThis.requestIdleCallback;
