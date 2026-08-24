@@ -62,6 +62,7 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
 ARTIFACT_DOWNLOAD_TTL_SECONDS = 900
+CODE_RUN_BILLING_IDEMPOTENCY_PREFIX = "code-run"
 ARTIFACT_SENSITIVE_FIELDS = {
     "aes_key",
     "aes_nonce",
@@ -444,23 +445,36 @@ async def _charge_run_credits(
     usage_details: dict[str, Any],
 ) -> int:
     file_names = [file.get("path") for file in payload.get("files", []) if isinstance(file.get("path"), str)]
+    usage_payload = {
+        "execution_id": execution_id,
+        "target_embed_id": payload.get("target_embed_id"),
+        "target_filename": payload.get("target_path"),
+        "chat_id": payload.get("chat_id"),
+        "message_id": payload.get("message_id"),
+        "credits_per_minute": RUN_CREDITS_PER_MINUTE,
+        "files_count": len(payload.get("files", [])),
+        "code_run_filenames": file_names,
+        **usage_details,
+    }
+    idempotency_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "user_id_hash": payload["user_id_hash"],
+                "credits": credits,
+                "usage_details": usage_payload,
+            },
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8"),
+    ).hexdigest()[:16]
     charge_payload = {
         "user_id": payload["user_id"],
         "user_id_hash": payload["user_id_hash"],
         "credits": credits,
         "skill_id": "run",
         "app_id": "code",
-        "usage_details": {
-            "execution_id": execution_id,
-            "target_embed_id": payload.get("target_embed_id"),
-            "target_filename": payload.get("target_path"),
-            "chat_id": payload.get("chat_id"),
-            "message_id": payload.get("message_id"),
-            "credits_per_minute": RUN_CREDITS_PER_MINUTE,
-            "files_count": len(payload.get("files", [])),
-            "code_run_filenames": file_names,
-            **usage_details,
-        },
+        "idempotency_key": f"{CODE_RUN_BILLING_IDEMPOTENCY_PREFIX}:{execution_id}:{idempotency_fingerprint}",
+        "usage_details": usage_payload,
         "api_key_hash": payload.get("api_key_hash"),
         "device_hash": payload.get("device_hash"),
     }

@@ -61,6 +61,7 @@ sys.modules.setdefault("backend.shared.providers.e2b_code_runner", e2b_runner_st
 from backend.apps.code.tasks.run_code_task import _charge_run_credits  # noqa: E402
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits,code-run.surface-parity
 @pytest.mark.anyio
 async def test_charge_run_credits_preserves_api_key_attribution(monkeypatch: pytest.MonkeyPatch) -> None:
     requests: list[dict] = []
@@ -104,3 +105,4 @@ async def test_charge_run_credits_preserves_api_key_attribution(monkeypatch: pyt
 
     assert requests[0]["json"]["api_key_hash"] == "api-key-hash"
     assert requests[0]["json"]["device_hash"] == "device-hash"
+    assert requests[0]["json"]["idempotency_key"].startswith("code-run:execution-1:")

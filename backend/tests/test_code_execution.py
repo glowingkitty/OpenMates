@@ -1128,6 +1128,7 @@ async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.Monkey
     assert requests[0]["json"]["credits"] == 5
     assert requests[0]["json"]["app_id"] == "code"
     assert requests[0]["json"]["skill_id"] == "run"
+    assert requests[0]["json"]["idempotency_key"].startswith("code-run:execution-1:")
     assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
     assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
     usage_details = requests[0]["json"]["usage_details"]
