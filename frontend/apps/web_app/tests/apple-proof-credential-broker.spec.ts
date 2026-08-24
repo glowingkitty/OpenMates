@@ -49,8 +49,6 @@ test('encrypts the reserved Apple proof account for dev-server relay', async ({ 
 			'-encrypt',
 			'-binary',
 			'-aes256',
-			'-in',
-			'/dev/stdin',
 			'-outform',
 			'DER',
 			'-out',
@@ -60,7 +58,10 @@ test('encrypts the reserved Apple proof account for dev-server relay', async ({ 
 		{ input: payload, stdio: ['pipe', 'ignore', 'pipe'] }
 	);
 	payload.fill(0);
-	expect(encryption.status, 'OpenSSL CMS encryption must succeed').toBe(0);
+	expect(
+		encryption.status,
+		`OpenSSL CMS encryption must succeed: ${encryption.stderr?.toString('utf8').trim() ?? 'no stderr'}`
+	).toBe(0);
 	await testInfo.attach('credentials.cms', {
 		path: outputPath,
 		contentType: 'application/pkcs7-mime'
