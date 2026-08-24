@@ -142,7 +142,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: acc417226
+  subject_commit: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
 
 approvals:
   product_contract:
@@ -625,8 +625,45 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-5]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: >
+        node frontend/packages/openmates-cli/dist/cli.js --api-url
+        https://api.dev.openmates.org chats new '@skill:code:run execute
+        Python. Create outputs/result.txt containing exactly
+        assistant-inline-code-run-ok-81879ce and print the same sentinel to
+        stdout. Use one file main.py that creates the outputs directory and
+        writes the file. Return the finished Code Run result.' --json
+        --no-pii-detection
+      status_command: >
+        node /tmp/opencode/query-code-run-status.mjs
+        9b6d1559-0c71-49e2-8f50-b4a4a8d7f98f
+      run_id: live-assistant-code-run-2026-08-24T04:26:22Z
+      timestamp: "2026-08-24T04:26:22Z"
+      subject_commit: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
+      outcome: passed
+      chat_id: 1d4076f4-f3fd-400a-8d29-b37fad091c79
+      execution_id: 9b6d1559-0c71-49e2-8f50-b4a4a8d7f98f
+      celery_task_id: fc6a3b9c-bcdf-44b1-bf9b-b2fd0c74e883
+      continuation_task_id: 4d247e77-ea91-47e2-a2d4-571c3a9a7aff
+      upload_file_id: 352ade28-a0da-489c-b3e6-d7f627ceccf6
+      artifact_asset_id: 36be632b-3095-4dab-b30f-4dfefeff783a
+      artifact_variant: outputs-result-txt-6c9af0119eeb
+      artifact_path: outputs/result.txt
+      artifact_size_bytes: 36
+      charged_credits: 5
+      charged_minutes: 1
+      summary: >
+        Deployed explicit @skill:code:run assistant prompt persisted in chat
+        1d4076f4. Code worker task fc6a3b9c started at 04:26:12 and reported
+        TASK_SUCCESS/TASK_COMPLETED at 04:26:22. The owner-scoped status path
+        /v1/code/run/9b6d1559-0c71-49e2-8f50-b4a4a8d7f98f returned
+        status=finished, exit_code=0, stdout sentinel
+        assistant-inline-code-run-ok-81879ce, charged_credits=5, and one
+        captured text/plain artifact at outputs/result.txt. `chats files
+        1d4076f4 --json` returned no chat attachments because this assistant
+        Code Run persisted the generated artifact as encrypted generated-asset
+        upload metadata, not as a chat attachment list item.
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
@@ -765,7 +802,7 @@ tasks:
     ownership: {files: [backend/shared/providers/e2b_code_runner.py, backend/apps/code/tasks/run_code_task.py, backend/core/api/app/routes/code_execution.py], shared_files: [backend/shared/python_utils/generated_assets/service.py]}
   - id: TASK-3
     title: Add assistant-dispatchable Code Run with bounded auto-debug and real inference coverage
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
     expected_files:
@@ -866,11 +903,29 @@ attempts:
       subject_commit: acc417226+worktree-96e5
       outcome: passed
       summary: UI package build regenerated translations and metadata, validated all locale keys, generated app/embed/provider/model/icon/privacy artifacts, and validated all icon references without additional tracked generated diffs beyond the intended app_skills/code.yml source update.
+  - id: ATTEMPT-8
+    task_id: TASK-3
+    approach: Verify deployed assistant-dispatched Code Run through explicit @skill:code:run, then inspect persisted chat, owner-scoped status, worker lifecycle, billing, and generated-asset artifact evidence without rerunning the completed worker execution.
+    outcome: succeeded
+    recorded_at: "2026-08-24T04:26:22Z"
+    evidence:
+      run_id: live-assistant-code-run-2026-08-24T04:26:22Z
+      subject_commit: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
+      chat_id: 1d4076f4-f3fd-400a-8d29-b37fad091c79
+      execution_id: 9b6d1559-0c71-49e2-8f50-b4a4a8d7f98f
+      celery_task_id: fc6a3b9c-bcdf-44b1-bf9b-b2fd0c74e883
+      upload_file_id: 352ade28-a0da-489c-b3e6-d7f627ceccf6
+      artifact_asset_id: 36be632b-3095-4dab-b30f-4dfefeff783a
+      artifact_path: outputs/result.txt
+      outcome: passed
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the scoped Code Run work and run deploy-backed Vitest/Playwright plus visual evidence for web artifact metadata/history.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: T-FRONTEND-CODE-RUN passes through the unified test control plane after the worktree changes are committed; then run T-PW-CODE-RUN against the deployed expected commit and capture reviewed laptop/mobile visual smoke.
-  last_verified_commit: acc417226
+  next_action: >
+    Continue only the remaining non-assistant gates: web artifact metadata/history
+    evidence, user confirmation, Apple parity, spec verification, and proof media
+    if required for session completion.
+  command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts --gate-deploy --expected-commit <SHA>
+  expected_outcome: T-PW-CODE-RUN passes against the deployed expected commit and is followed by reviewed laptop/mobile visual smoke before final spec verification.
+  last_verified_commit: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
   blocker: null
