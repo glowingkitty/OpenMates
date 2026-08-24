@@ -1531,7 +1531,7 @@
                   </section>
                 {:else if runPanelOpen}
                   <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
-                    <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                    <pre class="code-run-output" data-testid="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
                     {#if runArtifacts.length > 0 || runSkippedArtifacts.length > 0}
                       <div class="code-run-artifacts" data-testid="code-run-artifacts">
                         {#if runArtifacts.length > 0}
@@ -2220,6 +2220,16 @@
       max-height: min(32rem, calc(100vh - 16rem));
       border-radius: 1.75rem;
       padding: var(--spacing-5) var(--spacing-5) var(--spacing-6);
+    }
+
+    .code-run-terminal {
+      flex: 1 1 0;
+      overflow: hidden;
+    }
+
+    .code-run-output {
+      flex: 1 1 0;
+      min-height: 0;
     }
 
     .code-run-artifact-card,

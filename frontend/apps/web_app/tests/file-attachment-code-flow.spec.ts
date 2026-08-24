@@ -293,11 +293,22 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(terminal).toBeVisible({ timeout: 20000 });
 	const terminalOverlay = fullscreenOverlay.getByTestId('code-run-overlay');
 	await expect(terminalOverlay).toBeVisible({ timeout: 20000 });
+	const terminalOutput = fullscreenOverlay.getByTestId('code-run-output');
+	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
+	await expect(terminalOutput).toBeVisible();
+	await expect(terminalActions).toBeVisible();
+	await expect(terminalOutput).toHaveCSS('overflow-y', 'auto');
+	await expect.poll(async () => {
+		const [outputBox, actionsBox] = await Promise.all([
+			terminalOutput.boundingBox(),
+			terminalActions.boundingBox()
+		]);
+		return Boolean(outputBox && actionsBox && outputBox.y + outputBox.height <= actionsBox.y + 1);
+	}).toBe(true);
 	await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
 	await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
 	await expect(terminal).toContainText('Hello, World!', { timeout: 120000 });
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
-	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
 	await expect(terminalActions).toContainText('Copy output');
 	await expect(terminalActions).toContainText('Run again');
 	const artifacts = fullscreenOverlay.getByTestId('code-run-artifacts');
