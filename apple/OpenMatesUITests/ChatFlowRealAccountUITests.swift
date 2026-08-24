@@ -32,9 +32,14 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
         let credentials = try RealAccountTestCredentials.fromReservedSlot(14)
-        let captureEpochMilliseconds = Double(
-            ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"] ?? ""
-        ) ?? Date().timeIntervalSince1970 * 1000
+        let captureEpochValue = try String(
+            contentsOfFile: "/tmp/openmates-recording-started-unix-ms",
+            encoding: .utf8
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let captureEpochMilliseconds = Double(captureEpochValue) else {
+            XCTFail("Apple proof recording epoch is invalid")
+            return
+        }
         let started = Date(timeIntervalSince1970: captureEpochMilliseconds / 1000)
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(

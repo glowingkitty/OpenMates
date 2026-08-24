@@ -83,6 +83,19 @@ def test_proof_recording_requires_timeline_before_marking_passed() -> None:
     assert "and (not proof or timeline is not None)" in module.RECORDED_IOS_TEST_SCRIPT
 
 
+def test_recording_epoch_uses_explicit_xctest_handoff_without_fallback() -> None:
+    module = load_module()
+    ui_test_source = module_source("apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift")
+
+    assert 'recording_epoch_file = pathlib.Path("/tmp/openmates-recording-started-unix-ms")' in module.RECORDED_IOS_TEST_SCRIPT
+    assert "recording_epoch_file.write_text(recording_started_unix_ms" in module.RECORDED_IOS_TEST_SCRIPT
+    assert "recording_epoch_file.unlink(missing_ok=True)" in module.RECORDED_IOS_TEST_SCRIPT
+    assert "contentsOfFile:" in ui_test_source
+    assert '"/tmp/openmates-recording-started-unix-ms"' in ui_test_source
+    assert 'ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"]' not in ui_test_source
+    assert "?? Date().timeIntervalSince1970 * 1000" not in ui_test_source
+
+
 def test_recording_parser_accepts_only_exact_apple_profiles() -> None:
     module = load_module()
     parser = module.build_parser()

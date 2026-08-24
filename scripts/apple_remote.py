@@ -275,6 +275,7 @@ live_log = run_dir / "live-app.log"
 attachments = run_dir / "attachments"
 manifest_path = run_dir / "artifact-manifest.json"
 archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
+recording_epoch_file = pathlib.Path("/tmp/openmates-recording-started-unix-ms")
 recorder = None
 log_stream = None
 log_handle = None
@@ -328,6 +329,7 @@ try:
         text=True,
     )
     recording_started_unix_ms = str(int(time.time() * 1000))
+    recording_epoch_file.write_text(recording_started_unix_ms, encoding="utf-8")
     command = [
         "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
         "-scheme", scheme, "-destination", f"platform=iOS Simulator,id={udid}",
@@ -358,6 +360,7 @@ finally:
         except subprocess.TimeoutExpired:
             recorder.terminate()
             recorder.wait(timeout=10)
+    recording_epoch_file.unlink(missing_ok=True)
     lock_file.close()
 
 attachments.mkdir(exist_ok=True)
