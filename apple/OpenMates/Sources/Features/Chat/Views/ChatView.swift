@@ -98,6 +98,7 @@ private enum ChatResponsiveBreakpoint {
 private enum ChatHistoryLayoutMetric {
     static let contentMaximumWidth: CGFloat = 1_000
     static let wideWindowMinimumWidth: CGFloat = 900
+    static let streamingUpdateDebounceMilliseconds = 50
     static let streamingFinalizationDelayMilliseconds = 250
 }
 
@@ -195,6 +196,7 @@ struct ChatView: View {
     @State private var selectedAssistantRating: Int?
     @State private var assistantFeedbackSubmitted = false
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
+    @State private var streamingScrollTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
     @State private var suppressNextDraftSave = false
     @State private var broadcastToSiblingSubChats = false
@@ -980,6 +982,11 @@ struct ChatView: View {
                     .contentShape(Rectangle())
                     .accessibilityIdentifier("chat-history-container")
                     .scrollDismissesKeyboard(.interactively)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 4).onChanged { _ in
+                            stopFollowingStreamingResponse()
+                        }
+                    )
                     .onTapGesture {
                         dismissInputIfNeeded()
                     }
@@ -1045,16 +1052,7 @@ struct ChatView: View {
                         return
                     }
                     guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
-                    Task { @MainActor in
-                        await Task.yield()
-                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                        try? await Task.sleep(
-                            for: .milliseconds(ChatHistoryLayoutMetric.streamingFinalizationDelayMilliseconds)
-                        )
-                        guard followsStreamingResponse else { return }
-                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                        followsStreamingResponse = false
-                    }
+                    finalizeStreamingResponseScroll(proxy: proxy)
                 }
                 .onChange(of: searchTarget) { _, _ in
                     scrollToSearchTargetIfNeeded(proxy: proxy)
@@ -1307,10 +1305,35 @@ struct ChatView: View {
 
     private func scrollToStreamingResponseIfNeeded(proxy: ScrollViewProxy) {
         guard followsStreamingResponse else { return }
-        Task { @MainActor in
-            await Task.yield()
+        streamingScrollTask?.cancel()
+        streamingScrollTask = Task { @MainActor in
+            try? await Task.sleep(
+                for: .milliseconds(ChatHistoryLayoutMetric.streamingUpdateDebounceMilliseconds)
+            )
+            guard !Task.isCancelled, followsStreamingResponse else { return }
             proxy.scrollTo("scroll-bottom", anchor: .bottom)
         }
+    }
+
+    private func finalizeStreamingResponseScroll(proxy: ScrollViewProxy) {
+        streamingScrollTask?.cancel()
+        streamingScrollTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled, followsStreamingResponse else { return }
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+            try? await Task.sleep(
+                for: .milliseconds(ChatHistoryLayoutMetric.streamingFinalizationDelayMilliseconds)
+            )
+            guard !Task.isCancelled, followsStreamingResponse else { return }
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+            followsStreamingResponse = false
+        }
+    }
+
+    private func stopFollowingStreamingResponse() {
+        streamingScrollTask?.cancel()
+        streamingScrollTask = nil
+        followsStreamingResponse = false
     }
 
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
@@ -1342,6 +1365,7 @@ struct ChatView: View {
         lastReportedVisibleMessageId = nil
         scrollPositionDebounceTask?.cancel()
         scrollPositionDebounceTask = nil
+        stopFollowingStreamingResponse()
     }
 
     private func handleAssistantFeedbackSubmit() {
@@ -2789,6 +2813,7 @@ struct ChatView: View {
                 composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
             if viewModel.error != nil {
+                stopFollowingStreamingResponse()
                 messageText = originalText
             } else {
                 for nodeID in documentNodeIDs {
