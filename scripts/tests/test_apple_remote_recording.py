@@ -58,6 +58,24 @@ def test_recording_command_owns_video_result_bundle_and_cleanup() -> None:
     assert command.endswith(" true")
 
 
+def test_preprovisioned_recording_uses_marker_without_rewriting_credentials() -> None:
+    module = load_module()
+    command = module.recorded_test_ios_command(
+        simulator="iPhone 15 Pro",
+        only_testing="OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof",
+        profile="apple-iphone-portrait",
+        run_id="apple-proof-2",
+        expected_commit="a" * 40,
+        test_account_env={"OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": "14"},
+        proof=True,
+        preprovisioned_credentials=True,
+    )
+
+    assert "OPENMATES_APPLE_PROOF_ACCOUNT_SLOT=14" in command
+    assert "lines.append(f\"{key}=" not in command
+    assert "unlink(missing_ok=True)" in command
+
+
 def test_proof_recording_requires_timeline_before_marking_passed() -> None:
     module = load_module()
 
@@ -161,6 +179,7 @@ def test_proof_rejects_simulator_that_does_not_match_profile(monkeypatch) -> Non
             proof=True,
             expected_commit="a" * 40,
             test_account_slot=14,
+            github_secret_broker=False,
             runner=lambda _command: pytest.fail("remote runner must not execute"),
         )
 
@@ -177,6 +196,7 @@ def test_proof_rejects_generic_or_unreserved_account_slot() -> None:
             proof=True,
             expected_commit="a" * 40,
             test_account_slot=1,
+            github_secret_broker=False,
             runner=lambda _command: pytest.fail("remote runner must not execute"),
         )
 
@@ -197,6 +217,108 @@ def test_reserved_slot_materializes_only_requested_expanded_account() -> None:
         "OPENMATES_TEST_ACCOUNT_14_OTP_KEY": "otp-key",
         "OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": "14",
     }
+
+
+def test_credential_broker_workflow_has_no_direct_mac_transport() -> None:
+    workflow = (ROOT / ".github/workflows/apple-proof-credential-broker.yml").read_text(encoding="utf-8")
+
+    assert "actions/upload-artifact@v4" in workflow
+    assert "credentials.cms" in workflow
+    assert "credentials.env" not in workflow
+    assert "retention-days: 1" in workflow
+    assert "ssh" not in workflow.lower()
+    assert "scp" not in workflow.lower()
+    assert "tailscale" not in workflow.lower()
+    assert "apple_remote.py" not in workflow
+    assert "recipient-key" not in workflow
+    assert "credential_path.unlink(missing_ok=True)" in module_source("scripts/apple_remote.py")
+
+
+def module_source(relative_path: str) -> str:
+    return (ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def test_proof_broker_recipient_returns_only_public_certificate() -> None:
+    module = load_module()
+    certificate = b"-----BEGIN CERTIFICATE-----\npublic\n-----END CERTIFICATE-----\n"
+
+    def runner(_command):
+        encoded = module.base64.b64encode(certificate).decode("ascii")
+        return subprocess.CompletedProcess([], 0, f"proof_broker_recipient_certificate_b64={encoded}\n", "")
+
+    result = module.proof_broker_recipient_certificate(
+        module.RemoteConfig(target="macos-peer", repo_path="/repo", source="test"),
+        runner=runner,
+    )
+
+    assert result == certificate
+
+
+def test_relay_identity_rejects_non_committed_public_key(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    root = tmp_path / "relay"
+    private_key = root / "relay-key.pem"
+    public_key = root / "relay-public.pem"
+    committed = tmp_path / "committed-public.pem"
+    root.mkdir()
+    private_key.write_bytes(b"private")
+    committed.write_bytes(b"expected-public")
+    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_LOCAL_ROOT", root)
+    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_RELAY_KEY", private_key)
+    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY", public_key)
+    monkeypatch.setattr(module, "APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY", committed)
+
+    def runner(command):
+        if command[:2] == ["openssl", "pkey"]:
+            public_key.write_bytes(b"different-public")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    with pytest.raises(module.AppleRemoteError, match="committed public key"):
+        module.proof_broker_relay_public_key(
+            module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured"),
+            runner=runner,
+        )
+
+
+def test_broker_mode_does_not_load_local_credentials(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(
+        module,
+        "local_test_account_env",
+        lambda: pytest.fail("broker mode must not load local credentials"),
+    )
+    monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *_args, **_kwargs: "request")
+    calls = 0
+
+    def runner(command):
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(command, 1 if calls == 1 else 0, "", "")
+
+    result = module.run_recorded_ios_test(
+        module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured"),
+        simulator="iPhone 15 Pro",
+        only_testing="OpenMatesUITests/Proof",
+        profile="apple-iphone-portrait",
+        proof=True,
+        expected_commit="a" * 40,
+        test_account_slot=14,
+        github_secret_broker=True,
+        runner=runner,
+    )
+
+    assert result == 1
+
+
+def test_artifact_cleanup_fails_closed_when_github_lookup_fails() -> None:
+    module = load_module()
+
+    with pytest.raises(module.AppleRemoteError, match="inspect encrypted"):
+        module._delete_github_proof_broker_artifact(
+            123,
+            "apple-proof-credentials-request",
+            runner=lambda command: subprocess.CompletedProcess(command, 1, "", ""),
+        )
 
 
 def test_proof_video_normalization_retains_raw_and_uses_exact_profile(tmp_path: Path) -> None:

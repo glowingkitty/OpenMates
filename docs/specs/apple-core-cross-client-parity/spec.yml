@@ -163,8 +163,8 @@ apple_impact:
     - Owned Apple loading, error, chat, and notification states use the rendered web state and approved web UI contracts as visual source of truth.
     - Shared Swift sources preserve macOS compilation and equivalent behavior even though macOS UI interaction evidence is not blocking.
   verification:
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14
-    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
+    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
     - python3 scripts/apple_remote.py build-macos
   intentional_native_differences:
     - OS-owned passkey and notification permission prompts remain native system UI.
@@ -695,7 +695,7 @@ tests:
   - id: T-APPLE-PROOF-IPHONE
     type: manual
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 393x852 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
@@ -704,7 +704,7 @@ tests:
   - id: T-APPLE-PROOF-IPAD
     type: manual
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 1366x1024 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
@@ -1019,7 +1019,7 @@ attempts:
 handoff:
   current_task_id: TASK-8
   next_action: An authorized operator must securely materialize reserved test-account slot 14 on the registered Mac through local-only configuration, then rerun the exact iPhone proof without returning any secret value to this agent.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --expected-commit e6f41173383e2994115b534f110d5135d35f9d25
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
   expected_outcome: The registered Mac consumes reserved slot 14 without exposing its values, and the exact-commit iPhone proof records, reviews, and publishes successfully.
   blocker:
     task_id: TASK-8

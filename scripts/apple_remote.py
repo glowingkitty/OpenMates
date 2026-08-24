@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import hashlib
 import importlib.util
 import json
@@ -23,6 +24,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -60,6 +62,16 @@ APPLE_PROOF_SIMULATORS = {
     "apple-ipad-landscape": {"iPad Pro 13-inch (M5)"},
 }
 APPLE_RECORDING_RESULTS_DIR = REPO_ROOT / "test-results" / "apple-recordings"
+APPLE_PROOF_BROKER_WORKFLOW = "apple-proof-credential-broker.yml"
+APPLE_PROOF_BROKER_CERTIFICATE = REPO_ROOT / "deployment/apple-proof-broker-recipient.pem"
+APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY = REPO_ROOT / "deployment/apple-proof-broker-relay-public.pem"
+APPLE_PROOF_BROKER_REPOSITORY = "glowingkitty/OpenMates"
+APPLE_PROOF_BROKER_LOCAL_ROOT = Path.home() / ".config/openmates/apple-proof-broker"
+APPLE_PROOF_BROKER_RELAY_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-key.pem"
+APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-public.pem"
+APPLE_PROOF_BROKER_POLL_SECONDS = 5
+APPLE_PROOF_BROKER_TIMEOUT_SECONDS = 300
+APPLE_PROOF_CREDENTIAL_TTL_SECONDS = 900
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -81,6 +93,139 @@ with open(lock_path, "w", encoding="utf-8") as lock_file:
     print("simulator_lock=acquired", flush=True)
     result = subprocess.run(command)
 sys.exit(result.returncode)
+'''
+
+APPLE_PROOF_BROKER_RECIPIENT_SCRIPT = r'''
+import base64
+import os
+import pathlib
+import subprocess
+import sys
+
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+private_key = root / "recipient-key.pem"
+certificate = root / "recipient-cert.pem"
+root.mkdir(parents=True, exist_ok=True, mode=0o700)
+if not private_key.exists():
+    result = subprocess.run([
+        "openssl", "req", "-x509", "-newkey", "rsa:3072", "-sha256", "-nodes",
+        "-days", "3650", "-subj", "/CN=OpenMates Apple Proof Broker",
+        "-keyout", str(private_key), "-out", str(certificate),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_broker_recipient=openssl_failed")
+        sys.exit(result.returncode or 1)
+elif not certificate.exists():
+    result = subprocess.run([
+        "openssl", "req", "-x509", "-new", "-sha256", "-days", "3650",
+        "-subj", "/CN=OpenMates Apple Proof Broker", "-key", str(private_key),
+        "-out", str(certificate),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_broker_recipient=certificate_failed")
+        sys.exit(result.returncode or 1)
+os.chmod(root, 0o700)
+os.chmod(private_key, 0o600)
+os.chmod(certificate, 0o644)
+payload = base64.b64encode(certificate.read_bytes()).decode("ascii")
+print(f"proof_broker_recipient_certificate_b64={payload}")
+'''
+
+APPLE_PROOF_BROKER_RELAY_INSTALL_SCRIPT = r'''
+import base64
+import os
+import pathlib
+import sys
+
+payload = base64.b64decode(sys.argv[1], validate=True)
+if b"BEGIN PUBLIC KEY" not in payload or b"PRIVATE KEY" in payload:
+    print("proof_broker_relay=invalid_public_key")
+    sys.exit(2)
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+relay_public = root / "relay-public.pem"
+root.mkdir(parents=True, exist_ok=True, mode=0o700)
+if relay_public.exists() and relay_public.read_bytes() != payload:
+    print("proof_broker_relay=pinned_key_mismatch")
+    sys.exit(3)
+if not relay_public.exists():
+    relay_public.write_bytes(payload)
+os.chmod(root, 0o700)
+os.chmod(relay_public, 0o644)
+print("proof_broker_relay=verified")
+'''
+
+APPLE_PROOF_BROKER_DECRYPT_SCRIPT = r'''
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import time
+
+encrypted_path = pathlib.Path(sys.argv[1])
+signature_path = pathlib.Path(sys.argv[2])
+credential_path = pathlib.Path(sys.argv[3])
+slot = int(sys.argv[4])
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+private_key = root / "recipient-key.pem"
+certificate = root / "recipient-cert.pem"
+relay_public = root / "relay-public.pem"
+if slot < 14 or slot > 20:
+    print("proof_credentials=invalid_slot")
+    sys.exit(2)
+if not encrypted_path.is_file() or not signature_path.is_file() or not private_key.is_file() or not certificate.is_file() or not relay_public.is_file():
+    print("proof_credentials=missing_input")
+    sys.exit(3)
+verification = subprocess.run([
+    "openssl", "dgst", "-sha256", "-verify", str(relay_public),
+    "-signature", str(signature_path), str(encrypted_path),
+], capture_output=True, text=True, check=False)
+if verification.returncode != 0:
+    print("proof_credentials=untrusted_relay")
+    sys.exit(4)
+credential_path.parent.mkdir(parents=True, exist_ok=True)
+temporary = pathlib.Path(tempfile.mkstemp(prefix="apple-proof-credentials-", dir=credential_path.parent)[1])
+try:
+    result = subprocess.run([
+        "openssl", "cms", "-decrypt", "-binary", "-inform", "DER",
+        "-in", str(encrypted_path), "-recip", str(certificate),
+        "-inkey", str(private_key), "-out", str(temporary),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_credentials=decrypt_failed")
+        sys.exit(result.returncode or 5)
+    values = {}
+    for raw_line in temporary.read_text(encoding="utf-8").splitlines():
+        key, separator, value = raw_line.partition("=")
+        if not separator or not key or not value or "\r" in value or "\n" in value:
+            print("proof_credentials=invalid_payload")
+            sys.exit(6)
+        values[key] = value
+    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
+    expected = {f"{prefix}_EMAIL", f"{prefix}_PASSWORD", f"{prefix}_OTP_KEY"}
+    if set(values) != expected:
+        print("proof_credentials=unexpected_payload")
+        sys.exit(7)
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, credential_path)
+    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); pathlib.Path(sys.argv[1]).unlink(missing_ok=True)"
+    try:
+        subprocess.Popen(
+            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5]],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        credential_path.unlink(missing_ok=True)
+        print("proof_credentials=expiry_failed")
+        sys.exit(8)
+    print(f"proof_credentials=materialized:slot-{slot}")
+finally:
+    temporary.unlink(missing_ok=True)
+    encrypted_path.unlink(missing_ok=True)
+    signature_path.unlink(missing_ok=True)
 '''
 
 COMMIT_PINNED_COMMAND_SCRIPT = r'''
@@ -3439,6 +3584,7 @@ def recorded_test_ios_command(
     expected_commit: str = "",
     test_account_env: dict[str, str] | None = None,
     proof: bool = False,
+    preprovisioned_credentials: bool = False,
 ) -> str:
     """Build a remote command that records one exact-profile Apple test run."""
     if profile not in APPLE_RECORDING_PROFILES:
@@ -3459,11 +3605,21 @@ def recorded_test_ios_command(
     ])
     if test_account_env is not None:
         command = with_env_assignments(command, test_account_env)
-    if test_account_env:
+    workflow = f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {command}"
+    if preprovisioned_credentials:
+        if not expected_commit:
+            raise AppleRemoteError("Preprovisioned Apple proof credentials require an exact commit")
+        cleanup_credentials = cleanup_live_test_credentials_command()
+        pinned_workflow = shell_join([
+            "python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT,
+            expected_commit, "bash", "-lc", workflow,
+        ])
+        return f"trap {shlex.quote(cleanup_credentials)} EXIT && {pinned_workflow}"
+    elif test_account_env:
         write_credentials = write_live_test_credentials_command(test_account_env)
         cleanup_credentials = cleanup_live_test_credentials_command()
-        command = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {command}"
-    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {command}"
+        workflow = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {workflow}"
+    return workflow
 
 
 def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> list[str]:
@@ -3477,6 +3633,254 @@ def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> lis
         f"{config.target}:{remote_path}",
         str(local_path),
     ]
+
+
+def scp_upload_command(config: RemoteConfig, local_path: Path, remote_path: str) -> list[str]:
+    return [
+        "scp",
+        "-q",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}",
+        str(local_path),
+        f"{config.target}:{remote_path}",
+    ]
+
+
+def proof_broker_recipient_certificate(
+    config: RemoteConfig,
+    *,
+    runner: CommandRunner = default_runner,
+) -> bytes:
+    """Create or read the registered Mac recipient and return only its public certificate."""
+    command = shell_join(["python3", "-c", APPLE_PROOF_BROKER_RECIPIENT_SCRIPT])
+    result = runner(ssh_command(config, command))
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not initialize the registered Mac proof-broker recipient")
+    match = re.search(r"(?m)^proof_broker_recipient_certificate_b64=([A-Za-z0-9+/=]+)$", result.stdout)
+    if match is None:
+        raise AppleRemoteError("Registered Mac did not return its public proof-broker certificate")
+    try:
+        return base64.b64decode(match.group(1), validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise AppleRemoteError("Registered Mac proof-broker certificate is invalid base64") from exc
+
+
+def proof_broker_relay_public_key(
+    config: RemoteConfig,
+    *,
+    runner: CommandRunner = default_runner,
+) -> bytes:
+    """Create the dev-server relay identity and pin only its public key on the Mac."""
+    APPLE_PROOF_BROKER_LOCAL_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if not APPLE_PROOF_BROKER_RELAY_KEY.is_file():
+        creation = runner([
+            "openssl", "genpkey", "-algorithm", "RSA",
+            "-pkeyopt", "rsa_keygen_bits:3072", "-out", str(APPLE_PROOF_BROKER_RELAY_KEY),
+        ])
+        if creation.returncode != 0:
+            raise AppleRemoteError("Could not create the dev-server Apple proof relay identity")
+    os.chmod(APPLE_PROOF_BROKER_RELAY_KEY, 0o600)
+    export = runner([
+        "openssl", "pkey", "-in", str(APPLE_PROOF_BROKER_RELAY_KEY),
+        "-pubout", "-out", str(APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY),
+    ])
+    if export.returncode != 0 or not APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY.is_file():
+        raise AppleRemoteError("Could not derive the dev-server Apple proof relay public key")
+    os.chmod(APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY, 0o644)
+    public_key = APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY.read_bytes()
+    if (
+        not APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY.is_file()
+        or public_key != APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY.read_bytes()
+    ):
+        raise AppleRemoteError("Dev-server proof relay identity does not match the committed public key")
+    encoded = base64.b64encode(public_key).decode("ascii")
+    install = runner(ssh_command(config, shell_join([
+        "python3", "-c", APPLE_PROOF_BROKER_RELAY_INSTALL_SCRIPT, encoded,
+    ])))
+    if install.returncode != 0 or "proof_broker_relay=verified" not in install.stdout:
+        raise AppleRemoteError("Registered Mac rejected the dev-server Apple proof relay identity")
+    return public_key
+
+
+def _find_github_proof_broker_run(
+    request_id: str,
+    *,
+    runner: CommandRunner,
+) -> dict[str, Any] | None:
+    result = runner([
+        "gh", "run", "list", "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+        "--workflow", APPLE_PROOF_BROKER_WORKFLOW, "--event", "workflow_dispatch",
+        "--limit", "20", "--json", "databaseId,displayTitle,status,conclusion,headSha",
+    ])
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not inspect the Apple proof credential-broker run")
+    try:
+        runs = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise AppleRemoteError("Apple proof credential-broker run list is invalid JSON") from exc
+    title = f"Apple proof credential broker {request_id}"
+    return next((item for item in runs if item.get("displayTitle") == title), None)
+
+
+def _github_proof_broker_run(
+    request_id: str,
+    *,
+    expected_commit: str,
+    runner: CommandRunner,
+) -> int:
+    deadline = time.monotonic() + APPLE_PROOF_BROKER_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        run = _find_github_proof_broker_run(request_id, runner=runner)
+        if run is None:
+            time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
+            continue
+        if run.get("headSha") != expected_commit:
+            raise AppleRemoteError("Apple proof credential broker ran against the wrong commit")
+        if run.get("status") != "completed":
+            time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
+            continue
+        if run.get("conclusion") != "success":
+            raise AppleRemoteError("Apple proof credential broker did not complete successfully")
+        return int(run["databaseId"])
+    raise AppleRemoteError("Timed out waiting for the Apple proof credential broker")
+
+
+def _delete_github_proof_broker_artifact(
+    run_id: int,
+    artifact_name: str,
+    *,
+    runner: CommandRunner,
+    allow_missing: bool = False,
+) -> None:
+    result = runner([
+        "gh", "api", f"repos/{APPLE_PROOF_BROKER_REPOSITORY}/actions/runs/{run_id}/artifacts",
+    ])
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not inspect encrypted Apple proof credential artifacts for cleanup")
+    try:
+        artifacts = json.loads(result.stdout).get("artifacts", [])
+    except (AttributeError, json.JSONDecodeError) as exc:
+        raise AppleRemoteError("Encrypted Apple proof credential artifact cleanup returned invalid JSON") from exc
+    artifact = next((item for item in artifacts if item.get("name") == artifact_name), None)
+    if artifact is None and allow_missing:
+        return
+    if not artifact or not isinstance(artifact.get("id"), int):
+        raise AppleRemoteError("Encrypted Apple proof credential artifact was not found for cleanup")
+    deletion = runner([
+        "gh", "api", "--method", "DELETE",
+        f"repos/{APPLE_PROOF_BROKER_REPOSITORY}/actions/artifacts/{artifact['id']}",
+    ])
+    if deletion.returncode != 0:
+        raise AppleRemoteError("Could not delete encrypted Apple proof credential artifact")
+
+
+def provision_github_proof_credentials(
+    config: RemoteConfig,
+    *,
+    slot: int,
+    expected_commit: str,
+    runner: CommandRunner = default_runner,
+) -> str:
+    """Encrypt one repository-secret account to the Mac and materialize it only there."""
+    if config.source != "configured" or not config.repo_path:
+        raise AppleRemoteError("GitHub proof credentials may only relay through the configured dev server")
+    if not 14 <= slot <= 20:
+        raise AppleRemoteError("GitHub proof credential broker requires reserved slot 14-20")
+    if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
+        raise AppleRemoteError("GitHub proof credential broker requires one exact full commit")
+    if not APPLE_PROOF_BROKER_CERTIFICATE.is_file():
+        raise AppleRemoteError("Committed Apple proof-broker recipient certificate is missing")
+    remote_certificate = proof_broker_recipient_certificate(config, runner=runner)
+    if remote_certificate != APPLE_PROOF_BROKER_CERTIFICATE.read_bytes():
+        raise AppleRemoteError("Committed proof-broker certificate does not match the registered Mac")
+    proof_broker_relay_public_key(config, runner=runner)
+
+    request_id = uuid.uuid4().hex[:16]
+    artifact_name = f"apple-proof-credentials-{request_id}"
+    remote_encrypted = f"/tmp/openmates-apple-proof-credentials-{request_id}.cms"
+    remote_signature = f"/tmp/openmates-apple-proof-credentials-{request_id}.sig"
+    run_id: int | None = None
+    dispatched = False
+    artifact_downloaded = False
+    cleanup_errors: list[str] = []
+    try:
+        dispatch = runner([
+            "gh", "workflow", "run", APPLE_PROOF_BROKER_WORKFLOW,
+            "--repo", APPLE_PROOF_BROKER_REPOSITORY, "--ref", "dev",
+            "-f", f"checkout_ref={expected_commit}", "-f", f"slot={slot}",
+            "-f", f"request_id={request_id}",
+        ])
+        if dispatch.returncode != 0:
+            raise AppleRemoteError("Could not dispatch the Apple proof credential broker")
+        dispatched = True
+        run_id = _github_proof_broker_run(request_id, expected_commit=expected_commit, runner=runner)
+        with tempfile.TemporaryDirectory(prefix="apple-proof-broker-") as temporary_value:
+            temporary = Path(temporary_value)
+            download = runner([
+                "gh", "run", "download", str(run_id), "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+                "--name", artifact_name, "--dir", str(temporary),
+            ])
+            encrypted = temporary / "credentials.cms"
+            if download.returncode != 0 or not encrypted.is_file() or not 256 <= encrypted.stat().st_size <= 65_536:
+                raise AppleRemoteError("Encrypted Apple proof credential artifact is missing or invalid")
+            artifact_downloaded = True
+            signature = temporary / "credentials.sig"
+            signing = runner([
+                "openssl", "dgst", "-sha256", "-sign", str(APPLE_PROOF_BROKER_RELAY_KEY),
+                "-out", str(signature), str(encrypted),
+            ])
+            if signing.returncode != 0 or not signature.is_file() or not 256 <= signature.stat().st_size <= 1024:
+                raise AppleRemoteError("Dev server could not sign the Apple proof credential ciphertext")
+            transfer = runner(scp_upload_command(config, encrypted, remote_encrypted))
+            if transfer.returncode != 0:
+                raise AppleRemoteError("Could not transfer encrypted Apple proof credentials to the registered Mac")
+            signature_transfer = runner(scp_upload_command(config, signature, remote_signature))
+            if signature_transfer.returncode != 0:
+                raise AppleRemoteError("Could not transfer the dev-server proof relay signature")
+            decrypt = repo_command(config, [
+                "python3", "-c", APPLE_PROOF_BROKER_DECRYPT_SCRIPT,
+                remote_encrypted, remote_signature, LIVE_TEST_CREDENTIALS_PATH, str(slot),
+                str(APPLE_PROOF_CREDENTIAL_TTL_SECONDS),
+            ])
+            result = runner(ssh_command(config, decrypt))
+            if result.returncode != 0 or f"proof_credentials=materialized:slot-{slot}" not in result.stdout:
+                raise AppleRemoteError("Registered Mac could not materialize encrypted Apple proof credentials")
+    finally:
+        cleanup_script = "import pathlib,sys; [pathlib.Path(value).unlink(missing_ok=True) for value in sys.argv[1:]]"
+        cleanup = runner(ssh_command(config, shell_join([
+            "python3", "-c", cleanup_script, remote_encrypted, remote_signature,
+        ])))
+        if cleanup.returncode != 0:
+            cleanup_errors.append("registered Mac ciphertext cleanup failed")
+        if dispatched and run_id is None:
+            try:
+                run = _find_github_proof_broker_run(request_id, runner=runner)
+                run_id = int(run["databaseId"]) if run and run.get("databaseId") is not None else None
+                if run_id is not None and run.get("status") != "completed":
+                    cancellation = runner([
+                        "gh", "run", "cancel", str(run_id), "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+                    ])
+                    if cancellation.returncode != 0:
+                        cleanup_errors.append("GitHub broker cancellation failed")
+            except (AppleRemoteError, TypeError, ValueError):
+                cleanup_errors.append("GitHub broker run cleanup lookup failed")
+        if run_id is not None:
+            try:
+                _delete_github_proof_broker_artifact(
+                    run_id,
+                    artifact_name,
+                    runner=runner,
+                    allow_missing=not artifact_downloaded,
+                )
+            except AppleRemoteError:
+                cleanup_errors.append("GitHub encrypted artifact cleanup failed")
+        elif dispatched:
+            cleanup_errors.append("dispatched GitHub broker run could not be located for cleanup")
+        if cleanup_errors:
+            raise AppleRemoteError("; ".join(cleanup_errors))
+    return request_id
 
 
 def extract_and_validate_recording_archive(archive_path: Path, destination: Path) -> tuple[Path, dict[str, Any]]:
@@ -3622,6 +4026,7 @@ def run_recorded_ios_test(
     proof: bool,
     expected_commit: str | None,
     test_account_slot: int | None,
+    github_secret_broker: bool,
     runner: CommandRunner = default_runner,
 ) -> int:
     """Run, transfer, and validate one recorded remote Apple test."""
@@ -3634,9 +4039,24 @@ def run_recorded_ios_test(
     if proof and simulator not in APPLE_PROOF_SIMULATORS.get(profile, set()):
         approved = ", ".join(sorted(APPLE_PROOF_SIMULATORS.get(profile, set())))
         raise AppleRemoteError(f"{profile} proof requires an approved simulator: {approved}")
-    test_account_env = local_test_account_env()
+    if github_secret_broker and not proof:
+        raise AppleRemoteError("--github-secret-broker is only supported with --proof")
+    test_account_env: dict[str, str]
+    preprovisioned_credentials = False
     if proof:
-        test_account_env = reserved_test_account_env(test_account_slot)
+        if github_secret_broker:
+            provision_github_proof_credentials(
+                config,
+                slot=test_account_slot,
+                expected_commit=str(expected_commit),
+                runner=runner,
+            )
+            test_account_env = {"OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": str(test_account_slot)}
+            preprovisioned_credentials = True
+        else:
+            test_account_env = reserved_test_account_env(test_account_slot)
+    else:
+        test_account_env = local_test_account_env()
     run_id = f"apple-{uuid.uuid4().hex[:16]}"
     command = repo_command(config, [
         "bash",
@@ -3649,9 +4069,20 @@ def run_recorded_ios_test(
             expected_commit or "",
             test_account_env,
             proof,
+            preprovisioned_credentials,
         ),
     ])
-    result = runner(ssh_command(config, command))
+    try:
+        result = runner(ssh_command(config, command))
+    finally:
+        if preprovisioned_credentials:
+            cleanup = runner(ssh_command(config, repo_command(config, [
+                "python3", "-c",
+                "import pathlib,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True)",
+                LIVE_TEST_CREDENTIALS_PATH,
+            ])))
+            if cleanup.returncode != 0:
+                raise AppleRemoteError("Could not confirm registered Mac proof credential cleanup")
     stdout = redact_output(result.stdout, config)
     stderr = redact_output(result.stderr, config)
     if stdout:
@@ -4121,6 +4552,16 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--proof", action="store_true", help="Finalize a passed recorded native test as proof")
     test_parser.add_argument("--expected-commit", help="Require the remote checkout to match this full commit")
     test_parser.add_argument("--test-account-slot", type=int, help="Reserved Apple proof account slot (14-20)")
+    test_parser.add_argument(
+        "--github-secret-broker",
+        action="store_true",
+        help="Encrypt the selected repository-secret account to the registered Mac before proof execution",
+    )
+
+    subparsers.add_parser(
+        "init-proof-broker-recipient",
+        help="Initialize the registered Mac proof-broker key and print only its public certificate",
+    )
 
     finalize_parser = subparsers.add_parser(
         "finalize-proof",
@@ -4326,6 +4767,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         local_config = load_local_config()
         config = resolve_remote_config(local_config=local_config)
         api_options = app_store_connect_api_options(args, local_config)
+        if args.command == "init-proof-broker-recipient":
+            certificate = proof_broker_recipient_certificate(config)
+            proof_broker_relay_public_key(config)
+            sys.stdout.write(certificate.decode("ascii"))
+            return 0
         if args.command == "status":
             return print_status(config)
         if args.command == "doctor":
@@ -4358,6 +4804,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     proof=args.proof,
                     expected_commit=args.expected_commit,
                     test_account_slot=args.test_account_slot,
+                    github_secret_broker=args.github_secret_broker,
                 )
             if args.proof:
                 raise AppleRemoteError("--proof requires --record-profile")
