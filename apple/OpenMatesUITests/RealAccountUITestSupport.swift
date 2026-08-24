@@ -137,24 +137,28 @@ enum RealAccountUITestSupport {
 
     static func revealLatestAssistantResponse(app: XCUIApplication) {
         let assistantMessages = accessibilityElements(in: app, identifier: "message-assistant")
+        let assistantTails = accessibilityElements(in: app, identifier: "message-assistant-tail")
         let history = accessibilityElement(in: app, identifier: "chat-history-container")
         let composer = accessibilityElement(in: app, identifier: "message-editor")
         var assistantMessage = latestElement(in: assistantMessages)
+        var assistantTail = latestElement(in: assistantTails)
 
-        for _ in 0..<4 where !assistantMessage.isHittable {
+        for _ in 0..<4 where !assistantTail.isHittable {
             history.swipeUp()
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
             assistantMessage = latestElement(in: assistantMessages)
+            assistantTail = latestElement(in: assistantTails)
         }
 
         XCTAssertTrue(assistantMessage.isHittable, "Completed assistant response was not visible for proof")
+        XCTAssertTrue(assistantTail.isHittable, "Completed assistant response tail was not visible for proof")
         XCTAssertLessThanOrEqual(
-            assistantMessage.frame.maxY,
+            assistantTail.frame.maxY,
             history.frame.maxY + 1,
             "Completed assistant response extended below the visible chat history"
         )
         XCTAssertLessThanOrEqual(
-            assistantMessage.frame.maxY,
+            assistantTail.frame.maxY,
             composer.frame.minY + 1,
             "Completed assistant response was covered by the composer"
         )

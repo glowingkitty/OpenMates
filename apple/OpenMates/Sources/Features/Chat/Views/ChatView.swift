@@ -3640,6 +3640,12 @@ struct MessageBubble: View {
                 }
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("message-assistant-tail")
+        }
     }
 
     private var systemContent: some View {
