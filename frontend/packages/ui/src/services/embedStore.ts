@@ -33,11 +33,12 @@ import {
 } from "./embedPreviewBackfill";
 import {
   clearEmbedRefIndexEntries,
+  embedRefIndexVersion,
   registerEmbedRefIndex,
   resolveEmbedRefIndexEntry,
 } from "./embedRefIndex";
 
-export { embedRefIndexVersion } from "./embedRefIndex";
+export { embedRefIndexVersion };
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -68,10 +69,6 @@ const embedKeyNegativeCache = new Set<string>();
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
 const MAX_REF_REPAIR_CANDIDATES = 200;
 const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
-
-function normalizeUnixSeconds(value: number): number {
-  return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
-}
 const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
 const FILE_SEARCH_RESULT_LIMIT = 6;
@@ -232,6 +229,40 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  private readonly pendingEmbedIdsByChatId = new Map<string, Set<string>>();
+  private readonly refRepairInFlight = new Map<string, Promise<string | null>>();
+
+  markEmbedKeyPendingForChat(chatId: string, embedId: string): void {
+    const pendingEmbedIds = this.pendingEmbedIdsByChatId.get(chatId) ?? new Set<string>();
+    pendingEmbedIds.add(this.normalizeEmbedId(embedId));
+    this.pendingEmbedIdsByChatId.set(chatId, pendingEmbedIds);
+  }
+
+  retryPendingEmbedKeysForChat(chatId: string): boolean {
+    const pendingEmbedIds = this.pendingEmbedIdsByChatId.get(chatId);
+    if (!pendingEmbedIds?.size) return false;
+
+    this.pendingEmbedIdsByChatId.delete(chatId);
+    embedKeyNegativeCache.clear();
+    embedRefIndexVersion.update((version) => version + 1);
+    return true;
+  }
+
+  private isEmbedKeyPending(embedId: string): boolean {
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+    return Array.from(this.pendingEmbedIdsByChatId.values()).some((embedIds) =>
+      embedIds.has(normalizedEmbedId)
+    );
+  }
+
+  private clearEmbedKeyPending(embedId: string): void {
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+    this.pendingEmbedIdsByChatId.forEach((embedIds, chatId) => {
+      embedIds.delete(normalizedEmbedId);
+      if (embedIds.size === 0) this.pendingEmbedIdsByChatId.delete(chatId);
+    });
+  }
+
   private isFileLikeType(type: string | undefined): boolean {
     if (!type) return false;
     return FILE_LIKE_EMBED_TYPES.has(type);
@@ -1081,10 +1112,7 @@ export class EmbedStore {
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
     // During bulk sync (Phase 3, CoreSync), skip decryption-based extraction since embed keys
     // are typically not available yet - metadata will be extracted later when embeds are accessed
-    let appMetadata: { app_id?: string; skill_id?: string } = {
-      app_id: preExtractedMetadata?.app_id,
-      skill_id: preExtractedMetadata?.skill_id,
-    };
+    let appMetadata: { app_id?: string; skill_id?: string } = {};
 
     // Also run metadata extraction for auto-converted embed types (code, sheet, math-plot,
     // document) which now include app_id/skill_id in their TOON content so they can be
@@ -1455,6 +1483,7 @@ export class EmbedStore {
             { embedId, fieldName: "encrypted_content" },
           );
           if (decryptedContent) {
+            this.clearEmbedKeyPending(embedId);
             embed.content = decryptedContent;
             // Re-register embed_ref → embed_id on reload/IDB read.
             // embed_ref is stored only inside the encrypted TOON content (zero-knowledge).
@@ -1498,6 +1527,9 @@ export class EmbedStore {
             } as any);
             /* eslint-enable @typescript-eslint/no-explicit-any */
           }
+        } else if (this.isEmbedKeyPending(embedId)) {
+          embed._decryptionPending = true;
+          embed.content = null;
         } else {
           embed._decryptionFailed = true;
           embed.status = "error";
@@ -2376,10 +2408,6 @@ export class EmbedStore {
     app_id?: string;
     skill_id?: string;
     status?: EmbedStoreEntry["status"];
-    version_number?: number;
-    hashed_chat_id?: string;
-    hashed_message_id?: string;
-    hashed_user_id?: string;
   } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
@@ -2415,12 +2443,7 @@ export class EmbedStore {
 
     // For new format (separate fields), check parent_embed_id and embed_ids directly from entry
     // Always check parent_embed_id first (for child embeds), then embed_ids (for parent embeds)
-    if (
-      entry.embed_id !== undefined
-      || entry.encrypted_content !== undefined
-      || entry.parent_embed_id !== undefined
-      || entry.embed_ids !== undefined
-    ) {
+    if (entry.parent_embed_id !== undefined || entry.embed_ids !== undefined) {
       return {
         embed_id: entry.embed_id,
         parent_embed_id: entry.parent_embed_id,
@@ -2429,10 +2452,6 @@ export class EmbedStore {
         app_id: entry.app_id,
         skill_id: entry.skill_id,
         status: entry.status,
-        version_number: entry.version_number,
-        hashed_chat_id: entry.hashed_chat_id,
-        hashed_message_id: entry.hashed_message_id,
-        hashed_user_id: entry.hashed_user_id,
       };
     }
 
@@ -2459,10 +2478,6 @@ export class EmbedStore {
             app_id: parsed.app_id,
             skill_id: parsed.skill_id,
             status: parsed.status,
-            version_number: parsed.version_number,
-            hashed_chat_id: parsed.hashed_chat_id,
-            hashed_message_id: parsed.hashed_message_id,
-            hashed_user_id: parsed.hashed_user_id,
           };
         }
       } else if (typeof storedData === "object") {
@@ -2477,10 +2492,6 @@ export class EmbedStore {
           app_id: parsed.app_id as string | undefined,
           skill_id: parsed.skill_id as string | undefined,
           status: parsed.status as EmbedStoreEntry["status"] | undefined,
-          version_number: parsed.version_number as number | undefined,
-          hashed_chat_id: parsed.hashed_chat_id as string | undefined,
-          hashed_message_id: parsed.hashed_message_id as string | undefined,
-          hashed_user_id: parsed.hashed_user_id as string | undefined,
         };
       }
     } catch {
@@ -2488,61 +2499,6 @@ export class EmbedStore {
     }
 
     return null;
-  }
-
-  async updateChildEmbedIds(parentEmbedId: string, childEmbedIds: string[]): Promise<StoreEmbedPayload> {
-    const contentRef = `embed:${this.normalizeEmbedId(parentEmbedId)}`;
-    let entry = embedCache.get(contentRef);
-    if (!entry) {
-      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
-      const store = transaction.objectStore(EMBEDS_STORE_NAME);
-      entry = await new Promise<EmbedStoreEntry | undefined>((resolve, reject) => {
-        const request = store.get(contentRef);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-    if (
-      !entry?.embed_id
-      || !entry.encrypted_type
-      || !entry.encrypted_content
-      || !entry.hashed_chat_id
-      || !entry.hashed_message_id
-      || !entry.hashed_user_id
-    ) {
-      throw new Error(`Parent embed ${parentEmbedId} is missing encrypted persistence fields`);
-    }
-
-    const orderedChildIds = Array.from(new Set(childEmbedIds));
-    const updatedAt = Math.floor(Date.now() / 1000);
-    await this.putEncrypted(
-      contentRef,
-      { ...entry, embed_ids: orderedChildIds, updatedAt: updatedAt * 1000 },
-      entry.type,
-      undefined,
-      { app_id: entry.app_id, skill_id: entry.skill_id },
-      { skipMetadataExtraction: true },
-    );
-    return {
-      embed_id: entry.embed_id,
-      encrypted_type: entry.encrypted_type,
-      encrypted_content: entry.encrypted_content,
-      ...(entry.encrypted_text_preview ? { encrypted_text_preview: entry.encrypted_text_preview } : {}),
-      status: entry.status || "finished",
-      hashed_chat_id: entry.hashed_chat_id,
-      hashed_message_id: entry.hashed_message_id,
-      hashed_user_id: entry.hashed_user_id,
-      ...(entry.hashed_task_id ? { hashed_task_id: entry.hashed_task_id } : {}),
-      embed_ids: orderedChildIds,
-      version_number: entry.version_number,
-      file_path: entry.file_path,
-      content_hash: entry.content_hash,
-      text_length_chars: entry.text_length_chars,
-      is_private: entry.is_private,
-      is_shared: entry.is_shared,
-      created_at: normalizeUnixSeconds(entry.createdAt),
-      updated_at: updatedAt,
-    };
   }
 
   /**
@@ -2729,6 +2685,8 @@ export class EmbedStore {
             if (embedKey) {
               return embedKey;
             }
+          } else if (embedId) {
+            this.markEmbedKeyPendingForChat(chat.chat_id, embedId);
           }
         }
       }
@@ -3563,6 +3521,24 @@ export class EmbedStore {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
 
+    const inFlight = this.refRepairInFlight.get(embedRef);
+    if (inFlight) return inFlight;
+
+    const repair = this.resolveByRefDeepUncached(embedRef);
+    this.refRepairInFlight.set(embedRef, repair);
+    try {
+      return await repair;
+    } finally {
+      if (this.refRepairInFlight.get(embedRef) === repair) {
+        this.refRepairInFlight.delete(embedRef);
+      }
+    }
+  }
+
+  private async resolveByRefDeepUncached(embedRef: string): Promise<string | null> {
+    const indexedEmbedId = this.resolveByRef(embedRef);
+    if (indexedEmbedId) return indexedEmbedId;
+
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
     const checkedCandidates = new Set<string>();
 
@@ -3689,11 +3665,10 @@ export const embedStore = new EmbedStore();
 // can retry and succeed. Without this, the negative cache permanently blocks re-lookup
 // even after the chat key loads via OPE-314's bulk key retry.
 if (typeof chatKeyManager.onKeyReady === "function") {
-  chatKeyManager.onKeyReady((_chatId: string) => {
-    if (embedKeyNegativeCache.size > 0) {
-      embedKeyNegativeCache.clear();
+  chatKeyManager.onKeyReady((chatId: string) => {
+    if (embedStore.retryPendingEmbedKeysForChat(chatId)) {
       console.debug(
-        `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
+        `[EmbedStore] Retrying pending embed refs after matching chat key became ready`,
       );
     }
   });

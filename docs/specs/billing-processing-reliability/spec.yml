@@ -155,6 +155,12 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-24T19:08:00Z"
     evidence: The post-reload checkpoint exposed a persistent referenced-embed loader caused by encrypted embed resolution running before the chat key became ready.
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Deploy focused Vitest coverage before implementing encrypted embed key-ready recovery.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-24T20:50:00Z"
+    evidence: GitHub run 32775832571 passed 1075 existing tests and failed the three new tests on missing pending-key methods and duplicate deep ref scans.
 
 handoff:
   current_task_id: TASK-6
@@ -423,7 +429,7 @@ tests:
       - reload preserves the terminal assistant response
     contract_assertions: [billing.credits.retryable-completion-safe]
     covers: [AC-3]
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {status: "", command: "", run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --suite vitest", run_id: "32775832571", subject_commit: "eccfc4b444f9c44bba55a06c8ed5e2eeee382d83", timestamp: "2026-08-24T20:50:00Z", summary: "1075 existing tests passed; three new key-ready tests failed on missing recovery methods and duplicate deep scans."}}
     green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-EMBED-KEY-READY
     type: vitest
