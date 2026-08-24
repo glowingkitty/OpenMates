@@ -6357,7 +6357,7 @@ assertions:
       surface: gui.apple
     - &id693
       path: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
-      line: 111
+      line: 215
       name: explains selected assistant text in a background new chat
       surface: gui.web
     - &id695
@@ -9500,7 +9500,7 @@ assertions:
     supporting_tests:
     - &id1072
       path: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
-      line: 192
+      line: 337
       name: selection toolbar wraps within a mobile viewport
       surface: gui.web
     tests:
@@ -9661,7 +9661,7 @@ assertions:
     supporting_tests:
     - &id1086
       path: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
-      line: 111
+      line: 215
       name: explains selected assistant text in a background new chat
       surface: gui.web
     - &id1087
@@ -10332,7 +10332,7 @@ assertions:
     supporting_tests:
     - &id1148
       path: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
-      line: 111
+      line: 215
       name: explains selected assistant text in a background new chat
       surface: gui.web
     tests:

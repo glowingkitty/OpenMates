@@ -8080,6 +8080,14 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             timestamps = deployed_run.get(timestamp_field)
             if isinstance(timestamps, list):
                 source[timestamp_field] = timestamps
+        state_change_timestamps_by_id = deployed_run.get("state_change_timestamps_by_id")
+        if isinstance(state_change_timestamps_by_id, dict):
+            source["state_change_timestamps_by_id"] = state_change_timestamps_by_id
+        source_end_timestamp_seconds = getattr(args, "source_end_timestamp_seconds", None)
+        if source_end_timestamp_seconds is None:
+            source_end_timestamp_seconds = deployed_run.get("source_end_timestamp_seconds")
+        if source_end_timestamp_seconds is not None:
+            source["source_end_timestamp_seconds"] = float(source_end_timestamp_seconds)
         result = produce_playwright_demonstration(
             run_dir=run_dir,
             source_video=args.source_video,
@@ -14222,6 +14230,11 @@ def main() -> None:
         "--ready-timestamp-seconds",
         type=float,
         help="Trim the Playwright recording from this explicit capture-ready timestamp minus the fixed lead.",
+    )
+    p_proof_playwright.add_argument(
+        "--source-end-timestamp-seconds",
+        type=float,
+        help="Trim the Playwright recording at this explicit source timestamp after the proof-relevant state.",
     )
     p_proof_playwright.add_argument(
         "--demo-audio-path",

@@ -184,6 +184,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
                 "artifact_sha256": proof_video_workflow._file_sha256(video),
                 "action_timestamps": [1.25],
                 "state_change_timestamps": [2.5],
+                "state_change_timestamps_by_id": {"signup.visible": 2.5},
             }
         ),
         encoding="utf-8",
@@ -227,6 +228,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         playback_rate=0.75,
         hold_last_frame_seconds=2.0,
         ready_timestamp_seconds=4.2,
+        source_end_timestamp_seconds=8.4,
         demo_audio_path=tmp_path / "product-audio.mp3",
         spec_name="signup-flow-passkey.spec.ts",
         contract_path=contract_path,
@@ -248,6 +250,8 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         "test_account_provenance": "reserved test account with synthetic signup identity",
         "action_timestamps": [1.25],
         "state_change_timestamps": [2.5],
+        "state_change_timestamps_by_id": {"signup.visible": 2.5},
+        "source_end_timestamp_seconds": 8.4,
     }
     assert observed["device_profile_name"] == "web-phone"
     assert observed["narration_audio_path"] is None
