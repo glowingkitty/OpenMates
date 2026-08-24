@@ -36,7 +36,7 @@
     };
 
     let visibleNotifications = $derived(
-        $notificationStore.notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS),
+        $notificationStore.notifications.slice(-MAX_VISIBLE_NOTIFICATIONS).reverse(),
     );
 
     function e2eNotificationInjectionAllowed(): boolean {

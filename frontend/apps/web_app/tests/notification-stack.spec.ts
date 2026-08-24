@@ -5,8 +5,8 @@ export {};
  * Stacked global notification contract coverage.
  *
  * Uses the existing E2E debug session gate to inject local notification-store
- * entries on the deployed app, then verifies the shared stack depth, inert back
- * cards, and front-card dismissal promotion on phone and laptop proof profiles.
+ * entries on the deployed app, then verifies newest-first stack depth, inert
+ * back cards, and front-card dismissal promotion on proof profiles.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -86,9 +86,9 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
 	expect(introTop, 'new notifications should render while moving in from above').not.toBeNull();
-	await expect(items.nth(0)).toContainText('First stacked notification');
+	await expect(items.nth(0)).toContainText('Third stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
-	await expect(items.nth(2)).toContainText('Third stacked notification');
+	await expect(items.nth(2)).toContainText('First stacked notification');
 	await expect(items.nth(0).getByTestId('notification-activity')).toBeVisible();
 	await expect(items.nth(0).getByTestId('notification-progress')).toHaveCount(0);
 
@@ -153,6 +153,6 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(items).toHaveCount(2, { timeout: 2000 });
 	await expect(items.nth(0)).toContainText('Second stacked notification');
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
-	await expect(items.nth(1)).toContainText('Third stacked notification');
+	await expect(items.nth(1)).toContainText('First stacked notification');
 	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
 });
