@@ -102,32 +102,36 @@ enum RealAccountUITestSupport {
     }
 
     static func assertAssistantResponds(app: XCUIApplication, timeout: TimeInterval = 90) {
-        let streamingStarted = app.otherElements["streaming-banner"].waitForExistence(timeout: 30)
-            || app.otherElements["streaming-indicator"].waitForExistence(timeout: 2)
+        let streamingBanner = accessibilityElement(in: app, identifier: "streaming-banner")
+        let streamingIndicator = accessibilityElement(in: app, identifier: "streaming-indicator")
+        let streamingStarted = streamingBanner.waitForExistence(timeout: 30)
+            || streamingIndicator.waitForExistence(timeout: 2)
 
-        let assistantMessage = accessibilityElement(in: app, identifier: "message-assistant")
+        let assistantMessages = accessibilityElements(in: app, identifier: "message-assistant")
         XCTAssertTrue(
-            streamingStarted || assistantMessage.waitForExistence(timeout: 10),
+            streamingStarted || assistantMessages.firstMatch.waitForExistence(timeout: 10),
             "Expected assistant streaming or an assistant message to appear"
         )
-        XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
+        XCTAssertTrue(assistantMessages.firstMatch.waitForExistence(timeout: timeout))
+        var assistantMessage = latestElement(in: assistantMessages)
         XCTAssertFalse(
             assistantMessage.label.contains("app_skill_use"),
             "Streaming assistant response exposed protocol metadata"
         )
         let completionDeadline = Date().addingTimeInterval(timeout)
         repeat {
+            assistantMessage = latestElement(in: assistantMessages)
             if assistantMessage.label.count > 8,
-               !app.otherElements["streaming-banner"].exists,
-               !app.otherElements["streaming-indicator"].exists {
+               !streamingBanner.exists,
+               !streamingIndicator.exists {
                 break
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         } while Date() < completionDeadline
 
         XCTAssertGreaterThan(assistantMessage.label.count, 8)
-        XCTAssertFalse(app.otherElements["streaming-banner"].exists, "Assistant response did not finish streaming")
-        XCTAssertFalse(app.otherElements["streaming-indicator"].exists, "Assistant response did not finish loading")
+        XCTAssertFalse(streamingBanner.exists, "Assistant response did not finish streaming")
+        XCTAssertFalse(streamingIndicator.exists, "Assistant response did not finish loading")
         XCTAssertFalse(assistantMessage.label.contains("app_skill_use"), "Assistant response exposed protocol metadata")
     }
 
@@ -144,9 +148,16 @@ enum RealAccountUITestSupport {
     }
 
     static func accessibilityElement(in app: XCUIApplication, identifier: String) -> XCUIElement {
+        accessibilityElements(in: app, identifier: identifier).firstMatch
+    }
+
+    private static func accessibilityElements(in app: XCUIApplication, identifier: String) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
-            .firstMatch
+    }
+
+    private static func latestElement(in query: XCUIElementQuery) -> XCUIElement {
+        query.element(boundBy: max(0, query.count - 1))
     }
 
     static func accessibilityElement(

@@ -3161,8 +3161,7 @@ enum ChatMessageStreamingRenderPolicy {
         guard language == "json" || language == "json_embed" else { return false }
         guard isClosed else {
             return language == "json_embed"
-                || body.contains("\"app_skill_use\"")
-                || body.contains("\"embed_id\"")
+                || (body.contains("\"app_skill_use\"") && body.contains("\"embed_id\""))
         }
         guard let data = body.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

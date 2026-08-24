@@ -83,7 +83,7 @@ enum AppStrings {
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
-    static var aiResponding: String { L("chat.ai_responding") }
+    static var aiResponding: String { L("enter_message.processing") }
     static var stopResponse: String { L("chat.stop_response") }
     static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }

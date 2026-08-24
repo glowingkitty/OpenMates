@@ -263,6 +263,10 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(ChatMessageStreamingRenderPolicy.visibleContent(content), "\nVisible answer.")
         XCTAssertEqual(
             ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"type\":\"app_skill_use\""),
+            "```json\n{\"type\":\"app_skill_use\""
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"embed-search\""),
             ""
         )
         XCTAssertEqual(
