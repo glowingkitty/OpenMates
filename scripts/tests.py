@@ -1577,11 +1577,15 @@ def record_apple_proof_source_attestation(run_dir: Path, manifest: dict[str, Any
     subject_commit = str(manifest.get("subject_commit") or "")
     if not re.fullmatch(r"[0-9a-f]{40}", subject_commit):
         raise RuntimeError("Apple proof-source attestation requires one exact full commit")
-    source_video = run_dir / str(manifest.get("raw_video") or "")
+    test_account_provenance = str(manifest.get("test_account_provenance") or "").strip()
+    if not test_account_provenance:
+        raise RuntimeError("Apple proof-source attestation requires explicit test-account provenance")
+    raw_video = run_dir / str(manifest.get("raw_video") or "")
+    source_video = run_dir / str(manifest.get("proof_video") or manifest.get("raw_video") or "")
     result_bundle = run_dir / str(manifest.get("result_bundle") or "")
     timeline_value = str(manifest.get("proof_timeline") or "")
     timeline_path = run_dir / timeline_value
-    if not source_video.is_file() or not result_bundle.exists() or not timeline_value or not timeline_path.is_file():
+    if not raw_video.is_file() or not source_video.is_file() or not result_bundle.exists() or not timeline_value or not timeline_path.is_file():
         raise RuntimeError("Apple proof-source attestation requires video, xcresult, and proof timeline")
     timeline = read_json(timeline_path, {})
     contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
@@ -1601,11 +1605,13 @@ def record_apple_proof_source_attestation(run_dir: Path, manifest: dict[str, Any
         "target": "apple-simulator",
         "artifact_path": str(source_video),
         "artifact_sha256": _file_sha256(source_video),
+        "raw_artifact_path": str(raw_video),
+        "raw_artifact_sha256": _file_sha256(raw_video),
         "result_bundle_path": str(result_bundle),
         "proof_video_profile": profile,
         "proof_timeline_path": str(timeline_path),
         "proof_timeline_sha256": _file_sha256(timeline_path),
-        "test_account_provenance": "reserved Apple E2E account",
+        "test_account_provenance": test_account_provenance,
     }
     record_path = PROOF_SOURCE_DIR / f"{identity}.json"
     record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

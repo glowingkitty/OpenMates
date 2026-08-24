@@ -31,7 +31,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
-        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        guard let slotValue = ProcessInfo.processInfo.environment["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"],
+              let slot = Int(slotValue) else {
+            throw XCTSkip("Missing reserved Apple proof account slot")
+        }
+        let credentials = try RealAccountTestCredentials.fromReservedSlot(slot)
         let captureEpochMilliseconds = Double(
             ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"] ?? ""
         ) ?? Date().timeIntervalSince1970 * 1000
@@ -127,7 +131,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "devices": [profile],
                 "transcript": [
                     ["id": "login", "text": "OpenMates signs in and restores the native chat shell.", "checkpoint": "login-ready", "devices": [profile]],
-                    ["id": "chat", "text": "A saved native message receives one assistant response.", "checkpoint": "response-ready", "devices": [profile]],
+                    ["id": "message", "text": "The sent travel question remains visible in the native conversation.", "checkpoint": "response-ready", "devices": [profile]],
+                    ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-ready", "devices": [profile]],
                 ],
                 "assertions": [
                     ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "login-ready", "devices": [profile]],

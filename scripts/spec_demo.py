@@ -366,6 +366,11 @@ def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
+def proof_video_pixel_format(width: int, height: int) -> str:
+    """Use 4:4:4 when an exact Apple logical dimension is odd."""
+    return "yuv444p" if width % 2 or height % 2 else "yuv420p"
+
+
 def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
     if name is None or not str(name).strip():
         return None
@@ -643,7 +648,8 @@ def render_clean_video(
     if demo_audio_path is not None and audio_path is None:
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    source_duration = media_duration_seconds(source_path)
+    source_metadata = video_metadata(source_path)
+    source_duration = float(source_metadata["duration_seconds"])
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
@@ -685,7 +691,7 @@ def render_clean_video(
             "-c:v",
             "libx264",
             "-pix_fmt",
-            "yuv420p",
+            proof_video_pixel_format(int(source_metadata["width"]), int(source_metadata["height"])),
             *([] if audio_map else ["-an"]),
             "-t",
             str(output_duration),
@@ -843,7 +849,8 @@ def trim_source_to_ready_marker(
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
     trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
-    duration = media_duration_seconds(source_path)
+    source_metadata = video_metadata(source_path)
+    duration = float(source_metadata["duration_seconds"])
     if trim_start >= duration:
         raise DemonstrationError("Capture-ready marker is outside the source video")
     trim_end = duration
@@ -870,7 +877,7 @@ def trim_source_to_ready_marker(
             "-preset",
             "veryfast",
             "-pix_fmt",
-            "yuv420p",
+            proof_video_pixel_format(int(source_metadata["width"]), int(source_metadata["height"])),
             "-c:a",
             "aac",
             "-map_metadata",

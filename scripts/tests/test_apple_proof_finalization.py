@@ -54,6 +54,7 @@ def make_apple_source(tmp_path: Path, control, profile: str = "apple-iphone-port
         "xcode_exit_code": 0,
         "profile": profile,
         "subject_commit": "a" * 40,
+        "test_account_provenance": "reserved Apple E2E account",
         "raw_video": "raw.mov",
         "result_bundle": "result.xcresult",
         "proof_timeline": "proof-timeline.json",
@@ -70,6 +71,8 @@ def test_apple_attestation_requires_exact_profile_and_timeline(tmp_path: Path, m
     assert payload["source_kind"] == "apple"
     assert payload["proof_video_profile"] == "apple-iphone-portrait"
     assert payload["git_sha"] == "a" * 40
+    assert payload["raw_artifact_path"].endswith("raw.mov")
+    assert payload["raw_artifact_sha256"]
 
 
 def test_apple_source_reuses_render_review_and_publish(tmp_path: Path, monkeypatch) -> None:

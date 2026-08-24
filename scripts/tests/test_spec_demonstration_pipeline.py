@@ -766,6 +766,26 @@ def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Pa
     assert (module.video_metadata(output)["width"], module.video_metadata(output)["height"]) == (320, 240)
 
 
+def test_ready_marker_trim_preserves_odd_apple_profile_dimensions(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "iphone-source.mp4"
+    output = tmp_path / "iphone-trimmed.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=394x852:r=10",
+            "-vf", "format=yuv444p,crop=393:852",
+            "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv444p", str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    module.trim_source_to_ready_marker(source, output, ready_timestamp_seconds=0.5, lead_seconds=0)
+
+    metadata = module.video_metadata(output)
+    assert (metadata["width"], metadata["height"]) == (393, 852)
+
+
 def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "black-then-blue.mp4"

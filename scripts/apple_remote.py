@@ -51,6 +51,14 @@ TEST_ACCOUNT_ENV_PATTERN = re.compile(
 CHAT_RENDERING_PARITY_ENV_PATTERN = re.compile(r"^CHAT_RENDERING_PARITY_[A-Z0-9_]+$")
 LIVE_TEST_CREDENTIALS_PATH = "apple/.openmates-live-test-account.env"
 APPLE_RECORDING_PROFILES = {"apple-iphone-portrait", "apple-ipad-landscape"}
+APPLE_PROOF_VIDEO_DIMENSIONS = {
+    "apple-iphone-portrait": (393, 852),
+    "apple-ipad-landscape": (1366, 1024),
+}
+APPLE_PROOF_SIMULATORS = {
+    "apple-iphone-portrait": {"iPhone 15 Pro", "iPhone 16 Pro"},
+    "apple-ipad-landscape": {"iPad Pro 13-inch (M5)"},
+}
 APPLE_RECORDING_RESULTS_DIR = REPO_ROOT / "test-results" / "apple-recordings"
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
@@ -155,7 +163,7 @@ try:
     subprocess.run(["xcrun", "simctl", "boot", udid], capture_output=True, text=True, check=False)
     subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], capture_output=True, text=True, check=True, timeout=180)
     if profile == "apple-ipad-landscape":
-        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=False)
+        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=True)
     recorder = subprocess.Popen(
         ["xcrun", "simctl", "io", udid, "recordVideo", "--codec=h264", "--force", str(raw_video)],
         stdout=subprocess.DEVNULL,
@@ -3464,6 +3472,7 @@ def extract_and_validate_recording_archive(archive_path: Path, destination: Path
     manifest_path = manifests[0]
     run_dir = manifest_path.parent
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    declared_artifacts: set[Path] = set()
     for artifact in manifest.get("artifacts") or []:
         relative_path = Path(str(artifact.get("path") or ""))
         artifact_path = (run_dir / relative_path).resolve()
@@ -3472,7 +3481,113 @@ def extract_and_validate_recording_archive(archive_path: Path, destination: Path
         digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
         if digest != artifact.get("sha256"):
             raise AppleRemoteError(f"Recording artifact hash mismatch: {relative_path}")
+        declared_artifacts.add(relative_path)
+
+    for key in ("raw_video", "proof_timeline"):
+        value = manifest.get(key)
+        if not value:
+            continue
+        relative_path = Path(str(value))
+        artifact_path = (run_dir / relative_path).resolve()
+        if relative_path not in declared_artifacts or run_dir.resolve() not in artifact_path.parents:
+            raise AppleRemoteError(f"Recording manifest {key} is not a declared run-local artifact")
+    if manifest.get("proof_video"):
+        raise AppleRemoteError("Remote recording manifest must not provide a derived proof video")
+    result_bundle = Path(str(manifest.get("result_bundle") or ""))
+    result_path = (run_dir / result_bundle).resolve()
+    if run_dir.resolve() not in result_path.parents or not result_path.is_dir():
+        raise AppleRemoteError("Recording manifest result_bundle is not a run-local directory")
+    result_prefix = result_bundle.as_posix().rstrip("/") + "/"
+    if not any(path.as_posix().startswith(result_prefix) for path in declared_artifacts):
+        raise AppleRemoteError("Recording result bundle has no declared hash-verified artifacts")
     return run_dir, manifest
+
+
+def video_dimensions(video_path: Path) -> tuple[int, int]:
+    """Read video dimensions without trusting filename or container metadata."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-of", "json", str(video_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AppleRemoteError(f"Could not inspect Apple proof video: {result.stderr.strip()[-500:]}")
+    try:
+        stream = json.loads(result.stdout)["streams"][0]
+        return int(stream["width"]), int(stream["height"])
+    except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise AppleRemoteError("Apple proof video has incomplete dimension metadata") from exc
+
+
+def normalize_apple_proof_video(
+    run_dir: Path,
+    manifest: dict[str, Any],
+    *,
+    runner: CommandRunner = default_runner,
+    dimensions_reader: Callable[[Path], tuple[int, int]] = video_dimensions,
+) -> Path:
+    """Derive an exact logical-size proof source while retaining the raw Retina recording."""
+    profile = str(manifest.get("profile") or "")
+    dimensions = APPLE_PROOF_VIDEO_DIMENSIONS.get(profile)
+    if dimensions is None:
+        raise AppleRemoteError(f"Unsupported Apple proof profile: {profile}")
+    source = run_dir / str(manifest.get("raw_video") or "")
+    if not source.is_file():
+        raise AppleRemoteError("Apple proof normalization requires the raw recording")
+    if dimensions_reader(source) == dimensions:
+        manifest["proof_video"] = source.name
+        return source
+
+    output = run_dir / "proof-source.mp4"
+    width, height = dimensions
+    result = runner([
+        "ffmpeg", "-y", "-i", str(source),
+        "-vf", f"scale={width}:{height}:flags=lanczos,setsar=1",
+        "-c:v", "libx264", "-pix_fmt", "yuv444p", "-crf", "18",
+        "-fps_mode", "passthrough", "-movflags", "+faststart", "-an", str(output),
+    ])
+    if result.returncode != 0 or not output.is_file():
+        raise AppleRemoteError("Could not derive exact-size Apple proof video")
+    if dimensions_reader(output) != dimensions:
+        raise AppleRemoteError("Derived Apple proof video does not match its exact device profile")
+    manifest["proof_video"] = output.name
+    manifest["raw_video_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    return output
+
+
+def finalize_local_apple_proof(run_id: str, *, session_id: str) -> int:
+    """Retry proof derivation and review for an already transferred passing run."""
+    if not re.fullmatch(r"apple-[0-9a-f]{16}", run_id):
+        raise AppleRemoteError("Apple proof run ID has an invalid format")
+    run_dir = APPLE_RECORDING_RESULTS_DIR / run_id
+    manifest_path = run_dir / "artifact-manifest.json"
+    if not manifest_path.is_file():
+        raise AppleRemoteError(f"Apple recording manifest not found for {run_id}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("status") != "passed":
+        raise AppleRemoteError("Only a passing Apple recording can be finalized as proof")
+    normalize_apple_proof_video(run_dir, manifest)
+
+    spec = importlib.util.spec_from_file_location("apple_proof_tests_control", REPO_ROOT / "scripts/tests.py")
+    if spec is None or spec.loader is None:
+        raise AppleRemoteError("Could not load Apple proof finalizer")
+    tests_control = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = tests_control
+    spec.loader.exec_module(tests_control)
+    record_path = tests_control.record_apple_proof_source_attestation(run_dir, manifest)
+    finalizations = tests_control.auto_finalize_proof_video_sources(
+        {"git_sha": manifest.get("subject_commit"), "run_id": run_id, "environment": "apple-simulator"},
+        [record_path],
+        session_id=session_id,
+    )
+    if not finalizations or finalizations[0].get("status") != "delivered":
+        raise AppleRemoteError("Apple proof recording did not pass review and publication")
+    print(f"proof_finalization_status=delivered:{run_id}")
+    return 0
 
 
 def run_recorded_ios_test(
@@ -3483,6 +3598,7 @@ def run_recorded_ios_test(
     profile: str,
     proof: bool,
     expected_commit: str | None,
+    test_account_slot: int | None,
     runner: CommandRunner = default_runner,
 ) -> int:
     """Run, transfer, and validate one recorded remote Apple test."""
@@ -3490,6 +3606,18 @@ def run_recorded_ios_test(
         raise AppleRemoteError("--proof requires --only-testing")
     if proof and not expected_commit:
         raise AppleRemoteError("--proof requires --expected-commit")
+    if proof and (test_account_slot is None or not 14 <= test_account_slot <= 20):
+        raise AppleRemoteError("--proof requires --test-account-slot in the reserved Apple range 14-20")
+    if proof and simulator not in APPLE_PROOF_SIMULATORS.get(profile, set()):
+        approved = ", ".join(sorted(APPLE_PROOF_SIMULATORS.get(profile, set())))
+        raise AppleRemoteError(f"{profile} proof requires an approved simulator: {approved}")
+    test_account_env = local_test_account_env()
+    if proof:
+        prefix = f"OPENMATES_TEST_ACCOUNT_{test_account_slot}"
+        required = [f"{prefix}_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")]
+        if any(not test_account_env.get(key) for key in required):
+            raise AppleRemoteError(f"Reserved Apple proof account slot {test_account_slot} is incomplete")
+        test_account_env["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"] = str(test_account_slot)
     run_id = f"apple-{uuid.uuid4().hex[:16]}"
     command = repo_command(config, [
         "bash",
@@ -3500,7 +3628,7 @@ def run_recorded_ios_test(
             profile,
             run_id,
             expected_commit or "",
-            local_test_account_env(),
+            test_account_env,
             proof,
         ),
     ])
@@ -3524,6 +3652,12 @@ def run_recorded_ios_test(
         if transfer.returncode != 0:
             raise AppleRemoteError("Apple recording artifact transfer failed")
         run_dir, manifest = extract_and_validate_recording_archive(archive_path, staging / "extracted")
+        if proof:
+            manifest["test_account_provenance"] = f"reserved Apple E2E account slot {test_account_slot}"
+            (run_dir / "artifact-manifest.json").write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
         final_dir = APPLE_RECORDING_RESULTS_DIR / run_id
         if final_dir.exists():
             shutil.rmtree(final_dir)
@@ -3531,21 +3665,7 @@ def run_recorded_ios_test(
     print(f"recording_artifacts={final_dir.relative_to(REPO_ROOT)}")
     print(f"recording_manifest_status={manifest.get('status')}")
     if proof and manifest.get("status") == "passed":
-        spec = importlib.util.spec_from_file_location("apple_proof_tests_control", REPO_ROOT / "scripts/tests.py")
-        if spec is None or spec.loader is None:
-            raise AppleRemoteError("Could not load Apple proof finalizer")
-        tests_control = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = tests_control
-        spec.loader.exec_module(tests_control)
-
-        record_path = tests_control.record_apple_proof_source_attestation(final_dir, manifest)
-        finalizations = tests_control.auto_finalize_proof_video_sources(
-            {"git_sha": manifest.get("subject_commit"), "run_id": run_id, "environment": "apple-simulator"},
-            [record_path],
-            session_id=os.getenv("OPENMATES_SESSION_ID", "2172"),
-        )
-        if not finalizations or finalizations[0].get("status") != "delivered":
-            raise AppleRemoteError("Apple proof recording did not pass review and publication")
+        finalize_local_apple_proof(run_id, session_id=os.getenv("OPENMATES_SESSION_ID", "2172"))
     cleanup_script = "import pathlib,shutil,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True); shutil.rmtree(pathlib.Path(sys.argv[2]), ignore_errors=True)"
     remote_run_dir = f"{config.repo_path}/test-results/apple-recordings/{run_id}"
     runner(ssh_command(config, shell_join(["python3", "-c", cleanup_script, archive_match.group(1).strip(), remote_run_dir])))
@@ -3981,6 +4101,14 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--record-profile", choices=sorted(APPLE_RECORDING_PROFILES))
     test_parser.add_argument("--proof", action="store_true", help="Finalize a passed recorded native test as proof")
     test_parser.add_argument("--expected-commit", help="Require the remote checkout to match this full commit")
+    test_parser.add_argument("--test-account-slot", type=int, help="Reserved Apple proof account slot (14-20)")
+
+    finalize_parser = subparsers.add_parser(
+        "finalize-proof",
+        help="Retry exact-size rendering, review, and publication for a transferred passing Apple recording",
+    )
+    finalize_parser.add_argument("--run-id", required=True)
+    finalize_parser.add_argument("--session", default=os.getenv("OPENMATES_SESSION_ID", "2172"))
 
     verify_ios_parser = subparsers.add_parser(
         "verify-ios-startup",
@@ -4174,6 +4302,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.command == "finalize-proof":
+            return finalize_local_apple_proof(args.run_id, session_id=args.session)
         local_config = load_local_config()
         config = resolve_remote_config(local_config=local_config)
         api_options = app_store_connect_api_options(args, local_config)
@@ -4208,6 +4338,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     profile=args.record_profile,
                     proof=args.proof,
                     expected_commit=args.expected_commit,
+                    test_account_slot=args.test_account_slot,
                 )
             if args.proof:
                 raise AppleRemoteError("--proof requires --record-profile")
