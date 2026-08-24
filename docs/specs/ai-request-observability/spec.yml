@@ -143,7 +143,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  subject_commit: 4627373114de056e79e0a6d30b3fbb0af70233e0
 
 approvals:
   product_contract:
@@ -251,7 +251,7 @@ acceptance_criteria:
     scenario: S-1
     text: A real dev chat turn yields one browser-to-final-marker trace with explicit missing-span diagnostics.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, V-DEV-AI-TRACE]
@@ -260,7 +260,7 @@ acceptance_criteria:
     scenario: S-2
     text: Production and dev AI telemetry exporters use reviewed allowlists and reject unknown attributes, content, stable product IDs, secrets, raw errors, URLs, and filenames.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
@@ -269,7 +269,7 @@ acceptance_criteria:
     scenario: S-3
     text: AI processing emits the complete approved phase waterfall with model-iteration TTFT/stream timing, bounded tool categories, finalization, and aggregate complexity measures without changing processing results.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-AI-WATERFALL, V-DEV-AI-TRACE]
@@ -278,7 +278,7 @@ acceptance_criteria:
     scenario: S-3
     text: The operator debug CLI renders a content-free AI waterfall and reports missing spans without printing raw trace payloads.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-DEBUG-TRACE, V-DEV-AI-TRACE]
@@ -287,7 +287,7 @@ acceptance_criteria:
     scenario: S-4
     text: Exact non-content diagnostic metadata requires an audited incident or opt-in scope with expiry, while prohibited content remains impossible at every tier.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
@@ -296,7 +296,7 @@ acceptance_criteria:
     scenario: S-5
     text: OpenObserve effective retention is verified at 14 days and at or below the 30-day policy maximum before dashboard or alert rollout.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-OPENOBSERVE-RETENTION]
@@ -308,7 +308,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [V-DEV-BASELINE, V-DASHBOARD-REVIEW]
+    verification_ids: [T-BASELINE-VERIFIER, V-DEV-BASELINE, V-DASHBOARD-REVIEW]
     contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.waterfall.complete]
   - id: AC-8
     scenario: S-6
@@ -323,7 +323,7 @@ acceptance_criteria:
     scenario: S-1
     text: Adding observability leaves prompts, model selection, tool selection, billing decisions, persistence order, and user-visible AI output unchanged.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-AI-WATERFALL, V-DEV-AI-TRACE]
@@ -407,7 +407,11 @@ tests:
       - AI worker tracing initializes before task processing.
       - Missing context yields an explicit gap without throwing or fabricating lineage.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_ws_trace_context.py backend/tests/test_tracing/test_handler_instrumentation.py backend/tests/test_tracing/test_privacy_filter.py backend/tests/test_tracing/test_user_attribute_injection.py backend/tests/test_tracing/test_debug_trace.py scripts/tests/test_verify_ai_observability.py -q", run_id: "local-observability-green-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "Focused observability suite passed 290 tests.", timestamp: "2026-08-24T18:51:02Z"}
   - id: T-WEB-TRACE-CONTEXT
     type: vitest
     file: frontend/packages/ui/src/services/tracing/__tests__/wsSpans.test.ts
@@ -419,7 +423,11 @@ tests:
       - Every issued request trace can enter the bounded issue-report ring once.
       - No trace context leaks to later unrelated messages.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --test wsSpans", run_id: "32763860770", subject_commit: "e2c90cb74596f46d74b61ca273554378009751e1", summary: "Dispatched Vitest suite passed 1075 tests, including WebSocket tracing coverage.", timestamp: "2026-08-24T18:51:02Z"}
   - id: T-TRACE-PRIVACY
     type: pytest
     file: backend/tests/test_tracing/test_privacy_filter.py
@@ -432,7 +440,11 @@ tests:
       - Default counts are bucketed and diagnostic-only exact fields require an unexpired approved scope.
       - Forbidden content fields remain rejected in diagnostic mode.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_ws_trace_context.py backend/tests/test_tracing/test_handler_instrumentation.py backend/tests/test_tracing/test_privacy_filter.py backend/tests/test_tracing/test_user_attribute_injection.py backend/tests/test_tracing/test_debug_trace.py scripts/tests/test_verify_ai_observability.py -q", run_id: "local-observability-green-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "Focused observability suite passed 290 tests, including exporter allowlist and diagnostic-scope cases.", timestamp: "2026-08-24T18:51:02Z"}
   - id: T-AI-WATERFALL
     type: pytest
     file: backend/tests/test_ai_request_observability.py
@@ -444,7 +456,11 @@ tests:
       - Provider, tool, and finalization errors use normalized classes without raw error text.
       - Instrumentation-disabled and instrumentation-enabled processing produce the same decisions and persisted result in deterministic fixtures.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_ws_trace_context.py backend/tests/test_tracing/test_handler_instrumentation.py backend/tests/test_tracing/test_privacy_filter.py backend/tests/test_tracing/test_user_attribute_injection.py backend/tests/test_tracing/test_debug_trace.py scripts/tests/test_verify_ai_observability.py -q", run_id: "local-observability-green-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "Focused observability suite passed 290 tests, including AI phase and no-behavior-change fixtures.", timestamp: "2026-08-24T18:51:02Z"}
   - id: T-DEBUG-TRACE
     type: pytest
     file: backend/tests/test_tracing/test_debug_trace.py
@@ -455,7 +471,11 @@ tests:
       - AI spans render in deterministic phase order with durations and missing-span diagnostics.
       - Raw attributes, product IDs, content, destinations, and errors are never printed.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_ws_trace_context.py backend/tests/test_tracing/test_handler_instrumentation.py backend/tests/test_tracing/test_privacy_filter.py backend/tests/test_tracing/test_user_attribute_injection.py backend/tests/test_tracing/test_debug_trace.py scripts/tests/test_verify_ai_observability.py -q", run_id: "local-observability-green-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "Focused observability suite passed 290 tests, including 36 debug waterfall cases.", timestamp: "2026-08-24T18:51:02Z"}
   - id: T-OBSERVABILITY-AUDIT
     type: lint
     file: scripts/audit_ai_observability_contract.py
@@ -467,7 +487,27 @@ tests:
       - Forbidden field names cannot be added to AI telemetry calls.
       - Every AI worker entrypoint initializes tracing.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 scripts/audit_ai_observability_contract.py", run_id: "local-observability-audit-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "AI observability privacy and propagation invariant audit passed.", timestamp: "2026-08-24T18:51:02Z"}
+  - id: T-BASELINE-VERIFIER
+    type: pytest
+    file: scripts/tests/test_verify_ai_observability.py
+    command: python3 -m pytest scripts/tests/test_verify_ai_observability.py -q
+    covers: [AC-7]
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.retention.verified]
+    assertions:
+      - Only the previous fully completed UTC days contribute to baseline coverage.
+      - Missing days and sampled turns with missing required AI phases remain pending.
+      - Aggregate output contains day and count summaries without trace identifiers.
+    red_phase: {required: false, expected: not_required_for_verifier_hardening, status: not_required, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      status: passed
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_verify_ai_observability.py -q", run_id: "local-baseline-verifier-green-20260824", subject_commit: "4627373114de056e79e0a6d30b3fbb0af70233e0", summary: "Three aggregate baseline window, completeness, and deployed-probe tests passed.", timestamp: "2026-08-24T19:04:27Z"}
   - id: T-AI-ALERT-ROUTING
     type: pytest
     file: backend/tests/test_ai_observability_alerts.py
@@ -488,17 +528,17 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-3, AC-4, AC-9]
-    status: pending
-    command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID> --production
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", target: api.dev.openmates.org, summary: "", timestamp: ""}
+    status: passed
+    command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
+    evidence: {status: passed, command: "docker exec api python /app/backend/scripts/debug.py trace request --id 51da18a56b10e63468023da4c89447cc", run_id: "51da18a56b10e63468023da4c89447cc", subject_commit: "7a635511b6212cf0b39070f717ea79ede2d7a15a", target: api.dev.openmates.org, summary: "Real browser trace linked web-app, API, and AI worker in 12.918 seconds; queue, prepare, preprocess, main, iteration, provider, billing, persistence, validation, final marker, and postprocess were present with no missing phases.", timestamp: "2026-08-24T18:51:02Z"}
   - id: V-OPENOBSERVE-RETENTION
     kind: deterministic_check
     phase: green
     required_for_done: true
     covers: [AC-6]
-    status: pending
+    status: passed
     command: python3 scripts/verify_ai_observability.py retention --target dev
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: passed, command: "python3 scripts/verify_ai_observability.py retention --target dev --json", run_id: "dev-retention-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "OpenObserve v0.70.0-rc3 traces inherit the configured 14-day retention, below the 30-day policy maximum.", timestamp: "2026-08-24T18:51:02Z"}
   - id: V-DEV-BASELINE
     kind: artifact_review
     phase: green
@@ -506,7 +546,7 @@ verifications:
     covers: [AC-7]
     status: pending
     command: python3 scripts/verify_ai_observability.py baseline --target dev --days 7
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: pending, command: "python3 scripts/verify_ai_observability.py baseline --target dev --days 7 --json", run_id: "dev-baseline-pending-20260824", subject_commit: "4627373114de056e79e0a6d30b3fbb0af70233e0", summary: "The privacy-safe aggregate gate executed successfully and reported 0 of 7 complete prior UTC days for 2026-08-17 through 2026-08-23; milestone-one instrumentation reached dev on 2026-08-24, so elapsed baseline evidence is not yet available.", timestamp: "2026-08-24T19:04:27Z"}
   - id: V-DASHBOARD-REVIEW
     kind: artifact_review
     phase: green
@@ -635,7 +675,7 @@ tasks:
   - id: TASK-1
     title: Add red propagation, privacy, waterfall, CLI, audit, and alert-routing tests
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-9]}
     contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.waterfall.complete, ai-request-observability.exporter.allowlist, ai-request-observability.operator-debug.waterfall, ai-request-observability.alerts.discord-email-fallback, ai-request-observability.no-behavior-change]
     expected_files: [backend/tests/test_tracing/test_integration.py, backend/tests/test_tracing/test_privacy_filter.py, backend/tests/test_tracing/test_debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_ai_observability_alerts.py, frontend/packages/ui/src/services/tracing/__tests__/wsSpans.test.ts, scripts/audit_ai_observability_contract.py]
@@ -647,7 +687,7 @@ tasks:
   - id: TASK-2
     title: Repair trace propagation and enforce privacy allowlists
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-1, S-2, S-4], acceptance_criteria: [AC-1, AC-2, AC-5]}
     contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.structural-traces.content-free, ai-request-observability.diagnostic-mode.bounded, ai-request-observability.exporter.allowlist]
     expected_files: [frontend/packages/ui/src/services/tracing/wsSpans.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, backend/shared/python_utils/tracing/ws_span_helper.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/shared/python_utils/tracing/config.py]
@@ -659,7 +699,7 @@ tasks:
   - id: TASK-3
     title: Instrument AI worker phases and aggregate metrics
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-5, AC-9]}
     contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.default-metrics.identity-free, ai-request-observability.no-behavior-change]
     expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/main_processor.py, backend/shared/python_utils/tracing/config.py]
@@ -671,7 +711,7 @@ tasks:
   - id: TASK-4
     title: Add redacted operator waterfall and prove milestone one on dev
     phase: running_checks
-    status: pending
+    status: done
     covers: {scenarios: [S-1, S-3], acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-9]}
     contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.operator-debug.waterfall, ai-request-observability.retention.verified, ai-request-observability.no-behavior-change]
     expected_files: [backend/scripts/debug_trace.py, scripts/verify_ai_observability.py, docs/architecture/observability.md]
@@ -683,11 +723,11 @@ tasks:
   - id: TASK-5
     title: Collect and review seven-day dev baseline
     phase: running_checks
-    status: pending
+    status: in_progress
     covers: {scenarios: [S-5], acceptance_criteria: [AC-6, AC-7]}
     contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.retention.verified]
-    expected_files: [docs/specs/ai-request-observability/spec.yml]
-    verification_ids: [V-DEV-BASELINE]
+    expected_files: [scripts/verify_ai_observability.py, scripts/tests/test_verify_ai_observability.py, docs/specs/ai-request-observability/spec.yml]
+    verification_ids: [T-BASELINE-VERIFIER, V-DEV-BASELINE]
     dependencies: [TASK-4]
     blockers: [A-4]
     ownership: {session: 0d33, files: [docs/specs/ai-request-observability/spec.yml], shared_files: []}
@@ -730,11 +770,35 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-24T00:00:00Z"
     evidence: architecture.ai-request-observability@1 fingerprint 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06 approved in session 0d33.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Rebuild the dev API and AI worker, run one real browser chat turn, inspect its redacted distributed waterfall, and verify live retention.
+    outcome: succeeded
+    recorded_at: "2026-08-24T18:51:02Z"
+    evidence: Trace 51da18a56b10e63468023da4c89447cc linked web-app, API, and worker with no missing AI phases; live retention was 14 days.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Import the host-side baseline query helper from the API container after adding the repository root to Python's module path.
+    outcome: rejected
+    recorded_at: "2026-08-24T18:51:02Z"
+    evidence: The deployed command failed because the intentionally minimal API image does not contain /app/scripts; changing sys.path could not make the absent module importable.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Execute a bounded self-contained OpenObserve query inside the API container and aggregate only dates, turn counts, and completeness in the host verifier.
+    outcome: succeeded
+    recorded_at: "2026-08-24T19:04:27Z"
+    evidence: Commit 4627373114de056e79e0a6d30b3fbb0af70233e0 passed three focused tests and the live gate returned an expected privacy-safe 0-of-7 pending result.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the red propagation and privacy tests before editing product source.
-  command: python3 -m pytest backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_privacy_filter.py -q
-  expected_outcome: Tests fail for non-active WebSocket context, permissive attribute export, and missing AI worker tracing before implementation.
-  blocker: null
+  current_task_id: TASK-5
+  next_action: Re-run the deterministic baseline gate after seven fully completed UTC dev days, then review sample representativeness before dashboard or threshold work.
+  command: python3 scripts/verify_ai_observability.py baseline --target dev --days 7 --json
+  expected_outcome: The gate reports seven complete days with sampled AI turns containing every required phase and no trace identifiers in its aggregate output.
+  blocker:
+    kind: elapsed_baseline_window
+    task_id: TASK-5
+    requires_user_input: false
+    reason: Seven fully completed privacy-valid dev days have not elapsed since milestone-one instrumentation reached dev.
+    question: ""
+    next_action: Re-run V-DEV-BASELINE after the required UTC-day window has elapsed.
   last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
