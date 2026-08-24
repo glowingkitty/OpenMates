@@ -82,15 +82,24 @@ DIAGNOSTIC_SCOPE_MAX_SECONDS = 24 * 60 * 60
 
 
 def _diagnostic_scope_active(tier: int) -> bool:
-    """Require an explicit audited scope that expires within 24 hours."""
-    if tier < 3 or not os.getenv("OTEL_DIAGNOSTIC_AUDIT_ID", "").strip():
+    """Require an owned, justified, audited scope bounded to 24 hours."""
+    required_text = (
+        "OTEL_DIAGNOSTIC_AUDIT_ID",
+        "OTEL_DIAGNOSTIC_OWNER",
+        "OTEL_DIAGNOSTIC_REASON",
+    )
+    if tier < 3 or any(not os.getenv(name, "").strip() for name in required_text):
         return False
     try:
+        started_at = float(os.getenv("OTEL_DIAGNOSTIC_STARTED_AT", "0"))
         expires_at = float(os.getenv("OTEL_DIAGNOSTIC_EXPIRES_AT", "0"))
     except ValueError:
         return False
-    remaining = expires_at - time.time()
-    return 0 < remaining <= DIAGNOSTIC_SCOPE_MAX_SECONDS
+    now = time.time()
+    return (
+        0 < started_at <= now < expires_at
+        and expires_at - started_at <= DIAGNOSTIC_SCOPE_MAX_SECONDS
+    )
 
 
 def _filter_attributes(attributes: Dict[str, Any], tier: int) -> Dict[str, Any]:

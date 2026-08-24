@@ -674,6 +674,18 @@ def warm_translation_cache() -> None:
 # @signals.task_prerun.connect — request_id restoration portion replaced by OTel.
 # The task_prerun_handler below still logs TASK_STARTED for monitoring.
 
+
+@signals.before_task_publish.connect
+def inject_ai_queue_timestamp(sender=None, headers=None, **kwargs):
+    """Timestamp AI task publication for a privacy-safe queue duration span."""
+    if sender != "apps.ai.tasks.skill_ask" or headers is None:
+        return
+    from backend.shared.python_utils.tracing.ai_observability import (
+        AI_QUEUE_ENQUEUED_AT_HEADER,
+    )
+
+    headers[AI_QUEUE_ENQUEUED_AT_HEADER] = time.time_ns()
+
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
     """

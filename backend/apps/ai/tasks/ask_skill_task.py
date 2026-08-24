@@ -55,7 +55,11 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
     learning_mode_context_from_preferences,
 )
-from backend.shared.python_utils.tracing.ai_observability import ai_phase_span
+from backend.shared.python_utils.tracing.ai_observability import (
+    AI_QUEUE_ENQUEUED_AT_HEADER,
+    ai_phase_span,
+    record_ai_queue_span,
+)
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
@@ -2589,6 +2593,9 @@ async def _async_process_ai_skill_ask_task(
 )
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
+    record_ai_queue_span(
+        (getattr(self.request, "headers", None) or {}).get(AI_QUEUE_ENQUEUED_AT_HEADER)
+    )
     # Conditionally log request and skill config data based on environment
     # Even in development, we sanitize sensitive data (message_history, chat_tags, chat_summary, etc.)
     # to show only counts and lengths, not actual content
@@ -2607,8 +2614,9 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     # their status will be derived from the async helper's return value.
 
     try:
-        request_data = AskSkillRequest(**request_data_dict)
-        skill_config = AskSkillDefaultConfig(**skill_config_dict)
+        with ai_phase_span("prepare"):
+            request_data = AskSkillRequest(**request_data_dict)
+            skill_config = AskSkillDefaultConfig(**skill_config_dict)
     except ValidationError as e:
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})

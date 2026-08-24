@@ -125,9 +125,13 @@ class TestTracePrivacyFilterDiagnosticMode:
             "unknown.future.attribute": "private",
         }
 
+        now = time.time()
         with patch.dict(os.environ, {
             "OTEL_DIAGNOSTIC_AUDIT_ID": "incident-scope",
-            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(time.time() + 3600),
+            "OTEL_DIAGNOSTIC_OWNER": "on-call",
+            "OTEL_DIAGNOSTIC_REASON": "slow-turn-investigation",
+            "OTEL_DIAGNOSTIC_STARTED_AT": str(now - 60),
+            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(now + 3600),
         }):
             assert _export(attributes) == {
                 "service.name": "app-ai-worker",
@@ -151,8 +155,23 @@ class TestTracePrivacyFilterDiagnosticMode:
         }
         with patch.dict(os.environ, {
             "OTEL_DIAGNOSTIC_AUDIT_ID": "expired-incident",
+            "OTEL_DIAGNOSTIC_OWNER": "on-call",
+            "OTEL_DIAGNOSTIC_REASON": "slow-turn-investigation",
+            "OTEL_DIAGNOSTIC_STARTED_AT": str(time.time() - 3600),
             "OTEL_DIAGNOSTIC_EXPIRES_AT": str(time.time() - 1),
         }):
+            assert _export(attributes) == {"service.name": "app-ai-worker"}
+
+    def test_incomplete_diagnostic_scope_drops_exact_fields(self):
+        attributes = {
+            "enduser.is_admin": True,
+            "service.name": "app-ai-worker",
+            "ai.token_count": 39521,
+        }
+        with patch.dict(os.environ, {
+            "OTEL_DIAGNOSTIC_AUDIT_ID": "missing-owner-and-reason",
+            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(time.time() + 3600),
+        }, clear=True):
             assert _export(attributes) == {"service.name": "app-ai-worker"}
 
     # contract-test: direct surface=rest_api assertions=ai-request-observability.diagnostic-mode.bounded

@@ -80,6 +80,20 @@ SAFE_JSON_FIELDS = frozenset({
     "ai.retry_count_bucket",
 })
 
+AI_REQUIRED_PHASES = (
+    "queue",
+    "prepare",
+    "preprocess",
+    "main",
+    "main.iteration",
+    "provider",
+    "finalize.billing",
+    "finalize.persistence",
+    "finalize.validation",
+    "finalize.marker",
+    "postprocess",
+)
+
 # Maximum results per query
 DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
@@ -623,6 +637,26 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
 
         for i, root_id in enumerate(root_ids):
             _render_span(root_id, "  ", is_last=(i == len(root_ids) - 1))
+
+        ai_spans = {
+            str(span.get("operation_name", ""))[3:]: span
+            for span in trace_spans
+            if str(span.get("operation_name", "")).startswith("ai.")
+        }
+        if "turn" in ai_spans:
+            output_lines.append("  AI phase waterfall:")
+            for phase in AI_REQUIRED_PHASES:
+                span = ai_spans.get(phase)
+                if not span:
+                    continue
+                duration_ms = span.get("duration", 0) / 1000.0
+                output_lines.append(
+                    f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
+                )
+            missing = [phase for phase in AI_REQUIRED_PHASES if phase not in ai_spans]
+            output_lines.append(
+                "  Missing AI phases: " + (", ".join(missing) if missing else "none")
+            )
 
         output_lines.append("")  # Blank line between traces
 

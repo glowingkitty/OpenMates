@@ -3886,10 +3886,11 @@ async def handle_main_processing(
         _stream_all_servers_failed = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
-          async for chunk in observe_ai_stream(
-              aggregate_paragraphs(llm_stream),
-              "main.iteration",
-          ):
+          with ai_phase_span("main.iteration"):
+           async for chunk in observe_ai_stream(
+               aggregate_paragraphs(llm_stream),
+               "provider",
+           ):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.

@@ -16,6 +16,7 @@ from backend.shared.python_utils.tracing.ai_observability import (
     ai_phase_span,
     count_bucket,
     observe_ai_stream,
+    record_ai_queue_span,
 )
 
 
@@ -54,6 +55,26 @@ def test_phase_spans_form_a_content_free_hierarchy(phase_exporter):
     }
 
 
+# contract-test: direct surface=rest_api assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
+def test_queue_span_uses_internal_timestamp_without_request_identity(phase_exporter):
+    assert record_ai_queue_span(1_000_000_000)
+
+    span = phase_exporter.get_finished_spans()[0]
+    assert span.name == "ai.queue"
+    assert set(span.attributes) == {
+        "ai.phase",
+        "ai.status_class",
+        "ai.duration_ms",
+    }
+
+
+# contract-test: direct surface=rest_api assertions=ai-request-observability.waterfall.complete
+def test_queue_span_rejects_missing_or_invalid_timestamp(phase_exporter):
+    assert not record_ai_queue_span(None)
+    assert not record_ai_queue_span("not-a-timestamp")
+    assert phase_exporter.get_finished_spans() == ()
+
+
 # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist,ai-request-observability.no-behavior-change
 def test_phase_error_is_normalized_without_exception_payload(phase_exporter):
     with pytest.raises(RuntimeError, match="private provider response"):
@@ -72,11 +93,11 @@ async def test_stream_span_records_ttft_without_chunk_content(phase_exporter):
     async def chunks():
         yield "private response content"
 
-    output = [item async for item in observe_ai_stream(chunks(), "main.iteration")]
+    output = [item async for item in observe_ai_stream(chunks(), "provider")]
 
     assert output == ["private response content"]
     span = phase_exporter.get_finished_spans()[0]
-    assert span.name == "ai.main.iteration"
+    assert span.name == "ai.provider"
     assert "ai.ttft_ms" in span.attributes
     assert "ai.stream_duration_ms" in span.attributes
     assert "private response content" not in str(span.attributes)

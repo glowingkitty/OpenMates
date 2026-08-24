@@ -220,6 +220,39 @@ class TestFormatTraceTimeline:
         assert "private prompt" not in output
         assert "private provider response" not in output
 
+    def test_ai_waterfall_reports_missing_required_phases(self):
+        spans = [
+            {
+                "trace_id": "trace-ai",
+                "span_id": "turn",
+                "parent_span_id": "",
+                "start_time": 1000000,
+                "end_time": 3000000,
+                "duration": 2000000,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.turn",
+                "span_status": "OK",
+            },
+            {
+                "trace_id": "trace-ai",
+                "span_id": "main",
+                "parent_span_id": "turn",
+                "start_time": 1500000,
+                "end_time": 2000000,
+                "duration": 500000,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.main",
+                "span_status": "OK",
+            },
+        ]
+
+        output = format_trace_timeline(spans)
+
+        assert "AI phase waterfall:" in output
+        assert "main: 500ms OK" in output
+        assert "Missing AI phases:" in output
+        assert "provider" in output
+
     def test_multiple_traces(self):
         spans = [
             {

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import contextmanager
-from time import monotonic
+from time import monotonic, time_ns
 from typing import AsyncIterator, Iterator, TypeVar
 
 from opentelemetry import trace
@@ -42,13 +42,16 @@ COUNT_BUCKETS = (
 )
 
 T = TypeVar("T")
+AI_QUEUE_ENQUEUED_AT_HEADER = "openmates_ai_queued_at_ns"
 
 AI_PHASES = frozenset({
     "turn",
+    "queue",
     "prepare",
     "preprocess",
     "main",
     "main.iteration",
+    "provider",
     "tool",
     "finalize.billing",
     "finalize.persistence",
@@ -56,6 +59,36 @@ AI_PHASES = frozenset({
     "finalize.marker",
     "postprocess",
 })
+
+
+def record_ai_queue_span(enqueued_at_ns: object) -> bool:
+    """Record broker queue latency from a trusted internal Celery header."""
+    try:
+        started_at_ns = int(enqueued_at_ns)
+    except (TypeError, ValueError):
+        return False
+
+    ended_at_ns = time_ns()
+    if started_at_ns <= 0 or started_at_ns > ended_at_ns:
+        return False
+
+    duration_ms = (ended_at_ns - started_at_ns) / 1_000_000
+    tracer = trace.get_tracer("openmates.ai.observability")
+    span = tracer.start_span(
+        "ai.queue",
+        start_time=started_at_ns,
+        attributes={
+            "ai.phase": "queue",
+            "ai.status_class": "ok",
+            "ai.duration_ms": duration_ms,
+        },
+    )
+    span.end(end_time=ended_at_ns)
+    if AI_PHASE_DURATION_SECONDS is not None:
+        AI_PHASE_DURATION_SECONDS.labels(phase="queue", status_class="ok").observe(
+            duration_ms / 1000
+        )
+    return True
 
 
 def count_bucket(value: int) -> str:
