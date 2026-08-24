@@ -33,7 +33,13 @@ from backend.core.api.app.services.directus.directus import DirectusService  # n
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 
 
-def _read_account(raw_value: str) -> dict[str, str]:
+def _read_account(raw_value: str | None) -> dict[str, str]:
+    if raw_value is None:
+        for key in ("OPENMATES_TEST_ACCOUNT_1_EMAIL", "OPENMATES_TEST_ACCOUNT_EMAIL"):
+            email = os.getenv(key, "").strip()
+            if email:
+                return {"email": email, "user_id": ""}
+        raise ValueError("accounts JSON or a configured test-account email is required")
     raw_json = sys.stdin.read() if raw_value == "-" else raw_value
     accounts = json.loads(raw_json)
     if not isinstance(accounts, list) or not accounts or not isinstance(accounts[0], dict):
@@ -183,7 +189,7 @@ async def run(args: argparse.Namespace) -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify real dev billing settlement behavior")
     parser.add_argument("--api-url", default="https://api.dev.openmates.org")
-    parser.add_argument("--accounts-json", required=True, help="JSON list or '-' for stdin")
+    parser.add_argument("--accounts-json", help="JSON list or '-' for stdin; defaults to configured test account")
     parser.add_argument("--concurrency", type=int, default=3)
     args = parser.parse_args()
     if args.concurrency < 2 or args.concurrency > 10:
