@@ -184,6 +184,7 @@ struct PasswordLoginView: View {
                     stayLoggedIn: stayLoggedIn
                 )
             } catch AuthError.tfaRequired {
+                NativeDiagnostics.info("phase=passwordLogin.revealTFA", category: "auth")
                 revealTfaField(passwordError: nil)
             } catch AuthError.invalidTwoFactorCode {
                 errorMessage = AppStrings.codeWrong

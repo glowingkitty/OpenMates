@@ -230,10 +230,15 @@ final class AuthManager: ObservableObject {
             deviceInfo: makeDeviceInfo()
         )
 
+        NativeDiagnostics.info("phase=passwordLogin.request", category: "auth")
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
-        print("[Auth] Password login response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)")
+        NativeDiagnostics.info(
+            "phase=passwordLogin.response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)",
+            category: "auth"
+        )
 
         if response.tfaRequired == true, tfaCode == nil {
+            NativeDiagnostics.info("phase=passwordLogin.awaitingTFA", category: "auth")
             throw AuthError.tfaRequired
         }
 
@@ -244,6 +249,7 @@ final class AuthManager: ObservableObject {
         }
 
         if response.success, response.user != nil {
+            NativeDiagnostics.info("phase=passwordLogin.unwrapMasterKey", category: "auth")
             try await handleSuccessfulLogin(response: response, password: password)
             return
         }
