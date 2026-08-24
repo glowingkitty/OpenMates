@@ -254,6 +254,18 @@ async function expectContextMenuVisualIntegrity(page: any): Promise<void> {
 	expect(issues).toEqual([]);
 }
 
+async function waitForCompletedAssistantResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
+	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
+	await expect
+		.poll(async () => {
+			const typingCount = await page.locator('[data-testid="typing-indicator"]').count();
+			const processingCount = await page.getByText(/Processing|is thinking/i).count();
+			return typingCount + processingCount;
+		}, { timeout: 120_000 })
+		.toBe(0);
+	log('Assistant response completed; no visible processing or thinking indicator remains.');
+}
+
 async function triggerExplainInNewChat(page: any): Promise<void> {
 	const explainActionSelector = `${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`;
 	await expect(page.locator(explainActionSelector).first()).toBeVisible({ timeout: 5000 });
@@ -388,7 +400,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	expect(explanationChatTextBeforeResponse).not.toContain(
 		'A vector database stores and searches embeddings so similar items can be found quickly.'
 	);
-	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
+	await waitForCompletedAssistantResponse(page, log);
 	await screenshot(page, 'background-explanation-chat-opened');
 	if (proof) {
 		await proof.assert('explanation-chat-content', async () => {
@@ -398,6 +410,8 @@ test('explains selected assistant text in a background new chat', async ({ page 
 			expect(explanationChatTextAfterResponse).not.toContain(
 				'A vector database stores and searches embeddings so similar items can be found quickly.'
 			);
+			await expect(page.locator('[data-testid="typing-indicator"]')).toHaveCount(0);
+			await expect(page.getByText(/Processing|is thinking/i)).toHaveCount(0);
 		});
 		await proof.checkpoint('explanation-chat-content');
 		await holdProofState(page);
