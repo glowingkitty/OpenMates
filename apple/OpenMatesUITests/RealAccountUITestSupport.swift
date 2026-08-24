@@ -107,12 +107,12 @@ enum RealAccountUITestSupport {
         let streamingStarted = streamingBanner.waitForExistence(timeout: 30)
             || streamingIndicator.waitForExistence(timeout: 2)
 
-        let assistantMessages = accessibilityElements(in: app, identifier: "message-assistant")
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
         XCTAssertTrue(
-            streamingStarted || assistantMessages.firstMatch.waitForExistence(timeout: 10),
+            streamingStarted || assistantMessage.waitForExistence(timeout: 10),
             "Expected assistant streaming or an assistant message to appear"
         )
-        XCTAssertTrue(assistantMessages.firstMatch.waitForExistence(timeout: timeout))
+        XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
         let completionMarker = app.descendants(matching: .any)
             .matching(NSPredicate(
                 format: "identifier == %@ AND value == %@",
@@ -125,8 +125,6 @@ enum RealAccountUITestSupport {
             "Assistant response did not finish streaming"
         )
 
-        let assistantMessage = accessibilityElements(in: app, identifier: "message-assistant").firstMatch
-        XCTAssertTrue(assistantMessage.waitForExistence(timeout: 10))
         let completedLabel = assistantMessage.label
         XCTAssertGreaterThan(completedLabel.count, 8)
         XCTAssertFalse(completedLabel.contains("app_skill_use"), "Assistant response exposed protocol metadata")
