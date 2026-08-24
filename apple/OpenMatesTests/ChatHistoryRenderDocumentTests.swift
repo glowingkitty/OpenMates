@@ -11,6 +11,7 @@ import XCTest
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMetadataDecryptsIntoRenderIdentity() async throws {
         let chatId = "chat-imported-provider"
         let key = SymmetricKey(data: Data(repeating: 7, count: 32))
@@ -46,6 +47,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(decrypted.renderDocumentForDisplay?.identity.modelName, "gemini-import")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMappingMatchesWebContract() {
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "openmates")?.iconName, "openmates")
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "chatgpt")?.iconName, "openai")
@@ -57,6 +59,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
@@ -111,6 +114,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(message.renderDocumentForDisplay, document)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testSystemMessageRetainsRoleWithoutAssistantOwnership() throws {
         let message = Message(
             id: "message-system",
@@ -132,6 +136,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertTrue(document.blocks.allSatisfy { $0.messageId == message.id })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
     func testColdBootRestoresEncryptedIdentityAndExactRenderDocument() throws {
         let schema = Schema([PersistedChat.self, PersistedMessage.self])
         let configuration = ModelConfiguration(
@@ -179,6 +184,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         ])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDecodedSyncMessageAcceptsEncryptedIdentityAliases() throws {
         let payload = """
         {
@@ -207,6 +213,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(message.renderDocumentForDisplay?.messageId, "message-decoded")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testMessageAccessibilityPolicyPrefersSemanticTextOverChildren() {
         XCTAssertEqual(
             ChatMessageAccessibilityPolicy.semanticLabel(
@@ -237,8 +244,34 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         )
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testStreamingRenderPolicyUsesTransientPlainTextOnlyForActiveStream() {
         XCTAssertTrue(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: "partial answer"))
         XCTAssertFalse(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: nil))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStreamingRenderPolicyHidesInternalProtocolFences() {
+        let content = """
+        ```json
+        {"type":"app_skill_use","embed_id":"embed-search","app_id":"web","skill_id":"search"}
+        ```
+
+        Visible answer.
+        """
+
+        XCTAssertEqual(ChatMessageStreamingRenderPolicy.visibleContent(content), "\nVisible answer.")
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"type\":\"app_skill_use\""),
+            ""
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true"),
+            "```json\n{\"answer\":true"
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true}\n```"),
+            "```json\n{\"answer\":true}\n```"
+        )
     }
 }

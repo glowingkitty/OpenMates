@@ -111,7 +111,24 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
+        XCTAssertFalse(
+            assistantMessage.label.contains("app_skill_use"),
+            "Streaming assistant response exposed protocol metadata"
+        )
+        let completionDeadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if assistantMessage.label.count > 8,
+               !app.otherElements["streaming-banner"].exists,
+               !app.otherElements["streaming-indicator"].exists {
+                break
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        } while Date() < completionDeadline
+
         XCTAssertGreaterThan(assistantMessage.label.count, 8)
+        XCTAssertFalse(app.otherElements["streaming-banner"].exists, "Assistant response did not finish streaming")
+        XCTAssertFalse(app.otherElements["streaming-indicator"].exists, "Assistant response did not finish loading")
+        XCTAssertFalse(assistantMessage.label.contains("app_skill_use"), "Assistant response exposed protocol metadata")
     }
 
     static func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {

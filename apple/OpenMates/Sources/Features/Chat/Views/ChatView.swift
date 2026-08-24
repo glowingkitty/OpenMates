@@ -3118,6 +3118,59 @@ enum ChatMessageStreamingRenderPolicy {
     static func usesTransientPlainText(streamingContent: String?) -> Bool {
         streamingContent != nil
     }
+
+    static func visibleContent(_ content: String) -> String {
+        let lines = content.components(separatedBy: "\n")
+        var visibleLines: [String] = []
+        var index = 0
+
+        while index < lines.count {
+            let trimmed = lines[index].trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("```") else {
+                visibleLines.append(lines[index])
+                index += 1
+                continue
+            }
+
+            let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            var endIndex = index + 1
+            while endIndex < lines.count,
+                  !lines[endIndex].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                endIndex += 1
+            }
+
+            let isClosed = endIndex < lines.count
+            let body = lines[(index + 1)..<min(endIndex, lines.count)].joined(separator: "\n")
+            if isInternalProtocolFence(language: language, body: body, isClosed: isClosed) {
+                index = isClosed ? endIndex + 1 : lines.count
+                continue
+            }
+
+            let finalIndex = isClosed ? endIndex : lines.count - 1
+            visibleLines.append(contentsOf: lines[index...finalIndex])
+            index = finalIndex + 1
+        }
+
+        return visibleLines.joined(separator: "\n")
+    }
+
+    private static func isInternalProtocolFence(language: String, body: String, isClosed: Bool) -> Bool {
+        if language == "interactive_response" || language == "interactive_question" {
+            return true
+        }
+        guard language == "json" || language == "json_embed" else { return false }
+        guard isClosed else {
+            return language == "json_embed"
+                || body.contains("\"app_skill_use\"")
+                || body.contains("\"embed_id\"")
+        }
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        return language == "json_embed"
+            || (object["type"] != nil && object["embed_id"] != nil)
+    }
 }
 
 struct ImportedAssistantProvider: Equatable {
@@ -3186,7 +3239,10 @@ struct MessageBubble: View {
     }
 
     var displayContent: String {
-        let content = streamingContent ?? message.content ?? ""
+        let rawContent = streamingContent ?? message.content ?? ""
+        let content = streamingContent == nil
+            ? rawContent
+            : ChatMessageStreamingRenderPolicy.visibleContent(rawContent)
         guard isPIIRevealed else { return content }
         return PIIDetector.restorePII(in: content, mappings: piiMappings)
     }
