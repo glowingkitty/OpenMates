@@ -4776,7 +4776,7 @@ assertions:
       surface: rest_api
     - &id492
       path: scripts/tests/test_apple_notification_contract_test.py
-      line: 94
+      line: 98
       name: test_https_is_required_before_notification_login_or_requests
       surface: rest_api
     tests:

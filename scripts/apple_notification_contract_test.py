@@ -129,7 +129,11 @@ def login_native(
 
 def _require_acknowledged(status: int, payload: dict[str, Any], label: str) -> None:
     if status != 200 or payload.get("success") is not True:
-        raise ContractFailure(f"{label} did not receive a persistence acknowledgement")
+        keys = ",".join(sorted(str(key) for key in payload)) or "none"
+        raise ContractFailure(
+            f"{label} did not receive a persistence acknowledgement "
+            f"(status={status}, response_keys={keys})"
+        )
 
 
 def run(
@@ -175,7 +179,11 @@ def run(
         except ContractFailure as exc:
             cleanup_error = exc
     if primary_error is not None and cleanup_error is not None:
-        raise ContractFailure("notification lifecycle failed and final token cleanup also failed") from primary_error
+        primary_detail = str(primary_error) if isinstance(primary_error, ContractFailure) else type(primary_error).__name__
+        raise ContractFailure(
+            f"notification lifecycle failed: {primary_detail}; "
+            f"final token cleanup also failed: {cleanup_error}"
+        ) from primary_error
     if cleanup_error is not None:
         raise cleanup_error
     if primary_error is not None:

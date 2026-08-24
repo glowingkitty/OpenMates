@@ -86,8 +86,12 @@ def test_cleanup_failure_is_visible_even_after_a_mid_lifecycle_failure():
             return 500, {"success": False}
         return 500, {"success": False}
 
-    with pytest.raises(module.ContractFailure, match="cleanup also failed"):
-        module.run("https://api.dev.openmates.org", slot=14, timeout=1, request=request, login=fake_login, token_factory=lambda _length: "token", device_id_factory=lambda: "device")
+    with pytest.raises(module.ContractFailure, match="cleanup also failed") as exc_info:
+        module.run("https://api.dev.openmates.org", slot=14, timeout=1, request=request, login=fake_login, token_factory=lambda _length: "secret-token-value", device_id_factory=lambda: "device")
+
+    assert "status=500" in str(exc_info.value)
+    assert "response_keys=success" in str(exc_info.value)
+    assert "secret-token-value" not in str(exc_info.value)
 
 
 # contract-test: supporting surface=rest_api assertions=apple-notifications.registration.lifecycle
