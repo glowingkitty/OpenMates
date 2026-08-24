@@ -62,7 +62,8 @@ APPLE_PROOF_SIMULATORS = {
     "apple-ipad-landscape": {"iPad Pro 13-inch (M5)"},
 }
 APPLE_RECORDING_RESULTS_DIR = REPO_ROOT / "test-results" / "apple-recordings"
-APPLE_PROOF_BROKER_WORKFLOW = "apple-proof-credential-broker.yml"
+APPLE_PROOF_BROKER_WORKFLOW = "playwright-spec.yml"
+APPLE_PROOF_BROKER_SPEC = "apple-proof-credential-broker.spec.ts"
 APPLE_PROOF_BROKER_CERTIFICATE = REPO_ROOT / "deployment/apple-proof-broker-recipient.pem"
 APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY = REPO_ROOT / "deployment/apple-proof-broker-relay-public.pem"
 APPLE_PROOF_BROKER_REPOSITORY = "glowingkitty/OpenMates"
@@ -3720,7 +3721,7 @@ def _find_github_proof_broker_run(
         runs = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise AppleRemoteError("Apple proof credential-broker run list is invalid JSON") from exc
-    title = f"Apple proof credential broker {request_id}"
+    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account 14 {request_id}"
     return next((item for item in runs if item.get("displayTitle") == title), None)
 
 
@@ -3798,7 +3799,7 @@ def provision_github_proof_credentials(
     proof_broker_relay_public_key(config, runner=runner)
 
     request_id = uuid.uuid4().hex[:16]
-    artifact_name = f"apple-proof-credentials-{request_id}"
+    artifact_name = f"playwright-{APPLE_PROOF_BROKER_SPEC}"
     remote_encrypted = f"/tmp/openmates-apple-proof-credentials-{request_id}.cms"
     remote_signature = f"/tmp/openmates-apple-proof-credentials-{request_id}.sig"
     run_id: int | None = None
@@ -3809,8 +3810,9 @@ def provision_github_proof_credentials(
         dispatch = runner([
             "gh", "workflow", "run", APPLE_PROOF_BROKER_WORKFLOW,
             "--repo", APPLE_PROOF_BROKER_REPOSITORY, "--ref", "dev",
-            "-f", f"checkout_ref={expected_commit}", "-f", f"slot={slot}",
-            "-f", f"request_id={request_id}",
+            "-f", f"checkout_ref={expected_commit}", "-f", f"account={slot}",
+            "-f", f"spec={APPLE_PROOF_BROKER_SPEC}", "-f", f"dispatch_token={request_id}",
+            "-f", "use_mocks=true", "-f", "use_live_mocks=true",
         ])
         if dispatch.returncode != 0:
             raise AppleRemoteError("Could not dispatch the Apple proof credential broker")
@@ -3822,8 +3824,9 @@ def provision_github_proof_credentials(
                 "gh", "run", "download", str(run_id), "--repo", APPLE_PROOF_BROKER_REPOSITORY,
                 "--name", artifact_name, "--dir", str(temporary),
             ])
-            encrypted = temporary / "credentials.cms"
-            if download.returncode != 0 or not encrypted.is_file() or not 256 <= encrypted.stat().st_size <= 65_536:
+            encrypted_matches = list(temporary.rglob("credentials.cms"))
+            encrypted = encrypted_matches[0] if len(encrypted_matches) == 1 else temporary / "missing.cms"
+            if download.returncode != 0 or len(encrypted_matches) != 1 or not 256 <= encrypted.stat().st_size <= 65_536:
                 raise AppleRemoteError("Encrypted Apple proof credential artifact is missing or invalid")
             artifact_downloaded = True
             signature = temporary / "credentials.sig"

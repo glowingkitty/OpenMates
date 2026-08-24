@@ -61,7 +61,6 @@ RUN_TESTS_SCRIPT = PROJECT_ROOT / "scripts" / "run_tests.py"
 RESPONSE_MEDIA_SCRIPT = PROJECT_ROOT / "scripts" / "opencode_response_media.py"
 RESPONSE_MEDIA_LATEST_FILE = RESULTS_DIR / "response-media-latest.json"
 TEST_STORE = None
-DAILY_RUN_TIMEOUT_SECONDS = 8 * 60 * 60
 DEV_HEALTH_URLS = (
     "https://api.dev.openmates.org/health",
     "https://app.dev.openmates.org/",
@@ -228,7 +227,7 @@ class InMemoryTestControlStore:
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": "running" if (run_data.get("flags") or {}).get("in_progress") else "completed",
+            "status": "completed",
             "git_sha": run_data.get("git_sha"),
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
@@ -849,11 +848,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": (
-                "running"
-                if run_data and (run_data.get("flags") or {}).get("in_progress")
-                else "completed" if run_data else "snapshot"
-            ),
+            "status": "completed" if run_data else "snapshot",
             "git_sha": (run_data or {}).get("git_sha") or state.get("latest_git_sha"),
             "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
             "environment": (run_data or {}).get("environment") or state.get("environment"),
@@ -2308,8 +2303,6 @@ def summarize_current_tests(tests: dict[str, dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = _empty_status_summary()
     lanes = {lane: _empty_status_summary() for lane in TEST_LANES}
     for test in tests.values():
-        if test.get("suite") == "all":
-            continue
         lane = str(test.get("lane") or "deterministic")
         if lane not in lanes:
             raise RuntimeError(f"Unknown test lane in current state: {lane}")
@@ -2368,14 +2361,6 @@ def evaluate_scoped_verification(
     }
 
 
-def run_control_source(run_data: dict[str, Any]) -> tuple[str, str]:
-    """Preserve canonical source metadata when importing runner artifacts."""
-    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
-    if flags.get("daily"):
-        return "daily_runner", "daily"
-    return "scripts_tests", ""
-
-
 def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", external_run_id: str = "", workflow: str = "") -> dict[str, Any]:
     """Persist normalized current state, run archive, and timeline events."""
     run_data = normalize_prerequisite_incidents(run_data)
@@ -2383,9 +2368,7 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     timestamp = utc_now()
     state = get_store().load_state()
     recorded_event_ids = set(state.get("recorded_event_ids") or [])
-    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
-    is_daily_progress = source == "daily_runner" and workflow == "daily" and flags.get("in_progress") is True
-    is_authoritative_daily = source == "daily_runner" and workflow == "daily" and not is_daily_progress
+    is_authoritative_daily = source == "daily_runner" and workflow == "daily"
     tests = {} if is_authoritative_daily else dict(state.get("tests") or {})
     events: list[dict[str, Any]] = []
     observed_keys_by_suite: dict[str, set[str]] = {}
@@ -2435,38 +2418,6 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
         if event_id not in recorded_event_ids:
             events.append({**current, "timestamp": timestamp, "event_id": event_id})
             recorded_event_ids.add(event_id)
-
-    if is_authoritative_daily:
-        overall_problem_count = sum(
-            int((run_data.get("summary") or {}).get(status) or 0)
-            for status in (*PROBLEM_STATUSES, "not_started")
-        )
-        overall_status = "failed" if overall_problem_count else "passed"
-        overall_key = "all::all"
-        overall_event_id = f"{run_id}:{overall_key}:{overall_status}"
-        previous_overall = (state.get("tests") or {}).get(overall_key, {})
-        tests[overall_key] = {
-            **previous_overall,
-            "suite": "all",
-            "test": "all",
-            "key": overall_key,
-            "status": overall_status,
-            "stable_status": overall_status,
-            "stable_run_id": run_id,
-            "active_status": None,
-            "active_run_id": None,
-            "stable_result_key": overall_event_id,
-            "event": overall_status,
-            "run_id": run_id,
-            "git_sha": run_data.get("git_sha"),
-            "git_branch": run_data.get("git_branch"),
-            "environment": run_data.get("environment"),
-            "error": None,
-            "updated_at": timestamp,
-        }
-        if overall_event_id not in recorded_event_ids:
-            events.append({**tests[overall_key], "timestamp": timestamp, "event_id": overall_event_id})
-            recorded_event_ids.add(overall_event_id)
 
     for suite, suite_data in (run_data.get("suites") or {}).items():
         if not isinstance(suite_data, dict):
@@ -5231,8 +5182,7 @@ def record_latest_run_artifact(
                     run_git_sha = str(run_data["git_sha"])
                 run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
             write_json(artifact, run_data)
-            source, workflow = run_control_source(run_data)
-            record_run_result(run_data, source=source, workflow=workflow)
+            record_run_result(run_data)
             if response_media_run_type:
                 response_media_record = publish_latest_playwright_response_media(
                     run_data,
@@ -5241,7 +5191,7 @@ def record_latest_run_artifact(
                 )
                 run_data["response_media_video"] = response_media_record
                 write_json(artifact, run_data)
-                record_run_result(run_data, source=source, workflow=workflow)
+                record_run_result(run_data)
             if deployment_verified:
                 proof_records = record_proof_source_attestations(run_data)
                 proof_finalizations = auto_finalize_proof_video_sources(
@@ -5252,209 +5202,13 @@ def record_latest_run_artifact(
                 if proof_finalizations:
                     run_data["proof_video_finalizations"] = proof_finalizations
                     write_json(artifact, run_data)
-                    record_run_result(run_data, source=source, workflow=workflow)
+                    record_run_result(run_data)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
             return run_git_sha or expected_commit
         except Exception as exc:
             print(f"Could not record run artifact {display_path(artifact)}: {exc}", file=sys.stderr)
     print("Run finished, but Directus recording failed for all generated artifacts.", file=sys.stderr)
-    return ""
-
-
-def record_runner_failure_fallback(
-    *,
-    runner_args: list[str],
-    returncode: int | None,
-    timed_out: bool,
-    existing_run_data: dict[str, Any] | None = None,
-) -> str:
-    """Record and independently notify a daily child-process failure."""
-    run_id = str((existing_run_data or {}).get("run_id") or utc_now())
-    git_sha = current_git_sha()
-    if timed_out:
-        error = f"Daily test runner exceeded its {DAILY_RUN_TIMEOUT_SECONDS // 3600}h hard timeout"
-    elif returncode is not None and returncode < 0:
-        error = f"Daily test runner was terminated by signal {-returncode}"
-    else:
-        error = f"Daily test runner exited with code {returncode} before writing a result"
-    run_data = json.loads(json.dumps(existing_run_data)) if existing_run_data else {
-        "run_id": run_id,
-        "git_sha": git_sha,
-        "git_branch": "dev",
-        "environment": "development",
-        "duration_seconds": 0,
-        "flags": {"suite": "all", "daily": True},
-        "summary": {
-            "total": 0,
-            "passed": 0,
-            "failed": 0,
-            "dispatch_error": 0,
-            "timeout": 0,
-            "result_unknown": 0,
-            "skipped": 0,
-            "not_started": 0,
-        },
-        "suites": {},
-    }
-    run_data["run_id"] = run_id
-    run_data["git_sha"] = str(run_data.get("git_sha") or git_sha)
-    flags = dict(run_data.get("flags") or {})
-    already_recorded_crash = bool(flags.get("runner_crashed")) or "orchestration" in (run_data.get("suites") or {})
-    flags.update({
-        "suite": flags.get("suite") or "all",
-        "daily": True,
-        "only_failed": "--only-failed" in runner_args,
-        "runner_crashed": True,
-        "parent_fallback": True,
-        "timed_out": timed_out,
-    })
-    flags.pop("in_progress", None)
-    run_data["flags"] = flags
-    summary = dict(run_data.get("summary") or {})
-    for key in ("total", "passed", "failed", "dispatch_error", "timeout", "result_unknown", "skipped", "not_started"):
-        summary[key] = int(summary.get(key) or 0)
-    status = "timeout" if timed_out else "failed"
-    if not already_recorded_crash:
-        summary["total"] += 1
-        summary[status] += 1
-    run_data["summary"] = summary
-    suites = dict(run_data.get("suites") or {})
-    if not already_recorded_crash:
-        suites["orchestration"] = {
-            "status": "failed",
-            "duration_seconds": 0,
-            "reason": error,
-            "tests": [{
-                "name": "daily-runner-process",
-                "file": "scripts/run_tests.py",
-                "status": status,
-                "duration_seconds": 0,
-                "error": error,
-            }],
-        }
-    run_data["suites"] = suites
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = run_id.replace(":", "").replace("-", "")
-    write_json(RESULTS_DIR / f"run-{timestamp}.json", run_data)
-    write_json(RESULTS_DIR / "last-run.json", run_data)
-    (RESULTS_DIR / "last-run-progress.json").unlink(missing_ok=True)
-    record_run_result(run_data, source="daily_runner", workflow="daily")
-
-    delivered = False
-    try:
-        webhook_url = project_env_value("DISCORD_WEBHOOK_DEV_NIGHTLY")
-        if not webhook_url:
-            raise RuntimeError("DISCORD_WEBHOOK_DEV_NIGHTLY is not configured")
-        payload = {
-            "username": "OpenMates Server",
-            "avatar_url": "https://openmates.org/favicon.png",
-            "embeds": [{
-                "title": "❌ development nightly — runner terminated",
-                "description": (
-                    f"**Reason:** {error}\n"
-                    f"**Run ID:** `{run_id}`\n"
-                    f"**Completed before termination:** {summary['passed']} passed, "
-                    f"{summary['failed']} failed, {summary['timeout']} timed out\n"
-                    f"**Git:** `{str(run_data.get('git_sha') or '')[:8]}@dev`"
-                ),
-                "color": 0xEF4444,
-            }],
-        }
-        request = urllib.request.Request(
-            webhook_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "OpenMates-TestControl/1.0 (https://github.com/glowingkitty/OpenMates)",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            response.read()
-        delivered = True
-    except Exception as exc:
-        print(f"Daily runner fallback notification failed: {exc}", file=sys.stderr)
-    run_data["flags"]["notifications_complete"] = delivered
-    write_json(RESULTS_DIR / f"run-{timestamp}.json", run_data)
-    write_json(RESULTS_DIR / "last-run.json", run_data)
-    record_run_result(run_data, source="daily_runner", workflow="daily")
-    return git_sha
-
-
-def retry_daily_terminal_notification(run_data: dict[str, Any]) -> str:
-    """Retry Discord for a completed daily result without changing its outcome."""
-    summary = dict(run_data.get("summary") or {})
-    problem_count = sum(int(summary.get(key) or 0) for key in PROBLEM_STATUSES)
-    title = (
-        f"❌ development nightly — {problem_count} problem(s)"
-        if problem_count
-        else "✅ development nightly — all tests passed"
-    )
-    delivered = False
-    try:
-        webhook_url = project_env_value("DISCORD_WEBHOOK_DEV_NIGHTLY")
-        if not webhook_url:
-            raise RuntimeError("DISCORD_WEBHOOK_DEV_NIGHTLY is not configured")
-        payload = {
-            "username": "OpenMates Server",
-            "avatar_url": "https://openmates.org/favicon.png",
-            "embeds": [{
-                "title": title,
-                "description": (
-                    "**Terminal summary delivery retry**\n"
-                    f"**Run ID:** `{run_data.get('run_id')}`\n"
-                    f"**Passed:** {int(summary.get('passed') or 0)}   "
-                    f"**Failed:** {int(summary.get('failed') or 0)}   "
-                    f"**Timed out:** {int(summary.get('timeout') or 0)}\n"
-                    f"**Git:** `{str(run_data.get('git_sha') or '')[:8]}@dev`"
-                ),
-                "color": 0xEF4444 if problem_count else 0x22C55E,
-            }],
-        }
-        request = urllib.request.Request(
-            webhook_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "OpenMates-TestControl/1.0 (https://github.com/glowingkitty/OpenMates)",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            response.read()
-        delivered = True
-    except Exception as exc:
-        print(f"Daily terminal notification retry failed: {exc}", file=sys.stderr)
-    flags = dict(run_data.get("flags") or {})
-    flags["notifications_complete"] = delivered
-    flags["notification_retry_attempted"] = True
-    run_data["flags"] = flags
-    timestamp = str(run_data.get("run_id") or utc_now()).replace(":", "").replace("-", "")
-    write_json(RESULTS_DIR / f"run-{timestamp}.json", run_data)
-    write_json(RESULTS_DIR / "last-run.json", run_data)
-    source, workflow = run_control_source(run_data)
-    record_run_result(run_data, source=source, workflow=workflow)
-    return str(run_data.get("git_sha") or "")
-
-
-def project_env_value(name: str) -> str:
-    """Read one operator setting without exporting or logging other secrets."""
-    if os.environ.get(name):
-        return str(os.environ[name])
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.is_file():
-        return ""
-    try:
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            if key.strip() == name:
-                return value.strip().strip('"').strip("'")
-    except OSError:
-        return ""
     return ""
 
 
@@ -5590,16 +5344,7 @@ def command_run(runner_args: list[str]) -> int:
             suite, tests = infer_run_suite_and_tests(options.forwarded_args)
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-        timed_out = False
-        try:
-            run_kwargs: dict[str, Any] = {"cwd": PROJECT_ROOT, "env": run_env}
-            if "--daily" in options.forwarded_args:
-                run_kwargs["timeout"] = DAILY_RUN_TIMEOUT_SECONDS
-            result = subprocess.run(command, **run_kwargs)
-            returncode = result.returncode
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            returncode = None
+        result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
         recorded_commit = record_latest_run_artifact(
             expected_commit=subject_commit or options.expected_commit,
             since_mtime=artifact_start_mtime,
@@ -5609,39 +5354,13 @@ def command_run(runner_args: list[str]) -> int:
             deployment_verified=deployment_verified,
             response_media_run_type=playwright_response_media_run_type(options),
         )
-        artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
-        latest_run_data = read_json(artifacts[0], {}) if artifacts else {}
-        abnormal_daily_exit = "--daily" in options.forwarded_args and (timed_out or returncode != 0)
-        notification_incomplete = not bool((latest_run_data.get("flags") or {}).get("notifications_complete"))
-        if abnormal_daily_exit and notification_incomplete:
-            child_crashed = (
-                timed_out
-                or returncode is None
-                or returncode < 0
-                or returncode > 1
-                or not latest_run_data
-                or bool((latest_run_data.get("flags") or {}).get("runner_crashed"))
-            )
-            if child_crashed:
-                recorded_commit = record_runner_failure_fallback(
-                    runner_args=options.forwarded_args,
-                    returncode=returncode,
-                    timed_out=timed_out,
-                    existing_run_data=latest_run_data or None,
-                )
-            else:
-                recorded_commit = retry_daily_terminal_notification(latest_run_data)
-        if timed_out:
-            return 1
-        if returncode is not None and returncode < 0:
-            return 1
         if not recorded_commit:
-            return 2 if options.expected_commit else int(returncode or 0)
+            return 2 if options.expected_commit else result.returncode
         if options.campaign_key:
             artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
             if artifacts:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
-        return int(returncode or 0)
+        return result.returncode
     finally:
         if docker_lease_id:
             release_docker_test_lease(docker_lease_id)
@@ -5764,11 +5483,6 @@ def main(argv: list[str] | None = None) -> int:
 
     import_state_parser = sub.add_parser("import-state", help="Import a legacy tests-state.json snapshot into the Directus test control plane")
     import_state_parser.add_argument("path")
-
-    recover_daily_parser = sub.add_parser("recover-daily", help="Finalize an orphaned daily runner and send its terminal Discord status")
-    recover_daily_parser.add_argument("--returncode", type=int, default=1)
-    recover_daily_parser.add_argument("--timed-out", action="store_true")
-    recover_daily_parser.add_argument("--yes", action="store_true", required=True)
 
     campaign_parser = sub.add_parser("campaign", help="Manage durable failed-test debug campaigns")
     campaign_sub = campaign_parser.add_subparsers(dest="campaign_command", required=True)
@@ -5969,14 +5683,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "import-state":
         state = import_state_snapshot(Path(args.path))
         print(json.dumps(state, indent=2, sort_keys=True))
-        return 0
-    if args.command == "recover-daily":
-        commit = record_runner_failure_fallback(
-            runner_args=["--daily", "--no-fail-fast"],
-            returncode=None if args.timed_out else args.returncode,
-            timed_out=args.timed_out,
-        )
-        print(json.dumps({"recovered": True, "git_sha": commit}, indent=2, sort_keys=True))
         return 0
     if args.command == "campaign":
         try:

@@ -220,17 +220,19 @@ def test_reserved_slot_materializes_only_requested_expanded_account() -> None:
 
 
 def test_credential_broker_workflow_has_no_direct_mac_transport() -> None:
-    workflow = (ROOT / ".github/workflows/apple-proof-credential-broker.yml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/playwright-spec.yml").read_text(encoding="utf-8")
+    broker_spec = (ROOT / "frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts").read_text(encoding="utf-8")
 
     assert "actions/upload-artifact@v4" in workflow
-    assert "credentials.cms" in workflow
-    assert "credentials.env" not in workflow
-    assert "retention-days: 1" in workflow
-    assert "ssh" not in workflow.lower()
-    assert "scp" not in workflow.lower()
-    assert "tailscale" not in workflow.lower()
-    assert "apple_remote.py" not in workflow
-    assert "recipient-key" not in workflow
+    assert "OPENMATES_TEST_ACCOUNT_SOURCE_SLOT" in workflow
+    assert "frontend/apps/web_app/test-results/" in workflow
+    assert "credentials.cms" in broker_spec
+    assert "spawnSync" in broker_spec
+    assert "ssh" not in broker_spec.lower()
+    assert "scp" not in broker_spec.lower()
+    assert "tailscale" not in broker_spec.lower()
+    assert "apple_remote.py" not in broker_spec
+    assert "recipient-key" not in broker_spec
     assert "credential_path.unlink(missing_ok=True)" in module_source("scripts/apple_remote.py")
 
 
