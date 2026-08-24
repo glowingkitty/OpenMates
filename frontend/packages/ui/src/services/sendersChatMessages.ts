@@ -25,6 +25,7 @@ import {
 	wrapEmbedKeyWithChatKey
 } from "./encryption/MetadataEncryptor";
 import { getTracer } from './tracing/setup';
+import { injectTraceparent } from './tracing/wsSpans';
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
@@ -37,6 +38,7 @@ import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBroke
 import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionRecovery";
 import { generateUUID } from "../message_parsing/utils";
 import { isTeamAIInvocation } from "./teamService";
+import type { EmbedType } from "../message_parsing/types";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
@@ -59,6 +61,15 @@ const PREFLIGHT_ERROR_CODES = new Set([
 // per browser service so the one-shot acknowledgement is unambiguously bound to
 // the request that opened its waiter.
 let preflightTail: Promise<void> = Promise.resolve();
+
+export function requireEmbedOwnerId(
+	chatUserId: string | null | undefined,
+	profileUserId: string | null | undefined
+): string {
+	const userId = chatUserId || profileUserId;
+	if (!userId) throw new Error("Cannot persist message embeds without an authenticated owner ID");
+	return userId;
+}
 
 async function runSerializedPreflight<T>(operation: () => Promise<T>): Promise<T> {
 	const previous = preflightTail.catch(() => undefined);
@@ -1119,15 +1130,18 @@ export async function sendNewMessageImpl(
 			try {
 				const { computeSHA256 } = await import("../message_parsing/utils");
 				const { embedStore } = await import("./embedStore");
+				const { userDB } = await import("./userDB");
 
 				// Hash IDs for zero-knowledge storage
 				const hashedChatId = await computeSHA256(message.chat_id);
 				const hashedMessageId = await computeSHA256(message.message_id);
 
-				// Get user_id from the chat object if available (may be empty for new chats)
-				// Server will fill in hashed_user_id if client doesn't provide it
-				const userId = chat?.user_id || "";
-				const hashedUserId = userId ? await computeSHA256(userId) : "";
+				// New chats may not have copied the owner ID onto the chat row yet.
+				const userId = requireEmbedOwnerId(
+					chat?.user_id,
+					(await userDB.getUserProfile())?.user_id
+				);
+				const hashedUserId = await computeSHA256(userId);
 
 				// Get chat key for wrapping embed keys — must be available by the time we send
 				const chatKey =
@@ -1301,7 +1315,7 @@ export async function sendNewMessageImpl(
 								}
 							);
 
-							encryptedEmbeds.push({
+							const encryptedEmbed = {
 								embed_id: embed.embed_id,
 								encrypted_type: encryptedType,
 								encrypted_content: encryptedContent,
@@ -1319,7 +1333,14 @@ export async function sendNewMessageImpl(
 									? normalizeToUnixSeconds(embed.updatedAt, nowSeconds)
 									: nowSeconds,
 								embed_keys: embedKeys
-							});
+							};
+							await embedStore.putEncrypted(
+								`embed:${embed.embed_id}`,
+								encryptedEmbed,
+								embed.type as EmbedType,
+								embed.content
+							);
+							encryptedEmbeds.push(encryptedEmbed);
 
 							console.info(
 								`[ChatSyncService:Senders] ✅ Encrypted embed ${embed.embed_id} for Directus storage with ${embedKeys.length} keys`
@@ -1469,6 +1490,9 @@ export async function sendNewMessageImpl(
 			};
 		}
 
+		// The commitment covers the exact inference payload. Inject tracing before
+		// preflight and never mutate that payload between acknowledgement and send.
+		injectTraceparent(payload as unknown as Record<string, unknown>);
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				const acknowledgement = waitForPreflightAcknowledgement(turnId);
