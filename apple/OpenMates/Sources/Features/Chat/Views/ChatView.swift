@@ -1039,6 +1039,11 @@ struct ChatView: View {
                     scrollToStreamingResponseIfNeeded(proxy: proxy)
                 }
                 .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+                    if !wasStreaming, isStreaming {
+                        followsStreamingResponse = displayedChatMessages.last?.role == .user || isAtBottom
+                        scrollToStreamingResponseIfNeeded(proxy: proxy)
+                        return
+                    }
                     guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
                     Task { @MainActor in
                         await Task.yield()
