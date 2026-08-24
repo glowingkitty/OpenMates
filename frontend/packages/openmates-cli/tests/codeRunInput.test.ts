@@ -163,7 +163,7 @@ describe("codeRunInput", () => {
         }],
         skipped_artifacts: [{ path: "outputs/.env", reason: "hidden_path" }],
       }),
-      "ok\n\nArtifacts:\n- outputs/summary.csv (text/csv, 12 bytes): https://example.test/download/summary.csv\n\nSkipped artifacts:\n- outputs/.env (hidden_path)\n",
+      "ok\n\nArtifacts:\n- outputs/summary.csv (text/csv, 12 bytes; signed download available via --json)\n\nSkipped artifacts:\n- outputs/.env (hidden_path)\n",
     );
   });
 });

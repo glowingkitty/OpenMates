@@ -1311,6 +1311,7 @@ const CODE_RUN_MOCK_SKIPPED_ARTIFACTS = [{
 
 async function withCodeRunMockApi<T>(
   run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
+  finalStatusOverrides: Record<string, unknown> = {},
 ): Promise<T> {
   const requests: Record<string, unknown>[] = [];
   let lastHeaders: Record<string, string | string[] | undefined> = {};
@@ -1350,6 +1351,7 @@ async function withCodeRunMockApi<T>(
           output: "ok\n",
           artifacts: CODE_RUN_MOCK_ARTIFACTS,
           skipped_artifacts: CODE_RUN_MOCK_SKIPPED_ARTIFACTS,
+          ...finalStatusOverrides,
         });
         return;
       }
@@ -2747,10 +2749,28 @@ describe("apps code run command variants", () => {
 
       assert.match(output, /^ok\n/m);
       assert.match(output, /Artifacts:/);
-      assert.match(output, /outputs\/summary\.csv \(text\/csv, 12 bytes\): https:\/\/example\.test\/download\/summary\.csv/);
+      assert.match(output, /outputs\/summary\.csv \(text\/csv, 12 bytes; signed download available via --json\)/);
+      assert.doesNotMatch(output, /https:\/\/example\.test\/download\/summary\.csv/);
       assert.match(output, /Skipped artifacts:/);
       assert.match(output, /outputs\/\.env \(hidden_path\)/);
     });
+  });
+
+  // contract-test: direct surface=cli assertions=code-run.execution.stream-status-visible,code-run.surface-parity
+  it("returns a failing process status when the sandbox execution fails", async () => {
+    await withCodeRunMockApi(async ({ apiUrl }) => {
+      await assert.rejects(
+        runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--language", "python",
+          "--filename", "failure.py",
+          "--code", "raise RuntimeError('expected')\n",
+        ]),
+        /Code Run failed with exit code 1/,
+      );
+    }, { status: "failed", exit_code: 1, output: "expected failure\n" });
   });
 
   it("runs repeated --file inputs with an explicit entry", async () => {

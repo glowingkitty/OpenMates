@@ -274,7 +274,7 @@ function formatCodeRunArtifactLines(value: unknown): string[] {
       const size = sizeBytes === null ? "unknown size" : `${sizeBytes} bytes`;
       const downloadUrl = stringValue(artifact.download_url);
       return downloadUrl
-        ? `- ${path} (${mimeType}, ${size}): ${downloadUrl}`
+        ? `- ${path} (${mimeType}, ${size}; signed download available via --json)`
         : `- ${path} (${mimeType}, ${size})`;
     });
 }
