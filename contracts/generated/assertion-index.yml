@@ -2123,7 +2123,7 @@ assertions:
     direct_tests:
     - &id212
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 169
+      line: 172
       name: test_assistant_code_run_creates_inline_code_embed_before_dispatch
       surface: rest_api
     - &id217
@@ -2176,7 +2176,7 @@ assertions:
     direct_tests:
     - &id218
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 110
+      line: 115
       name: test_assistant_code_run_dispatches_marked_current_turn_code
       surface: rest_api
     supporting_tests:
@@ -2236,7 +2236,7 @@ assertions:
     direct_tests:
     - &id223
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 92
+      line: 97
       name: test_assistant_code_run_rejects_mismatched_tool_chat_id
       surface: rest_api
     - &id224
@@ -2391,37 +2391,37 @@ assertions:
     direct_tests:
     - &id236
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 54
+      line: 59
       name: test_assistant_code_run_rejects_unmarked_user_code
       surface: rest_api
     - &id237
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 71
+      line: 76
       name: test_assistant_code_run_ignores_forged_confirmation_flag
       surface: rest_api
     - &id238
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 92
+      line: 97
       name: test_assistant_code_run_rejects_mismatched_tool_chat_id
       surface: rest_api
     - &id239
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 110
+      line: 115
       name: test_assistant_code_run_dispatches_marked_current_turn_code
       surface: rest_api
     - &id240
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 169
+      line: 172
       name: test_assistant_code_run_creates_inline_code_embed_before_dispatch
       surface: rest_api
     - &id241
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 224
+      line: 225
       name: test_assistant_code_run_stops_after_two_unprompted_reruns
       surface: rest_api
     - &id242
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 280
+      line: 281
       name: test_assistant_inline_code_run_stops_after_two_unprompted_reruns
       surface: rest_api
     supporting_tests: []
@@ -2451,12 +2451,12 @@ assertions:
     direct_tests:
     - &id243
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 110
+      line: 115
       name: test_assistant_code_run_dispatches_marked_current_turn_code
       surface: rest_api
     - &id244
       path: backend/apps/ai/tests/test_code_run_skill_execution.py
-      line: 169
+      line: 172
       name: test_assistant_code_run_creates_inline_code_embed_before_dispatch
       surface: rest_api
     - &id247

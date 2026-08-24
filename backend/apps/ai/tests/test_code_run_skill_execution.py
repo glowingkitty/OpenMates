@@ -28,8 +28,9 @@ VAULT_KEY_ID = "vault-key"
 
 
 class FakeCache:
-    def __init__(self):
+    def __init__(self, user_data: dict[str, object] | None = None):
         self.values: dict[str, object] = {}
+        self.user_data = {"credits": 10} if user_data is None else user_data
 
     async def get(self, key: str):
         return self.values.get(key)
@@ -37,6 +38,10 @@ class FakeCache:
     async def set(self, key: str, value: object, ttl: int | None = None):
         self.values[key] = value
         return True
+
+    async def get_user_by_id(self, user_id: str):
+        assert user_id == USER_ID
+        return self.user_data
 
 
 def _skill() -> RunCodeSkill:
@@ -119,10 +124,8 @@ async def test_assistant_code_run_dispatches_marked_current_turn_code(monkeypatc
     dispatch_calls: list[dict[str, object]] = []
 
     class FakeDirectusService:
-        async def get_user_fields_direct(self, user_id: str, fields: list[str]):
-            assert user_id == USER_ID
-            assert fields == ["credits"]
-            return {"credits": 10}
+        async def get_user_fields_direct(self, *_args, **_kwargs):
+            raise AssertionError("Assistant Code Run must use cached user credits, not Directus cleartext credits.")
 
     async def fake_collect_code_files(**kwargs):
         assert kwargs["chat_id"] == CHAT_ID
@@ -172,10 +175,8 @@ async def test_assistant_code_run_creates_inline_code_embed_before_dispatch(monk
     created_calls: list[dict[str, object]] = []
 
     class FakeDirectusService:
-        async def get_user_fields_direct(self, user_id: str, fields: list[str]):
-            assert user_id == USER_ID
-            assert fields == ["credits"]
-            return {"credits": 10}
+        async def get_user_fields_direct(self, *_args, **_kwargs):
+            raise AssertionError("Assistant Code Run must use cached user credits, not Directus cleartext credits.")
 
     async def fake_create_code_embeds_for_assistant(**kwargs):
         created_calls.append(kwargs)
@@ -233,7 +234,7 @@ async def test_assistant_code_run_stops_after_two_unprompted_reruns(monkeypatch:
 
     class FakeDirectusService:
         async def get_user_fields_direct(self, *_args, **_kwargs):
-            return {"credits": 10}
+            raise AssertionError("Assistant Code Run must use cached user credits, not Directus cleartext credits.")
 
     async def fake_collect_code_files(**_kwargs):
         return ([{"path": "main.py", "content": "print('ok')", "language": "python", "is_target": True}], "main.py")
@@ -282,7 +283,7 @@ async def test_assistant_inline_code_run_stops_after_two_unprompted_reruns(monke
 
     class FakeDirectusService:
         async def get_user_fields_direct(self, *_args, **_kwargs):
-            return {"credits": 10}
+            raise AssertionError("Assistant Code Run must use cached user credits, not Directus cleartext credits.")
 
     async def fake_create_code_embeds_for_assistant(**_kwargs):
         return TARGET_EMBED_ID, [TARGET_EMBED_ID]

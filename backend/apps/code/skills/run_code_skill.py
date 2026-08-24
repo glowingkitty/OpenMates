@@ -297,6 +297,36 @@ def _dependency_installs(items: list[dict[str, Any]]) -> list[Any]:
     return [CodeRunDependencyInstall.model_validate(item) for item in items]
 
 
+def _coerce_credit_balance(value: Any) -> int | None:
+    try:
+        credits = int(value)
+    except (TypeError, ValueError):
+        return None
+    return credits if credits >= 0 else None
+
+
+async def get_assistant_user_credit_balance(cache_service: Any, directus_service: Any, user_id: str) -> int:
+    cached_getter = getattr(cache_service, "get_user_by_id", None)
+    if callable(cached_getter):
+        cached_user = await _maybe_await(cached_getter(user_id))
+        if isinstance(cached_user, dict):
+            cached_credits = _coerce_credit_balance(cached_user.get("credits"))
+            if cached_credits is not None:
+                return cached_credits
+
+    profile_getter = getattr(directus_service, "get_user_profile", None)
+    if callable(profile_getter):
+        profile_result = await _maybe_await(profile_getter(user_id))
+        if isinstance(profile_result, tuple) and len(profile_result) >= 2:
+            success, profile = profile_result[0], profile_result[1]
+            if success and isinstance(profile, dict):
+                profile_credits = _coerce_credit_balance(profile.get("credits"))
+                if profile_credits is not None:
+                    return profile_credits
+
+    raise RuntimeError("Code Run could not verify the current user credit balance.")
+
+
 def _language_for_path(path: str) -> str:
     suffix = PurePosixPath(path).suffix.lower()
     return {
@@ -495,8 +525,10 @@ class RunCodeSkill(BaseSkill):
                 return RunCodeResponse(status="requires_confirmation", error=reason)
 
         directus_service = create_directus_service(cache_service=cache_service, encryption_service=encryption_service)
-        user_fields = await directus_service.get_user_fields_direct(str(user_id), ["credits"])
-        credits = int((user_fields or {}).get("credits") or 0)
+        try:
+            credits = await get_assistant_user_credit_balance(cache_service, directus_service, str(user_id))
+        except RuntimeError as exc:
+            return RunCodeResponse(status="error", error=str(exc))
         current_user = SimpleNamespace(
             id=str(user_id),
             username="assistant-code-run-user",
