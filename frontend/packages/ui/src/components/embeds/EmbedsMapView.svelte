@@ -1078,7 +1078,7 @@
       }
       if (version !== lastRefIndexVersion) {
         lastRefIndexVersion = version;
-        if (entries.some((entry) => entry.status !== 'ready')) void loadEntries();
+        if (isLoading || entries.some((entry) => entry.status !== 'ready')) void loadEntries();
       }
     });
   });
