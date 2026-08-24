@@ -157,7 +157,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: f7b102e719d5f01573aae8b4fafd26bc618abfe7
+  subject_commit: 19826961d952b81f8316a3b38c18e31f5dcb964a
 
 approvals:
   product_contract:
@@ -745,9 +745,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-5, AC-7]
-    status: blocked
+    status: passed
     command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
-    evidence: {status: blocked, command: "python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore", run_id: "deploy:f7b102e719d5f01573aae8b4fafd26bc618abfe7", subject_commit: "f7b102e719d5f01573aae8b4fafd26bc618abfe7", summary: "Bounded dev-only drill support is implemented, tested, independently reviewed, and pushed. Runtime execution remains blocked: the root control-plane checkout could not fast-forward over unrelated dirty scripts/sessions.py, so Alertmanager still loads the old mounted config; the previously exposed Discord webhook must also be rotated before sending drill traffic. No fault or synthetic alert was injected.", timestamp: "2026-08-24T15:38:00Z"}
+    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore --evidence-dir /tmp/opencode/operational-monitoring-df04", run_id: "/tmp/opencode/operational-monitoring-df04/drill-dev-20260824T170419Z.json", subject_commit: "19826961d952b81f8316a3b38c18e31f5dcb964a", summary: "APIDown and OperationalReportStale each delivered firing and recovery through direct Discord plus the API webhook; HostDiskSpaceWarning delivered firing and recovery through the API webhook. Every duplicated injection produced one active alert, every correlated lifecycle receipt passed, explicit restoration succeeded, and the final Alertmanager active-alert inventory was empty.", timestamp: "2026-08-24T17:04:19Z"}
   - id: V-DEV-ROLLOUT-GATE
     kind: deterministic_check
     phase: final
@@ -1008,13 +1008,19 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-24T15:38:00Z"
     evidence: Source and tests deployed as f7b102e719d5f01573aae8b4fafd26bc618abfe7; runtime activation is blocked by unrelated root control-plane changes and drill delivery waits for Discord webhook rotation.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Hold the shared Docker lock after competing rebuilds completed, hot-load the exact deployed Alertmanager configuration, and rerun all three synthetic drills with corrected resolved-alert timestamps.
+    outcome: succeeded
+    recorded_at: "2026-08-24T17:04:19Z"
+    evidence: /tmp/opencode/operational-monitoring-df04/drill-dev-20260824T170419Z.json proves isolated firing, deduplication, accepted receiver completion, explicit restoration, correlated recovery, and zero remaining active alerts.
 
 handoff:
-  current_task_id: TASK-10
-  next_action: Rotate the exposed dev Discord webhook, sync the root control-plane checkout after its unrelated scripts/sessions.py edit is released, activate the deployed Alertmanager config, and run the bounded dev drill.
-  command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
-  expected_outcome: Controlled dev drills prove isolated firing, deduplication, correlated receiver completion, restoration, and one recovery event; subsequent daily reports maintain fresh resource and provider state.
+  current_task_id: TASK-5
+  next_action: Rotate the exposed dev Discord webhook and cache credential, sync the root control-plane checkout after its unrelated scripts/sessions.py edit is released, restore scheduled provider-health freshness, and collect seven consecutive fresh daily reports.
+  command: python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord --skip-build --evidence-dir /tmp/opencode/operational-monitoring-df04
+  expected_outcome: Subsequent daily reports maintain fresh resource, application, scheduler, provider, and payment-readiness state for seven consecutive days before production approval is requested.
   blocker:
     id: dev-rollout-gates
-    reason: Drill source is deployed, but the running Alertmanager still mounts the unsynced root checkout; the exposed Discord webhook requires rotation, provider health jobs remain blocked behind a queue exceeding 10,000 tasks, and the seven-day fresh-report gate has not elapsed.
-  last_verified_commit: f7b102e719d5f01573aae8b4fafd26bc618abfe7
+    reason: The drill passed, but the exposed dev Discord webhook and cache credential require rotation, the root checkout still cannot fast-forward over unrelated scripts/sessions.py changes, provider health jobs remain blocked behind a queue exceeding 10,000 tasks, and the seven-day fresh-report gate has not elapsed.
+  last_verified_commit: 19826961d952b81f8316a3b38c18e31f5dcb964a
