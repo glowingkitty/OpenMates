@@ -40,7 +40,6 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
-import { demoMode } from "../../../stores/demoModeStore";
 import {
   isUnsupportedTeamIncognitoContext,
   shouldDispatchDraftChatAsNewChat,
@@ -2489,59 +2488,8 @@ export function createKeyboardHandlingExtension() {
 
     addKeyboardShortcuts() {
       return {
-        // Handle regular Enter press
-        Enter: ({ editor }) => {
-          const desktop = isDesktop();
-
-          // On mobile, Enter should create a new line. Returning false lets TipTap handle it.
-          if (!desktop) {
-            return false;
-          }
-
-          // On desktop, Enter sends the message.
-          // But we don't handle Enter if Shift is pressed (that's for newlines).
-          // The 'Shift-Enter' shortcut below handles that case by returning false.
-
-          // Don't do anything if there's a text selection, let the user replace it.
-          if (
-            this.editor.view.state.selection.$anchor.pos !==
-            this.editor.view.state.selection.$head.pos
-          ) {
-            return false;
-          }
-
-          if (hasActualContent(editor)) {
-            // CRITICAL: Check authentication status before sending
-            // Unauthenticated users should be prompted to sign in, not have their message sent
-            // (which would fail because WebSocket requires authentication)
-            const isAuthenticated = get(authStore).isAuthenticated;
-
-            if (!isAuthenticated && !get(demoMode)) {
-              // Dispatch sign-up event instead of send event for unauthenticated users
-              // This triggers the sign-up flow which saves the draft and opens signup interface
-              const signUpEvent = new Event("custom-sign-up-click", {
-                bubbles: true,
-                cancelable: true,
-              });
-              editor.view.dom.dispatchEvent(signUpEvent);
-              console.debug(
-                "[KeyboardShortcuts] User not authenticated, triggering sign-up flow instead of send",
-              );
-              return true; // We've handled the event.
-            }
-
-            // Dispatch our custom event to send the message.
-            const sendEvent = new Event("custom-send-message", {
-              bubbles: true,
-              cancelable: true,
-            });
-            editor.view.dom.dispatchEvent(sendEvent);
-            return true; // We've handled the event.
-          } else {
-            vibrateMessageField();
-            return true; // We've handled the event, even if we did nothing.
-          }
-        },
+        // Plain Enter inserts a line break. Sending is owned by the explicit send button.
+        Enter: () => false,
 
         // Handle Shift+Enter for line breaks
         "Shift-Enter": () => {
