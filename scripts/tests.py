@@ -5309,7 +5309,7 @@ def record_runner_failure_fallback(
 
     delivered = False
     try:
-        webhook_url = os.environ.get("DISCORD_WEBHOOK_DEV_NIGHTLY", "")
+        webhook_url = project_env_value("DISCORD_WEBHOOK_DEV_NIGHTLY")
         if not webhook_url:
             raise RuntimeError("DISCORD_WEBHOOK_DEV_NIGHTLY is not configured")
         payload = {
@@ -5359,7 +5359,7 @@ def retry_daily_terminal_notification(run_data: dict[str, Any]) -> str:
     )
     delivered = False
     try:
-        webhook_url = os.environ.get("DISCORD_WEBHOOK_DEV_NIGHTLY", "")
+        webhook_url = project_env_value("DISCORD_WEBHOOK_DEV_NIGHTLY")
         if not webhook_url:
             raise RuntimeError("DISCORD_WEBHOOK_DEV_NIGHTLY is not configured")
         payload = {
@@ -5402,6 +5402,26 @@ def retry_daily_terminal_notification(run_data: dict[str, Any]) -> str:
     source, workflow = run_control_source(run_data)
     record_run_result(run_data, source=source, workflow=workflow)
     return str(run_data.get("git_sha") or "")
+
+
+def project_env_value(name: str) -> str:
+    """Read one operator setting without exporting or logging other secrets."""
+    if os.environ.get(name):
+        return str(os.environ[name])
+    env_path = PROJECT_ROOT / ".env"
+    if not env_path.is_file():
+        return ""
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            if key.strip() == name:
+                return value.strip().strip('"').strip("'")
+    except OSError:
+        return ""
+    return ""
 
 
 def command_run_detached(runner_args: list[str]) -> int:
