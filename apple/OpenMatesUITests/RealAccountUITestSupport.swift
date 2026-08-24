@@ -140,18 +140,19 @@ enum RealAccountUITestSupport {
         let assistantTails = accessibilityElements(in: app, identifier: "message-assistant-tail")
         let history = accessibilityElement(in: app, identifier: "chat-history-container")
         let composer = accessibilityElement(in: app, identifier: "message-editor")
-        var assistantMessage = latestElement(in: assistantMessages)
-        var assistantTail = latestElement(in: assistantTails)
-
-        for _ in 0..<4 where !assistantTail.isHittable {
-            history.swipeUp()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
-            assistantMessage = latestElement(in: assistantMessages)
-            assistantTail = latestElement(in: assistantTails)
-        }
+        let assistantMessage = latestElement(in: assistantMessages)
+        let assistantTail = latestElement(in: assistantTails)
+        let tailVisible = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true"),
+            object: assistantTail
+        )
 
         XCTAssertTrue(assistantMessage.isHittable, "Completed assistant response was not visible for proof")
-        XCTAssertTrue(assistantTail.isHittable, "Completed assistant response tail was not visible for proof")
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [tailVisible], timeout: 10),
+            .completed,
+            "Completed assistant response tail did not become visible without manual scrolling"
+        )
         XCTAssertLessThanOrEqual(
             assistantTail.frame.maxY,
             history.frame.maxY + 1,
