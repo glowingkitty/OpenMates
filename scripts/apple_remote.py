@@ -74,6 +74,11 @@ APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-pub
 APPLE_PROOF_BROKER_POLL_SECONDS = 5
 APPLE_PROOF_BROKER_TIMEOUT_SECONDS = 300
 APPLE_PROOF_CREDENTIAL_TTL_SECONDS = 900
+APPLE_LIVE_CONTRACT_SCRIPTS = {
+    "auth": "scripts/apple_auth_contract_test.py",
+    "sync": "scripts/apple_cross_client_sync_test.py",
+    "notification": "scripts/apple_notification_contract_test.py",
+}
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -252,6 +257,70 @@ if current_commit() != expected_commit:
     print("apple_remote_commit_changed_during_command", file=sys.stderr)
     sys.exit(4)
 sys.exit(result.returncode)
+'''
+
+LIVE_CONTRACT_RUNNER_SCRIPT = r'''
+import os
+import pathlib
+import subprocess
+import sys
+
+expected_commit, credential_path_value, surface, slot_value = sys.argv[1:5]
+slot = int(slot_value)
+scripts = {
+    "auth": "scripts/apple_auth_contract_test.py",
+    "sync": "scripts/apple_cross_client_sync_test.py",
+    "notification": "scripts/apple_notification_contract_test.py",
+}
+if surface not in scripts or not 14 <= slot <= 20:
+    sys.exit(2)
+
+def current_commit():
+    return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+
+if current_commit() != expected_commit:
+    print("apple_remote_commit_mismatch", file=sys.stderr)
+    sys.exit(4)
+
+credential_path = pathlib.Path(credential_path_value)
+try:
+    values = {}
+    for raw_line in credential_path.read_text(encoding="utf-8").splitlines():
+        key, separator, value = raw_line.partition("=")
+        if not separator or not key or not value or "\r" in value or "\n" in value:
+            sys.exit(5)
+        values[key] = value
+except (OSError, UnicodeDecodeError):
+    sys.exit(5)
+
+prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
+account_keys = {f"{prefix}_EMAIL", f"{prefix}_PASSWORD", f"{prefix}_OTP_KEY"}
+if set(values) != account_keys | {"OPENMATES_CREDENTIAL_GENERATION"}:
+    sys.exit(5)
+
+# Deliberately parse the credential file in Python. The child receives only the
+# selected account variables, never the generation marker or parent environment.
+child_env = {key: values[key] for key in account_keys}
+result = subprocess.run([
+    sys.executable, scripts[surface], "--api", "https://api.dev.openmates.org",
+    "--slot", str(slot), "--json",
+], env=child_env)
+if current_commit() != expected_commit:
+    print("apple_remote_commit_changed_during_command", file=sys.stderr)
+    sys.exit(4)
+sys.exit(result.returncode)
+'''
+
+LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT = r'''
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    path.unlink(missing_ok=True)
+except OSError:
+    sys.exit(1)
+sys.exit(0 if not path.exists() else 1)
 '''
 
 
@@ -3726,6 +3795,7 @@ def proof_broker_relay_public_key(
 def _find_github_proof_broker_run(
     request_id: str,
     *,
+    slot: int,
     runner: CommandRunner,
 ) -> dict[str, Any] | None:
     result = runner([
@@ -3739,19 +3809,20 @@ def _find_github_proof_broker_run(
         runs = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise AppleRemoteError("Apple proof credential-broker run list is invalid JSON") from exc
-    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account 14 {request_id}"
+    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account {slot} {request_id}"
     return next((item for item in runs if item.get("displayTitle") == title), None)
 
 
 def _github_proof_broker_run(
     request_id: str,
     *,
+    slot: int,
     expected_commit: str,
     runner: CommandRunner,
 ) -> int:
     deadline = time.monotonic() + APPLE_PROOF_BROKER_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
-        run = _find_github_proof_broker_run(request_id, runner=runner)
+        run = _find_github_proof_broker_run(request_id, slot=slot, runner=runner)
         if run is None:
             time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
             continue
@@ -3835,7 +3906,12 @@ def provision_github_proof_credentials(
         if dispatch.returncode != 0:
             raise AppleRemoteError("Could not dispatch the Apple proof credential broker")
         dispatched = True
-        run_id = _github_proof_broker_run(request_id, expected_commit=expected_commit, runner=runner)
+        run_id = _github_proof_broker_run(
+            request_id,
+            slot=slot,
+            expected_commit=expected_commit,
+            runner=runner,
+        )
         with tempfile.TemporaryDirectory(prefix="apple-proof-broker-") as temporary_value:
             temporary = Path(temporary_value)
             download = runner([
@@ -3877,7 +3953,7 @@ def provision_github_proof_credentials(
             cleanup_errors.append("registered Mac ciphertext cleanup failed")
         if dispatched and run_id is None:
             try:
-                run = _find_github_proof_broker_run(request_id, runner=runner)
+                run = _find_github_proof_broker_run(request_id, slot=slot, runner=runner)
                 run_id = int(run["databaseId"]) if run and run.get("databaseId") is not None else None
                 if run_id is not None and run.get("status") != "completed":
                     cancellation = runner([
@@ -3902,6 +3978,72 @@ def provision_github_proof_credentials(
         if cleanup_errors:
             raise AppleRemoteError("; ".join(cleanup_errors))
     return request_id
+
+
+def live_contract_command(
+    config: RemoteConfig,
+    *,
+    surface: str,
+    slot: int,
+    expected_commit: str,
+) -> str:
+    """Build the fixed, credential-isolated remote contract runner command."""
+    if surface not in APPLE_LIVE_CONTRACT_SCRIPTS:
+        raise AppleRemoteError("Live contract surface must be one of: auth, sync, notification")
+    if not 14 <= slot <= 20:
+        raise AppleRemoteError("Live contract requires a reserved slot 14-20")
+    if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
+        raise AppleRemoteError("Live contract requires one exact full commit")
+    return repo_command(config, [
+        "python3", "-c", LIVE_CONTRACT_RUNNER_SCRIPT,
+        expected_commit, LIVE_TEST_CREDENTIALS_PATH, surface, str(slot),
+    ])
+
+
+def live_contract_cleanup_command(config: RemoteConfig) -> str:
+    """Remove and confirm removal of brokered credentials on the registered Mac."""
+    return repo_command(config, [
+        "python3", "-c", LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT,
+        LIVE_TEST_CREDENTIALS_PATH,
+    ])
+
+
+def run_live_contract(
+    config: RemoteConfig,
+    *,
+    surface: str,
+    slot: int,
+    expected_commit: str,
+    runner: CommandRunner = default_runner,
+) -> int:
+    """Broker one reserved account to the Mac and run a fixed live contract probe."""
+    command = live_contract_command(
+        config,
+        surface=surface,
+        slot=slot,
+        expected_commit=expected_commit,
+    )
+    provision_github_proof_credentials(
+        config,
+        slot=slot,
+        expected_commit=expected_commit,
+        runner=runner,
+    )
+    result: subprocess.CompletedProcess[str] | None = None
+    try:
+        result = runner(ssh_command(config, command))
+    finally:
+        cleanup = runner(ssh_command(config, live_contract_cleanup_command(config)))
+        if cleanup.returncode != 0:
+            raise AppleRemoteError("Could not confirm registered Mac live-contract credential cleanup")
+    assert result is not None
+    stdout = redact_output(result.stdout, config)
+    stderr = redact_output(result.stderr, config)
+    if stdout:
+        print(stdout, end="" if stdout.endswith("\n") else "\n")
+    if stderr:
+        print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
+    return result.returncode
 
 
 def extract_and_validate_recording_archive(archive_path: Path, destination: Path) -> tuple[Path, dict[str, Any]]:
@@ -4597,6 +4739,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Initialize the registered Mac proof-broker key and print only its public certificate",
     )
 
+    live_contract_parser = subparsers.add_parser(
+        "contract",
+        help="Run one allowlisted live API contract probe through the GitHub credential broker",
+    )
+    live_contract_parser.add_argument("surface", choices=sorted(APPLE_LIVE_CONTRACT_SCRIPTS))
+    live_contract_parser.add_argument("--slot", required=True, type=int, help="Reserved proof account slot (14-20)")
+    live_contract_parser.add_argument("--expected-commit", required=True, help="Exact 40-character remote repository commit")
+
     finalize_parser = subparsers.add_parser(
         "finalize-proof",
         help="Retry exact-size rendering, review, and publication for a transferred passing Apple recording",
@@ -4806,6 +4956,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             proof_broker_relay_public_key(config)
             sys.stdout.write(certificate.decode("ascii"))
             return 0
+        if args.command == "contract":
+            return run_live_contract(
+                config,
+                surface=args.surface,
+                slot=args.slot,
+                expected_commit=args.expected_commit,
+            )
         if args.command == "status":
             return print_status(config)
         if args.command == "doctor":

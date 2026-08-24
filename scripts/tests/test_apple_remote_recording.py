@@ -77,6 +77,86 @@ def test_preprovisioned_recording_uses_marker_without_rewriting_credentials() ->
     assert "unlink(missing_ok=True)" in command
 
 
+def test_live_contract_command_is_allowlisted_pinned_and_credential_isolated() -> None:
+    module = load_module()
+    config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured")
+    command = module.live_contract_command(
+        config,
+        surface="notification",
+        slot=14,
+        expected_commit="a" * 40,
+    )
+
+    assert "scripts/apple_notification_contract_test.py" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "https://api.dev.openmates.org" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "--slot" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "--json" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "credential_path.read_text" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "set(values) != account_keys |" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "child_env = {key: values[key] for key in account_keys}" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "source " not in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert "current_commit() != expected_commit" in module.LIVE_CONTRACT_RUNNER_SCRIPT
+    assert module.LIVE_TEST_CREDENTIALS_PATH in command
+    assert "a" * 40 in command
+
+
+def test_live_contract_rejects_unallowlisted_surface_slot_and_commit() -> None:
+    module = load_module()
+    config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured")
+
+    with pytest.raises(module.AppleRemoteError, match="must be one of"):
+        module.live_contract_command(config, surface="arbitrary", slot=14, expected_commit="a" * 40)
+    with pytest.raises(module.AppleRemoteError, match="slot 14-20"):
+        module.live_contract_command(config, surface="auth", slot=1, expected_commit="a" * 40)
+    with pytest.raises(module.AppleRemoteError, match="exact full commit"):
+        module.live_contract_command(config, surface="auth", slot=14, expected_commit="short")
+
+
+def test_live_contract_cleans_credentials_after_child_failure(monkeypatch) -> None:
+    module = load_module()
+    config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured")
+    monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *_args, **_kwargs: "opaque-request")
+    commands = []
+
+    def runner(command):
+        commands.append(command)
+        remote_command = command[-1]
+        if module.LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT in remote_command:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return subprocess.CompletedProcess(command, 1, '{"status":"failed"}\n', "")
+
+    assert module.run_live_contract(
+        config,
+        surface="auth",
+        slot=14,
+        expected_commit="a" * 40,
+        runner=runner,
+    ) == 1
+    assert len(commands) == 2
+    assert module.LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT in commands[-1][-1]
+
+
+def test_live_contract_fails_visibly_when_credential_cleanup_cannot_be_confirmed(monkeypatch) -> None:
+    module = load_module()
+    config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured")
+    monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *_args, **_kwargs: "opaque-request")
+
+    def runner(command):
+        remote_command = command[-1]
+        if module.LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT in remote_command:
+            return subprocess.CompletedProcess(command, 1, "", "")
+        return subprocess.CompletedProcess(command, 0, '{"status":"passed"}\n', "")
+
+    with pytest.raises(module.AppleRemoteError, match="credential cleanup"):
+        module.run_live_contract(
+            config,
+            surface="sync",
+            slot=14,
+            expected_commit="a" * 40,
+            runner=runner,
+        )
+
+
 def test_proof_recording_requires_timeline_before_marking_passed() -> None:
     module = load_module()
 
