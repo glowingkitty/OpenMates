@@ -98,6 +98,8 @@ AI_REQUIRED_PHASES = (
 DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
 RECENT_DEFAULT_LIMIT = 25
+TRACE_PAGE_SIZE = 1000
+TRACE_MAX_PAGES = 10
 
 # Error spans are not always marked with span_status=ERROR. FastAPI/ASGI spans
 # often leave span_status=UNSET and store the HTTP outcome separately.
@@ -335,26 +337,35 @@ def _get_full_trace_spans(
         f"WHERE trace_id = '{trace_id}' "
         f"ORDER BY start_time ASC"
     )
-    body = {
-        "query": {
-            "sql": sql,
-            "start_time": start_time_us,
-            "end_time": end_time_us,
-        }
-    }
-
     try:
-        response = httpx.post(url, json=body, auth=auth, timeout=30.0)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("hits", [])
-        else:
-            print(
-                f"OpenObserve span search failed (status={response.status_code}): "
-                f"{response.text[:300]}",
-                file=sys.stderr,
-            )
-            return []
+        spans: List[Dict[str, Any]] = []
+        for page in range(TRACE_MAX_PAGES):
+            body = {
+                "query": {
+                    "sql": sql,
+                    "start_time": start_time_us,
+                    "end_time": end_time_us,
+                    "from": page * TRACE_PAGE_SIZE,
+                    "size": TRACE_PAGE_SIZE,
+                }
+            }
+            response = httpx.post(url, json=body, auth=auth, timeout=30.0)
+            if response.status_code != 200:
+                print(
+                    f"OpenObserve span search failed (status={response.status_code}): "
+                    f"{response.text[:300]}",
+                    file=sys.stderr,
+                )
+                return []
+            page_spans = response.json().get("hits", [])
+            spans.extend(page_spans)
+            if len(page_spans) < TRACE_PAGE_SIZE:
+                return spans
+        print(
+            f"OpenObserve trace exceeded the bounded {TRACE_MAX_PAGES * TRACE_PAGE_SIZE}-span query limit.",
+            file=sys.stderr,
+        )
+        return spans
     except Exception as exc:
         print(f"Error fetching spans for trace {trace_id}: {exc}", file=sys.stderr)
         return []
@@ -596,6 +607,26 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             f"{root_operation} ({total_duration_ms:.0f}ms) {overall_status}"
         )
 
+        ai_spans = {
+            str(span.get("operation_name", ""))[3:]: span
+            for span in trace_spans
+            if str(span.get("operation_name", "")).startswith("ai.")
+        }
+        if "turn" in ai_spans:
+            output_lines.append("  AI phase waterfall:")
+            for phase in AI_REQUIRED_PHASES:
+                span = ai_spans.get(phase)
+                if not span:
+                    continue
+                duration_ms = span.get("duration", 0) / 1000.0
+                output_lines.append(
+                    f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
+                )
+            missing = [phase for phase in AI_REQUIRED_PHASES if phase not in ai_spans]
+            output_lines.append(
+                "  Missing AI phases: " + (", ".join(missing) if missing else "none")
+            )
+
         # Sort root spans by start_time
         root_ids.sort(key=lambda sid: span_map[sid].get("start_time", 0))
 
@@ -637,26 +668,6 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
 
         for i, root_id in enumerate(root_ids):
             _render_span(root_id, "  ", is_last=(i == len(root_ids) - 1))
-
-        ai_spans = {
-            str(span.get("operation_name", ""))[3:]: span
-            for span in trace_spans
-            if str(span.get("operation_name", "")).startswith("ai.")
-        }
-        if "turn" in ai_spans:
-            output_lines.append("  AI phase waterfall:")
-            for phase in AI_REQUIRED_PHASES:
-                span = ai_spans.get(phase)
-                if not span:
-                    continue
-                duration_ms = span.get("duration", 0) / 1000.0
-                output_lines.append(
-                    f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
-                )
-            missing = [phase for phase in AI_REQUIRED_PHASES if phase not in ai_spans]
-            output_lines.append(
-                "  Missing AI phases: " + (", ".join(missing) if missing else "none")
-            )
 
         output_lines.append("")  # Blank line between traces
 

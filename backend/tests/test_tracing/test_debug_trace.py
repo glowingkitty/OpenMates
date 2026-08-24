@@ -524,6 +524,32 @@ class TestGetFullTraceSpans:
             assert len(result) == 1
             assert result[0]["trace_id"] == "abc123"
 
+    def test_paginates_when_trace_reaches_openobserve_page_size(self):
+        import httpx as real_httpx
+
+        first_page = MagicMock(status_code=200)
+        first_page.json.return_value = {
+            "hits": [{"trace_id": "abc123", "span_id": str(index)} for index in range(1000)]
+        }
+        second_page = MagicMock(status_code=200)
+        second_page.json.return_value = {
+            "hits": [{"trace_id": "abc123", "span_id": "last"}]
+        }
+
+        with patch.object(real_httpx, "post", side_effect=[first_page, second_page]) as mock_post:
+            result = _get_full_trace_spans(
+                trace_id="abc123",
+                start_time_us=1000000,
+                end_time_us=9000000,
+                base_url="http://localhost:5080",
+                auth=("user", "pass"),
+            )
+
+        assert len(result) == 1001
+        assert mock_post.call_count == 2
+        assert mock_post.call_args_list[0].kwargs["json"]["query"]["from"] == 0
+        assert mock_post.call_args_list[1].kwargs["json"]["query"]["from"] == 1000
+
 
 class TestBuildErrorTraceSql:
     """Error trace discovery SQL should find distinct trace IDs."""
