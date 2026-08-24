@@ -161,14 +161,31 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-24T20:50:00Z"
     evidence: GitHub run 32775832571 passed 1075 existing tests and failed the three new tests on missing pending-key methods and duplicate deep ref scans.
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Retry map source resolution when the ref index changes during an active initial load.
+    outcome: blocked
+    recorded_at: "2026-08-24T22:01:00Z"
+    evidence: Component regression passed after commit f3e342a173704f221cb52eac1b8947e43542c380, but phone proof run 32782869045 retained the same post-reload loader.
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Prioritize recent embeds inside the bounded 200-row cold ref repair scan.
+    outcome: blocked
+    recorded_at: "2026-08-24T22:47:00Z"
+    evidence: Focused red run 32784981681 and green run 32785422472 proved candidate ordering, but phone proof run 32786071438 retained the same product-defect fingerprint and exhausted the automatic correction budget.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Add and deploy focused red tests for transient embed key unavailability, targeted key-ready retry, and ref-repair deduplication.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: New embed key-ready tests fail before implementation while existing embed tests remain stable.
-  blocker: null
-  last_verified_commit: 891897102375620b39fdc970fb0f0b982fe4016b
+  next_action: If the user authorizes another correction round, instrument the exact map source refs and candidate outcomes in a focused deployed reproduction before changing product code again.
+  command: python3 scripts/tests.py run --spec billing-settlement-recovery.spec.ts --proof-video-profile web-phone --gate-deploy --expected-commit <SHA>
+  expected_outcome: The post-reload phone checkpoint resolves referenced event embeds and no longer shows the zero-item loading state.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: Phone proof run 32786071438 repeated the same product-defect fingerprint after the allowed automatic product correction round.
+    question: Authorize one additional product correction round for deeper deployed instrumentation and repair of the persistent referenced-embed loader.
+    next_action: Continue with an instrumented failing reproduction and a replacement phone proof if approved.
+  last_verified_commit: 25792667f8633528a38685ea64418dd2e9b09260
 
 scenarios:
   - id: S-1
