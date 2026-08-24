@@ -61,9 +61,8 @@ test('global notifications stack behind the front card, show activity, and promo
 						{
 							type: 'info',
 							title: 'First stacked notification',
-							message: 'This front notification stays readable and interactive.',
-							duration: 0,
-							isProcessing: true
+							message: 'This oldest notification waits behind newer cards.',
+							duration: 0
 						},
 						{
 							type: 'success',
@@ -74,8 +73,9 @@ test('global notifications stack behind the front card, show activity, and promo
 						{
 							type: 'warning',
 							title: 'Third stacked notification',
-							message: 'Only a slim strip remains visible at the back.',
-							duration: 0
+							message: 'This newest notification stays readable and interactive.',
+							duration: 0,
+							isProcessing: true
 						}
 					]
 				}
