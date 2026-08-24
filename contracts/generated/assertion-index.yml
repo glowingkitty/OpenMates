@@ -1239,7 +1239,7 @@ assertions:
       surface: gui.apple
     - &id134
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 62
+      line: 63
       name: testPasswordOtpLoginLoadsRecentChatsForWebParityManifest
       surface: gui.apple
     - &id135
@@ -4387,12 +4387,12 @@ assertions:
       surface: gui.apple
     - &id450
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 22
+      line: 23
       name: testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id451
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 33
+      line: 34
       name: testAppleCoreParityProof
       surface: gui.apple
     - &id452
@@ -4781,7 +4781,7 @@ assertions:
     supporting_tests:
     - &id491
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 88
+      line: 89
       name: testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id497
@@ -6292,7 +6292,7 @@ assertions:
       surface: gui.apple
     - &id687
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 62
+      line: 63
       name: testPasswordOtpLoginLoadsRecentChatsForWebParityManifest
       surface: gui.apple
     - &id688
@@ -6479,7 +6479,7 @@ assertions:
     direct_tests:
     - &id704
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 22
+      line: 23
       name: testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id713
@@ -8017,7 +8017,7 @@ assertions:
     direct_tests:
     - &id901
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 33
+      line: 34
       name: testAppleCoreParityProof
       surface: gui.apple
     - &id911
@@ -8126,7 +8126,7 @@ assertions:
     supporting_tests:
     - &id902
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 88
+      line: 89
       name: testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id903

@@ -10,6 +10,7 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
+    private static let coreParityAccountSlot = 14
     private let markerPrompt = "Kyoto and Osaka quick tip test"
     private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
     private let assistantResponseTimeout: TimeInterval = 90
@@ -31,7 +32,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
-        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        let credentials = try RealAccountTestCredentials.fromReservedSlot(Self.coreParityAccountSlot)
         let captureEpochMilliseconds = Double(
             ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"] ?? ""
         ) ?? Date().timeIntervalSince1970 * 1000
