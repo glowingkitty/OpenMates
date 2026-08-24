@@ -50,6 +50,7 @@ scope:
     - Prevent post-persistence billing errors from changing a completed response to failed.
     - Cover concurrent distinct charges, duplicate retries, cache loss, lock loss, crash-after-commit, and exhausted retries.
     - Measure durable read/write counts and response-finalization latency.
+    - Retry unresolved encrypted embed references once when their matching chat key becomes ready after reload.
   out:
     - Replacing the encrypted balance with a plaintext database counter.
     - Changing prices, purchase methods, invoices, usage UI, or the -500 personal credit floor.
@@ -136,6 +137,11 @@ decisions:
     decision: Retryable settlement after paid work becomes durable pending work and cannot regress a persisted response to failed.
     reason: This is the direct M9JH3 failure invariant.
     decided_at: "2026-08-24T13:54:16Z"
+  - id: D-4
+    status: active
+    decision: Expand proof-blocking scope to repair the encrypted embed key-ready reload race.
+    reason: User approved fixing the real post-reload loading defect exposed by required phone proof rather than hiding or excepting it.
+    decided_at: "2026-08-24T19:10:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -143,14 +149,20 @@ attempts:
     approach: Reproduce immediate stale-balance retry exhaustion with concurrent billing calls before source changes.
     outcome: planned
     recorded_at: "2026-08-24T13:54:16Z"
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Capture and review the required phone proof after deployed billing completion passed.
+    outcome: blocked
+    recorded_at: "2026-08-24T19:08:00Z"
+    evidence: The post-reload checkpoint exposed a persistent referenced-embed loader caused by encrypted embed resolution running before the chat key became ready.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Deploy the backend and Directus schema, then run real API, CLI, and deployed web proof gates.
-  command: python3 scripts/sessions.py deploy --session agent-c25b --title "Fix concurrent billing settlement reliability" --message "Add durable encrypted billing settlement recovery"
-  expected_outcome: Real dev API concurrency/replay and deployed paid-chat completion gates pass.
+  current_task_id: TASK-6
+  next_action: Add and deploy focused red tests for transient embed key unavailability, targeted key-ready retry, and ref-repair deduplication.
+  command: python3 scripts/tests.py run --suite vitest
+  expected_outcome: New embed key-ready tests fail before implementation while existing embed tests remain stable.
   blocker: null
-  last_verified_commit: ede44c0aeabf2b8bd5d35c260f8a7bfc55298717
+  last_verified_commit: 891897102375620b39fdc970fb0f0b982fe4016b
 
 scenarios:
   - id: S-1
@@ -213,6 +225,17 @@ scenarios:
       - It performs zero pre-commit balance reads and one durable transaction.
       - Post-commit cache, summary, stats, and WebSocket projection failures do not reverse the charge.
       - Timing metrics separate lock wait, Vault work, durable commit, retry persistence, and finalization.
+  - id: S-7
+    title: Reloaded encrypted embed refs recover when the chat key becomes ready
+    given:
+      - A completed assistant response references encrypted event embeds.
+      - Reload starts ref repair before the matching chat key is available.
+    when:
+      - The matching chat key becomes ready.
+    then:
+      - Missing-key decryption is classified as pending rather than permanent failure.
+      - Only refs waiting for that chat key are retried once and concurrent repair calls share one in-flight scan.
+      - The referenced embeds view leaves its loading state without a reload loop or server re-request.
 
 acceptance_criteria:
   - id: AC-1
@@ -269,6 +292,15 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [T-BILLING-CONCURRENCY, V-REAL-API, V-PERFORMANCE]
     contract_assertions: [billing.credits.minimal-durable-io]
+  - id: AC-7
+    scenario: S-7
+    text: A transient missing chat key never becomes a permanent embed decryption error; matching key readiness triggers one deduplicated ref repair and resolves the reloaded referenced-embed view.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-EMBED-KEY-READY, T-WEB-BILLING-RECOVERY]
+    contract_assertions: [billing.credits.retryable-completion-safe]
 
 assumptions:
   - id: A-1
@@ -393,6 +425,20 @@ tests:
     covers: [AC-3]
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {status: "", command: "", run_id: "", timestamp: ""}}
     green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-EMBED-KEY-READY
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    target: Transient encrypted embed key recovery after reload
+    command: python3 scripts/tests.py run --suite vitest
+    assertions:
+      - missing matching chat key is pending rather than permanent decryption failure
+      - unrelated and repeated key-ready signals do not retry pending refs
+      - matching key-ready retries once and bumps unresolved ref subscribers
+      - concurrent deep ref resolutions share one scan and decrypt attempt
+    contract_assertions: [billing.credits.retryable-completion-safe]
+    covers: [AC-7]
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {status: "", command: "", run_id: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
 
 verifications:
   - id: V-REAL-API
@@ -579,7 +625,7 @@ tasks:
       - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
       - docs/architecture/payments/payment-processing.md
     verification_ids: [V-REAL-API, V-REAL-CLI, V-SDK-PARITY, T-WEB-BILLING-RECOVERY, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]
-    dependencies: [TASK-2, TASK-3]
+    dependencies: [TASK-2, TASK-3, TASK-6]
     ownership: {files: [backend/scripts/test_billing_settlement_contract.py, frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts, docs/architecture/payments/payment-processing.md], shared_files: []}
     blockers: []
     follow_up_tasks: []
@@ -594,6 +640,22 @@ tasks:
     verification_ids: [V-REAL-API, V-REAL-CLI]
     dependencies: [TASK-4]
     ownership: {files: [docs/specs/billing-processing-reliability/spec.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-6
+    title: Recover encrypted embed refs after chat key readiness
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-7], acceptance_criteria: [AC-7]}
+    expected_files:
+      - frontend/packages/ui/src/services/embedStore.ts
+      - frontend/packages/ui/src/services/embedResolver.ts
+      - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    verification_ids: [T-EMBED-KEY-READY, T-WEB-BILLING-RECOVERY]
+    dependencies: [TASK-1]
+    ownership: {files: [frontend/packages/ui/src/services/embedStore.ts, frontend/packages/ui/src/services/__tests__/embedStore.test.ts], shared_files: [frontend/packages/ui/src/services/embedResolver.ts, frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts]}
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
