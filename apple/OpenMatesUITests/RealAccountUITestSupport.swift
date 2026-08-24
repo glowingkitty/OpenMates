@@ -116,12 +116,7 @@ enum RealAccountUITestSupport {
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
         RunLoop.current.run(until: Date().addingTimeInterval(streamingAccessibilitySettleInterval))
-        let completionMarker = app.otherElements.matching(NSPredicate(
-            format: "identifier == %@ AND value == %@",
-            "assistant-response-complete",
-            "true"
-        ))
-            .firstMatch
+        let completionMarker = app.otherElements["assistant-response-feedback"]
         XCTAssertTrue(
             completionMarker.waitForExistence(timeout: 5),
             "Assistant response did not finish streaming"
