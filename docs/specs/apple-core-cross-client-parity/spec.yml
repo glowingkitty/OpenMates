@@ -1017,12 +1017,17 @@ attempts:
     evidence: Existing contracts define semantic parity; targeted cross-client journeys and contract-indexed assertions provide stronger and less redundant coverage.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Add the cross-client and direct auth, sync, and notification contract tests, then record red evidence before product changes.
-  command: python3 scripts/spec_verify.py docs/specs/apple-core-cross-client-parity/spec.yml --phase red
-  expected_outcome: Required tests exist and fail only for the confirmed Apple parity and recording gaps.
-  blocker: null
-  last_verified_commit: 59f9fae71
+  current_task_id: TASK-8
+  next_action: An authorized operator must securely materialize reserved test-account slot 14 on the registered Mac through local-only configuration, then rerun the exact iPhone proof without returning any secret value to this agent.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --expected-commit e6f41173383e2994115b534f110d5135d35f9d25
+  expected_outcome: The registered Mac consumes reserved slot 14 without exposing its values, and the exact-commit iPhone proof records, reviews, and publishes successfully.
+  blocker:
+    task_id: TASK-8
+    requires_user_input: true
+    reason: Repository secrets for reserved slot 14 exist, but their values are intentionally unavailable on this dev host; no existing GitHub Actions, self-hosted macOS runner, Tailscale/SSH workflow, or apple_remote.py path can securely deliver those repository secrets to the registered Mac for the exact Apple proof.
+    question: Can an authorized operator securely materialize reserved slot 14 on the registered Mac through local-only configuration and run the handoff command without sharing any secret value with this agent?
+    next_action: After the operator confirms the exact proof completed, import only the sanitized run ID and result, then continue iPad proof review and spec closure.
+  last_verified_commit: e6f41173383e2994115b534f110d5135d35f9d25
 
 risks:
   - A broad parity program can hide ordering dependencies; task dependencies and contract-linked acceptance criteria keep slices explicit.
