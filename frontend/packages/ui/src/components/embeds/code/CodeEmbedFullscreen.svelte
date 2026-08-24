@@ -396,10 +396,12 @@
   let selectedRunArtifactChildId = $state<string | null>(null);
   let runError = $state<string | null>(null);
   let runCancelRequested = $state(false);
+  let runStarting = false;
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
   let persistedRunExecutionId = $state<string | null>(null);
   let runOutputPersistence: { executionId: string; promise: Promise<void> } | null = null;
+  let runStatusReconciliation: { executionId: string; promise: Promise<void> } | null = null;
 
   interface CodeRunArtifactEmbedChild {
     embed_id: string;
@@ -423,6 +425,7 @@
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
   const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
   const RUN_OUTPUT_HYDRATION_TIMEOUT_MS = 3_000;
+  const RUN_STATUS_POLL_INTERVAL_MS = 1_000;
 
   interface CodeRunAttachmentSource {
     s3Key: string;
@@ -844,14 +847,14 @@
     const plainEvents = cloneRunEvents(runDisplayEvents);
     const plainArtifacts = mergeCodeRunArtifactHistory(savedRunOutput?.artifacts, runArtifacts, Math.floor(savedAt / 1000));
     const plainSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(runSkippedArtifacts);
+    let persistedChildren: Awaited<ReturnType<typeof materializeCodeRunArtifactChildren>> = [];
     const persistence = (async () => {
-      const children = await materializeCodeRunArtifactChildren({
+      persistedChildren = await materializeCodeRunArtifactChildren({
         artifacts: plainArtifacts,
         parentEmbedId: embedId,
         chatId,
         sourceExecutionId: executionId,
       });
-      runArtifactChildIds = children.map((child) => child.embedId);
       await sendUpsertCodeRunOutputImpl({
         id: outputId,
         chat_id: chatId,
@@ -870,7 +873,9 @@
     runOutputPersistence = { executionId, promise: persistence };
     try {
       await persistence;
+      if (runExecutionId !== executionId) return true;
       persistedRunExecutionId = executionId;
+      runArtifactChildIds = persistedChildren.map((child) => child.embedId);
       savedRunOutput = {
         id: outputId,
         text: outputText,
@@ -1293,6 +1298,28 @@
     if (!await persistRunOutput()) await persistRunOutput();
   }
 
+  async function reconcileTerminalRunUpdate(executionId: string, retry = true) {
+    try {
+      const status = await getCodeRunStatus(executionId);
+      await syncAuthoritativeRunStatus(status, executionId);
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to reconcile terminal Code Run status:', error);
+      if (!retry || runExecutionId !== executionId) return;
+      await new Promise((resolve) => setTimeout(resolve, RUN_STATUS_POLL_INTERVAL_MS));
+      if (runExecutionId !== executionId) return;
+      await reconcileTerminalRunUpdate(executionId, false);
+    }
+  }
+
+  function beginTerminalRunReconciliation(executionId: string) {
+    if (runStatusReconciliation?.executionId === executionId) return;
+    const promise = reconcileTerminalRunUpdate(executionId);
+    runStatusReconciliation = { executionId, promise };
+    void promise.finally(() => {
+      if (runStatusReconciliation?.executionId === executionId) runStatusReconciliation = null;
+    });
+  }
+
   function applyRunUpdate(update: Partial<CodeRunStatus>) {
     if (update.status) runStatus = update.status;
     if (update.status === 'cancelling') runCancelRequested = true;
@@ -1324,6 +1351,9 @@
       }
       if (message.type === 'code_run_update') {
         applyRunUpdate(message.payload);
+        if (message.payload.status && TERMINAL_RUN_STATUSES.has(message.payload.status)) {
+          beginTerminalRunReconciliation(executionId);
+        }
         return;
       }
       if (message.type === 'code_run_event') {
@@ -1350,7 +1380,7 @@
       const status = await getCodeRunStatus(executionId);
       await syncAuthoritativeRunStatus(status, executionId);
       if (!TERMINAL_RUN_STATUSES.has(status.status)) {
-        runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
+        runPollTimer = setTimeout(() => pollRunStatus(executionId), RUN_STATUS_POLL_INTERVAL_MS);
       }
     } catch (error) {
       runStatus = 'failed';
@@ -1364,7 +1394,9 @@
       loginInterfaceOpen.set(true);
       return;
     }
-    if (!chatId || !embedId || runActive) return;
+    if (!chatId || !embedId || runActive || runStarting) return;
+    runStarting = true;
+    try {
     const candidates = candidatesOverride || selectedRunCandidates;
     const selectedEmbedIds = candidates
       .filter((candidate) => candidate.kind !== 'dependency')
@@ -1375,9 +1407,20 @@
     const selectedDependencyInstalls = candidates
       .filter((candidate): candidate is CodeRunFileCandidate & { dependencyInstall: CodeRunDependencyInstall } => candidate.kind === 'dependency' && !!candidate.dependencyInstall)
       .map((candidate) => candidate.dependencyInstall);
+    const previousReconciliation = runStatusReconciliation?.promise;
+    if (previousReconciliation) await previousReconciliation;
+    const previousPersistence = runOutputPersistence?.promise;
+    if (previousPersistence) {
+      try {
+        await previousPersistence;
+      } catch {
+        // The completed run already surfaced its persistence failure.
+      }
+    }
+    runExecutionId = null;
+    closeRunSocket();
     const selectedAttachments = await selectedClientAttachments(candidates);
     clearRunPollTimer();
-    closeRunSocket();
     previewActive = false;
     runSelectionOpen = false;
     runPanelOpen = true;
@@ -1391,7 +1434,6 @@
     loadedRunArtifactChildren = [];
     selectedRunArtifactChildId = null;
     runSkippedArtifacts = [];
-    try {
       let started;
       try {
         started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
@@ -1417,6 +1459,8 @@
       runStatus = 'failed';
       runError = error instanceof Error ? error.message : 'Code run failed to start';
       runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    } finally {
+      runStarting = false;
     }
   }
 
@@ -1436,12 +1480,6 @@
       runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
     }
   }
-
-  $effect(() => {
-    if (runExecutionId && TERMINAL_RUN_STATUSES.has(runStatus) && compactRunOutputHasFinalLine()) {
-      void persistRunOutput();
-    }
-  });
 
   $effect(() => {
     return () => {
