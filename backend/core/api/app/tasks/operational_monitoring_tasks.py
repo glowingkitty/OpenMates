@@ -131,7 +131,7 @@ async def generate_and_deliver_operational_report(
                 logger.warning("Operational billing-readiness collection unavailable: %s", type(exc).__name__)
                 billing_readiness = {
                     "status": "unavailable", "eu_card": "unavailable", "managed": "unavailable",
-                    "catalog_gaps": [], "missing_events": [], "checked_at": now.isoformat(), "checks": {},
+                    "catalog_gaps": [], "missing_events": [], "checked_at": now.isoformat(),
                 }
             if billing_readiness["status"] != "healthy":
                 collection_issues.append({

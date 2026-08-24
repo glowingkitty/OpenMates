@@ -49,10 +49,7 @@ BILLING_KEYS = {
     "purchase_window_label",
 }
 BILLING_READINESS_KEYS = {
-    "status", "eu_card", "managed", "catalog_gaps", "missing_events", "checked_at", "checks",
-}
-READINESS_CHECK_KEYS = {
-    "account_access", "destination_enabled", "routes_registered", "workers_healthy", "settlements_healthy",
+    "status", "eu_card", "managed", "catalog_gaps", "missing_events", "checked_at",
 }
 ISSUE_KEYS = {"fingerprint", "severity", "active", "count", "last_seen"}
 SELF_HOST_FORBIDDEN_TERMS = ("billing", "payment", "stripe", "invoice", "subscription", "purchase")
@@ -194,7 +191,6 @@ async def collect_billing_readiness(cache_service: Any, *, now: datetime) -> dic
     checked_timestamp = _parse_timestamp(checked_at)
     stale = not checked_timestamp or now.timestamp() - checked_timestamp > timedelta(minutes=30).total_seconds()
     status = "stale" if stale else str(readiness.get("status", "unavailable"))
-    checks = readiness.get("checks") or {}
     return {
         "status": status,
         "eu_card": "unavailable" if stale else str(readiness.get("eu_card", "unavailable")),
@@ -202,7 +198,6 @@ async def collect_billing_readiness(cache_service: Any, *, now: datetime) -> dic
         "catalog_gaps": sorted(str(name)[:80] for name in readiness.get("missing_products", [])),
         "missing_events": sorted(str(name)[:80] for name in readiness.get("missing_events", [])),
         "checked_at": checked_at or now.isoformat(),
-        "checks": {key: bool(checks.get(key)) for key in READINESS_CHECK_KEYS},
     }
 
 
@@ -285,8 +280,6 @@ def build_operational_snapshot(
     if billing_readiness is not None:
         if set(billing_readiness) - BILLING_READINESS_KEYS:
             raise ValueError(f"unsupported billing_readiness fields: {sorted(set(billing_readiness) - BILLING_READINESS_KEYS)}")
-        if set(billing_readiness.get("checks", {})) - READINESS_CHECK_KEYS:
-            raise ValueError("unsupported billing readiness checks")
 
     snapshot: dict[str, Any] = {
         "environment": environment,
@@ -307,7 +300,7 @@ def build_operational_snapshot(
         }
         snapshot["billing_readiness"] = billing_readiness or {
             "status": "unavailable", "eu_card": "unavailable", "managed": "unavailable",
-            "catalog_gaps": [], "missing_events": [], "checked_at": window_end.isoformat(), "checks": {},
+            "catalog_gaps": [], "missing_events": [], "checked_at": window_end.isoformat(),
         }
     if environment != "self_host":
         snapshot["billing"] = billing or {

@@ -238,6 +238,34 @@ def test_provider_health_never_treats_empty_or_missing_inventory_as_healthy():
     assert summary["unavailable_names"] == ["missing_provider"]
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.billing.no-spend-readiness,operational-monitoring.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_billing_readiness_omits_internal_destination_checks_from_snapshot():
+    class FakeClient:
+        async def get(self, _key):
+            return monitoring.json.dumps({
+                "readiness": {
+                    "status": "degraded",
+                    "eu_card": "healthy",
+                    "managed_payments": "unavailable",
+                    "missing_products": [],
+                    "missing_events": ["checkout.session.completed"],
+                    "checked_at": WINDOW_END.isoformat(),
+                    "checks": {"destination_enabled": True},
+                },
+            })
+
+    class FakeCache:
+        client = _completed_value(FakeClient())
+
+    readiness = await monitoring.collect_billing_readiness(FakeCache(), now=WINDOW_END)
+    snapshot = _snapshot(billing_readiness=readiness)
+
+    assert readiness["eu_card"] == "healthy"
+    assert "checks" not in snapshot["billing_readiness"]
+    assert "destination" not in monitoring.serialize_operational_snapshot(snapshot)
+
+
 def test_provider_health_is_visible_in_discord_summary():
     summary = monitoring.build_operational_discord_summary(
         _snapshot(),
