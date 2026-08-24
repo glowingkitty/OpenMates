@@ -107,6 +107,7 @@ async function triggerExplainInNewChat(page: any): Promise<void> {
 	}, explainActionSelector);
 }
 
+// contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.open.local-first-coherent,notifications.web.stacked-deck
 test('explains selected assistant text in a background new chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300_000);
@@ -119,11 +120,10 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
 
-	const seedPrompt = withMockMarker(
-		'Reply in one short sentence that includes the exact phrase: vector database.',
-		'explain_in_new_chat_seed'
-	);
-	await sendMessage(page, seedPrompt, log, screenshot, 'seed');
+	const seedPrompt = 'Reply in one short sentence that includes the exact phrase: vector database.';
+	await sendMessage(page, seedPrompt, log, screenshot, 'seed', {
+		testMockMarker: withMockMarker(seedPrompt, 'explain_in_new_chat_seed')
+	});
 	await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: 'vector database',
@@ -188,6 +188,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await deleteActiveChat(page, log, screenshot, 'cleanup-source-chat');
 });
 
+// contract-test: supporting surface=gui.web assertions=message-input.actions.visibility
 test('selection toolbar wraps within a mobile viewport', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300_000);
@@ -201,16 +202,10 @@ test('selection toolbar wraps within a mobile viewport', async ({ page }: { page
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
 
-	await sendMessage(
-		page,
-		withMockMarker(
-			'Reply in one short sentence that includes the exact phrase: vector database.',
-			'explain_in_new_chat_seed'
-		),
-		log,
-		screenshot,
-		'mobile-seed'
-	);
+	const mobileSeedPrompt = 'Reply in one short sentence that includes the exact phrase: vector database.';
+	await sendMessage(page, mobileSeedPrompt, log, screenshot, 'mobile-seed', {
+		testMockMarker: withMockMarker(mobileSeedPrompt, 'explain_in_new_chat_seed')
+	});
 	await waitForAssistantMessage(page, {
 		which: 'last',
 		contains: 'vector database',
