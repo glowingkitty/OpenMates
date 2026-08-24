@@ -31,11 +31,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
-        guard let slotValue = ProcessInfo.processInfo.environment["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"],
-              let slot = Int(slotValue) else {
-            throw XCTSkip("Missing reserved Apple proof account slot")
-        }
-        let credentials = try RealAccountTestCredentials.fromReservedSlot(slot)
+        let credentials = try RealAccountTestCredentials.fromReservedSlot(14)
         let captureEpochMilliseconds = Double(
             ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"] ?? ""
         ) ?? Date().timeIntervalSince1970 * 1000
