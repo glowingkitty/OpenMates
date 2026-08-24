@@ -32,6 +32,7 @@ struct ChatStreamingLifecycleState: Equatable {
     var queuedMessageText: String?
     var errorMessage: String?
     private var lastSequenceByMessageId: [String: Int] = [:]
+    private var completedMessageIds = Set<String>()
 
     var isActive: Bool {
         switch phase {
@@ -93,10 +94,13 @@ struct ChatStreamingLifecycleState: Equatable {
             }
 
         case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
-            if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
-                return false
+            guard !completedMessageIds.contains(messageId) else { return false }
+            if !isFinal {
+                if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
+                    return false
+                }
+                lastSequenceByMessageId[messageId] = sequence
             }
-            lastSequenceByMessageId[messageId] = sequence
             self.chatId = chatId
             self.messageId = messageId
             if let userMessageId, !userMessageId.isEmpty {
@@ -104,21 +108,32 @@ struct ChatStreamingLifecycleState: Equatable {
             }
             phase = isFinal ? .completed : .streaming
             if isFinal {
+                completedMessageIds.insert(messageId)
                 isThinkingStreaming = false
             }
 
         case .messageReady(let chatId, let messageId):
             self.chatId = chatId
             self.messageId = messageId
+            completedMessageIds.insert(messageId)
             phase = .completed
             isThinkingStreaming = false
             queuedMessageText = nil
 
         case .typingEnded(let chatId, let messageId):
             self.chatId = chatId
+            if phase == .streaming, messageId == nil {
+                return false
+            }
+            if let messageId, let activeMessageId = self.messageId, messageId != activeMessageId {
+                return false
+            }
             if let messageId { self.messageId = messageId }
-            if phase == .typing || phase == .thinking || phase == .processing {
+            if phase == .typing || phase == .thinking || phase == .processing || phase == .streaming {
                 phase = .completed
+                if let completedMessageId = self.messageId {
+                    completedMessageIds.insert(completedMessageId)
+                }
             }
             isThinkingStreaming = false
             queuedMessageText = nil
@@ -158,6 +173,7 @@ struct ChatStreamingLifecycleState: Equatable {
 
     mutating func completeFromAuthoritativeSync(messageId authoritativeMessageId: String) -> Bool {
         guard messageId == authoritativeMessageId else { return false }
+        completedMessageIds.insert(authoritativeMessageId)
         phase = .completed
         isThinkingStreaming = false
         queuedMessageText = nil

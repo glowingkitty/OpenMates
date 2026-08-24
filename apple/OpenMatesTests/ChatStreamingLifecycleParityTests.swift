@@ -9,6 +9,7 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testNewTaskClearsPreviousTurnLifecycleState() {
         var state = ChatStreamingLifecycleState()
         state.apply(.preprocessingStep(chatId: "chat-1", step: "model_selected", data: nil))
@@ -32,6 +33,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertNil(state.queuedMessageText)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testThinkingChunksAccumulateForOneAssistantMessage() {
         var state = ChatStreamingLifecycleState()
 
@@ -43,6 +45,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertTrue(state.isThinkingStreaming)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.message.identity-idempotent,chats.surface.semantic-parity
     func testStaleAndDuplicateChunksAreRejected() {
         var state = ChatStreamingLifecycleState()
         let newest = StreamingClient.StreamEvent.chunk(
@@ -62,6 +65,36 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertEqual(state.phase, .streaming)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
+    func testFinalChunkCompletesWhenServerReusesOrOmitsSequence() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 4,
+            content: "Partial", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        ))
+
+        XCTAssertTrue(state.apply(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 0,
+            content: "Complete", isFinal: true, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )))
+        XCTAssertEqual(state.phase, .completed)
+        XCTAssertFalse(state.isActive)
+        XCTAssertFalse(state.apply(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 0,
+            content: "Complete", isFinal: true, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )))
+        XCTAssertFalse(state.apply(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 5,
+            content: "Late partial", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )))
+        XCTAssertEqual(state.phase, .completed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testReplacingStreamKeepsNewestSubscriberRegistered() async {
         let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
         let firstStream = await StreamingClient.shared.streamForChat(chatId)
@@ -93,6 +126,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         await StreamingClient.shared.removeStream(chatId)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
     func testLifecycleTransitionsThroughProcessingThinkingStreamingAndFinal() {
         var state = ChatStreamingLifecycleState()
 
@@ -148,6 +182,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertFalse(state.isActive)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
     func testQueuedCancelAndTypingEndedStatesAreIdempotent() {
         var state = ChatStreamingLifecycleState()
 
@@ -170,6 +205,24 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertNil(state.queuedMessageText)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.message.identity-idempotent,chats.surface.semantic-parity
+    func testTypingEndedCannotCompleteAnotherActiveMessage() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.typingStarted(chatId: "chat-1", messageId: "assistant-new", metadata: nil))
+        state.apply(.chunk(
+            chatId: "chat-1", messageId: "assistant-new", sequence: 1,
+            content: "Partial", isFinal: false, userMessageId: "user-new",
+            category: nil, modelName: nil, rejectionReason: nil
+        ))
+
+        XCTAssertFalse(state.apply(.typingEnded(chatId: "chat-1", messageId: "assistant-old")))
+        XCTAssertFalse(state.apply(.typingEnded(chatId: "chat-1", messageId: nil)))
+        XCTAssertEqual(state.messageId, "assistant-new")
+        XCTAssertEqual(state.phase, .streaming)
+        XCTAssertTrue(state.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCancelAITaskPayloadMatchesWebContract() {
         let payload = ChatSendPipeline().cancelAITaskPayload(taskId: "task-1", chatId: "chat-1")
 
@@ -177,6 +230,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertEqual(payload["chat_id"] as? String, "chat-1")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCancelAITaskPayloadOmitsMissingChatId() {
         let payload = ChatSendPipeline().cancelAITaskPayload(taskId: "task-1", chatId: nil)
 
@@ -184,6 +238,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertNil(payload["chat_id"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
     func testLifecycleCapturesErrorAndClearsThinkingStreaming() {
         var state = ChatStreamingLifecycleState()
 
@@ -196,6 +251,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertFalse(state.isActive)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
     func testAuthoritativeSyncCompletionClearsActiveStreamingState() {
         var state = ChatStreamingLifecycleState()
 
