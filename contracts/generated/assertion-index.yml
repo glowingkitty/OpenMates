@@ -1239,7 +1239,7 @@ assertions:
       surface: gui.apple
     - &id134
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 62
+      line: 64
       name: testPasswordOtpLoginLoadsRecentChatsForWebParityManifest
       surface: gui.apple
     - &id135
@@ -4825,7 +4825,7 @@ assertions:
     supporting_tests:
     - &id496
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 88
+      line: 90
       name: testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id502
@@ -6336,7 +6336,7 @@ assertions:
       surface: gui.apple
     - &id692
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 62
+      line: 64
       name: testPasswordOtpLoginLoadsRecentChatsForWebParityManifest
       surface: gui.apple
     - &id694
@@ -8344,7 +8344,7 @@ assertions:
       surface: gui.apple
     - &id937
       path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
-      line: 88
+      line: 90
       name: testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse
       surface: gui.apple
     - &id938

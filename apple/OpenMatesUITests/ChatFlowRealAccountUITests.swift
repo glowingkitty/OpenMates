@@ -43,10 +43,12 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         )
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+        RealAccountUITestSupport.revealLatestAssistantResponse(app: app)
         let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
 
         attachScreenshot(name: "Apple core parity response ready")

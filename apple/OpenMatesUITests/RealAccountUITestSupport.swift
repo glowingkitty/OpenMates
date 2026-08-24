@@ -135,6 +135,20 @@ enum RealAccountUITestSupport {
         XCTAssertFalse(assistantMessage.label.contains("app_skill_use"), "Assistant response exposed protocol metadata")
     }
 
+    static func revealLatestAssistantResponse(app: XCUIApplication) {
+        let assistantMessages = accessibilityElements(in: app, identifier: "message-assistant")
+        let history = accessibilityElement(in: app, identifier: "chat-history-container")
+        var assistantMessage = latestElement(in: assistantMessages)
+
+        for _ in 0..<4 where !assistantMessage.isHittable {
+            history.swipeUp()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            assistantMessage = latestElement(in: assistantMessages)
+        }
+
+        XCTAssertTrue(assistantMessage.isHittable, "Completed assistant response was not visible for proof")
+    }
+
     static func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
         let editor = accessibilityElement(in: app, identifier: "message-editor")
         let deadline = Date().addingTimeInterval(timeout)
