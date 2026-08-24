@@ -13,9 +13,6 @@ const mockSendStoreEmbed = vi.hoisted(() => vi.fn());
 const mockGetRawEntry = vi.hoisted(() => vi.fn());
 const mockUpdateChildEmbedIds = vi.hoisted(() => vi.fn());
 
-vi.mock('../../stores/userProfile', () => ({
-  getUserProfile: () => ({ user_id: 'user-1' }),
-}));
 vi.mock('../chatSyncService', () => ({ chatSyncService: {} }));
 vi.mock('../chatSyncServiceHandlersAI', () => ({
   handleSendEmbedDataImpl: mockHandleSendEmbedData,
@@ -54,27 +51,36 @@ describe('materializeCodeRunArtifactChildren', () => {
         status: 'captured',
         asset_id: 'parent-1',
         variant: 'result-txt',
+      }, {
+        path: 'outputs/chart.png',
+        normalized_path: 'outputs/chart.png',
+        mime_type: 'image/png',
+        size_bytes: 4,
+        status: 'captured',
+        asset_id: 'parent-1',
+        variant: 'chart-png',
       }],
       parentEmbedId: 'parent-1',
       chatId: 'chat-1',
       sourceExecutionId: 'execution-1',
     });
 
-    expect(mockHandleSendEmbedData).toHaveBeenCalledWith(
-      {},
-      expect.objectContaining({
+    expect(mockHandleSendEmbedData).toHaveBeenCalledTimes(2);
+    for (const [, payload, indexes] of mockHandleSendEmbedData.mock.calls) {
+      expect(payload).toEqual(expect.objectContaining({
         parent_embed_id: 'parent-1',
         message_id: 'parent-1',
-      }),
-      {
+      }));
+      expect(payload).not.toHaveProperty('user_id');
+      expect(indexes).toEqual({
         hashed_chat_id: 'parent-chat-hash',
         hashed_message_id: 'parent-message-hash',
         hashed_user_id: 'parent-user-hash',
-      },
-    );
+      });
+    }
     expect(mockUpdateChildEmbedIds).toHaveBeenCalledWith(
       'parent-1',
-      [expect.any(String)],
+      [expect.any(String), expect.any(String)],
     );
   });
 

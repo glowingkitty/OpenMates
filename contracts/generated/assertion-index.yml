@@ -3120,7 +3120,7 @@ assertions:
       surface: gui.web
     - &id318
       path: frontend/packages/ui/src/services/__tests__/codeRunArtifactEmbeds.test.ts
-      line: 47
+      line: 44
       name: inherits parent persistence indexes for every child row
       surface: gui.web
     - &id320
@@ -3136,7 +3136,7 @@ assertions:
     supporting_tests:
     - &id319
       path: frontend/packages/ui/src/services/__tests__/codeRunArtifactEmbeds.test.ts
-      line: 82
+      line: 88
       name: refuses to create orphan-prone children when parent indexes are unavailable
       surface: gui.web
     - &id322

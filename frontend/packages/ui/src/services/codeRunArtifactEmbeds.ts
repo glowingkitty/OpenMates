@@ -6,7 +6,6 @@
 // The parent linkage is persisted only after every current child is stored.
 
 import type { CodeRunArtifact, SendEmbedDataPayload } from '../types/chat';
-import { getUserProfile } from '../stores/userProfile';
 import { codeRunArtifactChildId, routeCodeRunArtifactChild } from './codeRunArtifacts';
 import { chatSyncService } from './chatSyncService';
 import { handleSendEmbedDataImpl } from './chatSyncServiceHandlersAI';
@@ -35,8 +34,6 @@ export async function materializeCodeRunArtifactChildren({
   chatId,
   sourceExecutionId,
 }: MaterializeCodeRunArtifactChildrenInput): Promise<CodeRunArtifactChild[]> {
-  const userId = getUserProfile().user_id;
-  if (!userId) throw new Error('Cannot persist Code Run artifact children without an authenticated user');
   const parentEntry = await embedStore.getRawEntry(`embed:${parentEmbedId}`);
   if (
     !parentEntry?.hashed_chat_id
@@ -77,7 +74,6 @@ export async function materializeCodeRunArtifactChildren({
       status: 'finished',
       chat_id: chatId,
       message_id: parentEmbedId,
-      user_id: userId,
       parent_embed_id: parentEmbedId,
       version_number: versionNumber,
       file_path: normalizedPath,
