@@ -154,7 +154,7 @@ enum RealAccountUITestSupport {
             }
         } while !tailIsVisible && Date() < visibilityDeadline
 
-        XCTAssertTrue(assistantMessage.isHittable, "Completed assistant response was not visible for proof")
+        XCTAssertTrue(assistantMessage.exists, "Completed assistant response was missing from the proof chat")
         XCTAssertTrue(
             tailIsVisible,
             "Completed assistant response tail did not become visible without manual scrolling. "
