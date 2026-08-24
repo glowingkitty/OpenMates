@@ -115,6 +115,42 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsViewProtocolBuildsEmbedGroupWithoutExposingMetadata() throws {
+        let message = Message(
+            id: "message-results-view",
+            chatId: "chat-synthetic",
+            role: .assistant,
+            content: """
+            ```embeds_results_view
+            title: Mapped results
+            embeds: result-one, result-two
+            sources: source-one, result-two
+            highlight: source-one
+            ```
+            """,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: "maps",
+            isStreaming: false,
+            embedRefs: [
+                EmbedRef(id: "result-one", type: "maps-place", status: "finished", data: nil),
+                EmbedRef(id: "result-two", type: "maps-place", status: "finished", data: nil),
+                EmbedRef(id: "source-one", type: "web-website", status: "finished", data: nil),
+            ]
+        )
+
+        let document = try XCTUnwrap(message.renderDocumentForDisplay)
+
+        XCTAssertEqual(document.blocks.map(\.kind), [.embedGroup])
+        XCTAssertEqual(
+            document.blocks[0].embedReferences.map(\.id),
+            ["result-one", "result-two", "source-one"]
+        )
+        XCTAssertFalse(document.blocks.contains { $0.kind == .codeBlock })
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testSystemMessageRetainsRoleWithoutAssistantOwnership() throws {
         let message = Message(
             id: "message-system",
