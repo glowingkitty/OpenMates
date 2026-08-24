@@ -113,13 +113,16 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessages.firstMatch.waitForExistence(timeout: timeout))
+        let completionMarker = app.descendants(matching: .any)
+            .matching(NSPredicate(
+                format: "identifier == %@ AND value == %@",
+                "assistant-response-complete",
+                "true"
+            ))
+            .firstMatch
         XCTAssertTrue(
-            streamingBanner.waitForNonExistence(timeout: timeout),
+            completionMarker.waitForExistence(timeout: timeout),
             "Assistant response did not finish streaming"
-        )
-        XCTAssertTrue(
-            streamingIndicator.waitForNonExistence(timeout: timeout),
-            "Assistant response did not finish loading"
         )
 
         let assistantMessage = accessibilityElements(in: app, identifier: "message-assistant").firstMatch

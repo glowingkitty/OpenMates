@@ -260,6 +260,16 @@ struct ChatView: View {
 
     var body: some View {
         lifecycleChatView
+            #if DEBUG
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityLabel(AppStrings.chat)
+                    .accessibilityIdentifier("assistant-response-complete")
+                    .accessibilityValue(showAssistantFeedback ? "true" : "false")
+            }
+            #endif
     }
 
     private var baseChatView: some View {
