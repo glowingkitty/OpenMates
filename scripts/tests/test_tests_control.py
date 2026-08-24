@@ -161,6 +161,35 @@ def test_daily_progress_merges_without_erasing_unobserved_tests(tmp_path, monkey
     assert state.get("replace_current_state") is None
 
 
+def test_final_daily_result_closes_synthetic_all_running_marker(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.mark_running(
+        suite="all",
+        tests=["all"],
+        command=["python3", "scripts/tests.py", "run", "--daily"],
+    )
+
+    state = tests_control.record_run_result(
+        {
+            "run_id": "daily-terminal",
+            "flags": {"daily": True},
+            "summary": {"total": 1, "passed": 0, "failed": 1},
+            "suites": {"orchestration": {"status": "failed", "tests": [
+                {"file": "scripts/run_tests.py", "status": "failed"},
+            ]}},
+        },
+        source="daily_runner",
+        workflow="daily",
+    )
+
+    overall = state["tests"]["all::all"]
+    assert overall["status"] == "failed"
+    assert overall["active_status"] is None
+    assert overall["active_run_id"] is None
+    assert state["summary"]["total"] == 1
+    assert state["summary"]["failed"] == 1
+
+
 def test_record_run_redacts_sensitive_failure_text_before_persistence(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     tests_control.record_run_result({

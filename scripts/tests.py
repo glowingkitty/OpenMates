@@ -2308,6 +2308,8 @@ def summarize_current_tests(tests: dict[str, dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = _empty_status_summary()
     lanes = {lane: _empty_status_summary() for lane in TEST_LANES}
     for test in tests.values():
+        if test.get("suite") == "all":
+            continue
         lane = str(test.get("lane") or "deterministic")
         if lane not in lanes:
             raise RuntimeError(f"Unknown test lane in current state: {lane}")
@@ -2433,6 +2435,38 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
         if event_id not in recorded_event_ids:
             events.append({**current, "timestamp": timestamp, "event_id": event_id})
             recorded_event_ids.add(event_id)
+
+    if is_authoritative_daily:
+        overall_problem_count = sum(
+            int((run_data.get("summary") or {}).get(status) or 0)
+            for status in (*PROBLEM_STATUSES, "not_started")
+        )
+        overall_status = "failed" if overall_problem_count else "passed"
+        overall_key = "all::all"
+        overall_event_id = f"{run_id}:{overall_key}:{overall_status}"
+        previous_overall = (state.get("tests") or {}).get(overall_key, {})
+        tests[overall_key] = {
+            **previous_overall,
+            "suite": "all",
+            "test": "all",
+            "key": overall_key,
+            "status": overall_status,
+            "stable_status": overall_status,
+            "stable_run_id": run_id,
+            "active_status": None,
+            "active_run_id": None,
+            "stable_result_key": overall_event_id,
+            "event": overall_status,
+            "run_id": run_id,
+            "git_sha": run_data.get("git_sha"),
+            "git_branch": run_data.get("git_branch"),
+            "environment": run_data.get("environment"),
+            "error": None,
+            "updated_at": timestamp,
+        }
+        if overall_event_id not in recorded_event_ids:
+            events.append({**tests[overall_key], "timestamp": timestamp, "event_id": overall_event_id})
+            recorded_event_ids.add(overall_event_id)
 
     for suite, suite_data in (run_data.get("suites") or {}).items():
         if not isinstance(suite_data, dict):
