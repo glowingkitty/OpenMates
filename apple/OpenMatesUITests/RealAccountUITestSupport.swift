@@ -116,9 +116,10 @@ enum RealAccountUITestSupport {
     }
 
     static func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
+        let editor = accessibilityElement(in: app, identifier: "message-editor")
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            if let editor = messageEditorCandidates(in: app).first(where: { $0.exists }) {
+            if editor.exists {
                 return editor
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
@@ -148,7 +149,16 @@ enum RealAccountUITestSupport {
         loginButton.tap()
 
         let tfaInput = app.textFields["tfa-code-input"]
-        if !tfaInput.waitForExistence(timeout: 15) {
+        let authenticationDeadline = Date().addingTimeInterval(15)
+        repeat {
+            if waitForMessageEditor(in: app, timeout: 0.2) != nil {
+                return
+            }
+            if tfaInput.exists {
+                break
+            }
+        } while Date() < authenticationDeadline
+        if !tfaInput.exists {
             return
         }
 
@@ -177,13 +187,6 @@ enum RealAccountUITestSupport {
         guard newChatButton.waitForExistence(timeout: 2) else { return }
         newChatButton.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
-    }
-
-    private static func messageEditorCandidates(in app: XCUIApplication) -> [XCUIElement] {
-        [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
-        ]
     }
 
     private static func waitForPasswordInput(app: XCUIApplication) -> XCUIElement {
