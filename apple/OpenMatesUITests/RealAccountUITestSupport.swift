@@ -75,7 +75,6 @@ enum RealAccountUITestSupport {
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
-        app.tap()
     }
 
     static func sendWelcomePrompt(app: XCUIApplication, prompt: String) {
