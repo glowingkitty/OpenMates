@@ -43,6 +43,7 @@ def default_args(**overrides):
         "branch": "dev",
         "simulator": "iPhone 17",
         "only_testing": None,
+        "expected_commit": "a" * 40,
         "duration": 60,
         "fresh_install": False,
         "compare_chat_rendering": False,
@@ -58,6 +59,7 @@ def commands_by_name(steps):
     return {step.name: step.command for step in steps}
 
 
+# contract-test: infrastructure
 def test_default_chat_plan_uses_static_linux_safe_checks() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -87,6 +89,7 @@ def test_default_chat_plan_uses_static_linux_safe_checks() -> None:
     assert not any(command[1:2] == ["scripts/apple_remote.py"] for command in commands.values())
 
 
+# contract-test: infrastructure
 def test_all_surface_plan_includes_all_ui_contract_audits() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -98,6 +101,7 @@ def test_all_surface_plan_includes_all_ui_contract_audits() -> None:
     assert "apple-chat-parity-audit" in commands
 
 
+# contract-test: infrastructure
 def test_remote_test_plan_is_explicit_and_runs_readiness_first() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -122,9 +126,12 @@ def test_remote_test_plan_is_explicit_and_runs_readiness_first() -> None:
         "iPhone 17",
         "--only-testing",
         "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest",
+        "--expected-commit",
+        "a" * 40,
     ]
 
 
+# contract-test: infrastructure
 def test_remote_startup_plan_supports_fresh_install() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -142,6 +149,7 @@ def test_remote_startup_plan_supports_fresh_install() -> None:
     ]
 
 
+# contract-test: infrastructure
 def test_chat_rendering_comparison_steps_use_sanitized_manifest_paths() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -160,6 +168,7 @@ def test_chat_rendering_comparison_steps_use_sanitized_manifest_paths() -> None:
     assert commands["chat-rendering-compare:opened-chats"][-1] == "--strict-order"
 
 
+# contract-test: infrastructure
 def test_output_redaction_removes_private_values() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -177,6 +186,7 @@ def test_output_redaction_removes_private_values() -> None:
     assert "<email>" in redacted or "<redacted>" in redacted
 
 
+# contract-test: infrastructure
 def test_persisted_command_redacts_private_paths() -> None:
     bundle = load_apple_evidence_bundle()
 
@@ -194,6 +204,7 @@ def test_persisted_command_redacts_private_paths() -> None:
     assert "/<private-path>" in " ".join(result["command"])
 
 
+# contract-test: infrastructure
 def test_dry_run_writes_machine_readable_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     bundle = load_apple_evidence_bundle()
     monkeypatch.setattr(bundle, "git_subject_commit", lambda: "abc123")
@@ -215,6 +226,7 @@ def test_dry_run_writes_machine_readable_summary(tmp_path: Path, monkeypatch: py
     assert {step["status"] for step in summary["steps"][1:]} == {"planned"}
 
 
+# contract-test: infrastructure
 def test_summary_redacts_private_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     bundle = load_apple_evidence_bundle()
     monkeypatch.setattr(bundle, "git_subject_commit", lambda: "abc123")
@@ -232,6 +244,7 @@ def test_summary_redacts_private_output_directory(tmp_path: Path, monkeypatch: p
     assert summary["artifact_dir"] == "/<private-path>"
 
 
+# contract-test: infrastructure
 def test_parser_rejects_remote_test_without_target() -> None:
     bundle = load_apple_evidence_bundle()
 

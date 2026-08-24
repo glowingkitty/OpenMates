@@ -75,6 +75,26 @@ with open(lock_path, "w", encoding="utf-8") as lock_file:
 sys.exit(result.returncode)
 '''
 
+COMMIT_PINNED_COMMAND_SCRIPT = r'''
+import subprocess
+import sys
+
+expected_commit = sys.argv[1]
+command = sys.argv[2:]
+
+def current_commit():
+    return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+
+if current_commit() != expected_commit:
+    print("apple_remote_commit_mismatch", file=sys.stderr)
+    sys.exit(4)
+result = subprocess.run(command)
+if current_commit() != expected_commit:
+    print("apple_remote_commit_changed_during_command", file=sys.stderr)
+    sys.exit(4)
+sys.exit(result.returncode)
+'''
+
 
 RECORDED_IOS_TEST_SCRIPT = r'''
 import fcntl
@@ -148,6 +168,8 @@ try:
     test_env["OPENMATES_RECORDING_STARTED_UNIX_MS"] = recording_started_unix_ms
     test_env["OPENMATES_PROOF_DEVICE_PROFILE"] = profile
     xcode_exit = subprocess.run(command, check=False, env=test_env).returncode
+    if subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip() != subject_commit:
+        xcode_exit = 4
 finally:
     if recorder is not None and recorder.poll() is None:
         recorder.send_signal(signal.SIGINT)
@@ -3307,6 +3329,7 @@ def test_ios_command(
     simulator: str,
     only_testing: str | None,
     test_account_env: dict[str, str] | None = None,
+    expected_commit: str = "",
 ) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
     scheme = "OpenMates_iOS"
@@ -3326,7 +3349,10 @@ def test_ios_command(
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    xcodebuild = simulator_locked_command(parts)
+    locked_parts = parts
+    if expected_commit:
+        locked_parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts]
+    xcodebuild = simulator_locked_command(locked_parts)
     if test_account_env is not None:
         xcodebuild = with_env_assignments(xcodebuild, test_account_env)
     if test_account_env:
@@ -4152,6 +4178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.simulator,
                         args.only_testing,
                         local_test_account_env(),
+                        args.expected_commit or "",
                     ),
                 ]),
             )

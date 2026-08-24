@@ -151,6 +151,100 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertFalse(state.clientChatVersions.keys.contains(incognito.id))
     }
 
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent,sync.deletion.partial-window-not-authoritative
+    func testPartialSyncNeverClearsCurrentSelectionWithoutExplicitTombstone() {
+        XCTAssertFalse(ChatSelectionSyncPolicy.shouldClearSelection(
+            selectedChatId: "chat-1",
+            eventType: "phase_2_last_20_chats_ready",
+            eventChatId: nil
+        ))
+        XCTAssertFalse(ChatSelectionSyncPolicy.shouldClearSelection(
+            selectedChatId: "chat-1",
+            eventType: "sync_metadata_chats_response",
+            eventChatId: "chat-1"
+        ))
+        XCTAssertTrue(ChatSelectionSyncPolicy.shouldClearSelection(
+            selectedChatId: "chat-1",
+            eventType: "chat_deleted",
+            eventChatId: "chat-1"
+        ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.persistence.client-encrypted
+    func testTypingMetadataWaitsForOriginatingUserMessage() throws {
+        let data = """
+        {
+          "chat_id": "chat-1",
+          "message_id": "assistant-1",
+          "user_message_id": "user-1",
+          "encrypted_chat_key": "wrapped-key"
+        }
+        """.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let payload = try decoder.decode(AITypingStartedSyncPayload.self, from: data)
+        var buffer = TypingMetadataReplayBuffer()
+
+        XCTAssertTrue(buffer.deferIfMessageMissing(payload, messageExists: false))
+        XCTAssertEqual(buffer.take(for: "user-1")?.messageId, "assistant-1")
+        XCTAssertNil(buffer.take(for: "user-1"))
+        XCTAssertFalse(buffer.deferIfMessageMissing(payload, messageExists: true))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity,chats.sync.key-gated-recovery,chat-navigation.open.local-first-coherent
+    func testContentBatchDecodesVersionsAndKeyMaterialForStoreReconciliation() throws {
+        let fields: [String: Any] = [
+            "messages_by_chat_id": ["chat-1": []],
+            "versions_by_chat_id": ["chat-1": ["messages_v": 7, "server_message_count": 6]],
+            "embeds": [],
+            "embed_keys": [],
+            "chat_key_wrappers": [[
+                "id": "wrapper-2",
+                "hashed_chat_id": sha256Hex("chat-1"),
+                "key_type": "master",
+                "encrypted_chat_key": "wrapped-key",
+                "wrapper_version": 2,
+                "created_at": "2026-08-24T00:00:00Z",
+            ]],
+        ]
+
+        let payload = try ChatContentBatchPayload.decode(fields)
+
+        XCTAssertEqual(try payload.messages(for: "chat-1").count, 0)
+        XCTAssertEqual(payload.messagesVersion(for: "chat-1"), 7)
+        XCTAssertEqual(payload.chatKeyWrappers.count, 1)
+        XCTAssertEqual(payload.chatKeyWrappers.first?.hashedChatId, sha256Hex("chat-1"))
+        XCTAssertEqual(payload.chatKeyWrappers.first?.encryptedChatKey, "wrapped-key")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
+    func testNewestMasterChatKeyWrapperIsTriedFirst() throws {
+        let data = """
+        [
+          {"id":"old","hashed_chat_id":"\(sha256Hex("chat-1"))","key_type":"master","encrypted_chat_key":"old-key","wrapper_version":1,"created_at":"2026-08-23T00:00:00Z"},
+          {"id":"other","hashed_chat_id":"\(sha256Hex("chat-2"))","key_type":"master","encrypted_chat_key":"other-key","wrapper_version":9,"created_at":"2026-08-24T00:00:00Z"},
+          {"id":"new","hashed_chat_id":"\(sha256Hex("chat-1"))","key_type":"master","encrypted_chat_key":"new-key","wrapper_version":2,"created_at":"2026-08-24T00:00:00Z"}
+        ]
+        """.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let wrappers = try decoder.decode([ChatKeyWrapperRecord].self, from: data)
+
+        let ordered = ChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: "chat-1")
+
+        XCTAssertEqual(ordered.map(\.id), ["new", "old"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContentBatchMergePreservesMessagesThatArrivedDuringHydration() {
+        let snapshot = [makeMessage(id: "snapshot", createdAt: "2026-01-01T00:00:00Z")]
+        let realtime = [makeMessage(id: "realtime", createdAt: "2026-01-01T00:00:01Z")]
+
+        let merged = ChatContentBatchPayload.mergedMessages(snapshot: snapshot, preserving: realtime)
+
+        XCTAssertEqual(merged.map(\.id), ["snapshot", "realtime"])
+    }
+
     private func makeChat(
         id: String,
         title: String?,
@@ -183,6 +277,21 @@ final class ChatSyncParityTests: XCTestCase {
             encryptedActiveFocusId: encryptedActiveFocusId,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate
+        )
+    }
+
+    private func makeMessage(id: String, createdAt: String) -> Message {
+        Message(
+            id: id,
+            chatId: "chat-1",
+            role: .user,
+            content: id,
+            encryptedContent: nil,
+            createdAt: createdAt,
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
         )
     }
 }

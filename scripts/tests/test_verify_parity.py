@@ -40,11 +40,13 @@ def default_args(**overrides):
         "skip_apple": None,
         "simulator": "iPhone 17",
         "only_testing": None,
+        "expected_commit": "a" * 40,
     }
     values.update(overrides)
     return Namespace(**values)
 
 
+# contract-test: infrastructure
 def test_run_plan_uses_repo_control_plane_for_cli_and_web() -> None:
     verify_parity = load_verify_parity()
 
@@ -62,6 +64,7 @@ def test_run_plan_uses_repo_control_plane_for_cli_and_web() -> None:
     ]
 
 
+# contract-test: infrastructure
 def test_run_plan_never_uses_direct_playwright_or_vitest_commands() -> None:
     verify_parity = load_verify_parity()
 
@@ -73,6 +76,7 @@ def test_run_plan_never_uses_direct_playwright_or_vitest_commands() -> None:
     assert "vitest" not in flattened
 
 
+# contract-test: infrastructure
 def test_web_and_apple_skips_require_explicit_reasons() -> None:
     verify_parity = load_verify_parity()
 
@@ -106,6 +110,7 @@ def test_web_and_apple_skips_require_explicit_reasons() -> None:
         ),
     ],
 )
+# contract-test: infrastructure
 def test_run_plan_supports_first_class_macos_verification(apple_mode, expected_command) -> None:
     verify_parity = load_verify_parity()
 
@@ -121,8 +126,19 @@ def test_run_plan_supports_first_class_macos_verification(apple_mode, expected_c
     assert commands["apple"] == expected_command
 
 
+# contract-test: infrastructure
 def test_cli_parser_requires_reason_for_apple_skip() -> None:
     verify_parity = load_verify_parity()
 
     with pytest.raises(SystemExit):
         verify_parity.main(["--run", "--apple", "skip", "--skip-web", "web not affected"])
+
+
+# contract-test: infrastructure
+def test_ios_test_plan_pins_the_subject_commit() -> None:
+    verify_parity = load_verify_parity()
+
+    plan = verify_parity.build_run_plan(default_args(apple="test", only_testing="OpenMatesTests/ChatSyncParityTests"))
+    command = {phase: value for phase, value, _reason in plan}["apple"]
+
+    assert command[-2:] == ["--expected-commit", "a" * 40]

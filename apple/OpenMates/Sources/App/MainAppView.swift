@@ -118,6 +118,7 @@ struct MainAppView: View {
     @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
+    @State private var pendingTypingMetadata = TypingMetadataReplayBuffer()
     @State private var lastForegroundInteractionAt = Date.distantPast
     @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
@@ -970,6 +971,7 @@ struct MainAppView: View {
         pendingAssistantResponseFlushTask = nil
         isBackgroundSyncFlushInProgress = false
         pendingBackgroundSyncContent = PendingSyncedContent()
+        pendingTypingMetadata.removeAll()
         appSession.resetTransientRuntime()
         totalChatCount = 0
         accountInterestTagIds = []
@@ -2780,10 +2782,6 @@ struct MainAppView: View {
         Task { @MainActor in
             await DraftService.shared.handleSyncEvent(type: type, raw: raw)
             if Self.draftSyncEventTypes.contains(type) {
-                if let selectedChatId, chatStore.chat(for: selectedChatId) == nil {
-                    self.selectedChatId = nil
-                    showNewChat = true
-                }
                 return
             }
             await processChatUpdate(type: type, raw: raw)
@@ -2838,7 +2836,12 @@ struct MainAppView: View {
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 chatStore.removeChat(payload.chatId)
                 ChatKeyManager.shared.removeKey(for: payload.chatId)
-                if selectedChatId == payload.chatId {
+                pendingTypingMetadata.remove(chatId: payload.chatId)
+                if ChatSelectionSyncPolicy.shouldClearSelection(
+                    selectedChatId: selectedChatId,
+                    eventType: type,
+                    eventChatId: payload.chatId
+                ) {
                     selectedChatId = nil
                     showNewChat = true
                 }
@@ -2906,6 +2909,9 @@ struct MainAppView: View {
             encryptedPIIMappings: payload.encryptedPiiMappings
         )
         chatStore.appendMessage(message, to: payload.chatId)
+        if let pendingTyping = pendingTypingMetadata.take(for: payload.messageId) {
+            await applyTypingStartedMetadata(pendingTyping)
+        }
         NativeSyncPerfLog.info("phase=newChatMessageSync chat=\(payload.chatId.prefix(8)) message=\(payload.messageId.prefix(8))")
     }
 
@@ -2941,6 +2947,15 @@ struct MainAppView: View {
             activeFocusId: existing?.activeFocusId
         )
         chatStore.upsertChat(chat)
+        if pendingTypingMetadata.deferIfMessageMissing(
+            payload,
+            messageExists: payload.userMessageId.map {
+                userMessageId in chatStore.messages(for: payload.chatId).contains { $0.id == userMessageId }
+            } ?? true
+        ) {
+            NativeSyncPerfLog.info("phase=typingStartedMetadataDeferred chat=\(payload.chatId.prefix(8))")
+            return
+        }
         chat = await persistEncryptedUserStorage(payload: payload, initialChat: chat)
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -3194,12 +3209,6 @@ struct MainAppView: View {
             await previousTask?.value
             let start = NativeSyncPerfLog.now()
             await DraftService.shared.handleSyncEvent(type: type, raw: raw)
-            if let selectedChatId,
-               ChatStore.isServerSyncChatId(selectedChatId),
-               chatStore.chat(for: selectedChatId) == nil {
-                self.selectedChatId = nil
-                showNewChat = true
-            }
             await processSyncEvent(type: type, raw: raw)
             NativeSyncPerfLog.info(
                 "phase=wsSyncEvent type=\(type) rawBytes=\(raw.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -3892,7 +3901,7 @@ private struct NewChatMessagePayload: Decodable {
     let isSubChat: Bool?
 }
 
-private struct AITypingStartedSyncPayload: Decodable {
+struct AITypingStartedSyncPayload: Decodable {
     let chatId: String
     let messageId: String?
     let title: String?
@@ -3903,6 +3912,61 @@ private struct AITypingStartedSyncPayload: Decodable {
     let serverRegion: String?
     let userMessageId: String?
     let encryptedChatKey: String?
+}
+
+struct TypingMetadataReplayBuffer {
+    private static let maximumCount = 20
+    private var payloadByUserMessageId: [String: AITypingStartedSyncPayload] = [:]
+    private var insertionOrder: [String] = []
+
+    mutating func deferIfMessageMissing(
+        _ payload: AITypingStartedSyncPayload,
+        messageExists: Bool
+    ) -> Bool {
+        guard !messageExists,
+              let userMessageId = payload.userMessageId,
+              !userMessageId.isEmpty else {
+            return false
+        }
+        if payloadByUserMessageId[userMessageId] == nil {
+            insertionOrder.append(userMessageId)
+        }
+        payloadByUserMessageId[userMessageId] = payload
+        while insertionOrder.count > Self.maximumCount {
+            payloadByUserMessageId.removeValue(forKey: insertionOrder.removeFirst())
+        }
+        return true
+    }
+
+    mutating func take(for userMessageId: String) -> AITypingStartedSyncPayload? {
+        insertionOrder.removeAll { $0 == userMessageId }
+        return payloadByUserMessageId.removeValue(forKey: userMessageId)
+    }
+
+    mutating func remove(chatId: String) {
+        let removedIds = payloadByUserMessageId.compactMap { userMessageId, payload in
+            payload.chatId == chatId ? userMessageId : nil
+        }
+        for userMessageId in removedIds {
+            payloadByUserMessageId.removeValue(forKey: userMessageId)
+        }
+        insertionOrder.removeAll { removedIds.contains($0) }
+    }
+
+    mutating func removeAll() {
+        payloadByUserMessageId.removeAll()
+        insertionOrder.removeAll()
+    }
+}
+
+enum ChatSelectionSyncPolicy {
+    static func shouldClearSelection(
+        selectedChatId: String?,
+        eventType: String,
+        eventChatId: String?
+    ) -> Bool {
+        eventType == "chat_deleted" && selectedChatId != nil && selectedChatId == eventChatId
+    }
 }
 
 private struct AIBackgroundResponseCompletedPayload: Decodable {

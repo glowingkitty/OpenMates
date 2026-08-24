@@ -350,16 +350,44 @@ final class ChatViewModel: ObservableObject {
 
         chat = loadedChat
         var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        var hydrationEmbeds = syncedEmbeds
         if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
             do {
                 guard let wsManager else {
                     throw ChatContentHydrationError.websocketUnavailable
                 }
                 let response = try await wsManager.requestChatContentBatch(chatId: loadedChat.id)
-                rawMessages = try decodeContentBatchMessages(response.fields, chatId: loadedChat.id)
-                rawMessages.sort { $0.createdAt < $1.createdAt }
+                let batch = try ChatContentBatchPayload.decode(response.fields)
+                guard generation == loadGeneration, chat?.id == loadedChat.id else { return }
+                if let userId = await AuthManager.currentUserId(),
+                   let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) {
+                    await ChatKeyManager.shared.loadChatKey(
+                        chatId: loadedChat.id,
+                        wrappers: batch.chatKeyWrappers,
+                        masterKey: masterKey
+                    )
+                }
+                if !batch.embedKeys.isEmpty {
+                    EmbedKeyManager.shared.store(batch.embedKeys, source: "chatContentBatch")
+                    OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
+                }
+                let batchMessages = try batch.messages(for: loadedChat.id)
+                rawMessages = ChatContentBatchPayload.mergedMessages(
+                    snapshot: batchMessages,
+                    preserving: chatStore?.messages(for: loadedChat.id) ?? []
+                )
+                hydrationEmbeds = batch.embeds(for: loadedChat.id)
+                chatStore?.applySyncedContent(
+                    messagesByChat: [loadedChat.id: rawMessages],
+                    embedsByChat: [loadedChat.id: hydrationEmbeds]
+                )
+                if let messagesVersion = batch.messagesVersion(for: loadedChat.id) {
+                    chatStore?.advanceMessagesVersion(chatId: loadedChat.id, to: messagesVersion)
+                    loadedChat = chatStore?.chat(for: loadedChat.id) ?? loadedChat
+                    chat = loadedChat
+                }
                 NativeSyncPerfLog.info(
-                    "phase=loadSyncedChatContentBatch chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
+                    "phase=loadSyncedChatContentBatch chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count) embeds=\(hydrationEmbeds.count) embedKeys=\(batch.embedKeys.count) wrappers=\(batch.chatKeyWrappers.count)"
                 )
             } catch {
                 if let hydrationError = error as? ChatContentHydrationError {
@@ -378,7 +406,7 @@ final class ChatViewModel: ObservableObject {
             guard generation == loadGeneration else { return }
         }
         openingMetrics.initialMessagesReceived = rawMessages.count
-        openingMetrics.initialEmbedsReceived = syncedEmbeds.count
+        openingMetrics.initialEmbedsReceived = hydrationEmbeds.count
         allMessages = rawMessages
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
@@ -404,28 +432,13 @@ final class ChatViewModel: ObservableObject {
         )
         openingMetrics.firstUsefulRenderMs = NativeSyncPerfLog.ms(since: start)
         scheduleEmbedHydration(
-            syncedEmbeds: syncedEmbeds,
+            syncedEmbeds: hydrationEmbeds,
             referencedIds: referencedIds,
             chatId: loadedChat.id,
             generation: generation,
             existingRecords: embedRecords,
             source: "loadSynced"
         )
-    }
-
-    private func decodeContentBatchMessages(_ fields: [String: Any], chatId: String) throws -> [Message] {
-        guard let messagesByChat = fields["messages_by_chat_id"] as? [String: Any],
-              let encodedMessages = messagesByChat[chatId] as? [String] else {
-            throw ChatContentHydrationError.invalidResponse
-        }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try encodedMessages.map { encoded in
-            guard let data = encoded.data(using: .utf8) else {
-                throw ChatContentHydrationError.invalidResponse
-            }
-            return try decoder.decode(Message.self, from: data)
-        }
     }
 
     private func shouldFetchMissingSyncedMessages(for chat: Chat) -> Bool {
@@ -2088,6 +2101,67 @@ final class ChatViewModel: ObservableObject {
         case "aac": return "audio/aac"
         default: return fallback
         }
+    }
+}
+
+struct ChatContentBatchPayload: Decodable {
+    let messagesByChatId: [String: [String]]
+    let versionsByChatId: [String: [String: Int]]
+    let embeds: [EmbedRecord]
+    let embedKeys: [EmbedKeyRecord]
+    let chatKeyWrappers: [ChatKeyWrapperRecord]
+
+    static func decode(_ fields: [String: Any]) throws -> ChatContentBatchPayload {
+        guard JSONSerialization.isValidJSONObject(fields) else {
+            throw ChatContentHydrationError.invalidResponse
+        }
+        let data = try JSONSerialization.data(withJSONObject: fields)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(ChatContentBatchPayload.self, from: data)
+    }
+
+    func messages(for chatId: String) throws -> [Message] {
+        guard let encodedMessages = messagesByChatId[chatId] else {
+            throw ChatContentHydrationError.invalidResponse
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try encodedMessages.map { encoded in
+            guard let data = encoded.data(using: .utf8) else {
+                throw ChatContentHydrationError.invalidResponse
+            }
+            return try decoder.decode(Message.self, from: data)
+        }
+    }
+
+    func messagesVersion(for chatId: String) -> Int? {
+        versionsByChatId[chatId]?["messages_v"]
+    }
+
+    static func mergedMessages(snapshot: [Message], preserving existing: [Message]) -> [Message] {
+        var messagesById = Dictionary(uniqueKeysWithValues: snapshot.map { ($0.id, $0) })
+        for message in existing {
+            messagesById[message.id] = message
+        }
+        return messagesById.values.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func embeds(for chatId: String) -> [EmbedRecord] {
+        let hashedChatId = sha256Hex(chatId)
+        return embeds.filter { embed in
+            embed.hashedChatId == hashedChatId ||
+                embed.rawData?["chat_id"]?.value as? String == chatId ||
+                embed.rawData?["chatId"]?.value as? String == chatId
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case messagesByChatId
+        case versionsByChatId
+        case embeds
+        case embedKeys
+        case chatKeyWrappers
     }
 }
 

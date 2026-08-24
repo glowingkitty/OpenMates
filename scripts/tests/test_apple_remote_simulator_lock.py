@@ -27,6 +27,7 @@ def load_apple_remote():
     return module
 
 
+# contract-test: infrastructure
 def test_ios_test_command_holds_shared_simulator_lock() -> None:
     apple_remote = load_apple_remote()
 
@@ -39,6 +40,7 @@ def test_ios_test_command_holds_shared_simulator_lock() -> None:
     assert "-scheme OpenMates_iOS_UI_Tests" in command
 
 
+# contract-test: infrastructure
 def test_ios_unit_test_command_skips_ui_test_target() -> None:
     apple_remote = load_apple_remote()
 
@@ -48,6 +50,24 @@ def test_ios_unit_test_command_skips_ui_test_target() -> None:
     assert "-scheme OpenMates_iOS_Unit_Tests" in command
 
 
+# contract-test: infrastructure
+def test_ios_test_command_enforces_expected_commit_before_xcodebuild() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.test_ios_command(
+        "iPhone 17e",
+        "OpenMatesTests/ChatSyncParityTests",
+        expected_commit="a" * 40,
+    )
+
+    assert "rev-parse" in command
+    assert "HEAD" in command
+    assert "apple_remote_commit_mismatch" in command
+    assert ("a" * 40) in command
+    assert command.index("rev-parse") < command.index("xcodebuild test")
+
+
+# contract-test: infrastructure
 def test_ios_test_command_can_forward_real_account_environment() -> None:
     apple_remote = load_apple_remote()
 
@@ -72,6 +92,7 @@ def test_ios_test_command_can_forward_real_account_environment() -> None:
     assert "xcodebuild test" in command
 
 
+# contract-test: infrastructure
 def test_real_account_environment_filter_excludes_unrelated_secrets(monkeypatch) -> None:
     apple_remote = load_apple_remote()
     monkeypatch.setattr(apple_remote, "load_local_dotenv", lambda: {})
@@ -91,6 +112,7 @@ def test_real_account_environment_filter_excludes_unrelated_secrets(monkeypatch)
     }
 
 
+# contract-test: infrastructure
 def test_xcodegen_declares_isolated_ios_test_schemes() -> None:
     project = (ROOT / "apple" / "project.yml").read_text(encoding="utf-8")
     unit_scheme = (
@@ -111,6 +133,7 @@ def test_xcodegen_declares_isolated_ios_test_schemes() -> None:
     assert (ROOT / "apple" / "OpenMates.xcodeproj" / "xcshareddata" / "xcschemes" / "OpenMates_iOS_Unit_Tests.xcscheme").exists()
 
 
+# contract-test: infrastructure
 def test_ios_build_command_holds_shared_simulator_lock() -> None:
     apple_remote = load_apple_remote()
 
@@ -121,6 +144,7 @@ def test_ios_build_command_holds_shared_simulator_lock() -> None:
     assert "xcodebuild" in command
 
 
+# contract-test: infrastructure
 def test_cleanup_command_uses_same_lock_as_xcode_tests() -> None:
     apple_remote = load_apple_remote()
 
@@ -131,6 +155,7 @@ def test_cleanup_command_uses_same_lock_as_xcode_tests() -> None:
     assert "simctl shutdown booted" in command
 
 
+# contract-test: infrastructure
 def test_direct_simctl_command_uses_shared_lock() -> None:
     apple_remote = load_apple_remote()
 
@@ -141,6 +166,7 @@ def test_direct_simctl_command_uses_shared_lock() -> None:
     assert "simctl uninstall booted org.openmates.app" in command
 
 
+# contract-test: infrastructure
 def test_watch_startup_command_uses_shared_lock() -> None:
     apple_remote = load_apple_remote()
 

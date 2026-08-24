@@ -89,7 +89,8 @@ final class ChatKeyManager: ObservableObject {
     }
 
     /// Unwrap and cache a single chat key (for newly loaded chats).
-    func loadChatKey(chatId: String, encryptedChatKey: String, masterKey: SymmetricKey) async {
+    @discardableResult
+    func loadChatKey(chatId: String, encryptedChatKey: String, masterKey: SymmetricKey) async -> Bool {
         let crypto = CryptoManager.shared
         do {
             let chatKey = try await crypto.unwrapChatKey(
@@ -101,9 +102,28 @@ final class ChatKeyManager: ObservableObject {
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
             }
+            return true
         } catch {
             print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
+            return false
         }
+    }
+
+    @discardableResult
+    func loadChatKey(chatId: String, wrappers: [ChatKeyWrapperRecord], masterKey: SymmetricKey) async -> Bool {
+        for wrapper in ChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: chatId) {
+            if !shouldLoadServerKey(chatId: chatId, encryptedChatKey: wrapper.encryptedChatKey) {
+                return true
+            }
+            if await loadChatKey(
+                chatId: chatId,
+                encryptedChatKey: wrapper.encryptedChatKey,
+                masterKey: masterKey
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     // MARK: - Content decryption helpers
@@ -165,6 +185,33 @@ final class ChatKeyManager: ObservableObject {
 
     private static func fingerprint(_ encryptedChatKey: String) -> String {
         SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+struct ChatKeyWrapperRecord: Decodable, Sendable {
+    let id: String?
+    let hashedChatId: String
+    let keyType: String
+    let encryptedChatKey: String
+    let wrapperVersion: Int?
+    let createdAt: String?
+
+    static func orderedMasterWrappers(
+        _ wrappers: [ChatKeyWrapperRecord],
+        for chatId: String
+    ) -> [ChatKeyWrapperRecord] {
+        let hashedChatId = sha256Hex(chatId)
+        return wrappers
+            .filter {
+                $0.keyType == "master" &&
+                    $0.hashedChatId == hashedChatId &&
+                    !$0.encryptedChatKey.isEmpty
+            }
+            .sorted {
+                let left = ($0.wrapperVersion ?? 0, $0.createdAt ?? "", $0.id ?? "")
+                let right = ($1.wrapperVersion ?? 0, $1.createdAt ?? "", $1.id ?? "")
+                return left > right
+            }
     }
 }
 

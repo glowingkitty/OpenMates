@@ -149,6 +149,8 @@ def build_run_plan(args: argparse.Namespace) -> list[tuple[str, list[str] | None
             command = [sys.executable, "scripts/apple_remote.py", "test-ios", "--simulator", args.simulator]
         if args.only_testing:
             command.extend(["--only-testing", args.only_testing])
+        if args.apple_platform == "ios":
+            command.extend(["--expected-commit", args.expected_commit])
         plan.append(("apple", command, ""))
 
     return plan
@@ -228,6 +230,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-apple", help="Explicit reason when --apple skip is used")
     parser.add_argument("--simulator", default="iPhone 17")
     parser.add_argument("--only-testing", help="Xcode only-testing selector for --apple test")
+    parser.add_argument("--expected-commit", help="Exact deployed commit required for --apple test on iOS")
     parser.add_argument("--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS)
     parser.add_argument("--no-skips", action="store_true", help="Fail --check when latest evidence contains explicit skips")
     return parser
@@ -242,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--run requires --web-spec <name>.spec.ts or --skip-web REASON")
     if args.apple == "skip" and not args.skip_apple:
         parser.error("--apple skip requires --skip-apple REASON")
+    if args.run and args.apple == "test" and args.apple_platform == "ios" and not args.expected_commit:
+        parser.error("--apple test on iOS requires --expected-commit")
     if args.run:
         return run_verification(args)
     return check_latest_summary(args)
