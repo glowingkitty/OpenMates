@@ -183,7 +183,7 @@ describe('Code Run artifact metadata helpers', () => {
   it('normalizes JSON-compatible native payload proxies', () => {
     const content = new Proxy({
       filename: 'chart.png',
-      files: { full: { s3_key: 'encrypted-chart' } },
+      files: { full: { s3_key: 'encrypted-chart', encryption: 'aes-gcm-nonce-prefixed-v1' } },
       aes_key: 'client-side-key',
     }, {});
 
@@ -199,7 +199,7 @@ describe('Code Run artifact metadata helpers', () => {
 
     expect(artifacts[0].native_render_payload?.content).toEqual({
       filename: 'chart.png',
-      files: { full: { s3_key: 'encrypted-chart' } },
+      files: { full: { s3_key: 'encrypted-chart', encryption: 'aes-gcm-nonce-prefixed-v1' } },
       aes_key: 'client-side-key',
     });
     expect(routeCodeRunArtifactChild(artifacts[0])).toMatchObject({
