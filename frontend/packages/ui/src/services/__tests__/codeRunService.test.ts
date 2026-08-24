@@ -179,6 +179,36 @@ describe('Code Run artifact metadata helpers', () => {
     expect(JSON.stringify(inferencePayload)).not.toContain('private-key');
   });
 
+  // contract-test: supporting surface=gui.web assertions=code-run.artifacts.child-renderer-routing
+  it('normalizes JSON-compatible native payload proxies', () => {
+    const content = new Proxy({
+      filename: 'chart.png',
+      files: { full: { s3_key: 'encrypted-chart' } },
+      aes_key: 'client-side-key',
+    }, {});
+
+    const artifacts = sanitizeCodeRunArtifacts([{
+      path: 'outputs/chart.png',
+      mime_type: 'image/png',
+      native_render_payload: {
+        app_id: 'images',
+        frontend_type: 'image',
+        content,
+      },
+    }], { includeNativeRenderPayload: true });
+
+    expect(artifacts[0].native_render_payload?.content).toEqual({
+      filename: 'chart.png',
+      files: { full: { s3_key: 'encrypted-chart' } },
+      aes_key: 'client-side-key',
+    });
+    expect(routeCodeRunArtifactChild(artifacts[0])).toMatchObject({
+      appId: 'images',
+      frontendType: 'image',
+      renderer: 'registered_native',
+    });
+  });
+
   // contract-test: supporting surface=gui.web assertions=code-run.artifacts.explicit-only
   it('normalizes skipped artifact reasons', () => {
     expect(sanitizeCodeRunSkippedArtifacts([

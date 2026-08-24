@@ -48,6 +48,17 @@ function numberValue(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function cloneJsonRecord(value: Record<string, unknown>): Record<string, unknown> | undefined {
+  try {
+    const clone = JSON.parse(JSON.stringify(value)) as unknown;
+    return clone && typeof clone === 'object' && !Array.isArray(clone)
+      ? clone as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeArtifactVersion(
   raw: unknown,
   options: CodeRunArtifactSanitizeOptions,
@@ -98,10 +109,12 @@ function normalizeNativeRenderPayload(value: unknown) {
     || !payload.content
     || typeof payload.content !== 'object'
   ) return undefined;
+  const content = cloneJsonRecord(payload.content as Record<string, unknown>);
+  if (!content) return undefined;
   return {
     app_id: payload.app_id,
     frontend_type: payload.frontend_type,
-    content: structuredClone(payload.content as Record<string, unknown>),
+    content,
   };
 }
 
