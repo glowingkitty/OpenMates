@@ -154,6 +154,7 @@ def test_cleanup_command_uses_same_lock_as_xcode_tests() -> None:
     assert apple_remote.SIMULATOR_LOCK_PATH in command
     assert "fcntl.flock" in command
     assert "simctl shutdown booted" in command
+    assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
 
 
 # contract-test: infrastructure
@@ -165,6 +166,7 @@ def test_direct_simctl_command_uses_shared_lock() -> None:
     assert apple_remote.SIMULATOR_LOCK_PATH in command
     assert "fcntl.flock" in command
     assert "simctl uninstall booted org.openmates.app" in command
+    assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
 
 
 # contract-test: infrastructure

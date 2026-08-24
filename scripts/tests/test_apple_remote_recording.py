@@ -96,6 +96,12 @@ def test_recording_epoch_uses_explicit_xctest_handoff_without_fallback() -> None
     assert "?? Date().timeIntervalSince1970 * 1000" not in ui_test_source
 
 
+def test_real_account_message_lookup_tolerates_keyboard_case_changes() -> None:
+    support_source = module_source("apple/OpenMatesUITests/RealAccountUITestSupport.swift")
+
+    assert 'label CONTAINS[cd] %@' in support_source
+
+
 def test_recording_parser_accepts_only_exact_apple_profiles() -> None:
     module = load_module()
     parser = module.build_parser()

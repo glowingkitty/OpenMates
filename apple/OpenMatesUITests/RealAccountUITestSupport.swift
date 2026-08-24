@@ -180,7 +180,7 @@ enum RealAccountUITestSupport {
         labelContaining label: String
     ) -> XCUIElement {
         app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", identifier, label))
+            .matching(NSPredicate(format: "identifier == %@ AND label CONTAINS[cd] %@", identifier, label))
             .firstMatch
     }
 

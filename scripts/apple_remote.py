@@ -4137,11 +4137,15 @@ def run_recorded_ios_test(
 
 
 def simulator_cleanup_command(simulator: str) -> str:
-    return simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
+    return with_xcode_developer_dir(
+        simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
+    )
 
 
 def simctl_remote_command(simctl_args: Sequence[str]) -> str:
-    return simulator_locked_command(["xcrun", "simctl", *simctl_args])
+    return with_xcode_developer_dir(
+        simulator_locked_command(["xcrun", "simctl", *simctl_args])
+    )
 
 
 def build_macos_command() -> str:
