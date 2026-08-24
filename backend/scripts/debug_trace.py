@@ -580,10 +580,9 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             else:
                 children.setdefault(parent, []).append(sid)
 
-        # Calculate total trace duration from root spans
-        all_starts = [s.get("start_time", 0) for s in trace_spans]
-        all_ends = [s.get("end_time", s.get("start_time", 0)) for s in trace_spans]
-        total_duration_us = max(all_ends) - min(all_starts) if all_starts else 0
+        # OpenObserve normalizes duration to microseconds, while timestamp units
+        # vary across SDK exporters. Use the longest span for a stable header.
+        total_duration_us = max((span.get("duration", 0) for span in trace_spans), default=0)
         total_duration_ms = total_duration_us / 1000.0
 
         # Determine overall status (ERROR if any span has error)
