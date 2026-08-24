@@ -113,14 +113,13 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessages.firstMatch.waitForExistence(timeout: timeout))
-        var assistantMessage = latestElement(in: assistantMessages)
+        let assistantMessage = assistantMessages.firstMatch
         XCTAssertFalse(
             assistantMessage.label.contains("app_skill_use"),
             "Streaming assistant response exposed protocol metadata"
         )
         let completionDeadline = Date().addingTimeInterval(timeout)
         repeat {
-            assistantMessage = latestElement(in: assistantMessages)
             if assistantMessage.label.count > 8,
                !streamingBanner.exists,
                !streamingIndicator.exists {
@@ -140,8 +139,8 @@ enum RealAccountUITestSupport {
         let assistantTails = accessibilityElements(in: app, identifier: "message-assistant-tail")
         let history = accessibilityElement(in: app, identifier: "chat-history-container")
         let composer = accessibilityElement(in: app, identifier: "message-editor")
-        let assistantMessage = latestElement(in: assistantMessages)
-        let assistantTail = latestElement(in: assistantTails)
+        let assistantMessage = assistantMessages.firstMatch
+        let assistantTail = assistantTails.firstMatch
         let visibilityDeadline = Date().addingTimeInterval(10)
         var tailIsVisible = false
         repeat {
@@ -191,10 +190,6 @@ enum RealAccountUITestSupport {
     private static func accessibilityElements(in app: XCUIApplication, identifier: String) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
-    }
-
-    private static func latestElement(in query: XCUIElementQuery) -> XCUIElement {
-        query.element(boundBy: max(0, query.count - 1))
     }
 
     static func accessibilityElement(
