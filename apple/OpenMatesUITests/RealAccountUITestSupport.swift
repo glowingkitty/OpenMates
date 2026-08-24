@@ -113,12 +113,11 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
-        let completionMarker = app.descendants(matching: .any)
-            .matching(NSPredicate(
-                format: "identifier == %@ AND value == %@",
-                "assistant-response-complete",
-                "true"
-            ))
+        let completionMarker = app.otherElements.matching(NSPredicate(
+            format: "identifier == %@ AND value == %@",
+            "assistant-response-complete",
+            "true"
+        ))
             .firstMatch
         XCTAssertTrue(
             completionMarker.waitForExistence(timeout: timeout),
