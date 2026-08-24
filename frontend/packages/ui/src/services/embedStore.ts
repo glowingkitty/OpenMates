@@ -243,7 +243,11 @@ export class EmbedStore {
     if (!pendingEmbedIds?.size) return false;
 
     this.pendingEmbedIdsByChatId.delete(chatId);
-    embedKeyNegativeCache.clear();
+    embedKeyNegativeCache.forEach((cacheKey) => {
+      if (Array.from(pendingEmbedIds).some((embedId) => cacheKey.startsWith(`${embedId}:`))) {
+        embedKeyNegativeCache.delete(cacheKey);
+      }
+    });
     embedRefIndexVersion.update((version) => version + 1);
     return true;
   }
@@ -2826,6 +2830,7 @@ export class EmbedStore {
     embedKeyCache.clear();
     chatIdHashCache.clear();
     embedKeyNegativeCache.clear();
+    this.pendingEmbedIdsByChatId.clear();
     console.debug("[EmbedStore] Cleared embed key cache");
   }
 
@@ -3660,13 +3665,17 @@ export class EmbedStore {
 // Export singleton instance
 export const embedStore = new EmbedStore();
 
+export function retryPendingEmbedsForReadyChat(chatId: string): boolean {
+  return embedStore.retryPendingEmbedKeysForChat(chatId);
+}
+
 // OPE-327: When a chat key becomes ready, clear the embed key negative cache so
 // embeds whose key lookup previously failed (because the chat key wasn't loaded yet)
 // can retry and succeed. Without this, the negative cache permanently blocks re-lookup
 // even after the chat key loads via OPE-314's bulk key retry.
 if (typeof chatKeyManager.onKeyReady === "function") {
   chatKeyManager.onKeyReady((chatId: string) => {
-    if (embedStore.retryPendingEmbedKeysForChat(chatId)) {
+    if (retryPendingEmbedsForReadyChat(chatId)) {
       console.debug(
         `[EmbedStore] Retrying pending embed refs after matching chat key became ready`,
       );

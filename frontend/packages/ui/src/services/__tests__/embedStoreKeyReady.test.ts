@@ -2,9 +2,15 @@
 // Missing keys are expected during phased reload and must not become permanent
 // decryption failures. Matching readiness retries once, while deep ref repair
 // remains deduplicated across concurrent components.
+// The singleton listener and logout cleanup are covered as separate boundaries.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EmbedStore, embedRefIndexVersion } from '../embedStore';
+import {
+  EmbedStore,
+  embedRefIndexVersion,
+  embedStore,
+  retryPendingEmbedsForReadyChat,
+} from '../embedStore';
 import type { EmbedStoreEntry } from '../../message_parsing/types';
 
 type RecoverableEmbedStore = {
@@ -61,6 +67,27 @@ describe('EmbedStore transient chat-key recovery', () => {
     expect(store.retryPendingEmbedKeysForChat('chat-one')).toBe(false);
     expect(versions[versions.length - 1]).toBe((initialVersion ?? 0) + 1);
     unsubscribe();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.credits.retryable-completion-safe
+  it('routes the singleton key-ready handler to the pending retry boundary', () => {
+    const retryPending = vi
+      .spyOn(embedStore, 'retryPendingEmbedKeysForChat')
+      .mockReturnValue(true);
+
+    expect(retryPendingEmbedsForReadyChat('chat-one')).toBe(true);
+    expect(retryPending).toHaveBeenCalledOnce();
+    expect(retryPending).toHaveBeenCalledWith('chat-one');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.credits.retryable-completion-safe
+  it('clears pending retries with the key cache on logout', () => {
+    const store = new EmbedStore() as unknown as RecoverableEmbedStore;
+    store.markEmbedKeyPendingForChat('chat-one', 'pending-event-embed');
+
+    (store as unknown as EmbedStore).clearEmbedKeyCache();
+
+    expect(store.retryPendingEmbedKeysForChat('chat-one')).toBe(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.credits.retryable-completion-safe
