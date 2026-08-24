@@ -90,6 +90,38 @@ def test_login_retains_the_explicit_cookie_jar_instead_of_assuming_handler_order
     assert "opener.handlers[0]" not in source
 
 
+# contract-test: supporting surface=rest_api assertions=sync.startup.bounded-phases
+def test_named_event_wait_ignores_unrelated_delivery_events(monkeypatch):
+    module = load_module()
+    events = iter([
+        {"type": "reminder_fired", "payload": {}},
+        {"type": "sync_status_response", "payload": {"is_primed": True}},
+    ])
+
+    class FakeWebSocket:
+        def receive_json(self, _timeout):
+            return next(events)
+
+    monkeypatch.setattr(module.time, "monotonic", lambda: 0.0)
+
+    assert module._receive_named_event(FakeWebSocket(), "sync_status_response", 1.0)["type"] == "sync_status_response"
+
+
+# contract-test: supporting surface=rest_api assertions=sync.startup.bounded-phases
+def test_named_event_wait_fails_closed_on_server_error(monkeypatch):
+    module = load_module()
+
+    class FakeWebSocket:
+        def receive_json(self, _timeout):
+            return {"type": "error", "payload": {"message": "private detail"}}
+
+    monkeypatch.setattr(module.time, "monotonic", lambda: 0.0)
+
+    with pytest.raises(module.ContractFailure, match="server returned an error") as exc_info:
+        module._receive_named_event(FakeWebSocket(), "sync_status_response", 1.0)
+    assert "private detail" not in str(exc_info.value)
+
+
 # contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated
 def test_websocket_handshake_requires_the_rfc_accept_value(monkeypatch):
     module = load_module()

@@ -288,6 +288,18 @@ def _validate_hydration(payload: Any, requested_chat_id: str) -> None:
             raise ContractFailure("hydration message did not belong to the requested chat")
 
 
+def _receive_named_event(ws: WireWebSocket, expected_type: str, timeout: float) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        event = ws.receive_json(max(0.1, deadline - time.monotonic()))
+        event_type = event.get("type")
+        if event_type == "error":
+            raise ContractFailure(f"server returned an error while waiting for {expected_type}")
+        if event_type == expected_type:
+            return event
+    raise ContractFailure(f"timed out waiting for {expected_type}")
+
+
 def run(api_url: str, *, slot: int, timeout: float) -> dict[str, Any]:
     require_https(api_url)
     _expect_rejected(api_url, "developer-api-key-is-not-a-websocket-token")
@@ -298,8 +310,8 @@ def run(api_url: str, *, slot: int, timeout: float) -> dict[str, Any]:
         if ws.connect() != 101:
             raise ContractFailure("authenticated first-party WebSocket connection was rejected")
         ws.send_json({"type": "request_cache_status", "payload": {}})
-        status_event = ws.receive_json(timeout)
-        if status_event.get("type") != "sync_status_response" or not isinstance(status_event.get("payload"), dict):
+        status_event = _receive_named_event(ws, "sync_status_response", timeout)
+        if not isinstance(status_event.get("payload"), dict):
             raise ContractFailure("startup status response has an invalid shape")
         rich_state = {"client_chat_versions": {}, "client_chat_ids": [], "client_suggestions_count": 0, "client_embed_ids": [], "context_epoch": 0, "phase": "all"}
         ws.send_json({"type": "phased_sync_request", "payload": rich_state})
