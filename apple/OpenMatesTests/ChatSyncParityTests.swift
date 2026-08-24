@@ -200,7 +200,7 @@ final class ChatSyncParityTests: XCTestCase {
             "embed_keys": [],
             "chat_key_wrappers": [[
                 "id": "wrapper-2",
-                "hashed_chat_id": sha256Hex("chat-1"),
+                "hashed_chat_id": ChatKeyWrapperRecord.hashedChatId(for: "chat-1"),
                 "key_type": "master",
                 "encrypted_chat_key": "wrapped-key",
                 "wrapper_version": 2,
@@ -213,7 +213,7 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(try payload.messages(for: "chat-1").count, 0)
         XCTAssertEqual(payload.messagesVersion(for: "chat-1"), 7)
         XCTAssertEqual(payload.chatKeyWrappers.count, 1)
-        XCTAssertEqual(payload.chatKeyWrappers.first?.hashedChatId, sha256Hex("chat-1"))
+        XCTAssertEqual(payload.chatKeyWrappers.first?.hashedChatId, ChatKeyWrapperRecord.hashedChatId(for: "chat-1"))
         XCTAssertEqual(payload.chatKeyWrappers.first?.encryptedChatKey, "wrapped-key")
     }
 
@@ -221,9 +221,9 @@ final class ChatSyncParityTests: XCTestCase {
     func testNewestMasterChatKeyWrapperIsTriedFirst() throws {
         let data = """
         [
-          {"id":"old","hashed_chat_id":"\(sha256Hex("chat-1"))","key_type":"master","encrypted_chat_key":"old-key","wrapper_version":1,"created_at":"2026-08-23T00:00:00Z"},
-          {"id":"other","hashed_chat_id":"\(sha256Hex("chat-2"))","key_type":"master","encrypted_chat_key":"other-key","wrapper_version":9,"created_at":"2026-08-24T00:00:00Z"},
-          {"id":"new","hashed_chat_id":"\(sha256Hex("chat-1"))","key_type":"master","encrypted_chat_key":"new-key","wrapper_version":2,"created_at":"2026-08-24T00:00:00Z"}
+          {"id":"old","hashed_chat_id":"\(ChatKeyWrapperRecord.hashedChatId(for: "chat-1"))","key_type":"master","encrypted_chat_key":"old-key","wrapper_version":1,"created_at":"2026-08-23T00:00:00Z"},
+          {"id":"other","hashed_chat_id":"\(ChatKeyWrapperRecord.hashedChatId(for: "chat-2"))","key_type":"master","encrypted_chat_key":"other-key","wrapper_version":9,"created_at":"2026-08-24T00:00:00Z"},
+          {"id":"new","hashed_chat_id":"\(ChatKeyWrapperRecord.hashedChatId(for: "chat-1"))","key_type":"master","encrypted_chat_key":"new-key","wrapper_version":2,"created_at":"2026-08-24T00:00:00Z"}
         ]
         """.data(using: .utf8)!
         let decoder = JSONDecoder()

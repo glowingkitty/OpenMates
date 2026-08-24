@@ -2148,7 +2148,7 @@ struct ChatContentBatchPayload: Decodable {
     }
 
     func embeds(for chatId: String) -> [EmbedRecord] {
-        let hashedChatId = sha256Hex(chatId)
+        let hashedChatId = ChatKeyWrapperRecord.hashedChatId(for: chatId)
         return embeds.filter { embed in
             embed.hashedChatId == hashedChatId ||
                 embed.rawData?["chat_id"]?.value as? String == chatId ||

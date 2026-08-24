@@ -200,7 +200,7 @@ struct ChatKeyWrapperRecord: Decodable, Sendable {
         _ wrappers: [ChatKeyWrapperRecord],
         for chatId: String
     ) -> [ChatKeyWrapperRecord] {
-        let hashedChatId = sha256Hex(chatId)
+        let hashedChatId = Self.hashedChatId(for: chatId)
         return wrappers
             .filter {
                 $0.keyType == "master" &&
@@ -212,6 +212,10 @@ struct ChatKeyWrapperRecord: Decodable, Sendable {
                 let right = ($1.wrapperVersion ?? 0, $1.createdAt ?? "", $1.id ?? "")
                 return left > right
             }
+    }
+
+    static func hashedChatId(for chatId: String) -> String {
+        SHA256.hash(data: Data(chatId.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 
