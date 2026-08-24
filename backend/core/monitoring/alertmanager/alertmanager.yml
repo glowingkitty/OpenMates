@@ -23,6 +23,36 @@ route:
   repeat_interval: 4h
 
   routes:
+    # Bounded dev drills use short intervals and explicit labels. The verifier
+    # always resolves them and production execution is rejected by the CLI.
+    - match:
+        drill: "true"
+        severity: critical
+        environment: development
+      receiver: "urgent-discord"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
+      continue: true
+    - match:
+        drill: "true"
+        severity: critical
+        environment: development
+      receiver: "api-webhook"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
+    - match:
+        drill: "true"
+        severity: warning
+        environment: development
+      receiver: "api-webhook"
+      group_by: ["alertname", "severity", "drill_id"]
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 1h
     # URGENT_DISCORD_ROUTE_START
     # Critical alerts first reach Discord directly. This path does not depend on
     # the API or Celery and therefore still works for APIDown incidents.
