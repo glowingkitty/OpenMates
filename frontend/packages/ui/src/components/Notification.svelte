@@ -53,6 +53,12 @@
     function handleDismiss(): void {
         notificationStore.removeNotification(notification.id);
     }
+
+    function handlePrimaryAction(event: MouseEvent): void {
+        event.stopPropagation();
+        notification.onAction?.();
+        notificationStore.removeNotification(notification.id);
+    }
     
     /**
      * Handle touch/mouse start for swipe gesture
@@ -202,10 +208,7 @@
                     <button
                         class="notification-action-btn notification-action-btn-primary"
                         data-testid="notification-action"
-                        onclick={(e: MouseEvent) => {
-                            e.stopPropagation();
-                            notification.onAction?.();
-                        }}
+                        onclick={handlePrimaryAction}
                     >
                         {notification.actionLabel}
                     </button>

@@ -49,13 +49,13 @@ const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'source-chat-unchanged',
-			text: 'OpenMates keeps the source transcript unchanged while creating the explanation chat in the background.',
+			text: 'The source chat still shows the original vector database exchange without adding the explanation prompt.',
 			checkpoint: 'source-chat-unchanged',
 			devices: ['web-laptop']
 		},
 		{
 			id: 'background-open-action',
-			text: 'The newest notification stays actionable, so Open chat works even when the security reminder is present.',
+			text: 'The front notification shows an Open chat action for the background explanation chat.',
 			checkpoint: 'background-open-action',
 			devices: ['web-laptop']
 		},
@@ -94,13 +94,13 @@ const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'source-chat-unchanged',
 			checkpoint: 'source-chat-unchanged',
-			visual: 'Triggering Explain in new chat keeps the source URL active and leaves the source transcript unchanged.',
+			visual: 'The source chat still shows the original seed prompt and vector database answer, with no Tell me more prompt added.',
 			devices: ['web-laptop']
 		},
 		{
 			id: 'background-open-action',
 			checkpoint: 'background-open-action',
-			visual: 'The background notification Open chat action is clickable and opens the new explanation chat.',
+			visual: 'The background notification is the front card and presents a visible Open chat action.',
 			devices: ['web-laptop']
 		},
 		{
@@ -299,8 +299,15 @@ test('explains selected assistant text in a background new chat', async ({ page 
 		await proof.checkpoint('background-open-action');
 		await holdProofState(page);
 	}
-	await openAction.click();
+	if (proof) {
+		await proof.action('open-background-explanation-chat', async () => {
+			await openAction.click();
+		});
+	} else {
+		await openAction.click();
+	}
 	await expect(page).not.toHaveURL(sourceUrl, { timeout: 15_000 });
+	await expect(explanationNotification).toHaveCount(0, { timeout: 5000 });
 
 	const promptText = 'Tell me more about: vector database';
 	await expect(page.getByTestId('message-user').filter({ hasText: promptText })).toBeVisible({ timeout: 30_000 });

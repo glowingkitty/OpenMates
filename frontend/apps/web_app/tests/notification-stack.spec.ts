@@ -15,6 +15,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
 const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
 const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
+const E2E_NOTIFICATION_ACTION_EVENT = 'openmates:e2e:notification-action';
 const PROOF_VISIBLE_STATE_MS = 2000;
 
 // contract-test: direct surface=gui.web assertions=notifications.web.stacked-deck
@@ -155,4 +156,45 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
 	await expect(items.nth(1)).toContainText('First stacked notification');
 	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
+
+	await page.evaluate((eventName: string) => {
+		const e2eWindow = window as typeof window & { __openmatesNotificationActionCount?: number };
+		e2eWindow.__openmatesNotificationActionCount = 0;
+		window.addEventListener(eventName, () => {
+			e2eWindow.__openmatesNotificationActionCount = (e2eWindow.__openmatesNotificationActionCount ?? 0) + 1;
+		});
+	}, E2E_NOTIFICATION_ACTION_EVENT);
+	await page.evaluate(
+		({ addEventName, actionEventName }: { addEventName: string; actionEventName: string }) => {
+			window.dispatchEvent(
+				new CustomEvent(addEventName, {
+					detail: {
+						notifications: [
+							{
+								type: 'success',
+								title: 'Action notification',
+								message: 'This actionable notification dismisses after its primary action fires.',
+								duration: 0,
+								actionLabel: 'Open chat',
+								actionEventName,
+								dedupeKey: 'e2e-notification-action-dismisses'
+							}
+						]
+					}
+				})
+			);
+		},
+		{ addEventName: E2E_ADD_NOTIFICATIONS_EVENT, actionEventName: E2E_NOTIFICATION_ACTION_EVENT }
+	);
+	await expect(items).toHaveCount(3);
+	await expect(items.nth(0)).toContainText('Action notification');
+	await items.nth(0).getByTestId('notification-action').click();
+	expect(
+		await page.evaluate(() => {
+			const e2eWindow = window as typeof window & { __openmatesNotificationActionCount?: number };
+			return e2eWindow.__openmatesNotificationActionCount ?? 0;
+		})
+	).toBe(1);
+	await expect(items).toHaveCount(2, { timeout: 2000 });
+	await expect(items.nth(0)).toContainText('Second stacked notification');
 });
