@@ -4477,6 +4477,7 @@ export async function handleSendEmbedDataImpl(
         status: embedData.status,
         hashed_chat_id: hashedChatId,
         hashed_message_id: hashedMessageId,
+        hashed_user_id: hashedUserId,
         hashed_task_id: hashedTaskId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found

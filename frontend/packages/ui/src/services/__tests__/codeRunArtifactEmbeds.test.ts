@@ -8,10 +8,10 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockHandleSendEmbedData = vi.fn();
-const mockSendStoreEmbed = vi.fn();
-const mockGetRawEntry = vi.fn();
-const mockUpdateChildEmbedIds = vi.fn();
+const mockHandleSendEmbedData = vi.hoisted(() => vi.fn());
+const mockSendStoreEmbed = vi.hoisted(() => vi.fn());
+const mockGetRawEntry = vi.hoisted(() => vi.fn());
+const mockUpdateChildEmbedIds = vi.hoisted(() => vi.fn());
 
 vi.mock('../../stores/userProfile', () => ({
   getUserProfile: () => ({ user_id: 'user-1' }),

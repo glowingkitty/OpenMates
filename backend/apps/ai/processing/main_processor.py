@@ -38,7 +38,6 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_blocked_skill,
     is_learning_mode_enabled,
 )
-from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
@@ -3886,11 +3885,7 @@ async def handle_main_processing(
         _stream_all_servers_failed = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
-          with ai_phase_span("main.iteration"):
-           async for chunk in observe_ai_stream(
-               aggregate_paragraphs(llm_stream),
-               "provider",
-           ):
+          async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
@@ -5942,21 +5937,20 @@ async def handle_main_processing(
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
                     try:
-                        with ai_phase_span("tool"):
-                            results = await execute_skill_with_multiple_requests(
-                                app_id=app_id,
-                                skill_id=skill_id,
-                                arguments=skill_arguments,
-                                timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
-                                chat_id=request_data.chat_id,
-                                message_id=request_data.message_id,
-                                user_id=request_data.user_id,
-                                skill_task_id=skill_task_id,
-                                cache_service=cache_service,
-                                encryption_service=encryption_service,
-                                secrets_manager=secrets_manager,
-                                # max_retries uses default (1 retry = 2 total attempts)
-                            )
+                        results = await execute_skill_with_multiple_requests(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            arguments=skill_arguments,
+                            timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            skill_task_id=skill_task_id,
+                            cache_service=cache_service,
+                            encryption_service=encryption_service,
+                            secrets_manager=secrets_manager,
+                            # max_retries uses default (1 retry = 2 total attempts)
+                        )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
                             log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",

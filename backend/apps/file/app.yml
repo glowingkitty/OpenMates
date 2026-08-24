@@ -17,6 +17,7 @@ embed_types:
     fullscreen_component: file/FileEmbedFullscreen.svelte
     icon: files
     gradient_var: "--color-app-files"
+    i18n_namespace: embeds.file.file
     content_fields:
       - name: filename
         type: string
