@@ -183,7 +183,8 @@ def verify_baseline(days: int) -> dict[str, Any]:
     window_end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     end_us = int(window_end.timestamp() * 1_000_000)
     probe = (
-        "import json;"
+        "import json,sys;"
+        "sys.path.insert(0,'/app');"
         "from scripts.verify_ai_observability import _query_baseline_rows;"
         f"print(json.dumps(_query_baseline_rows({days},{end_us})))"
     )

@@ -9,6 +9,7 @@ or introducing private telemetry fields.
 
 from datetime import datetime, timezone
 
+import scripts.verify_ai_observability as verifier
 from scripts.verify_ai_observability import _evaluate_baseline
 
 
@@ -72,3 +73,19 @@ def test_baseline_reports_missing_and_incomplete_days_as_pending():
     assert result["status"] == "pending"
     assert result["complete_days"] == 0
     assert result["days"][-1]["incomplete_turn_count"] == 1
+
+
+def test_baseline_probe_imports_verifier_from_container_app_root(monkeypatch):
+    commands = []
+
+    def capture(command):
+        commands.append(command)
+        return "[]"
+
+    monkeypatch.setattr(verifier, "_run", capture)
+
+    result = verifier.verify_baseline(days=7)
+
+    assert result["status"] == "pending"
+    assert commands[0][:4] == ["docker", "exec", "api", "python"]
+    assert "sys.path.insert(0,'/app')" in commands[0][-1]
