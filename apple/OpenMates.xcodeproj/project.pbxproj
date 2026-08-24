@@ -3243,6 +3243,7 @@
 		07C7D948904FEF8FB58AF51F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
@@ -3262,6 +3263,7 @@
 		1CBBDA4FC9F03A72CBC3845B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
@@ -3400,6 +3402,7 @@
 		901ABADF3B360810540B184E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -3419,6 +3422,7 @@
 		B73251D54DB1163385623857 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;

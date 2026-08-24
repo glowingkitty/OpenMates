@@ -62,7 +62,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
             isRegistered = granted
             return granted
         } catch {
-            print("[Push] Permission error: \(error)")
+            NativeDiagnostics.warning("Notification permission request failed: \(type(of: error))", category: "push_notifications")
             return false
         }
     }
@@ -79,17 +79,20 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     func handleDeviceToken(_ token: Data) {
         let tokenString = token.map { String(format: "%02x", $0) }.joined()
-        print("[Push] Device token: \(tokenString)")
+        NativeDiagnostics.info("APNs device token received", category: "push_notifications")
 
         Task {
             let publicKey = NotificationPreviewCrypto.loadOrCreatePublicKey()
             var body: [String: Any] = [
                 "token": tokenString,
                 "platform": "apns",
+                "environment": Self.apnsEnvironment,
                 "encryption_version": NotificationPreviewCrypto.encryptionVersion
             ]
             if let publicKey {
                 body["notification_public_key"] = publicKey
+            } else {
+                NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications")
             }
             try? await APIClient.shared.request(
                 .post,
@@ -99,14 +102,24 @@ final class PushNotificationManager: NSObject, ObservableObject {
         }
     }
 
+    private static var apnsEnvironment: String {
+        #if DEBUG
+        "sandbox"
+        #else
+        "production"
+        #endif
+    }
+
     func handleRegistrationError(_ error: Error) {
-        print("[Push] Registration failed: \(error.localizedDescription)")
+        NativeDiagnostics.warning("APNs registration failed: \(type(of: error))", category: "push_notifications")
     }
 
     func setBadgeCount(_ count: Int) {
         #if os(iOS)
         UNUserNotificationCenter.current().setBadgeCount(count) { error in
-            if let error { print("[Push] Badge error: \(error)") }
+            if let error {
+                NativeDiagnostics.warning("Notification badge update failed: \(type(of: error))", category: "push_notifications")
+            }
         }
         #endif
     }
@@ -137,7 +150,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         do {
             try await center.add(request)
         } catch {
-            print("[Push] Failed to show chat notification: \(error)")
+            NativeDiagnostics.warning("Chat notification scheduling failed: \(type(of: error))", category: "push_notifications")
         }
     }
 

@@ -21,6 +21,7 @@ from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
+from backend.core.api.app.tasks.push_worker_service import initialize_push_services
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -468,6 +469,7 @@ def _worker_needs_ai_services():
     """
     worker_queues = _get_worker_queues()
     return 'app_ai' in worker_queues
+
 
 async def initialize_services():
     """
@@ -951,6 +953,10 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
+
+    # Push tasks use a process-local singleton. Initialize it in the child
+    # process so delivery never depends on API-process startup state.
+    asyncio.run(initialize_push_services(_get_worker_queues()))
 
     warm_translation_cache()
 

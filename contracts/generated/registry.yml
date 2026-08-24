@@ -108,6 +108,14 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.apple-notifications:
+    version: 1
+    status: draft
+    path: features/apple-notifications
+    fingerprint: 10cac1f364d96c32dd5b438cbd58eb8849482ed50e4b4a9ce59a479cf4a0017b
+    required_surfaces:
+    - rest_api
+    - gui.apple
   feature.auth:
     version: 1
     status: draft
@@ -1277,6 +1285,38 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
+  apple-notifications.registration.lifecycle:
+    contract: feature.apple-notifications@1
+    contract_id: feature.apple-notifications
+    type: behavior
+    fingerprint: 59d939d3e3736bc6ca73d080cfb739eb87911cf5b8a29b875cf44a112a00fa0c
+    required_surfaces:
+    - rest_api
+    - gui.apple
+  apple-notifications.payload.privacy-safe:
+    contract: feature.apple-notifications@1
+    contract_id: feature.apple-notifications
+    type: privacy
+    fingerprint: aef815c26beea072e22a036a4b355bb5c728e1d332538d413a7c538e4cfa3b31
+    required_surfaces:
+    - rest_api
+    - gui.apple
+  apple-notifications.action.routing-coherent:
+    contract: feature.apple-notifications@1
+    contract_id: feature.apple-notifications
+    type: behavior
+    fingerprint: 8bbd96575b0027e9d2bd49aa3ea4e8ac677af9030afb0f7974b9fe2f0aabb199
+    required_surfaces:
+    - rest_api
+    - gui.apple
+  apple-notifications.delivery.idempotent-visible:
+    contract: feature.apple-notifications@1
+    contract_id: feature.apple-notifications
+    type: invariant
+    fingerprint: b3c0994b188b14bfaee7b2c014274aa020b69eb04f6481b7c9a27954e2ff3a0d
+    required_surfaces:
+    - rest_api
     - gui.apple
   auth.signup.current-flow:
     contract: feature.auth@1

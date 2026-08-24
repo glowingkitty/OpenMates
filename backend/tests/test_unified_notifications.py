@@ -70,6 +70,7 @@ class _FakeCache:
         return True
 
 
+# contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 @pytest.mark.asyncio
 async def test_notification_event_service_serializes_safe_chat_event_only():
     cache = _FakeCache()
@@ -97,6 +98,7 @@ async def test_notification_event_service_serializes_safe_chat_event_only():
     assert recent == [public_event]
 
 
+# contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.delivery.idempotent-visible
 def test_apns_chat_payload_uses_safe_alert_and_encrypted_preview(monkeypatch):
     device_private_key = x25519.X25519PrivateKey.generate()
     device_public_key = device_private_key.public_key().public_bytes(
@@ -137,6 +139,7 @@ def test_apns_chat_payload_uses_safe_alert_and_encrypted_preview(monkeypatch):
         subscription_info={
             "type": "apns",
             "token": "abc123",
+            "environment": "sandbox",
             "notification_public_key": _encode_base64url(device_public_key),
             "encryption_version": APNS_ENCRYPTION_VERSION,
         },
@@ -150,6 +153,7 @@ def test_apns_chat_payload_uses_safe_alert_and_encrypted_preview(monkeypatch):
     payload = captured["json"]
     payload_text = json.dumps(payload)
 
+    assert captured["url"] == "https://api.sandbox.push.apple.com/3/device/abc123"
     assert payload["aps"]["alert"]["title"] == APNS_CHAT_MESSAGE_TITLE
     assert payload["aps"]["alert"]["body"] == APNS_CHAT_MESSAGE_BODY
     assert payload["aps"]["mutable-content"] == 1
@@ -177,6 +181,7 @@ def test_apns_chat_payload_uses_safe_alert_and_encrypted_preview(monkeypatch):
     assert json.loads(plaintext) == {"preview": "secret assistant response first line"}
 
 
+# contract-test: supporting surface=rest_api assertions=apple-notifications.registration.lifecycle
 def test_push_subscription_targets_preserve_browser_and_native_devices():
     browser_target = {
         "type": "web",
@@ -200,6 +205,7 @@ def test_push_subscription_targets_preserve_browser_and_native_devices():
     assert targets[1]["token"] == native_target["token"]
 
 
+# contract-test: supporting surface=rest_api assertions=apple-notifications.delivery.idempotent-visible
 def test_multi_target_push_dispatches_to_web_and_apns(monkeypatch):
     calls = []
 

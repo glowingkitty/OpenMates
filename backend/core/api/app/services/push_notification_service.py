@@ -302,7 +302,8 @@ class PushNotificationService:
         - APNS_KEY_ID
         - APNS_PRIVATE_KEY or APNS_PRIVATE_KEY_PATH
         - APNS_BUNDLE_ID (defaults to org.openmates.app)
-        - APNS_USE_SANDBOX=true for development APNs
+        - APNS_USE_SANDBOX=true as a fallback for legacy registrations without
+          a stored per-device environment
         """
         token = (subscription_info.get("token") or "").strip()
         if not token:
@@ -328,7 +329,13 @@ class PushNotificationService:
             return False
         private_key = private_key.replace("\\n", "\n")
 
-        host = "api.sandbox.push.apple.com" if os.getenv("APNS_USE_SANDBOX", "false").lower() == "true" else "api.push.apple.com"
+        environment = str(subscription_info.get("environment") or "").strip().lower()
+        use_sandbox = (
+            environment == "sandbox"
+            if environment in {"sandbox", "production"}
+            else os.getenv("APNS_USE_SANDBOX", "false").lower() == "true"
+        )
+        host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
         alert_title = APNS_CHAT_MESSAGE_TITLE if category == APNS_CHAT_CATEGORY else title
         alert_body = APNS_CHAT_MESSAGE_BODY if category == APNS_CHAT_CATEGORY else body
         payload = {

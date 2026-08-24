@@ -24,7 +24,6 @@ enum NotificationPreviewCrypto {
             try KeychainHelper.save(key: privateKeyKeychainKey, data: privateKey.rawRepresentation)
             return encodeBase64URL(privateKey.publicKey.rawRepresentation)
         } catch {
-            print("[Push] Notification encryption key setup failed: \(error.localizedDescription)")
             return nil
         }
     }
@@ -66,7 +65,6 @@ enum NotificationPreviewCrypto {
             }
             return preview
         } catch {
-            print("[Push] Notification preview decrypt failed: \(error.localizedDescription)")
             return nil
         }
     }
