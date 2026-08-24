@@ -413,6 +413,9 @@ enum MarkdownParser {
                     } else {
                         blocks.append(.interactiveQuestionFallback)
                     }
+                } else if isResultsViewLanguage(language) {
+                    let references = parseResultsViewReferences(code)
+                    blocks.append(references.isEmpty ? .hiddenProtocol : .embedGroup(references))
                 } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
@@ -561,6 +564,38 @@ enum MarkdownParser {
         let end = line.index(line.endIndex, offsetBy: -2)
         guard start < end else { return nil }
         return MarkdownEmbedReference(value: String(line[start..<end]), isRef: true, isLargePreview: true)
+    }
+
+    private static func isResultsViewLanguage(_ language: String?) -> Bool {
+        guard let language else { return false }
+        let normalized = language
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \.isWhitespace)
+            .first?
+            .lowercased()
+        return normalized == "embeds_map_view" || normalized == "embeds_results_view"
+    }
+
+    private static func parseResultsViewReferences(_ code: String) -> [MarkdownEmbedReference] {
+        var references: [MarkdownEmbedReference] = []
+        var seen = Set<String>()
+
+        for rawLine in code.components(separatedBy: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: ":") else {
+                continue
+            }
+            let key = line[..<separator].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard key == "embeds" || key == "sources" else { continue }
+            let values = line[line.index(after: separator)...].split(separator: ",")
+            for rawValue in values {
+                let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty, seen.insert(value).inserted else { continue }
+                references.append(MarkdownEmbedReference(value: value, isRef: false, isLargePreview: false))
+            }
+        }
+
+        return references
     }
 
     private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
