@@ -9,6 +9,8 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
+    private static let streamingAccessibilitySettleInterval: TimeInterval = 20
+
     static func launchApp(
         preferPasswordLogin: Bool = true,
         disableAuthCache: Bool = false,
@@ -113,6 +115,7 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
+        RunLoop.current.run(until: Date().addingTimeInterval(streamingAccessibilitySettleInterval))
         let completionMarker = app.otherElements.matching(NSPredicate(
             format: "identifier == %@ AND value == %@",
             "assistant-response-complete",
@@ -120,7 +123,7 @@ enum RealAccountUITestSupport {
         ))
             .firstMatch
         XCTAssertTrue(
-            completionMarker.waitForExistence(timeout: timeout),
+            completionMarker.waitForExistence(timeout: 5),
             "Assistant response did not finish streaming"
         )
 
