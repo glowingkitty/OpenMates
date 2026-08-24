@@ -48,6 +48,21 @@ RESULTS_DIR = PROJECT_ROOT / "test-results"
 PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
 PROOF_CAPTURE_END_BUFFER_SECONDS = 4.0
 PROOF_CAPTURE_DURATION_PADDING_SECONDS = 0.5
+
+
+def proof_capture_end_timestamp_seconds(
+    *,
+    surface: str,
+    source_media_duration_seconds: float,
+    proof_end_times: list[float],
+) -> float | None:
+    """Exclude XCTest teardown from Apple proof while retaining web capture tail."""
+    if not proof_end_times:
+        return None
+    end_buffer_seconds = 0.0 if surface == "apple" else PROOF_CAPTURE_END_BUFFER_SECONDS
+    return min(source_media_duration_seconds, max(proof_end_times) + end_buffer_seconds)
+
+
 STATE_FILE = RESULTS_DIR / "tests-state.json"
 HISTORY_FILE = RESULTS_DIR / "tests-history.jsonl"
 LEASES_FILE = RESULTS_DIR / "failed-test-leases.json"
@@ -1753,10 +1768,10 @@ def auto_finalize_proof_video_sources(
         ready_timestamp_seconds = min(ready_times) if ready_times else None
         source_media_duration_seconds = float(active_source_duration_hook(source_video))
         proof_end_times = [value for value in [*checkpoint_times, *assertion_times] if value >= 0]
-        source_end_timestamp_seconds = (
-            min(source_media_duration_seconds, max(proof_end_times) + PROOF_CAPTURE_END_BUFFER_SECONDS)
-            if proof_end_times
-            else None
+        source_end_timestamp_seconds = proof_capture_end_timestamp_seconds(
+            surface=surface,
+            source_media_duration_seconds=source_media_duration_seconds,
+            proof_end_times=proof_end_times,
         )
         source_duration_seconds = source_media_duration_seconds
         if ready_timestamp_seconds is not None:

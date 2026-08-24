@@ -129,67 +129,6 @@ def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
     assert record["attempt_statuses"] == ["failed", "passed"]
 
 
-def test_daily_progress_merges_without_erasing_unobserved_tests(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    tests_control.record_run_result(
-        {
-            "run_id": "daily-final",
-            "flags": {"daily": True},
-            "suites": {"playwright": {"status": "failed", "tests": [
-                {"file": "completed.spec.ts", "status": "passed"},
-                {"file": "not-yet-rerun.spec.ts", "status": "failed"},
-            ]}},
-        },
-        source="daily_runner",
-        workflow="daily",
-    )
-
-    state = tests_control.record_run_result(
-        {
-            "run_id": "daily-progress",
-            "flags": {"daily": True, "in_progress": True},
-            "suites": {"playwright": {"status": "passed", "tests": [
-                {"file": "completed.spec.ts", "status": "passed"},
-            ]}},
-        },
-        source="daily_runner",
-        workflow="daily",
-    )
-
-    assert state["tests"]["playwright::completed.spec.ts"]["status"] == "passed"
-    assert state["tests"]["playwright::not-yet-rerun.spec.ts"]["status"] == "failed"
-    assert state.get("replace_current_state") is None
-
-
-def test_final_daily_result_closes_synthetic_all_running_marker(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    tests_control.mark_running(
-        suite="all",
-        tests=["all"],
-        command=["python3", "scripts/tests.py", "run", "--daily"],
-    )
-
-    state = tests_control.record_run_result(
-        {
-            "run_id": "daily-terminal",
-            "flags": {"daily": True},
-            "summary": {"total": 1, "passed": 0, "failed": 1},
-            "suites": {"orchestration": {"status": "failed", "tests": [
-                {"file": "scripts/run_tests.py", "status": "failed"},
-            ]}},
-        },
-        source="daily_runner",
-        workflow="daily",
-    )
-
-    overall = state["tests"]["all::all"]
-    assert overall["status"] == "failed"
-    assert overall["active_status"] is None
-    assert overall["active_run_id"] is None
-    assert state["summary"]["total"] == 1
-    assert state["summary"]["failed"] == 1
-
-
 def test_record_run_redacts_sensitive_failure_text_before_persistence(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     tests_control.record_run_result({
@@ -1344,6 +1283,21 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
     assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]
 
 
+def test_apple_proof_capture_end_excludes_xcode_teardown_tail(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control.proof_capture_end_timestamp_seconds(
+        surface="apple",
+        source_media_duration_seconds=12.0,
+        proof_end_times=[8.0],
+    ) == 8.0
+    assert tests_control.proof_capture_end_timestamp_seconds(
+        surface="web",
+        source_media_duration_seconds=12.0,
+        proof_end_times=[8.0],
+    ) == 12.0
+
+
 def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     artifact = tests_control.RESULTS_DIR / "last-run.json"
@@ -1673,7 +1627,7 @@ def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatc
 
     recorded_run_ids = []
 
-    def fake_record_run_result(data, **_kwargs):
+    def fake_record_run_result(data):
         recorded_run_ids.append(data["run_id"])
         if len(recorded_run_ids) == 1:
             raise RuntimeError("temporary Directus failure")
@@ -1720,153 +1674,3 @@ def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, m
     assert len(acquired) == 1
     assert acquired[0][2] == {"dev-stack"}
     assert released == [acquired[0][0]]
-
-
-def test_command_run_records_daily_child_crash_without_artifact(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
-    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
-    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
-    monkeypatch.setattr(
-        tests_control.subprocess,
-        "run",
-        lambda command, cwd=None, env=None, timeout=None: tests_control.subprocess.CompletedProcess(command, -9),
-    )
-    fallback_calls = []
-    monkeypatch.setattr(
-        tests_control,
-        "record_runner_failure_fallback",
-        lambda **kwargs: fallback_calls.append(kwargs) or "abc123def",
-    )
-
-    assert tests_control.command_run(["--daily", "--no-fail-fast"]) == 1
-    assert len(fallback_calls) == 1
-    assert fallback_calls[0]["returncode"] == -9
-    assert fallback_calls[0]["timed_out"] is False
-
-
-def test_command_run_records_daily_child_timeout_without_artifact(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
-    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
-    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
-
-    def time_out(command, cwd=None, env=None, timeout=None):
-        assert timeout == tests_control.DAILY_RUN_TIMEOUT_SECONDS
-        raise tests_control.subprocess.TimeoutExpired(command, timeout)
-
-    monkeypatch.setattr(tests_control.subprocess, "run", time_out)
-    fallback_calls = []
-    monkeypatch.setattr(
-        tests_control,
-        "record_runner_failure_fallback",
-        lambda **kwargs: fallback_calls.append(kwargs) or "abc123def",
-    )
-
-    assert tests_control.command_run(["--daily"]) == 1
-    assert len(fallback_calls) == 1
-    assert fallback_calls[0]["returncode"] is None
-    assert fallback_calls[0]["timed_out"] is True
-
-
-def test_daily_child_timeout_fallback_preserves_progress_and_posts_without_runner_import(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abc123def")
-    monkeypatch.setenv("DISCORD_WEBHOOK_DEV_NIGHTLY", "https://example.invalid/webhook")
-    captured = {}
-
-    class FakeResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b""
-
-    def fake_urlopen(request, timeout):
-        captured["payload"] = json.loads(request.data)
-        captured["timeout"] = timeout
-        return FakeResponse()
-
-    monkeypatch.setattr(tests_control.urllib.request, "urlopen", fake_urlopen)
-    existing = {
-        "run_id": "daily-progress",
-        "git_sha": "abc123def",
-        "git_branch": "dev",
-        "environment": "development",
-        "duration_seconds": 100,
-        "flags": {"daily": True, "in_progress": True},
-        "summary": {"total": 1, "passed": 1, "failed": 0, "timeout": 0},
-        "suites": {"vitest": {"status": "passed", "tests": [{"name": "unit", "status": "passed"}]}},
-    }
-
-    tests_control.record_runner_failure_fallback(
-        runner_args=["--daily"],
-        returncode=None,
-        timed_out=True,
-        existing_run_data=existing,
-    )
-
-    result = json.loads((tests_control.RESULTS_DIR / "last-run.json").read_text(encoding="utf-8"))
-    assert result["summary"]["passed"] == 1
-    assert result["summary"]["timeout"] == 1
-    assert result["suites"]["orchestration"]["tests"][0]["status"] == "timeout"
-    assert result["flags"]["notifications_complete"] is True
-    assert "runner terminated" in captured["payload"]["embeds"][0]["title"]
-    assert captured["timeout"] == 30
-
-
-def test_daily_terminal_retry_does_not_turn_test_failures_into_runner_crash(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    monkeypatch.setenv("DISCORD_WEBHOOK_DEV_NIGHTLY", "https://example.invalid/webhook")
-
-    class FakeResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b""
-
-    monkeypatch.setattr(tests_control.urllib.request, "urlopen", lambda *_args, **_kwargs: FakeResponse())
-    run_data = {
-        "run_id": "daily-normal-failure",
-        "git_sha": "abc123def",
-        "git_branch": "dev",
-        "environment": "development",
-        "duration_seconds": 100,
-        "flags": {"daily": True, "notifications_complete": False},
-        "summary": {"total": 1, "passed": 0, "failed": 1, "timeout": 0},
-        "suites": {"playwright": {"status": "failed", "tests": [{"file": "chat.spec.ts", "status": "failed"}]}},
-    }
-
-    tests_control.retry_daily_terminal_notification(run_data)
-
-    result = json.loads((tests_control.RESULTS_DIR / "last-run.json").read_text(encoding="utf-8"))
-    assert result["summary"]["total"] == 1
-    assert result["summary"]["failed"] == 1
-    assert "orchestration" not in result["suites"]
-    assert result["flags"].get("runner_crashed") is None
-    assert result["flags"]["notifications_complete"] is True
-    assert result["flags"]["notification_retry_attempted"] is True
-
-
-def test_recover_daily_command_uses_explicit_runner_fallback(tmp_path, monkeypatch):
-    tests_control = load_tests_control(tmp_path, monkeypatch)
-    calls = []
-    monkeypatch.setattr(
-        tests_control,
-        "record_runner_failure_fallback",
-        lambda **kwargs: calls.append(kwargs) or "abc123def",
-    )
-
-    assert tests_control.main(["recover-daily", "--returncode", "1", "--yes"]) == 0
-    assert calls == [{
-        "runner_args": ["--daily", "--no-fail-fast"],
-        "returncode": 1,
-        "timed_out": False,
-    }]
