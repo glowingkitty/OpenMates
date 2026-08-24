@@ -63,12 +63,14 @@ INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
 ARTIFACT_DOWNLOAD_TTL_SECONDS = 900
 CODE_RUN_BILLING_IDEMPOTENCY_PREFIX = "code-run"
+NATIVE_IMAGE_MIME_TYPES = {"image/png", "image/webp"}
 ARTIFACT_SENSITIVE_FIELDS = {
     "aes_key",
     "aes_nonce",
     "bytes",
     "content_base64",
     "download_url",
+    "native_render_payload",
     "s3_key",
     "sandbox_id",
     "token",
@@ -92,9 +94,15 @@ def _safe_artifact_metadata(
     artifacts: list[dict[str, Any]] | None,
     *,
     include_download_url: bool = False,
+    include_native_render_payload: bool = False,
 ) -> list[dict[str, Any]]:
     """Strip artifact bytes, keys, tokens, and storage internals from status payloads."""
-    blocked_fields = ARTIFACT_SENSITIVE_FIELDS if not include_download_url else ARTIFACT_SENSITIVE_FIELDS - {"download_url"}
+    allowed_sensitive_fields = set()
+    if include_download_url:
+        allowed_sensitive_fields.add("download_url")
+    if include_native_render_payload:
+        allowed_sensitive_fields.add("native_render_payload")
+    blocked_fields = ARTIFACT_SENSITIVE_FIELDS - allowed_sensitive_fields
     safe: list[dict[str, Any]] = []
     for artifact in artifacts or []:
         if not isinstance(artifact, dict):
@@ -313,6 +321,7 @@ async def _persist_code_run_artifacts(
 
         download_expires_at = created_at + ARTIFACT_DOWNLOAD_TTL_SECONDS
         stored_artifacts: list[dict[str, Any]] = []
+        chat_bound = bool(payload.get("chat_id") and payload.get("target_embed_id"))
         for variant, artifact in artifact_by_variant.items():
             token = create_download_token(
                 asset_id=asset_id,
@@ -320,7 +329,7 @@ async def _persist_code_run_artifacts(
                 variant=variant,
                 expires_at=download_expires_at,
             )
-            stored_artifacts.append({
+            stored_artifact = {
                 "path": str(artifact.get("path") or artifact.get("normalized_path") or ""),
                 "normalized_path": str(artifact.get("normalized_path") or artifact.get("path") or ""),
                 "mime_type": str(artifact.get("mime_type") or "application/octet-stream"),
@@ -336,7 +345,24 @@ async def _persist_code_run_artifacts(
                     token=token,
                 ),
                 "download_expires_at": download_expires_at,
-            })
+            }
+            if chat_bound and stored_artifact["mime_type"] in NATIVE_IMAGE_MIME_TYPES:
+                file_metadata = dict(files_metadata[variant])
+                stored_artifact["native_render_payload"] = {
+                    "app_id": "images",
+                    "frontend_type": "image",
+                    "content": {
+                        "filename": _artifact_filename(stored_artifact["normalized_path"]),
+                        "s3_base_url": s3_base_url,
+                        "files": {"full": file_metadata, "original": file_metadata},
+                        "aes_key": encrypted.aes_key_b64,
+                        "aes_nonce": encrypted.legacy_nonce_b64 or "",
+                        "file_size": stored_artifact["size_bytes"],
+                        "file_type": stored_artifact["mime_type"],
+                        "is_authenticated": True,
+                    },
+                }
+            stored_artifacts.append(stored_artifact)
         return stored_artifacts
     except Exception as exc:
         logger.warning("Code Run artifact storage failed for %s: %s", execution_id, exc, exc_info=True)
@@ -652,7 +678,11 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "duration_seconds": duration,
             "charged_credits": credits,
             "charged_minutes": charged_minutes,
-            "artifacts": _safe_artifact_metadata(stored_artifacts, include_download_url=True),
+            "artifacts": _safe_artifact_metadata(
+                stored_artifacts,
+                include_download_url=True,
+                include_native_render_payload=True,
+            ),
             "skipped_artifacts": _safe_skipped_artifacts(result.skipped_artifacts),
             "finished_at": time.time(),
         }

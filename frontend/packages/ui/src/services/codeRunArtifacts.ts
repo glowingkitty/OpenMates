@@ -12,11 +12,22 @@ import type {
   CodeRunOutputPayload,
   CodeRunSkippedArtifact,
 } from '../types/chat';
+import { v5 as uuidv5 } from 'uuid';
 
 export interface CodeRunArtifactSanitizeOptions {
   includeDownloadUrl?: boolean;
+  includeNativeRenderPayload?: boolean;
   capturedAt?: number;
 }
+
+export interface CodeRunArtifactChildRoute {
+  appId: string;
+  frontendType: string;
+  renderer: 'registered_native' | 'generic_file';
+}
+
+const CODE_RUN_ARTIFACT_CHILD_NAMESPACE = '7d9d682a-f21d-4be4-9fd2-273bd5bf26a2';
+const NATIVE_IMAGE_MIME_TYPES = new Set(['image/png', 'image/webp']);
 
 const ARTIFACT_SENSITIVE_FIELDS = [
   'aes_key',
@@ -71,7 +82,58 @@ function normalizeArtifactVersion(
   if (capturedAt !== undefined) version.captured_at = capturedAt;
   const downloadUrl = stringValue(item.download_url);
   if (options.includeDownloadUrl !== false && downloadUrl) version.download_url = downloadUrl;
+  const nativeRenderPayload = normalizeNativeRenderPayload(item.native_render_payload);
+  if (options.includeNativeRenderPayload && nativeRenderPayload) {
+    version.native_render_payload = nativeRenderPayload;
+  }
   return version;
+}
+
+function normalizeNativeRenderPayload(value: unknown) {
+  if (!value || typeof value !== 'object') return undefined;
+  const payload = value as Record<string, unknown>;
+  if (
+    typeof payload.app_id !== 'string'
+    || typeof payload.frontend_type !== 'string'
+    || !payload.content
+    || typeof payload.content !== 'object'
+  ) return undefined;
+  return {
+    app_id: payload.app_id,
+    frontend_type: payload.frontend_type,
+    content: structuredClone(payload.content as Record<string, unknown>),
+  };
+}
+
+export function codeRunArtifactChildId(parentEmbedId: string, normalizedPath: string): string {
+  return uuidv5(`${parentEmbedId}:${normalizedPath.trim().toLowerCase()}`, CODE_RUN_ARTIFACT_CHILD_NAMESPACE);
+}
+
+export function routeCodeRunArtifactChild(artifact: CodeRunArtifact): CodeRunArtifactChildRoute {
+  const native = artifact.native_render_payload;
+  if (
+    native?.app_id === 'images'
+    && native.frontend_type === 'image'
+    && NATIVE_IMAGE_MIME_TYPES.has(artifact.mime_type || '')
+    && isCompatibleNativeImagePayload(native.content)
+  ) {
+    return { appId: 'images', frontendType: 'image', renderer: 'registered_native' };
+  }
+  return { appId: 'file', frontendType: 'file-file', renderer: 'generic_file' };
+}
+
+function isCompatibleNativeImagePayload(content: Record<string, unknown>): boolean {
+  const files = content.files;
+  if (!files || typeof files !== 'object') return false;
+  const variants = files as Record<string, unknown>;
+  const renderVariant = variants.full || variants.preview;
+  return Boolean(
+    typeof content.s3_base_url === 'string'
+    && typeof content.aes_key === 'string'
+    && renderVariant
+    && typeof renderVariant === 'object'
+    && typeof (renderVariant as Record<string, unknown>).s3_key === 'string'
+  );
 }
 
 export function sanitizeCodeRunArtifacts(
@@ -110,10 +172,17 @@ export function mergeCodeRunArtifactHistory(
   capturedAt: number,
 ): CodeRunArtifact[] {
   const previousByPath = new Map<string, CodeRunArtifact>();
-  for (const artifact of sanitizeCodeRunArtifacts(previousArtifacts, { includeDownloadUrl: true })) {
+  for (const artifact of sanitizeCodeRunArtifacts(previousArtifacts, {
+    includeDownloadUrl: true,
+    includeNativeRenderPayload: true,
+  })) {
     previousByPath.set(codeRunArtifactPathKey(artifact), artifact);
   }
-  return sanitizeCodeRunArtifacts(latestArtifacts, { includeDownloadUrl: true, capturedAt }).map((artifact) => {
+  return sanitizeCodeRunArtifacts(latestArtifacts, {
+    includeDownloadUrl: true,
+    includeNativeRenderPayload: true,
+    capturedAt,
+  }).map((artifact) => {
     const previous = previousByPath.get(codeRunArtifactPathKey(artifact));
     if (!previous) return artifact;
     const versions = dedupeArtifactVersions([

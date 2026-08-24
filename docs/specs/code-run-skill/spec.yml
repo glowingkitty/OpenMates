@@ -619,9 +619,13 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
-        status: skipped_with_reason
-        timestamp: "2026-08-24T14:05:11Z"
-        reason: The frontend unit red run was not retained before implementation; deployed Playwright red evidence below preserved the user-visible failure, and the focused frontend service tests are covered by the unified green run.
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit a0d92b09b2364311b0e7772b4c140913bf3bc13f
+        run_id: "32751803484"
+        timestamp: "2026-08-24T16:39:08Z"
+        subject_commit: a0d92b09b2364311b0e7772b4c140913bf3bc13f
+        outcome: failed_expected
+        summary: Two focused Code Run tests failed because deterministic child identity/routing helpers and encrypted-sidecar native render payload preservation are not implemented.
     green_phase:
       required: true
       expected: pass_after_implementation

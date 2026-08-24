@@ -3077,6 +3077,7 @@
     top: 0;
     left: 0;
     right: 0;
+    container: chat-history / inline-size;
   }
 
   .chat-history-wrapper.disable-pointer-events {
@@ -3221,7 +3222,7 @@
     padding-top: var(--spacing-6);
   }
 
-  @media (max-width: 730px) {
+  @container chat-history (max-width: 730px) {
     .chat-history-content.has-messages {
       padding-top: 70px;
       padding-inline: 0;

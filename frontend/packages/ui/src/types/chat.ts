@@ -290,6 +290,13 @@ export interface CodeRunArtifactVersion {
   download_url?: string;
   download_expires_at?: number;
   captured_at?: number;
+  native_render_payload?: CodeRunNativeRenderPayload;
+}
+
+export interface CodeRunNativeRenderPayload {
+  app_id: string;
+  frontend_type: string;
+  content: Record<string, unknown>;
 }
 
 export interface CodeRunArtifact extends CodeRunArtifactVersion {

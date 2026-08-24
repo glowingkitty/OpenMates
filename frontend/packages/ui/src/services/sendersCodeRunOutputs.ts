@@ -27,7 +27,10 @@ export async function sendUpsertCodeRunOutputImpl(
       text: String(text),
       timestamp: Number(timestamp),
     })),
-    artifacts: sanitizeCodeRunArtifacts(output.artifacts, { includeDownloadUrl: true }),
+    artifacts: sanitizeCodeRunArtifacts(output.artifacts, {
+      includeDownloadUrl: true,
+      includeNativeRenderPayload: true,
+    }),
     skipped_artifacts: sanitizeCodeRunSkippedArtifacts(output.skipped_artifacts),
   };
 
@@ -38,8 +41,14 @@ export async function sendUpsertCodeRunOutputImpl(
     );
   }
 
-  const payload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, { includeDownloadUrl: true });
-  const inferencePayload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, { includeDownloadUrl: false });
+  const payload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, {
+    includeDownloadUrl: true,
+    includeNativeRenderPayload: true,
+  });
+  const inferencePayload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, {
+    includeDownloadUrl: false,
+    includeNativeRenderPayload: false,
+  });
   const encrypted_payload = await encryptWithEmbedKey(JSON.stringify(payload), embedKey);
 
   try {
