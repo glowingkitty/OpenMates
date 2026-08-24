@@ -34,6 +34,7 @@ const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || 
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_VISIBLE_STATE_MS = 1200;
 const MIN_CONTEXT_MENU_TEXT_CONTRAST = 4.5;
+const MIN_CHAT_HEADER_ICON_TOP_GAP = 12;
 
 const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 	id: 'explain-in-new-chat-notification-action',
@@ -140,7 +141,7 @@ async function selectInsideMessage(
 		({ sel, n }: { sel: string; n: string }) => {
 			const container = document.querySelector(sel) as HTMLElement | null;
 			if (!container) return { selected: false, rect: null };
-			container.scrollIntoView({ block: 'center', inline: 'nearest' });
+			container.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 
 			const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
 			let node: Node | null = walker.nextNode();
@@ -263,6 +264,21 @@ async function expectContextMenuVisualIntegrity(page: any): Promise<void> {
 	expect(issues).toEqual([]);
 }
 
+async function expectChatHeaderIconNotClipped(page: any): Promise<void> {
+	const issues = await page.evaluate((minimumTopGap: number) => {
+		const banner = document.querySelector<HTMLElement>('[data-testid="chat-header-banner"]');
+		const icon = banner?.querySelector<HTMLElement>('[data-testid="chat-header-icon"]');
+		if (!banner || !icon) return ['chat header icon is missing'];
+		const bannerRect = banner.getBoundingClientRect();
+		const iconRect = icon.getBoundingClientRect();
+		if (iconRect.width <= 0 || iconRect.height <= 0) return ['chat header icon has no visible box'];
+		const visibleBannerTop = Math.max(0, bannerRect.top);
+		const topGap = iconRect.top - visibleBannerTop;
+		return topGap < minimumTopGap ? [`chat header icon is clipped against the visible banner top edge (${Math.round(topGap)}px gap)`] : [];
+	}, MIN_CHAT_HEADER_ICON_TOP_GAP);
+	expect(issues).toEqual([]);
+}
+
 async function waitForCompletedAssistantResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
 	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
 	await expect
@@ -368,6 +384,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 		await proof.assert('assistant-selection-action', async () => {
 			await expect(page.locator(`${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`).first()).toBeVisible({ timeout: 5000 });
 			await expectContextMenuVisualIntegrity(page);
+			await expectChatHeaderIconNotClipped(page);
 		});
 		await proof.checkpoint('assistant-selection-action');
 		await holdProofState(page);
