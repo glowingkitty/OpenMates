@@ -113,25 +113,20 @@ enum RealAccountUITestSupport {
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessages.firstMatch.waitForExistence(timeout: timeout))
-        let assistantMessage = assistantMessages.firstMatch
-        XCTAssertFalse(
-            assistantMessage.label.contains("app_skill_use"),
-            "Streaming assistant response exposed protocol metadata"
+        XCTAssertTrue(
+            streamingBanner.waitForNonExistence(timeout: timeout),
+            "Assistant response did not finish streaming"
         )
-        let completionDeadline = Date().addingTimeInterval(timeout)
-        repeat {
-            if assistantMessage.label.count > 8,
-               !streamingBanner.exists,
-               !streamingIndicator.exists {
-                break
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
-        } while Date() < completionDeadline
+        XCTAssertTrue(
+            streamingIndicator.waitForNonExistence(timeout: timeout),
+            "Assistant response did not finish loading"
+        )
 
-        XCTAssertGreaterThan(assistantMessage.label.count, 8)
-        XCTAssertFalse(streamingBanner.exists, "Assistant response did not finish streaming")
-        XCTAssertFalse(streamingIndicator.exists, "Assistant response did not finish loading")
-        XCTAssertFalse(assistantMessage.label.contains("app_skill_use"), "Assistant response exposed protocol metadata")
+        let assistantMessage = accessibilityElements(in: app, identifier: "message-assistant").firstMatch
+        XCTAssertTrue(assistantMessage.waitForExistence(timeout: 10))
+        let completedLabel = assistantMessage.label
+        XCTAssertGreaterThan(completedLabel.count, 8)
+        XCTAssertFalse(completedLabel.contains("app_skill_use"), "Assistant response exposed protocol metadata")
     }
 
     static func revealLatestAssistantResponse(app: XCUIApplication) {
