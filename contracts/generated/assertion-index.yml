@@ -3060,7 +3060,7 @@ assertions:
     supporting_tests:
     - &id313
       path: frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
-      line: 213
+      line: 215
       name: normalizes skipped artifact reasons
       surface: gui.web
     tests:
