@@ -25,6 +25,7 @@ def _row(service: str, level: str, message: str) -> dict[str, str]:
     }
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise,operational-monitoring.content.privacy-boundary
 def test_build_degraded_issue_report_groups_exact_inner_messages():
     rows = [
         _row("api", "ERROR", "Failed to connect to cache at cache:6379: Timeout connecting to server"),
@@ -46,6 +47,7 @@ def test_build_degraded_issue_report_groups_exact_inner_messages():
     assert "is degraded" in issues[1]["message"]
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
 def test_build_degraded_issue_report_ignores_one_off_warnings():
     rows = [
         _row("api", "WARNING", "Transient startup note"),
@@ -58,33 +60,42 @@ def test_build_degraded_issue_report_ignores_one_off_warnings():
     assert issues == []
 
 
-def test_format_degraded_report_includes_exact_messages():
-    issues = [
-        {
-            "service": "api",
-            "level": "ERROR",
-            "logger": "backend.example",
-            "message": "CRITICAL: Order pi_123 not found in cache. Payment was successful but credits cannot be granted.",
-            "count": 7,
-        }
-    ]
+# contract-test: direct surface=cli assertions=operational-monitoring.content.privacy-boundary,operational-monitoring.notifications.canonical-operations-channel
+def test_degraded_report_redacts_sensitive_identifiers_before_rendering():
+    issues = report.build_degraded_issue_report([
+        _row("api", "ERROR", "Order pi_123 failed for person@example.org at https://private.example/path password=hunter2 sk_live_abc"),
+    ] * 3)
 
     message = report.format_degraded_report_message(environment="production", issues=issues)
 
     assert "OpenMates production degraded services report" in message
-    assert "7x [ERROR] api / backend.example" in message
-    assert "Order pi_123 not found in cache" in message
+    assert "3x [ERROR] api / backend.example" in message
+    assert "pi_123" not in message
+    assert "person@example.org" not in message
+    assert "private.example" not in message
+    assert "hunter2" not in message
+    assert "sk_live_abc" not in message
+    assert "[REDACTED_ID]" in message
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.notifications.canonical-operations-channel,operational-monitoring.environments.isolated-labeled
 def test_select_degraded_report_webhook_prefers_explicit(monkeypatch):
-    monkeypatch.setenv("DISCORD_WEBHOOK_DEGRADED_SERVICES", "https://example.test/degraded")
+    monkeypatch.setenv("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION", "https://example.test/operations")
     monkeypatch.setenv("DISCORD_WEBHOOK_PROD_SMOKE", "https://example.test/prod")
 
-    assert report.select_degraded_report_webhook_url("production") == "https://example.test/degraded"
+    assert report.select_degraded_report_webhook_url("production") == "https://example.test/operations"
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.notifications.canonical-operations-channel,operational-monitoring.environments.isolated-labeled
 def test_select_degraded_report_webhook_falls_back_by_environment(monkeypatch):
-    monkeypatch.delenv("DISCORD_WEBHOOK_DEGRADED_SERVICES", raising=False)
+    for variable in (
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION",
+        "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION",
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT",
+        "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT",
+        "DISCORD_WEBHOOK_DEV_NIGHTLY",
+    ):
+        monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv("DISCORD_WEBHOOK_PROD_SMOKE", "https://example.test/prod")
     monkeypatch.setenv("DISCORD_WEBHOOK_DEV_SMOKE", "https://example.test/dev")
 

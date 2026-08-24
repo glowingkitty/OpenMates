@@ -1266,12 +1266,16 @@ describe("operational monitoring digest", () => {
       attemptCount: 3,
       occurredAt: "2026-08-14T12:00:00Z",
       sanitizedFailureClass: "delivery_timeout",
+      destinationSource: "dev_fallback",
+      fallbackUsed: true,
     });
 
     assert.equal(email.state, "accepted");
     assert.equal(discord.state, "failed");
     assert.equal("destination" in email, false);
     assert.equal("webhookUrl" in discord, false);
+    assert.equal(discord.destinationSource, "dev_fallback");
+    assert.equal(discord.fallbackUsed, true);
   });
 });
 

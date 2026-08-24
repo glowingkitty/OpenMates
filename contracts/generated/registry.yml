@@ -21,10 +21,10 @@ contracts:
     - gui.web
     - gui.apple
   architecture.operational-monitoring:
-    version: 1
+    version: 2
     status: approved
     path: architecture/operational-monitoring
-    fingerprint: 57154ff095eff8151a10a7d5caadd1fcbad76ec97d87f70a9719af6a4ea88197
+    fingerprint: f8abb767ea0aebed4b457335fbcafac1018e3a5aa4d4bee7f92bba00f892aa8d
     required_surfaces:
     - cli
   architecture.sync:
@@ -444,66 +444,87 @@ assertions:
     - gui.web
     - gui.apple
   operational-monitoring.digest.real-24h-snapshot:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: behavior
-    fingerprint: b87abed87350edbf4fcb68b1dc63d043dfc2c8b556a8015f61e637c640d371ca
+    fingerprint: 5112f444dc80588fb67bfe64e78582c115956bb40b0cf2be3c167d9b1070cf6b
     required_surfaces:
     - cli
   operational-monitoring.self-host.auto-email:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 0e536e43869475c62e9eb8e145bb1381f92fab124b29bdefe47195c1f1d7d125
     required_surfaces:
     - cli
   operational-monitoring.self-host.no-billing:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: security
-    fingerprint: 4c498537a59992d0ce6260c3bb00fb7def47530b95c741257bf07540a128224a
+    fingerprint: ca3170a7488d97c15994ac18ce2d0d761f97a71359f9f00c4d0c03ebe0d17493
     required_surfaces:
     - cli
   operational-monitoring.delivery.real-data-test:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: behavior
-    fingerprint: 118fff21ea1867be044db202cb45908fa066abc74fd04fba9ce0ddcdaa122e99
+    fingerprint: 11b20c30899d4e750be07125a5e19845781738b4aafe17dd54b141e897f730fb
     required_surfaces:
     - cli
   operational-monitoring.alerts.independent-urgent-path:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: failure
-    fingerprint: 8c619d21a60387561b4a79b3a404703739b4ec107df78973e6fd3fc7147451c7
+    fingerprint: 5f63d9ec2b8c396982859b5f47574974f410967f899928b7aa3933a600a0506a
     required_surfaces:
     - cli
   operational-monitoring.alerts.actionable-low-noise:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 7281c0bb387e2bb15dea10f125bf2dc028820ed161888fd9342dc8183280fb2e
     required_surfaces:
     - cli
   operational-monitoring.delivery.observable:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: invariant
     fingerprint: 1cab584102bde76bddfdea48523b3324723eb8ba8e5579fdbe8947a09e9db453
     required_surfaces:
     - cli
   operational-monitoring.content.privacy-boundary:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: privacy
-    fingerprint: c9589ea11d497e18a43243b0d4446ced84ad92357caaa34eabceb286e12319b2
+    fingerprint: 9546c9d8feedbae88af3c2395eaec6568fc7d577dfa0568aeb78857aed1a1bdf
     required_surfaces:
     - cli
   operational-monitoring.environments.isolated-labeled:
-    contract: architecture.operational-monitoring@1
+    contract: architecture.operational-monitoring@2
     contract_id: architecture.operational-monitoring
     type: security
     fingerprint: 1c4dcf4be52e10d5f3d417d77e700e49c3332224553c2c4b83a1ca283ac71028
+    required_surfaces:
+    - cli
+  operational-monitoring.providers.current-availability:
+    contract: architecture.operational-monitoring@2
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: c315b988cf376ea22b18dd4237e306883217d54e11442a97aabd2cf090c76a66
+    required_surfaces:
+    - cli
+  operational-monitoring.billing.no-spend-readiness:
+    contract: architecture.operational-monitoring@2
+    contract_id: architecture.operational-monitoring
+    type: invariant
+    fingerprint: 66b2593ca5d9c61032e0482ffdff3b8824e7f997b853ac4df0a08f492b875f82
+    required_surfaces:
+    - cli
+  operational-monitoring.notifications.canonical-operations-channel:
+    contract: architecture.operational-monitoring@2
+    contract_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: e2a962383ea321b9394c87c6b2365835bce5e49949c3143fa0da6f5d4942e6cf
     required_surfaces:
     - cli
   sync.access.first-party-authenticated:

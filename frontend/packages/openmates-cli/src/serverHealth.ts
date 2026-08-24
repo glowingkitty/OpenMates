@@ -115,6 +115,8 @@ export type OperationalDeliveryReceipt = {
   attemptCount: number;
   occurredAt: string;
   sanitizedFailureClass?: string;
+  destinationSource?: string;
+  fallbackUsed?: boolean;
 };
 
 export function planOperationalMonitoring(options: {
@@ -225,6 +227,8 @@ export function buildOperationalDeliveryReceipt(input: OperationalDeliveryReceip
     attemptCount: input.attemptCount,
     occurredAt: input.occurredAt,
     ...(input.sanitizedFailureClass ? { sanitizedFailureClass: input.sanitizedFailureClass } : {}),
+    ...(input.destinationSource ? { destinationSource: input.destinationSource } : {}),
+    ...(input.fallbackUsed !== undefined ? { fallbackUsed: input.fallbackUsed } : {}),
   };
 }
 

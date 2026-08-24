@@ -1,5 +1,5 @@
 schema_version: 1
-contract: architecture.operational-monitoring@1
+contract: architecture.operational-monitoring@2
 
 daily_snapshots:
   - id: compact-dev-last-24-hours
@@ -12,10 +12,12 @@ daily_snapshots:
       activity_counts: [chats, messages, embeds, usage_entries]
       processing_scope: ai_response_recovery_jobs
       processing_outcomes: [created, completed, invalidated, non_terminal_over_15m]
+      provider_health: [healthy_count, unavailable_names, skipped_names, stale_names, freshness]
       billing:
         rolling_24h: [purchase_count, credits_sold, usage_committed, usage_failed]
         purchase_source: privacy_safe_durable_settlement_ledger
         current_open_issues: [bank_review, failed_refunds, chargebacks, incomplete_settlements]
+        readiness: [eu_card, managed_payments, stripe_account, active_prices, webhook_destination, required_events, freshness]
       maximum_prioritized_issues: 3
       source_data: real_observed_data
   - id: incomplete-purchase-settlement-is-not-exact
@@ -87,3 +89,79 @@ environment_isolation:
   - id: production-report-is-explicit
     given: {source_environment: production, destination: production_ops_channel}
     expect: {subject_prefix: PROD, incident_namespace: production, dev_destination_used: false}
+
+provider_and_billing_readiness:
+  - id: configured-provider-status-is-fresh
+    given:
+      environment: production
+      providers:
+        healthy: [stripe, openai]
+        unavailable: [example_provider]
+        skipped: [vercel]
+        stale: []
+    expect:
+      healthy_count: 2
+      unavailable_names: [example_provider]
+      skipped_names: [vercel]
+      overall_provider_status: degraded
+      private_credentials: absent
+      raw_provider_errors: absent
+  - id: managed-webhook-event-missing
+    given:
+      environment: production
+      stripe_account_read: true
+      active_prices_complete: true
+      webhook_destination_enabled: true
+      enabled_events: [payment_intent.succeeded, payment_intent.payment_failed]
+      required_managed_event: checkout.session.completed
+    expect:
+      eu_card_readiness: healthy
+      managed_payments_readiness: unavailable
+      billing_readiness: degraded
+      payment_object_created: false
+      urgent_transition_on_new_failure: true
+  - id: complete-read-only-payment-readiness
+    given:
+      environment: production
+      stripe_account_read: true
+      expected_active_prices: complete
+      webhook_destination_enabled: true
+      required_events: complete
+      payment_routes_registered: true
+      required_workers_healthy: true
+      settlement_issues: 0
+      readiness_fresh: true
+    expect:
+      eu_card_readiness: healthy
+      managed_payments_readiness: healthy
+      payment_object_created: false
+
+canonical_operations_channel:
+  - id: dedicated-production-operations-destination
+    given:
+      environment: production
+      canonical_operations_destination_configured: true
+      legacy_prod_smoke_destination_configured: true
+    expect:
+      daily_status_destination: canonical_operations_destination
+      urgent_transition_destination: canonical_operations_destination
+      payment_readiness_destination: canonical_operations_destination
+      degraded_services_destination: canonical_operations_destination
+      legacy_fallback_used: false
+      daily_all_clear_sent: true
+  - id: legacy-production-fallback
+    given:
+      environment: production
+      canonical_operations_destination_configured: false
+      legacy_prod_smoke_destination_configured: true
+    expect:
+      selected_destination: legacy_prod_smoke_destination
+      fallback_visible_in_delivery_state: true
+  - id: missing-production-destination
+    given:
+      environment: production
+      canonical_operations_destination_configured: false
+      legacy_prod_smoke_destination_configured: false
+    expect:
+      false_delivery_success: false
+      configuration_incident: missing_production_operations_destination

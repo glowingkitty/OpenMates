@@ -110,10 +110,10 @@ async def test_dispatch_health_status_alerts_sends_discord_without_email_by_defa
     async def fake_discord(content: str, webhook_url: str) -> None:
         calls.append({"discord": content, "webhook_url": webhook_url})
 
-    monkeypatch.setenv("OPENMATES_HEALTH_ALERT_DISCORD_WEBHOOK_URL", "https://example.test/discord")
     monkeypatch.setenv("SERVER_OWNER_EMAIL", "owner@example.org")
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setattr(hct, "app", FakeCeleryApp())
+    monkeypatch.setattr(hct, "select_degraded_report_webhook_url", lambda _environment: "https://example.test/discord")
     monkeypatch.setattr(hct, "send_discord_degraded_report", fake_discord)
 
     await hct._dispatch_health_status_alerts(
@@ -214,12 +214,12 @@ async def test_record_health_event_queues_alert_after_persisted_transition(monke
     cache_module = types.ModuleType("backend.core.api.app.services.cache")
     cache_module.CacheService = FakeCacheService
 
-    monkeypatch.setenv("OPENMATES_HEALTH_ALERT_DISCORD_WEBHOOK_URL", "https://example.test/discord")
     monkeypatch.setenv("SERVER_OWNER_EMAIL", "owner@example.org")
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.directus", directus_module)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.cache", cache_module)
     monkeypatch.setattr(hct, "app", FakeCeleryApp())
     monkeypatch.setattr(hct, "CacheService", FakeCacheService)
+    monkeypatch.setattr(hct, "select_degraded_report_webhook_url", lambda _environment: "https://example.test/discord")
     monkeypatch.setattr(hct, "send_discord_degraded_report", fake_discord)
 
     await hct._record_health_event_if_changed(

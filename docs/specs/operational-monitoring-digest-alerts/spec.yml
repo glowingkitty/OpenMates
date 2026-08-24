@@ -1,13 +1,13 @@
 schema_version: 3
 id: operational-monitoring-digest-alerts
 title: Operational Monitoring Digest And Urgent Alerts
-status: approved
+status: implementing
 
 contract_refs:
   - id: architecture.operational-monitoring
-    version: 1
+    version: 2
     role: primary
-    fingerprint: 57154ff095eff8151a10a7d5caadd1fcbad76ec97d87f70a9719af6a4ea88197
+    fingerprint: f8abb767ea0aebed4b457335fbcafac1018e3a5aa4d4bee7f92bba00f892aa8d
 
 contract_impact:
   classification: new_contract
@@ -22,6 +22,9 @@ contract_impact:
     - operational-monitoring.delivery.observable
     - operational-monitoring.content.privacy-boundary
     - operational-monitoring.environments.isolated-labeled
+    - operational-monitoring.providers.current-availability
+    - operational-monitoring.billing.no-spend-readiness
+    - operational-monitoring.notifications.canonical-operations-channel
   reason: >
     The approved operational-monitoring contract defines the new daily digest,
     urgent alert, self-host activation, privacy, delivery, and environment
@@ -70,6 +73,10 @@ scope:
     - Automatically schedule self-host email delivery when an admin email and working email service exist.
     - Remove billing fields, sections, check IDs, status text, and incidents from all self-host operational monitoring output.
     - Require a dev burn-in and controlled failure drills before separately approved production rollout.
+    - Report fresh configured-provider availability as healthy counts plus unavailable, skipped, and stale names.
+    - Evaluate EU Stripe and Managed Payments independently with non-mutating live-account, active-price, webhook-destination, required-event, route, worker, and settlement checks.
+    - Resolve one canonical production operations Discord destination for daily status, urgent transitions, payment readiness, degraded-service reports, and recovery, with the production-smoke destination as fallback only.
+    - Require both deployed dev Stripe purchase specs to pass after the monitoring changes are deployed.
   out:
     - Grafana deployment or a new browser dashboard.
     - Public or developer monitoring APIs.
@@ -78,6 +85,7 @@ scope:
     - Raw user content, ciphertext, identities, payment identifiers, secrets, destinations, or unsanitized stack traces.
     - Automated server remediation, restart, rollback, or payment mutation.
     - Production SSH changes or deployment without explicit production approval.
+    - Recurring synthetic live PaymentIntent or Checkout Session creation.
     - Proof-video generation; the user explicitly waived video for this non-visual operational workflow.
 
 context_discovery:
@@ -111,6 +119,10 @@ context_discovery:
     - The current APIDown alert uses the API itself as its only receiver path.
     - No openmates systemd monitoring timers were installed on the dev host during discovery.
     - The public production health endpoint returned populated sanitized service maps, while dev returned healthy with empty maps; neither public payload proves freshness.
+    - A user-initiated production EU payment attempt created one live PaymentIntent and stopped in requires_payment_method without a charge.
+    - The live Stripe account exposes one enabled classic/v2 snapshot event destination that omits checkout.session.completed and other backend-handled Managed Payments, subscription, refund, and dispute events.
+    - The production weekday degraded-services report currently skips because no supported production Discord destination is configured in that runtime.
+    - The existing Stripe health probe only calls stripe.Account.retrieve and therefore cannot detect product, price, or webhook-subscription drift.
 
 apple_impact:
   affected_files:
@@ -132,25 +144,30 @@ clarification:
       answer: They must not mention billing at all; billing details exist only for official-cloud dev and production.
     - question: Is proof-video evidence required?
       answer: No. Validate through deterministic checks, real delivery receipts, and inspected email/Discord artifacts instead.
+    - question: Which Discord destination should become canonical for production operations?
+      answer: Use one dedicated production operations destination for daily status, urgent transitions, payment readiness, and degraded-service reports; retain production smoke only as fallback.
   vision_summary: >
     Operators should receive one concise daily operational snapshot and prompt,
     low-noise urgent alerts whose delivery does not depend on the failing service.
     The setup is not accepted until real dev data reaches both email and Discord;
     self-host email activates automatically when configured and omits billing entirely.
+    Official cloud additionally reports fresh provider status and independent
+    non-mutating EU/Managed payment readiness through one canonical operations
+    Discord destination, while deployed dev Stripe E2Es prove complete sandbox flows.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ad2fafcc31d31d771f5beef3118228cff8d346de
+  subject_commit: 37ac33ae20bf1bae731f0594a292ded0a53234ca
 
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-08-15T12:04:16Z"
-    reason: User explicitly approved replacing best-effort purchase metrics with the privacy-safe durable settlement ledger represented by this exact contract fingerprint.
+    approved_at: "2026-08-24T13:06:08Z"
+    reason: User explicitly approved the resumed version-2 implementation contract.
   implementation_plan:
     status: approved
-    approved_at: "2026-08-14T17:25:32Z"
-    reason: User explicitly approved the implementation plan and instructed implementation to begin.
+    approved_at: "2026-08-24T13:06:08Z"
+    reason: User explicitly approved payment-readiness, provider-health, Discord-routing, dev E2E, and production configuration work.
 
 decisions:
   - id: D-1
@@ -188,6 +205,16 @@ decisions:
     decision: Use an internal privacy-safe Directus settlement ledger as the exact rolling purchase source, recording pending before credit mutation and completed afterward.
     reason: Redis counters and logs can silently lose purchase events after cache loss or a process crash; unresolved durable rows can instead make the report explicitly unavailable.
     decided_at: "2026-08-15T11:32:18Z"
+  - id: D-8
+    status: active
+    decision: Production payment monitoring remains non-mutating and evaluates EU card and Managed Payments independently.
+    reason: Read-only account, catalog, destination, event, route, worker, and settlement checks catch configuration drift without accumulating live payment objects.
+    decided_at: "2026-08-24T11:45:00Z"
+  - id: D-9
+    status: active
+    decision: One dedicated production operations Discord destination is canonical, with production smoke as fallback only.
+    reason: Shared resolution prevents daily, urgent, payment, and degraded reports from silently diverging across environment-variable fallback chains.
+    decided_at: "2026-08-24T11:45:00Z"
 
 scenarios:
   - id: S-1
@@ -272,16 +299,68 @@ scenarios:
       - Production configuration is audited before enablement.
       - A controlled production delivery test and failure/recovery drill run before ongoing production alerts are accepted.
 
+  - id: S-8
+    title: Stripe readiness distinguishes EU card and Managed Payments
+    given:
+      - Official-cloud payment collection is enabled.
+      - Stripe account access and expected active prices are available.
+      - The enabled live event destination omits checkout.session.completed.
+    when:
+      - The non-mutating payment-readiness check runs.
+    then:
+      - EU card readiness can remain healthy when its required checks pass.
+      - Managed Payments readiness is unavailable or degraded.
+      - The overall billing-readiness state cannot be healthy.
+      - No PaymentIntent, Checkout Session, customer, charge, refund, or subscription is created or changed.
+
+  - id: S-9
+    title: Daily status names unavailable, skipped, and stale providers
+    given:
+      - Configured provider and external-service health checks have current cache records.
+      - Some checks are healthy and one check is skipped, unavailable, or stale.
+    when:
+      - The daily production operations digest is rendered.
+    then:
+      - Healthy providers are summarized by count.
+      - Unavailable, skipped, and stale provider names are listed separately.
+      - Missing or stale state is never represented as healthy.
+      - Credentials and raw provider error payloads are absent.
+
+  - id: S-10
+    title: Production operations notifications share one destination
+    given:
+      - A dedicated production operations Discord destination is configured.
+      - The legacy production-smoke destination may also be configured.
+    when:
+      - Daily status, an urgent provider or payment transition, a degraded-services report, or recovery is delivered.
+    then:
+      - Every notification resolves the dedicated production operations destination first.
+      - The legacy production-smoke destination is used only when the canonical destination is absent.
+      - Production sends one daily all-clear when no issue is active.
+      - Missing canonical and fallback destinations create visible unavailable delivery state.
+
+  - id: S-11
+    title: Deployed dev proves complete Stripe sandbox flows
+    given:
+      - Payment-readiness and notification changes are deployed to dev.
+      - Dev Stripe sandbox products, webhook destination, test accounts, and workers are available.
+    when:
+      - The EU card and Managed Payments settings purchase specs run against app.dev.openmates.org.
+    then:
+      - Each spec completes its Stripe sandbox payment and reaches purchase success.
+      - Managed Payments proves Checkout Session webhook settlement, documents, email, and refund behavior.
+      - A skipped, not-started, stale, or failed result cannot satisfy the gate.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: Official-cloud dev and production digests contain a real preceding-24-hour resource graph, aggregate activity, explicitly labeled AI response recovery-job outcomes, exact rolling-24-hour credit purchase and credits-sold totals, usage charging outcomes, current open purchase issues, monitoring freshness, and at most three prioritized issues.
+    text: Official-cloud dev and production digests contain a real preceding-24-hour resource graph, aggregate activity, explicitly labeled AI response recovery-job outcomes, fresh provider availability, independent non-mutating EU and Managed payment readiness, exact rolling-24-hour credit purchase and credits-sold totals, usage charging outcomes, current open purchase issues, monitoring freshness, and at most three prioritized issues.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: related_backend
-    verification_ids: [T-DIGEST-UNIT, V-DEV-REAL-DELIVERY]
-    contract_assertions: [operational-monitoring.digest.real-24h-snapshot, operational-monitoring.content.privacy-boundary]
+    verification_ids: [T-DIGEST-UNIT, T-PAYMENT-READINESS, T-PROVIDER-STATUS, V-DEV-REAL-DELIVERY]
+    contract_assertions: [operational-monitoring.digest.real-24h-snapshot, operational-monitoring.providers.current-availability, operational-monitoring.billing.no-spend-readiness, operational-monitoring.content.privacy-boundary]
   - id: AC-2
     scenario: S-2
     text: Self-host install/update idempotently activates daily email only when admin email and email service availability are confirmed, and missing prerequisites never appear as successful delivery.
@@ -311,7 +390,7 @@ acceptance_criteria:
     contract_assertions: [operational-monitoring.delivery.real-data-test, operational-monitoring.environments.isolated-labeled]
   - id: AC-5
     scenario: S-4
-    text: Critical API, host, disk, billing-readiness, and monitoring-staleness incidents can notify and recover through a path independent of API and application scheduler availability.
+    text: Critical API, host, disk, provider-availability, billing-readiness, and monitoring-staleness incidents can notify and recover through a path independent of API and application scheduler availability.
     required: true
     status: pending
     coverage_status: covered
@@ -363,6 +442,42 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [V-DEV-ROLLOUT-GATE, V-PROD-ROLLOUT]
     contract_assertions: [operational-monitoring.delivery.real-data-test, operational-monitoring.delivery.observable]
+  - id: AC-11
+    scenario: S-8
+    text: Official-cloud billing readiness independently and non-mutatingly verifies EU card and Managed Payments account access, expected active prices, enabled Stripe event destinations, complete required event subscriptions, payment routes, required workers, settlement state, and freshness; any missing required check prevents a healthy state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PAYMENT-READINESS, T-OPERATIONAL-AUDIT, V-PROD-PAYMENT-CONFIG]
+    contract_assertions: [operational-monitoring.billing.no-spend-readiness, billing.purchase.provider-routing]
+  - id: AC-12
+    scenario: S-9
+    text: Daily official-cloud status reports a fresh healthy-provider count and explicitly names unavailable, skipped, and stale configured providers without credentials or raw provider errors.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-DIGEST-UNIT, T-PROVIDER-STATUS]
+    contract_assertions: [operational-monitoring.providers.current-availability, operational-monitoring.content.privacy-boundary]
+  - id: AC-13
+    scenario: S-10
+    text: Daily status, urgent transitions, payment readiness, degraded-service reports, and recovery share one canonical environment-specific operations Discord destination, use production smoke only as visible fallback, and emit a daily production all-clear.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-DISCORD-RESOLVER, T-CLI-MONITORING, V-DEV-REAL-DELIVERY, V-PROD-DISCORD]
+    contract_assertions: [operational-monitoring.notifications.canonical-operations-channel, operational-monitoring.environments.isolated-labeled]
+  - id: AC-14
+    scenario: S-11
+    text: After scoped dev deployment, settings-buy-credits-stripe-eu.spec.ts and settings-buy-credits-stripe-managed.spec.ts both complete against Stripe sandbox with passed, fresh, non-skipped results.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-E2E-STRIPE-EU, T-E2E-STRIPE-MANAGED]
+    contract_assertions: [billing.purchase.provider-routing, billing.documents.visible-downloadable, billing.access.authenticated-first-party]
 
 assumptions:
   - id: A-1
@@ -399,6 +514,24 @@ assumptions:
     evidence:
       - source: frontend/packages/openmates-cli/src/serverHealth.ts
         summary: Existing code persists incident state and independently retries email, Discord, and signed-webhook delivery.
+  - id: A-5
+    text: Stripe classic WebhookEndpoint and v2 Event Destinations APIs expose every enabled live snapshot destination and required event subscription without creating payment objects.
+    category: provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Stripe live read-only API inspection on 2026-08-24
+        summary: Classic and v2 APIs returned the same single enabled snapshot destination and event list without payment mutation.
+  - id: A-6
+    text: Existing dev Stripe specs use sandbox objects and can prove complete EU and Managed settlement after deployment without affecting production.
+    category: testing
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+        summary: Existing spec completes an EU Stripe sandbox purchase through success.
+      - source: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+        summary: Existing spec completes Managed Checkout settlement, documents, email, and refund in sandbox.
 
 contracts:
   api:
@@ -410,7 +543,7 @@ contracts:
   snapshot:
     window: Exactly the preceding 24 hours ending at generation time.
     resource_resolution: Downsample to a bounded number of points suitable for one compact graph.
-    required_official_cloud_sections: [resource_graph, activity, processing, billing, reliability, prioritized_issues]
+    required_official_cloud_sections: [resource_graph, activity, processing, provider_health, billing, reliability, prioritized_issues]
     required_self_host_sections: [resource_graph, activity, processing, reliability, prioritized_issues]
     forbidden_self_host_tokens: [billing, payment, stripe, invoice, subscription, purchase]
     prioritized_issue_limit: 3
@@ -420,6 +553,21 @@ contracts:
     urgent: Critical incidents use independent Discord and email destinations when configured; one channel failure cannot suppress another.
     receipts: Persist environment, logical event/report ID, generated timestamp, content hash, channel, attempt count, accepted/failed/unavailable state, and sanitized failure class.
     forbidden_receipt_data: [destination, email_address, webhook_url, secret, user_id, payment_id, raw_content, ciphertext]
+    canonical_discord: Dedicated environment-specific operations destination first; legacy environment smoke destination is fallback only.
+    production_all_clear: One daily status is delivered even when no issue is active.
+  payment_readiness:
+    environments: [development, production]
+    self_host: forbidden
+    mutation_budget: No Stripe object creation, update, cancellation, expiry, confirmation, refund, or deletion.
+    eu_card_required_checks: [stripe_account_access, expected_active_prices, payment_intent_events, route_registered, workers_healthy, settlement_state, freshness]
+    managed_required_checks: [stripe_account_access, expected_global_prices, checkout_session_events, destination_enabled, route_registered, workers_healthy, settlement_state, freshness]
+    unhealthy_rule: Any missing, failed, skipped-required, or stale check prevents healthy status.
+  provider_health:
+    groups: [healthy, unavailable, skipped, stale]
+    healthy_rendering: Count only.
+    nonhealthy_rendering: Sanitized provider names only.
+    freshness_required: true
+    forbidden: [credentials, raw_errors, response_payloads]
   scheduling:
     official_cloud: Daily plus independent stale-report watchdog.
     self_host: Install/update activates daily email when admin email and email service availability checks pass; Discord is used only when configured.
@@ -499,6 +647,82 @@ tests:
       - Destination values and secrets are never rendered or persisted.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "red:operational-privacy-contract-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Audit reported missing privacy denylist, receipt integrity fields, and operational service implementation."}}
     green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:operational-privacy-contract-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
+  - id: T-PAYMENT-READINESS
+    type: pytest
+    file: backend/tests/test_payment_readiness.py
+    command: python3 -m pytest backend/tests/test_payment_readiness.py -q
+    covers: [AC-1, AC-11]
+    contract_assertions: [operational-monitoring.billing.no-spend-readiness, billing.purchase.provider-routing]
+    assertions:
+      - EU card and Managed Payments readiness are evaluated independently.
+      - Missing checkout.session.completed degrades Managed Payments while preserving a passing EU result.
+      - Expected EU and global active prices and all backend-handled required event subscriptions are checked.
+      - No method capable of creating or mutating a Stripe object is called.
+      - Missing, failed, skipped-required, or stale checks cannot produce healthy readiness.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_payment_readiness.py -q", run_id: "local:red-payment-readiness-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Collection failed because payment_readiness.py does not exist."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PROVIDER-STATUS
+    type: pytest
+    file: backend/tests/test_operational_monitoring_digest.py
+    command: python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q
+    covers: [AC-1, AC-12]
+    contract_assertions: [operational-monitoring.providers.current-availability, operational-monitoring.content.privacy-boundary]
+    assertions:
+      - Fresh configured providers are grouped into healthy, unavailable, skipped, and stale states.
+      - Healthy providers render as a count while nonhealthy sanitized names remain actionable.
+      - Missing timestamps become stale rather than healthy.
+      - Credentials and raw provider errors are rejected from snapshot and delivery output.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "local:red-provider-status-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Snapshot builder rejected provider_health and summarize_provider_health was absent."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-DISCORD-RESOLVER
+    type: pytest
+    file: backend/tests/test_degraded_services_discord_report.py
+    command: python3 -m pytest backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py -q
+    covers: [AC-13]
+    contract_assertions: [operational-monitoring.notifications.canonical-operations-channel, operational-monitoring.environments.isolated-labeled]
+    assertions:
+      - Daily, urgent, payment, degraded, and recovery notification paths resolve the same canonical environment destination.
+      - Production smoke is fallback-only and fallback use is visible.
+      - Missing canonical and fallback destinations return unavailable rather than success.
+      - A production daily all-clear is rendered when no issue is active.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py -q", run_id: "local:red-discord-resolver-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Collection failed because the canonical operations destination resolver was absent."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-OPERATIONAL-AUDIT
+    type: lint
+    file: scripts/audit_operational_monitoring_contract.py
+    command: python3 scripts/audit_operational_monitoring_contract.py --privacy
+    covers: [AC-11, AC-13]
+    contract_assertions: [operational-monitoring.billing.no-spend-readiness, operational-monitoring.notifications.canonical-operations-channel]
+    assertions:
+      - Payment readiness is read-only and official-cloud-only.
+      - Required Stripe event subscriptions derive from backend-handled event types.
+      - All operator Discord paths use one shared resolver.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:red-operational-audit-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Audit reported missing payment service, provider freshness, shared Discord resolution, and redacted Stripe health mode."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-E2E-STRIPE-EU
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    command: python3 scripts/tests.py run --spec settings-buy-credits-stripe-eu.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-14]
+    contract_assertions: [billing.purchase.provider-routing, billing.access.authenticated-first-party]
+    assertions:
+      - Authenticated EU Stripe sandbox purchase reaches purchase success.
+      - Stripe Payment Element and payment_intent.succeeded settlement remain functional after deployment.
+    red_phase: {required: false, expected: not_applicable_existing_behavior, status: not_applicable, evidence: {status: not_applicable, summary: "Existing production behavior is unchanged; this is a post-deploy regression gate.", timestamp: "2026-08-24T11:45:00Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-E2E-STRIPE-MANAGED
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    command: python3 scripts/tests.py run --spec settings-buy-credits-stripe-managed.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-14]
+    contract_assertions: [billing.purchase.provider-routing, billing.documents.visible-downloadable, billing.access.authenticated-first-party]
+    assertions:
+      - Authenticated Managed Payments sandbox Checkout Session reaches purchase success.
+      - Checkout webhook settlement, payment confirmation, email/PDF, and refund remain functional after deployment.
+    red_phase: {required: false, expected: not_applicable_existing_behavior, status: not_applicable, evidence: {status: not_applicable, summary: "Existing production behavior is unchanged; this is a post-deploy regression gate.", timestamp: "2026-08-24T11:45:00Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
 
 verifications:
   - id: V-DEV-REAL-DELIVERY
@@ -538,11 +762,27 @@ verifications:
     covers: [AC-9, AC-10]
     status: pending
     evidence: {status: "", summary: "Blocked until separate production approval, SSH configuration audit, dev gate completion, controlled production delivery test, and production failure/recovery drill.", timestamp: ""}
+  - id: V-PROD-PAYMENT-CONFIG
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-11]
+    status: pending
+    command: python3 scripts/stripe_audit.py --production --health --json
+    evidence: {status: "", summary: "Requires redacted read-only verification that live EU and Managed price catalogs, destination status, and every required event subscription are complete after the controlled Stripe configuration update.", timestamp: ""}
+  - id: V-PROD-DISCORD
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-13]
+    status: pending
+    command: openmates server notifications test --channel discord --json
+    evidence: {status: "", summary: "Requires accepted delivery to the dedicated production operations destination plus active daily digest/watchdog timers and visible fallback state.", timestamp: ""}
   - id: V-SPEC-VERIFY
     kind: deterministic_check
     phase: final
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
     status: pending
     command: python3 scripts/spec_verify.py docs/specs/operational-monitoring-digest-alerts/spec.yml
     evidence: {status: "", summary: "", timestamp: ""}
@@ -565,13 +805,17 @@ implementation_plan:
     Extend the existing Prometheus/OpenObserve and host runtime monitoring stack.
     Add private node metrics, fix and test Prometheus rules, collect bounded
     aggregate snapshots in a packaged backend helper, render one SVG-to-PNG
-    artifact, and let the existing host notifier own independent delivery,
-    receipts, scheduling freshness, and urgent fallback behavior.
+    artifact, evaluate fresh provider and non-mutating EU/Managed payment
+    readiness, and let the existing host notifier own independent delivery,
+    receipts, scheduling freshness, canonical Discord resolution, and urgent
+    fallback behavior.
   existing_patterns:
     - Prometheus already remote-writes metrics to OpenObserve and Alertmanager already groups alerts.
     - Daily issue and degraded-service tasks already query sanitized errors and use email/Discord transports.
     - server_stats_global_daily already holds privacy-safe aggregate activity and official-cloud financial counters.
     - serverHealth.ts already implements host-local state, retries, daily heartbeat, incident deduplication, and recovery.
+    - Stripe classic and v2 destination APIs provide read-only live configuration inventory.
+    - Existing EU and Managed settings purchase specs complete real Stripe sandbox transactions on deployed dev.
   data_flow:
     - Prometheus scrapes private node, container, API, and worker metrics with environment labels.
     - The packaged snapshot collector queries a bounded 24-hour metric range, aggregate server stats, health transitions, and sanitized error clusters.
@@ -579,6 +823,9 @@ implementation_plan:
     - The renderer creates a deterministic compact SVG and PNG plus short email/Discord text.
     - The host notifier sends configured channels independently and persists redacted receipts and report freshness.
     - Alertmanager and the host watchdog route urgent incidents without depending on the API or application scheduler.
+    - Provider cache records are normalized into healthy counts plus unavailable, skipped, and stale sanitized names.
+    - Official-cloud payment readiness reads Stripe account, active price, classic/v2 destination, required event, route, worker, and settlement state without creating Stripe objects.
+    - Daily, urgent, payment, degraded, and recovery notifications resolve one canonical environment-specific operations destination before any legacy fallback.
   affected_files:
     - {path: backend/core/docker-compose.yml, reason: Add private node metrics and monitoring configuration.}
     - {path: backend/core/docker-compose.selfhost.yml, reason: Keep packaged self-host monitoring and automatic schedule support aligned.}
@@ -590,28 +837,38 @@ implementation_plan:
     - {path: backend/core/api/app/services/operational_monitoring.py, reason: Aggregate and render privacy-safe snapshots.}
     - {path: backend/core/api/app/tasks/operational_monitoring_tasks.py, reason: Scheduled official-cloud collection and bounded report generation.}
     - {path: backend/core/api/app/tasks/celery_config.py, reason: Register the daily task while host watchdog verifies freshness.}
+    - {path: backend/core/api/app/services/payment_readiness.py, reason: Read-only EU and Managed Stripe readiness inventory.}
+    - {path: backend/core/api/app/services/degraded_services_report.py, reason: Reuse canonical operations Discord resolution.}
+    - {path: backend/core/api/app/tasks/health_check_tasks.py, reason: Cache detailed payment readiness and provider freshness without changing payment state.}
     - {path: frontend/packages/openmates-cli/src/serverHealth.ts, reason: Host schedule, receipts, self-host activation, and stale-report incidents.}
     - {path: frontend/packages/openmates-cli/src/server.ts, reason: Operator real-data delivery-test and status commands.}
+    - {path: scripts/stripe_audit.py, reason: Redacted production-safe readiness command and required-event audit.}
     - {path: scripts/verify_operational_monitoring.py, reason: Real dev delivery and controlled failure verification.}
     - {path: scripts/audit_operational_monitoring_contract.py, reason: Deterministic privacy, self-host omission, and deployment guard.}
     - {path: backend/tests/test_operational_monitoring_digest.py, reason: Snapshot, renderer, ranking, isolation, and receipt tests.}
+    - {path: backend/tests/test_payment_readiness.py, reason: Non-mutating EU and Managed Stripe readiness contract tests.}
+    - {path: backend/tests/test_degraded_services_discord_report.py, reason: Canonical production operations destination tests.}
     - {path: frontend/packages/openmates-cli/tests/server.test.ts, reason: Host monitoring and self-host contract tests.}
     - {path: docs/specs/post-update-runtime-health-alerting/spec.yml, reason: Replace legacy self-host billing not-applicable language with complete omission when implementation begins.}
   verification_strategy:
     - Write and run failing digest, Prometheus-rule, CLI, self-host, and privacy tests before implementation.
     - Rebuild/restart only affected dev monitoring, API, scheduler, and host-monitor components under repository locks.
     - Run focused green tests and deterministic audits.
+    - Run direct dev payment-readiness CLI/API probes before browser verification.
     - Send the real current dev 24-hour email and Discord test and inspect both received artifacts.
+    - Deploy to dev and require fresh passing EU and Managed Stripe settings purchase specs.
     - Run controlled dev alert and stale-report drills with guaranteed restoration and recovery checks.
     - Observe seven consecutive fresh daily dev reports before requesting production access.
-    - Audit and roll out production only after separate explicit approval.
+    - Update the live Stripe event destination and production operations Discord configuration only after dev gates, then rerun the read-only audit and delivery test.
   verification_order:
     - T-DIGEST-UNIT, T-ALERT-RULES, T-CLI-MONITORING, T-SELFHOST-CONTRACT, and T-PRIVACY-AUDIT red phase.
+    - T-PAYMENT-READINESS, T-PROVIDER-STATUS, T-DISCORD-RESOLVER, and T-OPERATIONAL-AUDIT red phase.
     - Resource collection and alert-rule green phase.
     - Snapshot, renderer, scheduling, self-host, and delivery green phase.
     - V-DEV-REAL-DELIVERY and V-DEV-ARTIFACT-REVIEW with current dev data.
+    - Scoped dev deploy followed by T-E2E-STRIPE-EU and T-E2E-STRIPE-MANAGED.
     - V-DEV-FAILURE-DRILL and seven-day V-DEV-ROLLOUT-GATE.
-    - V-PROD-ROLLOUT after separate production approval.
+    - V-PROD-PAYMENT-CONFIG, V-PROD-DISCORD, and V-PROD-ROLLOUT after explicit production approval.
     - V-SPEC-VERIFY final.
 
 tasks:
@@ -669,18 +926,62 @@ tasks:
     dependencies: [TASK-1, TASK-2, TASK-3, TASK-4]
     blockers: []
     ownership: {files: [docs/specs/operational-monitoring-digest-alerts/spec.yml], shared_files: []}
-    follow_up_tasks: [TASK-6]
+    follow_up_tasks: [TASK-7]
   - id: TASK-6
-    title: Audit and roll out production after explicit approval
+    title: Apply and verify controlled production payment and Discord configuration
     status: pending
     phase: running_checks
-    covers: {scenarios: [S-7], acceptance_criteria: [AC-9, AC-10]}
+    covers: {scenarios: [S-7, S-8, S-9, S-10], acceptance_criteria: [AC-9, AC-10, AC-11, AC-12, AC-13]}
     expected_files: [docs/specs/operational-monitoring-digest-alerts/spec.yml]
-    verification_ids: [V-PROD-ROLLOUT, V-SPEC-VERIFY]
-    dependencies: [TASK-5]
-    blockers: [explicit_production_approval]
+    verification_ids: [V-PROD-PAYMENT-CONFIG, V-PROD-DISCORD, V-PROD-ROLLOUT, V-SPEC-VERIFY]
+    dependencies: [TASK-5, TASK-10]
+    blockers: []
     ownership: {files: [docs/specs/operational-monitoring-digest-alerts/spec.yml], shared_files: []}
     follow_up_tasks: []
+  - id: TASK-7
+    title: Add red payment-readiness, provider-status, and canonical-Discord tests
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-8, S-9, S-10], acceptance_criteria: [AC-1, AC-11, AC-12, AC-13]}
+    expected_files: [backend/tests/test_payment_readiness.py, backend/tests/test_operational_monitoring_digest.py, backend/tests/test_degraded_services_discord_report.py, scripts/audit_operational_monitoring_contract.py]
+    verification_ids: [T-PAYMENT-READINESS, T-PROVIDER-STATUS, T-DISCORD-RESOLVER, T-OPERATIONAL-AUDIT]
+    dependencies: [TASK-1, TASK-2, TASK-3, TASK-4]
+    blockers: []
+    ownership: {files: [backend/tests/test_payment_readiness.py, backend/tests/test_operational_monitoring_digest.py, backend/tests/test_degraded_services_discord_report.py, scripts/audit_operational_monitoring_contract.py], shared_files: []}
+    follow_up_tasks: [TASK-8, TASK-9]
+  - id: TASK-8
+    title: Implement non-mutating Stripe readiness and provider freshness reporting
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-8, S-9], acceptance_criteria: [AC-1, AC-11, AC-12]}
+    expected_files: [backend/core/api/app/services/payment_readiness.py, backend/core/api/app/services/operational_monitoring.py, backend/core/api/app/tasks/health_check_tasks.py, backend/core/api/app/tasks/operational_monitoring_tasks.py, scripts/stripe_audit.py]
+    verification_ids: [T-PAYMENT-READINESS, T-PROVIDER-STATUS, T-OPERATIONAL-AUDIT]
+    dependencies: [TASK-7]
+    blockers: [A-5]
+    ownership: {files: [backend/core/api/app/services/payment_readiness.py, backend/core/api/app/services/operational_monitoring.py, backend/core/api/app/tasks/health_check_tasks.py, backend/core/api/app/tasks/operational_monitoring_tasks.py, scripts/stripe_audit.py], shared_files: []}
+    follow_up_tasks: [TASK-10]
+  - id: TASK-9
+    title: Unify production operations Discord resolution and daily all-clear
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-10], acceptance_criteria: [AC-5, AC-7, AC-9, AC-13]}
+    expected_files: [backend/core/api/app/services/operational_monitoring.py, backend/core/api/app/services/degraded_services_report.py, backend/core/api/app/tasks/health_check_tasks.py, frontend/packages/openmates-cli/src/serverHealth.ts, frontend/packages/openmates-cli/src/server.ts]
+    verification_ids: [T-DISCORD-RESOLVER, T-CLI-MONITORING, V-DEV-REAL-DELIVERY]
+    dependencies: [TASK-7]
+    blockers: []
+    ownership: {files: [backend/core/api/app/services/operational_monitoring.py, backend/core/api/app/services/degraded_services_report.py, backend/core/api/app/tasks/health_check_tasks.py, frontend/packages/openmates-cli/src/serverHealth.ts, frontend/packages/openmates-cli/src/server.ts], shared_files: []}
+    follow_up_tasks: [TASK-10]
+  - id: TASK-10
+    title: Deploy dev monitoring changes and prove both Stripe sandbox purchase flows
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-3, S-8, S-9, S-10, S-11], acceptance_criteria: [AC-1, AC-4, AC-11, AC-12, AC-13, AC-14]}
+    expected_files: [docs/specs/operational-monitoring-digest-alerts/spec.yml]
+    verification_ids: [V-DEV-REAL-DELIVERY, V-DEV-ARTIFACT-REVIEW, T-E2E-STRIPE-EU, T-E2E-STRIPE-MANAGED]
+    dependencies: [TASK-8, TASK-9]
+    blockers: [A-6]
+    ownership: {files: [docs/specs/operational-monitoring-digest-alerts/spec.yml], shared_files: []}
+    follow_up_tasks: [TASK-6]
 
 attempts:
   - id: ATTEMPT-1
@@ -695,11 +996,17 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-14T15:22:57Z"
     evidence: Contract fingerprint bfd529ca9fec376b4ae7f2b6866a1dd0c452209b6374d35d5d48a7bf4e3a5744 approved in session 394d.
+  - id: ATTEMPT-3
+    task_id: TASK-7
+    approach: Resume the approved monitoring ledger after a live production payment and notification audit exposed Managed webhook and Discord configuration gaps.
+    outcome: planned
+    recorded_at: "2026-08-24T11:45:00Z"
+    evidence: architecture.operational-monitoring@2 fingerprint f8abb767ea0aebed4b457335fbcafac1018e3a5aa4d4bee7f92bba00f892aa8d approved in session df04.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the red tests without editing product source first.
-  command: python3 scripts/spec_verify.py docs/specs/operational-monitoring-digest-alerts/spec.yml --phase red
-  expected_outcome: Required red tests are recorded as failing for the expected missing or incorrect behavior before implementation begins.
+  current_task_id: TASK-10
+  next_action: Deploy the scoped monitoring implementation to dev and run both existing Stripe purchase regression specs.
+  command: python3 scripts/sessions.py deploy --session df04 --title "Add payment readiness monitoring" --message "Add non-mutating payment readiness and unified operations alerts"
+  expected_outcome: Dev deployment completes and yields a commit for gated EU and Managed Stripe Playwright verification.
   blocker: null
-  last_verified_commit: ad2fafcc31d31d771f5beef3118228cff8d346de
+  last_verified_commit: 37ac33ae20bf1bae731f0594a292ded0a53234ca

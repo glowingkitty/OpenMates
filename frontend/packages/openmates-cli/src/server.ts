@@ -2278,15 +2278,26 @@ function runtimeNotificationConfig(installPath: string) {
   const genericWebhook = webhookUrl && webhookSecret
     ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
     : undefined;
-  const discordWebhookUrl = value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
-    || (deploymentMode === "self_host"
-      ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST")
-      : serverEnvironment === "production"
-        ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION") || value("DISCORD_WEBHOOK_PROD_SMOKE")
-        : value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT") || value("DISCORD_WEBHOOK_DEV_SMOKE"));
+  const canonicalDiscordWebhookUrl = deploymentMode === "self_host"
+    ? value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST") || value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST") || value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
+    : serverEnvironment === "production"
+      ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION") || value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION")
+      : value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT") || value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT");
+  const fallbackDiscordWebhookUrl = deploymentMode === "self_host"
+    ? undefined
+    : serverEnvironment === "production"
+      ? value("DISCORD_WEBHOOK_PROD_SMOKE")
+      : value("DISCORD_WEBHOOK_DEV_NIGHTLY") || value("DISCORD_WEBHOOK_DEV_SMOKE");
+  const discordWebhookUrl = canonicalDiscordWebhookUrl || fallbackDiscordWebhookUrl;
   return {
     email,
     discordWebhookUrl,
+    discordDestinationSource: canonicalDiscordWebhookUrl
+      ? "canonical"
+      : fallbackDiscordWebhookUrl
+        ? serverEnvironment === "production" ? "prod_smoke_fallback" : "dev_fallback"
+        : "missing",
+    discordFallbackUsed: !canonicalDiscordWebhookUrl && Boolean(fallbackDiscordWebhookUrl),
     genericWebhook,
   };
 }
@@ -2856,7 +2867,7 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
       delivery_state: string;
       report_id: string;
       report_sha256: string;
-      receipts: Array<{ environment: "development" | "production" | "self_host"; channel: "email" | "discord"; state: "queued" | "accepted" | "failed" | "unavailable"; attempt_count: number; occurred_at: string; sanitized_failure_class?: string }>;
+      receipts: Array<{ environment: "development" | "production" | "self_host"; channel: "email" | "discord"; state: "queued" | "accepted" | "failed" | "unavailable"; attempt_count: number; occurred_at: string; sanitized_failure_class?: string; destination_source?: string; fallback_used?: boolean }>;
     };
     const accepted = output.delivery_state === "accepted";
     const state = await readOperationalReportState(installPath, role);
@@ -2882,6 +2893,8 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
       attemptCount: receipt.attempt_count,
       occurredAt: receipt.occurred_at,
       sanitizedFailureClass: receipt.sanitized_failure_class,
+      destinationSource: receipt.destination_source,
+      fallbackUsed: receipt.fallback_used,
     }));
     const receiptDir = join(installPath, ".openmates", "runtime-health", "receipts");
     mkdirSync(receiptDir, { recursive: true, mode: 0o700 });
@@ -2986,7 +2999,15 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
     checkIds: ["monitor"],
     sanitizedReason: "operator_requested_delivery_test",
   });
-  const output = { command: "notifications test", role, configured: deliveries.length > 0, deliveries };
+  const output = {
+    command: "notifications test",
+    role,
+    configured: deliveries.length > 0,
+    discordDestination: channel === "discord" || channel === "all"
+      ? { source: notificationConfig.discordDestinationSource, fallbackUsed: notificationConfig.discordFallbackUsed }
+      : undefined,
+    deliveries,
+  };
   if (flags.json === true) printJson(output);
   else console.log(JSON.stringify(output, null, 2));
   if (deliveries.some((delivery) => delivery.status === "exhausted")) throw new Error("One or more notification delivery tests failed.");
