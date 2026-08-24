@@ -145,10 +145,11 @@ def test_archive_validation_rejects_undeclared_top_level_artifact_path(tmp_path:
 
 def test_proof_rejects_simulator_that_does_not_match_profile(monkeypatch) -> None:
     module = load_module()
-    monkeypatch.setattr(module, "local_test_account_env", lambda: {
+    monkeypatch.setattr(module, "reserved_test_account_env", lambda _slot: {
         "OPENMATES_TEST_ACCOUNT_14_EMAIL": "reserved@example.test",
         "OPENMATES_TEST_ACCOUNT_14_PASSWORD": "password",
         "OPENMATES_TEST_ACCOUNT_14_OTP_KEY": "otp-key",
+        "OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": "14",
     })
 
     with pytest.raises(module.AppleRemoteError, match="approved simulator"):
@@ -178,6 +179,24 @@ def test_proof_rejects_generic_or_unreserved_account_slot() -> None:
             test_account_slot=1,
             runner=lambda _command: pytest.fail("remote runner must not execute"),
         )
+
+
+def test_reserved_slot_materializes_only_requested_expanded_account() -> None:
+    module = load_module()
+    values = module.reserved_test_account_env(14, {
+        "OPENMATES_TEST_ACCOUNT_EMAIL": "generic@example.test",
+        "OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON": json.dumps({
+            "14": {"email": "reserved@example.test", "password": "password", "otpKey": "otp-key"},
+            "15": {"email": "other@example.test", "password": "other", "otpKey": "other-key"},
+        }),
+    })
+
+    assert values == {
+        "OPENMATES_TEST_ACCOUNT_14_EMAIL": "reserved@example.test",
+        "OPENMATES_TEST_ACCOUNT_14_PASSWORD": "password",
+        "OPENMATES_TEST_ACCOUNT_14_OTP_KEY": "otp-key",
+        "OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": "14",
+    }
 
 
 def test_proof_video_normalization_retains_raw_and_uses_exact_profile(tmp_path: Path) -> None:

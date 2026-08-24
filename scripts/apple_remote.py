@@ -3330,6 +3330,29 @@ def local_test_account_env(env: dict[str, str] | None = None) -> dict[str, str]:
     return merged
 
 
+def reserved_test_account_env(slot: int, env: dict[str, str] | None = None) -> dict[str, str]:
+    """Materialize only one reserved slot from direct or expanded account secrets."""
+    source = env if env is not None else dict(os.environ)
+    direct = local_test_account_env(source)
+    raw_bundle = source.get("OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON") or source.get("EXPANDED_ACCOUNTS_JSON") or "{}"
+    try:
+        parsed = json.loads(raw_bundle)
+    except json.JSONDecodeError as exc:
+        raise AppleRemoteError("Expanded test-account bundle is not valid JSON") from exc
+    account = parsed.get(str(slot), {}) if isinstance(parsed, dict) else {}
+    account = account if isinstance(account, dict) else {}
+    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
+    values = {
+        f"{prefix}_EMAIL": direct.get(f"{prefix}_EMAIL") or str(account.get("email") or ""),
+        f"{prefix}_PASSWORD": direct.get(f"{prefix}_PASSWORD") or str(account.get("password") or ""),
+        f"{prefix}_OTP_KEY": direct.get(f"{prefix}_OTP_KEY") or str(account.get("otpKey") or ""),
+    }
+    if any(not value for value in values.values()):
+        raise AppleRemoteError(f"Reserved Apple proof account slot {slot} is incomplete")
+    values["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"] = str(slot)
+    return values
+
+
 def with_env_assignments(command: str, env: dict[str, str]) -> str:
     simulator_env = {
         f"SIMCTL_CHILD_{key}": value
@@ -3613,11 +3636,7 @@ def run_recorded_ios_test(
         raise AppleRemoteError(f"{profile} proof requires an approved simulator: {approved}")
     test_account_env = local_test_account_env()
     if proof:
-        prefix = f"OPENMATES_TEST_ACCOUNT_{test_account_slot}"
-        required = [f"{prefix}_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")]
-        if any(not test_account_env.get(key) for key in required):
-            raise AppleRemoteError(f"Reserved Apple proof account slot {test_account_slot} is incomplete")
-        test_account_env["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"] = str(test_account_slot)
+        test_account_env = reserved_test_account_env(test_account_slot)
     run_id = f"apple-{uuid.uuid4().hex[:16]}"
     command = repo_command(config, [
         "bash",
