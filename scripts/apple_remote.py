@@ -108,7 +108,8 @@ import sys
 import tarfile
 import time
 
-simulator, only_testing, profile, run_id, scheme, expected_commit = sys.argv[1:7]
+simulator, only_testing, profile, run_id, scheme, expected_commit, proof_value = sys.argv[1:8]
+proof = proof_value == "true"
 root = pathlib.Path.cwd()
 run_dir = root / "test-results" / "apple-recordings" / run_id
 run_dir.mkdir(parents=True, exist_ok=False)
@@ -199,7 +200,12 @@ for candidate in attachments.rglob("*.json"):
         timeline = candidate
         break
 
-status = "passed" if xcode_exit == 0 and raw_video.is_file() and raw_video.stat().st_size > 0 else "failed"
+status = "passed" if (
+    xcode_exit == 0
+    and raw_video.is_file()
+    and raw_video.stat().st_size > 0
+    and (not proof or timeline is not None)
+) else "failed"
 artifacts = []
 for path in sorted(run_dir.rglob("*")):
     if not path.is_file() or path == manifest_path:
@@ -3369,6 +3375,7 @@ def recorded_test_ios_command(
     run_id: str,
     expected_commit: str = "",
     test_account_env: dict[str, str] | None = None,
+    proof: bool = False,
 ) -> str:
     """Build a remote command that records one exact-profile Apple test run."""
     if profile not in APPLE_RECORDING_PROFILES:
@@ -3385,6 +3392,7 @@ def recorded_test_ios_command(
         run_id,
         scheme,
         expected_commit,
+        "true" if proof else "false",
     ])
     if test_account_env is not None:
         command = with_env_assignments(command, test_account_env)
@@ -3461,6 +3469,7 @@ def run_recorded_ios_test(
             run_id,
             expected_commit or "",
             local_test_account_env(),
+            proof,
         ),
     ])
     result = runner(ssh_command(config, command))
@@ -3508,8 +3517,9 @@ def run_recorded_ios_test(
     cleanup_script = "import pathlib,shutil,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True); shutil.rmtree(pathlib.Path(sys.argv[2]), ignore_errors=True)"
     remote_run_dir = f"{config.repo_path}/test-results/apple-recordings/{run_id}"
     runner(ssh_command(config, shell_join(["python3", "-c", cleanup_script, archive_match.group(1).strip(), remote_run_dir])))
-    print(f"remote={REMOTE_LABEL} exit_code={result.returncode}")
-    return result.returncode
+    exit_code = result.returncode or (0 if manifest.get("status") == "passed" else 1)
+    print(f"remote={REMOTE_LABEL} exit_code={exit_code}")
+    return exit_code
 
 
 def simulator_cleanup_command(simulator: str) -> str:

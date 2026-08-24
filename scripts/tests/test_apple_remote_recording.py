@@ -38,6 +38,7 @@ def test_recording_command_owns_video_result_bundle_and_cleanup() -> None:
         profile="apple-iphone-portrait",
         run_id="apple-proof-1",
         test_account_env={},
+        proof=True,
     )
 
     assert "recordVideo" in command
@@ -48,6 +49,13 @@ def test_recording_command_owns_video_result_bundle_and_cleanup() -> None:
     assert "recorder.send_signal(signal.SIGINT)" in command
     assert "artifact-manifest.json" in command
     assert "raw.mov" in command
+    assert command.endswith(" true")
+
+
+def test_proof_recording_requires_timeline_before_marking_passed() -> None:
+    module = load_module()
+
+    assert "and (not proof or timeline is not None)" in module.RECORDED_IOS_TEST_SCRIPT
 
 
 def test_recording_parser_accepts_only_exact_apple_profiles() -> None:
