@@ -85,6 +85,7 @@ import { handleServer, printServerHelp } from "./server.js";
 import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
+  formatCodeRunFinalStatusOutput,
 } from "./codeRunInput.js";
 import {
   exportDesignIcon,
@@ -2805,8 +2806,11 @@ async function handleProjectFiles(
 }
 
 class CliContractError extends Error {
-  constructor(public readonly code: string, message: string) {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
     this.name = "CliContractError";
   }
 }
@@ -7101,7 +7105,9 @@ async function handleCodeRun(
 
   const streamAuth = apiKey ? null : await client.getCodeRunStreamAuth();
   let finalStatus: Record<string, unknown>;
+  let usedStream = false;
   if (streamAuth && result.stream_path) {
+    usedStream = true;
     const url = buildCodeRunStreamUrl({
       apiUrl: client.apiUrl,
       executionId: result.execution_id,
@@ -7126,6 +7132,9 @@ async function handleCodeRun(
 
   if (flags.json === true) {
     printJson({ ...result, final: finalStatus });
+  } else {
+    const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
+    if (finalOutput) process.stdout.write(finalOutput);
   }
 }
 

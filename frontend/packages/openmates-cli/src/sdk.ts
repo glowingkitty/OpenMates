@@ -158,6 +158,9 @@ const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
 const SKILL_TASK_POLL_TIMEOUT_MS = 1_200_000;
 const SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500;
+const CODE_RUN_POLL_INTERVAL_MS = 1_000;
+const CODE_RUN_POLL_TIMEOUT_MS = 1_200_000;
+const CODE_RUN_TERMINAL_STATUSES = new Set(["finished", "failed", "timeout", "cancelled"]);
 const PROMPT_INJECTION_DISABLED = "disabled";
 const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -696,6 +699,9 @@ export class OpenMates {
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
     const response = await this.request<unknown>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
+    if (appId === "code" && skillId === "run") {
+      return this.resolveCodeRunSkillResponse(response) as Promise<T>;
+    }
     return this.resolveAsyncSkillResponse(response) as Promise<T>;
   }
 
@@ -1045,6 +1051,72 @@ export class OpenMates {
     }
 
     return responseData;
+  }
+
+  private async resolveCodeRunSkillResponse(responseData: unknown): Promise<unknown> {
+    const envelope = responseData as Record<string, unknown>;
+    const data = (envelope?.data ?? envelope) as Record<string, unknown>;
+    const results = Array.isArray(data?.results) ? data.results as unknown[] : [];
+    if (results.length === 0) return responseData;
+
+    const resolvedResults = await Promise.all(results.map(async (result) => {
+      if (!result || typeof result !== "object" || Array.isArray(result)) return result;
+      const item = result as Record<string, unknown>;
+      const statusPath = typeof item.status_path === "string" ? item.status_path : null;
+      if (!statusPath) return item;
+      return { ...item, final: await this.pollCodeRunUntilComplete(statusPath) };
+    }));
+
+    const resolvedData = { ...data, results: resolvedResults };
+    if (envelope && typeof envelope === "object" && "success" in envelope) {
+      return { ...envelope, data: resolvedData };
+    }
+    return resolvedData;
+  }
+
+  private async pollCodeRunUntilComplete(statusPath: string): Promise<Record<string, unknown>> {
+    const path = this.normalizeCodeRunStatusPath(statusPath);
+    const started = Date.now();
+    let lastTransientError: string | null = null;
+    while (Date.now() - started < CODE_RUN_POLL_TIMEOUT_MS) {
+      let response: Response;
+      try {
+        response = await fetch(`${this.apiUrl}${path}`, {
+          method: "GET",
+          headers: this.headers(false),
+        });
+      } catch (error) {
+        lastTransientError = error instanceof Error ? error.message : String(error);
+        await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+        continue;
+      }
+
+      if (!response.ok) {
+        if (response.status >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS) {
+          lastTransientError = `HTTP ${response.status}`;
+          await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+          continue;
+        }
+        throw new OpenMatesApiError(response.status, await this.safeJson(response));
+      }
+
+      lastTransientError = null;
+      const status = await this.parseResponse<Record<string, unknown>>(response);
+      const value = typeof status.status === "string" ? status.status : "";
+      if (CODE_RUN_TERMINAL_STATUSES.has(value)) return status;
+      await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+    }
+    if (lastTransientError) {
+      throw new Error(`Code Run did not complete within ${CODE_RUN_POLL_TIMEOUT_MS / 1000}s; last polling error: ${lastTransientError}`);
+    }
+    throw new Error(`Code Run did not complete within ${CODE_RUN_POLL_TIMEOUT_MS / 1000}s`);
+  }
+
+  private normalizeCodeRunStatusPath(statusPath: string): string {
+    if (!statusPath.startsWith("/v1/code/run/")) {
+      throw new OpenMatesConfigError("Code Run returned an invalid status path.");
+    }
+    return statusPath;
   }
 
   private async pollTaskUntilComplete(taskId: string): Promise<TaskStatusResponse> {

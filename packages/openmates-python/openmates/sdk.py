@@ -44,6 +44,9 @@ DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
 SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
 SKILL_TASK_POLL_TIMEOUT_SECONDS = 1200.0
 SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
+CODE_RUN_POLL_INTERVAL_SECONDS = 1.0
+CODE_RUN_POLL_TIMEOUT_SECONDS = 1200.0
+CODE_RUN_TERMINAL_STATUSES = {"finished", "failed", "timeout", "cancelled"}
 PROMPT_INJECTION_DISABLED = "disabled"
 SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
@@ -212,6 +215,8 @@ class OpenMates:
             f"/v1/apps/{app_id}/skills/{skill_id}",
             _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
         )
+        if app_id == "code" and skill_id == "run":
+            return self._resolve_code_run_skill_response(response)
         return self._resolve_async_skill_response(response)
 
     def run_connected_account_skill(
@@ -315,6 +320,66 @@ class OpenMates:
             tasks = [self._poll_task_until_complete(task_id) for task_id in task_ids]
             return self._wrap_resolved_skill_result(response_data, self._merge_task_results([task.get("result") for task in tasks]))
         return response_data
+
+    def _resolve_code_run_skill_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
+        data = response_data.get("data") if isinstance(response_data.get("data"), dict) else response_data
+        results = data.get("results") if isinstance(data, dict) else None
+        if not isinstance(results, list):
+            return response_data
+        resolved_results = []
+        for result in results:
+            if not isinstance(result, dict):
+                resolved_results.append(result)
+                continue
+            status_path = result.get("status_path")
+            if not isinstance(status_path, str):
+                resolved_results.append(result)
+                continue
+            resolved_results.append({**result, "final": self._poll_code_run_until_complete(status_path)})
+        resolved_data = {**data, "results": resolved_results}
+        if "success" in response_data:
+            return {**response_data, "data": resolved_data}
+        return resolved_data
+
+    def _poll_code_run_until_complete(self, status_path: str) -> dict[str, Any]:
+        path = self._normalize_code_run_status_path(status_path)
+        started = time.monotonic()
+        last_transient_error: str | None = None
+        while time.monotonic() - started < CODE_RUN_POLL_TIMEOUT_SECONDS:
+            try:
+                response = requests.get(
+                    f"{self._api_url}{path}",
+                    headers=self._headers(has_body=False),
+                    timeout=DEFAULT_TIMEOUT_SECONDS,
+                )
+            except requests.RequestException as exc:
+                last_transient_error = str(exc)
+                time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+                continue
+
+            if not response.ok:
+                if response.status_code >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS:
+                    last_transient_error = f"HTTP {response.status_code}"
+                    time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+                    continue
+                raise OpenMatesApiError(response.status_code, _safe_response_json(response))
+
+            last_transient_error = None
+            status = self._parse_response(response)
+            if status.get("status") in CODE_RUN_TERMINAL_STATUSES:
+                return status
+            time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+
+        if last_transient_error:
+            raise RuntimeError(
+                f"Code Run did not complete within {CODE_RUN_POLL_TIMEOUT_SECONDS:.0f}s; last polling error: {last_transient_error}"
+            )
+        raise RuntimeError(f"Code Run did not complete within {CODE_RUN_POLL_TIMEOUT_SECONDS:.0f}s")
+
+    def _normalize_code_run_status_path(self, status_path: str) -> str:
+        if not status_path.startswith("/v1/code/run/"):
+            raise OpenMatesConfigError("Code Run returned an invalid status path.")
+        return status_path
 
     def _poll_task_until_complete(self, task_id: str) -> dict[str, Any]:
         started = time.monotonic()

@@ -281,7 +281,7 @@ def main() -> int:
         failures.append("Generated pip app-skill methods are missing images.generate")
     if re.search(r"\brun\s*\(", sdk_ts) and "runAppSkill" not in sdk_ts:
         failures.append("Public generic npm apps.run appears to be present")
-    if re.search(r"def run\s*\(", generated_py):
+    if re.search(r"class GeneratedAppSkills:[\s\S]*?\n    def run\s*\(", generated_py):
         failures.append("Public generic pip apps.run appears to be present")
     if re.search(r"class OpenMatesProjects[\s\S]*?async files\s*\(", sdk_ts):
         failures.append("Live Project filesystem methods must remain absent from the npm SDK")

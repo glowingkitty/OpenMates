@@ -44,6 +44,13 @@
   import Toggle from '../../Toggle.svelte';
   import { SettingsSectionHeading } from '../../settings/elements';
   import {
+    formatCodeRunArtifactSize,
+    isCodeRunArtifactDownloadAvailable,
+    mergeCodeRunArtifactHistory,
+    sanitizeCodeRunArtifacts,
+    sanitizeCodeRunSkippedArtifacts,
+  } from '../../../services/codeRunArtifacts';
+  import {
     CodeRunStartError,
     cancelCodeRun,
     getCodeRunStatus,
@@ -59,7 +66,7 @@
     type CodeRunStatus,
     type CodeRunStreamMessage,
   } from '../../../services/codeRunService';
-  import type { CodeRunOutput } from '../../../types/chat';
+  import type { CodeRunArtifact, CodeRunOutput, CodeRunSkippedArtifact } from '../../../types/chat';
 
   /**
    * Props for code embed fullscreen
@@ -373,6 +380,8 @@
   let runExecutionId = $state<string | null>(null);
   let runEvents = $state<CodeRunEvent[]>([]);
   let runFiles = $state<string[]>([]);
+  let runArtifacts = $state<CodeRunArtifact[]>([]);
+  let runSkippedArtifacts = $state<CodeRunSkippedArtifact[]>([]);
   let runError = $state<string | null>(null);
   let runCancelRequested = $state(false);
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -386,6 +395,8 @@
     files?: string[];
     savedAt?: number;
     events?: CodeRunEvent[];
+    artifacts?: CodeRunArtifact[];
+    skippedArtifacts?: CodeRunSkippedArtifact[];
   }
 
   let isRunnable = $derived.by(() => isCodeRunSupported(renderLanguage, renderFilename));
@@ -460,7 +471,15 @@
       })
       : undefined;
     const savedAt = typeof content.code_run_saved_at === 'number' ? content.code_run_saved_at : undefined;
-    return { text, status, files, savedAt, events };
+    return {
+      text,
+      status,
+      files,
+      savedAt,
+      events,
+      artifacts: sanitizeCodeRunArtifacts(content.code_run_artifacts, { includeDownloadUrl: true }),
+      skippedArtifacts: sanitizeCodeRunSkippedArtifacts(content.code_run_skipped_artifacts),
+    };
   }
 
   function savedRunOutputFromRow(row: CodeRunOutput): SavedCodeRunOutput {
@@ -471,7 +490,28 @@
       files: row.files,
       savedAt: row.saved_at,
       events: row.events as CodeRunEvent[] | undefined,
+      artifacts: sanitizeCodeRunArtifacts(row.artifacts, { includeDownloadUrl: true }),
+      skippedArtifacts: sanitizeCodeRunSkippedArtifacts(row.skipped_artifacts),
     };
+  }
+
+  function artifactTitle(artifact: CodeRunArtifact): string {
+    return artifact.normalized_path || artifact.path;
+  }
+
+  function artifactMeta(artifact: CodeRunArtifact): string {
+    return [artifact.mime_type, formatCodeRunArtifactSize(artifact.size_bytes), artifact.status]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function artifactVersionMeta(version: NonNullable<CodeRunArtifact['versions']>[number]): string {
+    const captured = version.captured_at
+      ? new Date(version.captured_at * 1000).toLocaleString()
+      : '';
+    return [captured, formatCodeRunArtifactSize(version.size_bytes), version.status]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   function codeRunOutputRef(embedIdValue: string): string {
@@ -504,6 +544,8 @@
             status: output.status,
             files: output.files,
             events: output.events,
+            artifacts: output.artifacts,
+            skipped_artifacts: output.skippedArtifacts,
             saved_at: output.savedAt ?? Date.now(),
             created_at: now,
             updated_at: now,
@@ -534,6 +576,8 @@
         runEvents = savedOutputToEvents(savedRunOutput);
         runStatus = savedRunOutput.status ?? 'finished';
         runFiles = savedRunOutput.files ?? [];
+        runArtifacts = savedRunOutput.artifacts ?? [];
+        runSkippedArtifacts = savedRunOutput.skippedArtifacts ?? [];
       }
     };
     window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
@@ -669,6 +713,8 @@
     const outputId = savedRunOutput?.id ?? crypto.randomUUID();
     const plainFiles = runFiles.filter((file) => typeof file === 'string');
     const plainEvents = cloneRunEvents(runDisplayEvents);
+    const plainArtifacts = mergeCodeRunArtifactHistory(savedRunOutput?.artifacts, runArtifacts, Math.floor(savedAt / 1000));
+    const plainSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(runSkippedArtifacts);
     try {
       await sendUpsertCodeRunOutputImpl({
         id: outputId,
@@ -678,6 +724,8 @@
         status: runStatus as CodeRunStatus['status'],
         files: plainFiles,
         events: plainEvents,
+        artifacts: plainArtifacts,
+        skipped_artifacts: plainSkippedArtifacts,
         saved_at: savedAt,
         created_at: now,
         updated_at: now,
@@ -689,7 +737,11 @@
         files: plainFiles,
         savedAt,
         events: plainEvents,
+        artifacts: plainArtifacts,
+        skippedArtifacts: plainSkippedArtifacts,
       };
+      runArtifacts = plainArtifacts;
+      runSkippedArtifacts = plainSkippedArtifacts;
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
       persistedRunExecutionId = null;
@@ -713,6 +765,8 @@
       runPanelOpen = true;
       runStatus = savedRunOutput.status || 'finished';
       runFiles = savedRunOutput.files || [];
+      runArtifacts = savedRunOutput.artifacts || [];
+      runSkippedArtifacts = savedRunOutput.skippedArtifacts || [];
       runEvents = savedOutputToEvents(savedRunOutput);
       runError = null;
       return;
@@ -1074,6 +1128,8 @@
     runCancelRequested = status.status === 'cancelling';
     runEvents = status.events || [];
     runFiles = status.files || runFiles;
+    runArtifacts = sanitizeCodeRunArtifacts(status.artifacts, { includeDownloadUrl: true });
+    runSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(status.skipped_artifacts);
     runError = status.error || null;
   }
 
@@ -1082,6 +1138,8 @@
     if (update.status === 'cancelling') runCancelRequested = true;
     if (update.status && TERMINAL_RUN_STATUSES.has(update.status)) runCancelRequested = false;
     if (update.files) runFiles = update.files;
+    if (update.artifacts) runArtifacts = sanitizeCodeRunArtifacts(update.artifacts, { includeDownloadUrl: true });
+    if (update.skipped_artifacts) runSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(update.skipped_artifacts);
     if (update.error !== undefined) runError = update.error || null;
   }
 
@@ -1165,6 +1223,8 @@
     runCancelRequested = false;
     runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
     runFiles = [];
+    runArtifacts = [];
+    runSkippedArtifacts = [];
     try {
       let started;
       try {
@@ -1472,6 +1532,65 @@
                 {:else if runPanelOpen}
                   <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
                     <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                    {#if runArtifacts.length > 0 || runSkippedArtifacts.length > 0}
+                      <div class="code-run-artifacts" data-testid="code-run-artifacts">
+                        {#if runArtifacts.length > 0}
+                          <div class="code-run-artifact-group">
+                            <h3 class="code-run-artifact-heading">{$text('app_skills.code.run.artifacts')}</h3>
+                            {#each runArtifacts as artifact}
+                              <article class="code-run-artifact-card" data-testid="code-run-artifact">
+                                <div class="code-run-artifact-main">
+                                  <span class="code-run-artifact-path">{artifactTitle(artifact)}</span>
+                                  {#if artifactMeta(artifact)}
+                                    <span class="code-run-artifact-meta">{artifactMeta(artifact)}</span>
+                                  {/if}
+                                </div>
+                                {#if isCodeRunArtifactDownloadAvailable(artifact)}
+                                  <a
+                                    class="code-run-artifact-download"
+                                    data-testid="code-run-artifact-download"
+                                    href={artifact.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download
+                                  >{$text('app_skills.code.run.download_artifact')}</a>
+                                {:else}
+                                  <span class="code-run-artifact-download unavailable" data-testid="code-run-artifact-download-unavailable">
+                                    {$text('app_skills.code.run.download_unavailable')}
+                                  </span>
+                                {/if}
+                                {#if artifact.versions?.length}
+                                  <details class="code-run-artifact-history" data-testid="code-run-artifact-history">
+                                    <summary>{$text('app_skills.code.run.previous_versions')}</summary>
+                                    <div class="code-run-artifact-version-list">
+                                      {#each artifact.versions as version}
+                                        <div class="code-run-artifact-version">
+                                          <span>{version.normalized_path || version.path}</span>
+                                          {#if artifactVersionMeta(version)}
+                                            <span>{artifactVersionMeta(version)}</span>
+                                          {/if}
+                                        </div>
+                                      {/each}
+                                    </div>
+                                  </details>
+                                {/if}
+                              </article>
+                            {/each}
+                          </div>
+                        {/if}
+                        {#if runSkippedArtifacts.length > 0}
+                          <div class="code-run-artifact-group" data-testid="code-run-skipped-artifacts">
+                            <h3 class="code-run-artifact-heading">{$text('app_skills.code.run.skipped_artifacts')}</h3>
+                            {#each runSkippedArtifacts as skipped}
+                              <div class="code-run-skipped-artifact">
+                                <span>{skipped.path}</span>
+                                <span>{skipped.reason}</span>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
                     <div class="code-run-terminal-divider"></div>
                     <div class="code-run-terminal-actions" data-testid="code-run-terminal-actions">
                       {#if runActive}
@@ -1550,7 +1669,7 @@
   /* Code fullscreen container */
   .code-fullscreen-container {
     width: calc(100% - 10px);
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
     margin-top: 15px;
     padding-bottom: var(--spacing-8);
     margin-left: var(--spacing-5);
@@ -1597,7 +1716,7 @@
   .code-panel.code-panel-split {
     min-width: 0;
     overflow: auto;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
   }
 
   .code-panel.code-panel-preview-split {
@@ -1613,7 +1732,7 @@
     width: 70%;
     flex: 0 0 70%;
     overflow: hidden;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
     /* position: relative so child can use absolute positioning to fill the panel
        without expanding it to the iframe's content height */
     position: relative;
@@ -1893,6 +2012,117 @@
     color: var(--color-grey-100);
   }
 
+  .code-run-artifacts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+    flex: 0 0 auto;
+    max-height: 14rem;
+    margin: 0 0 var(--spacing-5);
+    padding: var(--spacing-4);
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .code-run-artifact-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .code-run-artifact-heading {
+    margin: 0;
+    color: var(--color-grey-100);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .code-run-artifact-card,
+  .code-run-skipped-artifact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--spacing-3);
+    align-items: center;
+    padding: var(--spacing-3);
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .code-run-artifact-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .code-run-artifact-path,
+  .code-run-skipped-artifact span:first-child {
+    overflow: hidden;
+    color: var(--color-grey-100);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .code-run-artifact-meta,
+  .code-run-skipped-artifact span:last-child,
+  .code-run-artifact-version {
+    color: var(--color-grey-70);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .code-run-artifact-download {
+    color: #7dd3fc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  .code-run-artifact-download:hover,
+  .code-run-artifact-download:focus-visible {
+    color: var(--color-grey-100);
+    text-decoration: underline;
+  }
+
+  .code-run-artifact-download.unavailable {
+    color: #707070;
+  }
+
+  .code-run-artifact-history {
+    grid-column: 1 / -1;
+    color: var(--color-grey-70);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .code-run-artifact-history summary {
+    cursor: pointer;
+  }
+
+  .code-run-artifact-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    margin-top: var(--spacing-2);
+  }
+
+  .code-run-artifact-version {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-3);
+  }
+
   .code-run-terminal-divider {
     height: 1px;
     margin: 0 0 var(--spacing-5);
@@ -1990,6 +2220,16 @@
       max-height: min(32rem, calc(100vh - 16rem));
       border-radius: 1.75rem;
       padding: var(--spacing-5) var(--spacing-5) var(--spacing-6);
+    }
+
+    .code-run-artifact-card,
+    .code-run-skipped-artifact {
+      grid-template-columns: 1fr;
+    }
+
+    .code-run-artifact-version {
+      flex-direction: column;
+      gap: 0.15rem;
     }
 
     .code-run-continue {

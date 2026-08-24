@@ -7,6 +7,7 @@
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
+import type { CodeRunArtifact, CodeRunSkippedArtifact } from '../types/chat';
 
 export interface CodeRunStartResponse {
   execution_id: string;
@@ -82,6 +83,8 @@ export interface CodeRunStatus {
   duration_seconds?: number;
   charged_credits?: number;
   charged_minutes?: number;
+  artifacts?: CodeRunArtifact[];
+  skipped_artifacts?: CodeRunSkippedArtifact[];
   error?: string;
 }
 

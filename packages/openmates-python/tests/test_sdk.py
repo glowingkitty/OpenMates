@@ -166,6 +166,85 @@ def test_native_app_skill_method_resolves_async_task_response(monkeypatch):
     ]
 
 
+def test_code_run_app_skill_resolves_status_path_artifact_metadata(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+        ok = True
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append(("POST", url, json, headers))
+        return FakeResponse(
+            {
+                "success": True,
+                "data": {
+                    "results": [
+                        {
+                            "execution_id": "exec-1",
+                            "status": "queued",
+                            "target_filename": "main.py",
+                            "files": ["main.py"],
+                            "persisted_output": False,
+                            "stream_path": "/v1/code/run/exec-1/stream",
+                            "status_path": "/v1/code/run/exec-1",
+                        }
+                    ]
+                },
+            }
+        )
+
+    def fake_get(url, *, headers, timeout):
+        requests.append(("GET", url, None, headers))
+        return FakeResponse(
+            {
+                "status": "finished",
+                "exit_code": 0,
+                "output": "ok\n",
+                "artifacts": [
+                    {
+                        "normalized_path": "outputs/summary.csv",
+                        "mime_type": "text/csv",
+                        "size_bytes": 12,
+                        "download_url": "https://example.test/download/summary.csv",
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.code.run({"requests": [{"mode": "direct", "entry_path": "main.py", "files": []}]})
+
+    first_result = result["data"]["results"][0]
+    assert first_result["persisted_output"] is False
+    assert first_result["final"] == {
+        "status": "finished",
+        "exit_code": 0,
+        "output": "ok\n",
+        "artifacts": [
+            {
+                "normalized_path": "outputs/summary.csv",
+                "mime_type": "text/csv",
+                "size_bytes": 12,
+                "download_url": "https://example.test/download/summary.csv",
+            }
+        ],
+    }
+    assert [(method, url) for method, url, _body, _headers in requests] == [
+        ("POST", "https://api.openmates.org/v1/apps/code/skills/run"),
+        ("GET", "https://api.openmates.org/v1/code/run/exec-1"),
+    ]
+
+
 def test_finance_connected_account_skill_uses_sdk_only_endpoint(monkeypatch):
     requests = []
 

@@ -8,6 +8,7 @@ import { chatDB } from "./db";
 import { decryptWithEmbedKey } from "./encryption/MetadataEncryptor";
 import { upsertCodeRunOutput as idbUpsertCodeRunOutput } from "./db/codeRunOutputs";
 import { embedStore } from "./embedStore";
+import { sanitizeCodeRunArtifacts, sanitizeCodeRunSkippedArtifacts } from "./codeRunArtifacts";
 import type { CodeRunOutput, CodeRunOutputSyncedPayload } from "../types/chat";
 
 function parseEvents(value: unknown): CodeRunOutput["events"] {
@@ -64,6 +65,8 @@ async function decryptIntoOutput(
       ? plain.files.filter((file): file is string => typeof file === "string")
       : undefined,
     events: parseEvents(plain.events),
+    artifacts: sanitizeCodeRunArtifacts(plain.artifacts, { includeDownloadUrl: true }),
+    skipped_artifacts: sanitizeCodeRunSkippedArtifacts(plain.skipped_artifacts),
     saved_at: savedAt,
     created_at: typeof plain.created_at === "number" ? plain.created_at : payload.created_at,
     updated_at: typeof plain.updated_at === "number" ? plain.updated_at : payload.updated_at,

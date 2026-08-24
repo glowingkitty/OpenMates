@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import base64
+import json
 import queue
 import re
 import shlex
@@ -25,10 +26,38 @@ if TYPE_CHECKING:
 WORKSPACE_DIR = "/home/user/openmates-run"
 INSTALL_TIMEOUT_SECONDS = 120
 RUN_TIMEOUT_SECONDS = 300
+ARTIFACT_DISCOVERY_TIMEOUT_SECONDS = 30
 MAX_OUTPUT_CHARS = 100_000
+MAX_ARTIFACTS = 10
+MAX_ARTIFACT_BYTES = 5_000_000
+MAX_TOTAL_ARTIFACT_BYTES = 20_000_000
 E2B_SECRET_PATH = "kv/data/providers/e2b"
 E2B_SECRET_KEY = "api_key"
 E2B_ENV_VAR = "SECRET__E2B__API_KEY"
+OUTPUTS_DIR = "outputs"
+OUTPUT_MANIFEST = "openmates_outputs.json"
+ALLOWED_ARTIFACT_EXTENSIONS = {
+    ".csv": ("text/csv", "data"),
+    ".gif": ("image/gif", "image"),
+    ".jpeg": ("image/jpeg", "image"),
+    ".jpg": ("image/jpeg", "image"),
+    ".json": ("application/json", "data"),
+    ".md": ("text/markdown", "text"),
+    ".pdf": ("application/pdf", "document"),
+    ".png": ("image/png", "image"),
+    ".txt": ("text/plain", "text"),
+    ".webp": ("image/webp", "image"),
+    ".zip": ("application/zip", "archive"),
+}
+DENIED_ARTIFACT_SEGMENTS = {
+    "__pycache__",
+    ".cache",
+    ".git",
+    ".npm",
+    ".venv",
+    "node_modules",
+    "venv",
+}
 
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
@@ -61,6 +90,8 @@ class CodeRunResult:
     duration_seconds: float
     output_truncated: bool
     sandbox_id: str | None = None
+    artifacts: list[dict[str, object]] | None = None
+    skipped_artifacts: list[dict[str, str]] | None = None
 
 
 OutputKind = Literal["status", "stdout", "stderr"]
@@ -170,6 +201,181 @@ def _emit(callback: OutputCallback, kind: OutputKind, text: str) -> None:
 
 def _exit_code_from_result(value: object) -> int | None:
     return getattr(value, "exit_code", None)
+
+
+def _artifact_discovery_command() -> str:
+    allowed = {
+        extension: {"mime_type": mime_type, "kind": kind}
+        for extension, (mime_type, kind) in ALLOWED_ARTIFACT_EXTENSIONS.items()
+    }
+    script = f"""
+import base64
+import json
+import os
+import posixpath
+
+WORKSPACE = {WORKSPACE_DIR!r}
+OUTPUTS_DIR = {OUTPUTS_DIR!r}
+OUTPUT_MANIFEST = {OUTPUT_MANIFEST!r}
+MAX_ARTIFACTS = {MAX_ARTIFACTS}
+MAX_ARTIFACT_BYTES = {MAX_ARTIFACT_BYTES}
+MAX_TOTAL_ARTIFACT_BYTES = {MAX_TOTAL_ARTIFACT_BYTES}
+ALLOWED = {json.dumps(allowed, sort_keys=True)!r}
+DENIED_SEGMENTS = {json.dumps(sorted(DENIED_ARTIFACT_SEGMENTS))!r}
+ALLOWED = json.loads(ALLOWED)
+DENIED_SEGMENTS = set(json.loads(DENIED_SEGMENTS))
+
+artifacts = []
+skipped = []
+seen = set()
+total_bytes = 0
+
+def skip(path, reason):
+    skipped.append({{"path": str(path or ""), "reason": reason}})
+
+def normalize(raw_path):
+    raw = str(raw_path or "").replace("\\\\", "/").strip()
+    if not raw or raw.startswith("/") or raw.startswith("~") or ":" in raw.split("/", 1)[0]:
+        return None, "unsafe_path"
+    normalized = posixpath.normpath(raw)
+    if normalized in {{"", ".", ".."}} or normalized.startswith("../"):
+        return None, "unsafe_path"
+    segments = normalized.split("/")
+    if any(not segment or segment.startswith(".") for segment in segments):
+        return None, "hidden_or_secret_path"
+    if any(segment in DENIED_SEGMENTS for segment in segments):
+        return None, "denied_path"
+    if len(normalized) > 255:
+        return None, "path_too_long"
+    return normalized, None
+
+def add_candidate(raw_path):
+    global total_bytes
+    normalized, reason = normalize(raw_path)
+    if reason:
+        skip(raw_path, reason)
+        return
+    if normalized in seen:
+        return
+    extension = os.path.splitext(normalized.lower())[1]
+    type_info = ALLOWED.get(extension)
+    if not type_info:
+        skip(normalized, "unsupported_type")
+        return
+    full_path = os.path.join(WORKSPACE, *normalized.split("/"))
+    if not os.path.isfile(full_path):
+        skip(normalized, "not_found")
+        return
+    size = os.path.getsize(full_path)
+    if size <= 0:
+        skip(normalized, "empty_file")
+        return
+    if size > MAX_ARTIFACT_BYTES:
+        skip(normalized, "file_too_large")
+        return
+    if len(artifacts) >= MAX_ARTIFACTS:
+        skip(normalized, "too_many_artifacts")
+        return
+    if total_bytes + size > MAX_TOTAL_ARTIFACT_BYTES:
+        skip(normalized, "total_artifacts_too_large")
+        return
+    with open(full_path, "rb") as handle:
+        content = handle.read()
+    seen.add(normalized)
+    total_bytes += size
+    artifacts.append({{
+        "path": normalized,
+        "normalized_path": normalized,
+        "mime_type": type_info["mime_type"],
+        "kind": type_info["kind"],
+        "size_bytes": size,
+        "content_base64": base64.b64encode(content).decode("ascii"),
+    }})
+
+outputs_root = os.path.join(WORKSPACE, OUTPUTS_DIR)
+if os.path.isdir(outputs_root):
+    for root, dirs, files in os.walk(outputs_root):
+        dirs[:] = sorted(dirs)
+        for filename in sorted(files):
+            full_path = os.path.join(root, filename)
+            add_candidate(os.path.relpath(full_path, WORKSPACE).replace(os.sep, "/"))
+
+manifest_path = os.path.join(WORKSPACE, OUTPUT_MANIFEST)
+if os.path.isfile(manifest_path):
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        entries = manifest.get("outputs") if isinstance(manifest, dict) else manifest
+        if not isinstance(entries, list):
+            raise ValueError("outputs must be a list")
+        for entry in entries:
+            if isinstance(entry, str):
+                add_candidate(entry)
+            elif isinstance(entry, dict):
+                add_candidate(entry.get("path"))
+            else:
+                skip(OUTPUT_MANIFEST, "invalid_manifest_entry")
+    except Exception:
+        skip(OUTPUT_MANIFEST, "invalid_manifest")
+
+print(json.dumps({{"artifacts": artifacts, "skipped": skipped}}, separators=(",", ":")))
+""".strip()
+    return "OPENMATES_CODE_RUN_DISCOVER_OUTPUTS=1 python - <<'PY'\n" + script + "\nPY"
+
+
+def _parse_artifact_discovery(stdout: str) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    payload = json.loads(stdout.strip() or "{}")
+    raw_artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
+    raw_skipped = payload.get("skipped") if isinstance(payload, dict) else None
+    artifacts: list[dict[str, object]] = []
+    skipped: list[dict[str, str]] = []
+    if isinstance(raw_artifacts, list):
+        for item in raw_artifacts[:MAX_ARTIFACTS]:
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path")
+            normalized_path = item.get("normalized_path")
+            mime_type = item.get("mime_type")
+            kind = item.get("kind")
+            content_base64 = item.get("content_base64")
+            size_bytes = item.get("size_bytes")
+            if (
+                not isinstance(path, str)
+                or not isinstance(normalized_path, str)
+                or not isinstance(mime_type, str)
+                or not isinstance(kind, str)
+                or not isinstance(content_base64, str)
+                or isinstance(size_bytes, bool)
+                or not isinstance(size_bytes, int)
+                or size_bytes <= 0
+                or size_bytes > MAX_ARTIFACT_BYTES
+            ):
+                continue
+            artifacts.append({
+                "path": path,
+                "normalized_path": normalized_path,
+                "mime_type": mime_type,
+                "kind": kind,
+                "size_bytes": size_bytes,
+                "content_base64": content_base64,
+            })
+    if isinstance(raw_skipped, list):
+        for item in raw_skipped[:MAX_ARTIFACTS * 5]:
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path")
+            reason = item.get("reason")
+            if isinstance(path, str) and isinstance(reason, str):
+                skipped.append({"path": path, "reason": reason})
+    return artifacts, skipped
+
+
+def _discover_output_artifacts(sandbox: object) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    try:
+        result = sandbox.commands.run(_shell(_artifact_discovery_command(), ARTIFACT_DISCOVERY_TIMEOUT_SECONDS))
+        return _parse_artifact_discovery(str(getattr(result, "stdout", "") or ""))
+    except Exception as exc:
+        return [], [{"path": OUTPUTS_DIR, "reason": f"artifact_discovery_failed: {redact_execution_output(str(exc))}"}]
 
 
 def _run_interruptible_command(
@@ -317,11 +523,14 @@ def run_code_in_e2b(
             stream,
             should_cancel,
         )
+        artifacts, skipped_artifacts = _discover_output_artifacts(sandbox)
         return CodeRunResult(
             exit_code=exit_code,
             duration_seconds=time.monotonic() - billable_started_at,
             output_truncated=output_truncated,
             sandbox_id=sandbox_id,
+            artifacts=artifacts,
+            skipped_artifacts=skipped_artifacts,
         )
     finally:
         if sandbox is not None:

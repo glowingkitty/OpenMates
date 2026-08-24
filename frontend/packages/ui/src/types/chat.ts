@@ -270,10 +270,35 @@ export interface CodeRunOutput {
   status?: string;
   files?: string[];
   events?: Array<{ kind: string; text: string; timestamp: number }>;
+  artifacts?: CodeRunArtifact[];
+  skipped_artifacts?: CodeRunSkippedArtifact[];
   saved_at: number;
   created_at: number;
   updated_at?: number;
   key_version?: number | null;
+}
+
+export interface CodeRunArtifactVersion {
+  path: string;
+  normalized_path: string;
+  mime_type?: string;
+  kind?: string;
+  size_bytes?: number;
+  status?: string;
+  asset_id?: string;
+  variant?: string;
+  download_url?: string;
+  download_expires_at?: number;
+  captured_at?: number;
+}
+
+export interface CodeRunArtifact extends CodeRunArtifactVersion {
+  versions?: CodeRunArtifactVersion[];
+}
+
+export interface CodeRunSkippedArtifact {
+  path: string;
+  reason: string;
 }
 
 export interface CodeRunOutputPayload {
@@ -281,6 +306,8 @@ export interface CodeRunOutputPayload {
   status?: string;
   files?: string[];
   events?: Array<{ kind: string; text: string; timestamp: number }>;
+  artifacts?: CodeRunArtifact[];
+  skipped_artifacts?: CodeRunSkippedArtifact[];
   saved_at: number;
   created_at: number;
   updated_at?: number;

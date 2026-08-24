@@ -204,6 +204,7 @@ def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
 def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
     request = SimpleNamespace(orchestration_id="orchestration-1")
 
+    assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is True
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
     assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
     assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
@@ -212,6 +213,7 @@ def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
 def test_root_async_skills_remain_available_without_orchestration() -> None:
     request = SimpleNamespace(orchestration_id=None)
 
+    assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is False
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
 
 

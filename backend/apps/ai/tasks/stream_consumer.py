@@ -4482,6 +4482,30 @@ def _record_generated_code_file_embed(
     })
 
 
+async def _mark_code_embed_assistant_runnable(
+    *,
+    cache_service: Any,
+    request_data: AskSkillRequest,
+    embed_id: Optional[str],
+    action: str,
+    log_prefix: str,
+) -> None:
+    if not cache_service or not embed_id:
+        return
+    try:
+        from backend.apps.code.skills.run_code_skill import mark_assistant_code_run_authorized
+
+        await mark_assistant_code_run_authorized(
+            cache_service,
+            chat_id=request_data.chat_id,
+            message_id=request_data.message_id,
+            target_embed_id=embed_id,
+            action=action,
+        )
+    except Exception as exc:
+        logger.debug("%s Failed to mark code embed %s runnable by assistant: %s", log_prefix, embed_id, exc)
+
+
 async def _create_application_preview_child_code_embeds(
     *,
     files: List[Dict[str, str]],
@@ -6025,6 +6049,13 @@ async def _consume_main_processing_stream(
                                                         learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix,
                                                     )
+                                                    await _mark_code_embed_assistant_runnable(
+                                                        cache_service=cache_service,
+                                                        request_data=request_data,
+                                                        embed_id=target_embed_id,
+                                                        action="edited",
+                                                        log_prefix=log_prefix,
+                                                    )
                                                     embed_reference_json = json.dumps({
                                                         "type": "code",
                                                         "embed_id": target_embed_id,
@@ -6088,6 +6119,13 @@ async def _consume_main_processing_stream(
                                                         embed_id=current_code_embed_id,
                                                         filename=current_code_filename,
                                                         language=current_code_language,
+                                                    )
+                                                    await _mark_code_embed_assistant_runnable(
+                                                        cache_service=cache_service,
+                                                        request_data=request_data,
+                                                        embed_id=current_code_embed_id,
+                                                        action="created",
+                                                        log_prefix=log_prefix,
                                                     )
 
                                                     # Replace code block with embed reference in chunk
@@ -7080,7 +7118,14 @@ async def _consume_main_processing_stream(
                                             learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
-                                        
+                                        await _mark_code_embed_assistant_runnable(
+                                            cache_service=cache_service,
+                                            request_data=request_data,
+                                            embed_id=current_code_embed_id,
+                                            action="created",
+                                            log_prefix=log_prefix,
+                                        )
+                                          
                                         logger.info(
                                             f"{log_prefix} [TOON_RECOVERED] Created and finalized code embed "
                                             f"{current_code_embed_id} for toon block validated as real code "
@@ -7601,6 +7646,13 @@ async def _consume_main_processing_stream(
                                         embed_id=current_code_embed_id,
                                         filename=current_code_filename,
                                         language=current_code_language,
+                                    )
+                                    await _mark_code_embed_assistant_runnable(
+                                        cache_service=cache_service,
+                                        request_data=request_data,
+                                        embed_id=current_code_embed_id,
+                                        action="edited" if current_code_replacement_ref else "created",
+                                        log_prefix=log_prefix,
                                     )
                                       
                                     logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")

@@ -60,6 +60,18 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.code-run:
+    version: 1
+    status: draft
+    path: features/app-skills/code-run
+    fingerprint: 2fd2581a50b14f79bc7054534acc76dabda458790ff93088f05778d6d673f3ae
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.events-search:
     version: 1
     status: approved
@@ -863,6 +875,138 @@ assertions:
     contract_id: feature.app-skill.audio-speak
     type: parity
     fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.request.validated:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: validation
+    fingerprint: ebdb27e21aaadfd934ab95579ba6c106f4d3717ea76be6661c4d95fa688d1d05
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.execution.e2b-only:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: security
+    fingerprint: 3ce47732eeacc76fe2c88e7232eb2dfc207f9ae781588445ad269fd473fdbc3a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.execution.stream-status-visible:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 611bb91c0912888fa8dbedaa83860f193dd6e2fd744fa27918153c2473afd554
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.billing.rate-limits:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: invariant
+    fingerprint: 833d856df0abdd52ff04113d0d0b46f5ffcf3832a6abb205467f345a1abc0d83
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.output.chat-bound-encrypted:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: privacy
+    fingerprint: 2780c3f902ce8cc62479742230644959e4f93c7a863ad3f688e35faed5b7bef7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.output.direct-transient:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: dc4678cce0e82d6b008b0c25a7cc0051f1397673e42faa09048b290cdb839e0c
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.artifacts.explicit-only:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: security
+    fingerprint: d6bc5e779e46893b9f40180d1657a67cc3f0dcbf1b6be76e12ab81b69fe151c9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.artifacts.encrypted-indexed:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: privacy
+    fingerprint: 9771cb3634d3bb323d127dc357b6976263639041521beb26ed6cb8578f0169a7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.artifacts.chat-bound-versioned:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 54b4bb00bc6c16cbf117ca1f0865f7d798764dee3b0f0d1ca7c62ba474a54d77
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.assistant.auto-debug-bounded:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 503b58724761c353b403c162b34458984d04ad8e7621774e28f18c2301e7c32e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.surface-parity:
+    contract: feature.app-skill.code-run@1
+    contract_id: feature.app-skill.code-run
+    type: parity
+    fingerprint: 5b05ab95ff2b86dd898b41a9207c59558819847f300e7b22af04d7fcce59c659
     required_surfaces:
     - rest_api
     - cli

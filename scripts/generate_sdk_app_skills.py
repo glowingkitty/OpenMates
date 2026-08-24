@@ -76,20 +76,25 @@ def load_skills() -> list[dict[str, Any]]:
             if skill.get("internal") is True:
                 continue
             api_config = skill.get("api_config") or {}
-            if isinstance(api_config, dict) and api_config.get("expose_post") is False:
+            if isinstance(api_config, dict) and api_config.get("expose_post") is False and skill.get("sdk_exposed") is not True:
                 continue
+            workflow = skill.get("workflow") if isinstance(skill.get("workflow"), dict) else {}
+            output_schema = skill.get("sdk_output_schema") or workflow.get("output_schema")
+            metadata = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "app_namespace_ts": ts_identifier(app_id),
+                "skill_method_ts": ts_identifier(skill_id),
+                "app_namespace_py": py_identifier(app_id),
+                "skill_method_py": py_identifier(skill_id),
+                "description_key": skill.get("description_translation_key") or "",
+                "description": first_sentence(skill.get("preprocessor_hint")),
+                "schema": skill.get("sdk_tool_schema") or skill.get("tool_schema") or {"type": "object", "properties": {}},
+            }
+            if output_schema:
+                metadata["output_schema"] = output_schema
             skills.append(
-                {
-                    "app_id": app_id,
-                    "skill_id": skill_id,
-                    "app_namespace_ts": ts_identifier(app_id),
-                    "skill_method_ts": ts_identifier(skill_id),
-                    "app_namespace_py": py_identifier(app_id),
-                    "skill_method_py": py_identifier(skill_id),
-                    "description_key": skill.get("description_translation_key") or "",
-                    "description": first_sentence(skill.get("preprocessor_hint")),
-                    "schema": skill.get("tool_schema") or {"type": "object", "properties": {}},
-                }
+                metadata
             )
     return skills
 

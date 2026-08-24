@@ -1294,6 +1294,21 @@ function writeJsonStatus(response: ServerResponse, status: number, value: unknow
   response.end(JSON.stringify(value));
 }
 
+const CODE_RUN_MOCK_ARTIFACTS = [{
+  path: "outputs/summary.csv",
+  normalized_path: "outputs/summary.csv",
+  mime_type: "text/csv",
+  kind: "data",
+  size_bytes: 12,
+  status: "available",
+  download_url: "https://example.test/download/summary.csv",
+}];
+
+const CODE_RUN_MOCK_SKIPPED_ARTIFACTS = [{
+  path: "outputs/.env",
+  reason: "hidden_path",
+}];
+
 async function withCodeRunMockApi<T>(
   run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
 ): Promise<T> {
@@ -1329,7 +1344,13 @@ async function withCodeRunMockApi<T>(
       }
       if (request.method === "GET" && request.url === "/v1/code/run/exec-1") {
         lastHeaders = request.headers;
-        writeJson(response, { status: "finished", exit_code: 0, output: "ok\n" });
+        writeJson(response, {
+          status: "finished",
+          exit_code: 0,
+          output: "ok\n",
+          artifacts: CODE_RUN_MOCK_ARTIFACTS,
+          skipped_artifacts: CODE_RUN_MOCK_SKIPPED_ARTIFACTS,
+        });
         return;
       }
       response.writeHead(404);
@@ -2709,6 +2730,26 @@ describe("apps code run command variants", () => {
       assert.equal(body.requests[0].entry_path, "hello.py");
       assert.equal(body.requests[0].enable_internet, false);
       assert.deepEqual(body.requests[0].files.map((file) => [file.path, file.language, file.is_target]), [["hello.py", "python", true]]);
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=code-run.output.direct-transient,code-run.surface-parity
+  it("prints direct-run output and artifact download metadata in human mode", async () => {
+    await withCodeRunMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+      ]);
+
+      assert.match(output, /^ok\n/m);
+      assert.match(output, /Artifacts:/);
+      assert.match(output, /outputs\/summary\.csv \(text\/csv, 12 bytes\): https:\/\/example\.test\/download\/summary\.csv/);
+      assert.match(output, /Skipped artifacts:/);
+      assert.match(output, /outputs\/\.env \(hidden_path\)/);
     });
   });
 

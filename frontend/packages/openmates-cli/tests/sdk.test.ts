@@ -149,6 +149,71 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  // contract-test: direct surface=sdks.npm assertions=code-run.output.direct-transient,code-run.surface-parity
+  it("resolves Code Run status paths and returns final artifact metadata", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/apps/code/skills/run") {
+        response.end(JSON.stringify({
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-1",
+              status: "queued",
+              target_filename: "main.py",
+              files: ["main.py"],
+              persisted_output: false,
+              stream_path: "/v1/code/run/exec-1/stream",
+              status_path: "/v1/code/run/exec-1",
+            }],
+          },
+        }));
+        return;
+      }
+      if (request.url === "/v1/code/run/exec-1") {
+        response.end(JSON.stringify({
+          status: "finished",
+          exit_code: 0,
+          output: "ok\n",
+          artifacts: [{
+            normalized_path: "outputs/summary.csv",
+            mime_type: "text/csv",
+            size_bytes: 12,
+            download_url: "https://example.test/download/summary.csv",
+          }],
+        }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end(JSON.stringify({ detail: "not found" }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.code.run({
+        requests: [{ mode: "direct", entry_path: "main.py", files: [] }],
+      }) as Record<string, unknown>;
+
+      const data = result.data as { results: Array<Record<string, unknown>> };
+      assert.equal(data.results[0].persisted_output, false);
+      assert.deepEqual(data.results[0].final, {
+        status: "finished",
+        exit_code: 0,
+        output: "ok\n",
+        artifacts: [{
+          normalized_path: "outputs/summary.csv",
+          mime_type: "text/csv",
+          size_bytes: 12,
+          download_url: "https://example.test/download/summary.csv",
+        }],
+      });
+      assert.deepEqual(requests, [
+        "POST /v1/apps/code/skills/run",
+        "GET /v1/code/run/exec-1",
+      ]);
+    });
+  });
+
   it("runs Finance connected-account skills through the SDK-only endpoint", async () => {
     let requestBody: Record<string, unknown> | undefined;
     await withServer((request, response) => {
