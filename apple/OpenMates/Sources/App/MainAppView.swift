@@ -689,6 +689,11 @@ struct MainAppView: View {
             authFlowState.reset()
             Task {
                 await bootstrapAuthenticatedSession()
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat") {
+                    openNewChatScreen()
+                }
+                #endif
                 await flushQueuedNotificationReplies()
             }
         } else if newState == .unauthenticated {
