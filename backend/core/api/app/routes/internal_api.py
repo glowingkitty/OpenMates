@@ -656,6 +656,7 @@ class CreditRefundPayload(BaseModel):
     credits: int
     skill_id: str
     app_id: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
     reason: Optional[str] = None
 
 
@@ -694,6 +695,7 @@ async def refund_credits_route(
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
             skill_id=payload.skill_id,
+            idempotency_key=payload.idempotency_key,
             reason=payload.reason or "",
         )
         return {

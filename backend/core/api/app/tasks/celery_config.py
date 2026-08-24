@@ -162,6 +162,7 @@ TASK_CONFIG = [
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -1009,6 +1010,7 @@ task_routes = {
     "operational_monitoring.send_digest": {'queue': 'email'},
     "user_tasks.process_due_ai_tasks": {'queue': 'user_tasks'},
     "user_tasks.archive_completed_tasks": {'queue': 'persistence'},
+    "billing.*": {'queue': 'persistence'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1262,6 +1264,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'sweep-pending-billing-settlements': {
+        'task': 'billing.sweep_pending_settlements',
+        'schedule': timedelta(minutes=5),
+        'options': {'queue': 'persistence', 'expires': 240},
+    },
     'runtime-health-scheduler-heartbeat': {
         'task': 'runtime_health.scheduler_heartbeat',
         'schedule': timedelta(seconds=300),

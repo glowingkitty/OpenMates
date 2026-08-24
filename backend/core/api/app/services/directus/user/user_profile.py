@@ -111,6 +111,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
+            # Server-only billing projection pairs the decrypted cache balance
+            # with the exact durable ciphertext used by Directus CAS.
+            "encrypted_credit_balance": user_data.get("encrypted_credit_balance"),
             # Ensure devices key exists even if encrypted field is missing
             "devices": {},
             

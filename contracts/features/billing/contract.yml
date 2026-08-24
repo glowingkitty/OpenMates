@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.billing
-version: 1
-status: approved
+version: 2
+status: draft
 title: Billing And Payments
 summary: >
   Authenticated OpenMates Cloud users can buy and spend credits, inspect usage,
@@ -39,6 +39,26 @@ models:
       type: string
       required: true
       constraints: {idempotent: true, unique_per_committed_charge: true}
+
+  CreditSettlement:
+    charge_id:
+      type: string
+      required: true
+      constraints: {immutable: true, globally_unique: true}
+    state:
+      type: enum
+      values: [pending, committed, retry_scheduled, manual_review]
+      required: true
+    attempts:
+      type: integer
+      required: true
+      constraints: {minimum: 0}
+    durable_outbox_id:
+      type: string
+      nullable: true
+    retryable_error_code:
+      type: string
+      nullable: true
 
   CreditPurchase:
     payment_source:
@@ -99,8 +119,20 @@ assertions:
     depends_on: [models.CreditBalance, models.CreditPurchase, models.BillingDocument, surfaces]
   - id: billing.credits.idempotent-charge
     type: invariant
-    must: Paid work charges a personal or team credit balance exactly once per stable charge id and never creates a negative balance when reservation or settlement fails.
-    depends_on: [models.CreditBalance, examples.credit_charges]
+    must: Paid work serializes balance mutations per personal or team billing subject, charges exactly once per immutable stable charge id under concurrent calls and retries, preserves the approved personal credit floor of -500, and never changes the balance when reservation or settlement fails.
+    depends_on: [models.CreditBalance, models.CreditSettlement, examples.credit_charges, examples.settlement_concurrency]
+  - id: billing.credits.encrypted-authority-cache-projection
+    type: invariant
+    must: The Vault-encrypted Directus balance and transactional charge ledger remain the durable billing authority; Dragonfly is the primary operational read, distributed-lock, deduplication-hint, and post-commit projection target, but cache loss or restart cannot lose or invent credits, charges, usage, or retry work.
+    depends_on: [models.CreditBalance, models.CreditSettlement, examples.settlement_concurrency, examples.settlement_recovery]
+  - id: billing.credits.retryable-completion-safe
+    type: failure
+    must: A retryable settlement conflict after paid work completes creates or reuses one durable pending settlement tied to the original charge id, retries asynchronously without duplicate deduction, and never regresses an already persisted or client-finalized assistant response to failed; exhausted retries become observable manual review.
+    depends_on: [models.CreditSettlement, examples.settlement_recovery]
+  - id: billing.credits.minimal-durable-io
+    type: invariant
+    must: A normal personal settlement uses cached plaintext balance state and one distributed subject lock, performs no pre-commit Directus balance read when the cache projection is valid, and commits encrypted balance, charge identity, and raw usage in one durable transaction; cache misses and conflict recovery may perform bounded durable reads.
+    depends_on: [models.CreditBalance, models.CreditSettlement, examples.settlement_concurrency]
   - id: billing.purchase.provider-routing
     type: behavior
     must: Credit purchases route to the configured Stripe card, Stripe managed payment, bank transfer, gift-card, or free-testing-credit path and only completed payment evidence grants credits.
@@ -149,4 +181,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [credit_charges, credit_purchases, billing_documents, bank_transfers, usage_receipts, self_host_guards]
+  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, bank_transfers, usage_receipts, self_host_guards]

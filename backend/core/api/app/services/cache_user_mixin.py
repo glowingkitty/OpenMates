@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,42 @@ class UserCacheMixin:
         except Exception as e:
             logger.error(f"Error getting user from cache by ID '{user_id}': {str(e)}")
             return None
+
+    async def get_billing_projection(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Return a complete server-only cached billing projection."""
+        user = await self.get_user_by_id(user_id)
+        if not isinstance(user, dict):
+            return None
+        credits = user.get("credits")
+        encrypted_balance = user.get("encrypted_credit_balance")
+        vault_key_id = user.get("vault_key_id")
+        if not isinstance(credits, int) or not isinstance(encrypted_balance, str) or not encrypted_balance:
+            return None
+        if not isinstance(vault_key_id, str) or not vault_key_id:
+            return None
+        return {
+            "credits": credits,
+            "encrypted_balance": encrypted_balance,
+            "vault_key_id": vault_key_id,
+            "user": user,
+        }
+
+    async def set_billing_projection(
+        self,
+        user_id: str,
+        *,
+        credits: int,
+        encrypted_balance: str,
+        vault_key_id: str,
+    ) -> bool:
+        """Update the cached balance and matching durable ciphertext snapshot."""
+        user = await self.get_user_by_id(user_id)
+        if not isinstance(user, dict):
+            user = {"id": user_id, "user_id": user_id}
+        user["credits"] = credits
+        user["encrypted_credit_balance"] = encrypted_balance
+        user["vault_key_id"] = vault_key_id
+        return await self.set_user(user, user_id=user_id)
 
     async def get_user_vault_key_id(self, user_id: str) -> Optional[str]:
         """

@@ -9338,9 +9338,11 @@ async def _consume_main_processing_stream(
             secrets_manager=secrets_manager,
         )
 
-    # Re-raise billing errors only after dependent parent orchestration is unblocked.
+    # Retryable conflicts return successfully after BillingService has created
+    # a durable pending settlement. An exception here therefore means no durable
+    # recovery was confirmed and must remain visible to the task runtime.
     if billing_error:
-        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        logger.error(f"{log_prefix} Re-raising non-deferred billing error after final chunk: {billing_error}")
         raise billing_error
     
     # NOTE: Email notifications for offline users are handled in websockets.py

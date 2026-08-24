@@ -35,6 +35,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS billing_charge_identities_charge_uq
   ON billing_charge_identities (charge_id);
 CREATE INDEX IF NOT EXISTS billing_charge_identities_user_created_idx
   ON billing_charge_identities (hashed_user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS billing_refund_identities_refund_uq
+  ON billing_refund_identities (refund_id);
+CREATE INDEX IF NOT EXISTS billing_settlement_outbox_due_idx
+  ON billing_settlement_outbox (state, next_attempt_at, created_at)
+  WHERE state IN ('pending', 'retry_scheduled');
 CREATE UNIQUE INDEX IF NOT EXISTS team_credit_events_event_uq
   ON team_credit_events (event_id);
 CREATE UNIQUE INDEX IF NOT EXISTS team_usage_events_event_uq

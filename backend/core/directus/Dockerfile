@@ -209,10 +209,12 @@ sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'usage_orchestration_created_idx',
         'billing_charge_identities_charge_uq',
         'billing_charge_identities_user_created_idx',
+        'billing_refund_identities_refund_uq',
+        'billing_settlement_outbox_due_idx',
         'team_credit_events_event_uq',
         'team_usage_events_event_uq'
       );")"
-test "$sub_chat_index_count" = "18"
+test "$sub_chat_index_count" = "20"
 HEALTH_SCRIPT
 
 USER root
