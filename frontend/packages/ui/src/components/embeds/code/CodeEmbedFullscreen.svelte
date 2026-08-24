@@ -455,6 +455,7 @@
   let runCandidates = $state<CodeRunFileCandidate[]>([]);
   let requestedRunOutputKey = $state<string | null>(null);
   let runOutputHydrating = $state(false);
+  let runOutputActionPending = $state(false);
   let codeRunOverlayActive = $derived(runPanelOpen || runSelectionOpen);
   let outputPaneActive = $derived(previewActive);
   let splitPaneActive = $derived(outputPaneActive || codeRunOverlayActive);
@@ -618,6 +619,13 @@
     return `code-run-output:${embedIdValue}`;
   }
 
+  function completeRunOutputHydration(): void {
+    runOutputHydrating = false;
+    if (!runOutputActionPending) return;
+    runOutputActionPending = false;
+    toggleRunOutput();
+  }
+
   async function loadSavedRunOutput() {
     if (!embedId) return;
     try {
@@ -666,12 +674,12 @@
       runOutputHydrating = true;
       void loadSavedRunOutput().then(() => {
         if (requestedRunOutputKey === requestKey && savedRunOutput) {
-          runOutputHydrating = false;
+          completeRunOutputHydration();
         }
       });
       void sendRequestCodeRunOutputImpl(chatId, embedId);
       window.setTimeout(() => {
-        if (requestedRunOutputKey === requestKey) runOutputHydrating = false;
+        if (requestedRunOutputKey === requestKey) completeRunOutputHydration();
       }, RUN_OUTPUT_HYDRATION_TIMEOUT_MS);
     }
   });
@@ -681,7 +689,7 @@
       const output = (event as CustomEvent<CodeRunOutput>).detail;
       if (!embedId || output.embed_id !== embedId) return;
       savedRunOutput = savedRunOutputFromRow(output);
-      runOutputHydrating = false;
+      completeRunOutputHydration();
       runArtifactChildIds = artifactChildIds(savedRunOutput.artifacts);
       if (!runActive && !runPanelOpen) {
         runEvents = savedOutputToEvents(savedRunOutput);
@@ -871,7 +879,11 @@
   }
 
   function toggleRunOutput() {
-    if (codeRunOverlayActive || runOutputHydrating) return;
+    if (codeRunOverlayActive) return;
+    if (runOutputHydrating) {
+      runOutputActionPending = true;
+      return;
+    }
     if (runExecutionId || runEvents.length > 0) {
       previewActive = false;
       runSelectionOpen = false;
@@ -1449,7 +1461,7 @@
     {#if hasCodeHeaderCta}
       <div class="embed-header-cta-group">
         {#if isRunnable && embedId}
-          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} variant={runOutputHydrating ? 'loading' : 'primary'} testId="embed-run-button" />
+          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} testId="embed-run-button" />
         {/if}
         {#if isPreviewable}
           <EmbedHeaderCtaButton
