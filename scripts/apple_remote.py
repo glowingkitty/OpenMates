@@ -157,9 +157,9 @@ print("proof_broker_relay=verified")
 '''
 
 APPLE_PROOF_BROKER_DECRYPT_SCRIPT = r'''
-import hashlib
 import os
 import pathlib
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -209,13 +209,15 @@ try:
     if set(values) != expected:
         print("proof_credentials=unexpected_payload")
         sys.exit(7)
+    with temporary.open("a", encoding="utf-8") as handle:
+        handle.write(f"OPENMATES_CREDENTIAL_GENERATION={secrets.token_hex(16)}\n")
     os.chmod(temporary, 0o600)
     os.replace(temporary, credential_path)
-    credential_digest = hashlib.sha256(credential_path.read_bytes()).hexdigest()
-    expiry_script = "import hashlib,pathlib,sys,time; time.sleep(int(sys.argv[2])); path=pathlib.Path(sys.argv[1]); path.unlink(missing_ok=True) if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == sys.argv[3] else None"
+    credential_inode = str(credential_path.stat().st_ino)
+    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); path=pathlib.Path(sys.argv[1]); path.unlink(missing_ok=True) if path.is_file() and path.stat().st_ino == int(sys.argv[3]) else None"
     try:
         subprocess.Popen(
-            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5], credential_digest],
+            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5], credential_inode],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

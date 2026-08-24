@@ -335,9 +335,10 @@ def test_broker_mode_does_not_load_local_credentials(monkeypatch) -> None:
 def test_broker_expiry_cannot_delete_newer_credential_materialization() -> None:
     module = load_module()
 
-    assert "credential_digest = hashlib.sha256(credential_path.read_bytes()).hexdigest()" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
-    assert "hashlib.sha256(path.read_bytes()).hexdigest() == sys.argv[3]" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
-    assert "str(credential_path), sys.argv[5], credential_digest" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
+    assert "OPENMATES_CREDENTIAL_GENERATION=" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
+    assert "credential_inode = str(credential_path.stat().st_ino)" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
+    assert "path.stat().st_ino == int(sys.argv[3])" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
+    assert "str(credential_path), sys.argv[5], credential_inode" in module.APPLE_PROOF_BROKER_DECRYPT_SCRIPT
 
 
 def test_artifact_cleanup_fails_closed_when_github_lookup_fails() -> None:
