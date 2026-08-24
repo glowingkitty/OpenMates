@@ -81,6 +81,7 @@ def test_proof_recording_requires_timeline_before_marking_passed() -> None:
     module = load_module()
 
     assert "and (not proof or timeline is not None)" in module.RECORDED_IOS_TEST_SCRIPT
+    assert 'if proof:\n    console_log.unlink(missing_ok=True)\n    live_log.unlink(missing_ok=True)' in module.RECORDED_IOS_TEST_SCRIPT
 
 
 def test_recording_epoch_uses_explicit_xctest_handoff_without_fallback() -> None:

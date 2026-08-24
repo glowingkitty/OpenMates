@@ -395,6 +395,10 @@ for candidate in attachments.rglob("*.json"):
         timeline = candidate
         break
 
+if proof:
+    console_log.unlink(missing_ok=True)
+    live_log.unlink(missing_ok=True)
+
 status = "passed" if (
     xcode_exit == 0
     and raw_video.is_file()
@@ -4160,7 +4164,7 @@ def simctl_remote_command(simctl_args: Sequence[str]) -> str:
 
 def build_macos_command() -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = shell_join([
+    xcodebuild = with_xcode_developer_dir(shell_join([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -4168,8 +4172,9 @@ def build_macos_command() -> str:
         "OpenMates_macOS",
         "-destination",
         "platform=macOS",
+        "CODE_SIGNING_ALLOWED=NO",
         "build",
-    ])
+    ]))
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
@@ -4188,7 +4193,8 @@ def test_macos_command(only_testing: str | None) -> str:
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {shell_join(parts)}"
+    xcodebuild = with_xcode_developer_dir(shell_join(parts))
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
 def build_watch_command(simulator: str) -> str:

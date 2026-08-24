@@ -71,9 +71,33 @@ def remove_push_subscription_targets(existing_subscription_json: Optional[str], 
     )
 
 
+def remove_push_subscription_target(
+    existing_subscription_json: Optional[str],
+    target: dict[str, Any],
+) -> tuple[str | None, bool]:
+    """Remove one stable target without unregistering a user's other devices."""
+    target_id = push_target_id(target)
+    if not target_id:
+        raise ValueError("Push subscription target is missing a stable identifier")
+    targets = [
+        existing
+        for existing in normalize_push_subscription_targets(existing_subscription_json)
+        if push_target_id(existing) != target_id
+    ]
+    if not targets:
+        return None, False
+    return (
+        json.dumps({"type": MULTI_PUSH_SUBSCRIPTION_TYPE, "targets": targets}, separators=(",", ":")),
+        True,
+    )
+
+
 def push_target_id(target: dict[str, Any]) -> Optional[str]:
     target_type = target.get("type", "web")
     if target_type == "apns":
+        device_id = str(target.get("device_id") or "").strip()
+        if device_id:
+            return "apns-device:" + hashlib.sha256(device_id.encode()).hexdigest()
         token = str(target.get("token") or "").strip()
         if token:
             return "apns:" + hashlib.sha256(token.encode()).hexdigest()

@@ -34,6 +34,7 @@ from backend.core.api.app.services.push_notification_service import (
 from backend.core.api.app.services.push_subscription_targets import (
     merge_push_subscription_target,
     normalize_push_subscription_targets,
+    remove_push_subscription_target,
 )
 
 
@@ -203,6 +204,23 @@ def test_push_subscription_targets_preserve_browser_and_native_devices():
     assert [target["type"] for target in targets] == ["web", "apns"]
     assert targets[0]["endpoint"] == browser_target["endpoint"]
     assert targets[1]["token"] == native_target["token"]
+
+
+# contract-test: direct surface=rest_api assertions=apple-notifications.registration.lifecycle
+def test_native_rotation_and_unregister_use_stable_installation_identity():
+    first = {"type": "apns", "token": "token-1", "device_id": "installation-1"}
+    rotated = {"type": "apns", "token": "token-2", "device_id": "installation-1"}
+    other = {"type": "apns", "token": "token-3", "device_id": "installation-2"}
+
+    stored = merge_push_subscription_target(None, first)
+    stored = merge_push_subscription_target(stored, other)
+    stored = merge_push_subscription_target(stored, rotated)
+    targets = normalize_push_subscription_targets(stored)
+
+    assert [target["token"] for target in targets] == ["token-3", "token-2"]
+    stored, enabled = remove_push_subscription_target(stored, rotated)
+    assert enabled is True
+    assert [target["token"] for target in normalize_push_subscription_targets(stored)] == ["token-3"]
 
 
 # contract-test: supporting surface=rest_api assertions=apple-notifications.delivery.idempotent-visible

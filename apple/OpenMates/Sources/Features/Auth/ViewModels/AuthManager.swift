@@ -398,6 +398,7 @@ final class AuthManager: ObservableObject {
     // MARK: - Logout
 
     func logout() async {
+        await PushNotificationManager.shared.unregisterCurrentDevice()
         do {
             let _: Data = try await api.request(.post, path: "/v1/auth/logout")
         } catch {

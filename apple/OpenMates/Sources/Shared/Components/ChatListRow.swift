@@ -67,6 +67,14 @@ struct ChatListRow: View {
         return "user-chat"
     }
 
+    private var accessibilityValue: String {
+        guard accessibilityScope == "user-chat",
+              ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids") else {
+            return accessibilityScope
+        }
+        return "user-chat:\(chat.id)"
+    }
+
     private var isSubChatRow: Bool {
         chat.isSubChat == true || chat.parentId != nil
     }
@@ -167,7 +175,7 @@ struct ChatListRow: View {
         .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
-        .accessibilityValue(accessibilityScope)
+        .accessibilityValue(accessibilityValue)
         .accessibilityLabel("\(titleForDisplay)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }

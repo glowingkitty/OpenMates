@@ -34,6 +34,9 @@ private final class NotificationCompletionBox: @unchecked Sendable {
 final class PushNotificationManager: NSObject, ObservableObject {
     static let shared = PushNotificationManager()
 
+    private static let installationIDKey = "openmates.push.installationId"
+    private static let deviceTokenKey = "openmates.push.deviceToken"
+
     private enum NotificationAction {
         static let chatMessageCategory = "OPENMATES_CHAT_MESSAGE"
         static let reply = "OPENMATES_REPLY"
@@ -59,7 +62,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
             if granted {
                 await registerForRemoteNotifications()
             }
-            isRegistered = granted
+            isRegistered = false
             return granted
         } catch {
             NativeDiagnostics.warning("Notification permission request failed: \(type(of: error))", category: "push_notifications")
@@ -87,19 +90,76 @@ final class PushNotificationManager: NSObject, ObservableObject {
                 "token": tokenString,
                 "platform": "apns",
                 "environment": Self.apnsEnvironment,
-                "encryption_version": NotificationPreviewCrypto.encryptionVersion
+                "encryption_version": NotificationPreviewCrypto.encryptionVersion,
+                "device_id": Self.installationID
             ]
             if let publicKey {
                 body["notification_public_key"] = publicKey
             } else {
                 NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications")
             }
-            try? await APIClient.shared.request(
-                .post,
-                path: "/v1/notifications/register-device",
-                body: body
-            ) as Data
+            do {
+                let _: Data = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/notifications/register-device",
+                    body: body
+                )
+                try KeychainHelper.save(key: Self.deviceTokenKey, data: Data(tokenString.utf8))
+                isRegistered = true
+            } catch {
+                isRegistered = false
+                NativeDiagnostics.warning(
+                    "APNs device registration acknowledgement failed: \(type(of: error))",
+                    category: "push_notifications"
+                )
+            }
         }
+    }
+
+    func unregisterCurrentDevice() async {
+        guard let stored = try? KeychainHelper.load(key: Self.deviceTokenKey),
+              let token = String(data: stored, encoding: .utf8),
+              !token.isEmpty else {
+            isRegistered = false
+            return
+        }
+        do {
+            let _: Data = try await APIClient.shared.request(
+                .delete,
+                path: "/v1/notifications/unregister-device",
+                body: ["token": token, "device_id": Self.installationID]
+            )
+            try KeychainHelper.delete(key: Self.deviceTokenKey)
+            isRegistered = false
+            #if os(iOS)
+            UIApplication.shared.unregisterForRemoteNotifications()
+            #elseif os(macOS)
+            NSApplication.shared.unregisterForRemoteNotifications()
+            #endif
+        } catch {
+            NativeDiagnostics.warning(
+                "APNs device unregister acknowledgement failed: \(type(of: error))",
+                category: "push_notifications"
+            )
+        }
+    }
+
+    private static var installationID: String {
+        if let stored = try? KeychainHelper.load(key: installationIDKey),
+           let existing = String(data: stored, encoding: .utf8),
+           !existing.isEmpty {
+            return existing
+        }
+        let created = UUID().uuidString.lowercased()
+        do {
+            try KeychainHelper.save(key: installationIDKey, data: Data(created.utf8))
+        } catch {
+            NativeDiagnostics.warning(
+                "APNs installation identity persistence failed: \(type(of: error))",
+                category: "push_notifications"
+            )
+        }
+        return created
     }
 
     private static var apnsEnvironment: String {
