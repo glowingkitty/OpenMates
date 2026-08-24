@@ -184,6 +184,7 @@ struct ChatView: View {
     @State private var chatContainerWidth: CGFloat = 0
     @State private var isAtTop = true
     @State private var isAtBottom = false
+    @State private var followsStreamingResponse = false
     @State private var hasRestoredInitialScroll = false
     @State private var isRestoringScroll = false
     @State private var handledInputFocusRequest = 0
@@ -1031,6 +1032,19 @@ struct ChatView: View {
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)
                     scrollToSearchTargetIfNeeded(proxy: proxy)
+                    scrollToStreamingResponseIfNeeded(proxy: proxy)
+                }
+                .onChange(of: viewModel.streamingContent) { _, _ in
+                    scrollToStreamingResponseIfNeeded(proxy: proxy)
+                }
+                .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+                    guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
+                    scrollToStreamingResponseIfNeeded(proxy: proxy)
+                    Task { @MainActor in
+                        await Task.yield()
+                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                        followsStreamingResponse = false
+                    }
                 }
                 .onChange(of: searchTarget) { _, _ in
                     scrollToSearchTargetIfNeeded(proxy: proxy)
@@ -1279,6 +1293,14 @@ struct ChatView: View {
 
         guard viewModel.hasOlderMessages, !viewModel.isLoadingOlder else { return }
         viewModel.loadOlderMessages()
+    }
+
+    private func scrollToStreamingResponseIfNeeded(proxy: ScrollViewProxy) {
+        guard followsStreamingResponse else { return }
+        Task { @MainActor in
+            await Task.yield()
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+        }
     }
 
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
@@ -2742,6 +2764,7 @@ struct ChatView: View {
             return
         }
         messageText = ""
+        followsStreamingResponse = true
         viewModel.error = nil
         detectedPIIMatches = []
         piiExclusions = []
