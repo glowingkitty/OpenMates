@@ -619,10 +619,20 @@
 
     const PLACEHOLDER_CYCLE_MS = 8000;
     const PLACEHOLDER_FADE_MS = 220;
+    const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
     let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
     let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
     let showRecordingPlaceholderHint = $state(false);
     let isPlaceholderFading = $state(false);
+
+    function isE2ELogForwardingActive(): boolean {
+        if (typeof sessionStorage === 'undefined') return false;
+        try {
+            return sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY) !== null;
+        } catch {
+            return false;
+        }
+    }
 
     function isTouchInputDevice(): boolean {
         if (typeof window === 'undefined') return false;
@@ -647,6 +657,11 @@
     }
 
     function updateCyclingPlaceholderText() {
+        if (isE2ELogForwardingActive()) {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+            return;
+        }
+
         if (showRecordingPlaceholderHint) {
             if (hasKeyboardShortcutSupport()) {
                 const shortcutKey = isMacPlatform()
@@ -4734,7 +4749,7 @@
         if (typeof testMockMarker !== 'string' || testMockMarker.trim().length === 0) return undefined;
 
         try {
-            const rawE2EState = sessionStorage.getItem('openmates_e2e_log_forwarding');
+            const rawE2EState = sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY);
             if (!rawE2EState) return undefined;
             const parsedState = JSON.parse(rawE2EState) as { runId?: unknown; token?: unknown };
             if (typeof parsedState.runId !== 'string' || typeof parsedState.token !== 'string') {
