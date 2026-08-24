@@ -292,8 +292,9 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
 	await expect(terminal).toContainText('Hello, World!', { timeout: 120000 });
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
-	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Copy output');
-	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Run again');
+	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
+	await expect(terminalActions).toContainText('Copy output');
+	await expect(terminalActions).toContainText('Run again');
 	const artifacts = fullscreenOverlay.getByTestId('code-run-artifacts');
 	const artifactCards = artifacts.getByTestId('code-run-artifact');
 	await expect(artifacts).toBeVisible({ timeout: 120000 });
@@ -301,7 +302,8 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(artifactCards.first()).toContainText('outputs/result.txt');
 	await expect(artifactCards.first().getByTestId('code-run-artifact-download')).toBeVisible();
 	if (proof) {
-		await artifacts.scrollIntoViewIfNeeded();
+		await terminalActions.scrollIntoViewIfNeeded();
+		await expect(terminalActions).toBeInViewport({ ratio: 1 });
 		await proof.assert('code-run.result.visible', async () => {
 			await expect(terminal).toContainText('Hello, World!');
 			await expect(terminal).toContainText('Exited');
@@ -327,6 +329,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 			await expect(artifactHistory).toContainText('outputs/result.txt');
 		});
 		await proof.checkpoint('history-visible');
+		await proof.attach();
 	}
 	await stopActiveResponseIfNeeded(page, log);
 	await screenshot(page, 'code-run-output-visible-fullscreen');
@@ -363,8 +366,6 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await reloadedFullscreenOverlay.getByTestId('embed-minimize').click();
 	await expect(reloadedFullscreenOverlay).not.toBeVisible({ timeout: 10000 });
 	log('Code embed preview still shows run output after reload.');
-	if (proof) await proof.attach();
-
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
