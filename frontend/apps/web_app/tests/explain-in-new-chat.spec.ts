@@ -279,6 +279,15 @@ async function expectChatHeaderIconNotClipped(page: any): Promise<void> {
 	expect(issues).toEqual([]);
 }
 
+async function restoreProofHeaderViewport(page: any): Promise<void> {
+	await page.evaluate(() => {
+		const scroller = document.querySelector<HTMLElement>('[data-testid="chat-history-container"]');
+		scroller?.scrollTo({ top: 0, behavior: 'instant' });
+	});
+	await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: 5000 });
+	await expectChatHeaderIconNotClipped(page);
+}
+
 async function waitForCompletedAssistantResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
 	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
 	await expect
@@ -355,6 +364,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	// the transient selection context menu, otherwise the menu can close on scroll
 	// between the visibility assertion and the click.
 	await page.waitForTimeout(3000);
+	await restoreProofHeaderViewport(page);
 
 	const sourceUrl = page.url();
 	const sourceChatTextBefore = await page.locator(SELECTORS.chatMessage).allTextContents();
@@ -371,6 +381,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 		await holdProofState(page);
 	}
 	await page.mouse.click(10, 10);
+	await restoreProofHeaderViewport(page);
 
 	log('Selecting assistant phrase and clicking Explain in new chat from the highlight menu.');
 	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
