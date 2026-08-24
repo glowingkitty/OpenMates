@@ -266,6 +266,16 @@ async function waitForCompletedAssistantResponse(page: any, log: (message: strin
 	log('Assistant response completed; no visible processing or thinking indicator remains.');
 }
 
+async function dismissSecurityReminder(page: any): Promise<void> {
+	const reminder = page
+		.locator(SELECTORS.notification)
+		.filter({ hasText: /Security Reminder|secure your account|2FA|passkey/i })
+		.first();
+	if (!(await reminder.isVisible({ timeout: 3000 }).catch(() => false))) return;
+	await reminder.getByTestId('notification-dismiss').click();
+	await expect(reminder).toBeHidden({ timeout: 5000 });
+}
+
 async function triggerExplainInNewChat(page: any): Promise<void> {
 	const explainActionSelector = `${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`;
 	await expect(page.locator(explainActionSelector).first()).toBeVisible({ timeout: 5000 });
@@ -302,6 +312,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await archiveExistingScreenshots(log);
 
 	await loginToTestAccount(page, log, screenshot);
+	await dismissSecurityReminder(page);
 	await startNewChat(page, log);
 
 	const seedPrompt = 'Reply in one short sentence that includes the exact phrase: vector database.';
@@ -439,6 +450,7 @@ test('selection toolbar wraps within a mobile viewport', async ({ page }: { page
 	await page.setViewportSize({ width: 390, height: 844 });
 
 	await loginToTestAccount(page, log, screenshot);
+	await dismissSecurityReminder(page);
 	await startNewChat(page, log);
 	if (proof) {
 		await proof.checkpoint('mobile-signed-in');
