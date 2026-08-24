@@ -120,7 +120,10 @@ async def run(args: argparse.Namespace) -> int:
         headers = {"X-Internal-Service-Token": internal_token}
         charge_url = f"{args.api_url.rstrip('/')}/internal/billing/charge"
         refund_url = f"{args.api_url.rstrip('/')}/internal/billing/refund"
-        async with httpx.AsyncClient(timeout=30) as client:
+        # The API container inherits outbound proxy variables that cannot
+        # hairpin the local dev domain; bypass them while still exercising the
+        # public HTTPS route through Caddy.
+        async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
             responses = await asyncio.gather(
                 *(client.post(charge_url, json=payload, headers=headers) for payload in charge_payloads)
             )
