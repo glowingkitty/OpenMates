@@ -116,10 +116,13 @@ run_dir.mkdir(parents=True, exist_ok=False)
 raw_video = run_dir / "raw.mov"
 result_bundle = run_dir / "result.xcresult"
 console_log = run_dir / "console.log"
+live_log = run_dir / "live-app.log"
 attachments = run_dir / "attachments"
 manifest_path = run_dir / "artifact-manifest.json"
 archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
 recorder = None
+log_stream = None
+log_handle = None
 xcode_exit = 1
 started = time.time()
 subject_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
@@ -158,6 +161,17 @@ try:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    log_handle = live_log.open("w", encoding="utf-8")
+    log_stream = subprocess.Popen(
+        [
+            "xcrun", "simctl", "spawn", udid, "log", "stream",
+            "--style", "compact", "--level", "info",
+            "--predicate", 'process == "OpenMates"',
+        ],
+        stdout=log_handle,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
     recording_started_unix_ms = str(int(time.time() * 1000))
     command = [
         "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
@@ -173,6 +187,15 @@ try:
     if subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip() != subject_commit:
         xcode_exit = 4
 finally:
+    if log_stream is not None and log_stream.poll() is None:
+        log_stream.terminate()
+        try:
+            log_stream.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            log_stream.kill()
+            log_stream.wait(timeout=5)
+    if log_handle is not None:
+        log_handle.close()
     if recorder is not None and recorder.poll() is None:
         recorder.send_signal(signal.SIGINT)
         try:
