@@ -157,7 +157,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 7b325aa94ce7b04ced000d491180d7806ce6753a
+  subject_commit: f7b102e719d5f01573aae8b4fafd26bc618abfe7
 
 approvals:
   product_contract:
@@ -598,7 +598,7 @@ tests:
       - Dev, production, and self-host report subjects and namespaces are isolated.
       - One channel failure preserves the other channel result and yields partial failure.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "red:operational-digest-import-missing-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Collection failed because the planned operational_monitoring service does not exist."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_health_status_alerts.py backend/tests/test_payment_readiness.py backend/tests/test_operational_monitoring_digest.py backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py backend/tests/test_verify_operational_monitoring.py -q", run_id: "local:monitoring-regression-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z", summary: "57 focused backend tests passed."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_health_status_alerts.py backend/tests/test_payment_readiness.py backend/tests/test_operational_monitoring_digest.py backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py backend/tests/test_verify_operational_monitoring.py -q", run_id: "local:monitoring-regression-20260824T1532Z", subject_commit: "f7b102e719d5f01573aae8b4fafd26bc618abfe7", timestamp: "2026-08-24T15:32:00Z", summary: "65 focused backend tests passed, including bounded drill isolation, correlation, stable delivery, and restoration guards."}}
   - id: T-ALERT-RULES
     type: lint
     file: backend/core/monitoring/prometheus/alert_rule_tests.yml
@@ -732,14 +732,14 @@ verifications:
     covers: [AC-1, AC-4]
     status: passed
     command: python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord
-    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord --skip-build --evidence-dir /tmp/opencode/operational-monitoring-df04", run_id: "/tmp/opencode/operational-monitoring-df04/verification-dev-20260824T144856Z.json", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", summary: "Accepted labeled dev email and Discord delivery; report operational-development-20260824T144852Z-39e8c265; Discord fallback source was explicitly recorded without destination data.", timestamp: "2026-08-24T14:48:56Z"}
+    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord --skip-build --evidence-dir /tmp/opencode/operational-monitoring-df04", run_id: "/tmp/opencode/operational-monitoring-df04/verification-dev-20260824T151555Z.json", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", summary: "Accepted labeled dev email and Discord delivery for operational-development-20260824T151551Z-cb996c0b; Discord fallback source remained explicit and destination-free.", timestamp: "2026-08-24T15:15:55Z"}
   - id: V-DEV-ARTIFACT-REVIEW
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-4, AC-8]
     status: passed
-    evidence: {status: passed, summary: "Inspected latest.png and latest.json for operational-development-20260824T144852Z-39e8c265. Defects: none; no clipping, overlap, private data, or raw destination values. Accepted differences: dev Prometheus and provider collectors were unavailable and rendered explicit no-data/unavailable states; EU card rendered healthy and Managed rendered unavailable with sanitized missing events.", run_id: "test-results/operational-monitoring/latest.png", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T14:48:56Z"}
+    evidence: {status: passed, summary: "Inspected latest.png and latest.json for operational-development-20260824T151551Z-cb996c0b. Defects: none; CPU, memory, disk, application, and scheduler telemetry were fresh and readable with no clipping or private data. Accepted differences: provider health remained unavailable because its Celery queue exceeded 10,000 pending tasks; EU card was healthy and Managed was unavailable with nine sanitized missing events.", run_id: "test-results/operational-monitoring/latest.png", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:15:55Z"}
   - id: V-DEV-FAILURE-DRILL
     kind: manual_check
     phase: green
@@ -747,7 +747,7 @@ verifications:
     covers: [AC-5, AC-7]
     status: blocked
     command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
-    evidence: {status: blocked, command: "python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore", run_id: "local:unsupported-drill-20260824T1501Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", summary: "Verifier rejected --drill and --restore as unsupported; no fault was injected. A deterministic dev-only drill implementation is still required.", timestamp: "2026-08-24T15:01:00Z"}
+    evidence: {status: blocked, command: "python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore", run_id: "deploy:f7b102e719d5f01573aae8b4fafd26bc618abfe7", subject_commit: "f7b102e719d5f01573aae8b4fafd26bc618abfe7", summary: "Bounded dev-only drill support is implemented, tested, independently reviewed, and pushed. Runtime execution remains blocked: the root control-plane checkout could not fast-forward over unrelated dirty scripts/sessions.py, so Alertmanager still loads the old mounted config; the previously exposed Discord webhook must also be rotated before sending drill traffic. No fault or synthetic alert was injected.", timestamp: "2026-08-24T15:38:00Z"}
   - id: V-DEV-ROLLOUT-GATE
     kind: deterministic_check
     phase: final
@@ -935,7 +935,7 @@ tasks:
     expected_files: [docs/specs/operational-monitoring-digest-alerts/spec.yml]
     verification_ids: [V-PROD-PAYMENT-CONFIG, V-PROD-DISCORD, V-PROD-ROLLOUT, V-SPEC-VERIFY]
     dependencies: [TASK-5, TASK-10]
-    blockers: []
+    blockers: [explicit_production_approval, dev_rollout_gate]
     ownership: {files: [docs/specs/operational-monitoring-digest-alerts/spec.yml], shared_files: []}
     follow_up_tasks: []
   - id: TASK-7
@@ -973,13 +973,13 @@ tasks:
     follow_up_tasks: [TASK-10]
   - id: TASK-10
     title: Deploy dev monitoring changes and prove both Stripe sandbox purchase flows
-    status: in_progress
+    status: done
     phase: running_checks
     covers: {scenarios: [S-3, S-8, S-9, S-10, S-11], acceptance_criteria: [AC-1, AC-4, AC-11, AC-12, AC-13, AC-14]}
     expected_files: [docs/specs/operational-monitoring-digest-alerts/spec.yml]
     verification_ids: [V-DEV-REAL-DELIVERY, V-DEV-ARTIFACT-REVIEW, T-E2E-STRIPE-EU, T-E2E-STRIPE-MANAGED]
     dependencies: [TASK-8, TASK-9]
-    blockers: [A-6]
+    blockers: []
     ownership: {files: [docs/specs/operational-monitoring-digest-alerts/spec.yml], shared_files: []}
     follow_up_tasks: [TASK-6]
 
@@ -1002,13 +1002,19 @@ attempts:
     outcome: planned
     recorded_at: "2026-08-24T11:45:00Z"
     evidence: architecture.operational-monitoring@2 fingerprint f8abb767ea0aebed4b457335fbcafac1018e3a5aa4d4bee7f92bba00f892aa8d approved in session df04.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Add synthetic dev-only Alertmanager drills with exact environment routing, drill-ID grouping, stable receiver completion checks, correlated webhook lifecycle receipts, and retrying bounded restoration.
+    outcome: blocked
+    recorded_at: "2026-08-24T15:38:00Z"
+    evidence: Source and tests deployed as f7b102e719d5f01573aae8b4fafd26bc618abfe7; runtime activation is blocked by unrelated root control-plane changes and drill delivery waits for Discord webhook rotation.
 
 handoff:
   current_task_id: TASK-10
-  next_action: Restore real dev Prometheus/provider freshness and implement the bounded dev failure/recovery drill before production rollout.
+  next_action: Rotate the exposed dev Discord webhook, sync the root control-plane checkout after its unrelated scripts/sessions.py edit is released, activate the deployed Alertmanager config, and run the bounded dev drill.
   command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
-  expected_outcome: Dev reports include fresh resource/provider data and controlled drills prove firing, deduplication, restoration, and recovery.
+  expected_outcome: Controlled dev drills prove isolated firing, deduplication, correlated receiver completion, restoration, and one recovery event; subsequent daily reports maintain fresh resource and provider state.
   blocker:
     id: dev-rollout-gates
-    reason: The verifier has no --drill/--restore implementation, dev Prometheus queries are unavailable from the API container, provider health jobs are blocked behind a large Celery queue backlog, and the seven-day fresh-report gate has not elapsed.
-  last_verified_commit: 37ac33ae20bf1bae731f0594a292ded0a53234ca
+    reason: Drill source is deployed, but the running Alertmanager still mounts the unsynced root checkout; the exposed Discord webhook requires rotation, provider health jobs remain blocked behind a queue exceeding 10,000 tasks, and the seven-day fresh-report gate has not elapsed.
+  last_verified_commit: f7b102e719d5f01573aae8b4fafd26bc618abfe7
