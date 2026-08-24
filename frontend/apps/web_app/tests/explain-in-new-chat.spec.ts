@@ -89,7 +89,7 @@ const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'assistant-selection-action',
 			checkpoint: 'assistant-selection-action',
-			visual: 'User-message selection does not expose Explain in new chat, while assistant-message selection does in a readable context menu whose text has sufficient contrast and whose action icons render as icons rather than square placeholders.',
+			visual: 'User-message selection does not expose Explain in new chat, while assistant-message selection does in a readable action surface whose text has sufficient contrast and whose action icons render as icons rather than square placeholders.',
 			devices: ['web-laptop']
 		},
 		{
@@ -206,10 +206,19 @@ async function openMessageContextMenu(
 }
 
 async function expectContextMenuVisualIntegrity(page: any): Promise<void> {
-	await expect(page.locator('[data-testid="message-context-menu"]').first()).toBeVisible({ timeout: 5000 });
+	const actionSurfaceSelector = '[data-testid="message-context-menu"], [data-testid="message-selection-toolbar"]';
+	await expect(page.locator(actionSurfaceSelector).first()).toBeVisible({ timeout: 5000 });
 	const issues = await page.evaluate((minimumContrast: number) => {
-		const menu = document.querySelector('[data-testid="message-context-menu"]') as HTMLElement | null;
-		if (!menu) return ['message context menu is missing'];
+		const surfaces = Array.from(
+			document.querySelectorAll<HTMLElement>('[data-testid="message-context-menu"], [data-testid="message-selection-toolbar"]')
+		);
+		const surface = surfaces.find((candidate) => {
+			const style = getComputedStyle(candidate);
+			const rect = candidate.getBoundingClientRect();
+			return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || '1') > 0 && rect.width > 0 && rect.height > 0;
+		});
+		if (!surface) return ['selected-text action surface is missing'];
+		const itemSelector = surface.dataset.testid === 'message-selection-toolbar' ? '.sel-btn' : '.menu-item';
 
 		function parseRgb(value: string): [number, number, number] | null {
 			const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -231,9 +240,9 @@ async function expectContextMenuVisualIntegrity(page: any): Promise<void> {
 			return (lighter + 0.05) / (darker + 0.05);
 		}
 
-		const background = parseRgb(getComputedStyle(menu).backgroundColor);
-		if (!background) return ['message context menu background color could not be parsed'];
-		return Array.from(menu.querySelectorAll<HTMLElement>('.menu-item')).flatMap((item) => {
+		const background = parseRgb(getComputedStyle(surface).backgroundColor);
+		if (!background) return ['selected-text action surface background color could not be parsed'];
+		return Array.from(surface.querySelectorAll<HTMLElement>(itemSelector)).flatMap((item) => {
 			const style = getComputedStyle(item);
 			if (style.display === 'none' || style.visibility === 'hidden') return [];
 			const label = (item.textContent || item.getAttribute('data-testid') || item.className).trim();
