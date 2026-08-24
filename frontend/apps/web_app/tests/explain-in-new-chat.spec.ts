@@ -33,6 +33,7 @@ const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.e
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_VISIBLE_STATE_MS = 1200;
+const MIN_CONTEXT_MENU_TEXT_CONTRAST = 4.5;
 
 const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 	id: 'explain-in-new-chat-notification-action',
@@ -88,7 +89,7 @@ const EXPLAIN_IN_NEW_CHAT_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'assistant-selection-action',
 			checkpoint: 'assistant-selection-action',
-			visual: 'User-message selection does not expose Explain in new chat, while assistant-message selection does.',
+			visual: 'User-message selection does not expose Explain in new chat, while assistant-message selection does in a readable context menu whose text has sufficient contrast and whose action icons render as icons rather than square placeholders.',
 			devices: ['web-laptop']
 		},
 		{
@@ -169,24 +170,88 @@ async function selectInsideMessage(
 async function openMessageContextMenu(
 	page: any,
 	messageSelector: string,
-	rect: { x: number; y: number; width: number; height: number }
+	rect: { x: number; y: number; width: number; height: number },
+	options: { requireExplainAction?: boolean; selectedText?: string } = {}
 ): Promise<void> {
+	const point = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 	await page.evaluate(
-		({ sel, r }: { sel: string; r: { x: number; y: number; width: number; height: number } }) => {
+		({ sel, p }: { sel: string; p: { x: number; y: number } }) => {
 			const container = document.querySelector(sel) as HTMLElement | null;
 			if (!container) throw new Error(`Message container not found for selector: ${sel}`);
 			container.dispatchEvent(
 				new MouseEvent('contextmenu', {
 					bubbles: true,
 					cancelable: true,
-					clientX: r.x + r.width / 2,
-					clientY: r.y + r.height / 2,
+					clientX: p.x,
+					clientY: p.y,
 					button: 2
 				})
 			);
 		},
-		{ sel: messageSelector, r: rect }
+		{ sel: messageSelector, p: point }
 	);
+	if (!options.requireExplainAction) return;
+	try {
+		await expect(page.locator(`${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`).first()).toBeVisible({ timeout: 1000 });
+		return;
+	} catch {
+		await page.evaluate(() => {
+			document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 }));
+		});
+		if (options.selectedText) {
+			await selectInsideMessage(page, messageSelector, options.selectedText);
+		}
+		await page.mouse.click(point.x, point.y, { button: 'right' });
+	}
+}
+
+async function expectContextMenuVisualIntegrity(page: any): Promise<void> {
+	await expect(page.locator('[data-testid="message-context-menu"]').first()).toBeVisible({ timeout: 5000 });
+	const issues = await page.evaluate((minimumContrast: number) => {
+		const menu = document.querySelector('[data-testid="message-context-menu"]') as HTMLElement | null;
+		if (!menu) return ['message context menu is missing'];
+
+		function parseRgb(value: string): [number, number, number] | null {
+			const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+			return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+		}
+
+		function channel(value: number): number {
+			const normalized = value / 255;
+			return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+		}
+
+		function luminance(rgb: [number, number, number]): number {
+			return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
+		}
+
+		function contrast(foreground: [number, number, number], background: [number, number, number]): number {
+			const lighter = Math.max(luminance(foreground), luminance(background));
+			const darker = Math.min(luminance(foreground), luminance(background));
+			return (lighter + 0.05) / (darker + 0.05);
+		}
+
+		const background = parseRgb(getComputedStyle(menu).backgroundColor);
+		if (!background) return ['message context menu background color could not be parsed'];
+		return Array.from(menu.querySelectorAll<HTMLElement>('.menu-item')).flatMap((item) => {
+			const style = getComputedStyle(item);
+			if (style.display === 'none' || style.visibility === 'hidden') return [];
+			const label = (item.textContent || item.getAttribute('data-testid') || item.className).trim();
+			const foreground = parseRgb(style.color);
+			const itemIssues: string[] = [];
+			if (!foreground || contrast(foreground, background) < minimumContrast) {
+				itemIssues.push(`${label} text is unreadable against the menu background`);
+			}
+			const icon = item.querySelector<HTMLElement>('.clickable-icon');
+			if (icon) {
+				const iconStyle = getComputedStyle(icon);
+				const maskImage = iconStyle.maskImage || (iconStyle as any).webkitMaskImage || '';
+				if (!maskImage || maskImage === 'none') itemIssues.push(`${label} icon renders without a mask and would appear as a square`);
+			}
+			return itemIssues;
+		});
+	}, MIN_CONTEXT_MENU_TEXT_CONTRAST);
+	expect(issues).toEqual([]);
 }
 
 async function triggerExplainInNewChat(page: any): Promise<void> {
@@ -263,10 +328,14 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
 	expect(assistantSelection.selected).toBe(true);
 	expect(assistantSelection.rect).not.toBeNull();
-	await openMessageContextMenu(page, SELECTORS.mateMessageContent, assistantSelection.rect!);
+	await openMessageContextMenu(page, SELECTORS.mateMessageContent, assistantSelection.rect!, {
+		requireExplainAction: true,
+		selectedText: 'vector database'
+	});
 	if (proof) {
 		await proof.assert('assistant-selection-action', async () => {
 			await expect(page.locator(`${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`).first()).toBeVisible({ timeout: 5000 });
+			await expectContextMenuVisualIntegrity(page);
 		});
 		await proof.checkpoint('assistant-selection-action');
 		await holdProofState(page);

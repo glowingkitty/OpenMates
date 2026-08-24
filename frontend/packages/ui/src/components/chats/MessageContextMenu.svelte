@@ -289,6 +289,7 @@
 
 {#if show}
     <div
+        data-testid="message-context-menu"
         class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
@@ -441,6 +442,7 @@
         left: var(--menu-x);
         top: var(--menu-y);
         background: var(--color-grey-blue);
+        --message-context-menu-danger: #b42318;
         border-radius: var(--radius-5);
         padding: var(--spacing-4);
         box-shadow: var(--shadow-md);
@@ -484,6 +486,10 @@
     .menu-container.show {
         opacity: 1;
         pointer-events: all;
+    }
+
+    :global([data-theme="dark"]) .menu-container {
+        --message-context-menu-danger: var(--color-error, #ff6b6b);
     }
 
     /* Arrow pointing down (when menu is above clicked point) */
@@ -549,11 +555,11 @@
     }
 
     .menu-item.delete {
-        color: var(--color-error, #ff4444);
+        color: var(--message-context-menu-danger);
     }
 
     .menu-item.delete .clickable-icon {
-        background-color: var(--color-error, #ff4444);
+        background-color: var(--message-context-menu-danger);
     }
 
     .menu-item.delete.confirming {
@@ -588,9 +594,20 @@
     }
 
     .menu-item.fork.disabled {
-        opacity: 0.35;
+        opacity: 0.55;
         cursor: not-allowed;
         pointer-events: none;
+    }
+
+    .menu-item.disabled {
+        color: var(--color-font-secondary);
+        opacity: 1;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .menu-item.disabled .clickable-icon {
+        background-color: var(--color-font-secondary);
     }
 
     /* Debug mode button */
