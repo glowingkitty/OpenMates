@@ -421,6 +421,7 @@
 
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
   const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
+  const RUN_OUTPUT_HYDRATION_TIMEOUT_MS = 3_000;
 
   interface CodeRunAttachmentSource {
     s3Key: string;
@@ -453,6 +454,7 @@
   let runSelectionError = $state<string | null>(null);
   let runCandidates = $state<CodeRunFileCandidate[]>([]);
   let requestedRunOutputKey = $state<string | null>(null);
+  let runOutputHydrating = $state(false);
   let codeRunOverlayActive = $derived(runPanelOpen || runSelectionOpen);
   let outputPaneActive = $derived(previewActive);
   let splitPaneActive = $derived(outputPaneActive || codeRunOverlayActive);
@@ -658,12 +660,19 @@
   }
 
   $effect(() => {
-    void embedId;
-    void loadSavedRunOutput();
     const requestKey = chatId && embedId ? `${chatId}:${embedId}` : null;
     if (chatId && embedId && requestedRunOutputKey !== requestKey) {
       requestedRunOutputKey = requestKey;
+      runOutputHydrating = true;
+      void loadSavedRunOutput().then(() => {
+        if (requestedRunOutputKey === requestKey && savedRunOutput) {
+          runOutputHydrating = false;
+        }
+      });
       void sendRequestCodeRunOutputImpl(chatId, embedId);
+      window.setTimeout(() => {
+        if (requestedRunOutputKey === requestKey) runOutputHydrating = false;
+      }, RUN_OUTPUT_HYDRATION_TIMEOUT_MS);
     }
   });
 
@@ -672,6 +681,7 @@
       const output = (event as CustomEvent<CodeRunOutput>).detail;
       if (!embedId || output.embed_id !== embedId) return;
       savedRunOutput = savedRunOutputFromRow(output);
+      runOutputHydrating = false;
       runArtifactChildIds = artifactChildIds(savedRunOutput.artifacts);
       if (!runActive && !runPanelOpen) {
         runEvents = savedOutputToEvents(savedRunOutput);
@@ -861,7 +871,7 @@
   }
 
   function toggleRunOutput() {
-    if (codeRunOverlayActive) return;
+    if (codeRunOverlayActive || runOutputHydrating) return;
     if (runExecutionId || runEvents.length > 0) {
       previewActive = false;
       runSelectionOpen = false;
@@ -1439,7 +1449,7 @@
     {#if hasCodeHeaderCta}
       <div class="embed-header-cta-group">
         {#if isRunnable && embedId}
-          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} testId="embed-run-button" />
+          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} variant={runOutputHydrating ? 'loading' : 'primary'} testId="embed-run-button" />
         {/if}
         {#if isPreviewable}
           <EmbedHeaderCtaButton

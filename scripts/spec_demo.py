@@ -65,7 +65,7 @@ MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS = 0.05
 SCENE_CHANGE_THRESHOLD = 0.3
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
 MAX_REVIEW_ATTEMPTS = 3
-END_FRAME_OFFSET_SECONDS = 0.1
+END_FRAME_OFFSET_SECONDS = 0.5
 MEDIA_TIMESTAMP_DECIMALS = 3
 DEFAULT_NARRATION_PROVIDER = "elevenlabs"
 DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
@@ -1122,18 +1122,6 @@ def align_ordered_caption_boundaries_to_claim_anchors(
     duration_seconds: float,
 ) -> list[dict[str, Any]]:
     if len(segments) != len(claim_ids):
-        if len(claim_ids) == 1 and len(segments) > 1:
-            fallback = round(float(segments[-1]["start"]), MEDIA_TIMESTAMP_DECIMALS)
-            anchor = claim_anchor_times.get(claim_ids[0], fallback)
-            try:
-                boundary = round(float(anchor), MEDIA_TIMESTAMP_DECIMALS)
-            except (TypeError, ValueError):
-                boundary = fallback
-            if float(segments[-2]["start"]) < boundary < float(segments[-1]["end"]):
-                aligned = [*segments]
-                aligned[-2] = {**segments[-2], "end": boundary}
-                aligned[-1] = {**segments[-1], "start": boundary}
-                return aligned
         return segments
     starts = [round(float(segments[0]["start"]), MEDIA_TIMESTAMP_DECIMALS)]
     for index, claim_id in enumerate(claim_ids[1:], start=1):
@@ -2376,6 +2364,8 @@ def publish_reviewed_video(
                 "response_media_kind": str(upload.get("kind", "media")),
                 "response_media_markdown": str(snippets.get("markdown", "")),
                 "response_media_html": str(snippets.get("html", "")),
+                "snippet_markdown": str(snippets.get("markdown", "")),
+                "snippet_html": str(snippets.get("html", "")),
                 "response_media_captions": captions_upload or {},
             }
         )
