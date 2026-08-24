@@ -76,7 +76,7 @@ def test_review_frame_times_combine_periodic_and_event_boundaries() -> None:
     )
 
     assert {0.0, 3.0, 6.0, 9.0, 10.0}.issubset(times)
-    assert {1.2, 5.0, 7.75}.issubset(times)
+    assert {2.0, 4.5, 7.75}.issubset(times)
     assert len(times) <= module.MAX_REVIEW_FRAMES_PER_DEVICE
 
 
@@ -84,6 +84,7 @@ def test_periodic_interval_can_only_be_shorter_than_five_seconds() -> None:
     module = load_module()
 
     assert module.build_review_frame_times(duration_seconds=4, interval_seconds=1)[-1] == 4.0
+    assert module.END_FRAME_OFFSET_SECONDS == 0.5
     with pytest.raises(module.DemonstrationError, match="five seconds"):
         module.build_review_frame_times(duration_seconds=6, interval_seconds=6)
 

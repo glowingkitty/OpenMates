@@ -3982,15 +3982,20 @@ def normalize_apple_proof_video(
     source = run_dir / str(manifest.get("raw_video") or "")
     if not source.is_file():
         raise AppleRemoteError("Apple proof normalization requires the raw recording")
-    if dimensions_reader(source) == dimensions:
+    source_dimensions = dimensions_reader(source)
+    if source_dimensions == dimensions:
         manifest["proof_video"] = source.name
         return source
 
     output = run_dir / "proof-source.mp4"
     width, height = dimensions
+    video_filters = []
+    if profile == "apple-ipad-landscape" and source_dimensions[0] < source_dimensions[1]:
+        video_filters.append("transpose=2")
+    video_filters.extend([f"scale={width}:{height}:flags=lanczos", "setsar=1"])
     result = runner([
         "ffmpeg", "-y", "-i", str(source),
-        "-vf", f"scale={width}:{height}:flags=lanczos,setsar=1",
+        "-vf", ",".join(video_filters),
         "-c:v", "libx264", "-pix_fmt", "yuv444p", "-crf", "18",
         "-fps_mode", "passthrough", "-movflags", "+faststart", "-an", str(output),
     ])

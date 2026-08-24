@@ -392,3 +392,28 @@ def test_proof_video_normalization_retains_raw_and_uses_exact_profile(tmp_path: 
     assert manifest["raw_video_sha256"] == module.hashlib.sha256(raw_video.read_bytes()).hexdigest()
     assert "scale=393:852:flags=lanczos,setsar=1" in captured["command"]
     assert "yuv444p" in captured["command"]
+
+
+def test_ipad_proof_normalization_rotates_portrait_framebuffer_before_scaling(tmp_path: Path) -> None:
+    module = load_module()
+    raw_video = tmp_path / "raw.mov"
+    raw_video.write_bytes(b"rotated-ipad-video")
+    manifest = {"profile": "apple-ipad-landscape", "raw_video": raw_video.name}
+    dimensions = {raw_video: (2064, 2752)}
+    captured = {}
+
+    def runner(command):
+        captured["command"] = command
+        output = Path(command[-1])
+        output.write_bytes(b"normalized-video")
+        dimensions[output] = (1366, 1024)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    module.normalize_apple_proof_video(
+        tmp_path,
+        manifest,
+        runner=runner,
+        dimensions_reader=lambda path: dimensions[path],
+    )
+
+    assert "transpose=2,scale=1366:1024:flags=lanczos,setsar=1" in captured["command"]
