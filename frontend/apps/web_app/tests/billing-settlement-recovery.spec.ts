@@ -14,7 +14,8 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
-	deleteActiveChat
+	deleteActiveChat,
+	dismissSecurityReminderIfPresent
 } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -44,7 +45,7 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		},
 		{
 			id: 'completion-survives-reload',
-			text: 'After reload, the assistant response and event results remain visible.',
+			text: 'After reload, the end of the assistant response remains visible.',
 			checkpoint: 'completion-survives-reload',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -65,7 +66,7 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		{
 			id: 'completion-survives-reload',
 			checkpoint: 'completion-survives-reload',
-			visual: 'Reload preserves the assistant response and event result card.',
+			visual: 'Reload preserves the visible end of the assistant response with no processing error.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -89,6 +90,7 @@ test.describe('Billing settlement recovery', () => {
 			: null;
 
 		await loginToTestAccount(page, log, screenshot);
+		await dismissSecurityReminderIfPresent(page, log);
 		await startNewChat(page, log);
 		const message = 'For two Berlin weekends, June 20-21 and June 27-28, 2026, search for technology events for each weekend and compare the best options.';
 		await sendMessage(page, message, log, screenshot, 'billing-settlement-recovery');
@@ -106,7 +108,9 @@ test.describe('Billing settlement recovery', () => {
 		await expect(activeChat).toHaveAttribute('data-processing', 'false', { timeout: 240_000 });
 		const assistantContent = page.getByTestId('message-content').last();
 		await expect(assistantContent).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
-		const eventCards = page.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		const eventCards = page.locator(
+			'[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"][data-status="finished"]'
+		);
 		await expect(eventCards.first()).toBeVisible({ timeout: 60_000 });
 		expect(await eventCards.count()).toBeGreaterThan(0);
 		await expect(page.getByTestId('typing-indicator')).toBeHidden({ timeout: 30_000 });
@@ -124,11 +128,15 @@ test.describe('Billing settlement recovery', () => {
 		await expect(page.getByTestId('message-user').last()).toContainText(REQUEST_ANCHOR, { timeout: 60_000 });
 		const reloadedAssistant = page.getByTestId('message-content').last();
 		await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
-		const reloadedCards = page.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		const reloadedCards = page.locator(
+			'[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"][data-status="finished"]'
+		);
 		await expect(reloadedCards.first()).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
 		if (proof) {
-			await reloadedCards.first().scrollIntoViewIfNeeded();
+			await reloadedAssistant.evaluate((element: HTMLElement) =>
+				element.scrollIntoView({ block: 'end', behavior: 'instant' })
+			);
 			await proof.assert('completion-survives-reload', async () => {
 				await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false');
 				await expect(reloadedCards.first()).toBeVisible();

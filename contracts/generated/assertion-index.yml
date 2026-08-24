@@ -6090,7 +6090,7 @@ assertions:
       surface: rest_api
     - &id649
       path: frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
-      line: 77
+      line: 78
       name: paid multi-search response completes and survives reload
       surface: gui.web
     supporting_tests:
