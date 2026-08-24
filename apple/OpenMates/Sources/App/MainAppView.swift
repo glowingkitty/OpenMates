@@ -1052,7 +1052,12 @@ struct MainAppView: View {
             wsManager: wsManager,
             userId: authManager.currentUser?.id
         )
-        if let first = promoted.first {
+        #if DEBUG
+        let shouldPreserveNewChat = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        #else
+        let shouldPreserveNewChat = false
+        #endif
+        if let first = promoted.first, !shouldPreserveNewChat {
             selectedChatId = first
             showNewChat = false
         }
