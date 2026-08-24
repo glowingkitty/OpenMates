@@ -157,6 +157,7 @@ print("proof_broker_relay=verified")
 '''
 
 APPLE_PROOF_BROKER_DECRYPT_SCRIPT = r'''
+import hashlib
 import os
 import pathlib
 import subprocess
@@ -210,10 +211,11 @@ try:
         sys.exit(7)
     os.chmod(temporary, 0o600)
     os.replace(temporary, credential_path)
-    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); pathlib.Path(sys.argv[1]).unlink(missing_ok=True)"
+    credential_digest = hashlib.sha256(credential_path.read_bytes()).hexdigest()
+    expiry_script = "import hashlib,pathlib,sys,time; time.sleep(int(sys.argv[2])); path=pathlib.Path(sys.argv[1]); path.unlink(missing_ok=True) if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == sys.argv[3] else None"
     try:
         subprocess.Popen(
-            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5]],
+            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5], credential_digest],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
