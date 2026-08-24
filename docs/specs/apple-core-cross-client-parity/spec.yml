@@ -909,10 +909,10 @@ tasks:
     phase: drafting
     covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
     contract_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
-    expected_files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift]
+    expected_files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift]
     verification_ids: [T-AUTH-DIRECT-CONTRACT, T-APPLE-AUTH-IPHONE, T-APPLE-AUTH-IPAD]
     dependencies: [TASK-2, TASK-3]
-    ownership: {session: "2172", files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift], shared_files: []}
+    ownership: {session: "2172", files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift], shared_files: []}
     blockers: []
     follow_up_tasks: [TASK-6]
     independently_deployable: true

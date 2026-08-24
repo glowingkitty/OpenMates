@@ -1567,6 +1567,53 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
     return records
 
 
+def record_apple_proof_source_attestation(run_dir: Path, manifest: dict[str, Any]) -> Path:
+    """Attest one transferred, passing Apple recording for shared proof finalization."""
+    if manifest.get("status") != "passed" or int(manifest.get("xcode_exit_code", 1)) != 0:
+        raise RuntimeError("Apple proof-source attestation requires a passing native test")
+    profile = str(manifest.get("profile") or "")
+    if profile not in {"apple-iphone-portrait", "apple-ipad-landscape"}:
+        raise RuntimeError("Apple proof-source attestation requires an exact Apple device profile")
+    subject_commit = str(manifest.get("subject_commit") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", subject_commit):
+        raise RuntimeError("Apple proof-source attestation requires one exact full commit")
+    source_video = run_dir / str(manifest.get("raw_video") or "")
+    result_bundle = run_dir / str(manifest.get("result_bundle") or "")
+    timeline_value = str(manifest.get("proof_timeline") or "")
+    timeline_path = run_dir / timeline_value
+    if not source_video.is_file() or not result_bundle.exists() or not timeline_value or not timeline_path.is_file():
+        raise RuntimeError("Apple proof-source attestation requires video, xcresult, and proof timeline")
+    timeline = read_json(timeline_path, {})
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if contract.get("surface") != "apple" or str(timeline.get("device") or "") != profile:
+        raise RuntimeError("Apple proof timeline surface/profile does not match the recording")
+    run_id = str(manifest.get("run_id") or run_dir.name)
+    identity = hashlib.sha256(f"{run_id}\0{subject_commit}\0{profile}".encode("utf-8")).hexdigest()
+    record = {
+        "run_id": run_id,
+        "source_run_id": run_id,
+        "git_sha": subject_commit,
+        "spec": str(contract.get("id") or "apple-core-parity"),
+        "status": "passed",
+        "source": "apple_remote",
+        "source_kind": "apple",
+        "deployment_reference": subject_commit,
+        "target": "apple-simulator",
+        "artifact_path": str(source_video),
+        "artifact_sha256": _file_sha256(source_video),
+        "result_bundle_path": str(result_bundle),
+        "proof_video_profile": profile,
+        "proof_timeline_path": str(timeline_path),
+        "proof_timeline_sha256": _file_sha256(timeline_path),
+        "test_account_provenance": "reserved Apple E2E account",
+    }
+    record_path = PROOF_SOURCE_DIR / f"{identity}.json"
+    record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    write_json(record_path, record)
+    record_path.chmod(0o600)
+    return record_path
+
+
 def proof_video_run_directory(*, session_id: str, spec_name: str, run_id: str) -> Path:
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(spec_name).stem).strip("-") or "proof-video"
     run_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", str(run_id)).strip("-") or utc_now().replace(":", "")
@@ -1601,7 +1648,7 @@ def auto_finalize_proof_video_sources(
     render_claims_hook: Any | None = None,
     source_duration_hook: Any | None = None,
 ) -> list[dict[str, Any]]:
-    """Render, review, and publish spec-owned web proof videos after a passed spec run."""
+    """Render, review, and publish spec-owned web or Apple proof videos."""
 
     if not proof_record_paths:
         return []
@@ -1619,10 +1666,11 @@ def auto_finalize_proof_video_sources(
             raise RuntimeError(f"Proof timeline attachment is missing: {timeline_value}")
         timeline = read_json(timeline_path, {})
         contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
-        if contract.get("surface") != "web":
+        surface = str(contract.get("surface") or "")
+        if surface not in {"web", "apple"}:
             finalizations.append({
                 "status": "skipped",
-                "reason": "proof timeline is not a web Playwright recording",
+                "reason": "proof timeline is not a supported web or Apple recording",
                 "spec": record.get("spec"),
                 "run_id": record.get("run_id"),
             })
@@ -1664,6 +1712,8 @@ def auto_finalize_proof_video_sources(
         else:
             active_source_duration_hook = source_duration_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
+        if surface == "apple" and device_profile not in {"apple-iphone-portrait", "apple-ipad-landscape"}:
+            raise RuntimeError("Apple proof timeline requires an exact Apple device profile")
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
         source_video = Path(str(record.get("artifact_path") or ""))
         if not source_video.is_file():
@@ -1725,11 +1775,13 @@ def auto_finalize_proof_video_sources(
             "artifact_path": str(source_video),
             "artifact_sha256": str(record.get("artifact_sha256") or ""),
             "test_account_provenance": str(record.get("test_account_provenance") or "GitHub Actions E2E account slot"),
-            "browser_domain": str(claims.get("domain") or contract.get("domain") or ""),
+            "kind": str(record.get("source_kind") or "playwright"),
             "action_timestamps": action_times,
             "state_change_timestamps": checkpoint_times,
             "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_times_by_id},
         }
+        if surface == "web":
+            source["browser_domain"] = str(claims.get("domain") or contract.get("domain") or "")
         if source_end_timestamp_seconds is not None:
             source["source_end_timestamp_seconds"] = round(source_end_timestamp_seconds, 3)
         manifest = active_produce_hook(

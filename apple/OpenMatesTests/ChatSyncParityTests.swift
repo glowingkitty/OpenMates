@@ -8,6 +8,7 @@ import XCTest
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
     func testChatDecodesWebSubChatAndFocusFields() throws {
         let json = """
         {
@@ -22,7 +23,8 @@ final class ChatSyncParityTests: XCTestCase {
           "budget_spent": 3,
           "encrypted_active_focus_id": "encrypted-focus",
           "messages_v": 2,
-          "title_v": 1
+          "title_v": 1,
+          "metadata_v": 7
         }
         """.data(using: .utf8)!
 
@@ -38,8 +40,10 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(chat.budgetLimit, 12)
         XCTAssertEqual(chat.budgetSpent, 3)
         XCTAssertEqual(chat.encryptedActiveFocusId, "encrypted-focus")
+        XCTAssertEqual(chat.metadataV, 7)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence
     func testChatDecodesVisibilityFieldsUsedByNativeOfflineAndSpotlightGuards() throws {
         let json = """
         {
@@ -63,6 +67,7 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertTrue(chat.isHiddenFromNormalSurfaces)
     }
 
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity,chats.local-state.precedence
     func testChatStoreMergePreservesSubChatAndFocusMetadata() {
         let store = ChatStore()
         let base = makeChat(
@@ -79,7 +84,8 @@ final class ChatSyncParityTests: XCTestCase {
             parentId: nil,
             isSubChat: nil,
             encryptedActiveFocusId: nil,
-            messagesV: 4
+            messagesV: 4,
+            metadataV: 5
         )
 
         store.performWithoutPersistence {
@@ -93,9 +99,11 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged?.isSubChat, true)
         XCTAssertEqual(merged?.encryptedActiveFocusId, "encrypted-focus")
         XCTAssertEqual(merged?.messagesV, 4)
+        XCTAssertEqual(merged?.metadataV, 5)
         XCTAssertEqual(merged?.isHiddenCandidate, true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testWelcomeResumeAndRecentChatsExcludeHiddenCandidates() {
         let visible = makeChat(id: "visible-chat", title: "Visible", lastMessageAt: "2026-01-02T00:00:00Z")
         let hidden = makeChat(
@@ -112,6 +120,7 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(recent.map(\.id), ["visible-chat"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence
     func testSpotlightEligibilitySkipsHiddenPublicAndArchivedChats() {
         let privateVisible = makeChat(id: "private-visible", title: "Private but searchable")
         let hidden = makeChat(id: "hidden-chat", title: "Hidden", isHidden: true)
@@ -124,6 +133,7 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertFalse(SpotlightIndexer.isEligibleForSpotlight(publicChat))
     }
 
+    // contract-test: direct surface=gui.apple assertions=sync.startup.bounded-phases,sync.surface.semantic-parity
     func testSyncClientStateExcludesIncognitoChats() {
         let store = ChatStore()
         let saved = makeChat(id: "saved-chat", title: "Saved")
@@ -137,6 +147,7 @@ final class ChatSyncParityTests: XCTestCase {
         let state = store.makeSyncClientState(clientSuggestionsCount: 0)
         XCTAssertEqual(state.clientChatIds, ["saved-chat"])
         XCTAssertNotNil(state.clientChatVersions["saved-chat"])
+        XCTAssertEqual(state.clientChatVersions["saved-chat"]?["metadata_v"], 1)
         XCTAssertFalse(state.clientChatVersions.keys.contains(incognito.id))
     }
 
@@ -147,6 +158,7 @@ final class ChatSyncParityTests: XCTestCase {
         isSubChat: Bool? = nil,
         encryptedActiveFocusId: String? = nil,
         messagesV: Int? = 1,
+        metadataV: Int? = 1,
         lastMessageAt: String = "2026-01-01T00:00:00Z",
         isArchived: Bool = false,
         isHidden: Bool? = nil,
@@ -165,6 +177,7 @@ final class ChatSyncParityTests: XCTestCase {
             encryptedChatKey: nil,
             messagesV: messagesV,
             titleV: title == nil ? 0 : 1,
+            metadataV: metadataV,
             parentId: parentId,
             isSubChat: isSubChat,
             encryptedActiveFocusId: encryptedActiveFocusId,

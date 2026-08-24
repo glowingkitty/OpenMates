@@ -12,12 +12,18 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
+import importlib.util
 import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -44,6 +50,8 @@ TEST_ACCOUNT_ENV_PATTERN = re.compile(
 )
 CHAT_RENDERING_PARITY_ENV_PATTERN = re.compile(r"^CHAT_RENDERING_PARITY_[A-Z0-9_]+$")
 LIVE_TEST_CREDENTIALS_PATH = "apple/.openmates-live-test-account.env"
+APPLE_RECORDING_PROFILES = {"apple-iphone-portrait", "apple-ipad-landscape"}
+APPLE_RECORDING_RESULTS_DIR = REPO_ROOT / "test-results" / "apple-recordings"
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -65,6 +73,136 @@ with open(lock_path, "w", encoding="utf-8") as lock_file:
     print("simulator_lock=acquired", flush=True)
     result = subprocess.run(command)
 sys.exit(result.returncode)
+'''
+
+
+RECORDED_IOS_TEST_SCRIPT = r'''
+import fcntl
+import hashlib
+import json
+import os
+import pathlib
+import signal
+import subprocess
+import sys
+import tarfile
+import time
+
+simulator, only_testing, profile, run_id, scheme, expected_commit = sys.argv[1:7]
+root = pathlib.Path.cwd()
+run_dir = root / "test-results" / "apple-recordings" / run_id
+run_dir.mkdir(parents=True, exist_ok=False)
+raw_video = run_dir / "raw.mov"
+result_bundle = run_dir / "result.xcresult"
+attachments = run_dir / "attachments"
+manifest_path = run_dir / "artifact-manifest.json"
+archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
+recorder = None
+xcode_exit = 1
+started = time.time()
+subject_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+if expected_commit and subject_commit != expected_commit:
+    print("recording_status=commit_mismatch")
+    sys.exit(4)
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def simulator_udid():
+    result = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "--json"], capture_output=True, text=True, check=True)
+    data = json.loads(result.stdout)
+    matches = [item for items in data.get("devices", {}).values() for item in items if item.get("name") == simulator and item.get("isAvailable", True)]
+    if not matches:
+        raise RuntimeError("requested simulator is unavailable")
+    return matches[0]["udid"]
+
+
+lock_file = open("/tmp/openmates-apple-simulator.lock", "w", encoding="utf-8")
+fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+try:
+    udid = simulator_udid()
+    subprocess.run(["xcrun", "simctl", "boot", udid], capture_output=True, text=True, check=False)
+    subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], capture_output=True, text=True, check=True, timeout=180)
+    if profile == "apple-ipad-landscape":
+        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=False)
+    recorder = subprocess.Popen(
+        ["xcrun", "simctl", "io", udid, "recordVideo", "--codec=h264", "--force", str(raw_video)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    recording_started_unix_ms = str(int(time.time() * 1000))
+    command = [
+        "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
+        "-scheme", scheme, "-destination", f"platform=iOS Simulator,id={udid}",
+        "-resultBundlePath", str(result_bundle),
+    ]
+    if only_testing:
+        command.extend(["-only-testing", only_testing])
+    test_env = os.environ.copy()
+    test_env["OPENMATES_RECORDING_STARTED_UNIX_MS"] = recording_started_unix_ms
+    test_env["OPENMATES_PROOF_DEVICE_PROFILE"] = profile
+    xcode_exit = subprocess.run(command, check=False, env=test_env).returncode
+finally:
+    if recorder is not None and recorder.poll() is None:
+        recorder.send_signal(signal.SIGINT)
+        try:
+            recorder.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            recorder.terminate()
+            recorder.wait(timeout=10)
+    lock_file.close()
+
+attachments.mkdir(exist_ok=True)
+if result_bundle.exists():
+    subprocess.run(
+        ["xcrun", "xcresulttool", "export", "attachments", "--path", str(result_bundle), "--output-path", str(attachments)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+timeline = None
+for candidate in attachments.rglob("*.json"):
+    try:
+        payload = json.loads(candidate.read_text(encoding="utf-8"))
+    except Exception:
+        continue
+    if isinstance(payload, dict) and isinstance(payload.get("contract"), dict):
+        timeline = candidate
+        break
+
+status = "passed" if xcode_exit == 0 and raw_video.is_file() and raw_video.stat().st_size > 0 else "failed"
+artifacts = []
+for path in sorted(run_dir.rglob("*")):
+    if not path.is_file() or path == manifest_path:
+        continue
+    artifacts.append({"path": str(path.relative_to(run_dir)), "size": path.stat().st_size, "sha256": sha256(path)})
+manifest = {
+    "schema_version": 1,
+    "run_id": run_id,
+    "status": status,
+    "profile": profile,
+    "subject_commit": subject_commit,
+    "xcode_exit_code": xcode_exit,
+    "duration_seconds": round(time.time() - started, 3),
+    "raw_video": "raw.mov",
+    "result_bundle": "result.xcresult",
+    "proof_timeline": str(timeline.relative_to(run_dir)) if timeline else None,
+    "artifacts": artifacts,
+}
+manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+with tarfile.open(archive_path, "w:gz") as archive:
+    archive.add(run_dir, arcname=run_id)
+print(f"recording_status={status}")
+print(f"recording_run_id={run_id}")
+print(f"recording_archive={archive_path}")
+sys.exit(xcode_exit)
 '''
 
 
@@ -3198,6 +3336,156 @@ def test_ios_command(
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
+def recorded_test_ios_command(
+    simulator: str,
+    only_testing: str | None,
+    profile: str,
+    run_id: str,
+    expected_commit: str = "",
+    test_account_env: dict[str, str] | None = None,
+) -> str:
+    """Build a remote command that records one exact-profile Apple test run."""
+    if profile not in APPLE_RECORDING_PROFILES:
+        raise AppleRemoteError(f"Unsupported Apple recording profile: {profile}")
+    scheme = "OpenMates_iOS_UI_Tests" if only_testing and only_testing.startswith("OpenMatesUITests/") else "OpenMates_iOS_Unit_Tests"
+    build_translations = shell_join(["npm", "run", "build:translations"])
+    command = shell_join([
+        "python3",
+        "-c",
+        RECORDED_IOS_TEST_SCRIPT,
+        simulator,
+        only_testing or "",
+        profile,
+        run_id,
+        scheme,
+        expected_commit,
+    ])
+    if test_account_env is not None:
+        command = with_env_assignments(command, test_account_env)
+    if test_account_env:
+        write_credentials = write_live_test_credentials_command(test_account_env)
+        cleanup_credentials = cleanup_live_test_credentials_command()
+        command = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {command}"
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {command}"
+
+
+def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> list[str]:
+    return [
+        "scp",
+        "-q",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}",
+        f"{config.target}:{remote_path}",
+        str(local_path),
+    ]
+
+
+def extract_and_validate_recording_archive(archive_path: Path, destination: Path) -> tuple[Path, dict[str, Any]]:
+    """Extract an Apple recording archive without traversal and verify every hash."""
+    destination.mkdir(parents=True, exist_ok=True, mode=0o700)
+    destination_root = destination.resolve()
+    with tarfile.open(archive_path, "r:gz") as archive:
+        for member in archive.getmembers():
+            member_path = (destination_root / member.name).resolve()
+            if destination_root != member_path and destination_root not in member_path.parents:
+                raise AppleRemoteError(f"Recording archive contains unsafe path: {member.name}")
+        archive.extractall(destination_root, filter="data")
+    manifests = list(destination_root.glob("*/artifact-manifest.json"))
+    if len(manifests) != 1:
+        raise AppleRemoteError("Recording archive must contain exactly one artifact manifest")
+    manifest_path = manifests[0]
+    run_dir = manifest_path.parent
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for artifact in manifest.get("artifacts") or []:
+        relative_path = Path(str(artifact.get("path") or ""))
+        artifact_path = (run_dir / relative_path).resolve()
+        if run_dir.resolve() not in artifact_path.parents or not artifact_path.is_file():
+            raise AppleRemoteError(f"Recording manifest contains unsafe path: {relative_path}")
+        digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+        if digest != artifact.get("sha256"):
+            raise AppleRemoteError(f"Recording artifact hash mismatch: {relative_path}")
+    return run_dir, manifest
+
+
+def run_recorded_ios_test(
+    config: RemoteConfig,
+    *,
+    simulator: str,
+    only_testing: str | None,
+    profile: str,
+    proof: bool,
+    expected_commit: str | None,
+    runner: CommandRunner = default_runner,
+) -> int:
+    """Run, transfer, and validate one recorded remote Apple test."""
+    if proof and not only_testing:
+        raise AppleRemoteError("--proof requires --only-testing")
+    if proof and not expected_commit:
+        raise AppleRemoteError("--proof requires --expected-commit")
+    run_id = f"apple-{uuid.uuid4().hex[:16]}"
+    command = repo_command(config, [
+        "bash",
+        "-lc",
+        recorded_test_ios_command(
+            simulator,
+            only_testing,
+            profile,
+            run_id,
+            expected_commit or "",
+            local_test_account_env(),
+        ),
+    ])
+    result = runner(ssh_command(config, command))
+    stdout = redact_output(result.stdout, config)
+    stderr = redact_output(result.stderr, config)
+    if stdout:
+        print(stdout, end="" if stdout.endswith("\n") else "\n")
+    if stderr:
+        print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
+    archive_match = re.search(r"(?m)^recording_archive=(.+)$", result.stdout)
+    if archive_match is None:
+        print(f"remote={REMOTE_LABEL} exit_code={result.returncode}")
+        return result.returncode or 1
+
+    APPLE_RECORDING_RESULTS_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryDirectory(prefix="apple-recording-", dir=APPLE_RECORDING_RESULTS_DIR) as staging_value:
+        staging = Path(staging_value)
+        archive_path = staging / "bundle.tar.gz"
+        transfer = runner(scp_command(config, archive_match.group(1).strip(), archive_path))
+        if transfer.returncode != 0:
+            raise AppleRemoteError("Apple recording artifact transfer failed")
+        run_dir, manifest = extract_and_validate_recording_archive(archive_path, staging / "extracted")
+        final_dir = APPLE_RECORDING_RESULTS_DIR / run_id
+        if final_dir.exists():
+            shutil.rmtree(final_dir)
+        shutil.move(str(run_dir), final_dir)
+    print(f"recording_artifacts={final_dir.relative_to(REPO_ROOT)}")
+    print(f"recording_manifest_status={manifest.get('status')}")
+    if proof and manifest.get("status") == "passed":
+        spec = importlib.util.spec_from_file_location("apple_proof_tests_control", REPO_ROOT / "scripts/tests.py")
+        if spec is None or spec.loader is None:
+            raise AppleRemoteError("Could not load Apple proof finalizer")
+        tests_control = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = tests_control
+        spec.loader.exec_module(tests_control)
+
+        record_path = tests_control.record_apple_proof_source_attestation(final_dir, manifest)
+        finalizations = tests_control.auto_finalize_proof_video_sources(
+            {"git_sha": manifest.get("subject_commit"), "run_id": run_id, "environment": "apple-simulator"},
+            [record_path],
+            session_id=os.getenv("OPENMATES_SESSION_ID", "2172"),
+        )
+        if not finalizations or finalizations[0].get("status") != "delivered":
+            raise AppleRemoteError("Apple proof recording did not pass review and publication")
+    cleanup_script = "import pathlib,shutil,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True); shutil.rmtree(pathlib.Path(sys.argv[2]), ignore_errors=True)"
+    remote_run_dir = f"{config.repo_path}/test-results/apple-recordings/{run_id}"
+    runner(ssh_command(config, shell_join(["python3", "-c", cleanup_script, archive_match.group(1).strip(), remote_run_dir])))
+    print(f"remote={REMOTE_LABEL} exit_code={result.returncode}")
+    return result.returncode
+
+
 def simulator_cleanup_command(simulator: str) -> str:
     return simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
 
@@ -3622,6 +3910,9 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser = subparsers.add_parser("test-ios", help="Run OpenMates_iOS tests remotely")
     test_parser.add_argument("--simulator", default="iPhone 17")
     test_parser.add_argument("--only-testing")
+    test_parser.add_argument("--record-profile", choices=sorted(APPLE_RECORDING_PROFILES))
+    test_parser.add_argument("--proof", action="store_true", help="Finalize a passed recorded native test as proof")
+    test_parser.add_argument("--expected-commit", help="Require the remote checkout to match this full commit")
 
     verify_ios_parser = subparsers.add_parser(
         "verify-ios-startup",
@@ -3841,6 +4132,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "build-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":
+            if args.record_profile:
+                return run_recorded_ios_test(
+                    config,
+                    simulator=args.simulator,
+                    only_testing=args.only_testing,
+                    profile=args.record_profile,
+                    proof=args.proof,
+                    expected_commit=args.expected_commit,
+                )
+            if args.proof:
+                raise AppleRemoteError("--proof requires --record-profile")
             return run_remote(
                 config,
                 repo_command(config, [

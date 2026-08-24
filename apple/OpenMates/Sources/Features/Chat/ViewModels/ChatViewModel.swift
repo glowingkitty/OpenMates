@@ -174,6 +174,11 @@ enum ChatOpeningFallbackPolicy {
     }
 }
 
+private enum ChatContentHydrationError: Error, Equatable {
+    case websocketUnavailable
+    case invalidResponse
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
 
@@ -347,16 +352,26 @@ final class ChatViewModel: ObservableObject {
         var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
         if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
             do {
-                rawMessages = try await api.request(.get, path: "/v1/chats/\(loadedChat.id)/messages")
+                guard let wsManager else {
+                    throw ChatContentHydrationError.websocketUnavailable
+                }
+                let response = try await wsManager.requestChatContentBatch(chatId: loadedChat.id)
+                rawMessages = try decodeContentBatchMessages(response.fields, chatId: loadedChat.id)
                 rawMessages.sort { $0.createdAt < $1.createdAt }
                 NativeSyncPerfLog.info(
-                    "phase=loadSyncedChatMessageFallback chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
+                    "phase=loadSyncedChatContentBatch chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
                 )
             } catch {
-                self.error = error.localizedDescription
+                if let hydrationError = error as? ChatContentHydrationError {
+                    self.error = hydrationError == .websocketUnavailable
+                        ? AppStrings.reconnecting
+                        : AppStrings.genericProcessingError
+                } else {
+                    self.error = error.localizedDescription
+                }
                 isLoading = false
                 NativeSyncPerfLog.warning(
-                    "phase=loadSyncedChatMessageFallbackFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
+                    "phase=loadSyncedChatContentBatchFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
                 )
                 return
             }
@@ -396,6 +411,21 @@ final class ChatViewModel: ObservableObject {
             existingRecords: embedRecords,
             source: "loadSynced"
         )
+    }
+
+    private func decodeContentBatchMessages(_ fields: [String: Any], chatId: String) throws -> [Message] {
+        guard let messagesByChat = fields["messages_by_chat_id"] as? [String: Any],
+              let encodedMessages = messagesByChat[chatId] as? [String] else {
+            throw ChatContentHydrationError.invalidResponse
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try encodedMessages.map { encoded in
+            guard let data = encoded.data(using: .utf8) else {
+                throw ChatContentHydrationError.invalidResponse
+            }
+            return try decoder.decode(Message.self, from: data)
+        }
     }
 
     private func shouldFetchMissingSyncedMessages(for chat: Chat) -> Bool {

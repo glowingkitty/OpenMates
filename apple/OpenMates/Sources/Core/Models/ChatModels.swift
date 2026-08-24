@@ -64,6 +64,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let messagesV: Int?
     let titleV: Int?
     let draftV: Int?
+    let metadataV: Int?
     let lastVisibleMessageId: String?
     let parentId: String?
     let isSubChat: Bool?
@@ -96,6 +97,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV: Int? = nil,
         titleV: Int? = nil,
         draftV: Int? = nil,
+        metadataV: Int? = nil,
         lastVisibleMessageId: String? = nil,
         parentId: String? = nil,
         isSubChat: Bool? = nil,
@@ -127,6 +129,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.messagesV = messagesV
         self.titleV = titleV
         self.draftV = draftV
+        self.metadataV = metadataV
         self.lastVisibleMessageId = lastVisibleMessageId
         self.parentId = parentId
         self.isSubChat = isSubChat
@@ -168,6 +171,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        metadataV = try container.decodeIfPresent(Int.self, forKey: .metadataV)
         lastVisibleMessageId = try container.decodeIfPresent(String.self, forKey: .lastVisibleMessageId)
         parentId = try container.decodeIfPresent(String.self, forKey: .parentId)
             ?? container.decodeIfPresent(String.self, forKey: .parentIdSnake)
@@ -244,6 +248,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         case messagesV
         case titleV
         case draftV
+        case metadataV
         case lastVisibleMessageId
         case parentId
         case parentIdSnake = "parent_id"

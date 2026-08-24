@@ -989,12 +989,18 @@ struct MainAppView: View {
         #if DEBUG
         let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
         let shouldStartRecordingForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-recording")
+        let shouldOpenLoginForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-open-login")
         #else
         let shouldStartNewChatForUITest = false
         let shouldStartRecordingForUITest = false
+        let shouldOpenLoginForUITest = false
         #endif
 
-        if shouldStartRecordingForUITest {
+        if shouldOpenLoginForUITest {
+            authFlowState.reset()
+            authFlowState.authMode = .login
+            showAuthSheet = true
+        } else if shouldStartRecordingForUITest {
             openNewChatRecordingScreen()
         } else if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
@@ -2670,6 +2676,11 @@ struct MainAppView: View {
     // MARK: - WebSocket
 
     private func connectWebSocket() {
+        wsManager.configureSyncStateProvider {
+            chatStore.makeSyncClientState(
+                clientSuggestionsCount: syncedNewChatSuggestions.count
+            )
+        }
         wsManager.connect(
             sessionId: AuthManager.nativeSessionId,
             token: authManager.webSocketToken,
@@ -3157,7 +3168,8 @@ struct MainAppView: View {
     }
 
     private func loadChatKeyIfNeeded(chatId: String, encryptedChatKey: String?) async {
-        guard let encryptedChatKey, !ChatKeyManager.shared.hasKey(for: chatId),
+        guard let encryptedChatKey,
+              ChatKeyManager.shared.shouldLoadServerKey(chatId: chatId, encryptedChatKey: encryptedChatKey),
               let userId = authManager.currentUser?.id,
               let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else {
             return

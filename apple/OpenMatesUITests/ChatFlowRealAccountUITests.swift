@@ -18,6 +18,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -28,6 +29,36 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }
 
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
+    func testAppleCoreParityProof() throws {
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        let captureEpochMilliseconds = Double(
+            ProcessInfo.processInfo.environment["OPENMATES_RECORDING_STARTED_UNIX_MS"] ?? ""
+        ) ?? Date().timeIntervalSince1970 * 1000
+        let started = Date(timeIntervalSince1970: captureEpochMilliseconds / 1000)
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login"]
+        )
+
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
+        let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
+        RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+        let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
+
+        attachScreenshot(name: "Apple core parity response ready")
+        try attachProofTimeline(
+            app: app,
+            loginReadyMs: loginReadyMs,
+            messageSentMs: messageSentMs,
+            responseReadyMs: responseReadyMs
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testPasswordOtpLoginLoadsRecentChatsForWebParityManifest() throws {
         let credentials = try parityCredentials()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -53,6 +84,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         attachScreenshot(name: "Apple loaded chats parity")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary,chats.surface.semantic-parity
     func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() async throws {
         try await requireAnonymousFreeUsageActive()
 
@@ -74,6 +106,49 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         guard status.active else {
             throw XCTSkip("Anonymous free usage inactive on dev: \(status.reason ?? "unknown")")
         }
+    }
+
+    private func attachProofTimeline(
+        app: XCUIApplication,
+        loginReadyMs: Int,
+        messageSentMs: Int,
+        responseReadyMs: Int
+    ) throws {
+        let profile = app.windows.firstMatch.frame.width > 800
+            ? "apple-ipad-landscape"
+            : "apple-iphone-portrait"
+        let timeline: [String: Any] = [
+            "schema_version": 1,
+            "device": profile,
+            "contract": [
+                "id": "apple-core-parity",
+                "title": "Apple core chat parity",
+                "surface": "apple",
+                "devices": [profile],
+                "transcript": [
+                    ["id": "login", "text": "OpenMates signs in and restores the native chat shell.", "checkpoint": "login-ready", "devices": [profile]],
+                    ["id": "chat", "text": "A saved native message receives one assistant response.", "checkpoint": "response-ready", "devices": [profile]],
+                ],
+                "assertions": [
+                    ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "login-ready", "devices": [profile]],
+                    ["id": "chat.response", "visual": "The sent user message and assistant response are visible once.", "checkpoint": "response-ready", "devices": [profile]],
+                ],
+            ],
+            "events": [
+                ["kind": "checkpoint", "id": "login-ready", "at_ms": loginReadyMs],
+                ["kind": "action", "id": "send-message", "start_ms": loginReadyMs, "end_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "response-ready", "at_ms": responseReadyMs],
+            ],
+            "assertion_results": [
+                ["id": "auth.ready", "status": "passed", "at_ms": loginReadyMs],
+                ["id": "chat.response", "status": "passed", "at_ms": responseReadyMs],
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: timeline, options: [.prettyPrinted, .sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = "proof-timeline.json"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func openChatsPanel(in app: XCUIApplication) {

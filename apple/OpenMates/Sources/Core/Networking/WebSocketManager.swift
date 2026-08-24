@@ -34,12 +34,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var sessionId: String?
     private var authToken: String?
     private var activeSyncState: SyncClientState = .empty
+    private var syncStateProvider: (() -> SyncClientState)?
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
 
     override init() {
         super.init()
+    }
+
+    func configureSyncStateProvider(_ provider: @escaping () -> SyncClientState) {
+        syncStateProvider = provider
     }
 
     func connect(
@@ -109,7 +114,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             startPingTimer()
             receiveMessages()
             await recoveryCoordinator?.handleTransportConnected()
-            try? await requestPhasedSync(syncState: syncState)
+            let currentSyncState = syncStateProvider?() ?? activeSyncState
+            activeSyncState = currentSyncState
+            try? await requestPhasedSync(syncState: currentSyncState)
         }
     }
 
@@ -219,6 +226,20 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             clientSuggestionsCount: syncState.clientSuggestionsCount,
             clientEmbedIds: syncState.clientEmbedIds
         )
+    }
+
+    func requestChatContentBatch(chatId: String) async throws -> WebSocketResponse {
+        try await sendAndWait(
+            WSOutboundMessage(
+                type: "request_chat_content_batch",
+                payload: ["chat_ids": [chatId]]
+            ),
+            responseType: "chat_content_batch_response",
+            timeout: .seconds(20)
+        ) { fields in
+            guard let messages = fields["messages_by_chat_id"] as? [String: Any] else { return false }
+            return messages[chatId] != nil
+        }
     }
 
     private func waitForOpenSocket() async -> Bool {

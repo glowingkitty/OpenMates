@@ -45,14 +45,17 @@ enum RealAccountUITestSupport {
 
     static func logIn(app: XCUIApplication, credentials: RealAccountTestCredentials) {
         let loginSignupButton = app.buttons["header-login-signup-btn"]
-        if !loginSignupButton.waitForExistence(timeout: 6), waitForMessageEditor(in: app, timeout: 2) != nil {
+        let loginTab = app.buttons["auth-login-tab"]
+        if !loginTab.waitForExistence(timeout: 2),
+           !loginSignupButton.waitForExistence(timeout: 3),
+           let editor = waitForMessageEditor(in: app, timeout: 2),
+           editor.isHittable {
             return
         }
-
-        XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
-        loginSignupButton.tap()
-
-        let loginTab = app.buttons["auth-login-tab"]
+        if !loginTab.exists {
+            XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
+            loginSignupButton.tap()
+        }
         XCTAssertTrue(loginTab.waitForExistence(timeout: 10))
         loginTab.tap()
 

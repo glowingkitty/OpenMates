@@ -13,6 +13,7 @@ final class ChatKeyManager: ObservableObject {
 
     /// In-memory map of chatId → raw AES-256 chat key
     private var chatKeys: [String: SymmetricKey] = [:]
+    private var encryptedKeyFingerprints: [String: String] = [:]
 
     /// Whether chat keys have been loaded from the initial sync
     @Published var isReady = false
@@ -46,6 +47,11 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId] != nil
     }
 
+    func shouldLoadServerKey(chatId: String, encryptedChatKey: String) -> Bool {
+        guard chatKeys[chatId] != nil else { return true }
+        return encryptedKeyFingerprints[chatId] != Self.fingerprint(encryptedChatKey)
+    }
+
     func markInitialSyncReady() {
         isReady = true
     }
@@ -66,6 +72,7 @@ final class ChatKeyManager: ObservableObject {
                     masterKey: masterKey
                 )
                 chatKeys[chatId] = chatKey
+                encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
                 }
@@ -90,6 +97,7 @@ final class ChatKeyManager: ObservableObject {
                 masterKey: masterKey
             )
             chatKeys[chatId] = chatKey
+            encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
             }
@@ -145,12 +153,18 @@ final class ChatKeyManager: ObservableObject {
     /// Remove a single chat key (on chat delete).
     func removeKey(for chatId: String) {
         chatKeys.removeValue(forKey: chatId)
+        encryptedKeyFingerprints.removeValue(forKey: chatId)
     }
 
     /// Clear all keys (on logout).
     func clearAll() {
         chatKeys.removeAll()
+        encryptedKeyFingerprints.removeAll()
         isReady = false
+    }
+
+    private static func fingerprint(_ encryptedChatKey: String) -> String {
+        SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 

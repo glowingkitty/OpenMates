@@ -97,6 +97,9 @@ final class ChatStore: ObservableObject {
             if let draftV = chat.draftV {
                 chatVersions["draft_v"] = draftV
             }
+            if let metadataV = chat.metadataV {
+                chatVersions["metadata_v"] = metadataV
+            }
             if !chatVersions.isEmpty {
                 result[chat.id] = chatVersions
             }
@@ -372,6 +375,7 @@ private extension Chat {
             messagesV: messagesVersion,
             titleV: titleV,
             draftV: draftV,
+            metadataV: metadataV,
             lastVisibleMessageId: lastVisibleMessageId,
             parentId: parentId,
             isSubChat: isSubChat,
@@ -407,6 +411,7 @@ private extension Chat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftVersion,
+            metadataV: metadataV,
             lastVisibleMessageId: lastVisibleMessageId,
             parentId: parentId,
             isSubChat: isSubChat,
@@ -442,6 +447,7 @@ private extension Chat {
             messagesV: incoming.messagesV ?? messagesV,
             titleV: incoming.titleV ?? titleV,
             draftV: incoming.draftV ?? draftV,
+            metadataV: incoming.metadataV ?? metadataV,
             lastVisibleMessageId: incoming.lastVisibleMessageId ?? lastVisibleMessageId,
             parentId: incoming.parentId ?? parentId,
             isSubChat: incoming.isSubChat ?? isSubChat,
@@ -477,6 +483,7 @@ private extension Chat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftV,
+            metadataV: metadataV,
             lastVisibleMessageId: messageId,
             parentId: parentId,
             isSubChat: isSubChat,
@@ -512,6 +519,7 @@ private extension Chat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftV,
+            metadataV: metadataV,
             lastVisibleMessageId: lastVisibleMessageId,
             parentId: parentId,
             isSubChat: isSubChat,
