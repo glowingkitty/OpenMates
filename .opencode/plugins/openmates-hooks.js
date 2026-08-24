@@ -6,7 +6,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
@@ -46,6 +46,7 @@ const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py
 const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
+const PRESENCE_READ_CACHE_MS = 1_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
@@ -553,12 +554,24 @@ function persistPresence(record) {
   });
 }
 
+let presenceReadCache = { value: null, time: 0 };
+
 function presenceData() {
+  const now = Date.now();
+  if (presenceReadCache.value && now - presenceReadCache.time < PRESENCE_READ_CACHE_MS) {
+    return presenceReadCache.value;
+  }
   try {
     const parsed = JSON.parse(readFileSync(PRESENCE_FILE, "utf8"));
-    return parsed?.project_root === PROJECT_ROOT && parsed?.sessions ? parsed : { sessions: {}, task_claims: {}, child_roles: {} };
+    const value = parsed?.project_root === PROJECT_ROOT && parsed?.sessions
+      ? parsed
+      : { sessions: {}, task_claims: {}, child_roles: {} };
+    presenceReadCache = { value, time: now };
+    return value;
   } catch {
-    return { sessions: {}, task_claims: {}, child_roles: {} };
+    const value = { sessions: {}, task_claims: {}, child_roles: {} };
+    presenceReadCache = { value, time: now };
+    return value;
   }
 }
 
@@ -1282,12 +1295,12 @@ function routeLocalToolArgsWithCircuitBreakerForTest(
   }
 }
 
-function recordWorktreeRouting(opencodeSessionID) {
+async function recordWorktreeRouting(opencodeSessionID) {
   if (!opencodeSessionID) return false;
-  const result = spawnSync(
+  const result = await runProcess(
     "python3",
     ["scripts/sessions.py", "worktree", "repair", "--opencode-session", opencodeSessionID],
-    { cwd: PROJECT_ROOT, encoding: "utf8" },
+    { cwd: PROJECT_ROOT },
   );
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "routing repair failed").trim();
@@ -1711,25 +1724,29 @@ function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = 
 }
 
 function scheduleNotifierEvent(args) {
-  if (!args.length) return;
+  if (!args.length || !existsSync(OPENCODE_NOTIFIER)) return;
   mkdirSync(`${PROJECT_ROOT}/logs`, { recursive: true });
   const logFd = openSync(OPENCODE_NOTIFIER_LOG, "a");
-  const child = spawn("python3", args, {
-    cwd: PROJECT_ROOT,
-    env: process.env,
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
-  });
-  child.on("error", (error) => {
-    console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
-  });
-  child.unref();
+  try {
+    const child = spawn("python3", args, {
+      cwd: PROJECT_ROOT,
+      env: process.env,
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+    });
+    child.on("error", (error) => {
+      console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
+    });
+    child.unref();
+  } finally {
+    closeSync(logFd);
+  }
 }
 
-function recordTaskChildRole(input, output) {
+async function recordTaskChildRole(input, output) {
   const classification = taskChildClassificationForTest(input, output);
   if (!classification) return;
-  const result = spawnSync(
+  const result = await runProcess(
     "python3",
     [
       "scripts/sessions.py",
@@ -1743,7 +1760,7 @@ function recordTaskChildRole(input, output) {
       classification.role,
       "--if-unset",
     ],
-    { cwd: PROJECT_ROOT, encoding: "utf8" },
+    { cwd: PROJECT_ROOT },
   );
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "unknown error").trim();
@@ -1767,12 +1784,34 @@ function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
 
-function runBridge(event, payload, sessionID, cwd = activeCwd()) {
-  const result = spawnSync("bash", [BRIDGE, event], {
+function runProcess(command, args, { cwd = PROJECT_ROOT, env = process.env, input = "" } = {}) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+    const stdout = [];
+    const stderr = [];
+    let settled = false;
+    const finish = (status, error = "") => {
+      if (settled) return;
+      settled = true;
+      resolvePromise({
+        status,
+        stdout: Buffer.concat(stdout).toString(),
+        stderr: `${Buffer.concat(stderr).toString()}${error}`,
+      });
+    };
+    child.stdout.on("data", (chunk) => stdout.push(chunk));
+    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.on("error", (error) => finish(null, error.message));
+    child.on("close", (code) => finish(code));
+    child.stdin.end(input);
+  });
+}
+
+async function runBridge(event, payload, sessionID, cwd = activeCwd()) {
+  const result = await runProcess("bash", [BRIDGE, event], {
     cwd,
     env: sessionID ? { ...process.env, OPENCODE_SESSION_ID: sessionID } : process.env,
     input: JSON.stringify(payload),
-    encoding: "utf8",
   });
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
@@ -1865,12 +1904,11 @@ function explicitFilesForTest(args, cwd = activeCwd()) {
   return explicit ? [toAbsPath(explicit, cwd)] : [];
 }
 
-function runStaleRead(action, files, sessionID) {
+async function runStaleRead(action, files, sessionID) {
   if (!sessionID) return;
   for (const file of files) {
-    const result = spawnSync("python3", ["scripts/sessions.py", "stale-read", action, "--opencode-session", sessionID, "--file", file], {
+    const result = await runProcess("python3", ["scripts/sessions.py", "stale-read", action, "--opencode-session", sessionID, "--file", file], {
       cwd: PROJECT_ROOT,
-      encoding: "utf8",
     });
     const stdout = (result.stdout || "").trim();
     const stderr = (result.stderr || "").trim();
@@ -1883,11 +1921,10 @@ function runStaleRead(action, files, sessionID) {
   }
 }
 
-function runEditLease(action, files, sessionID) {
+async function runEditLease(action, files, sessionID) {
   if (!sessionID || !files.length) return;
-  const result = spawnSync("python3", ["scripts/sessions.py", "edit-lease", action, "--opencode-session", sessionID, "--file", ...files], {
+  const result = await runProcess("python3", ["scripts/sessions.py", "edit-lease", action, "--opencode-session", sessionID, "--file", ...files], {
     cwd: PROJECT_ROOT,
-    encoding: "utf8",
   });
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
@@ -1936,14 +1973,29 @@ function workerEditPathDecisionForTest({ sessionID = "", files = [], relativePat
   };
 }
 
-function guardWorkerEditPaths(files, relativePaths, sessionID) {
-  const decision = workerEditPathDecisionForTest({ sessionID, files, relativePaths });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function guardWorkerEditPaths(files, relativePaths, sessionID) {
+  if (!sessionID || !files.length || relativePaths.length === files.length) return;
+  const state = await workerSessionState(sessionID);
+  if (!state?.active_worker) return;
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    "active debug workers may edit only paths that resolve inside the repository or assigned worktree.",
+    "retry with repository-relative paths inside the approved write set.",
+  ));
 }
 
-function guardWorkerEditGate(files, sessionID) {
-  const decision = workerEditGateDecisionForTest({ sessionID, files });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function guardWorkerEditGate(files, sessionID) {
+  if (!sessionID || !files.length) return;
+  const args = ["scripts/tests.py", "campaign", "edit-gate", "--session", sessionID];
+  for (const file of files) args.push("--file", file);
+  const result = await runProcess("python3", args);
+  if (result.status === 0) return;
+  const detail = (result.stderr || result.stdout || `worker edit gate exited ${result.status}`).trim();
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    detail,
+    "submit `campaign intent`, wait for coordinator `approve-intent`, then edit only files in the approved write set.",
+  ));
 }
 
 function workerCampaignCommandIsAllowed(command) {
@@ -2082,9 +2134,35 @@ function workerBashGateDecisionForTest({ sessionID = "", command = "", run = spa
   };
 }
 
-function guardWorkerBashGate(command, sessionID) {
-  const decision = workerBashGateDecisionForTest({ sessionID, command });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function workerSessionState(sessionID) {
+  if (!sessionID) return { active_worker: false };
+  const result = await runProcess("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID]);
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || `worker-state exited ${result.status}`).trim();
+    throw new Error(actionable("[OpenMates worker edit gate]", detail, "resolve the test-control-plane worker-state error, then retry."));
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    throw new Error(actionable("[OpenMates worker edit gate]", "worker-state returned invalid JSON", "run python3 scripts/tests.py campaign worker-state --session <id> manually and fix the reported issue."));
+  }
+}
+
+async function guardWorkerBashGate(command, sessionID) {
+  const staticDecision = workerBashGateDecisionForTest({
+    sessionID,
+    command,
+    run: () => ({ status: 0, stdout: '{"active_worker":false}' }),
+  });
+  if (staticDecision.decision === "block") throw new Error(staticDecision.message);
+  if (staticDecision.message !== "session is not an active debug worker") return;
+  const state = await workerSessionState(sessionID);
+  if (!state?.active_worker) return;
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    "active failed-test workers may not run arbitrary shell commands outside the coordinator-approved campaign protocol.",
+    "use read-only inspection or the approved tests.py campaign commands, or ask the coordinator to perform the mutation.",
+  ));
 }
 
 export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true, editLease = runEditLease } = {}) => {
@@ -2173,7 +2251,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
   return {
     event: async ({ event }) => {
-      recordLifecycleEvent(event);
+      // Streaming part updates are extremely frequent and session.status already
+      // carries the busy/idle lifecycle needed by presence tracking.
+      if (event.type !== "message.part.updated") recordLifecycleEvent(event);
       if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
       const completedMessageID = completedAssistantMessageID(event);
@@ -2205,7 +2285,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
-      if (BASH_TOOLS.has(tool)) guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
+      if (BASH_TOOLS.has(tool)) await guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
       if (childMutation.decision === "block") {
         const key = `child:${input.sessionID}:${tool}:${bashCommand(output?.args || input?.args)}`;
@@ -2213,13 +2293,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         routingBlockCounts.set(key, count);
         throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
       }
-      if (
-        recordRouting
-        &&
-        route.decision === "worktree_routed"
+      const routeRecorded = recordRouting
+        && route.decision === "worktree_routed"
         && route.topLevelOpenCodeSessionID
         && !recordedRoutes.has(route.topLevelOpenCodeSessionID)
-        && recordWorktreeRouting(route.topLevelOpenCodeSessionID)
+        && await recordWorktreeRouting(route.topLevelOpenCodeSessionID);
+      if (
+        recordRouting
+        && routeRecorded
       ) {
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
@@ -2282,23 +2363,23 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
         const relativePaths = files.map((file) => routedEditRelativePathForTest(file, route.worktreePath || "")).filter(Boolean);
-        guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
+        await guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, relativePaths);
-        guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
-        runStaleRead("check", files, routedOpenCodeSessionID);
+        await guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
+        await runStaleRead("check", files, routedOpenCodeSessionID);
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
-        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        editLease("acquire", files, routedOpenCodeSessionID);
+        await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        await editLease("acquire", files, routedOpenCodeSessionID);
         return;
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
-      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+      await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) {
-        recordTaskChildRole(input, output);
+        await recordTaskChildRole(input, output);
         return;
       }
       if (BASH_TOOLS.has(tool)) {
@@ -2307,14 +2388,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
-          recordWorktreeRouting(input.sessionID);
+          await recordWorktreeRouting(input.sessionID);
         }
       }
       if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
         const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
         const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
         const files = explicitFilesForTest(toolArgs(input, output), route.worktreePath || instanceDirectory);
-        runStaleRead("record", files, routedOpenCodeSessionID);
+        await runStaleRead("record", files, routedOpenCodeSessionID);
         if (READ_TOOLS.has(tool) && output && typeof output.output === "string") {
           for (const file of files) {
             const warning = readConflictWarningForTest({
@@ -2333,10 +2414,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
       const files = editedFilesForTest(toolArgs(input, output), routedDirectory);
       try {
-        runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        runStaleRead("sync", files, routedOpenCodeSessionID);
+        await runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        await runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
-        editLease("release", files, routedOpenCodeSessionID);
+        await editLease("release", files, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, [], true);
       }
     },
@@ -2363,6 +2444,7 @@ OpenMatesHooks.test = Object.freeze({
   completedAssistantMessageID,
   notifierEventArgsForTest,
   reducePresenceEventForTest,
+  runProcessForTest: runProcess,
   resolveWorktreeRouteForTest,
   routeLocalToolArgsWithCircuitBreakerForTest,
   rewriteEditArgsForTest,

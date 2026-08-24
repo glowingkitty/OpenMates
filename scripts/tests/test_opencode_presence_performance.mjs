@@ -11,7 +11,16 @@ import test from "node:test";
 
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
-const { createPresenceSchedulerForTest } = OpenMatesHooks.test;
+const { createPresenceSchedulerForTest, runProcessForTest } = OpenMatesHooks.test;
+
+test("guard subprocesses do not block the server event loop", async () => {
+  let ticked = false;
+  const timer = setTimeout(() => { ticked = true; }, 10);
+  const result = await runProcessForTest(process.execPath, ["-e", "setTimeout(() => {}, 100)"]);
+  clearTimeout(timer);
+  assert.equal(result.status, 0);
+  assert.equal(ticked, true);
+});
 
 test("streaming burst persists at most once per debounce interval", async () => {
   const writes = [];
