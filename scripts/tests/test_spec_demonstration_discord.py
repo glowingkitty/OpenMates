@@ -166,6 +166,8 @@ def test_confirmed_response_media_publication_deletes_video_and_frames_but_retai
     assert result["publication"]["delivery_kind"] == "opencode_response_media"
     assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
     assert result["publication"]["response_media_html"].startswith("<video")
+    assert result["publication"]["snippet_html"].startswith("<video")
+    assert result["publication"]["snippet_markdown"].startswith("[Demo]")
     assert not Path(manifest["video_path"]).exists()
     assert not (run_dir / "frames" / "frame-001.png").exists()
 

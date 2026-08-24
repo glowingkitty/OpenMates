@@ -11,7 +11,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCodeRunOutputPayload,
+  codeRunArtifactChildId,
   mergeCodeRunArtifactHistory,
+  routeCodeRunArtifactChild,
   sanitizeCodeRunArtifacts,
   sanitizeCodeRunSkippedArtifacts,
 } from '../codeRunArtifacts';
@@ -97,6 +99,84 @@ describe('Code Run artifact metadata helpers', () => {
       download_url: 'https://example.test/old',
       captured_at: 10,
     }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.artifacts.child-renderer-routing,code-run.artifacts.parent-child-navigation
+  it('uses stable path-based child ids and routes only compatible native payloads', () => {
+    const firstId = codeRunArtifactChildId('parent-1', 'outputs/chart.png');
+    const repeatedId = codeRunArtifactChildId('parent-1', 'outputs/chart.png');
+    const secondPathId = codeRunArtifactChildId('parent-1', 'outputs/model.bin');
+
+    expect(firstId).toBe(repeatedId);
+    expect(firstId).not.toBe(secondPathId);
+
+    expect(routeCodeRunArtifactChild({
+      path: 'outputs/chart.png',
+      normalized_path: 'outputs/chart.png',
+      mime_type: 'image/png',
+      native_render_payload: {
+        app_id: 'images',
+        frontend_type: 'image',
+        content: {
+          filename: 'chart.png',
+          s3_base_url: 'https://storage.example.test',
+          files: { full: { s3_key: 'encrypted-chart', encryption: 'aes-gcm-nonce-prefixed-v1' } },
+          aes_key: 'client-visible-inside-encrypted-sidecar',
+          aes_nonce: '',
+        },
+      },
+    })).toMatchObject({ appId: 'images', frontendType: 'image', renderer: 'registered_native' });
+
+    expect(routeCodeRunArtifactChild({
+      path: 'outputs/model.bin',
+      normalized_path: 'outputs/model.bin',
+      mime_type: 'application/octet-stream',
+    })).toEqual({ appId: 'file', frontendType: 'file-file', renderer: 'generic_file' });
+
+    expect(routeCodeRunArtifactChild({
+      path: 'outputs/report.docx',
+      normalized_path: 'outputs/report.docx',
+      mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      native_render_payload: {
+        app_id: 'docs',
+        frontend_type: 'docs-doc',
+        content: { filename: 'report.docx' },
+      },
+    })).toEqual({ appId: 'file', frontendType: 'file-file', renderer: 'generic_file' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.output.chat-bound-encrypted,code-run.artifacts.child-renderer-routing
+  it('keeps native render material only in the encrypted sidecar payload', () => {
+    const output = {
+      id: 'out-native',
+      chat_id: 'chat-1',
+      embed_id: 'embed-1',
+      output: 'ok',
+      artifacts: [{
+        path: 'outputs/chart.png',
+        normalized_path: 'outputs/chart.png',
+        mime_type: 'image/png',
+        size_bytes: 12,
+        native_render_payload: {
+          app_id: 'images',
+          frontend_type: 'image',
+          content: {
+            files: { full: { s3_key: 'private-key' } },
+            aes_key: 'secret-aes-key',
+          },
+        },
+      }],
+      saved_at: 1,
+      created_at: 1,
+    };
+
+    const encryptedPayload = buildCodeRunOutputPayload(output, { includeDownloadUrl: true, includeNativeRenderPayload: true });
+    const inferencePayload = buildCodeRunOutputPayload(output, { includeDownloadUrl: false, includeNativeRenderPayload: false });
+
+    expect(encryptedPayload.artifacts?.[0].native_render_payload).toBeDefined();
+    expect(inferencePayload.artifacts?.[0].native_render_payload).toBeUndefined();
+    expect(JSON.stringify(inferencePayload)).not.toContain('secret-aes-key');
+    expect(JSON.stringify(inferencePayload)).not.toContain('private-key');
   });
 
   // contract-test: supporting surface=gui.web assertions=code-run.artifacts.explicit-only

@@ -45,13 +45,13 @@ const CODE_RUN_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'result-visible',
-			text: 'Code Run executes the file in its sandbox, shows the terminal result, and captures outputs/result.txt for download.',
+			text: 'Code Run executes the file in its sandbox and lists outputs/chart.png and outputs/result.txt as navigable child embeds.',
 			checkpoint: 'result-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'history-visible',
-			text: 'Running the same code again keeps one artifact card and adds the earlier result to previous versions.',
+			text: 'The image opens in its native viewer, the text output opens in the safe File viewer, and returning keeps the Code Run terminal state.',
 			checkpoint: 'history-visible',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -66,13 +66,13 @@ const CODE_RUN_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'code-run.result.visible',
 			checkpoint: 'result-visible',
-			visual: 'The Code Run terminal shows Hello, World!, a successful exit, and one outputs/result.txt artifact card.',
+			visual: 'The Code Run terminal shows Hello, World!, a successful exit, and ordered child cards for outputs/chart.png and outputs/result.txt.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'code-run.history.visible',
 			checkpoint: 'history-visible',
-			visual: 'The rerun still shows one outputs/result.txt artifact card with an expanded previous-versions section.',
+			visual: 'Native image and generic File child navigation return to the same Code Run parent, where rerun history remains available.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -220,7 +220,7 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
-// contract-test: direct surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.output.chat-bound-encrypted,code-run.artifacts.encrypted-indexed,code-run.artifacts.chat-bound-versioned,code-run.surface-parity,message-input.drafts.preview-persistence,message-input.embeds.gated-send
+// contract-test: direct surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.output.chat-bound-encrypted,code-run.artifacts.encrypted-indexed,code-run.artifacts.chat-bound-versioned,code-run.artifacts.child-renderer-routing,code-run.artifacts.parent-child-navigation,code-run.gui.split-layout-width,code-run.surface-parity,message-input.drafts.preview-persistence,message-input.embeds.gated-send
 test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);
@@ -295,8 +295,19 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(terminalOverlay).toBeVisible({ timeout: 20000 });
 	const terminalOutput = fullscreenOverlay.getByTestId('code-run-output');
 	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
+	const chatHistoryContent = page.getByTestId('chat-history-content');
 	await expect(terminalOutput).toBeVisible();
 	await expect(terminalActions).toBeVisible();
+	if (page.viewportSize()?.width === 1440) {
+		const splitPadding = await chatHistoryContent.evaluate((element: HTMLElement) => {
+			const style = getComputedStyle(element);
+			return Math.max(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd));
+		});
+		expect(splitPadding).toBeLessThanOrEqual(24);
+	}
+	if (page.viewportSize()?.width === 390) {
+		expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThan(8);
+	}
 	await expect(terminalOutput).toHaveCSS('overflow-y', 'auto');
 	await expect.poll(async () => {
 		const [outputBox, actionsBox] = await Promise.all([
@@ -314,17 +325,32 @@ test('code run output becomes the default code embed preview after reload', asyn
 	const artifacts = fullscreenOverlay.getByTestId('code-run-artifacts');
 	const artifactCards = artifacts.getByTestId('code-run-artifact');
 	await expect(artifacts).toBeVisible({ timeout: 120000 });
-	await expect(artifactCards).toHaveCount(1);
-	await expect(artifactCards.first()).toContainText('outputs/result.txt');
-	await expect(artifactCards.first().getByTestId('code-run-artifact-download')).toBeVisible();
+	await expect(artifactCards).toHaveCount(2);
+	await expect(artifactCards.nth(0)).toContainText('outputs/chart.png');
+	await expect(artifactCards.nth(1)).toContainText('outputs/result.txt');
+	await expect(artifactCards.nth(1).getByTestId('code-run-artifact-download')).toBeVisible();
+	await artifactCards.nth(0).getByTestId('code-run-artifact-child-open').click();
+	const imageChild = fullscreenOverlay.getByTestId('image-embed-fullscreen');
+	await expect(imageChild).toBeVisible({ timeout: 30000 });
+	await imageChild.getByTestId('embed-minimize').click();
+	await expect(terminal).toBeVisible({ timeout: 10000 });
+	await expect(terminal).toContainText('Hello, World!');
+	await artifactCards.nth(1).getByTestId('code-run-artifact-child-open').click();
+	const fileChild = fullscreenOverlay.getByTestId('file-embed-fullscreen');
+	await expect(fileChild).toBeVisible({ timeout: 10000 });
+	await expect(fileChild).toContainText('outputs/result.txt');
+	await expect(fileChild.getByTestId('file-embed-executable-preview')).toHaveCount(0);
+	await fileChild.getByTestId('embed-minimize').click();
+	await expect(terminal).toBeVisible({ timeout: 10000 });
 	if (proof) {
 		await terminalActions.scrollIntoViewIfNeeded();
 		await expect(terminalActions).toBeInViewport({ ratio: 1 });
 		await proof.assert('code-run.result.visible', async () => {
 			await expect(terminal).toContainText('Hello, World!');
 			await expect(terminal).toContainText('Exited');
-			await expect(artifactCards).toHaveCount(1);
-			await expect(artifactCards.first()).toContainText('outputs/result.txt');
+			await expect(artifactCards).toHaveCount(2);
+			await expect(artifactCards.nth(0)).toContainText('outputs/chart.png');
+			await expect(artifactCards.nth(1)).toContainText('outputs/result.txt');
 		});
 		await proof.checkpoint('result-visible');
 	}
@@ -332,15 +358,15 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await fullscreenOverlay.getByTestId('code-run-action-run-again').click();
 	await expect(terminal).toContainText('Queued code run', { timeout: 10000 });
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
-	await expect(artifactCards).toHaveCount(1, { timeout: 120000 });
-	const artifactHistory = artifactCards.first().getByTestId('code-run-artifact-history');
+	await expect(artifactCards).toHaveCount(2, { timeout: 120000 });
+	const artifactHistory = artifactCards.nth(1).getByTestId('code-run-artifact-history');
 	await expect(artifactHistory).toBeVisible({ timeout: 30000 });
 	await artifactHistory.locator('summary').click();
 	await expect(artifactHistory).toContainText('outputs/result.txt');
 	if (proof) {
 		await artifacts.scrollIntoViewIfNeeded();
 		await proof.assert('code-run.history.visible', async () => {
-			await expect(artifactCards).toHaveCount(1);
+			await expect(artifactCards).toHaveCount(2);
 			await expect(artifactHistory).toBeVisible();
 			await expect(artifactHistory).toContainText('outputs/result.txt');
 		});
@@ -374,7 +400,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await reloadedFullscreenOverlay.getByTestId('embed-run-button').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toBeVisible({ timeout: 10000 });
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toContainText('Hello, World!', { timeout: 10000 });
-	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact')).toHaveCount(1);
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact')).toHaveCount(2);
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact-history')).toBeVisible();
 	await reloadedFullscreenOverlay.getByTestId('code-run-view-code').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-overlay')).not.toBeVisible({ timeout: 10000 });

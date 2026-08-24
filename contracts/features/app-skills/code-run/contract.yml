@@ -18,7 +18,7 @@ scope:
     - Web fullscreen Code Run, assistant tool use, CLI, npm SDK, pip SDK, and REST API access
     - File/path validation, dependency-manifest validation, language dispatch, internet controls, cancellation, rate limits, and credit billing
     - Live terminal streaming, status polling, visible failure states, and encrypted chat-bound terminal output sidecars
-    - Explicit output artifact discovery inside E2B before teardown, encrypted artifact storage, generated-asset download metadata, and same-path artifact version history
+    - Explicit output artifact discovery inside E2B before teardown, encrypted artifact storage, generated-asset download metadata, typed child embeds, and same-path artifact version history
     - Assistant auto-run, debug, and rerun behavior for code created or edited in the current assistant turn
   excludes:
     - Backend execution, importing, package installation, linting, formatting, cloning, or URL fetching of user code outside E2B
@@ -179,6 +179,10 @@ models:
 
   CodeRunArtifactHistory:
     normalized_path: {type: string, required: true}
+    child_embed_id:
+      type: string
+      required: true
+      constraints: {stable_per_chat_parent_and_normalized_path: true}
     latest_version:
       type: integer
       required: true
@@ -188,6 +192,41 @@ models:
       type: integer
       required: true
       constraints: {same_path_chat_bound_runs: 1}
+
+  CodeRunArtifactChild:
+    embed_id: {type: string, required: true}
+    parent_embed_id:
+      type: string
+      required: true
+      constraints: {equals_target_embed_id: true, inherits_parent_embed_key: true}
+    normalized_path: {type: string, required: true}
+    source_execution_id: {type: string, required: true}
+    artifact_version: {type: integer, required: true, constraints: {minimum: 1}}
+    app_id: {type: string, required: true}
+    frontend_type: {type: string, required: true}
+    renderer:
+      type: enum
+      required: true
+      values: [registered_native, generic_file]
+    storage_ref:
+      type: object
+      required: true
+      constraints: {authorized_encrypted_generated_asset_only: true, inference_safe: true}
+
+  CodeRunArtifactRouting:
+    native_match:
+      type: object
+      required: true
+      constraints: {registered_embed_type_required: true, compatible_payload_required: true}
+    fallback:
+      type: object
+      required: true
+      constraints: {app_id: file, frontend_type: file-file, downloadable: true, executable_preview: forbidden}
+    parent_child_order:
+      type: array
+      required: true
+      items: string
+      constraints: {source: normalized_output_path, deterministic: true, duplicate_ids: forbidden}
 
   AssistantCodeRunAutonomy:
     allowed_without_prompt:
@@ -240,15 +279,27 @@ assertions:
     depends_on: [models.CodeRunArtifactStorage, examples.successful_artifacts, examples.error_outputs]
   - id: code-run.artifacts.chat-bound-versioned
     type: behavior
-    must: Chat-bound runs create or update one visible artifact per normalized output path; later successful captures of the same path update the latest version while retaining prior versions in artifact history instead of adding duplicate same-path embeds.
-    depends_on: [models.CodeRunArtifactHistory, examples.artifact_version_history]
+    must: Each successfully captured chat-bound output file is represented by exactly one child embed of the target Code Run parent; later successful captures of the same normalized path preserve that child embed id, update its latest version, and retain prior versions in artifact history instead of adding a duplicate child.
+    depends_on: [models.CodeRunArtifactHistory, models.CodeRunArtifactChild, examples.artifact_version_history]
+  - id: code-run.artifacts.child-renderer-routing
+    type: behavior
+    must: Each output child uses a registered native file-capable embed only when its MIME type and stored payload satisfy that embed contract; every other accepted output uses the generic File app `file-file` embed, which exposes safe metadata and authorized download without executing or interpreting the file.
+    depends_on: [models.CodeRunArtifactChild, models.CodeRunArtifactRouting, examples.artifact_child_routing]
+  - id: code-run.artifacts.parent-child-navigation
+    type: behavior
+    must: The Code Run parent stores a deterministic ordered list of all current output child embed ids, its fullscreen lists every child, selecting a child opens that child's registered fullscreen renderer, and closing or navigating back restores the parent fullscreen without losing terminal or run state.
+    depends_on: [models.CodeRunArtifactChild, models.CodeRunArtifactRouting, examples.artifact_child_navigation]
+  - id: code-run.gui.split-layout-width
+    type: behavior
+    must: In split-screen Code Run mode, chat history and composer use the full width allocated to the chat column with container-relative padding rather than viewport-relative gutters, while the Code Run panel remains independently scrollable and does not overlap chat content or controls on supported laptop and phone viewports.
+    depends_on: [examples.responsive_layout]
   - id: code-run.assistant.auto-debug-bounded
     type: behavior
     must: The assistant may auto-run Code Run, inspect terminal output and captured artifact metadata, patch, and rerun only for code it created or edited in the current turn, while applying existing credits/rate limits and visible status; it asks before running unmodified user-supplied code, before continuing after repeated failures, or when unexpected network/security risk appears.
     depends_on: [models.AssistantCodeRunAutonomy, examples.assistant_autonomy]
   - id: code-run.surface-parity
     type: parity
-    must: REST API/WebSocket status, CLI, npm/pip SDKs, assistant, web GUI, and Apple GUI preserve the same request, execution-boundary, streaming, billing, cancellation, output persistence, artifact, version-history, privacy, and visible-failure semantics or record explicit approved exceptions.
+    must: REST API/WebSocket status, CLI, npm/pip SDKs, assistant, web GUI, and Apple GUI preserve the same request, execution-boundary, streaming, billing, cancellation, output persistence, artifact-child identity/routing, version-history, privacy, and visible-failure semantics or record explicit approved exceptions.
     depends_on: [models, examples, surfaces]
 
 surfaces:
@@ -270,4 +321,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [valid_requests, invalid_requests, execution_outputs, billing_and_limits, chat_bound_outputs, direct_outputs, valid_artifacts, rejected_artifacts, successful_artifacts, artifact_version_history, assistant_autonomy, error_outputs, boundary_cases]
+  required_groups: [valid_requests, invalid_requests, execution_outputs, billing_and_limits, chat_bound_outputs, direct_outputs, valid_artifacts, rejected_artifacts, successful_artifacts, artifact_version_history, artifact_child_routing, artifact_child_navigation, responsive_layout, assistant_autonomy, error_outputs, boundary_cases]

@@ -306,6 +306,7 @@ def test_code_run_artifact_status_metadata_strips_sensitive_fields() -> None:
     ]
 
 
+# contract-test: direct surface=rest_api assertions=code-run.artifacts.encrypted-indexed,code-run.artifacts.child-renderer-routing
 @pytest.mark.anyio
 async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     plaintext = b"name,value\nAlice,1\n"
@@ -423,6 +424,43 @@ async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_
     assert "content_base64" not in stored[0]
     assert "s3_key" not in stored[0]
     assert "token" not in stored[0]
+
+    chat_bound = await code_run_task._persist_code_run_artifacts(
+        execution_id="execution-2",
+        payload={"user_id": USER_ID, "chat_id": "chat-1", "target_embed_id": TARGET_EMBED_ID, "target_path": "main.py"},
+        artifacts=[{
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": len(plaintext),
+            "content_base64": base64.b64encode(plaintext).decode("ascii"),
+        }],
+        secrets_manager=object(),
+        cache_service=FakeCache([], {}),
+        now=2_040.0,
+    )
+
+    assert "native_render_payload" not in stored[0]
+    assert chat_bound[0]["native_render_payload"] == {
+        "app_id": "images",
+        "frontend_type": "image",
+        "content": {
+            "filename": "chart.png",
+            "s3_base_url": "https://dev-openmates-chatfiles.nbg1.your-objectstorage.com",
+            "files": {
+                "full": chat_bound[0]["native_render_payload"]["content"]["files"]["full"],
+                "original": chat_bound[0]["native_render_payload"]["content"]["files"]["original"],
+            },
+            "aes_key": "fake-aes-key",
+            "aes_nonce": "",
+            "file_size": len(plaintext),
+            "file_type": "image/png",
+            "is_authenticated": True,
+        },
+    }
+    assert chat_bound[0]["native_render_payload"]["content"]["files"]["full"]["s3_key"].endswith("_chart.png")
+    assert chat_bound[0]["native_render_payload"]["content"]["files"]["full"]["encryption"] == "test"
 
 
 def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypatch: pytest.MonkeyPatch) -> None:

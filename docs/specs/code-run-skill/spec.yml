@@ -7,7 +7,7 @@ contract_refs:
   - id: feature.app-skill.code-run
     version: 1
     role: primary
-    fingerprint: 2fd2581a50b14f79bc7054534acc76dabda458790ff93088f05778d6d673f3ae
+    fingerprint: eb459a0bf0eafa8b7d30817d0e27bb9fd0ad28dd97cf2f5091ca37572aea2ee4
 
 contract_impact:
   classification: new_contract
@@ -22,13 +22,16 @@ contract_impact:
     - code-run.artifacts.explicit-only
     - code-run.artifacts.encrypted-indexed
     - code-run.artifacts.chat-bound-versioned
+    - code-run.artifacts.child-renderer-routing
+    - code-run.artifacts.parent-child-navigation
+    - code-run.gui.split-layout-width
     - code-run.assistant.auto-debug-bounded
     - code-run.surface-parity
   reason: >
-    The user approved the first full durable Code Run skill contract, replacing
-    terminal-only and artifact-only framing with one skill-wide contract covering
-    execution, streaming, billing, encrypted output, artifacts, assistant auto-run,
-    and cross-surface parity.
+    The user approved the amended durable Code Run contract. It retains the
+    skill-wide execution, streaming, billing, encrypted-output, artifact, assistant,
+    and parity guarantees while requiring each captured chat-bound output to become
+    a stable routed child embed and requiring container-relative split-screen layout.
 
 documentation_impact:
   generated_reference:
@@ -66,14 +69,16 @@ scope:
     - Extend the E2B provider and task/status payloads to discover only explicit output artifacts before sandbox teardown.
     - Store persisted artifacts encrypted in private generated-asset storage and index them in upload_files.
     - Return direct-run artifact metadata/download URLs without creating chat state.
-    - Create or update chat-bound artifact embeds by normalized output path and retain prior versions.
+    - Create or update chat-bound artifact child embeds by normalized output path, route compatible payloads to native renderers, use non-executable `file-file` fallback otherwise, and retain prior versions.
+    - List every current output child in the Code Run parent and preserve parent terminal state across nested fullscreen navigation.
+    - Keep split-screen chat history/composer aligned to their allocated chat column on laptop and contain terminal controls on phone.
     - Include terminal output plus safe artifact metadata in assistant-visible context while excluding keys, bytes, URLs, tokens, s3 keys, sandbox IDs, and raw diagnostics.
     - Add a real inference test for assistant create-run-fail-debug-rerun-final-artifact behavior.
   out:
     - Private repository authentication.
     - Unbounded project upload, arbitrary binary input expansion, or backend URL fetching of user code.
     - Capturing all changed workspace files or hidden/dependency/cache/credential files as artifacts.
-    - Replacing the existing web fullscreen Code Run UI beyond artifact affordances needed for the contract.
+    - Replacing unrelated Code Run editor/fullscreen behavior beyond artifact-child navigation and responsive split-width corrections required by the contract.
     - Making direct-run outputs durable chat content unless the caller explicitly uses chat-bound mode.
 
 context_discovery:
@@ -87,7 +92,7 @@ context_discovery:
     - docs/specs/remotion-video-create-embeds/spec.yml
     - docs/user-guide/cli/apps-and-skills.md
   contracts:
-    - contracts/features/app-skills/code-run/contract.yml approved in session 96e5 with fingerprint 2fd2581a50b14f79bc7054534acc76dabda458790ff93088f05778d6d673f3ae.
+    - contracts/features/app-skills/code-run/contract.yml amended and approved in session 96e5 with fingerprint eb459a0bf0eafa8b7d30817d0e27bb9fd0ad28dd97cf2f5091ca37572aea2ee4.
     - contracts/architecture/app-skill-execution/contract.yml governs app-skill dispatch and output safety.
   code_patterns:
     - backend/core/api/app/routes/code_execution.py owns `/v1/code/run`, status, stream, cancellation, chat-bound collection, and direct-run collection.
@@ -142,13 +147,13 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
+  subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
 
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-08-23T00:00:00Z"
-    reason: User explicitly approved the full `feature.app-skill.code-run@1` contract in this session.
+    approved_at: "2026-08-24T16:30:00Z"
+    reason: User explicitly approved amended `feature.app-skill.code-run@1` fingerprint eb459a0bf0eafa8b7d30817d0e27bb9fd0ad28dd97cf2f5091ca37572aea2ee4 in this session.
   implementation_plan:
     status: approved
     approved_at: "2026-08-23T23:12:28Z"
@@ -184,6 +189,14 @@ decisions:
       current assistant turn, with a two-rerun unprompted failure limit.
     reason: Enables useful self-debugging while keeping user-supplied code and repeated failures under user control.
     decided_at: "2026-08-23T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: >
+      Every successfully captured chat-bound output is a stable child embed of the
+      target Code Run parent. Compatible encrypted payloads use registered native
+      renderers; all other accepted files use the non-executable `file-file` fallback.
+    reason: Makes outputs first-class, navigable chat content without weakening client-side encryption or pretending incompatible payloads satisfy native embed contracts.
+    decided_at: "2026-08-24T16:30:00Z"
 
 scenarios:
   - id: S-1
@@ -215,8 +228,10 @@ scenarios:
       - Alice runs it twice and the second run writes a different `outputs/chart.png`.
     then:
       - The chat shows one visible artifact for `outputs/chart.png`.
+      - The Code Run parent stores the artifact child ID and lists the child in normalized-path order.
+      - A payload-compatible image opens through the registered image renderer, while unsupported or incompatible payloads use `file-file`.
       - The second successful capture becomes the latest version.
-      - The first capture remains available through artifact history.
+      - The child embed ID remains stable and the first capture remains available through artifact history.
   - id: S-4
     title: Unsafe and unintended files are not captured
     given:
@@ -244,6 +259,8 @@ scenarios:
       - Alice opens, reloads, and views the chat on laptop and mobile.
     then:
       - Terminal output, final status, artifact preview/download affordances, and artifact history render without raw protocol text.
+      - The parent lists every current artifact child, selecting one opens its registered fullscreen, and Back restores the parent with terminal state intact.
+      - Laptop chat history and composer use the full allocated chat-column width; phone terminal controls remain contained without horizontal overflow.
       - Primary controls remain responsive and objective visual issues are fixed before completion.
   - id: S-7
     title: Cross-surface parity is preserved
@@ -293,6 +310,8 @@ acceptance_criteria:
     contract_assertions:
       - code-run.artifacts.encrypted-indexed
       - code-run.artifacts.chat-bound-versioned
+      - code-run.artifacts.child-renderer-routing
+      - code-run.artifacts.parent-child-navigation
   - id: AC-4
     scenario: S-4
     text: Artifact discovery skips or rejects unintended, unsafe, hidden, dependency, cache, traversal, oversized, and unsupported files with visible safe reasons and no sensitive leakage.
@@ -327,6 +346,9 @@ acceptance_criteria:
     contract_assertions:
       - code-run.output.chat-bound-encrypted
       - code-run.artifacts.chat-bound-versioned
+      - code-run.artifacts.child-renderer-routing
+      - code-run.artifacts.parent-child-navigation
+      - code-run.gui.split-layout-width
       - code-run.surface-parity
   - id: AC-7
     scenario: S-7
@@ -339,6 +361,8 @@ acceptance_criteria:
     contract_assertions:
       - code-run.surface-parity
       - code-run.billing.rate-limits
+      - code-run.artifacts.child-renderer-routing
+      - code-run.artifacts.parent-child-navigation
 
 assumptions:
   - id: A-1
@@ -409,6 +433,7 @@ tests:
       - Code Run task/status payloads include terminal events plus safe artifact/skipped metadata.
       - Chat-bound output sidecar inference cache excludes artifact-sensitive fields.
       - Encrypted generated-asset indexing is invoked for persisted artifacts and direct runs do not create chat records.
+      - Chat-bound image artifacts return a native-render payload only in the authorized client result, while direct results remain key-free.
     contract_assertions:
       - code-run.request.validated
       - code-run.execution.e2b-only
@@ -418,28 +443,24 @@ tests:
       - code-run.artifacts.explicit-only
       - code-run.artifacts.encrypted-indexed
       - code-run.artifacts.chat-bound-versioned
+      - code-run.artifacts.child-renderer-routing
       - code-run.billing.rate-limits
     covers: [AC-1, AC-2, AC-3, AC-4, AC-7]
     red_phase:
       required: true
       expected: fail_before_implementation
       evidence:
-        command: python3 -m pytest backend/tests/test_e2b_code_runner.py backend/tests/test_code_run_app_skill.py backend/tests/test_code_execution.py -q
-        run_id: local-pytest-code-run-red-2026-08-23T23:27:49Z
-        timestamp: "2026-08-23T23:27:49Z"
-        subject_commit: acc417226
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_code_execution.py::test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_metadata -q
+        run_id: local-pytest-code-run-child-red-2026-08-24T16:34:00Z
+        timestamp: "2026-08-24T16:34:00Z"
+        subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58+worktree-96e5
         outcome: failed_expected
-        summary: New worker artifact storage/status tests failed before implementation because EncryptionService and _persist_code_run_artifacts were missing.
+        summary: Approved native child routing test failed with KeyError native_render_payload because chat-bound persisted image artifacts still expose only generic download metadata.
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence:
-        command: python3 -m pytest backend/tests/test_e2b_code_runner.py backend/tests/test_code_run_app_skill.py backend/tests/test_code_execution.py -q
-        run_id: local-pytest-code-run-green-2026-08-23T23:27:49Z
-        timestamp: "2026-08-23T23:27:49Z"
-        subject_commit: acc417226
-        outcome: passed
-        summary: 60 passed, 3 warnings.
+      evidence: {status: pending}
   - id: T-PY-AI-CODE-RUN
     type: pytest
     file: backend/apps/ai/tests/test_code_run_skill_execution.py
@@ -458,20 +479,22 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
+        status: failed_as_expected
         command: python3 -m pytest backend/apps/ai/tests/test_code_run_skill_execution.py backend/tests/test_main_processor_invalid_tool_calls.py -q
         run_id: local-pytest-ai-code-run-red-2026-08-23T23:43:57Z
         timestamp: "2026-08-23T23:43:57Z"
-        subject_commit: acc417226
+        subject_commit: acc417226fb23e5f9d8dbe3038b4c8db2a2db056
         outcome: failed_expected
         summary: New assistant Code Run tests failed before implementation because CODE_RUN_ASSISTANT_MAX_AUTO_RUNS and mark_assistant_code_run_authorized were missing.
     green_phase:
       required: true
       expected: pass_after_implementation
       evidence:
+        status: passed
         command: python3 -m pytest backend/apps/ai/tests/test_code_run_skill_execution.py -q
-        run_id: local-pytest-ai-code-run-green-2026-08-23T23:43:57Z
-        timestamp: "2026-08-23T23:43:57Z"
-        subject_commit: acc417226
+        run_id: local-pytest-ai-code-run-green-2026-08-24T14:04:49Z
+        timestamp: "2026-08-24T14:04:49Z"
+        subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
         outcome: passed
         summary: 3 passed, 3 warnings. Combined backend/assistant regression command also passed with 80 passed, 3 warnings.
   - id: T-NODE-CLI-CODE-RUN
@@ -490,20 +513,22 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
+        status: failed_as_expected
         command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/codeRunInput.test.ts frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
         run_id: local-node-cli-code-run-red-2026-08-24T00:11:51Z
         timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        subject_commit: acc417226fb23e5f9d8dbe3038b4c8db2a2db056
         outcome: failed_expected
         summary: Existing pnpm test command was blocked by the repo hook; equivalent Node red coverage failed before implementation because formatCodeRunFinalStatusOutput was not exported.
     green_phase:
       required: true
       expected: pass_after_implementation
       evidence:
-        command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/codeRunInput.test.ts && npm --prefix frontend/packages/openmates-cli run build && node --test --test-name-pattern "prints direct-run output and artifact download metadata in human mode" frontend/packages/openmates-cli/tests/cli.test.ts
-        run_id: local-node-cli-code-run-green-2026-08-24T00:11:51Z
-        timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/codeRunInput.test.ts && npm --prefix frontend/packages/openmates-cli run build && node --test --test-name-pattern "prints direct-run output and artifact download metadata in human mode|returns a failing process status when the sandbox execution fails" frontend/packages/openmates-cli/tests/cli.test.ts
+        run_id: local-node-cli-code-run-green-2026-08-24T14:04:49Z
+        timestamp: "2026-08-24T14:04:49Z"
+        subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
         outcome: passed
         summary: Formatter and compiled CLI human output tests passed; package-local npm build produced dist/cli.js before the compiled CLI test.
   - id: T-NODE-SDK-CODE-RUN
@@ -521,20 +546,22 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
+        status: failed_as_expected
         command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
         run_id: local-node-sdk-code-run-red-2026-08-24T00:11:51Z
         timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        subject_commit: acc417226fb23e5f9d8dbe3038b4c8db2a2db056
         outcome: failed_expected
         summary: Generated npm SDK coverage failed before implementation because code.run metadata/method/output schema were absent.
     green_phase:
       required: true
       expected: pass_after_implementation
       evidence:
-        command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdkGenerator.test.ts && node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs --test-name-pattern "resolves Code Run status paths" frontend/packages/openmates-cli/tests/sdk.test.ts
-        run_id: local-node-sdk-code-run-green-2026-08-24T00:11:51Z
-        timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdkGenerator.test.ts && node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs --test-name-pattern "resolves Code Run status paths" frontend/packages/openmates-cli/tests/sdk.test.ts
+        run_id: local-node-sdk-code-run-green-2026-08-24T14:05:11Z
+        timestamp: "2026-08-24T14:05:11Z"
+        subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
         outcome: passed
         summary: SDK generator test passed and npm SDK status-path polling test passed for Code Run final artifact metadata.
   - id: T-PY-SDK-CODE-RUN
@@ -552,20 +579,22 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
+        status: failed_as_expected
         command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py::test_code_run_app_skill_resolves_status_path_artifact_metadata -q
         run_id: local-py-sdk-code-run-red-2026-08-24T00:11:51Z
         timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        subject_commit: acc417226fb23e5f9d8dbe3038b4c8db2a2db056
         outcome: failed_expected
         summary: Generated pip SDK coverage failed before implementation because code.run was absent and the status-path resolver test hit StopIteration.
     green_phase:
       required: true
       expected: pass_after_implementation
       evidence:
+        status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py::test_code_run_app_skill_resolves_status_path_artifact_metadata -q
-        run_id: local-py-sdk-code-run-green-2026-08-24T00:11:51Z
-        timestamp: "2026-08-24T00:11:51Z"
-        subject_commit: acc417226+worktree-96e5
+        run_id: local-py-sdk-code-run-green-2026-08-24T14:05:11Z
+        timestamp: "2026-08-24T14:05:11Z"
+        subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
         outcome: passed
         summary: 3 passed in 0.35s; generated pip SDK exposes code.run metadata/output schema and attaches final artifact metadata after status-path polling.
   - id: T-FRONTEND-CODE-RUN
@@ -576,41 +605,61 @@ tests:
       - Frontend Code Run status types include safe artifact and skipped-file metadata.
       - Code Run output sidecar encryption payload strips artifact-sensitive inference fields.
       - Artifact history view model dedupes same normalized output paths and preserves prior versions.
+      - Artifact child IDs are deterministic per parent and normalized path.
+      - Only payload-compatible artifacts route to registered native embeds; unsupported or incompatible files route to non-executable `file-file`.
+      - Nested artifact fullscreen routing restores the Code Run parent route.
     contract_assertions:
       - code-run.output.chat-bound-encrypted
       - code-run.artifacts.chat-bound-versioned
+      - code-run.artifacts.child-renderer-routing
+      - code-run.artifacts.parent-child-navigation
       - code-run.surface-parity
     covers: [AC-3, AC-6]
     red_phase:
       required: true
       expected: fail_before_implementation
-      evidence: {}
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-08-24T14:05:11Z"
+        reason: The frontend unit red run was not retained before implementation; deployed Playwright red evidence below preserved the user-visible failure, and the focused frontend service tests are covered by the unified green run.
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: {}
+      evidence: {status: pending}
   - id: T-PW-CODE-RUN
     type: playwright
     file: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     target: app.dev.openmates.org
     command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts --gate-deploy --expected-commit <SHA>
     assertions:
-      - Deployed web Code Run creates a terminal output, captures an intentional output artifact, persists/reloads encrypted output, and shows artifact history without raw protocol text.
-      - Laptop and mobile flows keep primary Code Run controls responsive.
+      - Deployed web Code Run creates terminal output and at least two intentional artifacts, persists/reloads encrypted output, and shows stable ordered artifact children without raw protocol text.
+      - A compatible image child opens its native fullscreen; an incompatible artifact opens `file-file`; Back restores parent terminal state.
+      - Laptop split mode aligns history/composer to the allocated chat column and phone mode has no horizontal overflow or obscured primary controls.
     contract_assertions:
       - code-run.output.chat-bound-encrypted
       - code-run.artifacts.encrypted-indexed
       - code-run.artifacts.chat-bound-versioned
+      - code-run.artifacts.child-renderer-routing
+      - code-run.artifacts.parent-child-navigation
+      - code-run.gui.split-layout-width
       - code-run.surface-parity
     covers: [AC-2, AC-3, AC-6, AC-7]
     red_phase:
       required: true
       expected: fail_before_implementation
-      evidence: {}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit bf96a0d950f465021ee18c259c3cf6f7050e1430 --proof-video-profile web-laptop
+        run_id: "32723774343"
+        timestamp: "2026-08-24T11:46:44Z"
+        subject_commit: bf96a0d950f465021ee18c259c3cf6f7050e1430
+        target: https://app.dev.openmates.org
+        deployment_reference: bf96a0d950f465021ee18c259c3cf6f7050e1430
+        summary: Deployed red run failed at the prompt-preservation assertion and exposed the unstable proof interaction before the final sequential contenteditable flow.
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {}
+      evidence: {status: pending}
 
 verifications:
   - id: V-REST-CLI-SDK-DEV
@@ -618,8 +667,14 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-7]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: node /tmp/opencode/code-run-rest-sdk-smoke.mjs && python3 scripts/cli_video_capture.py --output-dir test-results/code-run-cli-proof-final --target-environment development --classification code-run-proof -- node frontend/packages/openmates-cli/dist/cli.js apps code run --language python --filename cli-proof.py --code <CODE>
+      run_id: live-rest-npm-pip-and-cli-code-run-2026-08-24
+      timestamp: "2026-08-24T14:02:09Z"
+      subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
+      summary: Real dev-server REST, npm SDK, pip SDK, and CLI direct runs all finished with exit code 0 and captured outputs/cli-proof.txt. Temporary developer API keys were revoked after the REST/SDK smoke.
   - id: V-LIVE-INFERENCE
     kind: ai_evaluation
     phase: green
@@ -716,17 +771,17 @@ demonstration:
       scenario_ids: [S-5]
       acceptance_criteria: [AC-5]
   evidence:
-    status: pending
-    privacy_status: pending
+    status: passed
+    privacy_status: not_applicable
     audio_status: not_required
-    review_status: pending
-    publication_status: pending
-    review_attempts: 0
-    subject_commit: pending
-    manifest_path: pending
-    manifest_hash: pending
-    review_run_id: pending
-    timestamp: pending
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58
+    manifest_path: test-results/proof-videos/96e5/code-run-cli-final-2/manifest.json
+    manifest_hash: sha256:3aa65805afaffd254038979c734b31496cbb43b332fab8a4823c25cce4279bc3
+    review_run_id: review-code-run-cli-final-2
+    timestamp: "2026-08-24T14:02:09Z"
 
 implementation_plan:
   spec_path: docs/specs/code-run-skill/spec.yml
@@ -736,8 +791,9 @@ implementation_plan:
     return explicit output artifacts before sandbox teardown, then let the task
     store safe artifact status and call shared generated-asset storage adapters.
     Make `code.run` assistant-dispatchable through a bounded async continuation
-    path, update CLI/SDK generated surfaces, and add minimal web artifact/history
-    rendering on top of the existing terminal UI.
+    path, update CLI/SDK generated surfaces, and let the authorized chat client
+    encrypt stable output children with the parent embed key. Native-compatible
+    payloads route to their registered renderer; all others route to `file-file`.
   existing_patterns:
     - Existing Code Run direct/chat-bound app-skill endpoint and status/stream primitives.
     - Existing generated-asset encrypted S3/upload_files storage used by image, audio, video, and 3D apps.
@@ -749,7 +805,7 @@ implementation_plan:
     - API validates ownership, paths, sizes, dependencies, rate limits, credits, and provider capacity.
     - E2B receives inert files, executes the selected target, streams sanitized terminal events, discovers explicit output artifacts, reads bounded artifact bytes, and closes.
     - Task stores terminal events plus safe artifact metadata; persisted artifacts are encrypted/indexed through generated-asset storage.
-    - Direct callers receive transient terminal/artifact metadata; chat-bound clients encrypt terminal output sidecars and associate artifacts with normalized output-path history.
+    - Direct callers receive transient terminal/artifact metadata; chat-bound clients encrypt terminal output sidecars and materialize stable parent-linked artifact children with normalized output-path history.
     - Assistant receives safe terminal/artifact summaries, may patch current-turn code, and reruns within the approved limit.
   affected_files:
     - {path: backend/shared/providers/e2b_code_runner.py, reason: Discover and read explicit output artifacts before sandbox teardown.}
@@ -762,9 +818,14 @@ implementation_plan:
     - {path: packages/openmates-python/openmates/sdk.py, reason: Expose pip SDK Code Run artifact metadata.}
     - {path: frontend/packages/ui/src/services/codeRunService.ts, reason: Type and handle safe artifact/skipped metadata.}
     - {path: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte, reason: Render captured artifacts and history in the existing Code Run surface.}
+    - {path: frontend/packages/ui/src/services/codeRunArtifactEmbeds.ts, reason: Materialize stable inherited-key child embeds and parent linkage client-side.}
+    - {path: backend/apps/file/app.yml, reason: Register the generic non-executable `file-file` direct embed fallback.}
+    - {path: frontend/packages/ui/src/components/embeds/file/FileEmbedPreview.svelte, reason: Render safe generic file metadata.}
+    - {path: frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte, reason: Render safe metadata and authorized download without interpreting the file.}
+    - {path: frontend/packages/ui/src/components/ChatHistory.svelte, reason: Use container-relative chat history gutters in split mode.}
     - {path: docs/user-guide/cli/apps-and-skills.md, reason: Document outputs/, openmates_outputs.json, and direct/chat-bound artifact behavior.}
   verification_strategy:
-    - Add red tests for explicit artifact discovery, storage privacy, direct transient behavior, chat-bound history, and assistant auto-run before implementation.
+    - Add red tests for explicit artifact discovery, storage privacy, direct transient behavior, native child payload eligibility, stable child identity/navigation, split-width geometry, and assistant auto-run before implementation.
     - Implement backend execution/artifact changes first and verify locally, then dev-server REST/WebSocket proof.
     - Verify CLI, npm SDK, and pip SDK against `https://api.dev.openmates.org` with real auth/API-key state.
     - Deploy web and run deployed Playwright plus reviewed visual smoke on laptop and mobile.
@@ -832,7 +893,7 @@ tasks:
     follow_up_tasks: []
     ownership: {files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py], shared_files: []}
   - id: TASK-5
-    title: Update web Code Run artifact metadata, history UI, and deployed Playwright/visual evidence
+    title: Implement stable Code Run output children, File fallback, nested navigation, split-width correction, and deployed visual evidence
     status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-2, S-3, S-6], acceptance_criteria: [AC-2, AC-3, AC-6]}
@@ -840,12 +901,17 @@ tasks:
       - frontend/packages/ui/src/services/codeRunService.ts
       - frontend/packages/ui/src/types/chat.ts
       - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+      - frontend/packages/ui/src/services/codeRunArtifactEmbeds.ts
+      - frontend/packages/ui/src/components/embeds/file/FileEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - backend/apps/file/app.yml
       - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     verification_ids: [T-FRONTEND-CODE-RUN, T-PW-CODE-RUN, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
     dependencies: [TASK-2, TASK-4]
     blockers: []
     follow_up_tasks: []
-    ownership: {files: [frontend/packages/ui/src/services/codeRunService.ts, frontend/packages/ui/src/types/chat.ts, frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte, frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts], shared_files: []}
+    ownership: {files: [frontend/packages/ui/src/services/codeRunService.ts, frontend/packages/ui/src/types/chat.ts, frontend/packages/ui/src/services/codeRunArtifactEmbeds.ts, frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte, frontend/packages/ui/src/components/embeds/file/FileEmbedPreview.svelte, frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte, frontend/packages/ui/src/components/ChatHistory.svelte, backend/apps/file/app.yml, frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts], shared_files: [frontend/packages/ui/src/services/embedStore.ts]}
   - id: TASK-6
     title: Complete docs, Apple parity, proof video, and spec verification
     status: pending
@@ -918,6 +984,17 @@ attempts:
       artifact_asset_id: 36be632b-3095-4dab-b30f-4dfefeff783a
       artifact_path: outputs/result.txt
       outcome: passed
+  - id: ATTEMPT-9
+    task_id: TASK-5
+    approach: Add amended-contract red tests for authorized native image payloads, deterministic child identity, native-versus-file routing, and inference exclusion.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-24T16:34:00Z"
+    evidence:
+      command: python3 -m pytest backend/tests/test_code_execution.py::test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_metadata -q
+      run_id: local-pytest-code-run-child-red-2026-08-24T16:34:00Z
+      subject_commit: 103849b8ddb5deb8f15b2f777c187e7c1c24ca58+worktree-96e5
+      outcome: failed_expected
+      summary: Test failed because native_render_payload is not yet produced for authorized chat-bound image artifacts.
 
 handoff:
   current_task_id: TASK-5

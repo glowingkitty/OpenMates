@@ -138,7 +138,7 @@ DEVICE_PROFILE_ALIASES = {
     "ipad-landscape": "apple-ipad-landscape",
 }
 DEVICE_ASPECT_RATIO_TOLERANCE = 0.01
-CAPTURE_READY_TRIM_LEAD_SECONDS = 0.0
+CAPTURE_READY_TRIM_LEAD_SECONDS = 0.15
 BLACK_BAR_DARK_LUMA_MAX = 16
 BLACK_BAR_DARK_PIXEL_RATIO = 0.98
 BLACK_BAR_CENTER_DARK_PIXEL_RATIO = 0.80
@@ -364,11 +364,6 @@ def mark_reconstructed(source: dict[str, Any], *, displayed_transcript_hash: str
 
 def _ffmpeg_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
-
-
-def proof_video_pixel_format(width: int, height: int) -> str:
-    """Use 4:4:4 when an exact Apple logical dimension is odd."""
-    return "yuv444p" if width % 2 or height % 2 else "yuv420p"
 
 
 def resolve_device_profile(name: str | None) -> dict[str, Any] | None:
@@ -648,8 +643,7 @@ def render_clean_video(
     if demo_audio_path is not None and audio_path is None:
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    source_metadata = video_metadata(source_path)
-    source_duration = float(source_metadata["duration_seconds"])
+    source_duration = media_duration_seconds(source_path)
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
@@ -691,7 +685,7 @@ def render_clean_video(
             "-c:v",
             "libx264",
             "-pix_fmt",
-            proof_video_pixel_format(int(source_metadata["width"]), int(source_metadata["height"])),
+            "yuv420p",
             *([] if audio_map else ["-an"]),
             "-t",
             str(output_duration),
@@ -849,8 +843,7 @@ def trim_source_to_ready_marker(
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
     trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
-    source_metadata = video_metadata(source_path)
-    duration = float(source_metadata["duration_seconds"])
+    duration = media_duration_seconds(source_path)
     if trim_start >= duration:
         raise DemonstrationError("Capture-ready marker is outside the source video")
     trim_end = duration
@@ -877,7 +870,7 @@ def trim_source_to_ready_marker(
             "-preset",
             "veryfast",
             "-pix_fmt",
-            proof_video_pixel_format(int(source_metadata["width"]), int(source_metadata["height"])),
+            "yuv420p",
             "-c:a",
             "aac",
             "-map_metadata",
@@ -2371,6 +2364,8 @@ def publish_reviewed_video(
                 "response_media_kind": str(upload.get("kind", "media")),
                 "response_media_markdown": str(snippets.get("markdown", "")),
                 "response_media_html": str(snippets.get("html", "")),
+                "snippet_markdown": str(snippets.get("markdown", "")),
+                "snippet_html": str(snippets.get("html", "")),
                 "response_media_captions": captions_upload or {},
             }
         )

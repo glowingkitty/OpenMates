@@ -154,7 +154,7 @@ successful_artifacts:
             aes_key: <BASE64_AES_KEY>
             aes_nonce: ""
             vault_wrapped_aes_key: <VAULT_WRAPPED_AES_KEY>
-    expect: {visible_artifact_embed: true, upload_files_indexed: true, raw_bytes_absent_from_inference: true}
+    expect: {child_embed_created: true, parent_embed_id: <CODE_EMBED_ID>, upload_files_indexed: true, raw_bytes_absent_from_inference: true}
   - id: direct-run-downloadable-csv
     mode: direct
     output:
@@ -179,6 +179,7 @@ artifact_version_history:
         - {execution_id: run-2, output_path: outputs/chart.png, content_hash: hash-v2}
     expect:
       visible_embed_count_for_path: 1
+      child_embed_id_stable: true
       latest_version: 2
       previous_versions_retained: true
   - id: different-path-adds-second-artifact
@@ -188,6 +189,68 @@ artifact_version_history:
         - {execution_id: run-1, output_path: outputs/chart.png}
         - {execution_id: run-2, output_path: outputs/summary.csv}
     expect: {visible_artifact_paths: [outputs/chart.png, outputs/summary.csv]}
+
+artifact_child_routing:
+  - id: native-image-child
+    given:
+      parent_embed_id: <CODE_EMBED_ID>
+      artifact: {path: outputs/chart.png, mime_type: image/png, storage_ref: <ENCRYPTED_GENERATED_ASSET_REF>}
+      registered_native_embed: {app_id: images, frontend_type: image, accepts_mime_type: image/png}
+    expect:
+      child: {parent_embed_id: <CODE_EMBED_ID>, app_id: images, frontend_type: image, renderer: registered_native}
+      generic_file_child_created: false
+  - id: unsupported-type-uses-file-fallback
+    given:
+      parent_embed_id: <CODE_EMBED_ID>
+      artifact: {path: outputs/model.bin, mime_type: application/octet-stream, storage_ref: <ENCRYPTED_GENERATED_ASSET_REF>}
+      compatible_registered_native_embed: null
+    expect:
+      child: {parent_embed_id: <CODE_EMBED_ID>, app_id: file, frontend_type: file-file, renderer: generic_file}
+      safe_metadata_visible: [filename, mime_type, size_bytes]
+      authorized_download_available: true
+      executable_preview: false
+  - id: native-type-with-incompatible-payload-uses-file-fallback
+    given:
+      parent_embed_id: <CODE_EMBED_ID>
+      artifact: {path: outputs/report.docx, mime_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, storage_ref: <ENCRYPTED_GENERATED_ASSET_REF>}
+      registered_embed: {app_id: docs, frontend_type: docs-doc, requires_payload_field: docx_model}
+    expect:
+      child: {app_id: file, frontend_type: file-file, renderer: generic_file}
+      reason: stored artifact does not satisfy the native docs-doc payload contract
+
+artifact_child_navigation:
+  - id: parent-lists-all-current-children
+    given:
+      parent_embed_id: <CODE_EMBED_ID>
+      captured_outputs:
+        - {path: outputs/chart.png, child_embed_id: <IMAGE_CHILD_ID>}
+        - {path: outputs/model.bin, child_embed_id: <FILE_CHILD_ID>}
+    expect:
+      parent_embed_ids: [<IMAGE_CHILD_ID>, <FILE_CHILD_ID>]
+      parent_fullscreen_child_count: 2
+      ordering: normalized_output_path
+  - id: child-fullscreen-returns-to-parent
+    given: {parent_fullscreen: <CODE_EMBED_ID>, selected_child: <IMAGE_CHILD_ID>}
+    expect:
+      opened_fullscreen: <IMAGE_CHILD_ID>
+      renderer: image
+      back_target: <CODE_EMBED_ID>
+      parent_terminal_state_preserved: true
+  - id: failed-capture-does-not-create-child
+    given: {parent_embed_id: <CODE_EMBED_ID>, artifact: {path: outputs/too-large.zip, status: rejected}}
+    expect: {child_embed_created: false, safe_failure_visible_on_parent: true}
+
+responsive_layout:
+  - id: laptop-split-chat-uses-allocated-column
+    given: {viewport: 1440x900, code_run_panel_open: true, chat_column_width: 400}
+    expect:
+      chat_history_width_basis: chat_column
+      viewport_relative_horizontal_gutters: false
+      composer_and_history_aligned: true
+      overlap: false
+  - id: phone-code-run-controls-contained
+    given: {viewport: 390x844, code_run_panel_open: true}
+    expect: {horizontal_overflow: false, terminal_scroll_independent: true, primary_controls_visible: true}
 
 assistant_autonomy:
   - id: current-turn-created-code-rerun
