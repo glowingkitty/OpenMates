@@ -24,7 +24,6 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from toon_format import decode as toon_decode
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.models.user import User
@@ -437,6 +436,8 @@ async def _get_embed_metadata(
 
 def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:
     try:
+        from toon_format import decode as toon_decode
+
         decoded = toon_decode(plaintext_toon)
     except Exception:
         return None

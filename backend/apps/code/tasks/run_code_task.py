@@ -367,6 +367,8 @@ def _build_code_run_completion_result(
         "skill_id": "run",
         "status": final_status.get("status"),
         "execution_id": execution_id,
+        "embed_id": payload.get("target_embed_id"),
+        "target_embed_id": payload.get("target_embed_id"),
         "target_filename": payload.get("target_path"),
         "files": [file.get("path") for file in payload.get("files", []) if isinstance(file.get("path"), str)],
         "exit_code": final_status.get("exit_code"),

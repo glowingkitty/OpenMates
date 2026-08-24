@@ -66,6 +66,45 @@ async def test_assistant_code_run_rejects_unmarked_user_code() -> None:
     assert "created or edited" in (result.error or "")
 
 
+# contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded
+@pytest.mark.anyio
+async def test_assistant_code_run_ignores_forged_confirmation_flag() -> None:
+    result = await _skill().execute(
+        RunCodeRequest(
+            chat_id=CHAT_ID,
+            target_embed_id=TARGET_EMBED_ID,
+            user_confirmed_unmodified_code=True,
+        ),
+        user_id=USER_ID,
+        user_vault_key_id=VAULT_KEY_ID,
+        message_id=MESSAGE_ID,
+        cache_service=FakeCache(),
+        encryption_service=object(),
+    )
+
+    assert result.status == "requires_confirmation"
+    assert result.execution_id is None
+    assert "created or edited" in (result.error or "")
+
+
+# contract-test: direct surface=rest_api assertions=code-run.output.chat-bound-encrypted,code-run.assistant.auto-debug-bounded
+@pytest.mark.anyio
+async def test_assistant_code_run_rejects_mismatched_tool_chat_id() -> None:
+    result = await _skill().execute(
+        RunCodeRequest(chat_id="other-chat", target_embed_id=TARGET_EMBED_ID),
+        user_id=USER_ID,
+        user_vault_key_id=VAULT_KEY_ID,
+        chat_id=CHAT_ID,
+        message_id=MESSAGE_ID,
+        cache_service=FakeCache(),
+        encryption_service=object(),
+    )
+
+    assert result.status == "error"
+    assert result.execution_id is None
+    assert "does not match" in (result.error or "")
+
+
 # contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded,code-run.execution.stream-status-visible,code-run.surface-parity
 @pytest.mark.anyio
 async def test_assistant_code_run_dispatches_marked_current_turn_code(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,6 +164,61 @@ async def test_assistant_code_run_dispatches_marked_current_turn_code(monkeypatc
     assert dispatch_calls
 
 
+# contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded,code-run.execution.e2b-only,code-run.surface-parity
+@pytest.mark.anyio
+async def test_assistant_code_run_creates_inline_code_embed_before_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    cache = FakeCache()
+    dispatch_calls: list[dict[str, object]] = []
+    created_calls: list[dict[str, object]] = []
+
+    class FakeDirectusService:
+        async def get_user_fields_direct(self, user_id: str, fields: list[str]):
+            assert user_id == USER_ID
+            assert fields == ["credits"]
+            return {"credits": 10}
+
+    async def fake_create_code_embeds_for_assistant(**kwargs):
+        created_calls.append(kwargs)
+        assert kwargs["target_path"] == "main.py"
+        assert kwargs["files"][0]["content"] == "print('ok')"
+        return TARGET_EMBED_ID, [TARGET_EMBED_ID]
+
+    async def fake_start_code_run_execution(**kwargs):
+        dispatch_calls.append(kwargs)
+        assert kwargs["files"][0]["path"] == "main.py"
+        assert kwargs["target_path"] == "main.py"
+        assert kwargs["target_embed_id"] == TARGET_EMBED_ID
+        return SimpleNamespace(
+            execution_id="execution-inline",
+            status="queued",
+            target_filename="main.py",
+            files=["main.py"],
+            credits_per_minute=5,
+        )
+
+    monkeypatch.setattr(run_code_skill, "create_directus_service", lambda **_kwargs: FakeDirectusService())
+    monkeypatch.setattr(run_code_skill, "create_code_embeds_for_assistant", fake_create_code_embeds_for_assistant)
+    monkeypatch.setattr(run_code_skill, "start_code_run_for_assistant", fake_start_code_run_execution)
+
+    result = await _skill().execute(
+        RunCodeRequest(entry_path="main.py", files=[{"path": "main.py", "code": "print('ok')"}]),
+        user_id=USER_ID,
+        user_vault_key_id=VAULT_KEY_ID,
+        chat_id=CHAT_ID,
+        message_id=MESSAGE_ID,
+        cache_service=cache,
+        encryption_service=object(),
+    )
+
+    assert result.status == "processing"
+    assert result.execution_id == "execution-inline"
+    assert result.embed_id == TARGET_EMBED_ID
+    assert result.target_embed_id == TARGET_EMBED_ID
+    assert result.created_embed_ids == [TARGET_EMBED_ID]
+    assert created_calls
+    assert dispatch_calls
+
+
 # contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded
 @pytest.mark.anyio
 async def test_assistant_code_run_stops_after_two_unprompted_reruns(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -172,6 +266,58 @@ async def test_assistant_code_run_stops_after_two_unprompted_reruns(monkeypatch:
         RunCodeRequest(chat_id=CHAT_ID, target_embed_id=TARGET_EMBED_ID),
         user_id=USER_ID,
         user_vault_key_id=VAULT_KEY_ID,
+        message_id=MESSAGE_ID,
+        cache_service=cache,
+        encryption_service=object(),
+    )
+
+    assert result.status == "requires_confirmation"
+    assert "two unprompted reruns" in (result.error or "")
+
+
+# contract-test: direct surface=rest_api assertions=code-run.assistant.auto-debug-bounded
+@pytest.mark.anyio
+async def test_assistant_inline_code_run_stops_after_two_unprompted_reruns(monkeypatch: pytest.MonkeyPatch) -> None:
+    cache = FakeCache()
+
+    class FakeDirectusService:
+        async def get_user_fields_direct(self, *_args, **_kwargs):
+            return {"credits": 10}
+
+    async def fake_create_code_embeds_for_assistant(**_kwargs):
+        return TARGET_EMBED_ID, [TARGET_EMBED_ID]
+
+    async def fake_start_code_run_execution(**_kwargs):
+        return SimpleNamespace(
+            execution_id="execution-inline",
+            status="queued",
+            target_filename="main.py",
+            files=["main.py"],
+            credits_per_minute=5,
+        )
+
+    monkeypatch.setattr(run_code_skill, "create_directus_service", lambda **_kwargs: FakeDirectusService())
+    monkeypatch.setattr(run_code_skill, "create_code_embeds_for_assistant", fake_create_code_embeds_for_assistant)
+    monkeypatch.setattr(run_code_skill, "start_code_run_for_assistant", fake_start_code_run_execution)
+
+    request = RunCodeRequest(entry_path="main.py", files=[{"path": "main.py", "code": "print('ok')"}])
+    for _ in range(CODE_RUN_ASSISTANT_MAX_AUTO_RUNS):
+        result = await _skill().execute(
+            request,
+            user_id=USER_ID,
+            user_vault_key_id=VAULT_KEY_ID,
+            chat_id=CHAT_ID,
+            message_id=MESSAGE_ID,
+            cache_service=cache,
+            encryption_service=object(),
+        )
+        assert result.status == "processing"
+
+    result = await _skill().execute(
+        request,
+        user_id=USER_ID,
+        user_vault_key_id=VAULT_KEY_ID,
+        chat_id=CHAT_ID,
         message_id=MESSAGE_ID,
         cache_service=cache,
         encryption_service=object(),
