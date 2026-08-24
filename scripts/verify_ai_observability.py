@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 import json
-import os
 import subprocess
 import sys
 from typing import Any
@@ -99,37 +98,25 @@ def verify_retention() -> dict[str, Any]:
     }
 
 
-def _query_baseline_rows(days: int, end_us: int) -> list[dict[str, Any]]:
-    import httpx
-
+def _baseline_probe(days: int, end_us: int) -> str:
     start_us = end_us - days * 24 * 60 * 60 * 1_000_000
-    auth = (
-        os.environ.get("OPENOBSERVE_ROOT_EMAIL", ""),
-        os.environ.get("OPENOBSERVE_ROOT_PASSWORD", ""),
-    )
-    url = "http://openobserve:5080/api/default/_search?type=traces"
-    sql = (
-        "SELECT _timestamp, trace_id, operation_name FROM default "
-        "WHERE operation_name LIKE 'ai.%' ORDER BY _timestamp ASC"
-    )
-    rows: list[dict[str, Any]] = []
-    for page in range(BASELINE_MAX_PAGES):
-        body = {
-            "query": {
-                "sql": sql,
-                "start_time": start_us,
-                "end_time": end_us,
-                "from": page * BASELINE_PAGE_SIZE,
-                "size": BASELINE_PAGE_SIZE,
-            }
-        }
-        response = httpx.post(url, auth=auth, json=body, timeout=30)
-        response.raise_for_status()
-        page_rows = response.json().get("hits", [])
-        rows.extend(page_rows)
-        if len(page_rows) < BASELINE_PAGE_SIZE:
-            return rows
+    return f"""import json, os, httpx
+auth = (os.environ.get("OPENOBSERVE_ROOT_EMAIL", ""), os.environ.get("OPENOBSERVE_ROOT_PASSWORD", ""))
+url = "http://openobserve:5080/api/default/_search?type=traces"
+sql = "SELECT _timestamp, trace_id, operation_name FROM default WHERE operation_name LIKE 'ai.%' ORDER BY _timestamp ASC"
+rows = []
+for page in range({BASELINE_MAX_PAGES}):
+    body = {{"query": {{"sql": sql, "start_time": {start_us}, "end_time": {end_us}, "from": page * {BASELINE_PAGE_SIZE}, "size": {BASELINE_PAGE_SIZE}}}}}
+    response = httpx.post(url, auth=auth, json=body, timeout=30)
+    response.raise_for_status()
+    page_rows = response.json().get("hits", [])
+    rows.extend(page_rows)
+    if len(page_rows) < {BASELINE_PAGE_SIZE}:
+        break
+else:
     raise RuntimeError("AI baseline exceeded the bounded 100,000-row query limit")
+print(json.dumps(rows))
+"""
 
 
 def _evaluate_baseline(
@@ -182,12 +169,7 @@ def _evaluate_baseline(
 def verify_baseline(days: int) -> dict[str, Any]:
     window_end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     end_us = int(window_end.timestamp() * 1_000_000)
-    probe = (
-        "import json,sys;"
-        "sys.path.insert(0,'/app');"
-        "from scripts.verify_ai_observability import _query_baseline_rows;"
-        f"print(json.dumps(_query_baseline_rows({days},{end_us})))"
-    )
+    probe = _baseline_probe(days, end_us)
     rows = json.loads(_run(["docker", "exec", API_CONTAINER, "python", "-c", probe]))
     return _evaluate_baseline(rows, days, now=window_end)
 

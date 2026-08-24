@@ -75,7 +75,7 @@ def test_baseline_reports_missing_and_incomplete_days_as_pending():
     assert result["days"][-1]["incomplete_turn_count"] == 1
 
 
-def test_baseline_probe_imports_verifier_from_container_app_root(monkeypatch):
+def test_baseline_probe_is_self_contained_for_api_container(monkeypatch):
     commands = []
 
     def capture(command):
@@ -88,4 +88,5 @@ def test_baseline_probe_imports_verifier_from_container_app_root(monkeypatch):
 
     assert result["status"] == "pending"
     assert commands[0][:4] == ["docker", "exec", "api", "python"]
-    assert "sys.path.insert(0,'/app')" in commands[0][-1]
+    assert "http://openobserve:5080/api/default/_search?type=traces" in commands[0][-1]
+    assert "from scripts" not in commands[0][-1]
