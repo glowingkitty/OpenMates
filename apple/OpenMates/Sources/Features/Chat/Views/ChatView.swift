@@ -98,6 +98,7 @@ private enum ChatResponsiveBreakpoint {
 private enum ChatHistoryLayoutMetric {
     static let contentMaximumWidth: CGFloat = 1_000
     static let wideWindowMinimumWidth: CGFloat = 900
+    static let streamingFinalizationDelayMilliseconds = 250
 }
 
 private enum ChatMessageLayoutMetric {
@@ -1039,9 +1040,13 @@ struct ChatView: View {
                 }
                 .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
                     guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
-                    scrollToStreamingResponseIfNeeded(proxy: proxy)
                     Task { @MainActor in
                         await Task.yield()
+                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                        try? await Task.sleep(
+                            for: .milliseconds(ChatHistoryLayoutMetric.streamingFinalizationDelayMilliseconds)
+                        )
+                        guard followsStreamingResponse else { return }
                         proxy.scrollTo("scroll-bottom", anchor: .bottom)
                         followsStreamingResponse = false
                     }

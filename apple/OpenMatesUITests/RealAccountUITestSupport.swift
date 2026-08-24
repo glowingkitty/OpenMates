@@ -157,7 +157,8 @@ enum RealAccountUITestSupport {
         XCTAssertTrue(assistantMessage.isHittable, "Completed assistant response was not visible for proof")
         XCTAssertTrue(
             tailIsVisible,
-            "Completed assistant response tail did not become visible without manual scrolling"
+            "Completed assistant response tail did not become visible without manual scrolling. "
+                + "Tail: \(assistantTail.frame), history: \(history.frame), composer: \(composer.frame)"
         )
         XCTAssertLessThanOrEqual(
             assistantTail.frame.maxY,
