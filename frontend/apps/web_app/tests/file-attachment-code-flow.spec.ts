@@ -220,7 +220,7 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
-// contract-test: direct surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.output.chat-bound-encrypted,code-run.artifacts.encrypted-indexed,code-run.artifacts.chat-bound-versioned,code-run.surface-parity
+// contract-test: direct surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.output.chat-bound-encrypted,code-run.artifacts.encrypted-indexed,code-run.artifacts.chat-bound-versioned,code-run.surface-parity,message-input.drafts.preview-persistence,message-input.embeds.gated-send
 test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);
@@ -246,6 +246,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 
 	await attachFiles(page, [CODE_RUN_REQUESTS_PY], log);
 	await page.waitForTimeout(5000);
+	await expect(editor).toContainText('Please run this Python file and keep the result visible:');
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });

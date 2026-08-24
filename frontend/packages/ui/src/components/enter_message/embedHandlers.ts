@@ -117,7 +117,7 @@ export function insertFileEmbedNodes(
   if (!nodes.length) return;
 
   ensureLeadingParagraph(editor);
-  let chain = editor.chain().focus();
+  let chain = editor.chain().focus("end");
   for (const node of nodes) {
     chain = chain.insertContent(node).insertContent(" ");
   }

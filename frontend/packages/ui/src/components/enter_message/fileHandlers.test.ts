@@ -54,6 +54,22 @@ function flattenInsertedEmbeds(inserted: unknown[]): InsertedEmbed[] {
 }
 
 describe("processFiles", () => {
+  // contract-test: supporting surface=gui.web assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+  it("appends code-file embeds without replacing the existing selection", async () => {
+    const editor = createEditorStub();
+    const file = new File(["print('preserve prompt')\n"], "preserve-prompt.py", {
+      type: "text/x-python",
+    });
+
+    await processFiles([file], editor as unknown as Parameters<typeof processFiles>[1], false);
+
+    expect(editor.chain).toHaveBeenCalledOnce();
+    const chain = editor.chain.mock.results[0]?.value;
+    expect(chain.focus).toHaveBeenCalledWith("end");
+    expect(flattenInsertedEmbeds(editor.inserted)).toHaveLength(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
   it("inserts a local PDF placeholder for anonymous uploads", async () => {
     const editor = createEditorStub();
     const file = new File([
@@ -73,6 +89,7 @@ describe("processFiles", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
   it("skips anonymous mind map uploads because they need authenticated embed storage", async () => {
     const editor = createEditorStub();
     const file = new File([
