@@ -463,15 +463,18 @@ final class AuthManager: ObservableObject {
         let wrappingKey = try await crypto.deriveWrappingKeyFromPassword(
             password: password, salt: saltData
         )
+        NativeDiagnostics.info("phase=passwordLogin.wrappingKeyDerived", category: "auth")
         let masterKey = try await crypto.unwrapMasterKey(
             wrappedKeyBase64: encryptedKeyB64,
             ivBase64: keyIvB64,
             wrappingKey: wrappingKey
         )
+        NativeDiagnostics.info("phase=passwordLogin.masterKeyUnwrapped", category: "auth")
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        NativeDiagnostics.info("phase=passwordLogin.masterKeySaved", category: "auth")
         currentUser = user
         await migrateLegacyComposerDrafts()
-        print("[Auth] Master key derived and saved to Keychain")
+        NativeDiagnostics.info("phase=passwordLogin.draftsMigrated", category: "auth")
 
         webSocketToken = response.wsToken
         cacheAuthenticatedUser(user)
@@ -482,6 +485,7 @@ final class AuthManager: ObservableObject {
         pendingEmail = nil
 
         state = .authenticated
+        NativeDiagnostics.info("phase=passwordLogin.authenticated", category: "auth")
     }
 
     private func restoreCachedSessionForStartup() async -> Bool {

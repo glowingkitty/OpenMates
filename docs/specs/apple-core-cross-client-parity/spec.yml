@@ -163,8 +163,8 @@ apple_impact:
     - Owned Apple loading, error, chat, and notification states use the rendered web state and approved web UI contracts as visual source of truth.
     - Shared Swift sources preserve macOS compilation and equivalent behavior even though macOS UI interaction evidence is not blocking.
   verification:
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/AppleCoreParityProofUITests" --record-profile apple-iphone-portrait --proof
-    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/AppleCoreParityProofUITests" --record-profile apple-ipad-landscape --proof
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof
+    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof
     - python3 scripts/apple_remote.py build-macos
   intentional_native_differences:
     - OS-owned passkey and notification permission prompts remain native system UI.
@@ -694,8 +694,8 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-APPLE-PROOF-IPHONE
     type: manual
-    file: apple/OpenMatesUITests/AppleCoreParityProofUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/AppleCoreParityProofUITests" --record-profile apple-iphone-portrait --proof
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 393x852 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
@@ -703,8 +703,8 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-APPLE-PROOF-IPAD
     type: manual
-    file: apple/OpenMatesUITests/AppleCoreParityProofUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/AppleCoreParityProofUITests" --record-profile apple-ipad-landscape --proof
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 1366x1024 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
