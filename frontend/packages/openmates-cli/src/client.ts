@@ -11509,6 +11509,7 @@ export class OpenMatesClient {
       // connection and terminates with phased_sync_complete.
       const baseSyncPayload = {
         ...(teamId ? { team_id: teamId } : {}),
+        context_epoch: 0,
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
         client_embed_ids: clientEmbedIds,
