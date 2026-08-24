@@ -11,6 +11,7 @@ Bug history this test suite guards against:
   - Phase 09-03: trace errors/recent showed bare root spans because
     _get_latest_traces only returns first_event metadata (SHA: pending)
 """
+# contract-test-file: tooling
 
 import os
 import sys
@@ -28,6 +29,7 @@ if _SCRIPTS_DIR not in sys.path:
 from debug_trace import (  # noqa: E402
     _build_error_trace_sql,
     _get_full_trace_spans,
+    format_json,
     format_trace_timeline,
     parse_args,
     parse_duration,
@@ -188,6 +190,35 @@ class TestFormatTraceTimeline:
     def test_empty_spans(self):
         output = format_trace_timeline([])
         assert "No trace data" in output or output.strip() == ""
+
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_json_output_is_a_redacted_structural_projection(self):
+        spans = [{
+            "trace_id": "trace-private",
+            "span_id": "span-1",
+            "parent_span_id": "",
+            "start_time": 1000000,
+            "end_time": 2000000,
+            "duration": 1000000,
+            "service_name": "app-ai-worker",
+            "operation_name": "ai.preprocess",
+            "span_status": "OK",
+            "ai.phase": "preprocess",
+            "ai.token_count_bucket": "10k_50k",
+            "enduser.id": "user-private",
+            "chat.id": "chat-private",
+            "rpc.request.body": "private prompt",
+            "exception.message": "private provider response",
+        }]
+
+        output = format_json(spans)
+
+        assert "ai.preprocess" in output
+        assert "10k_50k" in output
+        assert "user-private" not in output
+        assert "chat-private" not in output
+        assert "private prompt" not in output
+        assert "private provider response" not in output
 
     def test_multiple_traces(self):
         spans = [

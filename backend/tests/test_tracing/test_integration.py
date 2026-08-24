@@ -1,4 +1,5 @@
 # backend/tests/test_tracing/test_integration.py
+# contract-test-file: tooling
 """
 Integration tests for the full OTel tracing pipeline.
 
@@ -11,29 +12,17 @@ Bug history this test suite guards against:
 """
 
 import os
-import sys
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+from unittest.mock import patch
 
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.trace import StatusCode, set_tracer_provider, get_tracer
+from opentelemetry.trace import set_tracer_provider
 
 from backend.shared.python_utils.tracing.privacy_filter import (
     TracePrivacyFilter,
-    _pseudonymize_user_id,
-    ALWAYS_STRIP_ATTRS,
-    TIER_3_ONLY_ATTRS,
-    TIER_2_ONLY_ATTRS,
 )
 from backend.shared.python_utils.tracing.ws_trace_context import (
     extract_ws_trace_context,
@@ -89,10 +78,8 @@ class TestFullTracingPipeline:
         assert attrs["http.method"] == "POST"
         assert attrs["http.route"] == "/v1/chat"
         assert attrs["http.status_code"] == 200
-        # Tier 1: user_id pseudonymized (not the original)
-        assert attrs["enduser.id"] != "user-abc123"
-        assert len(attrs["enduser.id"]) == 12  # pseudonym length
-        # Tier 1: sensitive attrs stripped
+        # Stable identity and sensitive attrs are always stripped.
+        assert "enduser.id" not in attrs
         assert "http.request.header.authorization" not in attrs
         assert "db.statement" not in attrs
         assert "exception.stacktrace" not in attrs
@@ -129,11 +116,11 @@ class TestFullTracingPipeline:
         exported = exporter.get_finished_spans()
         attrs = exported[0].attributes
 
-        # Tier 2: real user_id (not pseudonymized) for error investigation
-        assert attrs["enduser.id"] == "user-xyz789"
-        # Tier 2: debugging attrs kept
-        assert "exception.stacktrace" in attrs
-        assert "celery.task_id" in attrs
+        # Error escalation retains reviewed operational fields, never identity or raw errors.
+        assert "enduser.id" not in attrs
+        assert "exception.stacktrace" not in attrs
+        assert "celery.task_id" not in attrs
+        assert attrs["celery.queue"] == "ai-queue"
         assert attrs["cache.hit"] is False
         # Tier 3 only: still stripped
         assert "cache.key" not in attrs
@@ -144,8 +131,9 @@ class TestFullTracingPipeline:
         provider.shutdown()
 
     @patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"})
-    def test_admin_user_gets_tier3_full_visibility(self):
-        """Admin users get full Tier 3 visibility on all spans."""
+    @patch("backend.shared.python_utils.tracing.privacy_filter._diagnostic_scope_active", return_value=True)
+    def test_admin_user_gets_reviewed_diagnostic_fields_only(self, _diagnostic_active):
+        """Admin diagnostics add exact non-content fields, not full visibility."""
         provider, exporter, _ = self._create_pipeline()
         tracer = provider.get_tracer("test")
 
@@ -155,7 +143,8 @@ class TestFullTracingPipeline:
             span.set_attribute("enduser.debug_opted_in", False)
             span.set_attribute("otel.status_code", "OK")
             span.set_attribute("cache.key", "admin:debug:errors")
-            span.set_attribute("llm.token_count", 1000)
+            span.set_attribute("ai.token_count", 1000)
+            span.set_attribute("ai.model_id", "reviewed-model")
             span.set_attribute("db.statement", "SELECT * FROM issues")
             span.set_attribute("http.request.header.authorization", "Bearer admin-token")
 
@@ -163,20 +152,18 @@ class TestFullTracingPipeline:
         exported = exporter.get_finished_spans()
         attrs = exported[0].attributes
 
-        # Tier 3: real user_id
-        assert attrs["enduser.id"] == "admin-001"
-        # Tier 3: all debugging attrs visible
-        assert attrs["cache.key"] == "admin:debug:errors"
-        assert attrs["llm.token_count"] == 1000
-        assert attrs["db.statement"] == "SELECT * FROM issues"
-        # Always-strip: STILL gone even for admins
+        assert "enduser.id" not in attrs
+        assert "cache.key" not in attrs
+        assert attrs["ai.token_count"] == 1000
+        assert attrs["ai.model_id"] == "reviewed-model"
+        assert "db.statement" not in attrs
         assert "http.request.header.authorization" not in attrs
 
         provider.shutdown()
 
     @patch.dict(os.environ, {"SERVER_ENVIRONMENT": "dev"})
-    def test_dev_server_bypasses_all_filtering(self):
-        """Dev server should pass all attributes through unfiltered."""
+    def test_dev_server_uses_strict_filtering(self):
+        """Dev uses the same privacy boundary as production."""
         provider, exporter, _ = self._create_pipeline("dev")
         tracer = provider.get_tracer("test")
 
@@ -193,11 +180,11 @@ class TestFullTracingPipeline:
         exported = exporter.get_finished_spans()
         attrs = dict(exported[0].attributes)
 
-        # Dev server: EVERYTHING passes through, including always-strip attrs
-        assert attrs["enduser.id"] == "test-user"
-        assert attrs["db.statement"] == "SELECT * FROM chats"
-        assert attrs["cache.key"] == "chat:123:messages"
-        assert attrs["http.request.header.authorization"] == "Bearer dev-token"
+        assert "enduser.id" not in attrs
+        assert "db.statement" not in attrs
+        assert "cache.key" not in attrs
+        assert "http.request.header.authorization" not in attrs
+        assert attrs["otel.status_code"] == "OK"
 
         provider.shutdown()
 
@@ -216,7 +203,6 @@ class TestWebSocketTraceContextPropagation:
 
         with tracer.start_as_current_span("ws.send.chat_message") as span:
             original_trace_id = format(span.get_span_context().trace_id, "032x")
-            original_span_id = format(span.get_span_context().span_id, "016x")
 
             # Simulate frontend: inject trace context into WS payload
             payload = {"type": "message_received", "data": {"text": "hello"}}
@@ -290,25 +276,3 @@ class TestDebugTraceTimeline:
         """Trace IDs should be truncated to 12 chars for readability."""
         assert short_trace_id("abc123def456789012345678") == "abc123def456"
         assert short_trace_id("short") == "short"
-
-
-class TestPseudonymizationConsistency:
-    """Test that pseudonymization is consistent within a day but different across days."""
-
-    def test_same_user_same_day_same_pseudonym(self):
-        """Same user on same day should get the same pseudonym."""
-        p1 = _pseudonymize_user_id("user-abc123")
-        p2 = _pseudonymize_user_id("user-abc123")
-        assert p1 == p2
-        assert len(p1) == 12
-
-    def test_different_users_different_pseudonyms(self):
-        """Different users should get different pseudonyms."""
-        p1 = _pseudonymize_user_id("user-abc123")
-        p2 = _pseudonymize_user_id("user-xyz789")
-        assert p1 != p2
-
-    def test_pseudonym_is_hex_string(self):
-        """Pseudonym should be a valid hex string."""
-        p = _pseudonymize_user_id("user-test")
-        assert all(c in "0123456789abcdef" for c in p)

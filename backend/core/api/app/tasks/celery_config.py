@@ -444,6 +444,11 @@ def _get_worker_queues() -> set:
     return set()
 
 
+def _worker_tracing_service_name() -> str:
+    """Return one of the reviewed low-cardinality worker service names."""
+    return "worker-app-ai" if "app_ai" in _get_worker_queues() else "worker-celery"
+
+
 def _worker_needs_invoice_services():
     """
     Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
@@ -929,6 +934,10 @@ def init_worker_process(*args, **kwargs):
     """
     setup_celery_logging()
     logger.info("Worker process initializing...")
+
+    from backend.shared.python_utils.tracing import setup_tracing
+
+    setup_tracing(service_name=_worker_tracing_service_name())
 
     # Don't initialize ConfigManager here - use lazy initialization
     # ConfigManager uses singleton pattern, so first access will initialize it

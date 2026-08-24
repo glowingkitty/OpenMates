@@ -55,6 +55,7 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
     learning_mode_context_from_preferences,
 )
+from backend.shared.python_utils.tracing.ai_observability import ai_phase_span
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
@@ -1479,20 +1480,21 @@ async def _async_process_ai_skill_ask_task(
             )
             is_new_chat_for_preprocessing = not request_data.chat_has_title
 
-            preprocessing_result = await handle_preprocessing(
-                request_data=request_data, # This now contains chat_has_title boolean flag from the client
-                skill_config=skill_config,
-                base_instructions=base_instructions,
-                cache_service=cache_service_instance,
-                secrets_manager=secrets_manager,
-                directus_service=directus_service_instance, # Passed for reuse
-                encryption_service=encryption_service_instance, # Passed for reuse
-                user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-                user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
-                preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
-                is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
-            )
+            with ai_phase_span("preprocess"):
+                preprocessing_result = await handle_preprocessing(
+                    request_data=request_data, # This now contains chat_has_title boolean flag from the client
+                    skill_config=skill_config,
+                    base_instructions=base_instructions,
+                    cache_service=cache_service_instance,
+                    secrets_manager=secrets_manager,
+                    directus_service=directus_service_instance, # Passed for reuse
+                    encryption_service=encryption_service_instance, # Passed for reuse
+                    user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                    discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
+                    user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
+                    preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
+                    is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
+                )
 
             # --- TEST RECORD: capture preprocessing result ---
             if _fixture_recorder and preprocessing_result:
@@ -1922,26 +1924,27 @@ async def _async_process_ai_skill_ask_task(
 
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
-            aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
-                task_id=task_id,
-                request_data=request_data,
-                preprocessing_result=preprocessing_result,
-                base_instructions=base_instructions,
-                directus_service=directus_service_instance,
-                encryption_service=encryption_service_instance,
-                user_vault_key_id=user_vault_key_id,
-                all_mates_configs=all_mates_configs,
-                discovered_apps_metadata=discovered_apps_metadata,
-                cache_service=cache_service_instance,
-                secrets_manager=secrets_manager,
-                # Pass always-include skills from skill config - these skills are ALWAYS available
-                # to the main LLM regardless of preprocessing preselection.
-                # This is a safety net for critical skills like web-search that should be available
-                # for follow-up queries even when preprocessing fails to detect the user's intent.
-                always_include_skills=skill_config.always_include_skills if skill_config else None,
-                user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
-                skill_config_dict=skill_config_dict,
-            )
+            with ai_phase_span("main"):
+                aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
+                    task_id=task_id,
+                    request_data=request_data,
+                    preprocessing_result=preprocessing_result,
+                    base_instructions=base_instructions,
+                    directus_service=directus_service_instance,
+                    encryption_service=encryption_service_instance,
+                    user_vault_key_id=user_vault_key_id,
+                    all_mates_configs=all_mates_configs,
+                    discovered_apps_metadata=discovered_apps_metadata,
+                    cache_service=cache_service_instance,
+                    secrets_manager=secrets_manager,
+                    # Pass always-include skills from skill config - these skills are ALWAYS available
+                    # to the main LLM regardless of preprocessing preselection.
+                    # This is a safety net for critical skills like web-search that should be available
+                    # for follow-up queries even when preprocessing fails to detect the user's intent.
+                    always_include_skills=skill_config.always_include_skills if skill_config else None,
+                    user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
+                    skill_config_dict=skill_config_dict,
+                )
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 
             # --- TEST RECORD: capture final response and save fixture ---
@@ -2336,28 +2339,29 @@ async def _async_process_ai_skill_ask_task(
             elif getattr(request_data, 'current_chat_title', None):
                 current_title_for_postproc = request_data.current_chat_title
 
-            postprocessing_result = await handle_postprocessing(
-                task_id=task_id,
-                user_message=last_user_message,
-                assistant_response=aggregated_final_response,
-                chat_summary=chat_summary,
-                chat_tags=chat_tags,
-                message_history=postprocessing_message_history,
-                base_instructions=base_instructions,
-                secrets_manager=secrets_manager,
-                cache_service=cache_service_instance,
-                available_app_ids=available_app_ids,
+            with ai_phase_span("postprocess"):
+                postprocessing_result = await handle_postprocessing(
+                    task_id=task_id,
+                    user_message=last_user_message,
+                    assistant_response=aggregated_final_response,
+                    chat_summary=chat_summary,
+                    chat_tags=chat_tags,
+                    message_history=postprocessing_message_history,
+                    base_instructions=base_instructions,
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service_instance,
+                    available_app_ids=available_app_ids,
 
-                available_skills=available_skills_for_postproc,
-                is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
-                is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
-                output_language=chat_output_language,
-                user_system_language=user_system_language,
-                current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
-                follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                quick_tips_enabled=quick_tips_enabled,
-                learning_mode_context=effective_learning_mode_context,
-            )
+                    available_skills=available_skills_for_postproc,
+                    is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                    is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
+                    output_language=chat_output_language,
+                    user_system_language=user_system_language,
+                    current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
+                    follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                    quick_tips_enabled=quick_tips_enabled,
+                    learning_mode_context=effective_learning_mode_context,
+                )
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
@@ -2628,9 +2632,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
-        task_result_dict = loop.run_until_complete(
-            _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
-        )
+        with ai_phase_span("turn"):
+            task_result_dict = loop.run_until_complete(
+                _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
+            )
         legacy_completion_requires_persistence = completion_requires_persistence(
             task_result_dict
         )

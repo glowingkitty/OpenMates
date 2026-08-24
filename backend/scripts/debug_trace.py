@@ -52,6 +52,34 @@ OPENOBSERVE_ORG = "default"
 # Open Question 2. Using "default" as initial assumption.
 TRACE_STREAM = "default"
 
+SAFE_JSON_FIELDS = frozenset({
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "start_time",
+    "end_time",
+    "duration",
+    "service_name",
+    "service",
+    "operation_name",
+    "name",
+    "span_status",
+    "status_code",
+    "ai.phase",
+    "ai.status_class",
+    "ai.model_family",
+    "ai.capability_category",
+    "ai.duration_ms",
+    "ai.ttft_ms",
+    "ai.stream_duration_ms",
+    "ai.token_count_bucket",
+    "ai.character_count_bucket",
+    "ai.message_count_bucket",
+    "ai.request_count_bucket",
+    "ai.result_count_bucket",
+    "ai.retry_count_bucket",
+})
+
 # Maximum results per query
 DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
@@ -610,7 +638,11 @@ def format_json(spans: List[Dict[str, Any]]) -> str:
     Returns:
         JSON string.
     """
-    return json.dumps(spans, indent=2, default=str)
+    redacted = [
+        {key: value for key, value in span.items() if key in SAFE_JSON_FIELDS}
+        for span in spans
+    ]
+    return json.dumps(redacted, indent=2, default=str)
 
 
 # ── Command dispatch ─────────────────────────────────────────────────────────

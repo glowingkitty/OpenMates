@@ -90,6 +90,7 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
     should_disable_learning_mode_application_artifact,
 )
+from backend.shared.python_utils.tracing.ai_observability import ai_phase_span
 
 logger = logging.getLogger(__name__)
 ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
@@ -9192,12 +9193,13 @@ async def _consume_main_processing_stream(
     billing_error = None
     if should_bill:
         try:
-            billing_info = await _handle_normal_billing(
-                usage, preprocessing_result, request_data, task_id, log_prefix,
-                cumulative_input_tokens=cumulative_input_tokens,
-                cumulative_output_tokens=cumulative_output_tokens,
-                tool_inference_iterations=tool_inference_iterations,
-            )
+            with ai_phase_span("finalize.billing"):
+                billing_info = await _handle_normal_billing(
+                    usage, preprocessing_result, request_data, task_id, log_prefix,
+                    cumulative_input_tokens=cumulative_input_tokens,
+                    cumulative_output_tokens=cumulative_output_tokens,
+                    tool_inference_iterations=tool_inference_iterations,
+                )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent
             # This ensures the typing indicator is cleared even if billing fails
@@ -9232,20 +9234,21 @@ async def _consume_main_processing_stream(
         # This ensures the message exists in history (even if empty) for proper context
         # Empty responses can occur due to errors, interruptions, or harmful content filtering
         try:
-            await _update_chat_metadata(
-                request_data=request_data,
-                category=category,
-                timestamp=timestamp,
-                content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
-                content_tiptap=content_tiptap,  # Send to client (markdown for now)
-                directus_service=directus_service,
-                cache_service=cache_service,
-                encryption_service=encryption_service,
-                user_vault_key_id=user_vault_key_id,
-                task_id=task_id,
-                log_prefix=log_prefix,
-                model_name=stream_model_name
-            )
+            with ai_phase_span("finalize.persistence"):
+                await _update_chat_metadata(
+                    request_data=request_data,
+                    category=category,
+                    timestamp=timestamp,
+                    content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
+                    content_tiptap=content_tiptap,  # Send to client (markdown for now)
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                    model_name=stream_model_name
+                )
             logger.info(
                 f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
                 f"Response length: {len(aggregated_response)}, "
@@ -9289,13 +9292,14 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    await _finalize_legacy_cutover_before_final_marker(
-        request_data=request_data,
-        billing_error=billing_error,
-        was_revoked_during_stream=was_revoked_during_stream,
-        was_soft_limited_during_stream=was_soft_limited_during_stream,
-        log_prefix=log_prefix,
-    )
+    with ai_phase_span("finalize.validation"):
+        await _finalize_legacy_cutover_before_final_marker(
+            request_data=request_data,
+            billing_error=billing_error,
+            was_revoked_during_stream=was_revoked_during_stream,
+            was_soft_limited_during_stream=was_soft_limited_during_stream,
+            log_prefix=log_prefix,
+        )
 
     # Publish final marker only after the AI cache write has been attempted and
     # legacy recovery admission is authorized. The browser sends
@@ -9318,10 +9322,11 @@ async def _consume_main_processing_stream(
     if recovery_job:
         final_payload["recovery_job_id"] = recovery_job["job_id"]
         final_payload["recovery_protocol_version"] = 1
-    await _publish_to_redis(
-        cache_service, redis_channel_name, final_payload, log_prefix,
-        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
-    )
+    with ai_phase_span("finalize.marker"):
+        await _publish_to_redis(
+            cache_service, redis_channel_name, final_payload, log_prefix,
+            f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
+        )
     
     completion_summary = _sub_chat_completion_summary(
         explicit_summary=explicit_sub_chat_completion_summary,

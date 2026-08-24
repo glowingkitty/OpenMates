@@ -1,0 +1,740 @@
+schema_version: 3
+id: ai-request-observability
+title: Privacy-Safe AI Request Observability
+status: approved
+
+contract_refs:
+  - id: architecture.ai-request-observability
+    version: 1
+    role: primary
+    fingerprint: 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06
+
+contract_impact:
+  classification: new_contract
+  contract_update_required: true
+  affected_assertions:
+    - ai-request-observability.propagation.complete
+    - ai-request-observability.waterfall.complete
+    - ai-request-observability.default-metrics.identity-free
+    - ai-request-observability.structural-traces.content-free
+    - ai-request-observability.diagnostic-mode.bounded
+    - ai-request-observability.exporter.allowlist
+    - ai-request-observability.operator-debug.waterfall
+    - ai-request-observability.retention.verified
+    - ai-request-observability.alerts.discord-email-fallback
+    - ai-request-observability.no-behavior-change
+  reason: >
+    The approved contract establishes complete AI-turn tracing, identity-free
+    metrics, content-free diagnostics, strict export allowlists, operator
+    dashboards, and Discord-first alert delivery.
+
+documentation_impact:
+  generated_reference:
+    status: regenerate
+    reason: The approved AI observability contract adds assertions and examples.
+    documents:
+      - contracts/generated/registry.yml
+      - contracts/generated/assertion-index.yml
+      - contracts/generated/coverage.yml
+  user_docs:
+    status: update_required
+    reason: Server operators need configuration, dashboard, alert fallback, and diagnostic CLI guidance.
+    documents:
+      - docs/architecture/observability.md
+      - docs/user-guide/cli/server-management.md
+  semantic_layer:
+    status: update_required
+    reason: The architecture documentation must describe privacy tiers, trace propagation, span names, and alert routing.
+    documents:
+      - contracts/architecture/ai-request-observability/contract.yml
+      - contracts/architecture/ai-request-observability/examples.yml
+
+goal: >
+  Make slow AI turns diagnosable as one privacy-safe browser-to-worker
+  waterfall without changing AI behavior. First establish reliable propagation,
+  phase spans, identity-free metrics, and a content-free debug CLI; only after a
+  stable dev baseline, add OpenObserve dashboards and low-noise Discord-first
+  alerts with optional enabled server-admin email fallback.
+
+scope:
+  in:
+    - Repair browser, WebSocket, API, Celery producer, AI worker, and final-marker trace propagation.
+    - Initialize tracing in every AI worker process that emits AI-turn spans.
+    - Replace permissive trace attribute filtering with explicit production allowlists.
+    - Remove raw user IDs, raw exceptions, content, URLs, filenames, tool payloads, and stable product IDs from exported AI telemetry.
+    - Emit identity-free aggregate histograms for every AI turn.
+    - Emit content-free sampled structural traces with bucketed counts by default.
+    - Add explicit, audited, time-bounded diagnostic mode for approved exact non-content counts.
+    - Instrument queueing, preparation, preprocessing, provider calls, model iterations, TTFT, streaming, tools, validation, billing, persistence, final-marker publication, and postprocessing.
+    - Extend the operator debug CLI to render a redacted AI request waterfall and missing-span diagnostics.
+    - Verify effective OpenObserve stream retention remains 14 days and never exceeds 30 days.
+    - Build OpenObserve AI latency, complexity, reliability, and finalization dashboards after a stable seven-day dev baseline.
+    - Derive sustained alert thresholds from that baseline rather than hardcoding arbitrary values.
+    - Send content-free AI observability alerts to connected Discord first.
+    - Use server-admin email only when Discord is unavailable and server-owner email notifications are enabled.
+    - Require a separate approval before production rollout.
+  out:
+    - Prompt, model-routing, context-window, tool-planning, billing-authority, or processing-order optimization.
+    - User-facing web, Apple, npm SDK, or pip SDK observability features.
+    - Public or developer telemetry APIs.
+    - Prompt, response, message, tool parameter/result, URL, filename, ciphertext, key, provider payload, or raw stack-trace storage.
+    - Per-user, per-chat, or long-lived cross-request analytics.
+    - Third-party hosted analytics or observability services.
+    - Alert thresholds chosen before measured baseline evidence exists.
+    - Production deployment or production alert activation without separate explicit approval.
+
+context_discovery:
+  issue:
+    - Production issue M9JH3 reported an AI turn taking about 48 seconds; available logs identify broad stages but cannot produce an exact distributed waterfall.
+  github_issues:
+    - No matching public GitHub issue was found during contract discovery.
+  docs:
+    - docs/architecture/observability.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/operational-monitoring-digest-alerts/spec.yml
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+  contracts:
+    - architecture.ai-request-observability@1 approved in session 0d33 with fingerprint 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06.
+    - architecture.operational-monitoring@1 provides existing privacy-safe monitoring and operator delivery patterns.
+  code_patterns:
+    - frontend/packages/ui/src/services/tracing/wsSpans.ts injects traceparent only from the active context, while callers can create non-active spans.
+    - The browser issue-report ring records only traces created through createWsSpan.
+    - backend/shared/python_utils/tracing/ws_span_helper.py attaches a custom current-span context value instead of the OpenTelemetry span context.
+    - backend/shared/python_utils/tracing/privacy_filter.py uses denylist-style filtering, bypasses filtering on dev, and permits raw user identity at elevated tiers.
+    - backend/core/api/main.py initializes API tracing, but no AI worker tracing initialization was found under backend/apps/ai.
+    - backend/scripts/debug_trace.py already queries and renders traces but currently assumes shallow stream structure.
+    - backend/core/api/app/services/operational_monitoring.py and operational_monitoring_tasks.py provide existing Discord and server-admin email delivery infrastructure.
+  tests:
+    - backend/tests/test_tracing/test_privacy_filter.py
+    - backend/tests/test_tracing/test_integration.py
+    - backend/tests/test_tracing/test_ws_trace_context.py
+    - backend/tests/test_tracing/test_handler_instrumentation.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - frontend/packages/ui/src/services/tracing/__tests__
+  verified_facts:
+    - Production OpenObserve currently runs v0.70.0-rc3 with an effective 14-day retention target; policy permits no more than 30 days.
+    - Current production trace queries return shallow API spans rather than a complete AI request tree.
+    - The M9JH3 billing conflict consumed only a small part of the total latency and should not drive an AI behavior change.
+    - Existing logs suggest latency across preprocessing, tools, repeated inference, and finalization, but cumulative token reporting prevents precise attribution.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple product behavior changes; only shared backend processing and operator telemetry are instrumented.
+  verification:
+    - Apple not affected because there is no native operator observability surface.
+  intentional_native_differences:
+    - Apple does not expose OpenObserve dashboards or the internal debug CLI.
+
+clarification:
+  rounds:
+    - question: Should dashboards and alerts ship in the first implementation milestone?
+      answer: No. First establish instrumentation and the debug CLI, then add dashboards and alerts from measured baseline data.
+    - question: Which notification channel should AI observability alerts use?
+      answer: Discord is primary; enabled server-admin email is fallback only when Discord is unavailable.
+  vision_summary: >
+    Diagnose AI latency through a privacy-safe baseline before changing AI
+    behavior. Ship reliable propagation, strict privacy filtering, AI phase
+    spans, aggregate metrics, and operator waterfall tooling first; derive
+    dashboards and sustained alerts from seven days of dev telemetry, with
+    Discord primary and enabled server-admin email as an availability fallback.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-08-24T00:00:00Z"
+    reason: User explicitly approved the exact AI observability contract fingerprint and Discord-first email-fallback amendment.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-08-24T00:00:00Z"
+    reason: User approved the executable spec and implementation plan and requested autonomous implementation and testing.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Establish observability before changing prompts, model routing, context selection, tool planning, or processing order.
+    reason: Existing production evidence cannot attribute the 48-second turn precisely enough to justify behavioral optimization.
+    decided_at: "2026-08-24T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Default telemetry uses identity-free aggregate metrics and content-free structural traces with bucketed counts.
+    reason: Aggregate distributions provide operational value without persistent user or chat correlation.
+    decided_at: "2026-08-24T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Exact non-content counts require explicit audited and time-bounded diagnostic mode.
+    reason: Exact sizes improve incident diagnosis but can increase fingerprinting risk when retained by default.
+    decided_at: "2026-08-24T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Dashboards and alerts follow a stable seven-day dev baseline.
+    reason: Measured distributions are required to choose useful sustained thresholds without noisy alerts.
+    decided_at: "2026-08-24T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Connected Discord is primary; enabled server-admin email is attempted only when Discord is unavailable.
+    reason: This avoids duplicate notifications while preserving an operator fallback.
+    decided_at: "2026-08-24T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: One chat turn produces one complete distributed trace
+    given:
+      - An authenticated user sends a normal chat message from the web app.
+      - The request reaches the WebSocket API and AI worker through Celery.
+    when:
+      - The worker streams and persists the response.
+    then:
+      - One trace links browser send, WebSocket handler, API dispatch, Celery producer, worker task, AI phases, and final-marker publication.
+      - Missing propagation is reported as a trace gap rather than a falsely complete waterfall.
+  - id: S-2
+    title: Default telemetry remains identity-free and content-free
+    given:
+      - A regular AI turn includes private chat content and tool arguments.
+    when:
+      - Metrics and sampled spans are exported.
+    then:
+      - Metrics contain only reviewed low-cardinality dimensions and histograms.
+      - Spans contain reviewed structural fields and one request-scoped trace identifier.
+      - Content, stable product IDs, destinations, secrets, raw errors, URLs, and filenames are absent.
+  - id: S-3
+    title: Operator diagnoses a slow multi-tool request
+    given:
+      - A sampled turn uses web and image capabilities across multiple model iterations.
+    when:
+      - The operator queries its trace ID through the debug CLI.
+    then:
+      - The CLI shows queue, preparation, preprocessing, provider, TTFT, streaming, tool, validation, billing, persistence, final-marker, and postprocessing durations.
+      - Counts are bucketed unless approved diagnostic mode was active.
+      - No raw span payload or private identifier is printed.
+  - id: S-4
+    title: Diagnostic mode expires without weakening content restrictions
+    given:
+      - An operator opens an audited diagnostic scope for an incident or an opted-in turn.
+    when:
+      - Exact non-content counts and approved identifiers are exported.
+    then:
+      - The scope has an owner, reason, expiry, and audit record.
+      - Prompts, responses, tool parameters/results, URLs, filenames, ciphertext, secrets, and raw errors remain forbidden.
+      - The scope stops exporting diagnostic-only values after expiry.
+  - id: S-5
+    title: Baseline produces meaningful dashboards and thresholds
+    given:
+      - Milestone-one telemetry has remained complete and privacy-valid on dev for seven days.
+    when:
+      - Operators create OpenObserve dashboards and derive alert thresholds.
+    then:
+      - Dashboards show total and phase P50/P95/P99 latency, TTFT, queueing, tools, finalization, retries, errors, and complexity distributions.
+      - Thresholds are documented from observed distributions and require sustained breach windows.
+      - No per-user or per-chat breakdown exists.
+  - id: S-6
+    title: Alert delivery uses Discord with enabled email fallback
+    given:
+      - A sustained AI observability threshold is breached.
+    when:
+      - Connected Discord accepts the alert.
+    then:
+      - Email is not attempted for that logical alert.
+      - A redacted Discord delivery receipt is recorded.
+    alternatives:
+      - If Discord is unavailable and server-owner email notifications are enabled, one content-free email fallback is attempted.
+      - If both channels are unavailable or disabled, state remains explicitly undelivered rather than falsely successful.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A real dev chat turn yields one browser-to-final-marker trace with explicit missing-span diagnostics.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, V-DEV-AI-TRACE]
+    contract_assertions: [ai-request-observability.propagation.complete]
+  - id: AC-2
+    scenario: S-2
+    text: Production and dev AI telemetry exporters use reviewed allowlists and reject unknown attributes, content, stable product IDs, secrets, raw errors, URLs, and filenames.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
+    contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.structural-traces.content-free, ai-request-observability.exporter.allowlist]
+  - id: AC-3
+    scenario: S-3
+    text: AI processing emits the complete approved phase waterfall with model-iteration TTFT/stream timing, bounded tool categories, finalization, and aggregate complexity measures without changing processing results.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-AI-WATERFALL, V-DEV-AI-TRACE]
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.no-behavior-change]
+  - id: AC-4
+    scenario: S-3
+    text: The operator debug CLI renders a content-free AI waterfall and reports missing spans without printing raw trace payloads.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-DEBUG-TRACE, V-DEV-AI-TRACE]
+    contract_assertions: [ai-request-observability.operator-debug.waterfall]
+  - id: AC-5
+    scenario: S-4
+    text: Exact non-content diagnostic metadata requires an audited incident or opt-in scope with expiry, while prohibited content remains impossible at every tier.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
+    contract_assertions: [ai-request-observability.diagnostic-mode.bounded, ai-request-observability.exporter.allowlist]
+  - id: AC-6
+    scenario: S-5
+    text: OpenObserve effective retention is verified at 14 days and at or below the 30-day policy maximum before dashboard or alert rollout.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-OPENOBSERVE-RETENTION]
+    contract_assertions: [ai-request-observability.retention.verified]
+  - id: AC-7
+    scenario: S-5
+    text: Seven complete privacy-valid dev days support aggregate AI latency, complexity, reliability, and finalization dashboards plus documented sustained thresholds.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-DEV-BASELINE, V-DASHBOARD-REVIEW]
+    contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.waterfall.complete]
+  - id: AC-8
+    scenario: S-6
+    text: Alert delivery uses connected Discord first, suppresses duplicate email after Discord acceptance, and uses server-admin email only when Discord is unavailable and server-owner email notifications are enabled.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-AI-ALERT-ROUTING, V-DEV-ALERT-DRILL]
+    contract_assertions: [ai-request-observability.alerts.discord-email-fallback]
+  - id: AC-9
+    scenario: S-1
+    text: Adding observability leaves prompts, model selection, tool selection, billing decisions, persistence order, and user-visible AI output unchanged.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-AI-WATERFALL, V-DEV-AI-TRACE]
+    contract_assertions: [ai-request-observability.no-behavior-change]
+
+assumptions:
+  - id: A-1
+    text: Existing OpenTelemetry libraries support standard context attachment across browser, WebSocket, Celery, and worker processes without a new provider.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/tests/test_tracing/test_integration.py
+        summary: Existing tests already exercise W3C traceparent extraction/injection and Celery instrumentation dependencies.
+  - id: A-2
+    text: Existing OpenObserve and Prometheus infrastructure can store/query the approved spans and histograms without a public endpoint or third-party service.
+    category: infrastructure
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/docker-compose.yml
+        summary: Self-hosted OpenObserve, OTel, Prometheus, and monitoring services already exist.
+  - id: A-3
+    text: Existing operational monitoring delivery can enforce Discord-primary and conditional server-admin email fallback without exposing destinations.
+    category: architecture
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/operational_monitoring.py
+        summary: Existing helpers resolve environment-specific Discord and server-owner notification configuration.
+      - source: backend/core/api/app/tasks/operational_monitoring_tasks.py
+        summary: Existing tasks record channel-specific sanitized delivery states.
+  - id: A-4
+    text: Seven days of dev telemetry will contain enough representative AI traffic to set initial sustained thresholds.
+    category: operations
+    required_before: task_execution
+    status: unchecked
+    blocker: Extend the baseline window or run approved representative dev traffic if sample coverage is insufficient.
+
+contracts:
+  api:
+    changed: false
+    access_model: first-party client surface only
+    auth: Existing authenticated WebSocket session and internal Celery/OTel service credentials; no new endpoint.
+    owner_team_scope: Existing chat ownership remains unchanged; telemetry contains no owner/team identifier.
+    rate_limits: Existing chat and internal telemetry ingestion limits apply; diagnostic CLI queries are bounded to one trace and operator credentials.
+    credit_budget: Telemetry creates no OpenMates credit charge and invokes no additional paid AI/provider requests.
+    encryption_boundary: Client-encrypted chat payloads remain on existing paths and are never copied, decrypted, or exported by observability instrumentation.
+    plaintext_handling: AI workers already process authorized plaintext in memory; instrumentation may measure counts/durations only and cannot export plaintext or derived content.
+  telemetry:
+    default_metrics: Identity-free low-cardinality histograms for all turns.
+    default_traces: Content-free sampled structural spans with bucketed counts and one request-scoped trace ID.
+    diagnostic_mode: Audited incident or explicit opt-in scope with owner, reason, start, expiry, and exact approved non-content fields.
+    forbidden: [prompt, response, message, title, tool_parameters, tool_results, url, filename, ciphertext, key_material, raw_provider_payload, raw_exception, user_id, chat_id, message_id, task_id, device_id, session_id, cache_key]
+    retention: Verify effective 14 days; reject configuration above 30 days.
+  alert_delivery:
+    primary: Connected and configured Discord.
+    fallback: Server-admin email only when Discord is unavailable and server-owner email notifications are enabled.
+    deduplication: Accepted Discord suppresses email for the same logical alert; one recovery event closes each incident.
+    receipt_fields: [environment, logical_alert_id, channel, attempted_at, accepted_or_failed_or_unavailable, sanitized_failure_class]
+    forbidden_receipt_fields: [destination, webhook_url, email_address, secret, user_id, chat_id, raw_error]
+  phase_gates:
+    rest_websocket: Real authenticated dev WebSocket chat proves browser-to-worker propagation; no endpoint contract changes.
+    cli: Internal debug.py trace request command proves the operator waterfall against the real dev OpenObserve stream.
+    sdks: Not applicable because observability is not exposed through npm or pip SDKs.
+    web: Browser propagation is verified through the real dev chat path; no user-visible UI or Playwright visual change.
+    visual_smoke: Not applicable because there is no user-facing visual change.
+    user_confirmation: Not applicable because behavior and UI are unchanged.
+    apple: Not affected.
+
+tests:
+  - id: T-TRACE-PROPAGATION
+    type: pytest
+    file: backend/tests/test_tracing/test_integration.py
+    command: python3 -m pytest backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_ws_trace_context.py backend/tests/test_tracing/test_handler_instrumentation.py -q
+    covers: [AC-1]
+    contract_assertions: [ai-request-observability.propagation.complete]
+    assertions:
+      - WebSocket handler spans attach extracted W3C parent context as the active span.
+      - Celery producer and worker spans retain the trace lineage.
+      - AI worker tracing initializes before task processing.
+      - Missing context yields an explicit gap without throwing or fabricating lineage.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-WEB-TRACE-CONTEXT
+    type: vitest
+    file: frontend/packages/ui/src/services/tracing/__tests__/wsSpans.test.ts
+    command: python3 scripts/tests.py run --suite vitest --test wsSpans
+    covers: [AC-1]
+    contract_assertions: [ai-request-observability.propagation.complete]
+    assertions:
+      - The message-send span is active while traceparent is injected.
+      - Every issued request trace can enter the bounded issue-report ring once.
+      - No trace context leaks to later unrelated messages.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-TRACE-PRIVACY
+    type: pytest
+    file: backend/tests/test_tracing/test_privacy_filter.py
+    command: python3 -m pytest backend/tests/test_tracing/test_privacy_filter.py backend/tests/test_tracing/test_user_attribute_injection.py -q
+    covers: [AC-2, AC-5]
+    contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.structural-traces.content-free, ai-request-observability.diagnostic-mode.bounded, ai-request-observability.exporter.allowlist]
+    assertions:
+      - Unknown attributes are dropped in production and dev export paths.
+      - Raw user IDs and raw exception text never survive export at any tier.
+      - Default counts are bucketed and diagnostic-only exact fields require an unexpired approved scope.
+      - Forbidden content fields remain rejected in diagnostic mode.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-AI-WATERFALL
+    type: pytest
+    file: backend/tests/test_ai_request_observability.py
+    command: python3 -m pytest backend/tests/test_ai_request_observability.py -q
+    covers: [AC-3, AC-9]
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.no-behavior-change]
+    assertions:
+      - Named phase spans and histograms cover the approved waterfall and iteration/tool cardinality.
+      - Provider, tool, and finalization errors use normalized classes without raw error text.
+      - Instrumentation-disabled and instrumentation-enabled processing produce the same decisions and persisted result in deterministic fixtures.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-DEBUG-TRACE
+    type: pytest
+    file: backend/tests/test_tracing/test_debug_trace.py
+    command: python3 -m pytest backend/tests/test_tracing/test_debug_trace.py -q
+    covers: [AC-4]
+    contract_assertions: [ai-request-observability.operator-debug.waterfall]
+    assertions:
+      - AI spans render in deterministic phase order with durations and missing-span diagnostics.
+      - Raw attributes, product IDs, content, destinations, and errors are never printed.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-OBSERVABILITY-AUDIT
+    type: lint
+    file: scripts/audit_ai_observability_contract.py
+    command: python3 scripts/audit_ai_observability_contract.py
+    covers: [AC-2, AC-5]
+    contract_assertions: [ai-request-observability.structural-traces.content-free, ai-request-observability.exporter.allowlist]
+    assertions:
+      - Span and metric attribute names come from reviewed registries.
+      - Forbidden field names cannot be added to AI telemetry calls.
+      - Every AI worker entrypoint initializes tracing.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-AI-ALERT-ROUTING
+    type: pytest
+    file: backend/tests/test_ai_observability_alerts.py
+    command: python3 -m pytest backend/tests/test_ai_observability_alerts.py -q
+    covers: [AC-8]
+    contract_assertions: [ai-request-observability.alerts.discord-email-fallback]
+    assertions:
+      - Discord acceptance suppresses server-admin email.
+      - Discord unavailable plus enabled server-owner email attempts one fallback.
+      - Disabled fallback remains explicit and never reports false success.
+      - Payloads and receipts remain content-free and destination-free.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+
+verifications:
+  - id: V-DEV-AI-TRACE
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-3, AC-4, AC-9]
+    status: pending
+    command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID> --production
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", target: api.dev.openmates.org, summary: "", timestamp: ""}
+  - id: V-OPENOBSERVE-RETENTION
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers: [AC-6]
+    status: pending
+    command: python3 scripts/verify_ai_observability.py retention --target dev
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+  - id: V-DEV-BASELINE
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-7]
+    status: pending
+    command: python3 scripts/verify_ai_observability.py baseline --target dev --days 7
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+  - id: V-DASHBOARD-REVIEW
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-7]
+    status: pending
+    evidence: {status: pending, run_id: "", subject_commit: "", summary: "Review aggregate charts, privacy-safe dimensions, sustained thresholds, and missing telemetry without including screenshots containing private data.", timestamp: ""}
+  - id: V-DEV-ALERT-DRILL
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-8]
+    status: pending
+    command: python3 scripts/verify_ai_observability.py alert-drill --target dev --cases discord-accepted,discord-unavailable-email-enabled,email-disabled
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+  - id: V-PRODUCTION-ROLLOUT
+    kind: user_confirmation
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-6, AC-7, AC-8]
+    status: pending
+    evidence: {status: pending, actor: user, summary: "Separate explicit production approval required after dev evidence.", timestamp: "", next_action: Request production rollout approval only after all dev gates pass.}
+  - id: V-SPEC-VERIFY
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
+    status: pending
+    command: python3 scripts/spec_verify.py docs/specs/ai-request-observability/spec.yml --phase complete --json
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This changes internal telemetry, debug tooling, and background operator delivery without a user-visible browser, OpenMates CLI product, or native surface.
+    classified_at: "2026-08-24T00:00:00Z"
+    verification_ids: [V-DEV-AI-TRACE, V-DASHBOARD-REVIEW, V-DEV-ALERT-DRILL]
+  narration_outline: []
+  evidence:
+    status: not_applicable
+    reason: Content-free trace artifacts, deterministic tests, dashboard review, and real dev delivery receipts are stronger evidence for this non-visual operator workflow.
+
+implementation_plan:
+  spec: docs/specs/ai-request-observability/spec.yml
+  spec_path: docs/specs/ai-request-observability/spec.yml
+  contract_classification: new_contract
+  permanent_assertions:
+    - ai-request-observability.propagation.complete
+    - ai-request-observability.waterfall.complete
+    - ai-request-observability.default-metrics.identity-free
+    - ai-request-observability.structural-traces.content-free
+    - ai-request-observability.diagnostic-mode.bounded
+    - ai-request-observability.exporter.allowlist
+    - ai-request-observability.operator-debug.waterfall
+    - ai-request-observability.retention.verified
+    - ai-request-observability.alerts.discord-email-fallback
+    - ai-request-observability.no-behavior-change
+  architecture: >
+    Reuse the existing OpenTelemetry-to-OpenObserve path, but make standard OTel
+    context propagation and a reviewed attribute registry authoritative. Add
+    low-cardinality histograms for all turns, sampled structural spans for
+    request waterfalls, and a bounded diagnostic scope. Reuse existing
+    operational monitoring delivery for milestone-two Discord-first alerts.
+  existing_patterns:
+    - Shared Python tracing setup already configures OTLP export and automatic FastAPI, HTTPX, Celery, and Redis instrumentation.
+    - W3C traceparent helpers already carry context in reserved WebSocket payload metadata.
+    - The debug trace CLI already queries OpenObserve and renders trace trees.
+    - Operational monitoring already supports sanitized Discord and server-owner email delivery receipts.
+  data_flow:
+    - The browser starts one active request span and injects its W3C traceparent into the authenticated WebSocket message.
+    - The API extracts and activates that context, then Celery instrumentation propagates it into the AI worker.
+    - The worker creates one AI-turn span with bounded child phases and records identity-free histograms.
+    - The privacy exporter drops unknown and forbidden attributes before OTLP sends spans to self-hosted OpenObserve.
+    - The operator CLI queries one trace and renders only reviewed structural fields and missing-span diagnostics.
+    - After the baseline gate, aggregate rules create incidents routed to Discord or conditional server-admin email fallback.
+  phase_order:
+    - Write and record failing propagation, privacy, waterfall, debug, audit, and alert-routing tests before product source changes.
+    - Milestone 1A: repair browser/WebSocket/Celery/worker context and make privacy allowlists authoritative.
+    - Milestone 1B: instrument AI phases and metrics, then add the redacted debug waterfall.
+    - Restart affected dev API and AI workers under repository locks and prove one real authenticated dev trace.
+    - Verify retention and collect seven complete privacy-valid dev days.
+    - Milestone 2: create dashboards, derive sustained thresholds, and implement Discord-first alert fallback.
+    - Run controlled dev alert drills and artifact review.
+    - Request separate production approval; do not activate production telemetry changes or alerts before it.
+  affected_files:
+    - {path: frontend/packages/ui/src/services/tracing/wsSpans.ts, reason: Create active request spans, inject traceparent, and record request traces consistently.}
+    - {path: frontend/packages/ui/src/services/sendersChatMessages.ts, reason: Keep the send span active through WebSocket payload injection.}
+    - {path: backend/shared/python_utils/tracing/ws_span_helper.py, reason: Attach standard active OTel span context.}
+    - {path: backend/shared/python_utils/tracing/privacy_filter.py, reason: Enforce reviewed allowlists and remove raw identity/error escalation.}
+    - {path: backend/shared/python_utils/tracing/config.py, reason: Register privacy-safe span and metric exporters consistently.}
+    - {path: backend/apps/ai/tasks/stream_consumer.py, reason: Initialize worker tracing and root AI-turn/finalization spans.}
+    - {path: backend/apps/ai/processing/preprocessor.py, reason: Instrument local and provider preprocessing phases.}
+    - {path: backend/apps/ai/processing/main_processor.py, reason: Instrument model iterations, TTFT, streaming, tool calls, and aggregate counts.}
+    - {path: backend/scripts/debug_trace.py, reason: Render deterministic redacted AI waterfalls and gaps.}
+    - {path: backend/core/monitoring, reason: Add aggregate AI dashboard and sustained alert configuration after baseline.}
+    - {path: backend/core/api/app/services/operational_monitoring.py, reason: Reuse content-free Discord-primary and conditional email-fallback delivery.}
+    - {path: scripts/audit_ai_observability_contract.py, reason: Prevent unreviewed telemetry fields and missing worker initialization.}
+    - {path: scripts/verify_ai_observability.py, reason: Verify retention, baseline completeness, and controlled alert routing.}
+  verification_strategy:
+    - Require red tests to fail for the discovered propagation, privacy, worker-init, waterfall, and routing gaps.
+    - Run focused backend pytest and dispatched Vitest green checks.
+    - Restart only API and affected AI workers, then send one real authenticated dev chat without extra provider calls beyond the normal request.
+    - Query the resulting trace through the operator CLI and inspect only content-free output.
+    - Run the deterministic source audit and retention verifier.
+    - Delay dashboard thresholds and alerts until seven days of complete dev evidence pass privacy review.
+    - Drill Discord acceptance, Discord unavailability with enabled email, and both unavailable/disabled states.
+  verification_order:
+    - T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, T-TRACE-PRIVACY, T-AI-WATERFALL, T-DEBUG-TRACE, T-OBSERVABILITY-AUDIT, and T-AI-ALERT-ROUTING red evidence.
+    - Milestone-one focused green tests and deterministic audit.
+    - V-DEV-AI-TRACE and V-OPENOBSERVE-RETENTION against the real dev stack.
+    - V-DEV-BASELINE after seven complete privacy-valid days.
+    - Milestone-two T-AI-ALERT-ROUTING, V-DASHBOARD-REVIEW, and V-DEV-ALERT-DRILL.
+    - V-SPEC-VERIFY, then separate V-PRODUCTION-ROLLOUT approval.
+  risks:
+    - High-cardinality attributes can increase OpenObserve cost; reviewed enums and histograms are mandatory.
+    - Incorrect context attachment can join unrelated users' turns; context teardown and concurrency tests are mandatory.
+    - Exact counts can fingerprint uncommon requests; default buckets and expiring diagnostic scope are mandatory.
+    - Instrumentation overhead can affect latency; measure exporter and span overhead and keep content transformation out of the hot path.
+    - Alert thresholds can become noisy; milestone two remains blocked until baseline coverage is sufficient.
+  open_questions: []
+  separate_technical_approval_required: false
+  first_slice: Add red tests for exporter allowlisting and end-to-end trace context before product source changes.
+
+tasks:
+  - id: TASK-1
+    title: Add red propagation, privacy, waterfall, CLI, audit, and alert-routing tests
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-9]}
+    contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.waterfall.complete, ai-request-observability.exporter.allowlist, ai-request-observability.operator-debug.waterfall, ai-request-observability.alerts.discord-email-fallback, ai-request-observability.no-behavior-change]
+    expected_files: [backend/tests/test_tracing/test_integration.py, backend/tests/test_tracing/test_privacy_filter.py, backend/tests/test_tracing/test_debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_ai_observability_alerts.py, frontend/packages/ui/src/services/tracing/__tests__/wsSpans.test.ts, scripts/audit_ai_observability_contract.py]
+    verification_ids: [T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, T-TRACE-PRIVACY, T-AI-WATERFALL, T-DEBUG-TRACE, T-OBSERVABILITY-AUDIT, T-AI-ALERT-ROUTING]
+    dependencies: []
+    blockers: []
+    ownership: {session: 0d33, files: [backend/tests/test_tracing/test_integration.py, backend/tests/test_tracing/test_privacy_filter.py, backend/tests/test_tracing/test_debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_ai_observability_alerts.py, frontend/packages/ui/src/services/tracing/__tests__/wsSpans.test.ts, scripts/audit_ai_observability_contract.py], shared_files: []}
+    follow_up_tasks: [TASK-2]
+  - id: TASK-2
+    title: Repair trace propagation and enforce privacy allowlists
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-1, S-2, S-4], acceptance_criteria: [AC-1, AC-2, AC-5]}
+    contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.structural-traces.content-free, ai-request-observability.diagnostic-mode.bounded, ai-request-observability.exporter.allowlist]
+    expected_files: [frontend/packages/ui/src/services/tracing/wsSpans.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, backend/shared/python_utils/tracing/ws_span_helper.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/shared/python_utils/tracing/config.py]
+    verification_ids: [T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
+    dependencies: [TASK-1]
+    blockers: []
+    ownership: {session: 0d33, files: [frontend/packages/ui/src/services/tracing/wsSpans.ts, frontend/packages/ui/src/services/sendersChatMessages.ts, backend/shared/python_utils/tracing/ws_span_helper.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/shared/python_utils/tracing/config.py], shared_files: []}
+    follow_up_tasks: [TASK-3]
+  - id: TASK-3
+    title: Instrument AI worker phases and aggregate metrics
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-5, AC-9]}
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.default-metrics.identity-free, ai-request-observability.no-behavior-change]
+    expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/main_processor.py, backend/shared/python_utils/tracing/config.py]
+    verification_ids: [T-AI-WATERFALL, T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
+    dependencies: [TASK-2]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/main_processor.py, backend/shared/python_utils/tracing/config.py], shared_files: []}
+    follow_up_tasks: [TASK-4]
+  - id: TASK-4
+    title: Add redacted operator waterfall and prove milestone one on dev
+    phase: running_checks
+    status: pending
+    covers: {scenarios: [S-1, S-3], acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-9]}
+    contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.operator-debug.waterfall, ai-request-observability.retention.verified, ai-request-observability.no-behavior-change]
+    expected_files: [backend/scripts/debug_trace.py, scripts/verify_ai_observability.py, docs/architecture/observability.md]
+    verification_ids: [T-DEBUG-TRACE, V-DEV-AI-TRACE, V-OPENOBSERVE-RETENTION]
+    dependencies: [TASK-3]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/scripts/debug_trace.py, scripts/verify_ai_observability.py, docs/architecture/observability.md], shared_files: []}
+    follow_up_tasks: [TASK-5]
+  - id: TASK-5
+    title: Collect and review seven-day dev baseline
+    phase: running_checks
+    status: pending
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-6, AC-7]}
+    contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.retention.verified]
+    expected_files: [docs/specs/ai-request-observability/spec.yml]
+    verification_ids: [V-DEV-BASELINE]
+    dependencies: [TASK-4]
+    blockers: [A-4]
+    ownership: {session: 0d33, files: [docs/specs/ai-request-observability/spec.yml], shared_files: []}
+    follow_up_tasks: [TASK-6]
+  - id: TASK-6
+    title: Add aggregate dashboards and Discord-first sustained alerts
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-5, S-6], acceptance_criteria: [AC-7, AC-8]}
+    contract_assertions: [ai-request-observability.alerts.discord-email-fallback, ai-request-observability.default-metrics.identity-free]
+    expected_files: [backend/core/monitoring, backend/core/api/app/services/operational_monitoring.py, backend/tests/test_ai_observability_alerts.py, docs/user-guide/cli/server-management.md]
+    verification_ids: [T-AI-ALERT-ROUTING, V-DASHBOARD-REVIEW, V-DEV-ALERT-DRILL]
+    dependencies: [TASK-5]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/core/monitoring, backend/core/api/app/services/operational_monitoring.py, backend/tests/test_ai_observability_alerts.py, docs/user-guide/cli/server-management.md], shared_files: []}
+    follow_up_tasks: [TASK-7]
+  - id: TASK-7
+    title: Verify complete dev contract and request production rollout approval
+    phase: awaiting_approval
+    status: pending
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]}
+    contract_assertions: [ai-request-observability.propagation.complete, ai-request-observability.waterfall.complete, ai-request-observability.default-metrics.identity-free, ai-request-observability.structural-traces.content-free, ai-request-observability.diagnostic-mode.bounded, ai-request-observability.exporter.allowlist, ai-request-observability.operator-debug.waterfall, ai-request-observability.retention.verified, ai-request-observability.alerts.discord-email-fallback, ai-request-observability.no-behavior-change]
+    expected_files: [docs/specs/ai-request-observability/spec.yml]
+    verification_ids: [V-SPEC-VERIFY, V-PRODUCTION-ROLLOUT]
+    dependencies: [TASK-6]
+    blockers: [explicit_production_approval]
+    ownership: {session: 0d33, files: [docs/specs/ai-request-observability/spec.yml], shared_files: []}
+    follow_up_tasks: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Investigate M9JH3 from production issue evidence, source paths, tracing configuration, OpenObserve state, and parallel specialist audits before changing AI behavior.
+    outcome: succeeded
+    recorded_at: "2026-08-24T00:00:00Z"
+    evidence: The investigation isolated broad latency phases and demonstrated that current traces cannot attribute an exact AI waterfall.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Define and exact-hash approve a privacy-safe AI observability contract before implementation planning.
+    outcome: succeeded
+    recorded_at: "2026-08-24T00:00:00Z"
+    evidence: architecture.ai-request-observability@1 fingerprint 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06 approved in session 0d33.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the red propagation and privacy tests before editing product source.
+  command: python3 -m pytest backend/tests/test_tracing/test_integration.py backend/tests/test_tracing/test_privacy_filter.py -q
+  expected_outcome: Tests fail for non-active WebSocket context, permissive attribute export, and missing AI worker tracing before implementation.
+  blocker: null
+  last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704

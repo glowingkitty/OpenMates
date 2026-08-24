@@ -106,7 +106,7 @@ def start_ws_handler_span(
             span_kwargs["context"] = parent_ctx
 
         span = tracer.start_span(**span_kwargs)
-        token = _context.attach(_context.set_value("current-span", span))
+        token = _context.attach(_trace.set_span_in_context(span, parent_ctx))
 
         return span, token
 
@@ -133,7 +133,7 @@ def end_ws_handler_span(
     """
     try:
         if error is not None and span is not None and _StatusCode is not None:
-            span.set_status(_StatusCode.ERROR, str(error))
+            span.set_status(_StatusCode.ERROR)
     except Exception:
         pass
 

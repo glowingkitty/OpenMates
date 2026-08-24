@@ -1,5 +1,12 @@
 schema_version: 1
 contracts:
+  architecture.ai-request-observability:
+    version: 1
+    status: draft
+    path: architecture/ai-request-observability
+    fingerprint: 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06
+    required_surfaces:
+    - cli
   architecture.app-skill-execution:
     version: 1
     status: approved
@@ -319,6 +326,76 @@ contracts:
     - sdks.npm
     - sdks.pip
 assertions:
+  ai-request-observability.propagation.complete:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: invariant
+    fingerprint: 24a94f31ce2167f6e9e040eaad121d2183d1e99d7cf2395d64b090cd02eaaab7
+    required_surfaces:
+    - cli
+  ai-request-observability.waterfall.complete:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: behavior
+    fingerprint: 7c479f2bf0fbc701a14dfc010d3d45dcea9897df238a27de887226a21bf9c241
+    required_surfaces:
+    - cli
+  ai-request-observability.default-metrics.identity-free:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: privacy
+    fingerprint: b0339fdec813572a35b49645ee9e8164eba38c8aabae460d7d2d4c78383f3c4a
+    required_surfaces:
+    - cli
+  ai-request-observability.structural-traces.content-free:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: privacy
+    fingerprint: b6d249a19b3a69f83e84104b2cd0ab073f063776aa613734eaec79cf16ed16e5
+    required_surfaces:
+    - cli
+  ai-request-observability.diagnostic-mode.bounded:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: security
+    fingerprint: 79f0166d9561be021403b7254b1141ac77767597e662d6e6344a067d2a75c368
+    required_surfaces:
+    - cli
+  ai-request-observability.exporter.allowlist:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: security
+    fingerprint: 0a2bb3827657120ceb8a62bdb59341f33f9fac53f747d4aca06a01f1b6a09dcb
+    required_surfaces:
+    - cli
+  ai-request-observability.operator-debug.waterfall:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: behavior
+    fingerprint: 6ddb0f9ca471dd6bf62b78c8dc56cb921cee5b6807ff491e39da2e6616dc866d
+    required_surfaces:
+    - cli
+  ai-request-observability.retention.verified:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: security
+    fingerprint: bdb6afb51ec03f3ec6253b15a9d0f61612c0b8af2949522e0c5784131d5202d4
+    required_surfaces:
+    - cli
+  ai-request-observability.alerts.discord-email-fallback:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: behavior
+    fingerprint: dd3318b21fc904d64426539e19687778bf2734a377485776dc2f180bf5389f6e
+    required_surfaces:
+    - cli
+  ai-request-observability.no-behavior-change:
+    contract: architecture.ai-request-observability@1
+    contract_id: architecture.ai-request-observability
+    type: invariant
+    fingerprint: a33d7d281463428c45a24dc6eeee2c83a66120e8954628eeb10129ba70c6d437
+    required_surfaces:
+    - cli
   app-skills.execution.registered-validated:
     contract: architecture.app-skill-execution@1
     contract_id: architecture.app-skill-execution

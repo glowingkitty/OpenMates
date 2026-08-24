@@ -25,7 +25,6 @@ import {
 	wrapEmbedKeyWithChatKey
 } from "./encryption/MetadataEncryptor";
 import { getTracer } from './tracing/setup';
-import { injectTraceparent } from './tracing/wsSpans';
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
@@ -1470,9 +1469,6 @@ export async function sendNewMessageImpl(
 			};
 		}
 
-		// The commitment covers the exact inference payload. Inject tracing before
-		// preflight and never mutate that payload between acknowledgement and send.
-		injectTraceparent(payload as unknown as Record<string, unknown>);
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				const acknowledgement = waitForPreflightAcknowledgement(turnId);
