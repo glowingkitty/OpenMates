@@ -80,7 +80,8 @@ def _receipts_accepted(result: dict, *, channels: set[str], environment: str, re
 def _build_drill_alert(drill: str, drill_id: str, *, resolved: bool, now: datetime | None = None) -> dict:
     definition = DRILL_DEFINITIONS[drill]
     current = now or datetime.now(timezone.utc)
-    ends_at = current - timedelta(seconds=1) if resolved else current + timedelta(seconds=DRILL_ACTIVE_SECONDS)
+    starts_at = current - timedelta(seconds=DRILL_ACTIVE_SECONDS) if resolved else current
+    ends_at = current if resolved else current + timedelta(seconds=DRILL_ACTIVE_SECONDS)
     return {
         "labels": {
             "alertname": definition["alertname"],
@@ -93,7 +94,7 @@ def _build_drill_alert(drill: str, drill_id: str, *, resolved: bool, now: dateti
             "summary": definition["summary"],
             "description": definition["description"],
         },
-        "startsAt": current.isoformat(),
+        "startsAt": starts_at.isoformat(),
         "endsAt": ends_at.isoformat(),
         "generatorURL": "openmates://operational-monitoring/dev-drill",
     }

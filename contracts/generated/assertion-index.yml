@@ -978,7 +978,7 @@ assertions:
       surface: cli
     - &id096
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 70
+      line: 73
       name: test_active_drill_count_requires_exact_run_identity
       surface: cli
     - &id102
@@ -999,27 +999,27 @@ assertions:
     supporting_tests:
     - &id097
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 81
+      line: 84
       name: test_metric_value_reads_only_the_requested_integration
       surface: cli
     - &id098
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 93
+      line: 96
       name: test_delivery_delta_rejects_unrelated_or_failed_requests
       surface: cli
     - &id099
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 103
+      line: 106
       name: test_delivery_requires_two_stable_completed_samples
       surface: cli
     - &id100
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 113
+      line: 116
       name: test_drill_receivers_are_correlated_by_run_identity
       surface: cli
     - &id101
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 137
+      line: 140
       name: test_webhook_receipt_requires_matching_drill_and_lifecycle_status
       surface: cli
     tests:
@@ -1177,7 +1177,7 @@ assertions:
       surface: cli
     - &id123
       path: backend/tests/test_verify_operational_monitoring.py
-      line: 129
+      line: 132
       name: test_drills_accept_only_explicit_development_runtime_values
       surface: cli
     - &id124

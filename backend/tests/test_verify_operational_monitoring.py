@@ -54,6 +54,7 @@ def test_verifier_requires_exact_accepted_environment_and_channels():
 # contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable
 def test_drill_alert_is_explicitly_labeled_and_bounded():
     alert = _build_drill_alert("api-down", "drill-123", resolved=False)
+    resolved = _build_drill_alert("api-down", "drill-123", resolved=True)
 
     assert alert["labels"] == {
         "alertname": "APIDown",
@@ -64,6 +65,8 @@ def test_drill_alert_is_explicitly_labeled_and_bounded():
     }
     assert alert["annotations"]["summary"].startswith("[DEV DRILL]")
     assert alert["startsAt"] < alert["endsAt"]
+    assert resolved["startsAt"] < resolved["endsAt"]
+    assert resolved["endsAt"] <= alert["endsAt"]
 
 
 # contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable
