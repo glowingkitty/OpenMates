@@ -187,7 +187,8 @@ def _login(api_url: str, *, slot: int, timeout: float) -> tuple[str, str, str]:
     import urllib.request
     import uuid
 
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
     session_id = str(uuid.uuid4())
     hashed_email = hash_email(credentials.email)
     status, lookup = post_json(opener, api_url, "/v1/auth/lookup", {"hashed_email": hashed_email}, origin=DEFAULT_ORIGIN, timeout=timeout)
@@ -204,8 +205,7 @@ def _login(api_url: str, *, slot: int, timeout: float) -> tuple[str, str, str]:
     token = login.get("ws_token")
     if status != 200 or login.get("success") is not True or not isinstance(token, str) or not token:
         raise ContractFailure("authenticated session did not provide a WebSocket token")
-    cookies = opener.handlers[0].cookiejar
-    cookie = "; ".join(f"{item.name}={item.value}" for item in cookies)
+    cookie = "; ".join(f"{item.name}={item.value}" for item in cookie_jar)
     if not cookie:
         raise ContractFailure("authenticated session did not provide an HTTP-only cookie")
     return session_id, token, cookie

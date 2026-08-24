@@ -82,6 +82,15 @@ def test_https_is_required_before_websocket_credentials_are_used():
 
 
 # contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated
+def test_login_retains_the_explicit_cookie_jar_instead_of_assuming_handler_order():
+    source = MODULE_PATH.read_text()
+
+    assert "cookie_jar = http.cookiejar.CookieJar()" in source
+    assert "HTTPCookieProcessor(cookie_jar)" in source
+    assert "opener.handlers[0]" not in source
+
+
+# contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated
 def test_websocket_handshake_requires_the_rfc_accept_value(monkeypatch):
     module = load_module()
     key_bytes = b"0123456789abcdef"
