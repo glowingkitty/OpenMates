@@ -55,6 +55,7 @@ def main() -> int:
     parser.add_argument("--send", default="email,discord")
     parser.add_argument("--role", choices=["core", "upload", "preview"], default="core")
     parser.add_argument("--path", type=Path, default=ROOT)
+    parser.add_argument("--evidence-dir", type=Path, default=EVIDENCE_DIR)
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--allow-production", action="store_true")
     args = parser.parse_args()
@@ -94,10 +95,10 @@ def main() -> int:
         "report_sha256": result.get("reportSha256"),
         "receipts": receipts,
     }
-    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
-    evidence_path = EVIDENCE_DIR / f"verification-{args.target}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    args.evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = args.evidence_dir / f"verification-{args.target}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
     evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    print(f"{'PASS' if accepted else 'FAIL'}: {evidence_path.relative_to(ROOT)}")
+    print(f"{'PASS' if accepted else 'FAIL'}: {evidence_path}")
     return 0 if accepted else 1
 
 

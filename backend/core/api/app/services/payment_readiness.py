@@ -17,7 +17,6 @@ EU_PRICE_CATALOG = {
     "10.000 credits": ("eur", 1000, None),
     "21.000 credits": ("eur", 2000, None),
     "54.000 credits": ("eur", 5000, None),
-    "110.000 credits": ("eur", 10000, None),
     "10.500 credits (monthly auto top-up)": ("eur", 1000, "month"),
     "22.000 credits (monthly auto top-up)": ("eur", 2000, "month"),
     "57.000 credits (monthly auto top-up)": ("eur", 5000, "month"),

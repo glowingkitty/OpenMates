@@ -22,6 +22,11 @@ from backend.core.api.app.services.payment_readiness import (
 NOW = datetime(2026, 8, 24, 13, 0, tzinfo=timezone.utc)
 
 
+# contract-test: direct surface=cli assertions=operational-monitoring.billing.no-spend-readiness,billing.purchase.provider-routing
+def test_eu_card_catalog_excludes_bank_transfer_only_tier():
+    assert "110.000 credits" not in EU_PRICE_CATALOG
+
+
 def _passing_inventory(**overrides):
     inventory = {
         "account_access": True,
