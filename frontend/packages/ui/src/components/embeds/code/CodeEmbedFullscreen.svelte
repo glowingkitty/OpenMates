@@ -399,6 +399,7 @@
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
   let persistedRunExecutionId = $state<string | null>(null);
+  let runOutputPersistence: { executionId: string; promise: Promise<void> } | null = null;
 
   interface CodeRunArtifactEmbedChild {
     embed_id: string;
@@ -817,16 +818,25 @@
     return runDisplayEvents.some((event) => event.kind === 'status' && (event.text.startsWith('Exited ') || event.text.startsWith('Cancelled ')));
   }
 
-  async function persistRunOutput() {
-    if (!embedId || !runExecutionId || persistedRunExecutionId === runExecutionId) return;
+  async function persistRunOutput(): Promise<boolean> {
+    if (!embedId || !runExecutionId) return false;
+    const executionId = runExecutionId;
+    if (persistedRunExecutionId === executionId) return true;
+    if (runOutputPersistence?.executionId === executionId) {
+      try {
+        await runOutputPersistence.promise;
+        return persistedRunExecutionId === executionId;
+      } catch {
+        return false;
+      }
+    }
     if (!chatId) {
       console.warn('[CodeEmbedFullscreen] Cannot sync Code Run output without chatId');
-      return;
+      return false;
     }
     const outputText = compactRunOutputText();
-    if (!outputText || !compactRunOutputHasFinalLine()) return;
+    if (!outputText || !compactRunOutputHasFinalLine()) return false;
 
-    persistedRunExecutionId = runExecutionId;
     const savedAt = Date.now();
     const now = Math.floor(savedAt / 1000);
     const outputId = savedRunOutput?.id ?? crypto.randomUUID();
@@ -834,12 +844,12 @@
     const plainEvents = cloneRunEvents(runDisplayEvents);
     const plainArtifacts = mergeCodeRunArtifactHistory(savedRunOutput?.artifacts, runArtifacts, Math.floor(savedAt / 1000));
     const plainSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(runSkippedArtifacts);
-    try {
+    const persistence = (async () => {
       const children = await materializeCodeRunArtifactChildren({
         artifacts: plainArtifacts,
         parentEmbedId: embedId,
         chatId,
-        sourceExecutionId: runExecutionId,
+        sourceExecutionId: executionId,
       });
       runArtifactChildIds = children.map((child) => child.embedId);
       await sendUpsertCodeRunOutputImpl({
@@ -856,6 +866,11 @@
         created_at: now,
         updated_at: now,
       });
+    })();
+    runOutputPersistence = { executionId, promise: persistence };
+    try {
+      await persistence;
+      persistedRunExecutionId = executionId;
       savedRunOutput = {
         id: outputId,
         text: outputText,
@@ -868,9 +883,12 @@
       };
       runArtifacts = plainArtifacts;
       runSkippedArtifacts = plainSkippedArtifacts;
+      return true;
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
-      persistedRunExecutionId = null;
+      return false;
+    } finally {
+      if (runOutputPersistence?.executionId === executionId) runOutputPersistence = null;
     }
   }
 
@@ -1266,11 +1284,13 @@
     runError = status.error || null;
   }
 
-  async function syncAuthoritativeRunStatus(status: CodeRunStatus) {
+  async function syncAuthoritativeRunStatus(status: CodeRunStatus, executionId: string) {
+    if (runExecutionId !== executionId) return;
     syncRunStatus(status);
     if (!TERMINAL_RUN_STATUSES.has(status.status)) return;
     await tick();
-    await persistRunOutput();
+    if (runExecutionId !== executionId) return;
+    if (!await persistRunOutput()) await persistRunOutput();
   }
 
   function applyRunUpdate(update: Partial<CodeRunStatus>) {
@@ -1299,7 +1319,7 @@
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data) as CodeRunStreamMessage;
       if (message.type === 'code_run_snapshot') {
-        void syncAuthoritativeRunStatus(message.payload);
+        void syncAuthoritativeRunStatus(message.payload, executionId);
         return;
       }
       if (message.type === 'code_run_update') {
@@ -1328,7 +1348,7 @@
   async function pollRunStatus(executionId: string) {
     try {
       const status = await getCodeRunStatus(executionId);
-      await syncAuthoritativeRunStatus(status);
+      await syncAuthoritativeRunStatus(status, executionId);
       if (!TERMINAL_RUN_STATUSES.has(status.status)) {
         runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
       }
