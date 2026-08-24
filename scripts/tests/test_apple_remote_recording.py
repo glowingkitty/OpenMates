@@ -45,6 +45,8 @@ def test_recording_command_owns_video_result_bundle_and_cleanup() -> None:
     assert "-resultBundlePath" in command
     assert "result.xcresult" in command
     assert "xcresulttool" in command
+    assert '"console"' in command
+    assert "console.log" in command
     assert "finally:" in command
     assert "recorder.send_signal(signal.SIGINT)" in command
     assert "artifact-manifest.json" in command

@@ -115,6 +115,7 @@ run_dir = root / "test-results" / "apple-recordings" / run_id
 run_dir.mkdir(parents=True, exist_ok=False)
 raw_video = run_dir / "raw.mov"
 result_bundle = run_dir / "result.xcresult"
+console_log = run_dir / "console.log"
 attachments = run_dir / "attachments"
 manifest_path = run_dir / "artifact-manifest.json"
 archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
@@ -189,6 +190,14 @@ if result_bundle.exists():
         text=True,
         check=False,
     )
+    with console_log.open("w", encoding="utf-8") as handle:
+        subprocess.run(
+            ["xcrun", "xcresulttool", "get", "log", "--path", str(result_bundle), "--type", "console"],
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
 
 timeline = None
 for candidate in attachments.rglob("*.json"):
