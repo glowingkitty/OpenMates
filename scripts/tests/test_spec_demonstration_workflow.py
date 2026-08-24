@@ -126,7 +126,7 @@ def write_passed_manifest(
                 "narration_audio": {"status": "passed", "provider": "elevenlabs", "model": "eleven_flash_v2_5"},
                 "video_metadata": {"has_audio": True},
                 "review": {"status": "passed", "run_id": "review-1", "attempt_count": 1},
-                "publication": {"status": "delivered"},
+                "publication": {"status": "delivered", "snippet_html": "<video controls></video>"},
             }
         ),
         encoding="utf-8",
@@ -215,7 +215,7 @@ def test_verifier_rejects_missing_required_demonstration_evidence(tmp_path: Path
     assert any("demonstration" in failure and "passing" in failure for failure in failures)
 
 
-def test_verifier_accepts_user_waived_required_demonstration(tmp_path: Path) -> None:
+def test_verifier_rejects_user_waived_required_demonstration(tmp_path: Path) -> None:
     spec_verify = load_module("spec_verify")
     evidence = """  evidence:
     status: waived
@@ -234,7 +234,9 @@ def test_verifier_accepts_user_waived_required_demonstration(tmp_path: Path) -> 
 """
     path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), required_demonstration(evidence=evidence)))
 
-    assert spec_verify.verify_spec(path, require_red=False, require_green=True) == []
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("cannot waive" in failure for failure in failures)
 
 
 def test_verifier_rejects_user_waived_demonstration_without_actor(tmp_path: Path) -> None:
@@ -257,7 +259,42 @@ def test_verifier_rejects_user_waived_demonstration_without_actor(tmp_path: Path
 
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
-    assert any("waived evidence missing actor" in failure for failure in failures)
+    assert any("cannot waive" in failure for failure in failures)
+
+
+def test_verifier_rejects_implemented_spec_without_demonstration(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    path = write_spec(tmp_path, schema_v2_spec())
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("every implemented executable spec" in failure for failure in failures)
+
+
+def test_verifier_rejects_publication_without_embeddable_snippet(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    manifest_path, _ = write_passed_manifest(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["publication"] = {"status": "delivered"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    immutable = dict(manifest)
+    immutable.pop("publication")
+    manifest_hash = "sha256:" + hashlib.sha256(
+        json.dumps(immutable, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    path = write_spec(
+        tmp_path,
+        with_demonstration(
+            schema_v2_spec(),
+            required_demonstration(
+                evidence=passed_evidence(manifest_path=manifest_path, manifest_hash=manifest_hash)
+            ),
+        ),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("embeddable response-media snippet" in failure for failure in failures)
 
 
 def test_verifier_accepts_current_review_with_delivered_discord_publication(tmp_path: Path) -> None:
@@ -408,7 +445,7 @@ def test_verifier_rejects_recorded_publication_status_that_differs_from_manifest
     spec_verify = load_module("spec_verify")
     manifest_path, manifest_hash = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["publication"] = {"status": "delivered", "message_id": "msg-1"}
+    manifest["publication"] = {"status": "delivered", "snippet_html": "<video controls></video>"}
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     path = write_spec(
         tmp_path,

@@ -132,6 +132,10 @@ For full specs:
     after review and embed the returned Markdown/HTML snippet in the final
     OpenCode response. Do not send proof media to Discord unless the user
     explicitly asks for a separate Discord mirror.
+    Every implemented executable spec must include the delivered response-media
+    `<video>` snippets for all changed observable product surfaces in the same task-closing assistant response.
+    Paths, links, screenshots, and completion
+    claims do not satisfy this response-embedding gate.
 17. For raw run evidence, every `*.spec.ts` run and every real OpenMates CLI E2E
     run must surface its latest-run video in the assistant response. Use the
     `--latest-run-type` response-media path emitted by `scripts/tests.py run` or

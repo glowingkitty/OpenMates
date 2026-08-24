@@ -135,14 +135,17 @@ OPENCODE_PROOF_REVIEWER_TERMS = {
     "external_directory: deny",
 }
 INSTRUCTION_TERMS = {
-    "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed", "Every implemented executable spec", "snippet_html", "same task-closing assistant response"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
-    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E", "Agent Workflow Retrospective", "task-closing", "None observed"},
+    "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E", "Agent Workflow Retrospective", "task-closing", "None observed", "Every implemented executable spec", "snippet_html", "same task-closing response"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",
+        "complete: true",
+        "snippet_html",
+        "same response",
     },
-    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E"},
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2", "UI visual smoke", "viewports: [laptop, mobile]", "demonstration review", "narration audio is optional", "publication_pending", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E", "Every implemented executable spec", "same task-closing assistant response"},
 }
 OPENCODE_COORDINATION_TERMS = {
     "OPENCODE_SESSION_ID",

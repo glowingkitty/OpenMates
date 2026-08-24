@@ -98,6 +98,10 @@ Pass only when:
   evidence. The review bundle contains captions and selected images but never the
   full video. Missing response-media snippets block completion without invalidating
   a passed implementation or review.
+- Every implemented executable spec requires proof videos for each changed
+  observable product surface. Before a success final response, require complete
+  verification and paste every delivered publication `snippet_html` verbatim into
+  that same response; paths, links, screenshots, and prose claims are insufficient.
 
 Failed required checks must not be treated as a summary-only issue. The report
 must identify the affected acceptance criteria and confirm that follow-up tasks

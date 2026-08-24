@@ -54,6 +54,10 @@ run, use the helper's `--latest-run-type` path through `scripts/tests.py run` or
 assistant response. These latest-run uploads overwrite stable S3 keys under
 `opencode-responses/latest/` so only the latest video for each run type remains
 stored in response media.
+Every implemented executable spec requires its success response to include the
+delivered `snippet_html` for every required CLI, web, and native proof video in
+that same task-closing response. Do not replace embedded `<video>` elements with
+artifact paths, links, screenshots, or prose saying the proof was produced.
 External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
 When a screenshot or short clip materially helps the user understand a visual UI
 state, bug fix, visual-smoke result, proof-video, or implementation defect,
@@ -112,6 +116,9 @@ ask-gated; use it only when repo docs, browser/Playwright evidence, or ordinary
 web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
+Before a success final for executable-spec work, run `python3 scripts/spec_verify.py
+<spec> --phase complete --json`, require `complete: true`, and paste every delivered
+proof-video `snippet_html` verbatim into the response.
 
 When a final answer needs more than one sentence, use a scan-first layout. Start
 with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or

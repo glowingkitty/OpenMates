@@ -193,20 +193,17 @@ def _manifest_evidence_hash(manifest: dict[str, Any]) -> str:
 def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     demonstration = data.get("demonstration")
     if not isinstance(demonstration, dict):
-        return []
+        return ["demonstration: every implemented executable spec requires embedded proof-video evidence"]
     eligibility = demonstration.get("eligibility")
     if not isinstance(eligibility, dict) or eligibility.get("status") != "required":
-        return []
+        return ["demonstration: implemented executable specs cannot complete without required proof-video evidence"]
     evidence = demonstration.get("evidence")
     if not isinstance(evidence, dict):
         return ["demonstration: missing required passing evidence"]
 
     failures: list[str] = []
     if evidence.get("status") == "waived":
-        for field in ("timestamp", "reason", "actor"):
-            if not isinstance(evidence.get(field), str) or not evidence[field].strip():
-                failures.append(f"demonstration: waived evidence missing {field}")
-        return failures
+        return ["demonstration: implemented executable specs cannot waive embedded proof-video evidence"]
 
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")
@@ -252,6 +249,11 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
                 review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
                 audio = manifest.get("narration_audio") if isinstance(manifest.get("narration_audio"), dict) else {}
                 publication = manifest.get("publication") if isinstance(manifest.get("publication"), dict) else {}
+                if not any(
+                    isinstance(publication.get(field), str) and publication[field].strip()
+                    for field in ("snippet_html", "snippet_markdown")
+                ):
+                    failures.append("demonstration: publication manifest is missing an embeddable response-media snippet")
                 if audio.get("status") == "passed":
                     if audio.get("provider") != "elevenlabs" or audio.get("model") != "eleven_flash_v2_5":
                         failures.append("demonstration: narration audio must use ElevenLabs eleven_flash_v2_5")

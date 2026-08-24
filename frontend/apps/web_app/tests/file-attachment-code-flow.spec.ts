@@ -21,10 +21,67 @@ const {
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
 const CODE_RUN_REQUESTS_PY = path.join(__dirname, 'fixtures', 'code_run_requests.py');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+
+const CODE_RUN_PROOF_CONTRACT = defineVideoProof({
+	id: 'code-run-terminal-artifact-history',
+	title: 'Run code and keep generated artifacts',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'request-visible',
+			text: 'A Python file is attached in a saved OpenMates chat and opened in the code workspace.',
+			checkpoint: 'request-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'result-visible',
+			text: 'Code Run executes the file in its sandbox, shows the terminal result, and captures outputs/result.txt for download.',
+			checkpoint: 'result-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'history-visible',
+			text: 'Running the same code again keeps one artifact card and adds the earlier result to previous versions.',
+			checkpoint: 'history-visible',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'code-run.request.visible',
+			checkpoint: 'request-visible',
+			visual: 'The saved chat visibly contains the Python code embed without raw JSON or implementation error text.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'code-run.result.visible',
+			checkpoint: 'result-visible',
+			visual: 'The Code Run terminal shows Hello, World!, a successful exit, and one outputs/result.txt artifact card.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'code-run.history.visible',
+			checkpoint: 'history-visible',
+			visual: 'The rerun still shows one outputs/result.txt artifact card with an expanded previous-versions section.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
+
+async function captureBrowserProofFrame(page: any): Promise<Buffer> {
+	return page.screenshot({ type: 'png' });
+}
 
 async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
   const zip = new JSZip();
@@ -101,6 +158,7 @@ async function waitForCodeRunSurface(page: any, fileSelection: any, terminal: an
 	throw new Error('Code Run did not show file selection or terminal output in time.');
 }
 
+// contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
 test('uploaded Python file renders as code embed without JSON leakage', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -162,10 +220,16 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
-test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }) => {
+// contract-test: direct surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.output.chat-bound-encrypted,code-run.artifacts.encrypted-indexed,code-run.artifacts.chat-bound-versioned,code-run.surface-parity
+test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const proof = IS_PROOF_CAPTURE ? createVideoProofRuntime(CODE_RUN_PROOF_CONTRACT, {
+		device: PROOF_DEVICE,
+		attach: testInfo.attach.bind(testInfo),
+		captureFrame: () => captureBrowserProofFrame(page)
+	}) : null;
 
 	const log = createSignupLogger('FILE_ATTACH_CODE_RUN_OUTPUT_PREVIEW');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-code-run-output' });
@@ -197,6 +261,14 @@ test('code run output becomes the default code embed preview after reload', asyn
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
 	);
 	await expect(chatCodeEmbed).toBeVisible({ timeout: 20000 });
+	if (proof) {
+		await proof.assert('code-run.request.visible', async () => {
+			await expect(chatCodeEmbed).toBeVisible();
+			await expect(userMessage).not.toContainText('```json');
+			await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
+		});
+		await proof.checkpoint('request-visible');
+	}
 
 	const fullscreenOverlay = await openEmbedFullscreen(page, chatCodeEmbed);
 	await fullscreenOverlay.getByTestId('embed-run-button').click();
@@ -222,6 +294,40 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
 	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Copy output');
 	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Run again');
+	const artifacts = fullscreenOverlay.getByTestId('code-run-artifacts');
+	const artifactCards = artifacts.getByTestId('code-run-artifact');
+	await expect(artifacts).toBeVisible({ timeout: 120000 });
+	await expect(artifactCards).toHaveCount(1);
+	await expect(artifactCards.first()).toContainText('outputs/result.txt');
+	await expect(artifactCards.first().getByTestId('code-run-artifact-download')).toBeVisible();
+	if (proof) {
+		await artifacts.scrollIntoViewIfNeeded();
+		await proof.assert('code-run.result.visible', async () => {
+			await expect(terminal).toContainText('Hello, World!');
+			await expect(terminal).toContainText('Exited');
+			await expect(artifactCards).toHaveCount(1);
+			await expect(artifactCards.first()).toContainText('outputs/result.txt');
+		});
+		await proof.checkpoint('result-visible');
+	}
+
+	await fullscreenOverlay.getByTestId('code-run-action-run-again').click();
+	await expect(terminal).toContainText('Queued code run', { timeout: 10000 });
+	await expect(terminal).toContainText('Exited', { timeout: 120000 });
+	await expect(artifactCards).toHaveCount(1, { timeout: 120000 });
+	const artifactHistory = artifactCards.first().getByTestId('code-run-artifact-history');
+	await expect(artifactHistory).toBeVisible({ timeout: 30000 });
+	await artifactHistory.locator('summary').click();
+	await expect(artifactHistory).toContainText('outputs/result.txt');
+	if (proof) {
+		await artifacts.scrollIntoViewIfNeeded();
+		await proof.assert('code-run.history.visible', async () => {
+			await expect(artifactCards).toHaveCount(1);
+			await expect(artifactHistory).toBeVisible();
+			await expect(artifactHistory).toContainText('outputs/result.txt');
+		});
+		await proof.checkpoint('history-visible');
+	}
 	await stopActiveResponseIfNeeded(page, log);
 	await screenshot(page, 'code-run-output-visible-fullscreen');
 	await fullscreenOverlay.getByTestId('code-run-view-code').click();
@@ -249,16 +355,20 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await reloadedFullscreenOverlay.getByTestId('embed-run-button').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toBeVisible({ timeout: 10000 });
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toContainText('Hello, World!', { timeout: 10000 });
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact')).toHaveCount(1);
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact-history')).toBeVisible();
 	await reloadedFullscreenOverlay.getByTestId('code-run-view-code').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-overlay')).not.toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'code-run-output-visible-after-reload');
 	await reloadedFullscreenOverlay.getByTestId('embed-minimize').click();
 	await expect(reloadedFullscreenOverlay).not.toBeVisible({ timeout: 10000 });
 	log('Code embed preview still shows run output after reload.');
+	if (proof) await proof.attach();
 
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send,pii.composer.detect-redact-exclude,pii.surface.semantic-parity
 test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', async ({
 	page
 }: {
