@@ -23,8 +23,10 @@ full video. Do not inspect source code or propose implementation patches.
 
 For every approved assertion, cite the frame paths that support or contradict it.
 Independently inspect every frame for incidental visual-integrity defects, including
-clipping, overlap, overflow, wrong geometry or colors, stale loading, raw
-implementation text, broken navigation, or apparently unresponsive controls.
+clipping, overlap, overflow, wrong geometry or colors, low contrast or unreadable
+text, stale loading, raw implementation text, broken navigation, broken icons
+rendered as generic square shapes, missing icons where sibling actions visibly
+have icons, or apparently unresponsive controls.
 An assertion may be supported while an incidental product defect still blocks the
 overall review.
 Classify the overall result as exactly one of `passed`, `capture_defect`,
@@ -33,7 +35,7 @@ Classify the overall result as exactly one of `passed`, `capture_defect`,
 Use `capture_defect` for missing transitions, unexplained scroll state, or wrong
 recorded state. Use `render_defect` for blank opening, incorrect cue timing relative to visible evidence,
 or composition introduced after capture. Do not expect captions to appear in the frames; WebVTT syntax and player rendering are checked deterministically. Use `product_defect` for visibly clipped,
-broken, stale, incorrect, or unresponsive product UI/CLI/native behavior. Do not
+broken, stale, unreadable, incorrect, or unresponsive product UI/CLI/native behavior. Do not
 recommend cropping, trimming, or rewriting captions to conceal product defects.
 
 Return only this JSON shape:
@@ -55,7 +57,7 @@ Return only this JSON shape:
   "incidental_findings": [
     {
       "id": "UI-1",
-      "category": "clipping|overlap|overflow|geometry|color|loading|raw_text|navigation|responsiveness|other",
+      "category": "clipping|overlap|overflow|geometry|color|contrast|icon|loading|raw_text|navigation|responsiveness|other",
       "severity": "blocking|warning",
       "confidence": 0.0,
       "frames": ["path/to/frame.png"],

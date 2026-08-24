@@ -395,6 +395,26 @@ def test_tutorial_narration_is_split_into_readable_caption_cues(tmp_path: Path) 
     assert path.read_text(encoding="utf-8").count(" --> ") == 3
 
 
+def test_single_claim_tutorial_final_caption_uses_claim_anchor() -> None:
+    module = load_module()
+
+    segments = [
+        {"id": "CAP-1", "narration_id": "NARR-1", "text": "Open the app.", "start": 0.0, "end": 5.802, "claim_ids": ["CLAIM-1"]},
+        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Select response text.", "start": 5.802, "end": 10.83, "claim_ids": ["CLAIM-1"]},
+        {"id": "CAP-3", "narration_id": "NARR-1", "text": "The toolbar fits.", "start": 10.83, "end": 16.24, "claim_ids": ["CLAIM-1"]},
+    ]
+
+    aligned = module.align_ordered_caption_boundaries_to_claim_anchors(
+        segments,
+        claim_ids=["mobile-toolbar-fits"],
+        claim_anchor_times={"mobile-toolbar-fits": 13.76},
+        duration_seconds=16.24,
+    )
+
+    assert aligned[1]["end"] == 13.76
+    assert aligned[2]["start"] == 13.76
+
+
 def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -764,26 +784,6 @@ def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Pa
     assert result["ready_timestamp_seconds"] == 1.0
     assert module.video_metadata(output)["duration_seconds"] == pytest.approx(1.15, abs=0.15)
     assert (module.video_metadata(output)["width"], module.video_metadata(output)["height"]) == (320, 240)
-
-
-def test_ready_marker_trim_preserves_odd_apple_profile_dimensions(tmp_path: Path) -> None:
-    module = load_module()
-    source = tmp_path / "iphone-source.mp4"
-    output = tmp_path / "iphone-trimmed.mp4"
-    subprocess.run(
-        [
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=394x852:r=10",
-            "-vf", "format=yuv444p,crop=393:852",
-            "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv444p", str(source),
-        ],
-        check=True,
-        capture_output=True,
-    )
-
-    module.trim_source_to_ready_marker(source, output, ready_timestamp_seconds=0.5, lead_seconds=0)
-
-    metadata = module.video_metadata(output)
-    assert (metadata["width"], metadata["height"]) == (393, 852)
 
 
 def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> None:

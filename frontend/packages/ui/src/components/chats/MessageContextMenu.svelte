@@ -314,7 +314,7 @@
                 data-testid="chat-context-copy-link"
                 onclick={(event) => handleAction('copy_link', event)}
             >
-                <div class="clickable-icon icon_link"></div>
+                <div class="clickable-icon icon_share"></div>
                 {$text('enter_message.press_and_hold_menu.copy_link')}
             </button>
         {/if}
@@ -459,7 +459,7 @@
         gap: var(--spacing-3);
         padding: var(--spacing-4) var(--spacing-8);
         margin-bottom: var(--spacing-2);
-        color: var(--color-grey-50);
+        color: var(--color-font-secondary);
         font-size: var(--font-size-xxs);
         font-variant-numeric: tabular-nums;
         border-bottom: 1px solid var(--color-grey-30);
@@ -468,7 +468,7 @@
     .message-credits .clickable-icon {
         width: 14px;
         height: 14px;
-        background: var(--color-grey-50);
+        background: var(--color-font-secondary);
     }
 
     /* Position menu above clicked point (default) */
@@ -521,7 +521,7 @@
         transition: background-color var(--duration-normal) var(--easing-default);
         width: 100%;
         box-sizing: border-box;
-        color: white;
+        color: var(--color-font-primary);
         /* iOS-specific touch improvements */
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
@@ -572,16 +572,16 @@
     }
 
     .menu-item.fork {
-        color: white;
+        color: var(--color-font-primary);
     }
 
     .menu-item.fork .clickable-icon {
-        background-color: white;
+        background-color: var(--color-font-primary);
     }
 
     /* Highlight + Highlight-and-comment: yellow-tinted icon so the action is
-       visually associated with the yellow annotation layer. Label stays white
-       to keep the menu readable on the dark background. */
+       visually associated with the yellow annotation layer. Labels inherit the
+       theme foreground so light-mode menus remain readable. */
     .menu-item.highlight .clickable-icon,
     .menu-item.highlight-and-comment .clickable-icon {
         background-color: var(--color-highlight-yellow-solid, #ffd500);
@@ -616,7 +616,7 @@
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
-        background-color: white;
+        background-color: var(--color-font-primary);
     }
 
     .remember-menu-icon {
